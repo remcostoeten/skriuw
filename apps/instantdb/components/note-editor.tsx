@@ -42,6 +42,7 @@ export function NoteEditor({ note, onNoteSelect }: NoteEditorProps) {
   }));
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -150,7 +151,7 @@ export function NoteEditor({ note, onNoteSelect }: NoteEditorProps) {
 
         {/* WYSIWYG Content Editor */}
         <div className="mb-8">
-          <EditorContent editor={editor} />
+          {editor && <EditorContent editor={editor} />}
 
           {/* Tasks Section */}
           <div className="pt-8 border-t border-border/50">
