@@ -115,7 +115,15 @@ export function NotesView() {
           </Button>
         )}
         {selectedNote ? (
-          <NoteEditor note={selectedNote} />
+          <NoteEditor 
+            note={selectedNote}
+            onNoteSelect={(noteId) => {
+              const referencedNote = notes.find((n) => n.id === noteId);
+              if (referencedNote) {
+                setSelectedNote(referencedNote);
+              }
+            }}
+          />
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             <p className="text-sm">Select a note or create a new one</p>

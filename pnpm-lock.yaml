@@ -41,6 +41,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.0.2
         version: 2.3.3
+      '@tiptap/extension-mention':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)(@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
       '@tiptap/extension-placeholder':
         specifier: ^3.9.1
         version: 3.9.1(@tiptap/extensions@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
@@ -53,6 +56,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.9.1
         version: 3.9.1
+      '@tiptap/suggestion':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -74,6 +80,9 @@ importers:
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.0
+      tippy.js:
+        specifier: ^6.3.7
+        version: 6.3.7
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.0
@@ -132,6 +141,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.0.2
         version: 2.3.3
+      '@tiptap/extension-mention':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)(@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
       '@tiptap/extension-placeholder':
         specifier: ^3.9.1
         version: 3.9.1(@tiptap/extensions@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
@@ -144,6 +156,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.9.1
         version: 3.9.1
+      '@tiptap/suggestion':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -165,6 +180,9 @@ importers:
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.0
+      tippy.js:
+        specifier: ^6.3.7
+        version: 6.3.7
     devDependencies:
       '@eslint/js':
         specifier: ^9.36.0
@@ -1179,6 +1197,9 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
+  '@popperjs/core@2.11.8':
+    resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
+
   '@radix-ui/number@1.1.1':
     resolution: {integrity: sha512-MkKCwxlXTgz6CFoJx3pCwn07GKp36+aZyu/u2Ln2VrA5DcdyCZkASEDBTd8x5whTQQL5CiYf4prXKLcgQdv29g==}
 
@@ -1901,6 +1922,13 @@ packages:
       '@tiptap/core': ^3.9.1
       '@tiptap/pm': ^3.9.1
 
+  '@tiptap/extension-mention@3.9.1':
+    resolution: {integrity: sha512-JF+QV2OMlx9LMOaBTEiHcaR3IwwwIX9QB4ddDGVRxWAZJZzbHpvn4j8MEDXtsnLNe+RfX5iGI7ggG+FCCL60LA==}
+    peerDependencies:
+      '@tiptap/core': ^3.9.1
+      '@tiptap/pm': ^3.9.1
+      '@tiptap/suggestion': ^3.9.1
+
   '@tiptap/extension-ordered-list@3.9.1':
     resolution: {integrity: sha512-EOq7D/aX8xFrLcGZnGMxWWHlwZWfuVjwTSqjtyPJ6voYTzgfkbsvAbx1tGTwOMK4dk1S9wno6QHVj1ifzzBJcQ==}
     peerDependencies:
@@ -1957,6 +1985,12 @@ packages:
 
   '@tiptap/starter-kit@3.9.1':
     resolution: {integrity: sha512-qnrb02VioVb1/MJyzMUw5+73/uA5GNtSBiA+n1BX36o5aCq51zZajU0z7Nm/9+JgHRFm0rlPDP0rFhmvxQ+vrg==}
+
+  '@tiptap/suggestion@3.9.1':
+    resolution: {integrity: sha512-+fB91280PI11vWlEAY9ny0W05r+MCQKWq2FhhZzPq1no92V2G9PC7HH7VX8rpkHaipdh1j++4v3UNnH37JmEAQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.9.1
+      '@tiptap/pm': ^3.9.1
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -3992,6 +4026,9 @@ packages:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
 
+  tippy.js@6.3.7:
+    resolution: {integrity: sha512-E1d3oP2emgJ9dRQZdf3Kkn0qJgI6ZLpyS5z6ZkY1DF3kaQaBsGZsndEpHwx+eC+tYM41HaSNvNtLx8tU57FzTQ==}
+
   tmp@0.0.33:
     resolution: {integrity: sha512-jRCJlojKnZ3addtTOjdIqoRuPEKBvNXcGYqzO6zWZX8KfKEpnGY5jfggJQ3EjKuu8D4bJRr0y+cYJFmYbImXGw==}
     engines: {node: '>=0.6.0'}
@@ -5007,6 +5044,8 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
+  '@popperjs/core@2.11.8': {}
+
   '@radix-ui/number@1.1.1': {}
 
   '@radix-ui/primitive@1.1.3': {}
@@ -5606,6 +5645,12 @@ snapshots:
       '@tiptap/core': 3.9.1(@tiptap/pm@3.9.1)
       '@tiptap/pm': 3.9.1
 
+  '@tiptap/extension-mention@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)(@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))':
+    dependencies:
+      '@tiptap/core': 3.9.1(@tiptap/pm@3.9.1)
+      '@tiptap/pm': 3.9.1
+      '@tiptap/suggestion': 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
+
   '@tiptap/extension-ordered-list@3.9.1(@tiptap/extension-list@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))':
     dependencies:
       '@tiptap/extension-list': 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
@@ -5702,6 +5747,11 @@ snapshots:
       '@tiptap/extension-text': 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))
       '@tiptap/extension-underline': 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))
       '@tiptap/extensions': 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
+      '@tiptap/pm': 3.9.1
+
+  '@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)':
+    dependencies:
+      '@tiptap/core': 3.9.1(@tiptap/pm@3.9.1)
       '@tiptap/pm': 3.9.1
 
   '@tybys/wasm-util@0.10.1':
@@ -8092,6 +8142,10 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
+
+  tippy.js@6.3.7:
+    dependencies:
+      '@popperjs/core': 2.11.8
 
   tmp@0.0.33:
     dependencies:

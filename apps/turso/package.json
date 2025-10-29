@@ -22,17 +22,20 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-shell": "^2.0.2",
+    "@tiptap/extension-mention": "^3.9.1",
     "@tiptap/extension-placeholder": "^3.9.1",
     "@tiptap/extension-typography": "^3.9.1",
     "@tiptap/react": "^3.9.1",
     "@tiptap/starter-kit": "^3.9.1",
+    "@tiptap/suggestion": "^3.9.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.36.4",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

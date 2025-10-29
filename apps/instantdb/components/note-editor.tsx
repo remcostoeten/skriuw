@@ -6,7 +6,9 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
+import Mention from '@tiptap/extension-mention';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
+import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import { useGetTasks } from '@/modules/tasks/api/queries/get-tasks';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create';
 import { useUpdateTask } from '@/modules/tasks/api/mutations/update';
@@ -15,20 +17,29 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Note } from '@/lib/db/schema';
+import { createMentionSuggestion } from '@/lib/mention-suggestion';
 
 interface NoteEditorProps {
   note: Note;
+  onNoteSelect?: (noteId: string) => void;
 }
 
-export function NoteEditor({ note }: NoteEditorProps) {
+export function NoteEditor({ note, onNoteSelect }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
   const [newTaskContent, setNewTaskContent] = useState('');
 
   const { updateNote } = useUpdateNote();
+  const { notes } = useGetNotes();
   const { tasks } = useGetTasks(note.id);
   const { createTask } = useCreateTask();
   const { updateTask } = useUpdateTask();
   const { destroyTask } = useDestroyTask();
+
+  // Filter out current note from mention suggestions
+  const availableNotes = notes.filter((n) => n.id !== note.id).map((n) => ({
+    id: n.id,
+    title: n.title || 'Untitled',
+  }));
 
   const editor = useEditor({
     extensions: [
@@ -38,21 +49,51 @@ export function NoteEditor({ note }: NoteEditorProps) {
         },
       }),
       Placeholder.configure({
-        placeholder: 'Start writing... Type ## for headings, **bold**, *italic*, - for lists...',
+        placeholder: 'Start writing... Type @ to link notes, ## for headings, **bold**, *italic*, - for lists...',
       }),
       Typography,
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'mention',
+        },
+        suggestion: createMentionSuggestion(availableNotes),
+        renderHTML({ options, node }) {
+          return [
+            'a',
+            {
+              ...options.HTMLAttributes,
+              'data-mention-id': node.attrs.id,
+              'href': '#',
+              'class': 'mention',
+            },
+            `@${node.attrs.label ?? node.attrs.id}`,
+          ];
+        },
+      }),
     ],
     content: note.content,
     editorProps: {
       attributes: {
         class: 'tiptap focus:outline-none min-h-[300px]',
       },
+      handleClick(_view, _pos, event) {
+        const target = event.target as HTMLElement;
+        if (target.classList.contains('mention')) {
+          event.preventDefault();
+          const mentionId = target.getAttribute('data-mention-id');
+          if (mentionId && onNoteSelect) {
+            onNoteSelect(mentionId);
+          }
+          return true;
+        }
+        return false;
+      },
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       updateNote(note.id, { content: html });
     },
-  });
+  }, [availableNotes, note.id, onNoteSelect]);
 
   useEffect(() => {
     setTitle(note.title);
