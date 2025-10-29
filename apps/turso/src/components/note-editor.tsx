@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Typography from '@tiptap/extension-typography';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update-note';
 import { useTasks } from '@/modules/tasks/api/queries/get-tasks';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create-task';
@@ -18,9 +21,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({ note, onUpdate }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content);
   const [newTaskContent, setNewTaskContent] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { updateNote } = useUpdateNote();
   const { data: tasks, refetch: refetchTasks } = useTasks(note.id);
@@ -28,27 +29,41 @@ export function NoteEditor({ note, onUpdate }: NoteEditorProps) {
   const { updateTask } = useUpdateTask();
   const { deleteTask } = useDeleteTask();
 
-  useEffect(() => {
-    setTitle(note.title);
-    setContent(note.content);
-  }, [note.id]);
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Placeholder.configure({
+        placeholder: 'Start writing... Type ## for headings, **bold**, *italic*, - for lists...',
+      }),
+      Typography,
+    ],
+    content: note.content,
+    editorProps: {
+      attributes: {
+        class: 'tiptap focus:outline-none min-h-[300px]',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      updateNote(note.id, { content: html });
+      onUpdate();
+    },
+  });
 
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    setTitle(note.title);
+    if (editor && note.content !== editor.getHTML()) {
+      editor.commands.setContent(note.content);
     }
-  }, [content]);
+  }, [note.id, note.content, editor]);
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
     await updateNote(note.id, { title: newTitle });
-    onUpdate();
-  };
-
-  const handleContentChange = async (newContent: string) => {
-    setContent(newContent);
-    await updateNote(note.id, { content: newContent });
     onUpdate();
   };
 
@@ -97,60 +112,9 @@ export function NoteEditor({ note, onUpdate }: NoteEditorProps) {
           })}
         </div>
 
-        {/* Content Editor and Live Preview */}
-        <div className="space-y-8">
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full bg-transparent border-none outline-none resize-none text-base leading-relaxed placeholder:text-muted-foreground/30 min-h-[300px]"
-              placeholder="Start writing... (markdown supported)
-
-# Heading 1
-## Heading 2
-**bold** *italic*
-- List item
-1. Numbered list
-[link](url)
-`code`"
-            />
-          </div>
-
-          {/* Live Markdown Preview */}
-          {content && (
-            <div className="prose prose-invert prose-neutral max-w-none">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-4">Preview</div>
-              <ReactMarkdown
-                className="markdown-preview"
-                components={{
-                  h1: ({ children }) => <h1 className="text-3xl font-bold mb-4 mt-8">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-2xl font-semibold mb-3 mt-6">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-xl font-semibold mb-2 mt-4">{children}</h3>,
-                  p: ({ children }) => <p className="mb-4 leading-relaxed">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
-                  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                  code: ({ children }) => (
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
-                  ),
-                  pre: ({ children }) => (
-                    <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>
-                  ),
-                  a: ({ href, children }) => (
-                    <a href={href} className="text-primary underline hover:no-underline">
-                      {children}
-                    </a>
-                  ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>
-                  ),
-                }}
-              >
-                {content}
-              </ReactMarkdown>
-            </div>
-          )}
+        {/* WYSIWYG Content Editor */}
+        <div className="mb-8">
+          <EditorContent editor={editor} />
 
           {/* Tasks Section */}
           <div className="pt-8 border-t border-border/50">
