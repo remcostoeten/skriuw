@@ -1,0 +1,18 @@
+{
+  "name": "tauri-local-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo with Turso and InstantDB MVPs for local-first note-taking app",
+  "scripts": {
+    "dev:turso": "pnpm --filter turso-app dev",
+    "dev:instantdb": "pnpm --filter instantdb-app dev",
+    "build:turso": "pnpm --filter turso-app build",
+    "build:instantdb": "pnpm --filter instantdb-app build",
+    "tauri:turso": "pnpm --filter turso-app tauri dev",
+    "tauri:instantdb": "pnpm --filter instantdb-app tauri dev"
+  },
+  "keywords": ["tauri", "turso", "instantdb", "local-first", "drizzle"],
+  "author": "",
+  "license": "MIT"
+}
+
