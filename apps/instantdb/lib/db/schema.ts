@@ -9,6 +9,12 @@ export const schema = i.graph(
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    folders: i.entity({
+      name: i.string(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+      deletedAt: i.optional.number(),
+    }),
     tasks: i.entity({
       content: i.string(),
       completed: i.boolean(),
@@ -29,6 +35,30 @@ export const schema = i.graph(
         label: 'tasks',
       },
     },
+    folderNotes: {
+      forward: {
+        on: 'notes',
+        has: 'one',
+        label: 'folder',
+      },
+      reverse: {
+        on: 'folders',
+        has: 'many',
+        label: 'notes',
+      },
+    },
+    parentFolders: {
+      forward: {
+        on: 'folders',
+        has: 'one',
+        label: 'parent',
+      },
+      reverse: {
+        on: 'folders',
+        has: 'many',
+        label: 'children',
+      },
+    },
   }
 );
 
@@ -42,6 +72,7 @@ export type Note = {
   createdAt: number;
   updatedAt: number;
   tasks?: Task[];
+  folder?: Folder;
 };
 
 export type Task = {
@@ -51,5 +82,16 @@ export type Task = {
   position: number;
   createdAt: number;
   note?: Note;
+};
+
+export type Folder = {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
+  parent?: Folder;
+  children?: Folder[];
+  notes?: Note[];
 };
 

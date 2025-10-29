@@ -1,16 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, List } from 'lucide-react';
+import { Plus, Trash2, List, FolderPlus } from 'lucide-react';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { Button } from '@/components/ui/button';
 import { NoteEditor } from '@/components/note-editor';
-import type { Note } from '@/lib/db/schema';
+import type { Note, Folder } from '@/lib/db/schema';
+import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
+import { useCreateFolder } from '@/modules/folders/api/mutations/create';
+import { SidebarFolderItem } from '@/components/sidebar-folder-item';
 
 export function NotesView() {
   const { notes, isLoading } = useGetNotes();
+  const { folders } = useGetFolders();
+  const { createFolder } = useCreateFolder();
   const { createNote } = useCreateNote();
   const { destroyNote } = useDestroyNote();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -41,7 +46,6 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
       <div
         className={`${
           sidebarOpen ? 'w-64' : 'w-0'
@@ -49,12 +53,23 @@ export function NotesView() {
       >
         <div className="p-4 flex items-center justify-between">
           <h1 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">InstantDB</h1>
-          <Button size="icon" variant="ghost" onClick={handleCreateNote} className="h-8 w-8">
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={async () => { await createFolder(); }} className="h-8 w-8" title="New folder">
+              <FolderPlus className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={handleCreateNote} className="h-8 w-8" title="New note">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="overflow-y-auto h-[calc(100vh-65px)] px-2">
-          {notes.map((note) => (
+          {/* Root folders */}
+          {(folders as any[]).filter((f) => !f.parent).map((f) => (
+            <SidebarFolderItem key={f.id} folder={f as Folder} folders={folders as Folder[]} notes={notes as Note[]} />
+          ))}
+
+          {/* Orphan notes (no folder) */}
+          {notes.filter(n => !(n.folder as any)).map((note) => (
             <div
               key={note.id}
               className={`px-3 py-2 mb-1 rounded-md cursor-pointer hover:bg-accent/50 transition-colors group ${
@@ -92,7 +107,6 @@ export function NotesView() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 relative">
         {!sidebarOpen && (
           <Button
