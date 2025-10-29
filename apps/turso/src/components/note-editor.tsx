@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -41,7 +41,29 @@ export function NoteEditor({ note, onUpdate, onNoteSelect }: NoteEditorProps) {
       title: n.title || 'Untitled',
     }))
   ), [allNotes, note.id]);
-  const availableNotesKey = useMemo(() => JSON.stringify(availableNotes.map(n => ({ id: n.id, title: n.title }))), [availableNotes]);
+
+  // Stable callback for updating note content
+  const handleUpdate = useCallback(({ editor }: { editor: any }) => {
+    const html = editor.getHTML();
+    if (html !== note.content) {
+      updateNote(note.id, { content: html });
+      onUpdate();
+    }
+  }, [note.id, note.content, updateNote, onUpdate]);
+
+  // Stable callback for mention clicks
+  const handleMentionClick = useCallback((_view: any, _pos: any, event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.classList.contains('mention')) {
+      event.preventDefault();
+      const mentionId = target.getAttribute('data-mention-id');
+      if (mentionId && onNoteSelect) {
+        onNoteSelect(mentionId);
+      }
+      return true;
+    }
+    return false;
+  }, [onNoteSelect]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -79,27 +101,10 @@ export function NoteEditor({ note, onUpdate, onNoteSelect }: NoteEditorProps) {
       attributes: {
         class: 'tiptap focus:outline-none min-h-[300px]',
       },
-      handleClick(_view, _pos, event) {
-        const target = event.target as HTMLElement;
-        if (target.classList.contains('mention')) {
-          event.preventDefault();
-          const mentionId = target.getAttribute('data-mention-id');
-          if (mentionId && onNoteSelect) {
-            onNoteSelect(mentionId);
-          }
-          return true;
-        }
-        return false;
-      },
+      handleClick: handleMentionClick,
     },
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      if (html !== note.content) {
-        updateNote(note.id, { content: html });
-        onUpdate();
-      }
-    },
-  }, [note.id, onNoteSelect, onUpdate, availableNotesKey]);
+    onUpdate: handleUpdate,
+  }, [note.id]);
 
   useEffect(() => {
     setTitle(note.title);

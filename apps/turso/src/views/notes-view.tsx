@@ -33,14 +33,13 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
       <div
         className={`${
           sidebarOpen ? 'w-64' : 'w-0'
         } transition-all duration-300 overflow-hidden bg-background/50 backdrop-blur-sm`}
       >
         <div className="p-4 flex items-center justify-between">
-          <h1 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notes</h1>
+          <h1 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Tauri notes</h1>
           <Button size="icon" variant="ghost" onClick={handleCreateNote} className="h-8 w-8">
             <Plus className="h-4 w-4" />
           </Button>
