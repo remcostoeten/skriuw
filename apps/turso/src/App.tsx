@@ -1,4 +1,4 @@
-import { useState } from 'react';
+ 
 import { NotesView } from './views/notes-view';
 import './index.css';
 

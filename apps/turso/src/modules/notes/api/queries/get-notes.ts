@@ -9,7 +9,7 @@ export function useNotes() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch = async () => {
+  async function refetch() {
     try {
       setIsLoading(true);
       const result = await db.select().from(notes).orderBy(desc(notes.updatedAt));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+  import { useEffect, useState } from 'react';
 import { db } from '@/lib/db/client';
 import { tasks } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
@@ -9,7 +9,7 @@ export function useTasks(noteId: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch = async () => {
+  async function refetch() {
     if (!noteId) {
       setData([]);
       setIsLoading(false);

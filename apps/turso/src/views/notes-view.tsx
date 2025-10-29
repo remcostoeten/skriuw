@@ -14,22 +14,22 @@ export function NotesView() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleCreateNote = async () => {
+  async function handleCreateNote() {
     const note = await createNote({
       title: 'Untitled',
       content: '',
     });
-    await refetch();
     setSelectedNote(note as Note);
-  };
+    await refetch();
+  }
 
-  const handleDeleteNote = async (id: string) => {
+  async function handleDeleteNote(id: string) {
     await deleteNote(id);
     if (selectedNote?.id === id) {
       setSelectedNote(null);
     }
     await refetch();
-  };
+  }
 
   return (
     <div className="flex h-screen bg-background">

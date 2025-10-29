@@ -7,7 +7,7 @@ export function useDeleteNote() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const deleteNote = async (id: string) => {
+  async function deleteNote(id: string) {
     try {
       setIsLoading(true);
       setError(null);

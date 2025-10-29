@@ -9,8 +9,8 @@ export function useNote(id: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch = async () => {
-    if (!id) {
+  async function refetch() {
+      if (!id) {
       setData(null);
       setIsLoading(false);
       return;

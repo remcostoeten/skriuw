@@ -7,7 +7,7 @@ export function useUpdateNote() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const updateNote = async (id: string, data: { title?: string; content?: string }) => {
+  async function updateNote(id: string, data: { title?: string; content?: string }) {
     try {
       setIsLoading(true);
       setError(null);

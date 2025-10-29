@@ -5,7 +5,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
 import open from 'open';
-import { readFileSync, statSync } from 'fs';
+import { readFileSync, statSync, readdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -32,6 +32,57 @@ function getLastUpdated(appPath) {
   } catch {
     return 'Unknown';
   }
+}
+
+// Resolve bundle directory and latest AppImage for an app
+function getBundleDir(app) {
+  return join(
+    __dirname,
+    `apps/${app}/src-tauri/target/release/bundle/appimage`
+  );
+}
+
+function getLatestDesktopBundle(app) {
+  const dir = getBundleDir(app);
+  if (!existsSync(dir)) return null;
+  const files = readdirSync(dir)
+    .filter((f) => f.toLowerCase().endsWith('.appimage'))
+    .map((f) => ({
+      name: f,
+      full: join(dir, f),
+      mtime: statSync(join(dir, f)).mtimeMs,
+    }));
+  if (files.length === 0) return null;
+  files.sort((a, b) => b.mtime - a.mtime);
+  const latest = files[0];
+  // Try to extract version from filename: "Name_0.1.0_amd64.AppImage"
+  const match = latest.name.match(/_(\d+\.\d+\.\d+)_/);
+  const version = match ? match[1] : 'unknown';
+  return { path: latest.full, name: latest.name, version };
+}
+
+async function startDesktopBundle(app) {
+  const appName = app === 'turso' ? 'Turso' : 'InstantDB';
+  const latest = getLatestDesktopBundle(app);
+  if (!latest) {
+    console.log(
+      chalk.yellow(`\n⚠️  No desktop build found for ${appName}. Build it first from the menu.`)
+    );
+    await inquirer.prompt([{ type: 'input', name: 'c', message: 'Press Enter to continue' }]);
+    return;
+  }
+  console.log(
+    chalk.cyan(
+      `\n🖥️  Launching ${appName} desktop (v${latest.version}) → ${latest.path}\n`
+    )
+  );
+  const proc = spawn(latest.path, {
+    cwd: __dirname,
+    detached: true,
+    stdio: 'ignore',
+  });
+  proc.unref();
+  await inquirer.prompt([{ type: 'input', name: 'c', message: 'App launched. Press Enter to continue' }]);
 }
 
 // Welcome banner
@@ -294,6 +345,7 @@ async function showRunningMenu(app, type) {
 async function showAppMenu(app) {
   const appName = app === 'turso' ? 'Turso' : 'InstantDB';
   const lastUpdated = getLastUpdated(`apps/${app}`);
+  const latest = getLatestDesktopBundle(app);
 
   console.clear();
   showWelcome();
@@ -307,6 +359,9 @@ async function showAppMenu(app) {
       choices: [
         { name: '▶️  Start web dev server', value: 'web' },
         { name: '🖥️  Start Tauri desktop app', value: 'tauri' },
+        latest
+          ? { name: `🟢 Start latest desktop build (v${latest.version})`, value: 'desktop-bundle' }
+          : { name: '🟡 Start latest desktop build (no build found)', value: 'desktop-missing', disabled: true },
         new inquirer.Separator(),
         { name: '📦 Build web app', value: 'build-web' },
         { name: '📦 Build Tauri app', value: 'build-tauri' },
@@ -323,6 +378,10 @@ async function showAppMenu(app) {
       break;
     case 'tauri':
       await startTauri(app);
+      await showAppMenu(app);
+      break;
+    case 'desktop-bundle':
+      await startDesktopBundle(app);
       await showAppMenu(app);
       break;
     case 'build-web':

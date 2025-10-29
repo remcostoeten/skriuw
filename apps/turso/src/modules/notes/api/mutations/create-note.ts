@@ -8,7 +8,8 @@ export function useCreateNote() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const createNote = async (data: Omit<NewNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+
+  async function createNote(data: Omit<NewNote, 'id' | 'createdAt' | 'updatedAt'>) {
     try {
       setIsLoading(true);
       setError(null);

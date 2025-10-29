@@ -8,7 +8,7 @@ export function useCreateTask() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const createTask = async (data: Omit<NewTask, 'id' | 'createdAt'>) => {
+  async function createTask(data: Omit<NewTask, 'id' | 'createdAt'>) {
     try {
       setIsLoading(true);
       setError(null);

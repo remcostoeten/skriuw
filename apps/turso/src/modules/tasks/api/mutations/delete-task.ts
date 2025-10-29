@@ -7,7 +7,7 @@ export function useDeleteTask() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const deleteTask = async (id: string) => {
+  async function deleteTask(id: string) {
     try {
       setIsLoading(true);
       setError(null);
