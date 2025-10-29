@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Monorepo with Turso and InstantDB MVPs for local-first note-taking app",
+  "type": "module",
   "scripts": {
     "dev:turso": "pnpm --filter turso-app dev",
     "dev:instantdb": "pnpm --filter instantdb-app dev",
@@ -13,6 +14,12 @@
   },
   "keywords": ["tauri", "turso", "instantdb", "local-first", "drizzle"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "chalk": "^5.3.0",
+    "inquirer": "^10.2.2",
+    "ora": "^8.1.1",
+    "open": "^10.1.0"
+  }
 }
 

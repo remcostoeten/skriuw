@@ -69,17 +69,36 @@ pnpm tauri dev  # Desktop app
 
 ## Development
 
+### 🎮 Interactive CLI (Recommended)
+
+The easiest way to manage both apps is with the interactive CLI:
+
+```bash
+./start
+```
+
+Features:
+- 🎯 **Arrow key navigation** or type numbers to select
+- 🔍 **Fuzzy search** options
+- 📊 **Live logs** streaming
+- 🔄 **Restart/Stop** running processes
+- 🌐 **Quick open** in browser
+- 📦 **Build management**
+- ⚡ **Start/stop all apps** at once
+
+### Manual Commands
+
 ```bash
 # Install all dependencies
 pnpm install
 
 # Run Turso app
-pnpm dev:turso
-pnpm tauri:turso
+pnpm dev:turso        # Web dev server
+pnpm tauri:turso      # Desktop app
 
 # Run InstantDB app
-pnpm dev:instantdb
-pnpm tauri:instantdb
+pnpm dev:instantdb    # Web dev server
+pnpm tauri:instantdb  # Desktop app
 ```
 
 ## Features

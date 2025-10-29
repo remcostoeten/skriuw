@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Simple bash wrapper to run the Node.js script
+node start.mjs "$@"
+
