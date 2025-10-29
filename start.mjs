@@ -435,7 +435,47 @@ async function startAll() {
   console.log(chalk.cyan('  Turso: http://localhost:5173'));
   console.log(chalk.cyan('  InstantDB: http://localhost:3000\n'));
 
-  await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
+  await showAllAppsMenu();
+}
+
+// Show menu when all apps are running
+async function showAllAppsMenu() {
+  while (true) {
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'All apps are running. What would you like to do?',
+        choices: [
+          { name: 'Open Turso in browser (1)', value: 'open-turso' },
+          { name: 'Open InstantDB in browser (2)', value: 'open-instantdb' },
+          { name: 'Stop all apps', value: 'stop-all' },
+          new inquirer.Separator(),
+          { name: 'Back to main menu', value: 'back' },
+        ],
+      },
+    ]);
+
+    switch (action) {
+      case 'open-turso':
+        await open('http://localhost:5173');
+        break;
+      case 'open-instantdb':
+        await open('http://localhost:3000');
+        break;
+      case 'stop-all':
+        console.log(chalk.yellow('\nStopping all apps...'));
+        killProcess(runningProcesses.tursoWeb);
+        killProcess(runningProcesses.instantdbWeb);
+        runningProcesses.tursoWeb = null;
+        runningProcesses.instantdbWeb = null;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(chalk.green('All apps stopped.\n'));
+        return;
+      case 'back':
+        return;
+    }
+  }
 }
 
 // Build all apps

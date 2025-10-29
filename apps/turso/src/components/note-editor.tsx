@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -35,10 +35,13 @@ export function NoteEditor({ note, onUpdate, onNoteSelect }: NoteEditorProps) {
   const { deleteTask } = useDeleteTask();
 
   // Filter out current note from mention suggestions
-  const availableNotes = (allNotes || []).filter((n) => n.id !== note.id).map((n) => ({
-    id: n.id,
-    title: n.title || 'Untitled',
-  }));
+  const availableNotes = useMemo(() => (
+    (allNotes || []).filter((n) => n.id !== note.id).map((n) => ({
+      id: n.id,
+      title: n.title || 'Untitled',
+    }))
+  ), [allNotes, note.id]);
+  const availableNotesKey = useMemo(() => JSON.stringify(availableNotes.map(n => ({ id: n.id, title: n.title }))), [availableNotes]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -91,15 +94,19 @@ export function NoteEditor({ note, onUpdate, onNoteSelect }: NoteEditorProps) {
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      updateNote(note.id, { content: html });
-      onUpdate();
+      if (html !== note.content) {
+        updateNote(note.id, { content: html });
+        onUpdate();
+      }
     },
-  }, [availableNotes, note.id, onNoteSelect, onUpdate]);
+  }, [note.id, onNoteSelect, onUpdate, availableNotesKey]);
 
   useEffect(() => {
     setTitle(note.title);
     if (editor && note.content !== editor.getHTML()) {
-      editor.commands.setContent(note.content);
+      // prevent triggering onUpdate when setting from outside
+      // @ts-expect-error tiptap allows boolean second param to suppress update
+      editor.commands.setContent(note.content, false);
     }
   }, [note.id, note.content, editor]);
 

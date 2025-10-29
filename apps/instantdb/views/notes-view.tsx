@@ -15,16 +15,16 @@ export function NotesView() {
   const { destroyNote } = useDestroyNote();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  async function handleCreateNote() {
+    const suffix = '.md'
+    const amount = notes.length + 1
+    const title = `Untitled ${amount}${suffix}`
+    const note = await createNote({ title, content: '' })
+    setSelectedNote(note as Note)
+  }
 
-  const handleCreateNote = async () => {
-    const note = await createNote({
-      title: 'Untitled',
-      content: '',
-    });
-    setSelectedNote(note as Note);
-  };
-
-  const handleDeleteNote = async (id: string) => {
+  async function handleDeleteNote(id: string) {
     await destroyNote(id);
     if (selectedNote?.id === id) {
       setSelectedNote(null);
