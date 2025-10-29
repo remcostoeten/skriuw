@@ -73,7 +73,7 @@ async function startDesktopBundle(app) {
   }
   console.log(
     chalk.cyan(
-      `\n🖥️  Launching ${appName} desktop (v${latest.version}) → ${latest.path}\n`
+      `\nLaunching ${appName} desktop (v${latest.version}) → ${latest.path}\n`
     )
   );
   const proc = spawn(latest.path, {
@@ -89,7 +89,7 @@ async function startDesktopBundle(app) {
 function showWelcome() {
   console.clear();
   console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan('║') + chalk.bold.white('  🚀 Tauri Local-First Monorepo Manager  ') + chalk.bold.cyan('║'));
+  console.log(chalk.bold.cyan('║') + chalk.bold.white('  Tauri Local-First Monorepo Manager      ') + chalk.bold.cyan('║'));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════╝\n'));
   console.log(chalk.gray('  Navigate with arrow keys, type numbers, or search\n'));
 }
@@ -112,7 +112,7 @@ async function startWeb(app) {
   const key = app === 'turso' ? 'tursoWeb' : 'instantdbWeb';
 
   if (runningProcesses[key]) {
-    console.log(chalk.yellow(`\n⚠️  ${appName} web server is already running!`));
+    console.log(chalk.yellow(`\nWarning: ${appName} web server is already running.`));
     await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
     return;
   }
@@ -135,8 +135,8 @@ async function startWeb(app) {
       if (!serverReady) {
         serverReady = true;
         spinner.succeed(chalk.green(`${appName} web server started!`));
-        console.log(chalk.cyan(`\n  🌐 Web: http://localhost:${port}`));
-        console.log(chalk.gray(`  📝 Logs streaming...\n`));
+        console.log(chalk.cyan(`\n  Web: http://localhost:${port}`));
+        console.log(chalk.gray(`  Logs streaming...\n`));
       }
     }
     if (serverReady) {
@@ -153,7 +153,7 @@ async function startWeb(app) {
   proc.on('exit', (code) => {
     runningProcesses[key] = null;
     if (code !== 0 && code !== null) {
-      console.log(chalk.red(`\n❌ ${appName} web server exited with code ${code}`));
+      console.log(chalk.red(`\nError: ${appName} web server exited with code ${code}`));
     }
   });
 
@@ -185,7 +185,7 @@ async function startTauri(app) {
   const key = app === 'turso' ? 'tursoTauri' : 'instantdbTauri';
 
   if (runningProcesses[key]) {
-    console.log(chalk.yellow(`\n⚠️  ${appName} Tauri app is already running!`));
+    console.log(chalk.yellow(`\nWarning: ${appName} Tauri app is already running.`));
     await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
     return;
   }
@@ -208,8 +208,8 @@ async function startTauri(app) {
       if (!appReady) {
         appReady = true;
         spinner.succeed(chalk.green(`${appName} Tauri app started!`));
-        console.log(chalk.cyan(`\n  🖥️  Desktop app is running`));
-        console.log(chalk.gray(`  📝 Logs streaming...\n`));
+        console.log(chalk.cyan(`\n  Desktop app is running`));
+        console.log(chalk.gray(`  Logs streaming...\n`));
       }
     }
     if (appReady) {
@@ -226,7 +226,7 @@ async function startTauri(app) {
   proc.on('exit', (code) => {
     runningProcesses[key] = null;
     if (code !== 0 && code !== null) {
-      console.log(chalk.red(`\n❌ ${appName} Tauri app exited with code ${code}`));
+      console.log(chalk.red(`\nError: ${appName} Tauri app exited with code ${code}`));
     }
   });
 
@@ -295,13 +295,13 @@ async function showRunningMenu(app, type) {
       message: `${appName} ${type === 'web' ? 'Web' : 'Tauri'} is running. What would you like to do?`,
       choices: [
         ...(type === 'web'
-          ? [{ name: '🌐 Open in browser', value: 'open' }]
+      ? [{ name: 'Open in browser', value: 'open' }]
           : []),
-        { name: '📊 View live logs (streaming above)', value: 'logs' },
-        { name: '🔄 Restart', value: 'restart' },
-        { name: '⏹️  Stop', value: 'stop' },
+        { name: 'View live logs (streaming above)', value: 'logs' },
+        { name: 'Restart', value: 'restart' },
+        { name: 'Stop', value: 'stop' },
         new inquirer.Separator(),
-        { name: '← Back to main menu', value: 'back' },
+        { name: 'Back to main menu', value: 'back' },
       ],
     },
   ]);
@@ -314,12 +314,12 @@ async function showRunningMenu(app, type) {
       await showRunningMenu(app, type);
       break;
     case 'logs':
-      console.log(chalk.cyan('\n📝 Logs are streaming above. Press Ctrl+C to stop or continue watching...\n'));
+      console.log(chalk.cyan('\nLogs are streaming above. Press Ctrl+C to stop or continue watching...\n'));
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
       await showRunningMenu(app, type);
       break;
     case 'restart':
-      console.log(chalk.yellow('\n🔄 Restarting...'));
+      console.log(chalk.yellow('\nRestarting...'));
       killProcess(runningProcesses[key]);
       runningProcesses[key] = null;
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -330,11 +330,11 @@ async function showRunningMenu(app, type) {
       }
       break;
     case 'stop':
-      console.log(chalk.yellow(`\n⏹️  Stopping ${appName} ${type}...`));
+      console.log(chalk.yellow(`\nStopping ${appName} ${type}...`));
       killProcess(runningProcesses[key]);
       runningProcesses[key] = null;
       await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log(chalk.green('✓ Stopped\n'));
+      console.log(chalk.green('Stopped.\n'));
       break;
     case 'back':
       break;
@@ -357,16 +357,16 @@ async function showAppMenu(app) {
       name: 'choice',
       message: 'What would you like to do?',
       choices: [
-        { name: '▶️  Start web dev server', value: 'web' },
-        { name: '🖥️  Start Tauri desktop app', value: 'tauri' },
+        { name: 'Start web dev server', value: 'web' },
+        { name: 'Start Tauri desktop app (dev)', value: 'tauri' },
         latest
-          ? { name: `🟢 Start latest desktop build (v${latest.version})`, value: 'desktop-bundle' }
-          : { name: '🟡 Start latest desktop build (no build found)', value: 'desktop-missing', disabled: true },
+          ? { name: `Start latest desktop build (v${latest.version})`, value: 'desktop-bundle' }
+          : { name: 'Start latest desktop build (no build found)', value: 'desktop-missing', disabled: true },
         new inquirer.Separator(),
-        { name: '📦 Build web app', value: 'build-web' },
-        { name: '📦 Build Tauri app', value: 'build-tauri' },
+        { name: 'Build web app', value: 'build-web' },
+        { name: 'Build Tauri app', value: 'build-tauri' },
         new inquirer.Separator(),
-        { name: '← Back to main menu', value: 'back' },
+        { name: 'Back to main menu', value: 'back' },
       ],
     },
   ]);
@@ -401,7 +401,7 @@ async function showAppMenu(app) {
 
 // Start all apps
 async function startAll() {
-  console.log(chalk.cyan('\n🚀 Starting all apps...\n'));
+  console.log(chalk.cyan('\nStarting all apps...\n'));
 
   const spinner1 = ora('Starting Turso web...').start();
   await new Promise((resolve) => {
@@ -431,9 +431,9 @@ async function startAll() {
     }, 2000);
   });
 
-  console.log(chalk.green('\n✅ All apps started!'));
-  console.log(chalk.cyan('  🌐 Turso: http://localhost:5173'));
-  console.log(chalk.cyan('  🌐 InstantDB: http://localhost:3000\n'));
+  console.log(chalk.green('\nAll apps started.'));
+  console.log(chalk.cyan('  Turso: http://localhost:5173'));
+  console.log(chalk.cyan('  InstantDB: http://localhost:3000\n'));
 
   await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
 }
@@ -453,7 +453,7 @@ async function buildAll() {
 function showHelp() {
   console.clear();
   showWelcome();
-  console.log(chalk.bold.white('  📚 Help\n'));
+  console.log(chalk.bold.white('  Help\n'));
   console.log(chalk.white('  Navigation:'));
   console.log(chalk.gray('    • Use arrow keys to navigate'));
   console.log(chalk.gray('    • Type numbers (1, 2, 3...) to select'));
@@ -489,19 +489,19 @@ async function showMainMenu() {
       message: 'What would you like to do?',
       choices: [
         {
-          name: `1️⃣  Turso App ${chalk.gray(`(Updated: ${tursoUpdated})`)}`,
+          name: `Turso App ${chalk.gray(`(Updated: ${tursoUpdated})`)}`,
           value: 'turso',
         },
         {
-          name: `2️⃣  InstantDB App ${chalk.gray(`(Updated: ${instantdbUpdated})`)}`,
+          name: `InstantDB App ${chalk.gray(`(Updated: ${instantdbUpdated})`)}`,
           value: 'instantdb',
         },
         new inquirer.Separator(),
-        { name: '🚀 Start all apps', value: 'start-all' },
-        { name: '📦 Build all apps', value: 'build-all' },
+        { name: 'Start all apps', value: 'start-all' },
+        { name: 'Build all apps', value: 'build-all' },
         new inquirer.Separator(),
-        { name: '📚 Help', value: 'help' },
-        { name: '👋 Exit', value: 'exit' },
+        { name: 'Help', value: 'help' },
+        { name: 'Exit', value: 'exit' },
       ],
     },
   ]);
@@ -529,16 +529,16 @@ async function showMainMenu() {
       await showMainMenu();
       break;
     case 'exit':
-      console.log(chalk.cyan('\n👋 Goodbye!\n'));
+  console.log(chalk.cyan('\nGoodbye.\n'));
       process.exit(0);
   }
 }
 
 // Cleanup on exit
 process.on('SIGINT', () => {
-  console.log(chalk.yellow('\n\n⏹️  Stopping all processes...'));
+  console.log(chalk.yellow('\n\nStopping all processes...'));
   Object.values(runningProcesses).forEach(killProcess);
-  console.log(chalk.green('✓ Cleanup complete\n'));
+  console.log(chalk.green('Cleanup complete.\n'));
   process.exit(0);
 });
 
