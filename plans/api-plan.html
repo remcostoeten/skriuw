@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Architecture Plan</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #252526; padding: 20px; border-radius: 4px; }
+        button { padding: 10px 20px; background: #0e639c; color: white; border: none; cursor: pointer; margin-bottom: 10px; }
+        button:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <button onclick="copyToClipboard()">Copy to Clipboard</button>
+    <pre id="content"># API Architecture Improvement Plan
+
+> **Project:** Tauri Local-First Monorepo  
+> **Date:** October 2025  
+> **Status:** Planning Phase
+
+---
+
+## Executive Summary
+
+This document outlines a comprehensive plan to improve the API layer and data fetching patterns across both InstantDB and Turso implementations. The goal is to achieve consistency, performance, scalability, and excellent developer experience while maintaining the local-first architecture.
+
+### Key Findings
+- ✅ **InstantDB** has solid foundation with core hook abstractions
+- ❌ **Turso** lacks abstraction layer and has significant boilerplate
+- ⚠️ Both need performance optimizations (memoization, request deduplication)
+- ⚠️ No standardized error handling or cache management strategy
+
+---
+
+## Current State Analysis
+
+### InstantDB Strengths
+- ✅ Reusable core hooks (`useCreate`, `useUpdate`, `useRead`, `useDestroy`)
+- ✅ Domain hooks are concise (15-25 lines)
+- ✅ Automatic optimistic updates
+- ✅ Consistent error/loading states
+- ✅ Clear separation of concerns
+
+### InstantDB Weaknesses
+1. **No memoization** - handlers recreated every render
+2. **Weak type safety** - `entityName: string` not validated against schema
+3. **No error recovery** - no retry logic, no global error boundaries
+4. **No request deduplication**
+
+### Turso Critical Issues
+1. **No core abstraction** - every hook repeats 15-20 lines of boilerplate
+2. **Manual cache invalidation** - easy to forget `refetch()`, causes stale data bugs
+3. **No optimistic updates** - slower perceived performance
+4. **Refetch prop drilling** - `onUpdate={refetch}` passed through components
+
+---
+
+## Strategic Decision: Custom Hooks vs React Query
+
+### Option A: Improve Custom Hooks ⭐ FOR LEARNING
+
+**Pros:**
+- Full control, no dependencies
+- Educational value
+- Lightweight (~2KB)
+- Tailored to exact needs
+
+**Cons:**
+- More dev time
+- Maintenance burden
+- Need to implement features manually
+
+### Option B: Migrate to TanStack Query ⭐ FOR PRODUCTION
+
+**Pros:**
+- All features built-in (cache, deduplication, optimistic updates, retry, devtools)
+- Battle-tested (10M+ weekly downloads)
+- Excellent docs + community
+- 12KB gzipped
+- Framework agnostic
+
+**Cons:**
+- Learning curve
+- Additional dependency
+- Less control over internals
+
+**Recommendation:** Start with custom hooks to understand patterns deeply, then migrate to React Query for production scaling.
+
+---
+
+## Implementation Plan
+
+### Phase 1: Foundation (Week 1) 🎯 HIGH PRIORITY
+
+#### 1.1 Create Core Hooks for Turso
+
+**Goal:** Match InstantDB's clean API
+
+**Files to create:**
+```
+apps/turso/src/hooks/core/
+  ├── use-mutation.ts
+  ├── use-query.ts
+  └── index.ts
+```
+
+**Implementation:**
+
+```typescript
+// apps/turso/src/hooks/core/use-mutation.ts
+import { useState, useCallback } from 'react';
+import { cacheManager } from '@/lib/cache-manager';
+
+interface UseMutationOptions<TData, TVariables> {
+  onSuccess?: (data: TData) => void | Promise<void>;
+  onError?: (error: Error) => void;
+  invalidates?: string[]; // Cache keys to invalidate
+}
+
+export function useMutation<TData, TVariables>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options?: UseMutationOptions<TData, TVariables>
+) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const mutate = useCallback(
+    async (variables: TVariables) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const data = await mutationFn(variables);
+        
+        // Automatically invalidate caches
+        if (options?.invalidates) {
+          options.invalidates.forEach(key => {
+            cacheManager.invalidate(key);
+          });
+        }
+        
+        await options?.onSuccess?.(data);
+        return data;
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        options?.onError?.(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [mutationFn, options]
+  );
+
+  return { mutate, isLoading, error };
+}
+```
+
+```typescript
+// apps/turso/src/hooks/core/use-query.ts
+import { useState, useEffect, useCallback } from 'react';
+import { cacheManager } from '@/lib/cache-manager';
+
+interface UseQueryOptions<TData> {
+  enabled?: boolean;
+  cacheKey: string;
+  onSuccess?: (data: TData) => void;
+  onError?: (error: Error) => void;
+}
+
+export function useQuery<TData>(
+  queryFn: () => Promise<TData>,
+  options: UseQueryOptions<TData>
+) {
+  const [data, setData] = useState<TData | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const result = await queryFn();
+      setData(result);
+      setError(null);
+      options.onSuccess?.(result);
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      options.onError?.(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [queryFn, options]);
+
+  useEffect(() => {
+    if (options.enabled === false) return;
+    
+    refetch();
+    
+    // Subscribe to cache invalidation
+    cacheManager.subscribe(options.cacheKey, refetch);
+    
+    return () => {
+      cacheManager.unsubscribe(options.cacheKey, refetch);
+    };
+  }, [options.cacheKey, options.enabled, refetch]);
+
+  return { data, isLoading, error, refetch };
+}
+```
+
+#### 1.2 Implement Cache Manager
+
+**File to create:**
+```
+apps/turso/src/lib/cache-manager.ts
+```
+
+```typescript
+type CacheKey = string;
+type InvalidationFn = () => void;
+
+class CacheManager {
+  private listeners = new Map<CacheKey, Set<InvalidationFn>>();
+
+  subscribe(key: CacheKey, callback: InvalidationFn) {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, new Set());
+    }
+    this.listeners.get(key)!.add(callback);
+  }
+
+  unsubscribe(key: CacheKey, callback: InvalidationFn) {
+    this.listeners.get(key)?.delete(callback);
+  }
+
+  invalidate(key: CacheKey) {
+    const callbacks = this.listeners.get(key);
+    if (callbacks) {
+      callbacks.forEach(cb => cb());
+    }
+  }
+
+  invalidatePattern(pattern: RegExp) {
+    Array.from(this.listeners.keys())
+      .filter(key => pattern.test(key))
+      .forEach(key => this.invalidate(key));
+  }
+}
+
+export const cacheManager = new CacheManager();
+```
+
+#### 1.3 Refactor Example
+
+**Before (35 lines):**
+```typescript
+// apps/turso/src/modules/notes/api/mutations/create-note.ts
+import { useState } from 'react';
+import { db } from '@/lib/db/client';
+import { notes } from '@/lib/db/schema';
+import { generateId } from '@/lib/utils';
+import type { NewNote } from '@/lib/db/schema';
+
+export function useCreateNote() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  async function createNote(data: Omit<NewNote, 'id' | 'createdAt' | 'updatedAt'>) {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const newNote = {
+        id: generateId(),
+        ...data,
+      };
+
+      await db.insert(notes).values(newNote);
+      return newNote;
+    } catch (err) {
+      setError(err as Error);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { createNote, isLoading, error };
+}
+```
+
+**After (17 lines):**
+```typescript
+// apps/turso/src/modules/notes/api/mutations/create-note.ts
+import { useMutation } from '@/hooks/core';
+import { db } from '@/lib/db/client';
+import { notes } from '@/lib/db/schema';
+import { generateId } from '@/lib/utils';
+import type { NewNote } from '@/lib/db/schema';
+
+export function useCreateNote() {
+  const { mutate, isLoading, error } = useMutation(
+    async (data: Omit<NewNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+      const newNote = { id: generateId(), ...data };
+      await db.insert(notes).values(newNote);
+      return newNote;
+    },
+    { invalidates: ['notes'] }
+  );
+
+  return { createNote: mutate, isLoading, error };
+}
+```
+
+**Impact:**
+- ✅ 50% less code
+- ✅ Automatic cache invalidation
+- ✅ No more manual refetch
+- ✅ Consistent patterns across all hooks
+
+**Files to refactor:**
+- [ ] `apps/turso/src/modules/notes/api/mutations/create-note.ts`
+- [ ] `apps/turso/src/modules/notes/api/mutations/update-note.ts`
+- [ ] `apps/turso/src/modules/notes/api/mutations/delete-note.ts`
+- [ ] `apps/turso/src/modules/notes/api/queries/get-notes.ts`
+- [ ] `apps/turso/src/modules/notes/api/queries/get-note.ts`
+- [ ] `apps/turso/src/modules/tasks/api/mutations/create-task.ts`
+- [ ] `apps/turso/src/modules/tasks/api/mutations/update-task.ts`
+- [ ] `apps/turso/src/modules/tasks/api/mutations/delete-task.ts`
+- [ ] `apps/turso/src/modules/tasks/api/queries/get-tasks.ts`
+
+---
+
+### Phase 2: Performance (Week 2) ⚡
+
+#### 2.1 Add Memoization to All Handlers
+
+**Problem:**
+```typescript
+// Components recreate functions every render
+const handleCreateTask = async () => { ... }; // ❌ New reference each time
+```
+
+**Solution:**
+```typescript
+import { useCallback } from 'react';
+
+const handleCreateTask = useCallback(async () => {
+  if (!newTaskContent.trim()) return;
+  await createTask({
+    noteId: note.id,
+    content: newTaskContent,
+    position: tasks.length,
+  });
+  setNewTaskContent('');
+}, [newTaskContent, createTask, note.id, tasks.length]); // ✅
+```
+
+**Files to update:**
+- [ ] `apps/instantdb/components/note-editor.tsx` - 6 handlers
+- [ ] `apps/instantdb/views/notes-view.tsx` - 2 handlers
+- [ ] `apps/turso/src/components/note-editor.tsx` - 6 handlers
+- [ ] `apps/turso/src/views/notes-view.tsx` - 2 handlers
+
+**Action items:**
+1. Wrap all event handlers in `useCallback`
+2. Wrap expensive computations in `useMemo`
+3. Add ESLint rule: `react-hooks/exhaustive-deps` to enforce dependencies
+
+#### 2.2 Request Deduplication
+
+**Problem:** Multiple components calling the same query → duplicate requests
+
+**Solution:**
+```typescript
+// apps/turso/src/lib/request-cache.ts
+const inflightRequests = new Map<string, Promise<any>>();
+
+export async function dedupedRequest<T>(
+  key: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  if (inflightRequests.has(key)) {
+    return inflightRequests.get(key)!;
+  }
+
+  const promise = fn().finally(() => {
+    inflightRequests.delete(key);
+  });
+
+  inflightRequests.set(key, promise);
+  return promise;
+}
+```
+
+**Integrate into `useQuery`:**
+```typescript
+const refetch = useCallback(async () => {
+  try {
+    setIsLoading(true);
+    const result = await dedupedRequest(options.cacheKey, queryFn); // ✅
+    setData(result);
+  } catch (err) {
+    setError(err as Error);
+  } finally {
+    setIsLoading(false);
+  }
+}, [queryFn, options.cacheKey]);
+```
+
+#### 2.3 Optimistic Updates (Turso)
+
+**Goal:** Match InstantDB's instant UI updates
+
+**Implementation:**
+```typescript
+// apps/turso/src/hooks/core/use-optimistic-mutation.ts
+export function useOptimisticMutation<TData, TVariables>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options: {
+    cacheKey: string;
+    updater: (oldData: any, variables: TVariables) => any;
+    invalidates?: string[];
+  }
+) {
+  const { mutate, isLoading, error } = useMutation(mutationFn, {
+    invalidates: options.invalidates,
+  });
+
+  const optimisticMutate = useCallback(
+    async (variables: TVariables) => {
+      // 1. Update cache optimistically
+      const rollback = cacheManager.updateOptimistically(
+        options.cacheKey,
+        (old) => options.updater(old, variables)
+      );
+
+      try {
+        // 2. Perform actual mutation
+        const result = await mutate(variables);
+        return result;
+      } catch (error) {
+        // 3. Rollback on error
+        rollback();
+        throw error;
+      }
+    },
+    [mutate, options]
+  );
+
+  return { mutate: optimisticMutate, isLoading, error };
+}
+```
+
+**Usage example:**
+```typescript
+export function useUpdateTask() {
+  return useOptimisticMutation(
+    async ({ id, data }: { id: string; data: Partial<Task> }) => {
+      await db.update(tasks).set(data).where(eq(tasks.id, id));
+    },
+    {
+      cacheKey: 'tasks',
+      updater: (oldTasks: Task[], { id, data }) => 
+        oldTasks.map(task => task.id === id ? { ...task, ...data } : task),
+      invalidates: ['tasks'],
+    }
+  );
+}
+```
+
+---
+
+### Phase 3: Type Safety (Week 3) 🔒
+
+#### 3.1 Improve InstantDB Core Hook Types
+
+**Before:**
+```typescript
+export function useCreate<T extends Record<string, any>>(entityName: string)
+```
+
+**After:**
+```typescript
+import type { Schema } from '@/lib/db/schema';
+
+type EntityName = keyof Schema['entities'];
+type EntityData<T extends EntityName> = Schema['entities'][T];
+
+export function useCreate<T extends EntityName>(
+  entityName: T
+): {
+  create: (id: string, data: EntityData<T>) => Promise<EntityData<T>>;
+  isLoading: boolean;
+  error: Error | null;
+}
+```
+
+**Benefits:**
+- ✅ Compile-time errors for wrong entity names
+- ✅ Autocomplete for entity names
+- ✅ Correct data types inferred automatically
+
+#### 3.2 Create Shared Types Package (Optional)
+
+**Structure:**
+```
+packages/
+  shared-types/
+    src/
+      note.ts
+      task.ts
+      api.ts
+      index.ts
+    package.json
+    tsconfig.json
+```
+
+**Usage:**
+```typescript
+import type { Note, Task, CreateNoteInput } from '@tauri-local/shared-types';
+```
+
+**Benefits:**
+- ✅ Single source of truth for types
+- ✅ Consistency across both apps
+- ✅ Easier refactoring
+
+---
+
+### Phase 4: Error Handling (Week 3) 🚨
+
+#### 4.1 Create Global Error Boundary
+
+**File:** `components/error-boundary.tsx`
+
+```typescript
+import { Component, ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+interface Props {
+  children: ReactNode;
+  fallback?: (error: Error, reset: () => void) => ReactNode;
+}
+
+interface State {
+  error: Error | null;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = { error: null };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+    // TODO: Send to error tracking service (Sentry, LogRocket, etc.)
+  }
+
+  reset = () => {
+    this.setState({ error: null });
+  };
+
+  render() {
+    if (this.state.error) {
+      if (this.props.fallback) {
+        return this.props.fallback(this.state.error, this.reset);
+      }
+
+      return (
+        <div className="flex items-center justify-center min-h-screen p-4">
+          <div className="max-w-md text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
+            <p className="text-muted-foreground mb-4">
+              {this.state.error.message}
+            </p>
+            <Button onClick={this.reset}>Try again</Button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+**Usage:**
+```typescript
+<ErrorBoundary>
+  <NotesView />
+</ErrorBoundary>
+```
+
+#### 4.2 Add Retry Logic to Mutations
+
+**Implementation:**
+```typescript
+interface UseMutationOptions<TData, TVariables> {
+  // ... existing options
+  retry?: number | ((error: Error, attempt: number) => boolean);
+  retryDelay?: number | ((attempt: number) => number);
+}
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: { retry: number; retryDelay: (attempt: number) => number }
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= options.retry; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt < options.retry) {
+        const delay = options.retryDelay(attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+```
+
+**Usage:**
+```typescript
+useMutation(fn, {
+  retry: 3,
+  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000), // Exponential backoff
+})
+```
+
+#### 4.3 User-Friendly Error Messages
+
+**File:** `lib/error-messages.ts`
+
+```typescript
+export function getErrorMessage(error: Error): string {
+  const message = error.message.toLowerCase();
+  
+  if (message.includes('sqlite_busy')) {
+    return 'The database is currently busy. Please try again.';
+  }
+  
+  if (message.includes('unique constraint')) {
+    return 'This item already exists.';
+  }
+  
+  if (message.includes('foreign key constraint')) {
+    return 'Cannot delete this item because it is being used.';
+  }
+  
+  if (message.includes('network') || message.includes('fetch')) {
+    return 'Network error. Please check your connection.';
+  }
+  
+  if (message.includes('timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+  
+  return 'An unexpected error occurred. Please try again.';
+}
+```
+
+---
+
+### Phase 5: Developer Experience (Week 4) 🎨
+
+#### 5.1 Standardize Naming Conventions
+
+**Current inconsistency:**
+- InstantDB: `useGetNotes()` vs `useCreateNote()`
+- Turso: `useNotes()` vs `useCreateNote()`
+
+**Standard to adopt:**
+```typescript
+// Queries (data fetching)
+useNotes()       // Returns { data, isLoading, error, refetch }
+useNote(id)      // Returns { data, isLoading, error, refetch }
+useTasks(noteId) // Returns { data, isLoading, error, refetch }
+
+// Mutations (data modification)
+useCreateNote()  // Returns { createNote, isLoading, error }
+useUpdateNote()  // Returns { updateNote, isLoading, error }
+useDeleteNote()  // Returns { deleteNote, isLoading, error }
+```
+
+**Apply to:**
+- [ ] All query hooks in both apps
+- [ ] All mutation hooks in both apps
+- [ ] Update all imports in components/views
+
+#### 5.2 Create Developer Documentation
+
+**Files to create:**
+```
+docs/
+  api/
+    01-getting-started.md
+    02-queries.md
+    03-mutations.md
+    04-caching.md
+    05-error-handling.md
+    06-best-practices.md
+```
+
+---
+
+## Success Metrics
+
+### Code Quality
+- [ ] 50%+ reduction in hook boilerplate
+- [ ] 100% of event handlers memoized
+- [ ] Zero manual `refetch()` calls in components
+- [ ] Zero prop drilling of refetch functions
+- [ ] All hooks follow naming convention
+
+### Performance
+- [ ] Request deduplication implemented
+- [ ] Optimistic updates working in Turso
+- [ ] <100ms perceived latency for mutations
+- [ ] No unnecessary re-renders
+
+### Type Safety
+- [ ] No `any` types in hook implementations
+- [ ] Entity names validated at compile time
+- [ ] Shared types across both apps
+- [ ] TypeScript strict mode enabled
+
+### Error Handling
+- [ ] Global error boundary implemented
+- [ ] Retry logic on all mutations
+- [ ] User-friendly error messages
+
+---
+
+## Migration to React Query (Optional Future Phase)
+
+### Timeline: 1-2 days per app
+
+### Why Migrate?
+
+After implementing custom hooks, you'll understand the patterns. React Query provides:
+- Everything we built, but more robust
+- Background refetching
+- Better cache management
+- Pagination/infinite scroll helpers
+- Suspense support
+
+### Migration Steps
+
+**1. Install dependencies**
+```bash
+pnpm add @tanstack/react-query @tanstack/react-query-devtools
+```
+
+**2. Setup QueryClient**
+```typescript
+import { QueryClient } from '@tanstack/react-query';
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60000,
+      refetchOnWindowFocus: false,
+      retry: 3,
+    },
+    mutations: {
+      retry: 3,
+    },
+  },
+});
+```
+
+**3. Wrap app**
+```typescript
+import { QueryClientProvider } from '@tanstack/react-query';
+
+<QueryClientProvider client={queryClient}>
+  <App />
+</QueryClientProvider>
+```
+
+**4. Refactor hooks**
+
+**Before (custom):**
+```typescript
+export function useNotes() {
+  return useQuery(
+    () => db.select().from(notes),
+    { cacheKey: 'notes' }
+  );
+}
+```
+
+**After (React Query):**
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+export function useNotes() {
+  return useQuery({
+    queryKey: ['notes'],
+    queryFn: () => db.select().from(notes),
+  });
+}
+```
+
+---
+
+## Next Steps
+
+### Week 1: Foundation ✅
+1. Create core hooks (`useMutation`, `useQuery`) for Turso
+2. Implement cache manager
+3. Refactor all Turso hooks to use core abstractions
+4. Test automatic cache invalidation
+
+### Week 2: Performance ⚡
+1. Add `useCallback` to all event handlers
+2. Implement request deduplication
+3. Add optimistic updates to Turso
+4. Benchmark performance improvements
+
+### Week 3: Types & Errors 🔒
+1. Improve type safety in InstantDB hooks
+2. Create shared types package (optional)
+3. Implement global error boundary
+4. Add retry logic and user-friendly messages
+
+### Week 4: Polish & Document 🎨
+1. Standardize naming across both apps
+2. Create comprehensive documentation
+3. Add dev tools for debugging
+4. Code review and final testing
+
+### Week 5: Decision Point 🤔
+- Review custom implementation
+- Assess if React Query migration would be beneficial
+- Make decision based on project needs
+
+---
+
+## Appendix: Implementation Checklist
+
+### Phase 1 Tasks
+- [ ] Create `apps/turso/src/hooks/core/use-mutation.ts`
+- [ ] Create `apps/turso/src/hooks/core/use-query.ts`
+- [ ] Create `apps/turso/src/lib/cache-manager.ts`
+- [ ] Refactor `useCreateNote`
+- [ ] Refactor `useUpdateNote`
+- [ ] Refactor `useDeleteNote`
+- [ ] Refactor `useNotes`
+- [ ] Refactor `useNote`
+- [ ] Refactor all task hooks
+- [ ] Remove `refetch` prop from `NoteEditor`
+- [ ] Remove manual `refetch()` calls from `notes-view.tsx`
+
+### Phase 2 Tasks
+- [ ] Add `useCallback` to `note-editor.tsx` (InstantDB)
+- [ ] Add `useCallback` to `notes-view.tsx` (InstantDB)
+- [ ] Add `useCallback` to `note-editor.tsx` (Turso)
+- [ ] Add `useCallback` to `notes-view.tsx` (Turso)
+- [ ] Create request deduplication utility
+- [ ] Integrate deduplication into `useQuery`
+- [ ] Create `useOptimisticMutation` hook
+- [ ] Apply optimistic updates to task mutations
+
+### Phase 3 Tasks
+- [ ] Update InstantDB `useCreate` types
+- [ ] Update InstantDB `useUpdate` types
+- [ ] Update InstantDB `useRead` types
+- [ ] Update InstantDB `useDestroy` types
+- [ ] Consider shared types package
+
+### Phase 4 Tasks
+- [ ] Create `ErrorBoundary` component
+- [ ] Wrap app in `ErrorBoundary`
+- [ ] Add retry logic to `useMutation`
+- [ ] Create `getErrorMessage` utility
+- [ ] Integrate user-friendly errors
+
+### Phase 5 Tasks
+- [ ] Rename all hooks to standard convention
+- [ ] Update all imports
+- [ ] Write API documentation
+- [ ] Create example patterns doc
+- [ ] Add dev tools (optional)
+
+---
+
+## Final Thoughts
+
+This plan transforms your API layer from a collection of ad-hoc patterns into a cohesive, scalable architecture. The custom hooks approach gives you full control and deep understanding, while the optional React Query migration path provides an exit strategy if you need more features or better performance.
+
+**Key Principle:** Build abstractions that eliminate repetitive code while maintaining clarity and type safety. Every hook should be a thin wrapper around your core patterns, making it easy to understand what's happening and debug when needed.
+
+**Start small:** Implement Phase 1 first, validate it works, then proceed. Don't try to do everything at once.</pre>
+    <script>
+        function copyToClipboard() {
+            const content = document.getElementById('content').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -41,6 +41,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.0.2
         version: 2.3.3
+      '@tiptap/extension-bubble-menu':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
       '@tiptap/extension-mention':
         specifier: ^3.9.1
         version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)(@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
@@ -141,6 +144,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.0.2
         version: 2.3.3
+      '@tiptap/extension-bubble-menu':
+        specifier: ^3.9.1
+        version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)
       '@tiptap/extension-mention':
         specifier: ^3.9.1
         version: 3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1)(@tiptap/suggestion@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))
@@ -5575,7 +5581,6 @@ snapshots:
       '@floating-ui/dom': 1.7.4
       '@tiptap/core': 3.9.1(@tiptap/pm@3.9.1)
       '@tiptap/pm': 3.9.1
-    optional: true
 
   '@tiptap/extension-bullet-list@3.9.1(@tiptap/extension-list@3.9.1(@tiptap/core@3.9.1(@tiptap/pm@3.9.1))(@tiptap/pm@3.9.1))':
     dependencies:

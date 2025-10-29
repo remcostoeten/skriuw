@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus } from 'lucide-react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { Plus, Bold, Italic, Strikethrough, Code, Heading2 } from 'lucide-react';
+import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
@@ -163,7 +163,61 @@ export function NoteEditor({ note, onNoteSelect }: NoteEditorProps) {
 
         {/* WYSIWYG Content Editor */}
         <div className="mb-8">
-          {editor && <EditorContent editor={editor} />}
+          {editor && (
+            <>
+              <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+                <div className="flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg p-1">
+                  <button
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                    className={`p-2 rounded hover:bg-accent transition-colors ${
+                      editor.isActive('bold') ? 'bg-accent' : ''
+                    }`}
+                    title="Bold (Cmd+B)"
+                  >
+                    <Bold className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                    className={`p-2 rounded hover:bg-accent transition-colors ${
+                      editor.isActive('italic') ? 'bg-accent' : ''
+                    }`}
+                    title="Italic (Cmd+I)"
+                  >
+                    <Italic className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => editor.chain().focus().toggleStrike().run()}
+                    className={`p-2 rounded hover:bg-accent transition-colors ${
+                      editor.isActive('strike') ? 'bg-accent' : ''
+                    }`}
+                    title="Strikethrough"
+                  >
+                    <Strikethrough className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => editor.chain().focus().toggleCode().run()}
+                    className={`p-2 rounded hover:bg-accent transition-colors ${
+                      editor.isActive('code') ? 'bg-accent' : ''
+                    }`}
+                    title="Code"
+                  >
+                    <Code className="h-4 w-4" />
+                  </button>
+                  <div className="w-px h-6 bg-border mx-1" />
+                  <button
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                    className={`p-2 rounded hover:bg-accent transition-colors ${
+                      editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''
+                    }`}
+                    title="Heading 2"
+                  >
+                    <Heading2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </BubbleMenu>
+              <EditorContent editor={editor} />
+            </>
+          )}
 
           {/* Tasks Section */}
           <div className="pt-8 border-t border-border/50">
