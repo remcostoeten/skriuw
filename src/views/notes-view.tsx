@@ -5,7 +5,7 @@ import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
 import { transact, tx } from '@/api/db/client';
-import { NoteEditor } from '@/components/note-editor';
+import { TabbedLayout } from '@/components/tabbed-layout';
 import type { Note, Folder } from '@/api/db/schema';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
@@ -13,6 +13,7 @@ import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
 import { SidebarFolderItem } from '@/components/sidebar-folder-item';
 import { SidebarNoteItem } from '@/components/sidebar-note-item';
 import { FoldersSidebar } from '@/components/folders-sidebar';
+import { DockManager } from '@/utils/dock-utils';
 
 export function NotesView() {
   const { notes, isLoading } = useGetNotes();
@@ -26,6 +27,9 @@ export function NotesView() {
   const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState(false);
+
+  // Update dock badge with note count
+  DockManager.setBadge(notes.length || 0);
 
   async function handleCreateNote() {
     const suffix = '.md'
@@ -365,21 +369,15 @@ export function NotesView() {
       </FoldersSidebar>
 
       <div className="flex-1 relative">
-        {selectedNote ? (
-          <NoteEditor
-            note={selectedNote}
-            onNoteSelect={(noteId: Note['id']) => {
-              const referencedNote = notes.find((n: Note) => n.id === noteId);
-              if (referencedNote) {
-                setSelectedNote(referencedNote);
-              }
-            }}
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            <p className="text-sm">Select a note or create a new one</p>
-          </div>
-        )}
+        <TabbedLayout
+          initialNote={selectedNote || undefined}
+          onNoteSelect={(noteId) => {
+            const referencedNote = notes.find((n: Note) => n.id === noteId);
+            if (referencedNote) {
+              setSelectedNote(referencedNote);
+            }
+          }}
+        />
       </div>
     </div>
   );
