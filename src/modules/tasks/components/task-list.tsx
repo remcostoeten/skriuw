@@ -5,6 +5,8 @@ import { useGetTasks } from "@/modules/tasks/api/queries/get-tasks";
 import { useCreateTask } from "@/modules/tasks/api/mutations/create";
 import { useUpdateTask } from "@/modules/tasks/api/mutations/update";
 import { useDestroyTask } from "@/modules/tasks/api/mutations/destroy";
+import { useAddTaskComment } from "@/modules/tasks/api/mutations/add-comment";
+import { applyList, savedLists } from "@/modules/tasks/utils/saved-filters";
 import type { Task } from "@/api/db/schema";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Input } from "@/shared/ui/input";
@@ -22,8 +24,10 @@ export function TaskList({ noteId }: props) {
     const { createTask, isLoading: isCreating } = useCreateTask();
     const { updateTask } = useUpdateTask();
     const { destroyTask } = useDestroyTask();
+    const { addComment } = useAddTaskComment();
 
     const [newTask, setNewTask] = useState("");
+    const [listId, setListId] = useState<string | null>(null);
 
     const nextPosition = useMemo(() => {
         if (!tasks || tasks.length === 0) return 0;
@@ -62,8 +66,22 @@ export function TaskList({ noteId }: props) {
                 Tasks
             </h3>
 
+            <div className="flex items-center gap-2 mb-3">
+                <label className="text-xs text-muted-foreground">Quick list</label>
+                <select
+                    className="bg-transparent text-xs text-muted-foreground border rounded px-1 py-0.5"
+                    value={listId ?? ''}
+                    onChange={(e) => setListId(e.target.value || null)}
+                >
+                    <option value="">All</option>
+                    {savedLists.map((l) => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                </select>
+            </div>
+
             <div className="space-y-3 mb-4">
-                {tasks.map((task: Task) => (
+                {(listId ? applyList(tasks, listId) : tasks).map((task: Task) => (
                     <div key={task.id} className="space-y-2">
                         <div className="flex items-start gap-3 group py-1">
                             <Checkbox
@@ -129,6 +147,14 @@ export function TaskList({ noteId }: props) {
                             onAdd={(content) =>
                                 createTask({ noteId: noteId!, content, position: nextPosition, parentId: task.id })
                             }
+                        />
+
+                        <TaskComments
+                            task={task}
+                            onAdd={async (body) => {
+                                if (!body.trim()) return;
+                                await addComment({ taskId: task.id, body });
+                            }}
                         />
                     </div>
                 ))}
@@ -208,6 +234,58 @@ function AddSubtaskInput({ parentId, noteId, onAdd }: AddSubtaskInputProps) {
             >
                 Add
             </Button>
+        </div>
+    );
+}
+
+type TaskCommentsProps = { task: Task; onAdd: (body: string) => Promise<void> };
+
+function TaskComments({ task, onAdd }: TaskCommentsProps) {
+    const [value, setValue] = useState("");
+    const comments = (task as any).comments || [];
+    const activity = (task as any).activity || [];
+    return (
+        <div className="ml-6 mt-2 space-y-2">
+            <div className="space-y-1">
+                {comments.map((c: any) => (
+                    <div key={c.id} className="text-xs text-muted-foreground">• {c.body}</div>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                <Input
+                    placeholder="Add comment"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && value.trim()) {
+                            await onAdd(value.trim());
+                            setValue("");
+                        }
+                    }}
+                />
+                <Button
+                    onClick={async () => {
+                        if (!value.trim()) return;
+                        await onAdd(value.trim());
+                        setValue("");
+                    }}
+                    disabled={!value.trim()}
+                >
+                    Comment
+                </Button>
+            </div>
+            {activity.length > 0 && (
+                <details className="mt-1">
+                    <summary className="text-xs text-muted-foreground cursor-pointer">Activity</summary>
+                    <div className="mt-1 space-y-1">
+                        {activity.map((a: any) => (
+                            <div key={a.id} className="text-[11px] text-muted-foreground">
+                                {new Date(a.createdAt).toLocaleString()} — {a.type}: {a.message}
+                            </div>
+                        ))}
+                    </div>
+                </details>
+            )}
         </div>
     );
 }

@@ -9,6 +9,8 @@ type props = {
   priority?: 'low' | 'med' | 'high' | 'urgent';
   dueAt?: number;
   parentId?: string;
+  tags?: string[];
+  dependsOnIds?: string[];
 }
 
 export function useCreateTask() {
@@ -23,9 +25,11 @@ export function useCreateTask() {
         createdAt: now,
         priority: input.priority ?? 'med',
         dueAt: input.dueAt,
+        tags: input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined,
       }),
       tx.tasks[id].link({ note: input.noteId }),
       ...(input.parentId ? [tx.tasks[id].link({ parent: input.parentId })] : []),
+      ...((input.dependsOnIds ?? []).map(depId => tx.tasks[id].link({ dependsOn: depId }))),
     ]);
     return { id, ...input };
   });
