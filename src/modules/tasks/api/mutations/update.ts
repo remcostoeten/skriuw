@@ -4,6 +4,9 @@ interface UpdateTaskInput {
   content?: string;
   completed?: boolean;
   position?: number;
+  status?: 'todo' | 'in_progress' | 'blocked' | 'done';
+  priority?: 'low' | 'med' | 'high' | 'urgent';
+  dueAt?: number;
 }
 
 export function useUpdateTask() {

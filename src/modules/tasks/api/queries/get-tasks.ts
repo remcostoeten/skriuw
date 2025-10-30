@@ -8,6 +8,9 @@ const useTasksQuery = createQueryHook(
         where: { 'note.id': noteId },
         order: { position: 'asc' },
       },
+      subtasks: {
+        $: { order: { position: 'asc' } },
+      },
     },
   }),
   {
