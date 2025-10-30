@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-# Simple bash wrapper to run the Node.js script
-node start.mjs "$@"
+/*
+* @name start
+* @description Simple bash wrapper to run the Node.js script. Simply run `./start` to start the app.
+*/
 
+ node scripts/start.mjs "$@"
