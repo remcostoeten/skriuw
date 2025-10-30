@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import type { Folder, Note } from '@/lib/db/schema';
-import { SidebarNoteItem } from '@/components/note-editor';
 import { Folder as ClosedIcon, FolderOpen as OpenIcon } from 'lucide-react';
 import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
 

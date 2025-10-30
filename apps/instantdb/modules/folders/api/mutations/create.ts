@@ -1,4 +1,7 @@
-import { tx, transact, useQuery } from '@/lib/db/client';
+import { useCreate } from '@/hooks/core';
+import { generateId } from '@/lib/utils';
+import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
+import { transact, tx } from '@/lib/db/client';
 
 function nextDefaultFolderName(existing: string[]) {
   const base = 'Folder';
@@ -9,30 +12,31 @@ function nextDefaultFolderName(existing: string[]) {
 }
 
 export function useCreateFolder() {
-  const { data } = useQuery({ folders: {} });
-  const existingNames = (data?.folders || []).map((f) => f.name);
+  const { create } = useCreate('folders');
+  const { folders } = useGetFolders();
+  const existingNames = folders.map((f) => f.name);
 
   async function createFolder(parentId?: string) {
     const name = nextDefaultFolderName(existingNames);
+    const id = generateId();
     const now = Date.now();
-    const createFolderTx = tx.folders[id => ({
-      id,
+
+    await create(id, {
       name,
       createdAt: now,
       updatedAt: now,
-    })].insert();
+    });
 
-    const res = await transact(createFolderTx);
-    const folderId = res?.[0]?.id as string;
-
-    if (parentId && folderId) {
-      await transact(tx.parentFolders.connect({
-        from: { folders: folderId },
-        to: { folders: parentId },
-      }));
+    if (parentId) {
+      await transact([
+        tx.parentFolders.connect({
+          from: { folders: id },
+          to: { folders: parentId },
+        }),
+      ]);
     }
 
-    return { id: folderId, name };
+    return { id, name };
   }
 
   return { createFolder };

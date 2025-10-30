@@ -6,13 +6,13 @@ export function useUpdateFolder() {
     if (data.name !== undefined) updates.name = data.name;
     updates.updatedAt = Date.now();
 
-    await transact(tx.folders[id].update(updates));
+    await transact([tx.folders[id].update(updates)]);
 
     if (data.parentId !== undefined) {
       // disconnect any existing parent
-      await transact(tx.parentFolders.disconnect({ from: { folders: id } }));
+      await transact([tx.parentFolders.disconnect({ from: { folders: id } })]);
       if (data.parentId) {
-        await transact(tx.parentFolders.connect({ from: { folders: id }, to: { folders: data.parentId } }));
+        await transact([tx.parentFolders.connect({ from: { folders: id }, to: { folders: data.parentId } })]);
       }
     }
   }
