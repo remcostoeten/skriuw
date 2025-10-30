@@ -1,6 +1,6 @@
 import { Toolbar } from './toolbar';
-import { SearchBar } from './search-bar';
-import { FolderList } from './folder-list';
+import { SearchBar } from '../search-bar';
+import { FolderList } from '../folder-list';
 import { useSearch } from '@/hooks/use-search';
 import type { Folder } from '@/api/db/schema';
 

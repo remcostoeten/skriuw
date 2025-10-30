@@ -40,7 +40,6 @@ export function matchesSearch(
   const trimmed = query.trim();
   if (!trimmed) return true;
 
-  // Normalize to make matching accent/diacritics-insensitive
   const normalize = (s: string) => s
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
@@ -54,7 +53,6 @@ export function matchesSearch(
   }
 
   if (options.wholeWord) {
-    // For very short queries, whole-word is too restrictive; fall back to includes
     if (searchQuery.length <= 1) {
       return searchTarget.includes(searchQuery);
     }

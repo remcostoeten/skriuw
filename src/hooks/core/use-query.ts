@@ -6,7 +6,7 @@ type AnyFn = (...args: any[]) => any;
 /**
  * Options for `createQueryHook`.
  */
-export interface CreateQueryHookOptions<TData> {
+export type options<TData> = {
   /** Maps the raw InstantDB response to the desired data shape. */
   select?: (raw: any) => TData;
   /** Fallback value returned when no data is available. */
@@ -26,19 +26,18 @@ export interface CreateQueryHookOptions<TData> {
  */
 export function createQueryHook<TArgs extends AnyFn, TData = any>(
   buildQuery: TArgs,
-  options?: CreateQueryHookOptions<TData>
+  options?: options<TData>
 ) {
   return (...args: Parameters<TArgs>) => {
     const isEnabled = options?.enabled ? options.enabled(...args) : true;
     const query = useMemo(() => (isEnabled ? buildQuery(...args) : null), [isEnabled, ...args]);
 
-    const { data: raw, isLoading, error, refetch } = useInstantQuery(query ?? {});
+    const { data: raw, isLoading, error } = useInstantQuery(query ?? {});
 
     const data = (options?.select ? options.select(raw) : (raw as TData)) ?? options?.initialData;
     const isSuccess = !isLoading && !error && isEnabled;
     const isError = !!error && isEnabled;
 
-    // Handle errors with toast notifications
     useEffect(() => {
       if (error && isError && options?.showErrorToast !== false) {
         import('@/hooks/use-error-handler').then(({ useErrorHandler }) => {
@@ -57,8 +56,7 @@ export function createQueryHook<TArgs extends AnyFn, TData = any>(
       isLoading: !!isEnabled && isLoading,
       error: error as Error | null,
       isSuccess,
-      isError,
-      refetch
+      isError
     } as const;
   };
 }

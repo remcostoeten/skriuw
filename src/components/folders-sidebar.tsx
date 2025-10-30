@@ -1,15 +1,15 @@
-import { SidebarToolbar } from './sidebar-toolbar';
-import { SidebarSearch } from './sidebar-search';
+import { SidebarToolbar } from './sidebar/sidebar-toolbar';
+import { SidebarSearch } from './sidebar/sidebar-search';
 import { useSidebarSearch } from '@/modules/search/queries/use-sidebar-search';
 import type { Folder, Note } from '@/api/db/schema';
 
-type FoldersSidebarProps = {
+type props = {
   onNewNote?: () => void;
   onNewFolder?: () => void;
   onToggleFullscreen?: () => void;
   onFolderClick?: (folder: Folder) => void;
   onNoteClick?: (note: Note) => void;
-  children?: React.ReactNode; // For custom folder items with drag-and-drop
+  children?: React.ReactNode;
 };
 
 export function FoldersSidebar({
@@ -19,7 +19,7 @@ export function FoldersSidebar({
   onFolderClick,
   onNoteClick,
   children
-}: FoldersSidebarProps) {
+}: props) {
   const { folders, notes, searchState, hasResults } = useSidebarSearch();
 
   return (

@@ -1,9 +1,9 @@
 import { useCreate, useDestroy, useUpdate } from '@/hooks/core';
 
 /** Config for `createResource`. */
-export interface ResourceFactoryConfig<TCreate, TUpdate> {
-  buildCreate?: (input: TCreate) => Record<string, any>;
-  buildUpdate?: (input: TUpdate) => Record<string, any>;
+type ResourceFactoryConfig<TCreate, TUpdate> = {
+  buildCreate?: (input: TCreate) => Partial<TCreate>;
+  buildUpdate?: (input: TUpdate) => Partial<TUpdate>;
 }
 
 /**

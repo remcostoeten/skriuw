@@ -1,6 +1,6 @@
 import { Plus, FolderPlus, Maximize2, Search } from 'lucide-react';
 
-type SidebarToolbarProps = {
+type props = {
   isSearchOpen: boolean;
   onSearchToggle: () => void;
   onNewNote?: () => void;
@@ -14,7 +14,7 @@ export function SidebarToolbar({
   onNewNote,
   onNewFolder,
   onToggleFullscreen
-}: SidebarToolbarProps) {
+}: props) {
   return (
     <div
       className={`flex flex-row py-4 w-full justify-center h-full px-3.5 gap-2 shrink-0 transition-all duration-300 ${isSearchOpen ? '-translate-y-12' : 'translate-y-0'}`}
