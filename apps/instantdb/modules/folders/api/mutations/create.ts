@@ -29,10 +29,7 @@ export function useCreateFolder() {
 
     if (parentId) {
       await transact([
-        tx.parentFolders.connect({
-          from: { folders: id },
-          to: { folders: parentId },
-        }),
+        tx.folders[id].link({ parent: parentId }),
       ]);
     }
 

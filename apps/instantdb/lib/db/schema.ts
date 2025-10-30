@@ -13,7 +13,7 @@ export const schema = i.graph(
       name: i.string(),
       createdAt: i.number(),
       updatedAt: i.number(),
-      deletedAt: i.optional?.number(),
+      // Note: deletedAt handled at application level, not in schema
     }),
     tasks: i.entity({
       content: i.string(),

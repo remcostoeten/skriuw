@@ -171,7 +171,7 @@ export function NoteEditor({ note, onUpdate, onNoteSelect }: NoteEditorProps) {
         <div className="mb-8">
           {editor && (
             <>
-              <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+              <BubbleMenu editor={editor}>
                 <div className="flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg p-1">
                   <button
                     onClick={() => editor.chain().focus().toggleBold().run()}
