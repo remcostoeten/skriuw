@@ -36,5 +36,3 @@ export function FolderList({ folders, searchQuery, searchOptions, onFolderClick 
         </div>
     );
 }
-
-

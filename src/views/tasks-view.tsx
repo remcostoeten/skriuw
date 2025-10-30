@@ -1,17 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
-import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
-import { useCreateFolder } from '@/modules/folders/api/mutations/create';
-import { useCreateNote } from '@/modules/notes/api/mutations/create';
-import { SidebarFolderItem } from '@/components/sidebar/sidebar-folder-item';
-import { SidebarNoteItem } from '@/components/sidebar/sidebar-note-item';
+import type { Note } from '@/api/db/schema';
 import { FoldersSidebar } from '@/components/folders-sidebar';
-import { DockManager } from '@/utils/dock-utils';
-import type { Note, Folder } from '@/api/db/schema';
+import { useCreateFolder } from '@/modules/folders/api/mutations/create';
+import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
+import { useCreateNote } from '@/modules/notes/api/mutations/create';
+import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import { useGetTasks } from '@/modules/tasks/api/queries/get-tasks';
 import { TaskList } from '@/modules/tasks/components/task-list';
+import { DockManager } from '@/utils/dock-utils';
+import { useEffect, useState } from 'react';
 
 export function TasksView() {
     const { notes, isLoading } = useGetNotes();
@@ -59,46 +57,7 @@ export function TasksView() {
                 onNoteClick={(note) => setSelectedNote(note)}
                 onToggleFullscreen={() => console.log('Toggle fullscreen')}
             >
-                <div>
-                    {(folders as any[])
-                        .filter((f) => !f.parent && !f.deletedAt)
-                        .map((f) => (
-                            <SidebarFolderItem
-                                key={f.id}
-                                folder={f as Folder}
-                                folders={folders as Folder[]}
-                                notes={notes as Note[]}
-                                draggedFolderId={null}
-                                draggedNoteId={null}
-                                onDragStart={() => { }}
-                                onDragEnd={() => { }}
-                                onDrop={() => { }}
-                                onNoteDrop={() => { }}
-                                onNoteSelect={setSelectedNote}
-                                selectedNoteId={selectedNote?.id}
-                                onNoteReorder={() => { }}
-                                onNoteDragStart={() => { }}
-                            />
-                        ))}
 
-                    {notes
-                        .filter((n: Note) => !(n.folder as any))
-                        .sort(
-                            (a: Note, b: Note) => (a.position || 0) - (b.position || 0)
-                        )
-                        .map((note: Note) => (
-                            <SidebarNoteItem
-                                key={note.id}
-                                note={note}
-                                selectedNoteId={selectedNote?.id}
-                                draggedNoteId={null}
-                                onNoteSelect={setSelectedNote}
-                                onDragStart={() => { }}
-                                onDragEnd={() => { }}
-                                onNoteDrop={() => { }}
-                            />
-                        ))}
-                </div>
             </FoldersSidebar>
 
             <div className="flex-1 relative px-8 py-6">

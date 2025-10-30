@@ -21,7 +21,8 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { SyncingOverlay, SyncStatus } from '@/components/loading-states';
 import { useErrorHandler } from '../../hooks/use-error-handler';
 import type { Note } from '@/api/db/schema';
-import { createMentionSuggestion } from '@/components/editor/mention-suggestion';
+import { createMentionSuggestion, createTaskMentionSuggestion } from '@/components/editor/mention-suggestion';
+import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 
 /**
  * ToDo: create a global keyboard event listener HoC
@@ -41,6 +42,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
   const { updateNote, isLoading: isUpdatingNote } = useUpdateNote();
   const { notes } = useGetNotes();
   const { tasks } = useGetTasks(note.id);
+  const { tasks: allTasks } = useGetAllTasks();
   const { createTask, isLoading: isCreatingTask } = useCreateTask();
   const { updateTask, isLoading: isUpdatingTask } = useUpdateTask();
   const { destroyTask, isLoading: isDestroyingTask } = useDestroyTask();
@@ -74,6 +76,10 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       title: n.title || 'Untitled',
     }))
   ), [notes, note.id]);
+
+  const availableTasks = useMemo(() => (
+    allTasks.map((t) => ({ id: t.id, label: `TASK-${t.id.slice(-4)}: ${t.content.replace(/<[^>]*>?/gm, '').slice(0, 40)}` }))
+  ), [allTasks]);
 
   // (moved below editor initialization)
 
@@ -117,6 +123,28 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               'class': 'mention',
             },
             `@${node.attrs.label ?? node.attrs.id}`,
+          ];
+        },
+      }),
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'task-mention',
+        },
+        suggestion: { char: '$', ...createTaskMentionSuggestion(availableTasks) },
+        renderHTML({ options, node }) {
+          const short = node.attrs.label ?? node.attrs.id;
+          const title = `Task ${short}`;
+          return [
+            'a',
+            {
+              ...options.HTMLAttributes,
+              'data-task-id': node.attrs.id,
+              'href': `#task-${node.attrs.id}`,
+              'class': 'task-mention',
+              'title': title,
+              'aria-label': title,
+            },
+            `$${short}`,
           ];
         },
       }),
