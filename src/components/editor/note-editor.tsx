@@ -19,9 +19,9 @@ import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SyncingOverlay, SyncStatus } from '@/components/loading-states';
-import { useErrorHandler } from '@/hooks/use-error-handler';
+import { useErrorHandler } from '../../hooks/use-error-handler';
 import type { Note } from '@/api/db/schema';
-import { createMentionSuggestion } from '@/components/mention-suggestion';
+import { createMentionSuggestion } from '@/components/editor/mention-suggestion';
 
 /**
  * ToDo: create a global keyboard event listener HoC
@@ -213,136 +213,136 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       <SyncingOverlay isLoading={isMutating} message="Saving changes...">
         <div className="h-full overflow-y-auto">
           <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
-        {/* Title */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 placeholder:text-muted-foreground/30"
-          placeholder="Untitled"
-        />
+            {/* Title */}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 placeholder:text-muted-foreground/30"
+              placeholder="Untitled"
+            />
 
-        <div className="flex items-center justify-between mb-8">
-          <div className="text-xs text-muted-foreground">
-            {new Date(note.updatedAt).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="text-xs text-muted-foreground">
+                {new Date(note.updatedAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </div>
 
-          <SyncStatus
-            isLoading={isSyncing}
-            isOnline={navigator.onLine}
-            lastSync={lastSync}
-            showDetails={true}
-          />
-        </div>
+              <SyncStatus
+                isLoading={isSyncing}
+                isOnline={navigator.onLine}
+                lastSync={lastSync}
+                showDetails={true}
+              />
+            </div>
 
-        <div className="mb-8">
-          {editor && (
-            <>
-              <BubbleMenu editor={editor}>
-                <div className="flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg p-1">
-                  <button
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('bold') ? 'bg-accent' : ''
-                      }`}
-                    title="Bold (Cmd+B)"
-                  >
-                    <Bold className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('italic') ? 'bg-accent' : ''
-                      }`}
-                    title="Italic (Cmd+I)"
-                  >
-                    <Italic className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                    className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('strike') ? 'bg-accent' : ''
-                      }`}
-                    title="Strikethrough"
-                  >
-                    <Strikethrough className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => editor.chain().focus().toggleCode().run()}
-                    className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('code') ? 'bg-accent' : ''
-                      }`}
-                    title="Code"
-                  >
-                    <Code className="h-4 w-4" />
-                  </button>
-                  <div className="w-px h-6 bg-border mx-1" />
-                  <button
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''
-                      }`}
-                    title="Heading 2"
-                  >
-                    <Heading2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </BubbleMenu>
-              <EditorContent editor={editor} />
-            </>
-          )}
+            <div className="mb-8">
+              {editor && (
+                <>
+                  <BubbleMenu editor={editor}>
+                    <div className="flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg p-1">
+                      <button
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('bold') ? 'bg-accent' : ''
+                          }`}
+                        title="Bold (Cmd+B)"
+                      >
+                        <Bold className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('italic') ? 'bg-accent' : ''
+                          }`}
+                        title="Italic (Cmd+I)"
+                      >
+                        <Italic className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleStrike().run()}
+                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('strike') ? 'bg-accent' : ''
+                          }`}
+                        title="Strikethrough"
+                      >
+                        <Strikethrough className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleCode().run()}
+                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('code') ? 'bg-accent' : ''
+                          }`}
+                        title="Code"
+                      >
+                        <Code className="h-4 w-4" />
+                      </button>
+                      <div className="w-px h-6 bg-border mx-1" />
+                      <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''
+                          }`}
+                        title="Heading 2"
+                      >
+                        <Heading2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </BubbleMenu>
+                  <EditorContent editor={editor} />
+                </>
+              )}
 
 
-          {/* Task setup 
+              {/* Task setup 
           ToDo: think of a way to implement this, ignore for now.
           */}
-          <div className="pt-8 border-t border-border/50">
-            <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-4">Tasks</h3>
-            <div className="space-y-3 mb-4">
-              {tasks.map((task) => (
-                <div key={task.id} className="flex items-start gap-3 group py-1">
-                  <Checkbox
-                    checked={task.completed}
-                    onCheckedChange={(checked) =>
-                      handleToggleTask(task.id, checked as boolean)
-                    }
-                    className="mt-1"
-                  />
-                  <span
-                    className={`flex-1 text-base ${task.completed ? 'line-through text-muted-foreground' : ''
-                      }`}
-                  >
-                    {task.content}
-                  </span>
-                  <button
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity text-lg leading-none"
-                  >
-                    ×
-                  </button>
+              <div className="pt-8 border-t border-border/50">
+                <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-4">Tasks</h3>
+                <div className="space-y-3 mb-4">
+                  {tasks.map((task) => (
+                    <div key={task.id} className="flex items-start gap-3 group py-1">
+                      <Checkbox
+                        checked={task.completed}
+                        onCheckedChange={(checked) =>
+                          handleToggleTask(task.id, checked as boolean)
+                        }
+                        className="mt-1"
+                      />
+                      <span
+                        className={`flex-1 text-base ${task.completed ? 'line-through text-muted-foreground' : ''
+                          }`}
+                      >
+                        {task.content}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity text-lg leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="flex gap-2">
-              <Input
-                value={newTaskContent}
-                onChange={(e) => setNewTaskContent(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
-                placeholder="Add a task..."
-                className="flex-1 border-muted"
-              />
-              <Button size="icon" onClick={handleCreateTask} variant="ghost">
-                <Plus className="h-4 w-4" />
-              </Button>
+                <div className="flex gap-2">
+                  <Input
+                    value={newTaskContent}
+                    onChange={(e) => setNewTaskContent(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
+                    placeholder="Add a task..."
+                    className="flex-1 border-muted"
+                  />
+                  <Button size="icon" onClick={handleCreateTask} variant="ghost">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-          </div>
-        </SyncingOverlay>
-      </ErrorBoundary>
+      </SyncingOverlay>
+    </ErrorBoundary>
   );
 }
 

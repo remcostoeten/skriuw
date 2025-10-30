@@ -5,21 +5,21 @@ import { searchRepository } from '../repositories/search-repository';
 import type { Note } from '@/api/db/schema';
 
 export function useNoteSearch() {
-  const { data: notes = [] } = useGetNotes();
+  const { notes = [] } = useGetNotes();
   const searchState = useSearchState();
 
   const searchResults = useMemo(() => {
     if (!searchState.query) {
-      return notes
-        .filter(note => !note.folder)
-        .map(note => ({
+      return (notes as Note[])
+        .filter((note: Note) => !note.folder)
+        .map((note: Note) => ({
           item: note,
           highlightedText: note.title,
           matches: true
         }));
     }
 
-    return searchRepository.searchNotes(notes, searchState.query, searchState.options);
+    return searchRepository.searchNotes(notes as Note[], searchState.query, searchState.options);
   }, [notes, searchState.query, searchState.options]);
 
   return {

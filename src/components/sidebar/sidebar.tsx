@@ -1,10 +1,10 @@
 import { Toolbar } from './toolbar';
-import { SearchBar } from '../search-bar';
-import { FolderList } from '../folder-list';
-import { useSearch } from '@/hooks/use-search';
+import { SearchBar } from './search-bar';
+import { FolderList } from './folder-list';
+import { useSearch } from '../../hooks/use-search';
 import type { Folder } from '@/api/db/schema';
 
-type SidebarProps = {
+type props = {
   folders: Folder[];
   onNewNote?: () => void;
   onNewFolder?: () => void;
@@ -20,10 +20,9 @@ export function Sidebar({
   onToggleFullscreen,
   onFolderClick,
   className = ""
-}: SidebarProps) {
+}: props) {
   const search = useSearch();
 
-  // Transform folder data to match our interface
   const transformedFolders = folders
     .filter(folder => !folder.deletedAt && !folder.parent) // Only show root folders
     .map(folder => ({
@@ -31,7 +30,7 @@ export function Sidebar({
       name: folder.name,
       count: folder.notes?.length || 0,
       path: `/${folder.name}`,
-      originalFolder: folder // Keep original data for callbacks
+      originalFolder: folder
     }));
 
   return (

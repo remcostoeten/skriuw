@@ -1,5 +1,5 @@
 import { highlightText } from '@/lib/search-utils';
-import type { SearchOptions } from '@/hooks/use-search';
+import type { SearchOptions } from '../hooks/use-search';
 
 type FolderItem = {
   id: string;

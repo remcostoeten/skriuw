@@ -1,5 +1,5 @@
 import { matchesSearch } from '@/lib/search-utils';
-import type { SearchOptions } from '@/hooks/use-search';
+import type { SearchOptions } from '../hooks/use-search';
 import { FolderItem } from './folder-item';
 
 type FolderItem = {

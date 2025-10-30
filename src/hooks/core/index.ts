@@ -3,6 +3,8 @@ export { useUpdate } from './use-update';
 export { useRead } from './use-read';
 export { useDestroy } from './use-destroy';
 export { useMutation } from './use-mutation';
-export { createQueryHook } from './use-query';
-export { createResource } from './use-resource';
+
+export { createQueryHook } from './create-query-hook';
+export { createResource } from './create-resource';
+
 

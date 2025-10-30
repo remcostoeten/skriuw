@@ -5,7 +5,7 @@ import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
 import { transact, tx } from '@/api/db/client';
-import { NoteEditor } from '@/components/note-editor';
+import { NoteEditor } from '@/components/editor/note-editor';
 import type { Note, Folder } from '@/api/db/schema';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';

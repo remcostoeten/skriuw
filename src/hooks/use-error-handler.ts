@@ -4,70 +4,68 @@ import { useCallback } from 'react';
 import { useToast } from '@/components/error-toast';
 
 type ErrorHandlerOptions = {
-  showToast?: boolean;
-  fallbackMessage?: string;
-  logToConsole?: boolean;
+    showToast?: boolean;
+    fallbackMessage?: string;
+    logToConsole?: boolean;
 };
 
 export function useErrorHandler(options: ErrorHandlerOptions = {}) {
-  const {
-    showToast = true,
-    fallbackMessage = 'An unexpected error occurred',
-    logToConsole = true,
-  } = options;
+    const {
+        showToast = true,
+        fallbackMessage = 'An unexpected error occurred',
+        logToConsole = true,
+    } = options;
 
-  const { showError } = useToast();
+    const { showError } = useToast();
 
-  const handleError = useCallback((error: unknown, context?: string) => {
-    // Log to console
-    if (logToConsole) {
-      console.error(`Error${context ? ` in ${context}` : ''}:`, error);
-    }
+    const handleError = useCallback((error: unknown, context?: string) => {
+        if (logToConsole) {
+            console.error(`Error${context ? ` in ${context}` : ''}:`, error);
+        }
 
-    // Extract meaningful error message
-    let errorMessage = fallbackMessage;
-    let errorTitle = 'Error';
+        let errorMessage = fallbackMessage;
+        let errorTitle = 'Error';
 
-    if (error instanceof Error) {
-      errorTitle = error.name || 'Error';
-      errorMessage = error.message || fallbackMessage;
-    } else if (typeof error === 'string') {
-      errorMessage = error;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-      errorMessage = String(error.message) || fallbackMessage;
-    }
+        if (error instanceof Error) {
+            errorTitle = error.name || 'Error';
+            errorMessage = error.message || fallbackMessage;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+            errorMessage = String((error as any).message) || fallbackMessage;
+        }
 
-    // Show toast notification
-    if (showToast) {
-      showError(
-        context ? `${errorTitle} in ${context}` : errorTitle,
-        errorMessage
-      );
-    }
+        if (showToast) {
+            showError(
+                context ? `${errorTitle} in ${context}` : errorTitle,
+                errorMessage
+            );
+        }
 
-    // Return formatted error for further handling
+        return {
+            title: errorTitle,
+            message: errorMessage,
+            original: error,
+        };
+    }, [showToast, fallbackMessage, logToConsole, showError]);
+
+    const handleAsyncError = useCallback(async (
+        asyncFn: () => Promise<any>,
+        context?: string
+    ): Promise<{ data?: any; error?: ReturnType<typeof handleError> }> => {
+        try {
+            const data = await asyncFn();
+            return { data };
+        } catch (error) {
+            const formattedError = handleError(error, context);
+            return { error: formattedError };
+        }
+    }, [handleError]);
+
     return {
-      title: errorTitle,
-      message: errorMessage,
-      original: error,
+        handleError,
+        handleAsyncError,
     };
-  }, [showToast, fallbackMessage, logToConsole, showError]);
-
-  const handleAsyncError = useCallback(async (
-    asyncFn: () => Promise<any>,
-    context?: string
-  ): Promise<{ data?: any; error?: ReturnType<typeof handleError> }> => {
-    try {
-      const data = await asyncFn();
-      return { data };
-    } catch (error) {
-      const formattedError = handleError(error, context);
-      return { error: formattedError };
-    }
-  }, [handleError]);
-
-  return {
-    handleError,
-    handleAsyncError,
-  };
 }
+
+

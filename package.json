@@ -1,5 +1,6 @@
 {
-  "name": "instantdb-app",
+  "name": "notys",
+  "description": "Manage your mess, with speed",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,6 +9,13 @@
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
+    "keywords": [
+      "notys",
+      "notes",
+      "task management",
+      "productivity",
+      "task management"
+    ],
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

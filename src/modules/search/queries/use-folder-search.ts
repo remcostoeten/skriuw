@@ -5,21 +5,21 @@ import { searchRepository } from '../repositories/search-repository';
 import type { Folder } from '@/api/db/schema';
 
 export function useFolderSearch() {
-  const { data: folders = [] } = useGetFolders();
+  const { folders = [] } = useGetFolders();
   const searchState = useSearchState();
 
   const searchResults = useMemo(() => {
     if (!searchState.query) {
-      return folders
-        .filter(folder => !folder.deletedAt && !folder.parent)
-        .map(folder => ({
+      return (folders as Folder[])
+        .filter((folder: Folder) => !folder.deletedAt && !folder.parent)
+        .map((folder: Folder) => ({
           item: folder,
           highlightedText: folder.name,
           matches: true
         }));
     }
 
-    return searchRepository.searchFolders(folders, searchState.query, searchState.options);
+    return searchRepository.searchFolders(folders as Folder[], searchState.query, searchState.options);
   }, [folders, searchState.query, searchState.options]);
 
   return {

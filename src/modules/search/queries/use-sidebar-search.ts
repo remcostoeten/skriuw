@@ -5,12 +5,12 @@ import { useSearchState } from './use-search-state';
 import { searchRepository } from '../repositories/search-repository';
 
 export function useSidebarSearch() {
-  const { data: folders = [] } = useGetFolders();
-  const { data: notes = [] } = useGetNotes();
+  const { folders = [] } = useGetFolders();
+  const { notes = [] } = useGetNotes();
   const searchState = useSearchState();
 
   const searchResults = useMemo(() => {
-    return searchRepository.searchSidebar(folders, notes, searchState.query, searchState.options);
+    return searchRepository.searchSidebar(folders as any[], notes as any[], searchState.query, searchState.options);
   }, [folders, notes, searchState.query, searchState.options]);
 
   const hasResults = useMemo(() => {

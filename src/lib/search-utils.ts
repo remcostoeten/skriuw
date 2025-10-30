@@ -1,4 +1,4 @@
-import type { SearchOptions } from '@/hooks/use-search';
+import type { SearchOptions } from '../hooks/use-search';
 
 export function highlightText(text: string, query: string, options: SearchOptions): string {
   if (!query) return text;

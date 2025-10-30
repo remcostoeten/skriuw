@@ -27,16 +27,14 @@ export function SearchableSidebar({
 }: SearchableSidebarProps) {
   const search = useSearch();
 
-  // Filter folders based on search
   const filteredFolders = folders.filter(folder => {
     if (folder.deletedAt) return false;
-    if (folder.parent) return false; // Only show root folders in this simple version
+    if (folder.parent) return false;
     return matchesSearch(folder.name, search.query, search.options);
   });
 
-  // Filter root notes based on search
   const filteredRootNotes = notes.filter(note => {
-    if (note.folder) return false; // Only show root notes
+    if (note.folder) return false;
     return matchesSearch(note.title, search.query, search.options);
   });
 
@@ -56,7 +54,7 @@ export function SearchableSidebar({
           onSearchToggle={search.toggle}
           onNewNote={onNewNote}
           onNewFolder={onNewFolder}
-          onToggleFullscreen={() => { }} // No-op for now
+          onToggleFullscreen={() => { }}
         />
 
         <div className={`absolute pb-[0.5px] flex flex-row items-center justify-center w-full h-full px-[5px] gap-1 shrink-0 transition-all duration-300 ${search.isOpen ? 'translate-y-0' : 'translate-y-12'}`}>
@@ -93,7 +91,6 @@ export function SearchableSidebar({
 
         {children || (
           <>
-            {/* Render folders */}
             {filteredFolders.map((folder) => {
               const highlightedName = highlightText(folder.name, search.query, search.options);
               const noteCount = notes.filter(note => (note.folder as any)?.id === folder.id).length;
@@ -119,7 +116,6 @@ export function SearchableSidebar({
               );
             })}
 
-            {/* Render root notes */}
             {filteredRootNotes
               .sort((a, b) => (a.position || 0) - (b.position || 0))
               .map((note) => {
@@ -129,7 +125,7 @@ export function SearchableSidebar({
                   <div key={note.id} className="mb-1">
                     <button
                       className="font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground text-secondary-foreground/80 hover:text-foreground transition-all flex items-center gap-2"
-                      onClick={() => { }} // Add note selection logic here
+                      onClick={() => { }}
                     >
                       <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
@@ -144,7 +140,6 @@ export function SearchableSidebar({
                 );
               })}
 
-            {/* Empty state */}
             {filteredFolders.length === 0 && filteredRootNotes.length === 0 && (
               <div className="p-4 text-center text-muted-foreground">
                 {search.query ? (
