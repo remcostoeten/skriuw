@@ -40,5 +40,3 @@ export function useCreateFolder() {
 
   return { createFolder: mutate, isLoading, error };
 }
-
-

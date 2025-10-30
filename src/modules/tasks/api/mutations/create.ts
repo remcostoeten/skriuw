@@ -2,18 +2,17 @@ import { useMutation } from '@/hooks/core';
 import { generateId } from '@/shared/utils';
 import { transact, tx } from '@/api/db/client';
 
-interface CreateTaskInput {
+type props = {
   noteId: string;
   content: string;
   position: number;
-  status?: 'todo' | 'in_progress' | 'blocked' | 'done';
   priority?: 'low' | 'med' | 'high' | 'urgent';
   dueAt?: number;
   parentId?: string;
 }
 
 export function useCreateTask() {
-  const { mutate, isLoading, error } = useMutation(async (input: CreateTaskInput) => {
+  const { mutate, isLoading, error } = useMutation(async (input: props) => {
     const id = generateId();
     const now = Date.now();
     await transact([
@@ -22,7 +21,6 @@ export function useCreateTask() {
         completed: false,
         position: input.position,
         createdAt: now,
-        status: input.status ?? 'todo',
         priority: input.priority ?? 'med',
         dueAt: input.dueAt,
       }),

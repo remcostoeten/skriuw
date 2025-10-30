@@ -1,6 +1,6 @@
 import { useMutation, useUpdate } from '@/hooks/core';
 
-interface UpdateTaskInput {
+type props = {
   content?: string;
   completed?: boolean;
   position?: number;
@@ -11,11 +11,11 @@ interface UpdateTaskInput {
 
 export function useUpdateTask() {
   const { update } = useUpdate('tasks');
-  const { mutate, isLoading, error } = useMutation(async ({ id, input }: { id: string; input: UpdateTaskInput }) => {
+  const { mutate, isLoading, error } = useMutation(async ({ id, input }: { id: string; input: Partial<props> }) => {
     await update(id, input);
     return { id };
   });
-  const updateTask = (id: string, input: UpdateTaskInput) => mutate({ id, input });
+  const updateTask = (id: string, input: props) => mutate({ id, input });
   return { updateTask, isLoading, error };
 }
 

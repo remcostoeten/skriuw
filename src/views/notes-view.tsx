@@ -10,8 +10,8 @@ import type { Note, Folder } from '@/api/db/schema';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
 import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
-import { SidebarFolderItem } from '@/components/sidebar-folder-item';
-import { SidebarNoteItem } from '@/components/sidebar-note-item';
+import { SidebarFolderItem } from '@/components/sidebar/sidebar-folder-item';
+import { SidebarNoteItem } from '@/components/sidebar/sidebar-note-item';
 import { FoldersSidebar } from '@/components/folders-sidebar';
 
 export function NotesView() {
