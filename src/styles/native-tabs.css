@@ -1,0 +1,237 @@
+/* Native Tabs System Styles */
+
+/* Tab System Base Styles */
+.tab-system {
+  user-select: none;
+}
+
+/* Tab Styles */
+.tab-system > div > div {
+  position: relative;
+  transition: all 200ms ease;
+}
+
+.tab-system > div > div:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.tab-system > div > div.active {
+  background-color: hsl(var(--background));
+  border-top: 2px solid hsl(var(--primary));
+}
+
+/* Drag and Drop Styles */
+.tab-system > div > div.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+.tab-system > div > div.drag-over {
+  border-left: 2px solid hsl(var(--primary));
+}
+
+/* Tab Content Transitions */
+.tab-content {
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Web Context Menu Styles */
+#web-context-menu {
+  min-width: 160px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border: 1px solid hsl(var(--border));
+  animation: contextMenuFadeIn 150ms ease;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#web-context-menu > div {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#web-context-menu > div:hover {
+  background-color: hsl(var(--accent));
+}
+
+/* Progress Indicator for Dock */
+:root {
+  --app-progress: 0;
+}
+
+.progress-indicator {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)));
+  transform: scaleX(var(--app-progress));
+  transform-origin: left;
+  transition: transform 300ms ease;
+  z-index: 9999;
+}
+
+/* Window Controls (for future native window controls) */
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 6px;
+}
+
+.window-control {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.window-control:hover {
+  transform: scale(1.1);
+}
+
+.window-control.close {
+  background: hsl(var(--destructive));
+}
+
+.window-control.minimize {
+  background: hsl(45, 100%, 50%);
+}
+
+.window-control.maximize {
+  background: hsl(120, 100%, 35%);
+}
+
+/* Responsive Tab Layout */
+@media (max-width: 768px) {
+  .tab-system > div > div {
+    max-width: 120px;
+  }
+
+  .tab-system .tab-title {
+    font-size: 12px;
+  }
+}
+
+/* Focus and Accessibility */
+.tab-system > div > div:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: -2px;
+}
+
+/* Loading State for Tabs */
+.tab-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsl(var(--muted) / 0.5), transparent);
+  animation: tabLoading 1.5s infinite;
+}
+
+@keyframes tabLoading {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .tab-system > div > div {
+    border: 1px solid hsl(var(--border));
+  }
+
+  .tab-system > div > div.active {
+    border-top: 3px solid hsl(var(--primary));
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .tab-system > div > div,
+  .tab-content,
+  #web-context-menu,
+  .window-control {
+    transition: none;
+  }
+
+  .tab-loading::after {
+    animation: none;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .window-controls {
+    background: hsl(var(--muted) / 0.2);
+  }
+}
+
+/* Native System Integration */
+.system-integration {
+  -webkit-app-region: drag;
+}
+
+.system-integration button,
+.system-integration input,
+.system-integration [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* Native Font Fallback */
+.system-font {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Native Scrollbar Styling */
+.native-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.native-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.2);
+}
+
+.native-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.native-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}

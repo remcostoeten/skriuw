@@ -1,6 +1,7 @@
 import { SidebarToolbar } from './sidebar-toolbar';
 import { SidebarSearch } from './sidebar-search';
 import { useSidebarSearch } from '@/modules/search/queries/use-sidebar-search';
+import { useEffect } from 'react';
 import type { Folder, Note } from '@/api/db/schema';
 
 type FoldersSidebarProps = {
@@ -22,6 +23,25 @@ export function FoldersSidebar({
 }: FoldersSidebarProps) {
   const { folders, notes, searchState, hasResults } = useSidebarSearch();
 
+  // Handle keyboard shortcuts for search
+  useEffect(() => {
+    const handleSearchToggle = () => {
+      searchState.toggle();
+    };
+
+    const handleSearchClose = () => {
+      searchState.close();
+    };
+
+    window.addEventListener('search:toggle', handleSearchToggle);
+    window.addEventListener('search:close', handleSearchClose);
+
+    return () => {
+      window.removeEventListener('search:toggle', handleSearchToggle);
+      window.removeEventListener('search:close', handleSearchClose);
+    };
+  }, [searchState]);
+
   return (
     <aside className="w-48 transition-all border-r duration-300 overflow-hidden bg-background/50 backdrop-blur-sm">
       <div className="relative top-0 flex flex-col min-h-10 w-full border-b bg-background overflow-hidden">
@@ -33,7 +53,7 @@ export function FoldersSidebar({
           onToggleFullscreen={onToggleFullscreen}
         />
 
-        <div className={`absolute pb-[0.5px] flex flex-row items-center justify-center w-full h-full px-[5px] gap-1 shrink-0 transition-all duration-300 ${searchState.isOpen ? 'translate-y-0' : 'translate-y-12'}`}>
+        <div className={`pb-[0.5px] flex flex-row items-center justify-center w-full h-full px-[5px] gap-1 shrink-0 transition-all duration-300 ${searchState.isOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'}`}>
           <SidebarSearch
             query={searchState.query}
             onQueryChange={searchState.setQuery}
@@ -44,7 +64,7 @@ export function FoldersSidebar({
         </div>
       </div>
 
-      <div className="overflow-y-auto h-[calc(100vh-80px)] px-2">
+      <div className={`overflow-y-auto px-2 transition-all duration-300 ${searchState.isOpen ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-80px)]'}`}>
         {searchState.query && (
           <div className="mb-2 p-2 text-xs text-muted-foreground bg-muted/50 rounded">
             Searching: <strong>{searchState.query}</strong>

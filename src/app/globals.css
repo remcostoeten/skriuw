@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tippy.js/dist/tippy.css";
+@import "../styles/native-tabs.css";
 
 @layer base {
   :root {
