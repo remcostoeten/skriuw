@@ -21,6 +21,8 @@ export const schema = i.graph(
       completed: i.boolean(),
       position: i.number(),
       createdAt: i.number(),
+      priority: i.string(),
+      dueAt: i.number().optional(),
     }),
   },
   {
@@ -60,6 +62,18 @@ export const schema = i.graph(
         label: 'children',
       },
     },
+    parentTasks: {
+      forward: {
+        on: 'tasks',
+        has: 'one',
+        label: 'parent',
+      },
+      reverse: {
+        on: 'tasks',
+        has: 'many',
+        label: 'subtasks',
+      },
+    },
   }
 );
 
@@ -82,7 +96,12 @@ export type Task = {
   completed: boolean;
   position: number;
   createdAt: number;
+  status: 'todo' | 'in_progress' | 'blocked' | 'done';
+  priority: 'low' | 'med' | 'high' | 'urgent';
+  dueAt?: number;
   note?: Note;
+  parent?: Task;
+  subtasks?: Task[];
 };
 
 export type Folder = {
