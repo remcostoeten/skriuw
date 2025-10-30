@@ -10,6 +10,7 @@ import { NoteEditor } from '@/components/note-editor';
 import type { Note, Folder } from '@/lib/db/schema';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
+import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
 import { SidebarFolderItem } from '@/components/sidebar-folder-item';
 
 export function NotesView() {
@@ -18,8 +19,10 @@ export function NotesView() {
   const { createFolder } = useCreateFolder();
   const { createNote } = useCreateNote();
   const { destroyNote } = useDestroyNote();
+  const { updateFolder } = useUpdateFolder();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
   
   async function handleCreateNote() {
     const suffix = '.md'
@@ -34,7 +37,41 @@ export function NotesView() {
     if (selectedNote?.id === id) {
       setSelectedNote(null);
     }
-  };
+  }
+
+  function handleDragStart(folderId: string) {
+    setDraggedFolderId(folderId);
+  }
+
+  function handleDragEnd() {
+    setDraggedFolderId(null);
+  }
+
+  async function handleDrop(draggedFolderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside') {
+    const draggedFolder = folders.find((f) => f.id === draggedFolderId);
+    const targetFolder = folders.find((f) => f.id === targetFolderId);
+    
+    if (!draggedFolder || !targetFolder) return;
+
+    let newParentId: string | null = null;
+
+    if (position === 'inside') {
+      // Move into target folder
+      newParentId = targetFolderId;
+    } else {
+      // Move to same level as target (before/after)
+      // Get target's parent (or null if root)
+      newParentId = (targetFolder.parent as any)?.id || null;
+    }
+
+    // Only update if parent actually changed
+    const currentParentId = (draggedFolder.parent as any)?.id || null;
+    if (currentParentId !== newParentId) {
+      await updateFolder(draggedFolderId, { parentId: newParentId });
+    }
+
+    setDraggedFolderId(null);
+  }
 
   if (isLoading) {
     return (
@@ -64,8 +101,17 @@ export function NotesView() {
         </div>
         <div className="overflow-y-auto h-[calc(100vh-65px)] px-2">
           {/* Root folders */}
-          {(folders as any[]).filter((f) => !f.parent).map((f) => (
-            <SidebarFolderItem key={f.id} folder={f as Folder} folders={folders as Folder[]} notes={notes as Note[]} />
+          {(folders as any[]).filter((f) => !f.parent && !f.deletedAt).map((f) => (
+            <SidebarFolderItem 
+              key={f.id} 
+              folder={f as Folder} 
+              folders={folders as Folder[]} 
+              notes={notes as Note[]}
+              draggedFolderId={draggedFolderId}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+            />
           ))}
 
           {/* Orphan notes (no folder) */}
