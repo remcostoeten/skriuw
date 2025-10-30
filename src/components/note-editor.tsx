@@ -17,6 +17,9 @@ import { useDestroyTask } from '@/modules/tasks/api/mutations/destroy';
 import { Input } from '@/shared/ui/input';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { SyncingOverlay, SyncStatus } from '@/components/loading-states';
+import { useErrorHandler } from '@/hooks/use-error-handler';
 import type { Note } from '@/api/db/schema';
 import { createMentionSuggestion } from '@/components/mention-suggestion';
 
@@ -32,13 +35,38 @@ type Props = {
 export function NoteEditor({ note, onNoteSelect }: Props) {
   const [title, setTitle] = useState(note.title);
   const [newTaskContent, setNewTaskContent] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | undefined>(undefined);
 
-  const { updateNote } = useUpdateNote();
+  const { updateNote, isLoading: isUpdatingNote } = useUpdateNote();
   const { notes } = useGetNotes();
   const { tasks } = useGetTasks(note.id);
-  const { createTask } = useCreateTask();
-  const { updateTask } = useUpdateTask();
-  const { destroyTask } = useDestroyTask();
+  const { createTask, isLoading: isCreatingTask } = useCreateTask();
+  const { updateTask, isLoading: isUpdatingTask } = useUpdateTask();
+  const { destroyTask, isLoading: isDestroyingTask } = useDestroyTask();
+
+  const { handleError } = useErrorHandler();
+
+  // Calculate overall loading state
+  const isMutating = isUpdatingNote || isCreatingTask || isUpdatingTask || isDestroyingTask;
+
+  // Helper to wrap async operations with sync status tracking
+  const withSyncTracking = useCallback(async <T,>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T | undefined> => {
+    setIsSyncing(true);
+    try {
+      const result = await operation();
+      setLastSync(new Date());
+      return result;
+    } catch (error) {
+      handleError(error, operationName);
+      return undefined;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [handleError]);
 
   const availableNotes = useMemo(() => (
     notes.filter((n) => n.id !== note.id).map((n) => ({
@@ -108,9 +136,12 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
 
     const html = editor.getHTML();
     if (html !== note.content) {
-      updateNote(note.id, { content: html });
+      withSyncTracking(
+        () => updateNote(note.id, { content: html }),
+        'auto-save note content'
+      );
     }
-  }, [editor, note.id, note.content, updateNote]);
+  }, [editor, note.id, note.content, updateNote, withSyncTracking]);
 
   useEffect(() => {
     setTitle(note.title);
@@ -123,31 +154,65 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
-    await updateNote(note.id, { title: newTitle });
+    await withSyncTracking(
+      () => updateNote(note.id, { title: newTitle }),
+      'update note title'
+    );
   };
 
   async function handleCreateTask() {
     if (!newTaskContent.trim()) return;
 
-    await createTask({
-      noteId: note.id,
-      content: newTaskContent,
-      position: tasks.length,
-    });
-    setNewTaskContent('');
+    const success = await withSyncTracking(
+      () => createTask({
+        noteId: note.id,
+        content: newTaskContent,
+        position: tasks.length,
+      }),
+      'create task'
+    );
+
+    if (success) {
+      setNewTaskContent('');
+    }
   };
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
-    await updateTask(taskId, { completed });
+    await withSyncTracking(
+      () => updateTask(taskId, { completed }),
+      'update task'
+    );
   };
 
   async function handleDeleteTask(taskId: string) {
-    await destroyTask(taskId);
+    await withSyncTracking(
+      () => destroyTask(taskId),
+      'delete task'
+    );
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
+    <ErrorBoundary
+      fallback={({ error, retry }) => (
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Editor Error</h3>
+            <p className="text-gray-600 mb-4">
+              {error?.message || 'Something went wrong while loading the note editor.'}
+            </p>
+            <button
+              onClick={retry}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <SyncingOverlay isLoading={isMutating} message="Saving changes...">
+        <div className="h-full overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
         {/* Title */}
         <input
           type="text"
@@ -157,14 +222,23 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
           placeholder="Untitled"
         />
 
-        <div className="text-xs text-muted-foreground mb-8">
-          {new Date(note.updatedAt).toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+        <div className="flex items-center justify-between mb-8">
+          <div className="text-xs text-muted-foreground">
+            {new Date(note.updatedAt).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+
+          <SyncStatus
+            isLoading={isSyncing}
+            isOnline={navigator.onLine}
+            lastSync={lastSync}
+            showDetails={true}
+          />
         </div>
 
         <div className="mb-8">
@@ -255,7 +329,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               <Input
                 value={newTaskContent}
                 onChange={(e) => setNewTaskContent(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateTask()}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
                 placeholder="Add a task..."
                 className="flex-1 border-muted"
               />
@@ -266,7 +340,9 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
           </div>
         </div>
       </div>
-    </div>
+          </div>
+        </SyncingOverlay>
+      </ErrorBoundary>
   );
 }
 
