@@ -6,10 +6,14 @@ export interface UseMutationOptions<TData, TVariables> {
   onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
   /** Callback executed on error. */
   onError?: (error: Error, variables: TVariables) => void | Promise<void>;
+  /** Whether to show toast notifications on error. */
+  showErrorToast?: boolean;
+  /** Context for error messages. */
+  errorContext?: string;
 }
 
 /**
- * Wraps an async mutation function and returns `{ mutate, isLoading, error }`.
+ * Wraps an async mutation function and returns `{ mutate, isLoading, error, reset }`.
  */
 export function useMutation<TData, TVariables = void>(
   mutationFn: (variables: TVariables) => Promise<TData>,
@@ -29,6 +33,16 @@ export function useMutation<TData, TVariables = void>(
       } catch (err) {
         const e = err as Error;
         setError(e);
+
+        // Handle error with toast notification if enabled
+        if (options?.showErrorToast !== false) {
+          // Import dynamically to avoid circular dependencies
+          import('@/hooks/use-error-handler').then(({ useErrorHandler }) => {
+            const { handleError } = useErrorHandler();
+            handleError(e, options?.errorContext);
+          });
+        }
+
         await options?.onError?.(e, variables);
         throw e;
       } finally {
@@ -38,7 +52,12 @@ export function useMutation<TData, TVariables = void>(
     [mutationFn, options]
   );
 
-  return { mutate, isLoading, error } as const;
+  const reset = useCallback(() => {
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
+  return { mutate, isLoading, error, reset } as const;
 }
 
 

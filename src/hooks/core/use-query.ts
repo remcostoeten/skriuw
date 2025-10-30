@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuery as useInstantQuery } from '@/api/db/client';
 
 type AnyFn = (...args: any[]) => any;
@@ -13,10 +13,16 @@ export interface CreateQueryHookOptions<TData> {
   initialData?: TData;
   /** Predicate that controls whether the query executes. */
   enabled?: (...args: any[]) => boolean;
+  /** Whether to show error toast notifications. */
+  showErrorToast?: boolean;
+  /** Context for error messages. */
+  errorContext?: string;
+  /** Callback for handling errors. */
+  onError?: (error: Error) => void;
 }
 
 /**
- * Creates a typed query hook that returns `{ data, isLoading, error }`.
+ * Creates a typed query hook that returns `{ data, isLoading, error, isSuccess, isError, refetch }`.
  */
 export function createQueryHook<TArgs extends AnyFn, TData = any>(
   buildQuery: TArgs,
@@ -26,11 +32,34 @@ export function createQueryHook<TArgs extends AnyFn, TData = any>(
     const isEnabled = options?.enabled ? options.enabled(...args) : true;
     const query = useMemo(() => (isEnabled ? buildQuery(...args) : null), [isEnabled, ...args]);
 
-    const { data: raw, isLoading, error } = useInstantQuery(query ?? {});
+    const { data: raw, isLoading, error, refetch } = useInstantQuery(query ?? {});
 
     const data = (options?.select ? options.select(raw) : (raw as TData)) ?? options?.initialData;
+    const isSuccess = !isLoading && !error && isEnabled;
+    const isError = !!error && isEnabled;
 
-    return { data: data as TData, isLoading: !!isEnabled && isLoading, error } as const;
+    // Handle errors with toast notifications
+    useEffect(() => {
+      if (error && isError && options?.showErrorToast !== false) {
+        import('@/hooks/use-error-handler').then(({ useErrorHandler }) => {
+          const { handleError } = useErrorHandler();
+          handleError(error, options?.errorContext);
+        });
+      }
+
+      if (error && isError && options?.onError) {
+        options.onError(error as Error);
+      }
+    }, [error, isError]);
+
+    return {
+      data: data as TData,
+      isLoading: !!isEnabled && isLoading,
+      error: error as Error | null,
+      isSuccess,
+      isError,
+      refetch
+    } as const;
   };
 }
 

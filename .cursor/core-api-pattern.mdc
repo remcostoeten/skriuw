@@ -1,0 +1,28 @@
+---
+title: Core API Pattern (Mandatory)
+priority: highest
+scope: .
+---
+
+# Rule: Use core query/mutation pattern for all new features
+
+- Queries must use `createQueryHook` and expose `{ <name>, isLoading, error }`.
+  - Define a query builder and map with `select`.
+  - Use `enabled` for nullable params.
+  - Export shape examples:
+    - `useGetItems()` → `{ items, isLoading, error }`
+    - `useGetItem(id)` → `{ item, isLoading, error }`
+
+- Mutations must use `useMutation` with `useCreate('entity')`, `useUpdate('entity')`, `useDestroy('entity')`, or `transact/tx` when linking is required.
+  - Public API names: `createX | updateX | destroyX`.
+  - Return shape: `{ <fn>, isLoading, error }`.
+
+- File structure and naming:
+  - Queries → `modules/<feature>/api/queries/*`
+  - Mutations → `modules/<feature>/api/mutations/*`
+  - Hooks: `useGet<Plural>()`, `useGet<Single>(id)`, `useCreate<Single>()`, `useUpdate<Single>()`, `useDestroy<Single>()`.
+
+- Comments policy:
+  - Use concise JSDoc on exported hooks/options only. Avoid inline comments.
+
+- Do not add React Query. Use existing core utilities.
