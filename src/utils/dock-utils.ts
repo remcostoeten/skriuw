@@ -38,13 +38,15 @@ export class DockManager {
    */
   static async setBadge(badge: string | number): Promise<void> {
     if (!isTauri) {
-      // Web fallback: update document title with badge
-      const originalTitle = document.title;
-      if (badge && badge !== 0) {
-        document.title = `(${badge}) ${originalTitle}`;
-      } else {
-        // Remove badge from title if it exists
-        document.title = originalTitle.replace(/^\(\d+\)\s*/, '');
+      // Web fallback: update document title with badge (client-side only)
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const originalTitle = document.title;
+        if (badge && badge !== 0) {
+          document.title = `(${badge}) ${originalTitle}`;
+        } else {
+          // Remove badge from title if it exists
+          document.title = originalTitle.replace(/^\(\d+\)\s*/, '');
+        }
       }
       return;
     }
@@ -80,8 +82,10 @@ export class DockManager {
    */
   static async setProgress(progress: number): Promise<void> {
     if (!isTauri) {
-      // Web fallback: update favicon or show visual indicator
-      document.documentElement.style.setProperty('--app-progress', `${Math.max(0, Math.min(1, progress))}`);
+      // Web fallback: update favicon or show visual indicator (client-side only)
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        document.documentElement.style.setProperty('--app-progress', `${Math.max(0, Math.min(1, progress))}`);
+      }
       return;
     }
 
@@ -111,8 +115,8 @@ export class DockManager {
    */
   static async flashWindow(flash = true): Promise<void> {
     if (!isTauri) {
-      // Web fallback: flash browser tab title
-      if (flash) {
+      // Web fallback: flash browser tab title (client-side only)
+      if (flash && typeof window !== 'undefined' && typeof document !== 'undefined') {
         let flashCount = 0;
         const originalTitle = document.title;
         const flashInterval = setInterval(() => {
@@ -150,8 +154,8 @@ export class DockManager {
    */
   static async highlightWindow(highlight = true): Promise<void> {
     if (!isTauri) {
-      // Web fallback: focus the window
-      if (highlight) {
+      // Web fallback: focus the window (client-side only)
+      if (highlight && typeof window !== 'undefined') {
         window.focus();
       }
       return;

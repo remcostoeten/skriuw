@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
@@ -30,6 +30,27 @@ export function NotesView() {
 
   // Update dock badge with note count
   DockManager.setBadge(notes.length || 0);
+
+  // Handle search keyboard shortcuts
+  useEffect(() => {
+    const handleToggleSearch = () => {
+      const searchToggleEvent = new CustomEvent('search:toggle');
+      window.dispatchEvent(searchToggleEvent);
+    };
+
+    const handleCloseSearch = () => {
+      const searchCloseEvent = new CustomEvent('search:close');
+      window.dispatchEvent(searchCloseEvent);
+    };
+
+    window.addEventListener('menu:toggle-search', handleToggleSearch);
+    window.addEventListener('menu:close-search', handleCloseSearch);
+
+    return () => {
+      window.removeEventListener('menu:toggle-search', handleToggleSearch);
+      window.removeEventListener('menu:close-search', handleCloseSearch);
+    };
+  }, []);
 
   async function handleCreateNote() {
     const suffix = '.md'

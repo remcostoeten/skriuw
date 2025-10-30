@@ -259,6 +259,17 @@ export function TabbedLayout({ initialNote, onNoteSelect }: TabbedLayoutProps) {
           tabsManager.selectTab(tabsManager.tabs[prevIndex].id);
         }
       }
+
+      // Ctrl/Cmd + F for search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('menu:toggle-search'));
+      }
+
+      // Escape to close search
+      if (e.key === 'Escape') {
+        window.dispatchEvent(new CustomEvent('menu:close-search'));
+      }
     };
 
     document.addEventListener('keydown', handleGlobalKeyDown);
