@@ -24,10 +24,10 @@ export function Toolbar({
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground active:scale-95 h-7 w-7 fill-muted-foreground hover:fill-foreground transition-all"
                 aria-label="New note"
             >
-                <Plus className="w-[18px] h-[18px] text-muted-foreground" />
+                <Plus className="w-[18px] h-[18px] !text-red-400text-muted-foreground" />
             </button>
 
-            <button
+            not <button
                 onClick={onNewFolder}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground active:scale-95 h-7 w-7 fill-muted-foreground hover:fill-foreground transition-all"
                 aria-label="New folder"

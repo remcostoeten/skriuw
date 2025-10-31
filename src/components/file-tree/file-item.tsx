@@ -2,14 +2,16 @@ import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react";
 
 interface FileItemProps {
+    id: string;
     name: string;
     path: string;
     level?: number;
     isActive?: boolean;
-    onClick?: () => void;
+    onClick?: (id: string) => void;
 }
 
 export const FileItem = ({
+    id,
     name,
     path,
     level = 0,
@@ -18,7 +20,7 @@ export const FileItem = ({
 }: FileItemProps) => {
     return (
         <button
-            onClick={onClick}
+            onClick={() => onClick?.(id)}
             className={cn(
                 "h-7 w-full rounded-md px-3 text-xs font-medium",
                 "flex items-center gap-2 justify-start",

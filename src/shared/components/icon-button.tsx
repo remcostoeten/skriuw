@@ -10,16 +10,18 @@ type props = {
     tooltip: string;
     onClick?: () => void;
     variant?: "default" | "ghost";
+    disabled?: boolean;
 }
 
 export function IconButton(props: props) {
-    const { icon, tooltip, onClick, variant = "default" } = props;
+    const { icon, tooltip, onClick, variant = "default", disabled } = props;
 
     return (
         <Tooltip>
             <TooltipTrigger asChild>
                 <button
                     onClick={onClick}
+                    disabled={disabled}
                     className={cn(
                         "inline-flex items-center justify-center rounded-md text-sm font-medium",
                         "whitespace-nowrap focus-visible:outline-none focus-visible:ring-1",

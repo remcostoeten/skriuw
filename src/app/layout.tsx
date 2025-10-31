@@ -35,7 +35,6 @@ export default function RootLayout({
             <div className="flex space-x-6">
               <Link
                 href="/"
-                className="hover:text-blue-400 transition-colors"
               >
                 Notes
               </Link>
@@ -45,11 +44,18 @@ export default function RootLayout({
               >
                 Platform Demo
               </Link>
-            </div>
-          </div>
-        </nav>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
+              <Link
+                href="/tasks"
+                className="hover:text-blue-400 transition-colors"
+              >
+                Tasks
+              </Link>
+    <a href='/move'>move</a>
+              </div>
+        </div>
+      </nav>
+      <Providers>{children}</Providers>
+    </body>
+    </html >
   );
 }

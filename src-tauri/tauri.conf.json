@@ -1,18 +1,18 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "InstantDB Notes",
+  "productName": "Notys",
   "version": "0.1.0",
-  "identifier": "com.remcostoeten.instantdb-notes",
+  "identifier": "app.notys.notys",
   "build": {
     "frontendDist": "../out",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "devUrl": "http://localhost:42069",
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build"
   },
   "app": {
     "windows": [
       {
-        "title": "InstantDB Notes",
+        "title": "Notys",
         "width": 800,
         "height": 600,
         "resizable": true,

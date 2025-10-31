@@ -1,7 +1,9 @@
 'use client';
+
 import { transact, tx } from '@/api/db/client';
 import type { Folder, Note } from '@/api/db/schema';
 import { NoteEditor } from '@/components/editor/note-editor';
+import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar';
 import { SearchableSidebar } from '@/components/sidebar/searchable-sidebar';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
 import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
@@ -309,6 +311,7 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Original SearchableSidebar */}
       <SearchableSidebar
         folders={folders}
         notes={notes}
@@ -334,7 +337,10 @@ export function NotesView() {
         selectedNoteId={selectedNote?.id}
       />
 
-      <div className="flex-1 relative">
+      {/* New File Tree Sidebar */}
+      <FileTreeSidebar />
+
+      <div className="flex-1 relative ml-[420px]">
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}
