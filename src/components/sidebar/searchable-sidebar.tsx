@@ -1,18 +1,20 @@
-import { Toolbar } from './toolbar';
-import { SearchBar } from './search-bar';
+import type { Folder, Note } from '@/api/db/schema';
 import { useSearch } from '@/hooks/use-search';
 import { highlightText, matchesSearch } from '@/lib/search-utils';
-import type { Folder, Note } from '@/api/db/schema';
 import { Button } from '@/shared/ui/button';
 import { FolderPlus, Plus } from 'lucide-react';
+import { SearchBar } from './search-bar';
+import { Toolbar } from './toolbar';
 
-type SearchableSidebarProps = {
+type props = {
     folders: Folder[];
+    onToggleAllFolders?: () => void;
     notes: Note[];
     isLoading?: boolean;
     onNewNote?: () => void;
     onNewFolder?: () => void;
     onFolderClick?: (folder: Folder) => void;
+    onNoteClick?: (note: Note) => void;
     children?: React.ReactNode; // For custom folder items
 };
 
@@ -23,8 +25,10 @@ export function SearchableSidebar({
     onNewNote,
     onNewFolder,
     onFolderClick,
+    onToggleAllFolders,
+    onNoteClick,
     children
-}: SearchableSidebarProps) {
+}: props) {
     const search = useSearch();
 
     const filteredFolders = folders.filter(folder => {
@@ -37,6 +41,14 @@ export function SearchableSidebar({
         if (note.folder) return false;
         return matchesSearch(note.title, search.query, search.options);
     });
+
+    function handleToggleAllFolders() {
+        onToggleAllFolders?.();
+    }
+
+    function handleNoteClick(note: Note) {
+        onNoteClick?.(note);
+    }
 
     if (isLoading) {
         return (
@@ -54,7 +66,7 @@ export function SearchableSidebar({
                     onSearchToggle={search.toggle}
                     onNewNote={onNewNote}
                     onNewFolder={onNewFolder}
-                    onToggleFullscreen={() => { }}
+                    onToggleAllFolders={handleToggleAllFolders}
                 />
 
                 <div className={`absolute pb-[0.5px] flex flex-row items-center justify-center w-full h-full px-[5px] gap-1 shrink-0 transition-all duration-300 ${search.isOpen ? 'translate-y-0' : 'translate-y-12'}`}>
@@ -125,7 +137,7 @@ export function SearchableSidebar({
                                     <div key={note.id} className="mb-1">
                                         <button
                                             className="font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground text-secondary-foreground/80 hover:text-foreground transition-all flex items-center gap-2"
-                                            onClick={() => { }}
+                                            onClick={() => handleNoteClick(note)}
                                         >
                                             <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                                 <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />

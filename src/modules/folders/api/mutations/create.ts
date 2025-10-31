@@ -1,8 +1,8 @@
-import { useCreate, useMutation } from '@/hooks/core';
-import { generateId } from '@/shared/utils';
-import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { transact, tx } from '@/api/db/client';
 import { Folder } from '@/api/db/schema';
+import { useCreate, useMutation } from '@/hooks/core';
+import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
+import { generateId } from 'utils';
 
 function nextDefaultFolderName(existing: string[]) {
   const base = 'Folder';

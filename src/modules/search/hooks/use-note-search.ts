@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import type { Note } from '@/api/db/schema';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
+import { useMemo } from 'react';
 import { useSearchState } from './use-search-state';
 import { searchRepository } from '../repositories/search-repository';
-import type { Note } from '@/api/db/schema';
 
 export function useNoteSearch() {
   const { notes = [] } = useGetNotes();

@@ -25,6 +25,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "ui": [
+        "./src/shared/ui/index.ts"
+      ],
+      "utils": [
+      "./src/shared/utilities/index.ts"
+      ],
+      "schema": [
+        "./src/api/db/schema.ts"
       ]
     }
   },

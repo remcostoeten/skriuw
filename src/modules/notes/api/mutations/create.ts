@@ -1,5 +1,5 @@
 import { useCreate, useMutation } from '@/hooks/core';
-import { generateId } from '@/shared/utils';
+import { generateId } from 'utils';
 
 type props = {
   title: string;

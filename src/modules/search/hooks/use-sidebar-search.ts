@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+'use client';
+
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
-import { useSearchState } from './use-search-state';
+import { useMemo } from 'react';
 import { searchRepository } from '../repositories/search-repository';
+import { useSearchState } from './use-search-state';
 
 export function useSidebarSearch() {
   const { folders = [] } = useGetFolders();
@@ -10,11 +12,20 @@ export function useSidebarSearch() {
   const searchState = useSearchState();
 
   const searchResults = useMemo(() => {
-    return searchRepository.searchSidebar(folders as any[], notes as any[], searchState.query, searchState.options);
+    return searchRepository.searchSidebar(
+      folders as any[],
+      notes as any[],
+      searchState.query,
+      searchState.options
+    );
   }, [folders, notes, searchState.query, searchState.options]);
 
   const hasResults = useMemo(() => {
-    return searchResults.folders.length > 0 || searchResults.notes.length > 0 || !searchState.query;
+    return (
+      searchResults.folders.length > 0 ||
+      searchResults.notes.length > 0 ||
+      !searchState.query
+    );
   }, [searchResults, searchState.query]);
 
   return {
@@ -22,6 +33,5 @@ export function useSidebarSearch() {
     notes: searchResults.notes,
     searchState,
     hasResults,
-    isLoading: false // Search is synchronous, so no loading state needed
   };
 }

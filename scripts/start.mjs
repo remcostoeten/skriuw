@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { spawn, exec } from 'child_process';
-import inquirer from 'inquirer';
 import chalk from 'chalk';
-import ora from 'ora';
+import { spawn } from 'child_process';
+import { existsSync, readdirSync, statSync } from 'fs';
+import inquirer from 'inquirer';
 import open from 'open';
-import { readFileSync, statSync, readdirSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
+import ora from 'ora';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -601,7 +601,12 @@ async function showDbMenu() {
     [
       {
         label: 'Database',
-        items: [{ name: 'Clear Database', value: 'clear-db' }],
+        items: [
+          { name: 'Clear entire database', value: 'clear-db' },
+          { name: 'Clear a single table', value: 'clear-table' },
+          { name: 'Dry run: clear entire database', value: 'dry-clear-db' },
+          { name: 'Dry run: clear a single table', value: 'dry-clear-table' },
+        ],
       },
     ],
     true
@@ -613,34 +618,55 @@ async function showDbMenu() {
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
       await showDbMenu();
       break;
+    case 'clear-table':
+      await clearSingleTable();
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
+      await showDbMenu();
+      break;
+    case 'dry-clear-db':
+      await clearDatabase(true);
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
+      await showDbMenu();
+      break;
+    case 'dry-clear-table':
+      await clearSingleTable(true);
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue' }]);
+      await showDbMenu();
+      break;
     case 'back':
       break;
   }
 }
 
-async function clearDatabase() {
+async function clearDatabase(dryRun = false) {
   const { confirm } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'confirm',
-      message: 'Are you sure you want to clear the entire database? This action cannot be undone.',
+      message: dryRun
+        ? 'Perform a dry run to estimate deletes for ALL tables?'
+        : 'Are you sure you want to clear the entire database? This action cannot be undone.',
       default: false,
     },
   ]);
 
   if (confirm) {
-    const spinner = ora('Clearing database...').start();
+    const spinner = ora(dryRun ? 'Dry running database clear...' : 'Clearing database...').start();
     return new Promise((resolve) => {
-      const proc = spawn('npx', ['ts-node', './clear-db.mjs'], {
+      const args = ['./clear-db.mjs', '--all'];
+      if (dryRun) args.push('--dry-run');
+      const proc = spawn('node', args, {
         cwd: __dirname,
         stdio: 'inherit',
       });
 
       proc.on('exit', (code) => {
         if (code === 0) {
-          spinner.succeed(chalk.green('Database cleared successfully!'));
+          spinner.succeed(
+            chalk.green(dryRun ? 'Dry run completed successfully.' : 'Database cleared successfully!')
+          );
         } else {
-          spinner.fail(chalk.red('Failed to clear database.'));
+          spinner.fail(chalk.red(dryRun ? 'Dry run failed.' : 'Failed to clear database.'));
         }
         resolve();
       });
@@ -648,6 +674,58 @@ async function clearDatabase() {
   } else {
     console.log(chalk.yellow('Database clearing cancelled.'));
   }
+}
+
+async function clearSingleTable(dryRun = false) {
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: dryRun ? 'Dry run: estimate deletes for a single table?' : 'Clear records from a single table?',
+      default: true,
+    },
+  ]);
+
+  if (!confirm) {
+    console.log(chalk.yellow('Operation cancelled.'));
+    return;
+  }
+
+  const { table } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'table',
+      message: 'Select a table to clear',
+      choices: [
+        { name: 'comments', value: 'comments' },
+        { name: 'activity', value: 'activity' },
+        { name: 'tasks', value: 'tasks' },
+        { name: 'notes', value: 'notes' },
+        { name: 'folders', value: 'folders' },
+      ],
+    },
+  ]);
+
+  const spinner = ora(dryRun ? `Dry running clear for "${table}"...` : `Clearing table "${table}"...`).start();
+  return new Promise((resolve) => {
+    const args = ['./clear-db.mjs', '--table', table];
+    if (dryRun) args.push('--dry-run');
+    const proc = spawn('node', args, {
+      cwd: __dirname,
+      stdio: 'inherit',
+    });
+
+    proc.on('exit', (code) => {
+      if (code === 0) {
+        spinner.succeed(
+          chalk.green(dryRun ? `Dry run completed for "${table}".` : `Cleared table "${table}" successfully!`)
+        );
+      } else {
+        spinner.fail(chalk.red(dryRun ? `Dry run failed for "${table}".` : `Failed to clear table "${table}".`));
+      }
+      resolve();
+    });
+  });
 }
 
 

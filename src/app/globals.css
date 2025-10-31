@@ -1,7 +1,16 @@
 @import "tailwindcss";
 @import "tippy.js/dist/tippy.css";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
 
 @layer base {
+
+  * {
+    @apply border-border;
+  }
+
   :root {
     --background: 20 14.3% 4.1%;
     --foreground: 0 0% 95%;
@@ -23,6 +32,20 @@
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
     --radius: 0.5rem;
+
+      --chart-1: oklch(0.646 0.222 41.116);
+      --chart-2: oklch(0.6 0.118 184.704);
+      --chart-3: oklch(0.398 0.07 227.392);
+      --chart-4: oklch(0.828 0.189 84.429);
+      --chart-5: oklch(0.769 0.188 70.08);
+      --sidebar: oklch(0.985 0 0);
+      --sidebar-foreground: oklch(0.145 0 0);
+      --sidebar-primary: oklch(0.205 0 0);
+      --sidebar-primary-foreground: oklch(0.985 0 0);
+      --sidebar-accent: oklch(0.97 0 0);
+      --sidebar-accent-foreground: oklch(0.205 0 0);
+      --sidebar-border: oklch(0.922 0 0);
+      --sidebar-ring: oklch(0.708 0 0);
   }
 }
 
@@ -48,16 +71,116 @@
   --color-ring: hsl(var(--ring));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@layer base {
+  /* Minimal scrollbar styles matching the dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Firefox scrollbar styles */
   * {
-    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
   }
-  body {
-    @apply bg-background text-foreground;
+
+  /* Dark mode specific scrollbar adjustments */
+  @media (prefers-color-scheme: dark) {
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--border) / 0.5);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--border) / 0.7);
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+      background: hsl(var(--border) / 0.9);
+    }
+
+    * {
+      scrollbar-color: hsl(var(--border) / 0.5) transparent;
+    }
   }
-}
+
+  /* Light mode scrollbar adjustments (if light mode is ever added) */
+  @media (prefers-color-scheme: light) {
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.15);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground) / 0.25);
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+      background: hsl(var(--muted-foreground) / 0.35);
+    }
+
+    * {
+      scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent;
+    }
+  }
+
+  /* Hide scrollbar when not hovering (optional minimal behavior) */
+  .minimal-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .minimal-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.1);
+  }
+
+  .minimal-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* Completely hidden scrollbars for elements where scrollbars should be invisible */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 
 /* Tiptap Editor Styles */
 .tiptap {
@@ -121,6 +244,25 @@
     border-radius: 0.5rem;
     overflow-x: auto;
     margin: 1rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.5) transparent;
+
+    &::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: hsl(var(--border) / 0.5);
+      border-radius: 2px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--border) / 0.7);
+    }
 
     code {
       background: none;
@@ -180,6 +322,101 @@
     &:hover {
       background-color: hsl(var(--accent) / 0.8);
     }
+  }
+}
+
+/* Scrollbar utilities */
+@layer utilities {
+  /* Custom scrollbar for different use cases */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.5) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.5);
+    border-radius: 2px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border) / 0.7);
+  }
+
+  /* Scrollbar for main content areas */
+  .scrollbar-content {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+
+  .scrollbar-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-content::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.1);
+    border-radius: 4px;
+  }
+
+  .scrollbar-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-content::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Invisible scrollbar for hover-based scrolling */
+  .scrollbar-invisible {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-invisible::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Scrollbar that appears only on hover */
+  .scrollbar-hover {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hover::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+  }
+
+  .scrollbar-hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-hover::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  .scrollbar-hover:hover {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 

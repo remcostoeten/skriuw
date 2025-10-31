@@ -1,7 +1,7 @@
 'use client';
 
 import type { Note } from '@/api/db/schema';
-import { FoldersSidebar } from '@/components/folders-sidebar';
+import { FoldersSidebar } from '@/components/sidebar/folders-sidebar';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
@@ -60,7 +60,7 @@ export function TasksView() {
 
             </FoldersSidebar>
 
-            <div className="flex-1 relative px-8 py-6">
+            <div className="flex-1 relative px-8 py-6 overflow-y-auto scrollbar-content">
                 {selectedNote ? (
                     <div className="max-w-3xl mx-auto">
                         <h2 className="text-xl font-semibold mb-2">

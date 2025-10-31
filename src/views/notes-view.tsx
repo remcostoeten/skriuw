@@ -1,18 +1,20 @@
 'use client';
-import { useState } from 'react';
-import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
+import { transact, tx } from '@/api/db/client';
+import type { Folder, Note } from '@/api/db/schema';
+import { NoteEditor } from '@/components/editor/note-editor';
+import { FoldersSidebar } from '@/components/sidebar/folders-sidebar';
+import { SearchableSidebar } from '@/components/sidebar/searchable-sidebar';
+import { Sidebar } from '@/components/sidebar/sidebar';
+import { SidebarFolderItem } from '@/components/sidebar/sidebar-folder-item';
+import { SidebarNoteItem } from '@/components/sidebar/sidebar-note-item';
+import { useCreateFolder } from '@/modules/folders/api/mutations/create';
+import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
+import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
-import { transact, tx } from '@/api/db/client';
-import { NoteEditor } from '@/components/editor/note-editor';
-import type { Note, Folder } from '@/api/db/schema';
-import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
-import { useCreateFolder } from '@/modules/folders/api/mutations/create';
-import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
-import { SidebarFolderItem } from '@/components/sidebar/sidebar-folder-item';
-import { SidebarNoteItem } from '@/components/sidebar/sidebar-note-item';
-import { FoldersSidebar } from '@/components/folders-sidebar';
+import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
+import { useState } from 'react';
 
 export function NotesView() {
   const { notes, isLoading } = useGetNotes();
@@ -311,6 +313,18 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Sidebar folders={folders} onNewNote={handleCreateNote} onNewFolder={() => createFolder(undefined)} onFolderClick={(folder) => console.log('Folder clicked:', folder)} onToggleFullscreen={() => console.log('Toggle fullscreen')} />
+
+      <SearchableSidebar
+        folders={folders}
+        notes={notes}
+        onNewNote={handleCreateNote}
+        onNewFolder={() => createFolder(undefined)}
+        onFolderClick={(folder) => console.log('Folder clicked:', folder)}
+        onNoteClick={(note) => setSelectedNote(note)}
+        onToggleAllFolders={() => console.log('Toggle all folders')}
+      />
+
       <FoldersSidebar
         onNewFolder={() => createFolder(undefined)}
         onNewNote={handleCreateNote}

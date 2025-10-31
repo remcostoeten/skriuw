@@ -11,8 +11,10 @@ export type SearchResult<T> = {
   matches: boolean;
 };
 
+// Pure search functions following functional repository pattern
 export const searchRepository = {
-  highlightText: function (text: string, query: string, options: SearchOptions): string {
+  // Core search utilities
+  highlightText: (text: string, query: string, options: SearchOptions): string => {
     if (!query) return text;
 
     let searchText = text;
@@ -28,7 +30,7 @@ export const searchRepository = {
       const matches = text.match(regex);
       if (!matches) return text;
 
-      return text.split(regex).reduce(function (acc, part, i) {
+      return text.split(regex).reduce((acc, part, i) => {
         if (i === 0) return part;
         return acc + `<mark class="bg-yellow-300 dark:bg-yellow-600 text-foreground rounded px-0.5">${matches[i - 1]}</mark>` + part;
       }, '');
@@ -44,15 +46,13 @@ export const searchRepository = {
     return `${before}<mark class="bg-yellow-300 dark:bg-yellow-600 text-foreground rounded px-0.5">${match}</mark>${after}`;
   },
 
-  matchesSearch: function (text: string, query: string, options: SearchOptions): boolean {
+  matchesSearch: (text: string, query: string, options: SearchOptions): boolean => {
     const trimmed = query.trim();
     if (!trimmed) return true;
 
-    const normalize = function (s: string) {
-      return s
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-    };
+    const normalize = (s: string) => s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
 
     let searchTarget = normalize(text);
     let searchQuery = normalize(trimmed);
@@ -73,42 +73,31 @@ export const searchRepository = {
     return searchTarget.includes(searchQuery);
   },
 
-  searchFolders: function (folders: Folder[], query: string, options: SearchOptions): SearchResult<Folder>[] {
+  // Folder-specific search functions
+  searchFolders: (folders: Folder[], query: string, options: SearchOptions): SearchResult<Folder>[] => {
     return folders
-      .filter(function (folder) {
-        return !folder.deletedAt;
-      })
-      .map(function (folder) {
-        return {
-          item: folder,
-          highlightedText: searchRepository.highlightText(folder.name, query, options),
-          matches: searchRepository.matchesSearch(folder.name, query, options)
-        };
-      })
-      .filter(function (result) {
-        return result.matches;
-      });
+      .filter(folder => !folder.deletedAt)
+      .map(folder => ({
+        item: folder,
+        highlightedText: searchRepository.highlightText(folder.name, query, options),
+        matches: searchRepository.matchesSearch(folder.name, query, options)
+      }))
+      .filter(result => result.matches);
   },
 
-  searchNotes: function (notes: Note[], query: string, options: SearchOptions): SearchResult<Note>[] {
-    return notes.map(function (note) {
-      return {
-        item: note,
-        highlightedText: searchRepository.highlightText(note.title, query, options),
-        matches: searchRepository.matchesSearch(note.title, query, options)
-      };
-    }).filter(function (result) {
-      return result.matches;
-    });
+  // Note-specific search functions
+  searchNotes: (notes: Note[], query: string, options: SearchOptions): SearchResult<Note>[] => {
+    return notes.map(note => ({
+      item: note,
+      highlightedText: searchRepository.highlightText(note.title, query, options),
+      matches: searchRepository.matchesSearch(note.title, query, options)
+    })).filter(result => result.matches);
   },
 
-  searchSidebar: function (folders: Folder[], notes: Note[], query: string, options: SearchOptions) {
-    const rootFolders = folders.filter(function (f) {
-      return !f.parent && !f.deletedAt;
-    });
-    const rootNotes = notes.filter(function (n) {
-      return !n.folder;
-    });
+  // Combined search for sidebar
+  searchSidebar: (folders: Folder[], notes: Note[], query: string, options: SearchOptions) => {
+    const rootFolders = folders.filter(f => !f.parent && !f.deletedAt);
+    const rootNotes = notes.filter(n => !n.folder);
 
     return {
       folders: searchRepository.searchFolders(rootFolders, query, options),

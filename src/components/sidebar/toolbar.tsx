@@ -1,9 +1,9 @@
-import { Plus, FolderPlus, Maximize2, Search } from 'lucide-react';
+import { FolderPlus, Maximize2, Plus, Search } from 'lucide-react';
 
-type ToolbarProps = {
+type props = {
     onNewNote?: () => void;
     onNewFolder?: () => void;
-    onToggleFullscreen?: () => void;
+    onToggleAllFolders?: () => void;
     onSearchToggle?: () => void;
     isSearchOpen: boolean;
 };
@@ -11,10 +11,10 @@ type ToolbarProps = {
 export function Toolbar({
     onNewNote,
     onNewFolder,
-    onToggleFullscreen,
+    onToggleAllFolders,
     onSearchToggle,
     isSearchOpen
-}: ToolbarProps) {
+}: props) {
     return (
         <div
             className={`flex flex-row py-4 w-full justify-center h-full px-3.5 gap-2 shrink-0 transition-all duration-300 ${isSearchOpen ? '-translate-y-12' : 'translate-y-0'}`}
@@ -36,7 +36,7 @@ export function Toolbar({
             </button>
 
             <button
-                onClick={onToggleFullscreen}
+                onClick={onToggleAllFolders}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground active:scale-95 h-7 w-7 fill-muted-foreground hover:fill-foreground transition-all"
                 aria-label="Toggle fullscreen"
             >

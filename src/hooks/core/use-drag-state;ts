@@ -1,0 +1,46 @@
+'use client';
+
+import { useCallback, useState } from 'react';
+
+type DragItem = {
+    type: 'folder' | 'note';
+    id: string;
+};
+
+type DropPosition = 'before' | 'after' | 'inside';
+
+export function useDragState() {
+    const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
+    const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+    const [dropPosition, setDropPosition] = useState<DropPosition>('inside');
+    const [isDragOverRoot, setIsDragOverRoot] = useState(false);
+
+    const startDrag = useCallback((type: 'folder' | 'note', id: string) => {
+        setDraggedItem({ type, id });
+    }, []);
+
+    const endDrag = useCallback(() => {
+        setDraggedItem(null);
+        setDropTargetId(null);
+        setIsDragOverRoot(false);
+    }, []);
+
+    const setDropTarget = useCallback(
+        (targetId: string | null, position: DropPosition = 'inside') => {
+            setDropTargetId(targetId);
+            setDropPosition(position);
+        },
+        []
+    );
+
+    return {
+        draggedItem,
+        dropTargetId,
+        dropPosition,
+        isDragOverRoot,
+        startDrag,
+        endDrag,
+        setDropTarget,
+        setIsDragOverRoot,
+    };
+}

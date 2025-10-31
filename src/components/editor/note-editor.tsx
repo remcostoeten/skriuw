@@ -239,7 +239,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       )}
     >
       <SyncingOverlay isLoading={isMutating} message="Saving changes...">
-        <div className="h-full overflow-y-auto">
+        <div className="h-full overflow-y-auto scrollbar-content">
           <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
             {/* Title */}
             <input
