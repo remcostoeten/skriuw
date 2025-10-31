@@ -325,98 +325,34 @@
   }
 }
 
-/* Scrollbar utilities */
+/* Simplified scrollbar utilities */
 @layer utilities {
-  /* Custom scrollbar for different use cases */
-  .scrollbar-thin {
+  .scrollbar-thin,
+  .scrollbar-content {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border) / 0.5) transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(var(--border) / 0.5);
-    border-radius: 2px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--border) / 0.7);
-  }
-
-  /* Scrollbar for main content areas */
-  .scrollbar-content {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
-  }
-
+  .scrollbar-thin::-webkit-scrollbar,
   .scrollbar-content::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .scrollbar-content::-webkit-scrollbar-track {
-    background: hsl(var(--muted) / 0.1);
-    border-radius: 4px;
-  }
-
-  .scrollbar-content::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.2);
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-
-  .scrollbar-content::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.4);
-  }
-
-  /* Invisible scrollbar for hover-based scrolling */
-  .scrollbar-invisible {
-    scrollbar-width: none;
-  }
-
-  .scrollbar-invisible::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Scrollbar that appears only on hover */
-  .scrollbar-hover {
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hover::-webkit-scrollbar {
     width: 6px;
     height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .scrollbar-content::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .scrollbar-hover::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-hover::-webkit-scrollbar-thumb {
-    background: transparent;
-  }
-
-  .scrollbar-hover:hover {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
-  }
-
-  .scrollbar-hover:hover::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
+  .scrollbar-thin::-webkit-scrollbar-thumb,
+  .scrollbar-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.5);
     border-radius: 3px;
   }
 
-  .scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+  .scrollbar-content::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border) / 0.7);
   }
 }
 

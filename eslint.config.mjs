@@ -1,12 +1,10 @@
-import nextVitals from 'eslint-config-next/core-web-vitals.js'
-import nextTs from 'eslint-config-next/typescript.js'
+import nextConfig from 'eslint-config-next'
 import pluginImport from 'eslint-plugin-import'
 import pluginPrettier from 'eslint-plugin-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...nextConfig,
   {
     name: 'custom-rules',
     plugins: {

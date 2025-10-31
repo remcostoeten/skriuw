@@ -2,11 +2,7 @@
 import { transact, tx } from '@/api/db/client';
 import type { Folder, Note } from '@/api/db/schema';
 import { NoteEditor } from '@/components/editor/note-editor';
-import { FoldersSidebar } from '@/components/sidebar/folders-sidebar';
 import { SearchableSidebar } from '@/components/sidebar/searchable-sidebar';
-import { Sidebar } from '@/components/sidebar/sidebar';
-import { SidebarFolderItem } from '@/components/sidebar/sidebar-folder-item';
-import { SidebarNoteItem } from '@/components/sidebar/sidebar-note-item';
 import { useCreateFolder } from '@/modules/folders/api/mutations/create';
 import { useUpdateFolder } from '@/modules/folders/api/mutations/update';
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
@@ -313,70 +309,30 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar folders={folders} onNewNote={handleCreateNote} onNewFolder={() => createFolder(undefined)} onFolderClick={(folder) => console.log('Folder clicked:', folder)} onToggleFullscreen={() => console.log('Toggle fullscreen')} />
-
       <SearchableSidebar
         folders={folders}
         notes={notes}
+        isLoading={isLoading}
         onNewNote={handleCreateNote}
         onNewFolder={() => createFolder(undefined)}
         onFolderClick={(folder) => console.log('Folder clicked:', folder)}
         onNoteClick={(note) => setSelectedNote(note)}
         onToggleAllFolders={() => console.log('Toggle all folders')}
+        // Drag and drop props
+        draggedFolderId={draggedFolderId}
+        draggedNoteId={draggedNoteId}
+        onDragStart={handleDragStart}
+        onNoteDragStart={handleNoteDragStart}
+        onDragEnd={handleDragEnd}
+        onDrop={handleDrop}
+        onNoteDrop={handleNoteDrop}
+        onNoteReorder={handleNoteReorder}
+        onDropOnRoot={handleDropOnRoot}
+        onDragOverRoot={handleDragOverRoot}
+        onDragLeaveRoot={handleDragLeaveRoot}
+        dragOverRoot={dragOverRoot}
+        selectedNoteId={selectedNote?.id}
       />
-
-      <FoldersSidebar
-        onNewFolder={() => createFolder(undefined)}
-        onNewNote={handleCreateNote}
-        onFolderClick={(folder) => console.log('Folder clicked:', folder)}
-        onNoteClick={(note) => setSelectedNote(note)}
-        onToggleFullscreen={() => console.log('Toggle fullscreen')}
-      >
-        <div
-          className={`transition-colors ${dragOverRoot ? 'bg-primary/10' : ''}`}
-          onDragOver={handleDragOverRoot}
-          onDragLeave={handleDragLeaveRoot}
-          onDrop={handleDropOnRoot}
-        >
-          {(folders as any[]).filter((f) => !f.parent && !f.deletedAt).map((f) => (
-            <SidebarFolderItem
-              key={f.id}
-              folder={f as Folder}
-              folders={folders as Folder[]}
-              notes={notes as Note[]}
-              draggedFolderId={draggedFolderId}
-              draggedNoteId={draggedNoteId}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDrop={handleDrop}
-              onNoteDrop={handleNoteDrop}
-              onNoteSelect={setSelectedNote}
-              selectedNoteId={selectedNote?.id}
-              onNoteReorder={handleNoteReorder}
-              onNoteDragStart={handleNoteDragStart}
-            />
-          ))}
-
-          {notes.filter((n: Note) => !(n.folder as any)).sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0)).map((note: Note) => (
-            <SidebarNoteItem
-              key={note.id}
-              note={note}
-              selectedNoteId={selectedNote?.id}
-              draggedNoteId={draggedNoteId}
-              onNoteSelect={setSelectedNote}
-              onDragStart={handleNoteDragStart}
-              onDragEnd={handleDragEnd}
-              onNoteDrop={handleNoteReorder}
-            />
-          ))}
-          {notes.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground">
-              <p className="text-sm">No notes yet.</p>
-              <p className="text-xs mt-2">Click + to create one.</p>
-            </div>
-          )}
-        </div>
-      </FoldersSidebar>
 
       <div className="flex-1 relative">
         {selectedNote ? (
