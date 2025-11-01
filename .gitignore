@@ -49,3 +49,6 @@ Thumbs.db
 .turbo
 
 tmp/
+
+# Rust Analyzer
+target/
