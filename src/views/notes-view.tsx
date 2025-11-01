@@ -14,6 +14,30 @@ export function NotesView() {
   const { destroyNote } = useDestroyNote();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
 
+  // Update dock badge with note count
+  DockManager.setBadge(notes.length || 0);
+
+  // Handle search keyboard shortcuts
+  useEffect(() => {
+    const handleToggleSearch = () => {
+      const searchToggleEvent = new CustomEvent('search:toggle');
+      window.dispatchEvent(searchToggleEvent);
+    };
+
+    const handleCloseSearch = () => {
+      const searchCloseEvent = new CustomEvent('search:close');
+      window.dispatchEvent(searchCloseEvent);
+    };
+
+    window.addEventListener('menu:toggle-search', handleToggleSearch);
+    window.addEventListener('menu:close-search', handleCloseSearch);
+
+    return () => {
+      window.removeEventListener('menu:toggle-search', handleToggleSearch);
+      window.removeEventListener('menu:close-search', handleCloseSearch);
+    };
+  }, []);
+
   async function handleCreateNote() {
     const suffix = '.md'
     const amount = notes.length + 1
@@ -63,7 +87,7 @@ export function NotesView() {
         selectedNoteId={selectedNote?.id}
       />
 
-      <div className="flex-1 relative ml-[220px]">
+<div className="flex-1 relative ml-[220px]">
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}
