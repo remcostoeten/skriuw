@@ -3,11 +3,12 @@ import { useCreateNote } from "@/modules/notes/api/mutations/create";
 import { useSidebarSearch } from "@/modules/search/hooks/use-sidebar-search";
 import { BaseActionBar } from "@/shared/components/base-action-bar";
 import { FilePlus, FolderPlus } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 type props = {
     isExpanded: boolean;
     onExpandToggle: () => void;
-    onNoteCreate?: () => void;
+    onNoteCreate?: (noteId: string) => void;
 }
 
 export function ActionBar({
@@ -19,56 +20,61 @@ export function ActionBar({
     const { createFolder } = useCreateFolder();
     const { searchState } = useSidebarSearch();
 
-    const handleNewNote = async () => {
+    const handleNewNote = useCallback(async () => {
         try {
-            await createNote({
+            const note = await createNote({
                 title: "Untitled Note",
                 content: "",
                 position: Date.now(),
             });
-            onNoteCreate?.();
+            onNoteCreate?.(note.id);
         } catch (error) {
             console.error("Failed to create note:", error);
         }
-    };
+    }, [createNote, onNoteCreate]);
 
-    const handleNewFolder = async () => {
+    const handleNewFolder = useCallback(async () => {
         try {
             await createFolder(undefined);
         } catch (error) {
             console.error("Failed to create folder:", error);
         }
-    };
+    }, [createFolder]);
+
+    const filePlusIcon = useMemo(() => <FilePlus />, []);
+    const folderPlusIcon = useMemo(() => <FolderPlus />, []);
+
+    const buttons = useMemo(() => [
+        {
+            icon: filePlusIcon,
+            tooltip: "New File",
+            onClick: handleNewNote,
+        },
+        {
+            icon: folderPlusIcon,
+            tooltip: "New Folder",
+            onClick: handleNewFolder,
+        },
+    ], [handleNewNote, handleNewFolder, filePlusIcon, folderPlusIcon]);
+
+    const searchConfig = useMemo(() => ({
+        query: searchState.query,
+        setQuery: searchState.setQuery,
+        close: searchState.close,
+        toggle: searchState.toggle,
+        updateOptions: searchState.updateOptions,
+    }), [searchState.query, searchState.setQuery, searchState.close, searchState.toggle, searchState.updateOptions]);
+
+    const expandConfig = useMemo(() => ({
+        isExpanded,
+        onToggle: onExpandToggle,
+    }), [isExpanded, onExpandToggle]);
 
     return (
         <BaseActionBar
-            buttons={[
-                {
-                    icon: <FilePlus className="w-[18px] h-[18px]" />,
-                    tooltip: "New File",
-                    onClick: handleNewNote,
-                },
-                {
-                    icon: <FolderPlus className="w-[18px] h-[18px]" />,
-                    tooltip: "New Folder",
-                    onClick: handleNewFolder,
-                },
-            ]}
-            searchConfig={{
-                query: searchState.query,
-                setQuery: searchState.setQuery,
-                close: () => {
-                    searchState.close();
-                },
-                toggle: () => {
-                    searchState.toggle();
-                },
-                updateOptions: searchState.updateOptions,
-            }}
-            expandConfig={{
-                isExpanded,
-                onToggle: onExpandToggle,
-            }}
+            buttons={buttons}
+            searchConfig={searchConfig}
+            expandConfig={expandConfig}
         />
     );
 }

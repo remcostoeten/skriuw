@@ -5,21 +5,29 @@ const useTasksQuery = createQueryHook(
   (noteId: string | null) => ({
     tasks: {
       $: {
-        where: { 'note.id': noteId },
-        order: { position: 'asc' },
+        ...(noteId ? { where: { 'note.id': noteId } } : {}),
+        order: { createdAt: 'desc' },
       },
+      note: {},
+      project: {},
       subtasks: {
-        $: { order: { position: 'asc' } },
+        $: { order: { createdAt: 'desc' } },
       },
       dependsOn: {
+        $: {},
+      },
+      comments: {
         $: {},
       },
     },
   }),
   {
-    select: (raw) => (raw?.tasks as Task[]) ?? [],
+    select: (raw) => {
+      const tasks = (raw?.tasks as Task[]) ?? [];
+      // Sort by position client-side since it's not indexed on server yet
+      return tasks.sort((a, b) => (a.position || 0) - (b.position || 0));
+    },
     initialData: [] as Task[],
-    enabled: (noteId) => !!noteId,
   }
 );
 

@@ -40,7 +40,7 @@ Start typing below to see auto-save in action!`,
         <div className="max-w-4xl mx-auto p-6 space-y-6">
             <div className="text-center">
                 <h1 className="text-3xl font-bold mb-2">Platform Detection Demo</h1>
-                <p className="text-gray-600">A comprehensive demo showing Tauri and browser capabilities</p>
+                <p className="text-muted-foreground">A comprehensive demo showing Tauri and browser capabilities</p>
             </div>
 
             {Platform.isTauri() ? <DesktopFeatures fileContent={fileContent} setFileContent={setFileContent} setLastAction={setLastAction} /> : <WebFeatures setLastAction={setLastAction} />}
@@ -183,29 +183,29 @@ function DesktopFeatures({
     }
 
     return (
-        <div className="bg-blue-50 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4 text-blue-900">🖥️ Desktop Mode (Tauri)</h2>
+        <div className="bg-card border p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">🖥️ Desktop Mode (Tauri)</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                     onClick={handleOpenFile}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors"
                 >
                     📂 Open File
                 </button>
                 <button
                     onClick={handleSaveFile}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                    className="bg-secondary text-secondary-foreground px-4 py-2 rounded hover:bg-secondary/90 transition-colors"
                 >
                     💾 Save as Markdown
                 </button>
                 <button
                     onClick={handleSaveAsJSON}
-                    className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors"
+                    className="bg-accent text-accent-foreground px-4 py-2 rounded hover:bg-accent/90 transition-colors"
                 >
                     📄 Save as JSON
                 </button>
             </div>
-            <p className="mt-4 text-sm text-blue-700">
+            <p className="mt-4 text-sm text-muted-foreground">
                 Full file system access with open/save dialogs. Files are saved with metadata and timestamps.
             </p>
         </div>
@@ -244,8 +244,8 @@ function WebFeatures({ setLastAction }: { setLastAction: (action: string) => voi
     }
 
     return (
-        <div className="bg-green-50 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4 text-green-900">🌐 Web Mode (Browser)</h2>
+        <div className="bg-card border p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">🌐 Web Mode (Browser)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block">
@@ -253,18 +253,18 @@ function WebFeatures({ setLastAction }: { setLastAction: (action: string) => voi
                         <input
                             type="file"
                             onChange={handleUpload}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
                         />
                     </label>
                 </div>
                 <button
                     onClick={handleDownload}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                    className="bg-secondary text-secondary-foreground px-4 py-2 rounded hover:bg-secondary/90 transition-colors"
                 >
                     ⬇️ Download Sample
                 </button>
             </div>
-            <p className="mt-4 text-sm text-green-700">
+            <p className="mt-4 text-sm text-muted-foreground">
                 Limited to browser APIs. Files can be uploaded for reading and downloaded for saving.
             </p>
         </div>
@@ -316,13 +316,13 @@ function KeyboardShortcuts({
     }, [handleSave])
 
     return (
-        <div className="bg-yellow-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-2 text-yellow-900">⌨️ Keyboard Shortcuts</h3>
+        <div className="bg-card border p-4 rounded-lg">
+            <h3 className="font-semibold mb-2 text-foreground">⌨️ Keyboard Shortcuts</h3>
             <div className="flex items-center space-x-4">
-                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-sm">
+                <kbd className="px-2 py-1 bg-muted border border-border rounded text-sm">
                     {Platform.primaryModKey()} + S
                 </kbd>
-                <span className="text-sm text-yellow-700">Quick save (desktop only)</span>
+                <span className="text-sm text-muted-foreground">Quick save (desktop only)</span>
             </div>
         </div>
     )
@@ -330,32 +330,32 @@ function KeyboardShortcuts({
 
 function PlatformInfo() {
     return (
-        <div className="bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900">🖥️ Platform Information</h3>
+        <div className="bg-card border p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 text-foreground">🖥️ Platform Information</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-white rounded border">
+                <div className="text-center p-3 bg-muted rounded border">
                     <div className="text-2xl mb-1">{Platform.runtime() === 'tauri' ? '🦀' : Platform.runtime() === 'browser' ? '🌐' : '💻'}</div>
-                    <div className="text-xs text-gray-600">Runtime</div>
+                    <div className="text-xs text-muted-foreground">Runtime</div>
                     <div className="font-mono text-sm">{Platform.runtime()}</div>
                 </div>
-                <div className="text-center p-3 bg-white rounded border">
+                <div className="text-center p-3 bg-muted rounded border">
                     <div className="text-2xl mb-1">{Platform.isMac() ? '🍎' : Platform.isWindows() ? '🪟' : Platform.isLinux() ? '🐧' : '❓'}</div>
-                    <div className="text-xs text-gray-600">OS</div>
+                    <div className="text-xs text-muted-foreground">OS</div>
                     <div className="font-mono text-sm">{Platform.os()}</div>
                 </div>
-                <div className="text-center p-3 bg-white rounded border">
+                <div className="text-center p-3 bg-muted rounded border">
                     <div className="text-2xl mb-1">🏷️</div>
-                    <div className="text-xs text-gray-600">Platform Tag</div>
+                    <div className="text-xs text-muted-foreground">Platform Tag</div>
                     <div className="font-mono text-sm">{Platform.platformTag()}</div>
                 </div>
-                <div className="text-center p-3 bg-white rounded border">
+                <div className="text-center p-3 bg-muted rounded border">
                     <div className="text-2xl mb-1">{Platform.isMobile() ? '📱' : '🖥️'}</div>
-                    <div className="text-xs text-gray-600">Device Type</div>
+                    <div className="text-xs text-muted-foreground">Device Type</div>
                     <div className="font-mono text-sm">{Platform.isMobile() ? 'Mobile' : 'Desktop'}</div>
                 </div>
             </div>
             {Platform.arch() && (
-                <div className="mt-4 text-sm text-gray-600">
+                <div className="mt-4 text-sm text-muted-foreground">
                     Architecture: <span className="font-mono">{Platform.arch()}</span>
                 </div>
             )}
@@ -395,15 +395,15 @@ function FileEditor({
     }
 
     return (
-        <div className="bg-white p-6 rounded-lg border">
-            <h3 className="text-lg font-semibold mb-4">📝 Note Editor</h3>
+        <div className="bg-card border p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 text-foreground">📝 Note Editor</h3>
             <textarea
                 value={fileContent?.text || ''}
                 onChange={handleChange}
                 placeholder="Start typing your note here..."
-                className="w-full h-64 p-4 border rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-64 p-4 border rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
             />
-            <div className="mt-2 flex justify-between text-xs text-gray-500">
+            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
                 <span>
                     {fileContent?.text.length || 0} characters
                 </span>
@@ -412,7 +412,7 @@ function FileEditor({
                 </span>
             </div>
             {isDesktop && (
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="mt-2 text-xs text-muted-foreground">
                     💡 Auto-save enabled. Use {Platform.primaryModKey()}+S for quick save.
                 </p>
             )}
@@ -424,7 +424,7 @@ function LastActionDisplay({ lastAction }: { lastAction: string }) {
     if (!lastAction) return null
 
     return (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg max-w-sm animate-pulse">
+        <div className="fixed bottom-4 right-4 bg-popover text-popover-foreground border px-4 py-2 rounded-lg shadow-lg max-w-sm animate-pulse">
             <div className="text-sm">{lastAction}</div>
         </div>
     )

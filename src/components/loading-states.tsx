@@ -47,7 +47,7 @@ export function SyncStatus({
   };
 
   return (
-    <div className="flex items-center space-x-2 text-sm text-gray-500">
+    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
       {isLoading ? (
         <>
           <LoadingSpinner size="sm" />
@@ -67,7 +67,7 @@ export function SyncStatus({
       )}
 
       {showDetails && lastSync && (
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-muted-foreground">
           Last sync: {formatLastSync(lastSync)}
         </span>
       )}
@@ -86,10 +86,10 @@ export function SyncingOverlay({ isLoading, message = 'Syncing...', children }: 
     <div className="relative">
       {children}
       {isLoading && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
           <div className="flex flex-col items-center space-y-2">
             <LoadingSpinner size="lg" />
-            <p className="text-sm text-gray-600 font-medium">{message}</p>
+            <p className="text-sm text-foreground font-medium">{message}</p>
           </div>
         </div>
       )}
@@ -108,7 +108,7 @@ export function LoadingSkeleton({ lines = 3, className = '' }: LoadingSkeletonPr
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-4 bg-gray-200 rounded animate-pulse"
+          className="h-4 bg-muted rounded animate-pulse"
           style={{ width: `${Math.random() * 40 + 60}%` }}
         />
       ))}
@@ -124,9 +124,9 @@ interface LoadingCardProps {
 
 export function LoadingCard({ title = true, content = true, className = '' }: LoadingCardProps) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-4 space-y-3 ${className}`}>
+    <div className={`bg-card rounded-lg border p-4 space-y-3 ${className}`}>
       {title && (
-        <div className="h-6 bg-gray-200 rounded animate-pulse w-1/3" />
+        <div className="h-6 bg-muted rounded animate-pulse w-1/3" />
       )}
       {content && <LoadingSkeleton lines={3} />}
     </div>

@@ -2,7 +2,7 @@ import { PlatformDemoView } from '@/views/_development/platform-demo-view';
 
 export default function PlatformDemoPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <PlatformDemoView />
     </div>
   );

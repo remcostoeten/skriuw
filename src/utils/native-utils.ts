@@ -65,7 +65,7 @@ export class NativeDialogs {
       });
 
       return {
-        path: selected,
+        path: selected || undefined,
         success: !!selected,
         cancelled: !selected
       };
@@ -128,7 +128,6 @@ export class NativeDialogs {
 
       const confirmed = await apis.dialog.ask(message, {
         title: title || 'Confirm',
-        type: 'info',
         okLabel: confirmLabel,
         cancelLabel
       });
@@ -223,7 +222,8 @@ export class WindowManager {
       const apis = await loadTauriAPIs();
       if (!apis) return;
 
-      const currentWindow = apis.tauriWindow.getCurrent();
+      const { getCurrentWindow } = apis.tauriWindow;
+      const currentWindow = getCurrentWindow();
       await currentWindow.minimize();
     } catch (error) {
       console.error('Failed to minimize window:', error);
@@ -240,7 +240,8 @@ export class WindowManager {
       const apis = await loadTauriAPIs();
       if (!apis) return;
 
-      const currentWindow = apis.tauriWindow.getCurrent();
+      const { getCurrentWindow } = apis.tauriWindow;
+      const currentWindow = getCurrentWindow();
       await currentWindow.toggleMaximize();
     } catch (error) {
       console.error('Failed to maximize window:', error);
@@ -260,7 +261,8 @@ export class WindowManager {
       const apis = await loadTauriAPIs();
       if (!apis) return;
 
-      const currentWindow = apis.tauriWindow.getCurrent();
+      const { getCurrentWindow } = apis.tauriWindow;
+      const currentWindow = getCurrentWindow();
       await currentWindow.close();
     } catch (error) {
       console.error('Failed to close window:', error);
@@ -281,7 +283,8 @@ export class WindowManager {
       const apis = await loadTauriAPIs();
       if (!apis) return;
 
-      const currentWindow = apis.tauriWindow.getCurrent();
+      const { getCurrentWindow } = apis.tauriWindow;
+      const currentWindow = getCurrentWindow();
       await currentWindow.setTitle(title);
       document.title = title; // Also update document title
     } catch (error) {
@@ -300,7 +303,8 @@ export class WindowManager {
       const apis = await loadTauriAPIs();
       if (!apis) return;
 
-      const currentWindow = apis.tauriWindow.getCurrent();
+      const { getCurrentWindow } = apis.tauriWindow;
+      const currentWindow = getCurrentWindow();
       await currentWindow.setAlwaysOnTop(alwaysOnTop);
     } catch (error) {
       console.error('Failed to set always on top:', error);
@@ -321,8 +325,8 @@ export class SystemUtils {
     }
 
     try {
-      const { app } = await import('@tauri-apps/api/app');
-      return await app.getName();
+      const { getName } = await import('@tauri-apps/api/app');
+      return await getName();
     } catch (error) {
       console.error('Failed to get platform info:', error);
       return navigator.platform;

@@ -1,7 +1,6 @@
 import type { Folder, Note } from "@/api/db/schema";
 import { ActionBar } from "@/components/file-tree/action-bar";
 import { useDragState } from "@/hooks/use-drag-state";
-import { cn } from "utils";
 import { useMoveFolder, useMoveFolderToRoot } from "@/modules/folders/api/mutations/move";
 import { useUpdateFolder } from "@/modules/folders/api/mutations/update";
 import { useGetFolders } from "@/modules/folders/api/queries/get-folders";
@@ -9,17 +8,18 @@ import { useMoveNote, useMoveNoteToRoot, useReorderNote } from "@/modules/notes/
 import { useUpdateNote } from "@/modules/notes/api/mutations/update";
 import { useGetNotes } from "@/modules/notes/api/queries/get-notes";
 import { useSidebarSearch } from "@/modules/search/hooks/use-sidebar-search";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "utils";
 import { FileItem } from "./file-item";
 import { FolderItem } from "./folder-item";
 
-interface SidebarProps {
+type props = {
     onNoteSelect?: (noteId: string) => void;
-    onNoteCreate?: () => void;
+    onNoteCreate?: (noteId: string) => void;
     selectedNoteId?: string | null;
 }
 
-export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarProps = {}) => {
+export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = {}) => {
     const { folders = [] } = useGetFolders();
     const { notes = [] } = useGetNotes();
     const { folders: searchFolders, notes: searchNotes, searchState } = useSidebarSearch();
@@ -30,12 +30,11 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
     const [activeFile, setActiveFile] = useState<string | null>(selectedNoteId || null);
     const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
 
-    // Sync with parent selected note
     useEffect(() => {
-        if (selectedNoteId !== undefined) {
+        if (selectedNoteId !== undefined && selectedNoteId !== activeFile) {
             setActiveFile(selectedNoteId);
         }
-    }, [selectedNoteId]);
+    }, [selectedNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const dragState = useDragState();
     const { moveFolder } = useMoveFolder();
@@ -50,15 +49,28 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
         }
     }, [dragState.draggedFolderId, dragState.draggedNoteId, dragState.clearDragOver]);
 
-    const rootFolders = folders.filter((f: Folder) => !f.deletedAt && !(f.parent as any));
-    const rootNotes = notes.filter((n: Note) => !(n.folder as any));
+    const rootFolders = useMemo(() =>
+        folders.filter((f: Folder) => !f.deletedAt && !(f.parent as any)),
+        [folders]
+    );
+    const rootNotes = useMemo(() =>
+        notes.filter((n: Note) => !(n.folder as any)),
+        [notes]
+    );
 
-    const displayFolders = searchState.query
-        ? searchFolders
-        : rootFolders.sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
-    const displayNotes = searchState.query
-        ? searchNotes
-        : rootNotes.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
+    const displayFolders = useMemo(() => {
+        if (searchState.query) {
+            return searchFolders;
+        }
+        return [...rootFolders].sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
+    }, [searchState.query, searchFolders, rootFolders]);
+
+    const displayNotes = useMemo(() => {
+        if (searchState.query) {
+            return searchNotes;
+        }
+        return [...rootNotes].sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
+    }, [searchState.query, searchNotes, rootNotes]);
 
     const getChildrenCount = (folderId: string) => {
         const childNotes = notes.filter((note: Note) => (note.folder as any)?.id === folderId);
@@ -94,7 +106,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
             .sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
     };
 
-    const handleExpandToggle = () => {
+    const handleExpandToggle = useCallback(() => {
         if (isExpanded) {
             // Collapse all folders
             setOpenFolders(new Set());
@@ -103,7 +115,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
             setOpenFolders(new Set(displayFolders.map((f: any) => f.item?.id || f.id)));
         }
         setIsExpanded(!isExpanded);
-    };
+    }, [isExpanded, displayFolders]);
 
     const toggleFolder = (folderId: string) => {
         setOpenFolders(prev => {
@@ -133,10 +145,10 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
         }
     };
 
-    const handleNoteClick = (noteId: string) => {
+    const handleNoteClick = useCallback((noteId: string) => {
         setActiveFile(noteId);
         onNoteSelect?.(noteId);
-    };
+    }, [onNoteSelect]);
 
     const handleDragStart = (type: 'folder' | 'note', id: string) => {
         if (type === 'folder') {
@@ -246,7 +258,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarP
     return (
         <div
             className={cn(
-                "fixed left-[220px] flex flex-col justify-start items-center bg-background overflow-y-auto",
+                " left-[220px] flex flex-col justify-start items-center bg-background overflow-y-auto",
                 "transform transition-all duration-300 border-r"
             )}
             style={{

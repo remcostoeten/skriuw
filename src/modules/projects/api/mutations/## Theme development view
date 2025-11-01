@@ -1,0 +1,3 @@
+## Theme development view
+
+Create a new view called `theme-color-view` inside the view folder and then a new folder called `_development`. The underscore indicates it

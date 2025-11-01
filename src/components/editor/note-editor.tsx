@@ -1,28 +1,21 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Bold, Italic, Strikethrough, Code, Heading2 } from 'lucide-react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import { BubbleMenu } from '@tiptap/react/menus';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import Typography from '@tiptap/extension-typography';
-import Mention from '@tiptap/extension-mention';
-import { useUpdateNote } from '@/modules/notes/api/mutations/update';
-import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
-import { useGetTasks } from '@/modules/tasks/api/queries/get-tasks';
-import { useCreateTask } from '@/modules/tasks/api/mutations/create';
-import { useUpdateTask } from '@/modules/tasks/api/mutations/update';
-import { useDestroyTask } from '@/modules/tasks/api/mutations/destroy';
-import { Input } from '@/shared/ui/input';
-import { Button } from '@/shared/ui/button';
-import { Checkbox } from '@/shared/ui/checkbox';
+import type { Note } from '@/api/db/schema';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SyncingOverlay, SyncStatus } from '@/components/loading-states';
+import MentionList from '@/components/mention-list';
+import { useUpdateNote } from '@/modules/notes/api/mutations/update';
+import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
+import Mention from '@tiptap/extension-mention';
+import Placeholder from '@tiptap/extension-placeholder';
+import Typography from '@tiptap/extension-typography';
+import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import StarterKit from '@tiptap/starter-kit';
+import { Bold, Code, Heading2, Italic, Strikethrough } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
-import type { Note } from '@/api/db/schema';
-import { createMentionSuggestion, createTaskMentionSuggestion } from '@/components/editor/mention-suggestion';
-import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 
 /**
  * ToDo: create a global keyboard event listener HoC
@@ -33,26 +26,18 @@ type Props = {
   onNoteSelect?: (noteId: string) => void;
 };
 
-export function NoteEditor({ note, onNoteSelect }: Props) {
+function NoteEditorComponent({ note, onNoteSelect }: Props) {
   const [title, setTitle] = useState(note.title);
-  const [newTaskContent, setNewTaskContent] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | undefined>(undefined);
 
   const { updateNote, isLoading: isUpdatingNote } = useUpdateNote();
   const { notes } = useGetNotes();
-  const { tasks } = useGetTasks(note.id);
-  const { tasks: allTasks } = useGetAllTasks();
-  const { createTask, isLoading: isCreatingTask } = useCreateTask();
-  const { updateTask, isLoading: isUpdatingTask } = useUpdateTask();
-  const { destroyTask, isLoading: isDestroyingTask } = useDestroyTask();
 
   const { handleError } = useErrorHandler();
 
-  // Calculate overall loading state
-  const isMutating = isUpdatingNote || isCreatingTask || isUpdatingTask || isDestroyingTask;
+  const isMutating = isUpdatingNote;
 
-  // Helper to wrap async operations with sync status tracking
   const withSyncTracking = useCallback(async <T,>(
     operation: () => Promise<T>,
     operationName: string
@@ -77,24 +62,37 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     }))
   ), [notes, note.id]);
 
-  const availableTasks = useMemo(() => (
-    allTasks.map((t) => ({ id: t.id, label: `TASK-${t.id.slice(-4)}: ${t.content.replace(/<[^>]*>?/gm, '').slice(0, 40)}` }))
-  ), [allTasks]);
+  const availableNotesRef = useRef(availableNotes);
+  type TaskMention = { id: string; label: string };
+  const availableTasksRef = useRef<TaskMention[]>([]);
+  const onNoteSelectRef = useRef(onNoteSelect);
 
-  // (moved below editor initialization)
+  useEffect(() => {
+    availableNotesRef.current = availableNotes;
+    onNoteSelectRef.current = onNoteSelect;
+  }, [availableNotes, onNoteSelect]);
 
   const handleMentionClick = useCallback((_view: any, _pos: any, event: MouseEvent) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains('mention')) {
       event.preventDefault();
       const mentionId = target.getAttribute('data-mention-id');
-      if (mentionId && onNoteSelect) {
-        onNoteSelect(mentionId);
+      if (mentionId && onNoteSelectRef.current) {
+        onNoteSelectRef.current(mentionId);
       }
       return true;
     }
     return false;
-  }, [onNoteSelect]);
+  }, []);
+
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const noteContentRef = useRef(note.content);
+  const noteIdRef = useRef(note.id);
+
+  useEffect(() => {
+    noteContentRef.current = note.content;
+    noteIdRef.current = note.id;
+  }, [note.content, note.id]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -112,7 +110,62 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
         HTMLAttributes: {
           class: 'mention',
         },
-        suggestion: createMentionSuggestion(availableNotes),
+        suggestion: {
+          items: ({ query }): any[] => {
+            return availableNotesRef.current
+              .filter((note) =>
+                note.title.toLowerCase().includes(query.toLowerCase())
+              )
+              .slice(0, 5);
+          },
+          render: () => {
+            let component: any;
+            let popup: any[];
+            return {
+              onStart: (props: any) => {
+                component = new ReactRenderer(MentionList, {
+                  props,
+                  editor: props.editor,
+                });
+                if (props.clientRect) {
+                  popup = tippy('body', {
+                    getReferenceClientRect: props.clientRect,
+                    appendTo: () => document.body,
+                    content: component.element,
+                    showOnCreate: true,
+                    interactive: true,
+                    trigger: 'manual',
+                    placement: 'bottom-start',
+                    arrow: false,
+                    theme: 'menu',
+                    maxWidth: 'none',
+                    offset: [0, 6],
+                    zIndex: 9999,
+                  });
+                }
+              },
+              onUpdate: (props: any) => {
+                component.updateProps(props);
+                if (props.clientRect) {
+                  popup[0].setProps({
+                    getReferenceClientRect: props.clientRect,
+                  });
+                }
+              },
+              onKeyDown: (props: any) => {
+                if (props.event.key === 'Escape') {
+                  popup[0].hide();
+                  return true;
+                }
+                return component.ref?.onKeyDown(props) ?? false;
+              },
+              onExit: () => {
+                popup[0].destroy();
+                component.destroy();
+              },
+            };
+          },
+        },
         renderHTML({ options, node }) {
           return [
             'a',
@@ -130,7 +183,87 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
         HTMLAttributes: {
           class: 'task-mention',
         },
-        suggestion: { char: '$', ...createTaskMentionSuggestion(availableTasks) },
+        suggestion: {
+          char: '$',
+          items: ({ query }): any[] => {
+            const q = (query || '').toLowerCase();
+            const isFuzzyMatch = (text: string, pattern: string): number => {
+              if (!pattern) return 0;
+              let ti = 0;
+              let score = 0;
+              const tl = text.length;
+              for (let pi = 0; pi < pattern.length; pi++) {
+                const ch = pattern[pi];
+                let found = false;
+                while (ti < tl) {
+                  if (text[ti].toLowerCase() === ch) {
+                    score += 1 + (ti > 0 && text[ti - 1].toLowerCase() === (pattern[pi - 1] || '') ? 1 : 0);
+                    ti++;
+                    found = true;
+                    break;
+                  }
+                  ti++;
+                }
+                if (!found) return -1;
+              }
+              return score - Math.max(0, tl - pattern.length) * 0.01;
+            };
+            const ranked = availableTasksRef.current
+              .map((t: TaskMention) => ({ t, s: isFuzzyMatch(t.label, q) }))
+              .filter(({ s }: { s: number }) => s >= 0)
+              .sort((a: { s: number }, b: { s: number }) => b.s - a.s)
+              .slice(0, 8)
+              .map(({ t }: { t: TaskMention }) => t);
+            return ranked;
+          },
+          render: () => {
+            let component: any;
+            let popup: any[];
+            return {
+              onStart: (props: any) => {
+                component = new ReactRenderer(MentionList, {
+                  props,
+                  editor: props.editor,
+                });
+                if (props.clientRect) {
+                  popup = tippy('body', {
+                    getReferenceClientRect: props.clientRect,
+                    appendTo: () => document.body,
+                    content: component.element,
+                    showOnCreate: true,
+                    interactive: true,
+                    trigger: 'manual',
+                    placement: 'bottom-start',
+                    arrow: false,
+                    theme: 'menu',
+                    maxWidth: 'none',
+                    offset: [0, 6],
+                    zIndex: 9999,
+                  });
+                }
+              },
+              onUpdate: (props: any) => {
+                component.updateProps(props);
+                if (props.clientRect) {
+                  popup[0].setProps({
+                    getReferenceClientRect: props.clientRect,
+                  });
+                }
+              },
+              onKeyDown: (props: any) => {
+                if (props.event.key === 'Escape') {
+                  popup[0].hide();
+                  return true;
+                }
+                return component.ref?.onKeyDown(props) ?? false;
+              },
+              onExit: () => {
+                popup[0].destroy();
+                component.destroy();
+              },
+            };
+          },
+        },
         renderHTML({ options, node }) {
           const short = node.attrs.label ?? node.attrs.id;
           const title = `Task ${short}`;
@@ -152,33 +285,58 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     content: note.content,
     editorProps: {
       attributes: {
-        class: 'tiptap focus:outline-none min-h-[300px]',
+        class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
       },
       handleClick: handleMentionClick,
     },
+    onUpdate: ({ editor }) => {
+      // Debounce auto-save to avoid excessive updates
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+
+      autoSaveTimerRef.current = setTimeout(() => {
+        const html = editor.getHTML();
+        // Use ref to get latest content value
+        if (html !== noteContentRef.current) {
+          withSyncTracking(
+            () => updateNote(noteIdRef.current, { content: html }),
+            'auto-save note content'
+          );
+        }
+      }, 500); // 500ms debounce
+    },
   }, [note.id]);
 
-  // Auto-save note content when it changes
+  // Cleanup timer on unmount
   useEffect(() => {
-    if (!editor) return;
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
 
-    const html = editor.getHTML();
-    if (html !== note.content) {
-      withSyncTracking(
-        () => updateNote(note.id, { content: html }),
-        'auto-save note content'
-      );
-    }
-  }, [editor, note.id, note.content, updateNote, withSyncTracking]);
+  // Track previous note to avoid unnecessary updates
+  const prevNoteRef = useRef<Note | null>(null);
 
   useEffect(() => {
-    setTitle(note.title);
-    if (editor && note.content !== editor.getHTML()) {
-      // prevent triggering onUpdate when setting from outside
-      // @ts-expect-error tiptap allows boolean second param to suppress update
-      editor.commands.setContent(note.content, false);
+    // Only update if note ID changed or if content/title actually changed
+    const noteChanged = !prevNoteRef.current ||
+      prevNoteRef.current.id !== note.id ||
+      prevNoteRef.current.content !== note.content ||
+      prevNoteRef.current.title !== note.title;
+
+    if (noteChanged) {
+      setTitle(note.title);
+      if (editor && note.content !== editor.getHTML()) {
+        // prevent triggering onUpdate when setting from outside
+        // @ts-expect-error tiptap allows boolean second param to suppress update
+        editor.commands.setContent(note.content, false);
+      }
+      prevNoteRef.current = note;
     }
-  }, [note.id, note.content, editor]);
+  }, [note.id, note.content, note.title, editor]);
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
@@ -188,44 +346,14 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     );
   };
 
-  async function handleCreateTask() {
-    if (!newTaskContent.trim()) return;
-
-    const success = await withSyncTracking(
-      () => createTask({
-        noteId: note.id,
-        content: newTaskContent,
-        position: tasks.length,
-      }),
-      'create task'
-    );
-
-    if (success) {
-      setNewTaskContent('');
-    }
-  };
-
-  const handleToggleTask = async (taskId: string, completed: boolean) => {
-    await withSyncTracking(
-      () => updateTask(taskId, { completed }),
-      'update task'
-    );
-  };
-
-  async function handleDeleteTask(taskId: string) {
-    await withSyncTracking(
-      () => destroyTask(taskId),
-      'delete task'
-    );
-  };
 
   return (
     <ErrorBoundary
       fallback={({ error, retry }) => (
         <div className="h-full flex items-center justify-center p-8">
           <div className="text-center">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Editor Error</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="text-lg font-medium text-foreground mb-2">Editor Error</h3>
+            <p className="text-muted-foreground mb-4">
               {error?.message || 'Something went wrong while loading the note editor.'}
             </p>
             <button
@@ -246,7 +374,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 placeholder:text-muted-foreground/30"
+              className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 text-foreground placeholder:text-muted-foreground/30"
               placeholder="Untitled"
             />
 
@@ -322,50 +450,6 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               )}
 
 
-              {/* Task setup 
-          ToDo: think of a way to implement this, ignore for now.
-          */}
-              <div className="pt-8 border-t border-border/50">
-                <h3 className="text-xs uppercase tracking-wide text-muted-foreground mb-4">Tasks</h3>
-                <div className="space-y-3 mb-4">
-                  {tasks.map((task) => (
-                    <div key={task.id} className="flex items-start gap-3 group py-1">
-                      <Checkbox
-                        checked={task.completed}
-                        onCheckedChange={(checked) =>
-                          handleToggleTask(task.id, checked as boolean)
-                        }
-                        className="mt-1"
-                      />
-                      <span
-                        className={`flex-1 text-base ${task.completed ? 'line-through text-muted-foreground' : ''
-                          }`}
-                      >
-                        {task.content}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity text-lg leading-none"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    value={newTaskContent}
-                    onChange={(e) => setNewTaskContent(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
-                    placeholder="Add a task..."
-                    className="flex-1 border-muted"
-                  />
-                  <Button size="icon" onClick={handleCreateTask} variant="ghost">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -373,4 +457,13 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     </ErrorBoundary>
   );
 }
+
+export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.note.id === nextProps.note.id &&
+    prevProps.note.content === nextProps.note.content &&
+    prevProps.note.title === nextProps.note.title &&
+    prevProps.onNoteSelect === nextProps.onNoteSelect
+  );
+});
 

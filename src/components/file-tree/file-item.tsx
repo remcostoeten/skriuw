@@ -1,5 +1,4 @@
 import { cn } from "utils";
-import { FileText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface FileItemProps {
@@ -167,7 +166,6 @@ export const FileItem = ({
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
             >
-                <FileText className="w-[14px] h-[14px] shrink-0" />
                 {isEditing ? (
                     <input
                         ref={inputRef}

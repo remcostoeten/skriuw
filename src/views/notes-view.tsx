@@ -6,18 +6,70 @@ import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
-import { useState } from 'react';
+import { DockManager } from '@/utils/dock-utils';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export function NotesView() {
   const { notes, isLoading } = useGetNotes();
   const { createNote } = useCreateNote();
   const { destroyNote } = useDestroyNote();
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const pendingNoteIdRef = useRef<string | null>(null);
+
+  // Use state to store the selected note, but only update when it actually changes
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const prevNoteRef = useRef<Note | null>(null);
 
-  // Update dock badge with note count
-  DockManager.setBadge(notes.length || 0);
+  // Update selectedNote only when the note ID changes or when content/title actually changes
+  useEffect(() => {
+    if (!selectedNoteId) {
+      if (prevNoteRef.current !== null) {
+        setSelectedNote(null);
+        prevNoteRef.current = null;
+      }
+      return;
+    }
 
-  // Handle search keyboard shortcuts
+    const note = notes.find((n: Note) => n.id === selectedNoteId);
+    if (!note) {
+      if (prevNoteRef.current !== null) {
+        setSelectedNote(null);
+        prevNoteRef.current = null;
+      }
+      return;
+    }
+
+    // Only update if note ID changed or if content/title actually changed
+    const noteChanged = !prevNoteRef.current ||
+      prevNoteRef.current.id !== note.id ||
+      prevNoteRef.current.content !== note.content ||
+      prevNoteRef.current.title !== note.title;
+
+    if (noteChanged) {
+      setSelectedNote(note);
+      prevNoteRef.current = note;
+    }
+  }, [selectedNoteId, notes]);
+
+  // Memoize the onNoteSelect callback to prevent NoteEditor from re-rendering
+  const handleNoteSelect = useMemo(() => (noteId: Note['id']) => {
+    setSelectedNoteId(noteId);
+  }, []);
+
+  useEffect(() => {
+    DockManager.setBadge(notes.length);
+  }, [notes]);
+
+  useEffect(() => {
+    if (pendingNoteIdRef.current) {
+      const note = notes.find((n: Note) => n.id === pendingNoteIdRef.current)
+      if (note) {
+        setSelectedNoteId(note.id)
+        pendingNoteIdRef.current = null
+      }
+    }
+  }, [notes]);
+
   useEffect(() => {
     const handleToggleSearch = () => {
       const searchToggleEvent = new CustomEvent('search:toggle');
@@ -43,33 +95,38 @@ export function NotesView() {
     const amount = notes.length + 1
     const title = `Untitled ${amount}${suffix}`
 
-    // Calculate position - put at the end of root-level notes
     const rootNotes = notes.filter((n: Note) => !(n.folder as any))
     const position = rootNotes.length > 0 ? Math.max(...rootNotes.map((n: Note) => n.position || 0)) + 1 : 0
 
     const note = await createNote({ title, content: '', position })
-    setSelectedNote(note as Note)
+    setSelectedNoteId((note as Note).id)
   }
 
-  async function handleCreateNoteFromSidebar() {
-    await handleCreateNote()
+  async function handleCreateNoteFromSidebar(noteId?: string) {
+    if (noteId) {
+      const note = notes.find((n: Note) => n.id === noteId)
+      if (note) {
+        setSelectedNoteId(note.id)
+      } else {
+        pendingNoteIdRef.current = noteId
+      }
+    } else {
+      await handleCreateNote()
+    }
   }
 
   function handleNoteSelectFromSidebar(noteId: string) {
-    const note = notes.find((n: Note) => n.id === noteId)
-    if (note) {
-      setSelectedNote(note)
-    }
+    setSelectedNoteId(noteId)
   }
 
   async function handleDeleteNote(id: string) {
     await destroyNote(id);
-    if (selectedNote?.id === id) {
-      setSelectedNote(null);
+    if (selectedNoteId === id) {
+      setSelectedNoteId(null);
     }
   }
 
-  
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -80,23 +137,17 @@ export function NotesView() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* File Tree Sidebar */}
       <FileTreeSidebar
         onNoteSelect={handleNoteSelectFromSidebar}
         onNoteCreate={handleCreateNoteFromSidebar}
         selectedNoteId={selectedNote?.id}
       />
 
-<div className="flex-1 relative ml-[220px]">
+      <div className="flex-1 relative ml-[220px]">
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}
-            onNoteSelect={(noteId: Note['id']) => {
-              const referencedNote = notes.find((n: Note) => n.id === noteId);
-              if (referencedNote) {
-                setSelectedNote(referencedNote);
-              }
-            }}
+            onNoteSelect={handleNoteSelect}
           />
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground">

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useErrorHandler } from '../use-error-handler';
 
 /** Options for `useMutation`. */
 export interface UseMutationOptions<TData, TVariables> {
@@ -21,6 +22,7 @@ export function useMutation<TData, TVariables = void>(
 ) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
+    const { handleError } = useErrorHandler({ showToast: options?.showErrorToast !== false });
 
     const mutate = useCallback(
         async (variables: TVariables) => {
@@ -36,11 +38,7 @@ export function useMutation<TData, TVariables = void>(
 
                 // Handle error with toast notification if enabled
                 if (options?.showErrorToast !== false) {
-                    // Import dynamically to avoid circular dependencies
-                    import('../use-error-handler').then(({ useErrorHandler }) => {
-                        const { handleError } = useErrorHandler();
-                        handleError(e, options?.errorContext);
-                    });
+                    handleError(e, options?.errorContext);
                 }
 
                 await options?.onError?.(e, variables);

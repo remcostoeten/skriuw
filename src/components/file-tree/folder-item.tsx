@@ -1,6 +1,6 @@
-import type { Folder, Note } from "@/api/db/schema";
+import type { Folder as FolderType, Note } from "@/api/db/schema";
 import { cn } from "utils";
-import { ChevronRight, Folder, FolderOpen } from "lucide-react";
+import { Folder, FolderOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FileItem } from "./file-item";
 
@@ -9,7 +9,7 @@ type props = {
     path: string;
     id: string;
     files: Note[];
-    subFolders?: Folder[];
+    subFolders?: FolderType[];
     childrenCount?: number;
     level?: number;
     activeFile?: string;
@@ -20,9 +20,9 @@ type props = {
     openFolders?: Set<string>;
     onToggleFolder?: (folderId: string) => void;
     getFolderNotes?: (folderId: string) => Note[];
-    getSubFolders?: (folderId: string) => Folder[];
+    getSubFolders?: (folderId: string) => FolderType[];
     getChildrenCount?: (folderId: string) => number;
-    folders?: Folder[];
+    folders?: FolderType[];
     notes?: Note[];
     onDragStartFolder?: (type: 'folder' | 'note', id: string) => void;
     onDragOverFolder?: (folderId: string, position: 'before' | 'after' | 'inside') => void;
@@ -97,7 +97,7 @@ export const FolderItem = ({
         if (draggedFolderId && folders) {
             const isDescendant = (childId: string, ancestorId: string): boolean => {
                 if (childId === ancestorId) return true;
-                const child = folders.find((f: Folder) => f.id === childId);
+                const child = folders.find((f: FolderType) => f.id === childId);
                 if (!child || !child.parent) return false;
                 const parentId = (child.parent as any)?.id;
                 if (parentId === ancestorId) return true;
@@ -294,15 +294,7 @@ export const FolderItem = ({
                 </div>
                 <div className="flex items-center gap-1">
                     {hasChildren && (
-                        <>
-                            <span className="text-foreground/40">{totalCount}</span>
-                            <ChevronRight
-                                className={cn(
-                                    "w-4 h-4 transition-transform",
-                                    isOpen && "rotate-90"
-                                )}
-                            />
-                        </>
+                        <span className="text-foreground/40">{totalCount}</span>
                     )}
                 </div>
             </div>
