@@ -6,13 +6,13 @@ export const schema = i.graph(
       title: i.string(),
       content: i.string(),
       position: i.number(),
-      createdAt: i.number(),
+      createdAt: i.number().indexed(),
       updatedAt: i.number(),
     }),
     folders: i.entity({
       name: i.string(),
       position: i.number(),
-      createdAt: i.number(),
+      createdAt: i.number().indexed(),
       updatedAt: i.number(),
       deletedAt: i.number().optional(),
     }),
@@ -20,8 +20,8 @@ export const schema = i.graph(
       content: i.string(),
       completed: i.boolean(),
       status: i.string(),
-      position: i.number(),
-      createdAt: i.number(),
+      position: i.number().indexed(),
+      createdAt: i.number().indexed(),
       priority: i.string(),
       dueAt: i.number().optional(),
       // Store tags as a comma-separated string for simplicity
@@ -33,14 +33,23 @@ export const schema = i.graph(
       // Reminder timestamp (epoch ms)
       reminderAt: i.number().optional(),
     }),
+    projects: i.entity({
+      title: i.string(),
+      scope: i.string().optional(),
+      description: i.string().optional(),
+      status: i.string(), // active|completed|archived
+      position: i.number().indexed(),
+      createdAt: i.number().indexed(),
+      updatedAt: i.number(),
+    }),
     comments: i.entity({
       body: i.string(),
-      createdAt: i.number(),
+      createdAt: i.number().indexed(),
     }),
     activity: i.entity({
       type: i.string(), // created|updated|status_changed|comment_added|completed|reopened
       message: i.string(),
-      createdAt: i.number(),
+      createdAt: i.number().indexed(),
       // optional key/value to store field deltas as JSON string
       meta: i.string().optional(),
     }),
@@ -130,6 +139,18 @@ export const schema = i.graph(
         label: 'task',
       },
     },
+    projectTasks: {
+      forward: {
+        on: 'tasks',
+        has: 'one',
+        label: 'project',
+      },
+      reverse: {
+        on: 'projects',
+        has: 'many',
+        label: 'tasks',
+      },
+    },
   }
 );
 
@@ -160,12 +181,25 @@ export type Task = {
   nextRunAt?: number;
   reminderAt?: number;
   note?: Note;
+  project?: Project;
   parent?: Task;
   subtasks?: Task[];
   dependsOn?: Task[];
   dependents?: Task[];
   comments?: Comment[];
   activity?: Activity[];
+};
+
+export type Project = {
+  id: string;
+  title: string;
+  scope?: string;
+  description?: string;
+  status: 'active' | 'completed' | 'archived';
+  position: number;
+  createdAt: number;
+  updatedAt: number;
+  tasks?: Task[];
 };
 
 export type Comment = {

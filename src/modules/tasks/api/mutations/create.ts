@@ -3,7 +3,8 @@ import { useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
 
 type props = {
-  noteId: string;
+  noteId?: string;
+  projectId?: string;
   content: string;
   position: number;
   priority?: 'low' | 'med' | 'high' | 'urgent';
@@ -28,7 +29,8 @@ export function useCreateTask() {
         dueAt: input.dueAt,
         tags: input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined,
       }),
-      tx.tasks[id].link({ note: input.noteId }),
+      ...(input.noteId ? [tx.tasks[id].link({ note: input.noteId })] : []),
+      ...(input.projectId ? [tx.tasks[id].link({ project: input.projectId })] : []),
       ...(input.parentId ? [tx.tasks[id].link({ parent: input.parentId })] : []),
       ...((input.dependsOnIds ?? []).map(depId => tx.tasks[id].link({ dependsOn: depId }))),
     ]);

@@ -49,6 +49,20 @@
   }
 }
 
+/* Tippy custom theme for app menus/popovers used by editor suggestions */
+.tippy-box[data-theme~='menu'] {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.tippy-box[data-theme~='menu'] > .tippy-arrow {
+  display: none;
+}
+.tippy-box[data-theme~='menu'] .tippy-content {
+  padding: 0;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -459,5 +473,121 @@
     .drop-zone-after::after {
       transition: none;
     }
+  }
+
+  /* Editor text styles for better readability */
+  .tiptap {
+    color: hsl(var(--foreground));
+  }
+
+  .tiptap p {
+    color: hsl(var(--foreground));
+    margin: 1em 0;
+    line-height: 1.6;
+  }
+
+  .tiptap h1,
+  .tiptap h2,
+  .tiptap h3,
+  .tiptap h4,
+  .tiptap h5,
+  .tiptap h6 {
+    color: hsl(var(--foreground));
+  }
+
+  .tiptap ul,
+  .tiptap ol {
+    color: hsl(var(--foreground));
+  }
+
+  .tiptap li {
+    color: hsl(var(--foreground));
+  }
+
+  .tiptap blockquote {
+    color: hsl(var(--muted-foreground));
+    border-left-color: hsl(var(--border));
+  }
+
+  .tiptap code {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--muted));
+  }
+
+  .tiptap pre {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--muted));
+  }
+
+  .tiptap strong {
+    color: hsl(var(--foreground));
+  }
+
+  .tiptap em {
+    color: hsl(var(--foreground));
+  }
+
+  /* Placeholder text styling */
+  .tiptap p.is-editor-empty:first-child::before {
+    color: hsl(var(--muted-foreground));
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Development and status overlays styling */
+  .dev-info,
+  .status-overlay,
+  .git-info,
+  .commit-info {
+    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-family: var(--font-mono) !important;
+  }
+
+  /* Ensure any floating overlays have proper contrast */
+  [class*="overlay"],
+  [class*="status"],
+  [class*="info"] {
+    color: hsl(var(--foreground));
+  }
+
+  /* Fix potential development toolbar styling */
+  .dev-toolbar,
+  .debug-info,
+  .console-output {
+    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--muted)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Any element that might be showing git/commit info */
+  [class*="git"],
+  [class*="commit"],
+  [class*="branch"],
+  [data-testid*="status"] {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Universal fix for any hardcoded light text in dark theme */
+  [style*="rgb(255"],
+  [style*="color: white"],
+  [style*="#fff"],
+  [style*="#ffffff"] {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Fix any elements that might have light text colors */
+  .text-gray-600,
+  .text-gray-500,
+  .text-gray-400,
+  .text-gray-300,
+  .text-gray-200 {
+    color: hsl(var(--foreground)) !important;
   }
 }

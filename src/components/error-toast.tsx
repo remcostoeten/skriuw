@@ -1,8 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { X, AlertCircle, CheckCircle, AlertTriangle, Info } from 'lucide-react';
-import { Button } from '@/shared/ui/button';
+import { Button } from '@/shared/components/ui/button';
+import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 type ToastType = 'error' | 'success' | 'warning' | 'info';
 
@@ -143,11 +143,11 @@ function ToastItem({ toast, onClear }: { toast: Toast; onClear: (id: string) => 
       </div>
 
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-medium text-gray-900 mb-1">
+        <h4 className="text-sm font-medium text-foreground mb-1">
           {toast.title}
         </h4>
         {toast.message && (
-          <p className="text-sm text-gray-600 mb-2">
+          <p className="text-sm text-muted-foreground mb-2">
             {toast.message}
           </p>
         )}
@@ -165,7 +165,7 @@ function ToastItem({ toast, onClear }: { toast: Toast; onClear: (id: string) => 
 
       <button
         onClick={() => onClear(toast.id)}
-        className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+        className="flex-shrink-0 ml-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <X className="h-4 w-4" />
       </button>

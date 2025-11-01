@@ -37,6 +37,11 @@ export const createMentionSuggestion = (
           interactive: true,
           trigger: 'manual',
           placement: 'bottom-start',
+          arrow: false,
+          theme: 'menu',
+          maxWidth: 'none',
+          offset: [0, 6],
+          zIndex: 9999,
         });
       },
 
@@ -133,6 +138,11 @@ export const createTaskMentionSuggestion = (
           interactive: true,
           trigger: 'manual',
           placement: 'bottom-start',
+          arrow: false,
+          theme: 'menu',
+          maxWidth: 'none',
+          offset: [0, 6],
+          zIndex: 9999,
         });
       },
 

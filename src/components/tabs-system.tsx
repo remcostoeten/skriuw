@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { X, Plus, GripVertical } from 'lucide-react';
-import { Button } from '@/shared/ui/button';
 import type { Note } from '@/api/db/schema';
+import { Button } from '@/shared/components/ui/button';
+import { GripVertical, Plus, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 interface Tab {
   id: string;

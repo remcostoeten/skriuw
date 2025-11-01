@@ -27,7 +27,7 @@
         "./src/*"
       ],
       "ui": [
-        "./src/shared/ui/index.ts"
+        "./src/shared/components/ui/index.ts"
       ],
       "utils": [
       "./src/shared/utilities/index.ts"

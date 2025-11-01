@@ -1,5 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { useQuery as useInstantQuery } from '@/api/db/client';
+import { useErrorHandler } from '@/hooks/use-error-handler';
 
 type AnyFn = (...args: any[]) => any;
 
@@ -36,6 +37,7 @@ export function createQueryHook<TArgs extends AnyFn, TData = any>(
         const query = useMemo(() => (isEnabled ? buildQuery(...args) : null), [isEnabled, ...args]);
 
         const { data: raw, isLoading, error } = useInstantQuery(query ?? {});
+        const { handleError } = useErrorHandler({ showToast: options?.showErrorToast !== false });
 
         const data = (options?.select ? options.select(raw) : (raw as TData)) ?? options?.initialData;
         const isSuccess = !isLoading && !error && isEnabled;
@@ -43,16 +45,13 @@ export function createQueryHook<TArgs extends AnyFn, TData = any>(
 
         useEffect(() => {
             if (error && isError && options?.showErrorToast !== false) {
-                import('@/hooks/use-error-handler').then(({ useErrorHandler }) => {
-                    const { handleError } = useErrorHandler();
-                    handleError(error, options?.errorContext);
-                });
+                handleError(error, options?.errorContext);
             }
 
             if (error && isError && options?.onError) {
                 options.onError(error as Error);
             }
-        }, [error, isError]);
+        }, [error, isError, handleError, options?.onError, options?.errorContext, options?.showErrorToast]);
 
         return {
             data: data as TData,

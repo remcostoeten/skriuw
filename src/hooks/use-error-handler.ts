@@ -35,7 +35,15 @@ export function useErrorHandler(options: ErrorHandlerOptions = {}) {
             errorMessage = String((error as any).message) || fallbackMessage;
         }
 
-        if (showToast) {
+        // Don't show toasts for network/connection errors during initial load
+        const shouldSkipToast =
+            errorMessage.includes('Failed to fetch') ||
+            errorMessage.includes('NetworkError') ||
+            errorMessage.includes('connection') ||
+            errorTitle === 'NetworkError' ||
+            context?.includes('initial');
+
+        if (showToast && !shouldSkipToast) {
             showError(
                 context ? `${errorTitle} in ${context}` : errorTitle,
                 errorMessage

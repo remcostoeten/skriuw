@@ -13,6 +13,7 @@ const useNotesQuery = createQueryHook(
   {
     select: (raw) => (raw?.notes as Note[]) ?? [],
     initialData: [] as Note[],
+    showErrorToast: false,
   }
 );
 

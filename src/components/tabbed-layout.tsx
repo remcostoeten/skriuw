@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { TabSystem } from '@/components/tabs-system';
-import { NoteEditor } from '@/components/note-editor';
+import { NoteEditor } from '@/components/editor/note-editor';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useTabsManager } from '@/hooks/use-tabs-manager';
 import { useNativeMenus, useContextMenu } from '@/components/native-menus';
@@ -285,7 +285,7 @@ export function TabbedLayout({ initialNote, onNoteSelect }: TabbedLayoutProps) {
       <div
         onContextMenu={(e) => {
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.tab-system')) {
-            showContextMenu(e);
+            showContextMenu(e.nativeEvent);
           }
         }}
         className="tab-system"
@@ -307,10 +307,10 @@ export function TabbedLayout({ initialNote, onNoteSelect }: TabbedLayoutProps) {
             fallback={({ error, retry }) => (
               <div className="h-full flex items-center justify-center p-8">
                 <div className="text-center max-w-md">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     Error Loading Note
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     {error?.message || 'Something went wrong while loading this note.'}
                   </p>
                   <button
@@ -320,8 +320,8 @@ export function TabbedLayout({ initialNote, onNoteSelect }: TabbedLayoutProps) {
                     Try Again
                   </button>
                   <button
-                    onClick={() => tabsManager.closeTab(activeTab.id)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                    onClick={() => activeTab && tabsManager.closeTab(activeTab.id)}
+                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
                   >
                     Close Tab
                   </button>
@@ -338,10 +338,10 @@ export function TabbedLayout({ initialNote, onNoteSelect }: TabbedLayoutProps) {
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 No Note Selected
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Open a note from the sidebar or create a new one to get started.
               </p>
               <button
