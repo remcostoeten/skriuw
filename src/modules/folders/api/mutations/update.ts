@@ -29,14 +29,13 @@ export function useUpdateFolder() {
           effectiveCurrentParentId = result?.data?.folders?.[0]?.parent?.id || null;
         }
 
-        // If we're setting parentId to null and there's a current parent, unlink first
-        if (!data.parentId && effectiveCurrentParentId) {
+        // Always unlink from current parent if it exists and is different from the new parent
+        if (effectiveCurrentParentId && effectiveCurrentParentId !== data.parentId) {
           await transact([tx.folders[id].unlink({ parent: effectiveCurrentParentId })]);
-        } else if (data.parentId) {
-          // If there's an existing parent that's different, unlink first
-          if (effectiveCurrentParentId && effectiveCurrentParentId !== data.parentId) {
-            await transact([tx.folders[id].unlink({ parent: effectiveCurrentParentId })]);
-          }
+        }
+
+        // Link to new parent if parentId is not null
+        if (data.parentId) {
           await transact([tx.folders[id].link({ parent: data.parentId })]);
         }
       }

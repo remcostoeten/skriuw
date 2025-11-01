@@ -14,11 +14,12 @@ export const schema = i.graph(
       position: i.number(),
       createdAt: i.number(),
       updatedAt: i.number(),
-      // Note: deletedAt handled at application level, not in schema
+      deletedAt: i.number().optional(),
     }),
     tasks: i.entity({
       content: i.string(),
       completed: i.boolean(),
+      status: i.string(),
       position: i.number(),
       createdAt: i.number(),
       priority: i.string(),
@@ -107,24 +108,24 @@ export const schema = i.graph(
     },
     taskComments: {
       forward: {
-        on: 'comments',
+        on: 'tasks',
         has: 'many',
         label: 'comments',
       },
       reverse: {
-        on: 'tasks',
+        on: 'comments',
         has: 'one',
         label: 'task',
       },
     },
     taskActivity: {
       forward: {
-        on: 'activity',
+        on: 'tasks',
         has: 'many',
         label: 'activity',
       },
       reverse: {
-        on: 'tasks',
+        on: 'activity',
         has: 'one',
         label: 'task',
       },

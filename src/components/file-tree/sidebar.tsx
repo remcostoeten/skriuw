@@ -1,17 +1,25 @@
-import { transact, tx } from '@/api/db/client';
 import type { Folder, Note } from "@/api/db/schema";
 import { ActionBar } from "@/components/file-tree/action-bar";
-import { cn } from "@/lib/utils";
+import { useDragState } from "@/hooks/use-drag-state";
+import { cn } from "utils";
+import { useMoveFolder, useMoveFolderToRoot } from "@/modules/folders/api/mutations/move";
 import { useUpdateFolder } from "@/modules/folders/api/mutations/update";
 import { useGetFolders } from "@/modules/folders/api/queries/get-folders";
+import { useMoveNote, useMoveNoteToRoot, useReorderNote } from "@/modules/notes/api/mutations/move";
 import { useUpdateNote } from "@/modules/notes/api/mutations/update";
 import { useGetNotes } from "@/modules/notes/api/queries/get-notes";
 import { useSidebarSearch } from "@/modules/search/hooks/use-sidebar-search";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FileItem } from "./file-item";
 import { FolderItem } from "./folder-item";
 
-export const Sidebar = () => {
+interface SidebarProps {
+    onNoteSelect?: (noteId: string) => void;
+    onNoteCreate?: () => void;
+    selectedNoteId?: string | null;
+}
+
+export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: SidebarProps = {}) => {
     const { folders = [] } = useGetFolders();
     const { notes = [] } = useGetNotes();
     const { folders: searchFolders, notes: searchNotes, searchState } = useSidebarSearch();
@@ -19,42 +27,71 @@ export const Sidebar = () => {
     const { updateNote } = useUpdateNote();
 
     const [isExpanded, setIsExpanded] = useState(false);
-    const [activeFile, setActiveFile] = useState<string | null>(null);
+    const [activeFile, setActiveFile] = useState<string | null>(selectedNoteId || null);
     const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
 
-    // Drag and drop state
-    const [draggedFolderId, setDraggedFolderId] = useState<string | null>(null);
-    const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
-    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
-    const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null);
-
-    // Auto-cleanup drag state when no active drag operations
+    // Sync with parent selected note
     useEffect(() => {
-        if (!draggedFolderId && !draggedNoteId) {
-            setDragOverFolderId(null);
-            setDropPosition(null);
+        if (selectedNoteId !== undefined) {
+            setActiveFile(selectedNoteId);
         }
-    }, [draggedFolderId, draggedNoteId]);
+    }, [selectedNoteId]);
 
-    // Use search results if there's a query, otherwise use all data
-    const displayFolders = searchState.query ? searchFolders : folders.filter((f: Folder) => !f.deletedAt);
-    const displayNotes = searchState.query ? searchNotes : notes.filter((n: Note) => !n.folder);
+    const dragState = useDragState();
+    const { moveFolder } = useMoveFolder();
+    const { moveFolderToRoot } = useMoveFolderToRoot();
+    const { moveNote } = useMoveNote();
+    const { moveNoteToRoot } = useMoveNoteToRoot();
+    const { reorderNote } = useReorderNote();
 
-    // Count children (notes + sub-folders) for each folder
+    useEffect(() => {
+        if (!dragState.draggedFolderId && !dragState.draggedNoteId) {
+            dragState.clearDragOver();
+        }
+    }, [dragState.draggedFolderId, dragState.draggedNoteId, dragState.clearDragOver]);
+
+    const rootFolders = folders.filter((f: Folder) => !f.deletedAt && !(f.parent as any));
+    const rootNotes = notes.filter((n: Note) => !(n.folder as any));
+
+    const displayFolders = searchState.query
+        ? searchFolders
+        : rootFolders.sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
+    const displayNotes = searchState.query
+        ? searchNotes
+        : rootNotes.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
+
     const getChildrenCount = (folderId: string) => {
         const childNotes = notes.filter((note: Note) => (note.folder as any)?.id === folderId);
         const childFolders = folders.filter((folder: Folder) => (folder.parent as any)?.id === folderId && !folder.deletedAt);
         return childNotes.length + childFolders.length;
     };
 
+    // Get the full path of a folder (all parent IDs)
+    const getFolderPath = (folderId: string): string[] => {
+        const path: string[] = [];
+        let currentId = folderId;
+
+        while (currentId) {
+            path.unshift(currentId);
+            const folder = folders.find((f: Folder) => f.id === currentId);
+            currentId = folder ? (folder.parent as any)?.id : null;
+        }
+
+        return path;
+    };
+
     // Get notes for a specific folder
     const getFolderNotes = (folderId: string) => {
-        return notes.filter((note: Note) => (note.folder as any)?.id === folderId);
+        return notes
+            .filter((note: Note) => (note.folder as any)?.id === folderId)
+            .sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
     };
 
     // Get sub-folders for a specific folder
     const getSubFolders = (folderId: string) => {
-        return folders.filter((folder: Folder) => (folder.parent as any)?.id === folderId && !folder.deletedAt);
+        return folders
+            .filter((folder: Folder) => (folder.parent as any)?.id === folderId && !folder.deletedAt)
+            .sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
     };
 
     const handleExpandToggle = () => {
@@ -88,138 +125,122 @@ export const Sidebar = () => {
         }
     };
 
-    const handleNoteClick = (noteId: string) => {
-        setActiveFile(noteId);
-        // Here you could add additional navigation logic if needed
+    const handleNoteRename = async (id: string, newName: string) => {
+        try {
+            await updateNote(id, { title: newName });
+        } catch (error) {
+            console.error("Failed to rename note:", error);
+        }
     };
 
-    // Drag and drop handlers
+    const handleNoteClick = (noteId: string) => {
+        setActiveFile(noteId);
+        onNoteSelect?.(noteId);
+    };
+
     const handleDragStart = (type: 'folder' | 'note', id: string) => {
         if (type === 'folder') {
-            setDraggedFolderId(id);
+            dragState.startDragFolder(id);
         } else {
-            setDraggedNoteId(id);
+            dragState.startDragNote(id);
         }
-        setDragOverFolderId(null);
-        setDropPosition(null);
     };
 
     const handleDragEnd = () => {
-        // Reset all drag-related state immediately
-        setDraggedFolderId(null);
-        setDraggedNoteId(null);
-        setDragOverFolderId(null);
-        setDropPosition(null);
+        dragState.endDrag();
     };
 
     const handleDragOver = (folderId: string, position: 'before' | 'after' | 'inside') => {
-        if (draggedFolderId === folderId) return; // Can't drop on itself
-        setDragOverFolderId(folderId);
-        setDropPosition(position);
+        if (dragState.draggedFolderId === folderId) return;
+        dragState.setDragOver(folderId, position);
     };
 
     const handleDragLeave = () => {
-        setDragOverFolderId(null);
-        setDropPosition(null);
+        dragState.clearDragOver();
     };
 
     const handleDrop = async (targetFolderId: string, position: 'before' | 'after' | 'inside') => {
         try {
-            // Handle folder drop
-            if (draggedFolderId) {
-                const draggedFolder = folders.find((f: Folder) => f.id === draggedFolderId);
-                if (!draggedFolder) return;
+            if (dragState.draggedFolderId) {
+                const result = await moveFolder({
+                    draggedFolderId: dragState.draggedFolderId,
+                    targetFolderId,
+                    position,
+                    folders,
+                });
 
-                let newParentId: string | null = null;
-                let newPosition: number;
-
-                if (position === 'inside') {
-                    newParentId = targetFolderId;
-                    // Calculate position inside target folder
-                    const childFolders = folders.filter((f: Folder) =>
-                        (f.parent as any)?.id === targetFolderId && f.id !== draggedFolderId
-                    );
-                    newPosition = childFolders.length > 0
-                        ? Math.max(...childFolders.map((f: Folder) => f.position || 0)) + 1
-                        : 0;
-                } else {
-                    // Calculate position for before/after
-                    const targetFolder = folders.find((f: Folder) => f.id === targetFolderId);
-                    if (!targetFolder) return;
-
-                    const parentId = (targetFolder.parent as any)?.id || null;
-                    const siblings = folders.filter((f: Folder) =>
-                        ((f.parent as any)?.id || null) === parentId && f.id !== draggedFolderId
-                    );
-                    const targetIndex = siblings.findIndex((f: Folder) => f.id === targetFolderId);
-
-                    if (position === 'before') {
-                        const prevPosition = targetIndex > 0
-                            ? siblings[targetIndex - 1].position || 0
-                            : 0;
-                        newPosition = (prevPosition + (targetFolder.position || 0)) / 2;
-                    } else { // after
-                        const nextPosition = targetIndex < siblings.length - 1
-                            ? siblings[targetIndex + 1].position || 0
-                            : (targetFolder.position || 0) + 100;
-                        newPosition = ((targetFolder.position || 0) + nextPosition) / 2;
+                if (result?.newParentId) {
+                    const pathToExpand = getFolderPath(result.newParentId);
+                    if (position === 'inside') {
+                        pathToExpand.push(targetFolderId);
                     }
-                    newParentId = parentId;
+                    setOpenFolders(prev => {
+                        const next = new Set(prev);
+                        pathToExpand.forEach(folderId => next.add(folderId));
+                        return next;
+                    });
                 }
+            } else if (dragState.draggedNoteId) {
+                const result = await moveNote({
+                    draggedNoteId: dragState.draggedNoteId,
+                    targetFolderId,
+                    position,
+                    notes,
+                    folders,
+                });
 
-                const currentParentId = (draggedFolder.parent as any)?.id || null;
-                await updateFolder(draggedFolderId, {
-                    parentId: newParentId,
-                    position: newPosition
-                }, currentParentId);
-            }
-
-            // Handle note drop
-            else if (draggedNoteId) {
-                const draggedNote = notes.find((n: Note) => n.id === draggedNoteId);
-                if (!draggedNote) return;
-
-                if (position === 'inside') {
-                    // Move note into folder
-                    const childNotes = notes.filter((n: Note) =>
-                        (n.folder as any)?.id === targetFolderId && n.id !== draggedNoteId
-                    );
-                    const newPosition = childNotes.length > 0
-                        ? Math.max(...childNotes.map((n: Note) => n.position || 0)) + 1
-                        : 0;
-
-                    // Update note's folder and position
-                    await transact([
-                        tx.notes[draggedNoteId].update({
-                            position: newPosition,
-                            updatedAt: Date.now()
-                        }),
-                        // Link to new folder
-                        tx.notes[draggedNoteId].link({ folder: targetFolderId })
-                    ]);
-                } else {
-                    // Reorder notes at root level (before/after folder - treat as root level positioning)
-                    const rootNotes = notes.filter((n: Note) => !(n.folder as any) && n.id !== draggedNoteId);
-                    const newPosition = rootNotes.length > 0
-                        ? Math.max(...rootNotes.map((n: Note) => n.position || 0)) + 1
-                        : 0;
-
-                    await transact([
-                        tx.notes[draggedNoteId].update({
-                            position: newPosition,
-                            updatedAt: Date.now()
-                        }),
-                        // Unlink from any folder
-                        ...(draggedNote.folder ? [tx.notes[draggedNoteId].unlink({ folder: (draggedNote.folder as any).id })] : [])
-                    ]);
+                if (result?.newParentId) {
+                    const pathToExpand = getFolderPath(result.newParentId);
+                    if (position === 'inside') {
+                        pathToExpand.push(targetFolderId);
+                    }
+                    setOpenFolders(prev => {
+                        const next = new Set(prev);
+                        pathToExpand.forEach(folderId => next.add(folderId));
+                        return next;
+                    });
                 }
             }
         } catch (error) {
             console.error('Failed to move item:', error);
         }
 
-        // Reset drag state
-        handleDragEnd();
+        dragState.endDrag();
+    };
+
+    const handleDragOverRoot = (e: React.DragEvent) => {
+        if (!dragState.draggedNoteId && !dragState.draggedFolderId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        dragState.setDragOverRoot(true);
+    };
+
+    const handleDragLeaveRoot = () => {
+        dragState.setDragOverRoot(false);
+    };
+
+    const handleDropOnRoot = async (e: React.DragEvent) => {
+        e.preventDefault();
+        try {
+            if (dragState.draggedNoteId) {
+                await moveNoteToRoot({ draggedNoteId: dragState.draggedNoteId, notes });
+            } else if (dragState.draggedFolderId) {
+                await moveFolderToRoot({ draggedFolderId: dragState.draggedFolderId, folders });
+            }
+        } catch (error) {
+            console.error('Failed to move item to root:', error);
+        }
+        dragState.setDragOverRoot(false);
+        dragState.endDrag();
+    };
+
+    const handleNoteReorder = async (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => {
+        try {
+            await reorderNote({ draggedNoteId, targetNoteId, position, notes });
+        } catch (error) {
+            console.error('Failed to reorder note:', error);
+        }
+        dragState.endDrag();
     };
 
     return (
@@ -243,13 +264,23 @@ export const Sidebar = () => {
                 role="presentation"
             />
 
-            <ActionBar isExpanded={isExpanded} onExpandToggle={handleExpandToggle} />
+            <ActionBar isExpanded={isExpanded} onExpandToggle={handleExpandToggle} onNoteCreate={onNoteCreate} />
 
             {/* File list */}
-            <div className="flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4">
+            <div
+                className={cn(
+                    "flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4",
+                    dragState.dragOverRoot && "bg-accent/10"
+                )}
+                onDragOver={handleDragOverRoot}
+                onDragLeave={handleDragLeaveRoot}
+                onDrop={handleDropOnRoot}
+            >
                 {displayFolders.map((folderData: any) => {
                     const folder = folderData.item || folderData;
                     const folderFiles = getFolderNotes(folder.id);
+                    const folderSubFolders = getSubFolders(folder.id);
+                    const folderChildrenCount = getChildrenCount(folder.id);
 
                     return (
                         <FolderItem
@@ -258,20 +289,38 @@ export const Sidebar = () => {
                             name={folder.name}
                             path={folder.path || `/${folder.name}`}
                             files={folderFiles}
+                            subFolders={folderSubFolders}
+                            childrenCount={folderChildrenCount}
                             activeFile={activeFile || undefined}
                             onFileClick={(note) => handleNoteClick(note.id)}
                             onFolderRename={handleFolderRename}
                             isOpen={openFolders.has(folder.id)}
                             onToggle={() => toggleFolder(folder.id)}
-                            // Drag and drop props
-                            isDragged={draggedFolderId === folder.id}
-                            isDragOver={dragOverFolderId === folder.id}
-                            dropPosition={dragOverFolderId === folder.id ? dropPosition : null}
+                            openFolders={openFolders}
+                            onToggleFolder={toggleFolder}
+                            getFolderNotes={getFolderNotes}
+                            getSubFolders={getSubFolders}
+                            getChildrenCount={getChildrenCount}
+                            folders={folders}
+                            notes={notes}
+                            onDragStartFolder={handleDragStart}
+                            onDragOverFolder={handleDragOver}
+                            onDropFolder={handleDrop}
+                            isDragOverFolderId={dragState.dragOverFolderId}
+                            draggedFolderId={dragState.draggedFolderId}
+                            draggedNoteId={dragState.draggedNoteId}
+                            dropPositionGlobal={dragState.dropPosition}
+                            onDragLeaveFolder={handleDragLeave}
+                            isDragged={dragState.draggedFolderId === folder.id}
+                            isDragOver={dragState.dragOverFolderId === folder.id}
+                            dropPosition={dragState.dragOverFolderId === folder.id ? dragState.dropPosition : null}
                             onDragStart={() => handleDragStart('folder', folder.id)}
                             onDragEnd={handleDragEnd}
                             onDragOver={(position) => handleDragOver(folder.id, position)}
                             onDragLeave={handleDragLeave}
                             onDrop={(position) => handleDrop(folder.id, position)}
+                            onNoteReorder={handleNoteReorder}
+                            onNoteRename={handleNoteRename}
                         />
                     );
                 })}
@@ -286,10 +335,12 @@ export const Sidebar = () => {
                             path={note.path || `/${note.title}`}
                             isActive={activeFile === note.id}
                             onClick={handleNoteClick}
-                            // Drag and drop props
-                            isDragged={draggedNoteId === note.id}
+                            isDragged={dragState.draggedNoteId === note.id}
+                            draggedNoteId={dragState.draggedNoteId}
                             onDragStart={() => handleDragStart('note', note.id)}
                             onDragEnd={handleDragEnd}
+                            onNoteReorder={handleNoteReorder}
+                            onNoteRename={handleNoteRename}
                         />
                     );
                 })}

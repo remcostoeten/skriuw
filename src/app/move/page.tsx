@@ -36,14 +36,14 @@ type TNode = {
 
 type TTreeProps = {
   nodes: TNode[];
-  onChange: (tree: TNode[]) => void;
+  onChange: (updater: (tree: TNode[]) => TNode[]) => void;
   level?: number;
   searchQuery?: string;
 };
 
 type TNodeProps = {
   node: TNode;
-  onChange: (tree: TNode[]) => void;
+  onChange: (updater: (tree: TNode[]) => TNode[]) => void;
   level?: number;
   searchQuery?: string;
 };
@@ -158,7 +158,7 @@ function removeNode(tree: TNode[], id: string): [TNode | null, TNode[]] {
       return [removed, newTree];
     }
     if (tree[i].children) {
-      const [r, newChildren] = removeNode(tree[i].children, id);
+      const [r, newChildren] = removeNode(tree[i].children!, id);
       if (r) {
         return [
           r,
@@ -224,7 +224,7 @@ function syncDOMOrder(ulRef: React.RefObject<HTMLElement>, nodes: TNode[]) {
   let prevEl: HTMLElement | null = null;
   sortedElements.forEach((el) => {
     if (prevEl && prevEl !== el) {
-      ul.moveBefore(el, prevEl);
+      (ul as any).moveBefore(el, prevEl);
     }
     prevEl = el.nextElementSibling as HTMLElement | null;
   });
@@ -299,7 +299,7 @@ function TreeNode({ node, onChange, level = 0, searchQuery = "" }: TNodeProps) {
 
     sorted.forEach((child, i) => {
       if (siblings[i] !== child) {
-        parentUl.moveBefore(child, siblings[i] || null);
+        (parentUl as any).moveBefore(child, siblings[i] || null);
       }
     });
   }, [onChange]);
@@ -590,7 +590,7 @@ function updateNode(tree: TNode[], id: string, updates: Partial<TNode>): TNode[]
 }
 
 function AppToolbar({ searchQuery, onSearchChange, onToggleMoveBefore }: { searchQuery: string; onSearchChange: (q: string) => void; onToggleMoveBefore: () => void }) {
-  const supportsMoveBefore = "moveBefore" in Element.prototype;
+  const supportsMoveBefore = typeof window !== "undefined" && "moveBefore" in Element.prototype;
 
   return (
     <div className="flex items-center gap-4 mb-4 p-4 bg-neutral-800 rounded">

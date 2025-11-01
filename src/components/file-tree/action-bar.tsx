@@ -7,11 +7,13 @@ import { FilePlus, FolderPlus } from "lucide-react";
 type props = {
     isExpanded: boolean;
     onExpandToggle: () => void;
+    onNoteCreate?: () => void;
 }
 
 export function ActionBar({
     isExpanded,
     onExpandToggle,
+    onNoteCreate,
 }: props) {
     const { createNote } = useCreateNote();
     const { createFolder } = useCreateFolder();
@@ -24,6 +26,7 @@ export function ActionBar({
                 content: "",
                 position: Date.now(),
             });
+            onNoteCreate?.();
         } catch (error) {
             console.error("Failed to create note:", error);
         }

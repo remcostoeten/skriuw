@@ -15,8 +15,8 @@
     <button onclick="copyToClipboard()">Copy to Clipboard</button>
     <pre id="content"># API Architecture Improvement Plan
 
-> **Project:** Tauri Local-First Monorepo  
-> **Date:** October 2025  
+> **Project:** Tauri Local-First Monorepo
+> **Date:** October 2025
 > **Status:** Planning Phase
 
 ---
@@ -130,16 +130,16 @@ export function useMutation<TData, TVariables>(
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const data = await mutationFn(variables);
-        
+
         // Automatically invalidate caches
         if (options?.invalidates) {
           options.invalidates.forEach(key => {
             cacheManager.invalidate(key);
           });
         }
-        
+
         await options?.onSuccess?.(data);
         return data;
       } catch (err) {
@@ -196,12 +196,12 @@ export function useQuery<TData>(
 
   useEffect(() => {
     if (options.enabled === false) return;
-    
+
     refetch();
-    
+
     // Subscribe to cache invalidation
     cacheManager.subscribe(options.cacheKey, refetch);
-    
+
     return () => {
       cacheManager.unsubscribe(options.cacheKey, refetch);
     };
@@ -261,7 +261,7 @@ export const cacheManager = new CacheManager();
 import { useState } from 'react';
 import { db } from '@/lib/db/client';
 import { notes } from '@/lib/db/schema';
-import { generateId } from '@/lib/utils';
+import { generateId } from 'utils';
 import type { NewNote } from '@/lib/db/schema';
 
 export function useCreateNote() {
@@ -298,7 +298,7 @@ export function useCreateNote() {
 import { useMutation } from '@/hooks/core';
 import { db } from '@/lib/db/client';
 import { notes } from '@/lib/db/schema';
-import { generateId } from '@/lib/utils';
+import { generateId } from 'utils';
 import type { NewNote } from '@/lib/db/schema';
 
 export function useCreateNote() {
@@ -464,7 +464,7 @@ export function useUpdateTask() {
     },
     {
       cacheKey: 'tasks',
-      updater: (oldTasks: Task[], { id, data }) => 
+      updater: (oldTasks: Task[], { id, data }) =>
         oldTasks.map(task => task.id === id ? { ...task, ...data } : task),
       invalidates: ['tasks'],
     }
@@ -614,20 +614,20 @@ async function retryWithBackoff<T>(
   options: { retry: number; retryDelay: (attempt: number) => number }
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 0; attempt <= options.retry; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (attempt < options.retry) {
         const delay = options.retryDelay(attempt);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   throw lastError!;
 }
 ```
@@ -647,27 +647,27 @@ useMutation(fn, {
 ```typescript
 export function getErrorMessage(error: Error): string {
   const message = error.message.toLowerCase();
-  
+
   if (message.includes('sqlite_busy')) {
     return 'The database is currently busy. Please try again.';
   }
-  
+
   if (message.includes('unique constraint')) {
     return 'This item already exists.';
   }
-  
+
   if (message.includes('foreign key constraint')) {
     return 'Cannot delete this item because it is being used.';
   }
-  
+
   if (message.includes('network') || message.includes('fetch')) {
     return 'Network error. Please check your connection.';
   }
-  
+
   if (message.includes('timeout')) {
     return 'Request timed out. Please try again.';
   }
-  
+
   return 'An unexpected error occurred. Please try again.';
 }
 ```

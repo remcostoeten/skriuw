@@ -14,12 +14,6 @@ const useTasksQuery = createQueryHook(
       dependsOn: {
         $: {},
       },
-      comments: {
-        $: { order: { createdAt: 'asc' } },
-      },
-      activity: {
-        $: { order: { createdAt: 'desc' } },
-      },
     },
   }),
   {

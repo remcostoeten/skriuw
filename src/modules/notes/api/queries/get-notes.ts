@@ -5,7 +5,7 @@ const useNotesQuery = createQueryHook(
   () => ({
     notes: {
       $: {
-        order: { serverCreatedAt: 'desc' },
+        order: { createdAt: 'desc' },
       },
       tasks: {},
     },

@@ -1,4 +1,4 @@
-import { PlatformDemoView } from '@/views/platform-demo-view';
+import { PlatformDemoView } from '@/views/_development/platform-demo-view';
 
 export default function PlatformDemoPage() {
   return (

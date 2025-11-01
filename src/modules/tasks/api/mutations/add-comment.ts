@@ -14,13 +14,13 @@ export function useAddTaskComment() {
         const now = Date.now();
         await transact([
             tx.comments[id].update({ body: input.body, createdAt: now }),
-            (tx.comments[id].link as any)({ task: input.taskId }),
+            tx.comments[id].link({ task: input.taskId }),
             tx.activity[activityId].update({
                 type: 'comment_added',
                 message: 'Comment added',
                 createdAt: now,
             }),
-            (tx.activity[activityId].link as any)({ task: input.taskId }),
+            tx.activity[activityId].link({ task: input.taskId }),
         ]);
         return { id };
     });

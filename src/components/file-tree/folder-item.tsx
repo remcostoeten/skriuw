@@ -1,6 +1,6 @@
-import type { Note } from "@/api/db/schema";
-import { cn } from "@/lib/utils";
-import { ChevronRight, Folder } from "lucide-react";
+import type { Folder, Note } from "@/api/db/schema";
+import { cn } from "utils";
+import { ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FileItem } from "./file-item";
 
@@ -9,12 +9,29 @@ type props = {
     path: string;
     id: string;
     files: Note[];
+    subFolders?: Folder[];
+    childrenCount?: number;
     level?: number;
     activeFile?: string;
     onFileClick?: (note: Note) => void;
     onFolderRename?: (id: string, newName: string) => void;
     isOpen?: boolean;
     onToggle?: () => void;
+    openFolders?: Set<string>;
+    onToggleFolder?: (folderId: string) => void;
+    getFolderNotes?: (folderId: string) => Note[];
+    getSubFolders?: (folderId: string) => Folder[];
+    getChildrenCount?: (folderId: string) => number;
+    folders?: Folder[];
+    notes?: Note[];
+    onDragStartFolder?: (type: 'folder' | 'note', id: string) => void;
+    onDragOverFolder?: (folderId: string, position: 'before' | 'after' | 'inside') => void;
+    onDropFolder?: (targetFolderId: string, position: 'before' | 'after' | 'inside') => void;
+    isDragOverFolderId?: string | null;
+    draggedFolderId?: string | null;
+    draggedNoteId?: string | null;
+    dropPositionGlobal?: 'before' | 'after' | 'inside' | null;
+    onDragLeaveFolder?: () => void;
     // Drag and drop props
     isDragged?: boolean;
     isDragOver?: boolean;
@@ -24,6 +41,8 @@ type props = {
     onDragOver?: (position: 'before' | 'after' | 'inside') => void;
     onDragLeave?: () => void;
     onDrop?: (position: 'before' | 'after' | 'inside') => void;
+    onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
+    onNoteRename?: (id: string, newName: string) => void;
 }
 
 export const FolderItem = ({
@@ -31,12 +50,29 @@ export const FolderItem = ({
     path,
     id,
     files,
+    subFolders = [],
+    childrenCount,
     level = 0,
     activeFile,
     onFileClick,
     onFolderRename,
     isOpen = false,
     onToggle,
+    openFolders,
+    onToggleFolder,
+    getFolderNotes,
+    getSubFolders,
+    getChildrenCount,
+    folders,
+    notes,
+    onDragStartFolder,
+    onDragOverFolder,
+    onDropFolder,
+    isDragOverFolderId,
+    draggedFolderId,
+    draggedNoteId,
+    dropPositionGlobal,
+    onDragLeaveFolder,
     isDragged = false,
     isDragOver = false,
     dropPosition = null,
@@ -45,11 +81,32 @@ export const FolderItem = ({
     onDragOver,
     onDragLeave,
     onDrop,
+    onNoteReorder,
+    onNoteRename,
 }: props) => {
+    const totalCount = childrenCount ?? (files.length + subFolders.length);
+    const hasChildren = totalCount > 0;
     const folderRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(name);
     const inputRef = useRef<HTMLInputElement>(null);
+    const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const canDrop = () => {
+        if (draggedFolderId && draggedFolderId === id) return false;
+        if (draggedFolderId && folders) {
+            const isDescendant = (childId: string, ancestorId: string): boolean => {
+                if (childId === ancestorId) return true;
+                const child = folders.find((f: Folder) => f.id === childId);
+                if (!child || !child.parent) return false;
+                const parentId = (child.parent as any)?.id;
+                if (parentId === ancestorId) return true;
+                return isDescendant(parentId, ancestorId);
+            };
+            return !isDescendant(id, draggedFolderId);
+        }
+        return true;
+    };
 
     // Drag event handlers
     const handleDragStart = (e: React.DragEvent) => {
@@ -63,10 +120,19 @@ export const FolderItem = ({
     };
 
     const handleDragEnd = () => {
+        if (expandTimeoutRef.current) {
+            clearTimeout(expandTimeoutRef.current);
+            expandTimeoutRef.current = null;
+        }
         onDragEnd?.();
     };
 
     const handleDragOver = (e: React.DragEvent) => {
+        if (draggedFolderId && !canDrop()) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
 
@@ -85,12 +151,25 @@ export const FolderItem = ({
             position = 'after';
         } else {
             position = 'inside';
+            if (!isOpen && hasChildren && onToggle) {
+                if (expandTimeoutRef.current) {
+                    clearTimeout(expandTimeoutRef.current);
+                }
+                expandTimeoutRef.current = setTimeout(() => {
+                    onToggle();
+                }, 500);
+            }
         }
 
         onDragOver?.(position);
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
+        if (expandTimeoutRef.current) {
+            clearTimeout(expandTimeoutRef.current);
+            expandTimeoutRef.current = null;
+        }
+
         const rect = folderRef.current?.getBoundingClientRect();
         if (rect) {
             const x = e.clientX;
@@ -104,6 +183,15 @@ export const FolderItem = ({
     };
 
     const handleDrop = (e: React.DragEvent) => {
+        if (expandTimeoutRef.current) {
+            clearTimeout(expandTimeoutRef.current);
+            expandTimeoutRef.current = null;
+        }
+
+        if (draggedFolderId && !canDrop()) {
+            return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
 
@@ -170,18 +258,22 @@ export const FolderItem = ({
                     "flex items-center justify-between gap-2",
                     "fill-muted-foreground hover:fill-foreground",
                     "text-secondary-foreground/80 hover:text-foreground",
-                    files.length > 0 && !isEditing && "hover:bg-accent transition-all active:scale-[0.98]",
+                    hasChildren && !isEditing && "hover:bg-accent transition-all active:scale-[0.98]",
                     isEditing && "select-none focus:outline-none",
                     isDragged && "opacity-50 cursor-grabbing",
                     isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-blue-500/50",
                     !isEditing && !isDragged && "cursor-grab active:cursor-grabbing"
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
-                onClick={!isEditing && !isDragged && files.length > 0 ? onToggle : undefined}
+                onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
                 onDoubleClick={handleDoubleClick}
             >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Folder className="w-[18px] h-[18px] shrink-0" />
+                    {isOpen ? (
+                        <FolderOpen className="w-[18px] h-[18px] shrink-0" />
+                    ) : (
+                        <Folder className="w-[18px] h-[18px] shrink-0" />
+                    )}
                     {isEditing ? (
                         <input
                             ref={inputRef}
@@ -201,9 +293,9 @@ export const FolderItem = ({
                     )}
                 </div>
                 <div className="flex items-center gap-1">
-                    {files.length > 0 && (
+                    {hasChildren && (
                         <>
-                            <span className="text-foreground/40">{files.length}</span>
+                            <span className="text-foreground/40">{totalCount}</span>
                             <ChevronRight
                                 className={cn(
                                     "w-4 h-4 transition-transform",
@@ -217,6 +309,55 @@ export const FolderItem = ({
 
             {isOpen && (
                 <div className="flex flex-col gap-1 mt-1">
+                    {subFolders && subFolders.length > 0 && getSubFolders && getFolderNotes && getChildrenCount && openFolders && onToggleFolder && onDragStartFolder && onDragOverFolder && onDropFolder && onDragLeaveFolder && (
+                        subFolders.map((subFolder) => {
+                            const subFolderNotes = getFolderNotes(subFolder.id);
+                            const subFolderSubFolders = getSubFolders(subFolder.id);
+                            const subFolderChildrenCount = getChildrenCount(subFolder.id);
+                            return (
+                                <FolderItem
+                                    key={subFolder.id}
+                                    id={subFolder.id}
+                                    name={subFolder.name}
+                                    path={`/${subFolder.name}`}
+                                    files={subFolderNotes}
+                                    subFolders={subFolderSubFolders}
+                                    childrenCount={subFolderChildrenCount}
+                                    level={level + 1}
+                                    activeFile={activeFile}
+                                    onFileClick={onFileClick}
+                                    onFolderRename={onFolderRename}
+                                    isOpen={openFolders.has(subFolder.id)}
+                                    onToggle={() => onToggleFolder(subFolder.id)}
+                                    openFolders={openFolders}
+                                    onToggleFolder={onToggleFolder}
+                                    getFolderNotes={getFolderNotes}
+                                    getSubFolders={getSubFolders}
+                                    getChildrenCount={getChildrenCount}
+                                    folders={folders}
+                                    notes={notes}
+                                    onDragStartFolder={onDragStartFolder}
+                                    onDragOverFolder={onDragOverFolder}
+                                    onDropFolder={onDropFolder}
+                                    isDragOverFolderId={isDragOverFolderId}
+                                    draggedFolderId={draggedFolderId}
+                                    draggedNoteId={draggedNoteId}
+                                    dropPositionGlobal={dropPositionGlobal}
+                                    onDragLeaveFolder={onDragLeaveFolder}
+                                    isDragged={draggedFolderId === subFolder.id}
+                                    isDragOver={isDragOverFolderId === subFolder.id}
+                                    dropPosition={isDragOverFolderId === subFolder.id ? dropPositionGlobal : null}
+                                    onDragStart={() => onDragStartFolder('folder', subFolder.id)}
+                                    onDragEnd={onDragEnd}
+                                    onDragOver={(position) => onDragOverFolder(subFolder.id, position)}
+                                    onDragLeave={onDragLeaveFolder}
+                                    onDrop={(position) => onDropFolder(subFolder.id, position)}
+                                    onNoteReorder={onNoteReorder}
+                                    onNoteRename={onNoteRename}
+                                />
+                            );
+                        })
+                    )}
                     {files.map((file) => (
                         <FileItem
                             key={file.id}
@@ -226,6 +367,12 @@ export const FolderItem = ({
                             level={level + 1}
                             isActive={activeFile === file.id}
                             onClick={() => onFileClick?.(file)}
+                            isDragged={draggedNoteId === file.id}
+                            draggedNoteId={draggedNoteId}
+                            onDragStart={() => onDragStartFolder?.('note', file.id)}
+                            onDragEnd={onDragEnd}
+                            onNoteReorder={onNoteReorder}
+                            onNoteRename={onNoteRename}
                         />
                     ))}
                 </div>

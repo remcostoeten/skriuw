@@ -12,11 +12,14 @@ export function useSearchState() {
   });
 
   const toggle = useCallback(() => {
-    setIsOpen((prev) => !prev);
-    if (isOpen) {
-      setQuery('');
-    }
-  }, [isOpen]);
+    setIsOpen((prev) => {
+      const newIsOpen = !prev;
+      if (prev) { // Clear query when closing (prev was true)
+        setQuery('');
+      }
+      return newIsOpen;
+    });
+  }, []);
 
   const close = useCallback(() => {
     setIsOpen(false);

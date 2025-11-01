@@ -1,9 +1,7 @@
 'use client';
 
 import type { Note } from '@/api/db/schema';
-import { FoldersSidebar } from '@/components/sidebar/folders-sidebar';
-import { useCreateFolder } from '@/modules/folders/api/mutations/create';
-import { useGetFolders } from '@/modules/folders/api/queries/get-folders';
+import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create';
@@ -16,8 +14,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 export function TasksView() {
     const { notes, isLoading } = useGetNotes();
-    const { folders } = useGetFolders();
-    const { createFolder } = useCreateFolder();
     const { createNote } = useCreateNote();
     const { createTask } = useCreateTask();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -42,6 +38,17 @@ export function TasksView() {
 
         const note = await createNote({ title, content: '', position });
         setSelectedNote(note as Note);
+    }
+
+    async function handleCreateNoteFromSidebar() {
+        await handleCreateNote();
+    }
+
+    function handleNoteSelectFromSidebar(noteId: string) {
+        const note = notes.find((n: Note) => n.id === noteId);
+        if (note) {
+            setSelectedNote(note);
+        }
     }
 
     const nextTaskPosition = useMemo(() => {
@@ -72,17 +79,14 @@ export function TasksView() {
 
     return (
         <div className="flex h-screen bg-background">
-            <FoldersSidebar
-                onNewFolder={() => createFolder(undefined)}
-                onNewNote={handleCreateNote}
-                onFolderClick={(folder) => console.log('Folder clicked:', folder)}
-                onNoteClick={(note) => setSelectedNote(note)}
-                onToggleFullscreen={() => console.log('Toggle fullscreen')}
-            >
+            {/* File Tree Sidebar */}
+            <FileTreeSidebar
+                onNoteSelect={handleNoteSelectFromSidebar}
+                onNoteCreate={handleCreateNoteFromSidebar}
+                selectedNoteId={selectedNote?.id}
+            />
 
-            </FoldersSidebar>
-
-            <div className="flex-1 flex flex-col bg-background">
+            <div className="flex-1 flex flex-col bg-background relative ml-[220px]">
                 <BaseActionBar
                     buttons={[
                         {

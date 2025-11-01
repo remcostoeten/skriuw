@@ -21,6 +21,7 @@ export function useCreateTask() {
       tx.tasks[id].update({
         content: input.content,
         completed: false,
+        status: 'todo',
         position: input.position,
         createdAt: now,
         priority: input.priority ?? 'med',

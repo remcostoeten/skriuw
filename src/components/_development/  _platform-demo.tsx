@@ -376,8 +376,8 @@ function FileEditor({
 }) {
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value
-        setFileContent(prev => prev ? {
-            ...prev,
+        setFileContent(fileContent ? {
+            ...fileContent,
             text: newText,
             timestamp: new Date().toISOString()
         } : {
