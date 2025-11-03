@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 use tauri_plugin_store::StoreExt;
 use serde::{Deserialize, Serialize};
@@ -116,7 +116,7 @@ fn register_shortcut<R: Runtime>(
     
     let action = config.action.clone();
     
-    app.global_shortcut().on_shortcut(shortcut, move |app, _| {
+    app.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
         app.emit("shortcut-triggered", action.clone()).ok();
     }).map_err(|e| e.to_string())?;
     
