@@ -7,10 +7,9 @@ import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 import { TaskList } from '@/modules/tasks/components/task-list';
 import { applyList } from '@/modules/tasks/utils/saved-filters';
 import { filterTasks, sortTasks, TaskFilter, TaskSort } from '@/modules/tasks/utils/sort-filter';
-import { BaseActionBar } from '@/shared/components/base-action-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { DockManager } from '@/utils/dock-utils';
-import { CheckSquare2, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 export function TasksView() {
@@ -115,15 +114,6 @@ export function TasksView() {
             />
 
             <div className="flex-1 flex flex-col bg-background relative ml-[220px]">
-                <BaseActionBar
-                    buttons={[
-                        {
-                            icon: <CheckSquare2 className="w-[18px] h-[18px]" />,
-                            tooltip: "New Task",
-                            onClick: handleCreateTask,
-                        },
-                    ]}
-                />
                 <div className="flex-1 relative px-8 py-6 overflow-y-auto scrollbar-content">
                     <div className="max-w-4xl mx-auto">
                         <div className="mb-6">

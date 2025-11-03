@@ -9,7 +9,10 @@ type ShortcutProviderProps = {
 
 export function ShortcutProvider({ children }: ShortcutProviderProps) {
   useEffect(() => {
+    console.log('[ShortcutProvider] Initializing shortcuts...')
     setupDefaultShortcuts()
+      .then(() => console.log('[ShortcutProvider] Shortcuts initialized successfully'))
+      .catch((error) => console.error('[ShortcutProvider] Failed to initialize shortcuts:', error))
   }, [])
 
   return <>{children}</>

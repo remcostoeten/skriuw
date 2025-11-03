@@ -1,14 +1,16 @@
 import type { Folder, Note } from "@/api/db/schema";
 import { ActionBar } from "@/components/file-tree/action-bar";
 import { useDragState } from "@/hooks/use-drag-state";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useMoveFolder, useMoveFolderToRoot } from "@/modules/folders/api/mutations/move";
 import { useUpdateFolder } from "@/modules/folders/api/mutations/update";
 import { useGetFolders } from "@/modules/folders/api/queries/get-folders";
+import { useCreateNote } from "@/modules/notes/api/mutations/create";
 import { useMoveNote, useMoveNoteToRoot, useReorderNote } from "@/modules/notes/api/mutations/move";
 import { useUpdateNote } from "@/modules/notes/api/mutations/update";
 import { useGetNotes } from "@/modules/notes/api/queries/get-notes";
 import { useSidebarSearch } from "@/modules/search/hooks/use-sidebar-search";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "utils";
 import { FileItem } from "./file-item";
 import { FolderItem } from "./folder-item";
@@ -44,6 +46,42 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
     const { moveNote } = useMoveNote();
     const { moveNoteToRoot } = useMoveNoteToRoot();
     const { reorderNote } = useReorderNote();
+    const { createNote } = useCreateNote();
+
+    const handleToggleSearch = useCallback(() => {
+        console.log('[Sidebar] Toggle search called, current state:', searchState.isOpen)
+        searchState.toggle()
+    }, [searchState])
+
+    const handleNewNote = useCallback(async () => {
+        console.log('[Sidebar] New note shortcut triggered')
+        try {
+            const note = await createNote({
+                title: "Untitled Note",
+                content: "",
+                position: Date.now(),
+            });
+            if (note && onNoteCreate) {
+                onNoteCreate(note.id);
+            }
+        } catch (error) {
+            console.error("Failed to create note from shortcut:", error);
+        }
+    }, [createNote, onNoteCreate])
+
+    useEffect(() => {
+        console.log('[Sidebar] Mounting - registering shortcut handlers')
+        console.log('[Sidebar] Handlers:', {
+            'toggle-search': typeof handleToggleSearch,
+            'new-note': typeof handleNewNote
+        })
+        return () => console.log('[Sidebar] Unmounting - unregistering shortcut handlers')
+    }, [handleToggleSearch, handleNewNote])
+
+    useKeyboardShortcuts({
+        'CmdOrCtrl+F': handleToggleSearch,
+        'CmdOrCtrl+N': handleNewNote,
+    });
 
     useEffect(() => {
         if (!dragState.draggedFolderId && !dragState.draggedNoteId) {
@@ -284,7 +322,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
         addFolderItems(displayFolders);
 
         // Add root level notes
-        displayNotes.forEach((noteData) => {
+        displayNotes.forEach((noteData: any) => {
             const note = noteData.item || noteData;
             items.push({ type: 'note', id: note.id, name: note.title, level: 0 });
         });

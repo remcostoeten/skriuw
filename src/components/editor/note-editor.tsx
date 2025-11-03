@@ -9,9 +9,8 @@ import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
-import { BubbleMenu, EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
+import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Heading2, Italic, Strikethrough } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
@@ -305,27 +304,27 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
         class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
       },
       handleClick: handleMentionClick,
-      handleFocus: () => {
-        isEditorFocusedRef.current = true;
-      },
-      handleBlur: () => {
-        isEditorFocusedRef.current = false;
+    },
+    onFocus: () => {
+      isEditorFocusedRef.current = true;
+    },
+    onBlur: () => {
+      isEditorFocusedRef.current = false;
 
-        // Clear inactivity timer
-        if (inactivityTimerRef.current) {
-          clearTimeout(inactivityTimerRef.current);
-          inactivityTimerRef.current = null;
-        }
+      // Clear inactivity timer
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
 
-        // Save immediately on blur if content changed
-        if (editorRef.current && silentSaveRef.current) {
-          const html = editorRef.current.getHTML();
-          if (html !== noteContentRef.current) {
-            silentSaveRef.current(html);
-            noteContentRef.current = html;
-          }
+      // Save immediately on blur if content changed
+      if (editorRef.current && silentSaveRef.current) {
+        const html = editorRef.current.getHTML();
+        if (html !== noteContentRef.current) {
+          silentSaveRef.current(html);
+          noteContentRef.current = html;
         }
-      },
+      }
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -444,65 +443,7 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
 
           <div className="mb-8">
             {editor && (
-              <>
-                <BubbleMenu
-                  editor={editor}
-                  tippyOptions={{
-                    theme: 'bubble',
-                    placement: 'top',
-                    offset: [0, 12],
-                    animation: 'shift-away',
-                    duration: [150, 100],
-                    arrow: true,
-                    maxWidth: 'none',
-                  }}
-                >
-                  <div className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1">
-                    <button
-                      onClick={() => editor.chain().focus().toggleBold().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('bold') ? 'bg-accent/40' : ''}`}
-                      aria-label="Bold"
-                      title="Bold (Cmd+B)"
-                    >
-                      <Bold className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleItalic().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('italic') ? 'bg-accent/40' : ''}`}
-                      aria-label="Italic"
-                      title="Italic (Cmd+I)"
-                    >
-                      <Italic className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleStrike().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('strike') ? 'bg-accent/40' : ''}`}
-                      aria-label="Strikethrough"
-                      title="Strikethrough"
-                    >
-                      <Strikethrough className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleCode().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('code') ? 'bg-accent/40' : ''}`}
-                      aria-label="Code"
-                      title="Code"
-                    >
-                      <Code className="h-4 w-4" />
-                    </button>
-                    <div className="w-px h-5 bg-border/70 mx-1" />
-                    <button
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent/40' : ''}`}
-                      aria-label="Heading 2"
-                      title="Heading 2"
-                    >
-                      <Heading2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </BubbleMenu>
-                <EditorContent editor={editor} />
-              </>
+              <EditorContent editor={editor} />
             )}
 
 
@@ -513,7 +454,7 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
   );
 }
 
-export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
+const MemoizedNoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
   return (
     prevProps.note.id === nextProps.note.id &&
     prevProps.note.content === nextProps.note.content &&
@@ -521,4 +462,7 @@ export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
     prevProps.onNoteSelect === nextProps.onNoteSelect
   );
 });
+
+export const NoteEditor = MemoizedNoteEditor;
+export default MemoizedNoteEditor;
 

@@ -1,13 +1,14 @@
 'use client';
 
 import type { Note } from '@/api/db/schema';
-import { NoteEditor } from '@/components/editor/note-editor';
+import NoteEditor from '@/components/editor/note-editor';
 import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar';
 import { useCreateNote } from '@/modules/notes/api/mutations/create';
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
+import { SearchStateProvider } from '@/modules/search/context/search-state-context';
 import { DockManager } from '@/utils/dock-utils';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export function NotesView() {
   const { notes, isLoading } = useGetNotes();
@@ -16,11 +17,9 @@ export function NotesView() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const pendingNoteIdRef = useRef<string | null>(null);
 
-  // Use state to store the selected note, but only update when it actually changes
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const prevNoteRef = useRef<Note | null>(null);
 
-  // Update selectedNote only when the note ID changes or when content/title actually changes
   useEffect(() => {
     if (!selectedNoteId) {
       if (prevNoteRef.current !== null) {
@@ -39,7 +38,6 @@ export function NotesView() {
       return;
     }
 
-    // Only update if note ID changed or if content/title actually changed
     const noteChanged = !prevNoteRef.current ||
       prevNoteRef.current.id !== note.id ||
       prevNoteRef.current.content !== note.content ||
@@ -51,7 +49,6 @@ export function NotesView() {
     }
   }, [selectedNoteId, notes]);
 
-  // Memoize the onNoteSelect callback to prevent NoteEditor from re-rendering
   const handleNoteSelect = useMemo(() => (noteId: Note['id']) => {
     setSelectedNoteId(noteId);
   }, []);
@@ -136,25 +133,27 @@ export function NotesView() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <FileTreeSidebar
-        onNoteSelect={handleNoteSelectFromSidebar}
-        onNoteCreate={handleCreateNoteFromSidebar}
-        selectedNoteId={selectedNote?.id}
-      />
+    <SearchStateProvider>
+      <div className="flex h-screen bg-background">
+        <FileTreeSidebar
+          onNoteSelect={handleNoteSelectFromSidebar}
+          onNoteCreate={handleCreateNoteFromSidebar}
+          selectedNoteId={selectedNote?.id}
+        />
 
-      <div className="flex-1 relative ml-[220px]">
-        {selectedNote ? (
-          <NoteEditor
-            note={selectedNote}
-            onNoteSelect={handleNoteSelect}
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            <p className="text-sm">Select a note or create a new one</p>
-          </div>
-        )}
+        <div className="flex-1 relative ml-[220px]">
+          {selectedNote ? (
+            <NoteEditor
+              note={selectedNote}
+              onNoteSelect={handleNoteSelect}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              <p className="text-sm">Select a note or create a new one</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </SearchStateProvider>
   );
 }
