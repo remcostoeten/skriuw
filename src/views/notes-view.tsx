@@ -138,6 +138,18 @@ export function NotesView() {
         <FileTreeSidebar
           onNoteSelect={handleNoteSelectFromSidebar}
           onNoteCreate={handleCreateNoteFromSidebar}
+          onNoteDuplicate={async (noteId: string) => {
+            // Wait for note to appear in list, then select it
+            const checkInterval = setInterval(() => {
+              const note = notes.find((n: Note) => n.id === noteId);
+              if (note) {
+                clearInterval(checkInterval);
+                setSelectedNoteId(noteId);
+              }
+            }, 50);
+            // Clear interval after 2 seconds if note doesn't appear
+            setTimeout(() => clearInterval(checkInterval), 2000);
+          }}
           selectedNoteId={selectedNote?.id}
         />
 
