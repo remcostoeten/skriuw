@@ -14,6 +14,8 @@ interface FileItemProps {
     onDragEnd?: () => void;
     onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
     onNoteRename?: (id: string, newName: string) => void;
+    isFocused?: boolean;
+    onFocus?: () => void;
 }
 
 export const FileItem = ({
@@ -29,6 +31,8 @@ export const FileItem = ({
     onDragEnd,
     onNoteReorder,
     onNoteRename,
+    isFocused = false,
+    onFocus,
 }: FileItemProps) => {
     const [dragOverState, setDragOverState] = useState<'before' | 'after' | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -152,6 +156,7 @@ export const FileItem = ({
                 onDrop={handleDrop}
                 onClick={() => !isEditing && onClick?.(id)}
                 onDoubleClick={handleDoubleClick}
+                onFocus={onFocus}
                 className={cn(
                     "h-7 w-full rounded-md px-3 text-xs font-medium",
                     "flex items-center gap-2 justify-start",
@@ -162,9 +167,15 @@ export const FileItem = ({
                     isDragged && "opacity-50 cursor-grabbing",
                     !isDragged && !isEditing && "cursor-grab active:cursor-grabbing",
                     dragOverState && "bg-accent/20",
-                    isEditing && "select-none focus:outline-none"
+                    isEditing && "select-none focus:outline-none",
+                    isFocused && "ring-2 ring-blue-500 ring-offset-1"
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+                tabIndex={isFocused ? 0 : -1}
+                role="treeitem"
+                aria-selected={isFocused || isActive}
+                aria-level={level + 1}
+                aria-label={`File ${name}`}
             >
                 {isEditing ? (
                     <input

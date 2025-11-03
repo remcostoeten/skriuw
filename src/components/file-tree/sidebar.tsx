@@ -8,7 +8,7 @@ import { useMoveNote, useMoveNoteToRoot, useReorderNote } from "@/modules/notes/
 import { useUpdateNote } from "@/modules/notes/api/mutations/update";
 import { useGetNotes } from "@/modules/notes/api/queries/get-notes";
 import { useSidebarSearch } from "@/modules/search/hooks/use-sidebar-search";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { cn } from "utils";
 import { FileItem } from "./file-item";
 import { FolderItem } from "./folder-item";
@@ -29,6 +29,8 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
     const [isExpanded, setIsExpanded] = useState(false);
     const [activeFile, setActiveFile] = useState<string | null>(selectedNoteId || null);
     const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+    const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+    const treeRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (selectedNoteId !== undefined && selectedNoteId !== activeFile) {
@@ -255,8 +257,130 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
         dragState.endDrag();
     };
 
+    // Create a flat list of all navigable items for keyboard navigation
+    const getFlatItemsList = useCallback(() => {
+        const items: Array<{ type: 'folder' | 'note'; id: string; name: string; level: number }> = [];
+
+        const addFolderItems = (folderList: any[], level: number = 0) => {
+            folderList.forEach((folderData) => {
+                const folder = folderData.item || folderData;
+                items.push({ type: 'folder', id: folder.id, name: folder.name, level });
+
+                if (openFolders.has(folder.id)) {
+                    const subFolders = getSubFolders(folder.id);
+                    if (subFolders.length > 0) {
+                        addFolderItems(subFolders, level + 1);
+                    }
+
+                    const folderNotes = getFolderNotes(folder.id);
+                    folderNotes.forEach((note) => {
+                        items.push({ type: 'note', id: note.id, name: note.title, level: level + 1 });
+                    });
+                }
+            });
+        };
+
+        // Add folders and their contents
+        addFolderItems(displayFolders);
+
+        // Add root level notes
+        displayNotes.forEach((noteData) => {
+            const note = noteData.item || noteData;
+            items.push({ type: 'note', id: note.id, name: note.title, level: 0 });
+        });
+
+        return items;
+    }, [displayFolders, displayNotes, openFolders, getSubFolders, getFolderNotes]);
+
+    // Handle keyboard navigation
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        const items = getFlatItemsList();
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                const nextIndex = Math.min(focusedIndex + 1, items.length - 1);
+                setFocusedIndex(nextIndex);
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                const prevIndex = Math.max(focusedIndex - 1, 0);
+                setFocusedIndex(prevIndex);
+                break;
+
+            case 'ArrowRight':
+                e.preventDefault();
+                if (focusedIndex >= 0 && focusedIndex < items.length) {
+                    const item = items[focusedIndex];
+                    if (item.type === 'folder' && !openFolders.has(item.id)) {
+                        toggleFolder(item.id);
+                    }
+                }
+                break;
+
+            case 'ArrowLeft':
+                e.preventDefault();
+                if (focusedIndex >= 0 && focusedIndex < items.length) {
+                    const item = items[focusedIndex];
+                    if (item.type === 'folder' && openFolders.has(item.id)) {
+                        toggleFolder(item.id);
+                    }
+                }
+                break;
+
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                if (focusedIndex >= 0 && focusedIndex < items.length) {
+                    const item = items[focusedIndex];
+                    if (item.type === 'folder') {
+                        toggleFolder(item.id);
+                    } else if (item.type === 'note') {
+                        handleNoteClick(item.id);
+                    }
+                }
+                break;
+
+            case 'Home':
+                e.preventDefault();
+                setFocusedIndex(0);
+                break;
+
+            case 'End':
+                e.preventDefault();
+                setFocusedIndex(items.length - 1);
+                break;
+        }
+    }, [focusedIndex, getFlatItemsList, openFolders, toggleFolder, handleNoteClick]);
+
+    // Get current focused item for rendering focus state
+    const getFocusedItem = useCallback(() => {
+        const items = getFlatItemsList();
+        if (focusedIndex >= 0 && focusedIndex < items.length) {
+            return items[focusedIndex];
+        }
+        return null;
+    }, [focusedIndex, getFlatItemsList]);
+
+    const focusedItem = getFocusedItem();
+
+    // Check if an item should be focused
+    const isItemFocused = useCallback((type: 'folder' | 'note', id: string) => {
+        return focusedItem?.type === type && focusedItem?.id === id;
+    }, [focusedItem]);
+
+    // Handle focus for tree items
+    const handleItemFocus = useCallback((type: 'folder' | 'note', id: string) => {
+        const items = getFlatItemsList();
+        const index = items.findIndex(item => item.type === type && item.id === id);
+        if (index !== -1) {
+            setFocusedIndex(index);
+        }
+    }, [getFlatItemsList]);
+
     return (
-        <div
+        <nav
             className={cn(
                 " left-[220px] flex flex-col justify-start items-center bg-background overflow-y-auto",
                 "transform transition-all duration-300 border-r"
@@ -265,6 +389,8 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
                 width: "210px",
                 height: "calc(100vh - 4.5rem)",
             }}
+            role="navigation"
+            aria-label="File and folder navigation"
         >
             {/* Resize handle */}
             <div
@@ -280,6 +406,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
 
             {/* File list */}
             <div
+                ref={treeRef}
                 className={cn(
                     "flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4",
                     dragState.dragOverRoot && "bg-accent/10"
@@ -287,6 +414,10 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
                 onDragOver={handleDragOverRoot}
                 onDragLeave={handleDragLeaveRoot}
                 onDrop={handleDropOnRoot}
+                onKeyDown={handleKeyDown}
+                role="tree"
+                aria-label="File tree"
+                tabIndex={0}
             >
                 {displayFolders.map((folderData: any) => {
                     const folder = folderData.item || folderData;
@@ -333,6 +464,10 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
                             onDrop={(position) => handleDrop(folder.id, position)}
                             onNoteReorder={handleNoteReorder}
                             onNoteRename={handleNoteRename}
+                            isFocused={isItemFocused('folder', folder.id)}
+                            onFocus={() => handleItemFocus('folder', folder.id)}
+                            isItemFocused={isItemFocused}
+                            handleItemFocus={handleItemFocus}
                         />
                     );
                 })}
@@ -353,11 +488,13 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
                             onDragEnd={handleDragEnd}
                             onNoteReorder={handleNoteReorder}
                             onNoteRename={handleNoteRename}
+                            isFocused={isItemFocused('note', note.id)}
+                            onFocus={() => handleItemFocus('note', note.id)}
                         />
                     );
                 })}
             </div>
-        </div>
+        </nav>
     );
 };
 
