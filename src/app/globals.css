@@ -63,6 +63,22 @@
   padding: 0;
 }
 
+/* Bubble theme for selection toolbar */
+.tippy-box[data-theme~='bubble'] {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  box-shadow: 0 20px 25px -10px rgba(0,0,0,.45), 0 8px 10px -6px rgba(0,0,0,.3);
+  backdrop-filter: saturate(140%) blur(6px);
+}
+.tippy-box[data-theme~='bubble'] .tippy-content {
+  padding: 0;
+}
+.tippy-box[data-theme~='bubble'] > .tippy-arrow {
+  color: hsl(var(--popover));
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

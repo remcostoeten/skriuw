@@ -43,6 +43,10 @@ type props = {
     onDrop?: (position: 'before' | 'after' | 'inside') => void;
     onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
     onNoteRename?: (id: string, newName: string) => void;
+    isFocused?: boolean;
+    onFocus?: () => void;
+    isItemFocused?: (type: 'folder' | 'note', id: string) => boolean;
+    handleItemFocus?: (type: 'folder' | 'note', id: string) => void;
 }
 
 export const FolderItem = ({
@@ -83,6 +87,10 @@ export const FolderItem = ({
     onDrop,
     onNoteReorder,
     onNoteRename,
+    isFocused = false,
+    onFocus,
+    isItemFocused,
+    handleItemFocus,
 }: props) => {
     const totalCount = childrenCount ?? (files.length + subFolders.length);
     const hasChildren = totalCount > 0;
@@ -162,6 +170,7 @@ export const FolderItem = ({
         }
 
         onDragOver?.(position);
+        onDragOverFolder?.(id, position);
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
@@ -262,11 +271,19 @@ export const FolderItem = ({
                     isEditing && "select-none focus:outline-none",
                     isDragged && "opacity-50 cursor-grabbing",
                     isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-blue-500/50",
-                    !isEditing && !isDragged && "cursor-grab active:cursor-grabbing"
+                    !isEditing && !isDragged && "cursor-grab active:cursor-grabbing",
+                    isFocused && "ring-2 ring-blue-500 ring-offset-1"
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
                 onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
                 onDoubleClick={handleDoubleClick}
+                onFocus={onFocus}
+                tabIndex={isFocused ? 0 : -1}
+                role="treeitem"
+                aria-expanded={isOpen}
+                aria-selected={isFocused}
+                aria-level={level + 1}
+                aria-label={`Folder ${name}, ${hasChildren ? `${totalCount} items` : 'empty'}`}
             >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                     {isOpen ? (
@@ -300,7 +317,50 @@ export const FolderItem = ({
             </div>
 
             {isOpen && (
-                <div className="flex flex-col gap-1 mt-1">
+                <div
+                    className={cn(
+                        "flex flex-col gap-1 mt-1",
+                        (draggedNoteId || draggedFolderId) && isDragOverFolderId === id && dropPositionGlobal === 'inside' && "min-h-[20px] bg-accent/20 rounded-md"
+                    )}
+                    onDragOver={(e) => {
+                        if (!draggedNoteId && !draggedFolderId) return;
+                        if (draggedFolderId && !canDrop()) return;
+
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'move';
+
+                        // Only set drag over if not already set, or if dragging over empty space
+                        if (isDragOverFolderId !== id || dropPositionGlobal !== 'inside') {
+                            onDragOverFolder?.(id, 'inside');
+                        }
+                    }}
+                    onDragLeave={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX;
+                        const y = e.clientY;
+                        const margin = 10;
+
+                        // Only clear if truly leaving the area
+                        if (x < rect.left - margin || x > rect.right + margin ||
+                            y < rect.top - margin || y > rect.bottom + margin) {
+                            if (isDragOverFolderId === id && dropPositionGlobal === 'inside') {
+                                onDragLeaveFolder?.();
+                            }
+                        }
+                    }}
+                    onDrop={(e) => {
+                        if (!draggedNoteId && !draggedFolderId) return;
+                        if (draggedFolderId && !canDrop()) return;
+
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (isDragOverFolderId === id && dropPositionGlobal === 'inside') {
+                            onDropFolder?.(id, 'inside');
+                        }
+                    }}
+                >
                     {subFolders && subFolders.length > 0 && getSubFolders && getFolderNotes && getChildrenCount && openFolders && onToggleFolder && onDragStartFolder && onDragOverFolder && onDropFolder && onDragLeaveFolder && (
                         subFolders.map((subFolder) => {
                             const subFolderNotes = getFolderNotes(subFolder.id);
@@ -346,6 +406,10 @@ export const FolderItem = ({
                                     onDrop={(position) => onDropFolder(subFolder.id, position)}
                                     onNoteReorder={onNoteReorder}
                                     onNoteRename={onNoteRename}
+                                    isFocused={isItemFocused?.('folder', subFolder.id) || false}
+                                    onFocus={() => handleItemFocus?.('folder', subFolder.id)}
+                                    isItemFocused={isItemFocused}
+                                    handleItemFocus={handleItemFocus}
                                 />
                             );
                         })
@@ -365,6 +429,8 @@ export const FolderItem = ({
                             onDragEnd={onDragEnd}
                             onNoteReorder={onNoteReorder}
                             onNoteRename={onNoteRename}
+                            isFocused={isItemFocused?.('note', file.id) || false}
+                            onFocus={() => handleItemFocus?.('note', file.id)}
                         />
                     ))}
                 </div>

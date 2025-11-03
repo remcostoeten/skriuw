@@ -2,15 +2,14 @@
 
 import type { Note } from '@/api/db/schema';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { SyncingOverlay, SyncStatus } from '@/components/loading-states';
+import { SyncStatus } from '@/components/loading-states';
 import MentionList from '@/components/mention-list';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
-import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
-import { BubbleMenu } from '@tiptap/react/menus';
+import { BubbleMenu, EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Bold, Code, Heading2, Italic, Strikethrough } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,6 +54,22 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
     }
   }, [handleError]);
 
+  // Silent save function that doesn't update UI state
+  const silentSaveRef = useRef<((content: string) => Promise<void>) | null>(null);
+
+  const silentSave = useCallback(async (content: string) => {
+    try {
+      await updateNote(noteIdRef.current, { content });
+      setLastSync(new Date());
+    } catch (error) {
+      handleError(error, 'auto-save note content');
+    }
+  }, [updateNote, handleError]);
+
+  useEffect(() => {
+    silentSaveRef.current = silentSave;
+  }, [silentSave]);
+
   const availableNotes = useMemo(() => (
     notes.filter((n) => n.id !== note.id).map((n) => ({
       id: n.id,
@@ -85,9 +100,11 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
     return false;
   }, []);
 
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const noteContentRef = useRef(note.content);
   const noteIdRef = useRef(note.id);
+  const isEditorFocusedRef = useRef(false);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const editorRef = useRef<any>(null);
 
   useEffect(() => {
     noteContentRef.current = note.content;
@@ -288,31 +305,60 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
         class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
       },
       handleClick: handleMentionClick,
+      handleFocus: () => {
+        isEditorFocusedRef.current = true;
+      },
+      handleBlur: () => {
+        isEditorFocusedRef.current = false;
+
+        // Clear inactivity timer
+        if (inactivityTimerRef.current) {
+          clearTimeout(inactivityTimerRef.current);
+          inactivityTimerRef.current = null;
+        }
+
+        // Save immediately on blur if content changed
+        if (editorRef.current && silentSaveRef.current) {
+          const html = editorRef.current.getHTML();
+          if (html !== noteContentRef.current) {
+            silentSaveRef.current(html);
+            noteContentRef.current = html;
+          }
+        }
+      },
     },
     onUpdate: ({ editor }) => {
-      // Debounce auto-save to avoid excessive updates
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
+      const html = editor.getHTML();
+
+      // Clear existing inactivity timer
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
       }
 
-      autoSaveTimerRef.current = setTimeout(() => {
-        const html = editor.getHTML();
-        // Use ref to get latest content value
-        if (html !== noteContentRef.current) {
-          withSyncTracking(
-            () => updateNote(noteIdRef.current, { content: html }),
-            'auto-save note content'
-          );
-        }
-      }, 500); // 500ms debounce
+      // Save after inactivity period (3 seconds) when editor is focused
+      if (isEditorFocusedRef.current && html !== noteContentRef.current && silentSaveRef.current) {
+        inactivityTimerRef.current = setTimeout(() => {
+          if (silentSaveRef.current) {
+            silentSaveRef.current(html);
+            noteContentRef.current = html;
+          }
+        }, 3000); // 3 seconds of inactivity
+      }
     },
   }, [note.id]);
 
-  // Cleanup timer on unmount
+  // Store editor reference
+  useEffect(() => {
+    if (editor) {
+      editorRef.current = editor;
+    }
+  }, [editor]);
+
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
       }
     };
   }, []);
@@ -366,94 +412,103 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
         </div>
       )}
     >
-      <SyncingOverlay isLoading={isMutating} message="Saving changes...">
-        <div className="h-full overflow-y-auto scrollbar-content">
-          <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
-            {/* Title */}
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 text-foreground placeholder:text-muted-foreground/30"
-              placeholder="Untitled"
+      <div className="h-full overflow-y-auto scrollbar-content">
+        <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
+          {/* Title */}
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            className="w-full text-4xl font-bold bg-transparent border-none outline-none mb-2 text-foreground placeholder:text-muted-foreground/30"
+            placeholder="Untitled"
+          />
+
+          <div className="flex items-center justify-between mb-8">
+            <div className="text-xs text-muted-foreground">
+              {new Date(note.updatedAt).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+
+            <SyncStatus
+              isLoading={isSyncing}
+              isOnline={navigator.onLine}
+              lastSync={lastSync}
+              showDetails={true}
             />
+          </div>
 
-            <div className="flex items-center justify-between mb-8">
-              <div className="text-xs text-muted-foreground">
-                {new Date(note.updatedAt).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </div>
-
-              <SyncStatus
-                isLoading={isSyncing}
-                isOnline={navigator.onLine}
-                lastSync={lastSync}
-                showDetails={true}
-              />
-            </div>
-
-            <div className="mb-8">
-              {editor && (
-                <>
-                  <BubbleMenu editor={editor}>
-                    <div className="flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg p-1">
-                      <button
-                        onClick={() => editor.chain().focus().toggleBold().run()}
-                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('bold') ? 'bg-accent' : ''
-                          }`}
-                        title="Bold (Cmd+B)"
-                      >
-                        <Bold className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => editor.chain().focus().toggleItalic().run()}
-                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('italic') ? 'bg-accent' : ''
-                          }`}
-                        title="Italic (Cmd+I)"
-                      >
-                        <Italic className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => editor.chain().focus().toggleStrike().run()}
-                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('strike') ? 'bg-accent' : ''
-                          }`}
-                        title="Strikethrough"
-                      >
-                        <Strikethrough className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => editor.chain().focus().toggleCode().run()}
-                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('code') ? 'bg-accent' : ''
-                          }`}
-                        title="Code"
-                      >
-                        <Code className="h-4 w-4" />
-                      </button>
-                      <div className="w-px h-6 bg-border mx-1" />
-                      <button
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                        className={`p-2 rounded hover:bg-accent transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''
-                          }`}
-                        title="Heading 2"
-                      >
-                        <Heading2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </BubbleMenu>
-                  <EditorContent editor={editor} />
-                </>
-              )}
+          <div className="mb-8">
+            {editor && (
+              <>
+                <BubbleMenu
+                  editor={editor}
+                  tippyOptions={{
+                    theme: 'bubble',
+                    placement: 'top',
+                    offset: [0, 12],
+                    animation: 'shift-away',
+                    duration: [150, 100],
+                    arrow: true,
+                    maxWidth: 'none',
+                  }}
+                >
+                  <div className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1">
+                    <button
+                      onClick={() => editor.chain().focus().toggleBold().run()}
+                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('bold') ? 'bg-accent/40' : ''}`}
+                      aria-label="Bold"
+                      title="Bold (Cmd+B)"
+                    >
+                      <Bold className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleItalic().run()}
+                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('italic') ? 'bg-accent/40' : ''}`}
+                      aria-label="Italic"
+                      title="Italic (Cmd+I)"
+                    >
+                      <Italic className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleStrike().run()}
+                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('strike') ? 'bg-accent/40' : ''}`}
+                      aria-label="Strikethrough"
+                      title="Strikethrough"
+                    >
+                      <Strikethrough className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleCode().run()}
+                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('code') ? 'bg-accent/40' : ''}`}
+                      aria-label="Code"
+                      title="Code"
+                    >
+                      <Code className="h-4 w-4" />
+                    </button>
+                    <div className="w-px h-5 bg-border/70 mx-1" />
+                    <button
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent/40' : ''}`}
+                      aria-label="Heading 2"
+                      title="Heading 2"
+                    >
+                      <Heading2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </BubbleMenu>
+                <EditorContent editor={editor} />
+              </>
+            )}
 
 
-            </div>
           </div>
         </div>
-      </SyncingOverlay>
+      </div>
     </ErrorBoundary>
   );
 }
