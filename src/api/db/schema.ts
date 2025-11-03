@@ -6,6 +6,7 @@ export const schema = i.graph(
       title: i.string(),
       content: i.string(),
       position: i.number(),
+      pinned: i.boolean().optional(),
       createdAt: i.number().indexed(),
       updatedAt: i.number(),
     }),
@@ -161,6 +162,7 @@ export type Note = {
   title: string;
   content: string;
   position: number;
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
   tasks?: Task[];

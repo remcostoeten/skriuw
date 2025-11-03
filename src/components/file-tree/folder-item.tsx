@@ -43,6 +43,10 @@ type props = {
     onDrop?: (position: 'before' | 'after' | 'inside') => void;
     onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
     onNoteRename?: (id: string, newName: string) => void;
+    onNoteDelete?: (id: string) => void;
+    onNoteDuplicate?: (id: string) => void;
+    onNoteMove?: (noteId: string, folderId: string | null) => void;
+    onNotePin?: (noteId: string, pinned: boolean) => Promise<void>;
     isFocused?: boolean;
     onFocus?: () => void;
     isItemFocused?: (type: 'folder' | 'note', id: string) => boolean;
@@ -87,6 +91,10 @@ export const FolderItem = ({
     onDrop,
     onNoteReorder,
     onNoteRename,
+    onNoteDelete,
+    onNoteDuplicate,
+    onNoteMove,
+    onNotePin,
     isFocused = false,
     onFocus,
     isItemFocused,
@@ -271,8 +279,7 @@ export const FolderItem = ({
                     isEditing && "select-none focus:outline-none",
                     isDragged && "opacity-50 cursor-grabbing",
                     isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-blue-500/50",
-                    !isEditing && !isDragged && "cursor-grab active:cursor-grabbing",
-                    isFocused && "ring-2 ring-blue-500 ring-offset-1"
+                    !isEditing && !isDragged && "cursor-grab active:cursor-grabbing"
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
                 onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
@@ -429,6 +436,12 @@ export const FolderItem = ({
                             onDragEnd={onDragEnd}
                             onNoteReorder={onNoteReorder}
                             onNoteRename={onNoteRename}
+                            onNoteDelete={onNoteDelete}
+                            onNoteDuplicate={onNoteDuplicate}
+                            onNoteMove={onNoteMove}
+                            onNotePin={onNotePin}
+                            pinned={file.pinned || false}
+                            folders={folders}
                             isFocused={isItemFocused?.('note', file.id) || false}
                             onFocus={() => handleItemFocus?.('note', file.id)}
                         />
