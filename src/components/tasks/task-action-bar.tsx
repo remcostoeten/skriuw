@@ -33,7 +33,6 @@ export function TaskActionBar({
 
     const handleNewUrgentTask = useCallback(() => handleNewTask('urgent'), [handleNewTask]);
     const handleNewHighTask = useCallback(() => handleNewTask('high'), [handleNewTask]);
-    const handleNewTaskDefault = useCallback(() => handleNewTask('med'), [handleNewTask]);
     const handleNewLowTask = useCallback(() => handleNewTask('low'), [handleNewTask]);
 
     const handleProjectClose = useCallback(() => {
@@ -55,7 +54,6 @@ export function TaskActionBar({
 
     const urgentIcon = useMemo(() => <Flame className="w-[18px] h-[18px]" />, []);
     const highIcon = useMemo(() => <CircleAlert className="w-[18px] h-[18px]" />, []);
-    const defaultIcon = useMemo(() => <CheckSquare2 className="w-[18px] h-[18px]" />, []);
     const lowIcon = useMemo(() => <Clock className="w-[18px] h-[18px]" />, []);
     const folderPlusIcon = useMemo(() => <FolderPlus className="w-[18px] h-[18px]" />, []);
 
@@ -71,16 +69,11 @@ export function TaskActionBar({
             onClick: handleNewHighTask,
         },
         {
-            icon: defaultIcon,
-            tooltip: "New Task",
-            onClick: handleNewTaskDefault,
-        },
-        {
             icon: lowIcon,
             tooltip: "New Low Priority Task",
             onClick: handleNewLowTask,
         },
-    ], [handleNewUrgentTask, handleNewHighTask, handleNewTaskDefault, handleNewLowTask, urgentIcon, highIcon, defaultIcon, lowIcon]);
+    ], [handleNewUrgentTask, handleNewHighTask, handleNewLowTask, urgentIcon, highIcon, lowIcon]);
 
     const inputConfig = useMemo(() => ({
         value: newProjectTitle,
