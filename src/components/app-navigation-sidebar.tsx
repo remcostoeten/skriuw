@@ -86,14 +86,46 @@ export function AppNavigationSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside
-      className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center justify-between border-r py-12 px-0"
-      style={{
-        backgroundColor: 'var(--nav-sidebar-bg)',
-        borderRightColor: 'var(--nav-sidebar-border)',
-      }}
-    >
-      <nav className="flex flex-col items-center gap-2" aria-label="Main navigation">
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center justify-between border-r py-12 px-0"
+        style={{
+          backgroundColor: 'var(--nav-sidebar-bg)',
+          borderRightColor: 'var(--nav-sidebar-border)',
+        }}
+      >
+        <nav className="flex flex-col items-center gap-2" aria-label="Main navigation">
+          <NavIcon href="/" label="Notes" isActive={pathname === '/'}>
+            <InboxIcon />
+          </NavIcon>
+          <NavIcon href="/tasks" label="Tasks" isActive={pathname === '/tasks'}>
+            <TasksIcon />
+          </NavIcon>
+          <NavIcon href="/calendar" label="Calendar" isActive={pathname === '/calendar'}>
+            <CalendarIcon />
+          </NavIcon>
+        </nav>
+
+        <nav className="flex flex-col items-center gap-2" aria-label="Secondary navigation">
+          <NavIcon href="/folders" label="Folders" isActive={pathname === '/folders'}>
+            <FolderIcon />
+          </NavIcon>
+          <NavIcon href="/settings" label="Settings" isActive={pathname === '/settings'}>
+            <SettingsIcon />
+          </NavIcon>
+        </nav>
+      </aside>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden items-center justify-around border-t py-2 px-4 safe-area-pb"
+        style={{
+          backgroundColor: 'var(--nav-sidebar-bg)',
+          borderTopColor: 'var(--nav-sidebar-border)',
+        }}
+        aria-label="Mobile navigation"
+      >
         <NavIcon href="/" label="Notes" isActive={pathname === '/'}>
           <InboxIcon />
         </NavIcon>
@@ -103,9 +135,6 @@ export function AppNavigationSidebar() {
         <NavIcon href="/calendar" label="Calendar" isActive={pathname === '/calendar'}>
           <CalendarIcon />
         </NavIcon>
-      </nav>
-
-      <nav className="flex flex-col items-center gap-2" aria-label="Secondary navigation">
         <NavIcon href="/folders" label="Folders" isActive={pathname === '/folders'}>
           <FolderIcon />
         </NavIcon>
@@ -113,6 +142,6 @@ export function AppNavigationSidebar() {
           <SettingsIcon />
         </NavIcon>
       </nav>
-    </aside>
+    </>
   );
 }
