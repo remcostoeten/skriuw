@@ -382,7 +382,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
     return (
         <nav
             className={cn(
-                " left-[220px] flex flex-col justify-start items-center bg-background overflow-y-auto",
+                "fixed left-0 sm:left-12 flex flex-col justify-start items-center bg-background overflow-y-auto",
                 "transform transition-all duration-300 border-r"
             )}
             style={{
@@ -497,4 +497,3 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, selectedNoteId }: props = 
         </nav>
     );
 };
-
