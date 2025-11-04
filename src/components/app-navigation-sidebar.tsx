@@ -12,6 +12,9 @@ interface NavIconProps {
 }
 
 function NavIcon({ children, href, label, isActive }: NavIconProps) {
+  const hoverBgColor = 'rgba(46, 46, 46, 0.5)';
+  const activeBgColor = 'var(--nav-sidebar-border)';
+
   return (
     <TooltipProvider delayDuration={0}>
       <Tooltip>
@@ -19,17 +22,27 @@ function NavIcon({ children, href, label, isActive }: NavIconProps) {
           <Link
             href={href}
             aria-label={label}
-            className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-110"
+            className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
             style={{
-              backgroundColor: isActive ? 'var(--nav-sidebar-border)' : 'transparent',
+              backgroundColor: isActive ? activeBgColor : 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                (e.currentTarget as HTMLElement).style.backgroundColor = hoverBgColor;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+              }
             }}
           >
-            <div className="transition-opacity group-hover:opacity-80">
+            <div className="transition-opacity group-hover:opacity-90">
               {children}
             </div>
           </Link>
         </TooltipTrigger>
-        <TooltipContent side="right" className="font-medium">
+        <TooltipContent side="right" className="font-medium hidden sm:block">
           {label}
         </TooltipContent>
       </Tooltip>
