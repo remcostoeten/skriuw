@@ -114,7 +114,7 @@ export function TasksView() {
                 selectedProjectId={selectedProjectId}
             />
 
-            <div className="flex-1 flex flex-col bg-background relative ml-[220px]">
+            <div className="flex-1 flex flex-col bg-background relative sm:ml-[220px] ml-0">
                 <BaseActionBar
                     buttons={[
                         {
@@ -210,5 +210,3 @@ export function TasksView() {
 }
 
 export default TasksView;
-
-

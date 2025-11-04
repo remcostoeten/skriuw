@@ -143,7 +143,7 @@ export function NotesView() {
         selectedNoteId={selectedNote?.id}
       />
 
-      <div className="flex-1 relative ml-[220px]">
+      <div className="flex-1 relative sm:ml-[220px] ml-0">
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}
