@@ -108,7 +108,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
       >
         <AppNavigationSidebar />
-        <div className="pl-12">
+        <div className="sm:pl-12">
           <nav className="bg-gray-900 text-white p-4 border-b border-gray-800">
             <div className="max-w-7xl mx-auto flex justify-between items-center">
               <h1 className="text-xl font-bold">InstantDB Notes</h1>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavIconProps {
   children: React.ReactNode;
@@ -12,16 +13,27 @@ interface NavIconProps {
 
 function NavIcon({ children, href, label, isActive }: NavIconProps) {
   return (
-    <Link
-      href={href}
-      aria-label={label}
-      className="group flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-grey-18"
-      style={{
-        backgroundColor: isActive ? '#2E2E2E' : 'transparent',
-      }}
-    >
-      {children}
-    </Link>
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href={href}
+            aria-label={label}
+            className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-110"
+            style={{
+              backgroundColor: isActive ? '#2E2E2E' : 'transparent',
+            }}
+          >
+            <div className="transition-opacity group-hover:opacity-80">
+              {children}
+            </div>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="font-medium">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
