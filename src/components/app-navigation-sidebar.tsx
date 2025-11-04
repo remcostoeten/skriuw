@@ -21,7 +21,7 @@ function NavIcon({ children, href, label, isActive }: NavIconProps) {
             aria-label={label}
             className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-110"
             style={{
-              backgroundColor: isActive ? '#2E2E2E' : 'transparent',
+              backgroundColor: isActive ? 'var(--nav-sidebar-border)' : 'transparent',
             }}
           >
             <div className="transition-opacity group-hover:opacity-80">
@@ -89,8 +89,8 @@ export function AppNavigationSidebar() {
     <aside
       className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center justify-between border-r py-12 px-0"
       style={{
-        backgroundColor: '#121212',
-        borderRightColor: '#2E2E2E',
+        backgroundColor: 'var(--nav-sidebar-bg)',
+        borderRightColor: 'var(--nav-sidebar-border)',
       }}
     >
       <nav className="flex flex-col items-center gap-2" aria-label="Main navigation">
