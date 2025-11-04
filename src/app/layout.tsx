@@ -2,7 +2,6 @@ import { AppNavigationSidebar } from '@/components/app-navigation-sidebar'
 import { Providers } from '@/components/providers'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import Link from 'next/link'
 import './globals.css'
 
 const geistSans = Geist({
@@ -174,28 +173,6 @@ export default function RootLayout({
 			>
 				<AppNavigationSidebar />
 				<div className="sm:pl-12 pb-16 sm:pb-0">
-					<nav className="bg-gray-900 text-white p-4 border-b border-gray-800">
-						<div className="max-w-7xl mx-auto flex justify-between items-center">
-							<h1 className="text-xl font-bold">
-								InstantDB Notes
-							</h1>
-							<div className="flex space-x-6">
-								<Link href="/">Notes</Link>
-								<Link
-									href="/platform-demo"
-									className="hover:text-blue-400 transition-colors"
-								>
-									Platform Demo
-								</Link>
-								<Link
-									href="/tasks"
-									className="hover:text-blue-400 transition-colors"
-								>
-									Tasks
-								</Link>
-							</div>
-						</div>
-					</nav>
 					<Providers>{children}</Providers>
 				</div>
 			</body>

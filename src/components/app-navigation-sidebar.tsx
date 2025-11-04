@@ -8,6 +8,9 @@ import {
 	TooltipProvider,
 	TooltipTrigger
 } from '@/components/ui/tooltip'
+import { Logo } from './logo'
+import { Separator } from '@/shared/components/ui/separator'
+import { TopSectionWrapper } from '@/shared/components/top-section-wrapper'
 
 interface NavIconProps {
 	children: React.ReactNode
@@ -17,9 +20,6 @@ interface NavIconProps {
 }
 
 function NavIcon({ children, href, label, isActive }: NavIconProps) {
-	const hoverBgColor = 'rgba(46, 46, 46, 0.5)'
-	const activeBgColor = 'var(--nav-sidebar-border)'
-
 	return (
 		<TooltipProvider delayDuration={0}>
 			<Tooltip>
@@ -28,26 +28,11 @@ function NavIcon({ children, href, label, isActive }: NavIconProps) {
 						href={href}
 						aria-label={label}
 						aria-current={isActive ? 'page' : undefined}
-						className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
-						style={{
-							backgroundColor: isActive
-								? activeBgColor
-								: 'transparent'
-						}}
-						onMouseEnter={e => {
-							if (!isActive) {
-								;(
-									e.currentTarget as HTMLElement
-								).style.backgroundColor = hoverBgColor
-							}
-						}}
-						onMouseLeave={e => {
-							if (!isActive) {
-								;(
-									e.currentTarget as HTMLElement
-								).style.backgroundColor = 'transparent'
-							}
-						}}
+						className={`group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background ${
+							isActive
+								? 'bg-muted'
+								: 'hover:bg-muted/50'
+						}`}
 					>
 						<div className="transition-opacity group-hover:opacity-90">
 							{children}
@@ -163,6 +148,32 @@ function FolderIcon() {
 	)
 }
 
+function PlatformDemoIcon() {
+	return (
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 18 18"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path
+				fillRule="evenodd"
+				clipRule="evenodd"
+				d="M9 1.8C5.02721 1.8 1.8 5.02721 1.8 9C1.8 12.9728 5.02721 16.2 9 16.2C12.9728 16.2 16.2 12.9728 16.2 9C16.2 5.02721 12.9728 1.8 9 1.8ZM0.9 9C0.9 4.47588 4.47588 0.9 9 0.9C13.5241 0.9 17.1 4.47588 17.1 9C17.1 13.5241 13.5241 17.1 9 17.1C4.47588 17.1 0.9 13.5241 0.9 9Z"
+				fill="#8C8C8C"
+			/>
+			<path
+				d="M6.3 9L8.1 10.8L11.7 7.2"
+				stroke="#8C8C8C"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	)
+}
+
 function SettingsIcon() {
 	return (
 		<svg
@@ -195,37 +206,55 @@ export function AppNavigationSidebar() {
 		<>
 			{/* Desktop sidebar */}
 			<aside
-				className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center justify-between border-r py-12 px-0"
+				className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center border-r overflow-hidden bg-background"
 				style={{
-					backgroundColor: 'var(--nav-sidebar-bg)',
-					borderRightColor: 'var(--nav-sidebar-border)'
+					borderRightColor: 'hsl(var(--border))'
 				}}
 			>
 				<nav
-					className="flex flex-col items-center gap-2"
+					className="flex flex-col items-center flex-1 w-full overflow-hidden"
 					aria-label="Main navigation"
 				>
-					<NavIcon href="/" label="Notes" isActive={pathname === '/'}>
-						<InboxIcon />
-					</NavIcon>
-					<NavIcon
-						href="/tasks"
-						label="Tasks"
-						isActive={pathname === '/tasks'}
+					<TopSectionWrapper className="flex-col">
+						<Logo />
+					</TopSectionWrapper>
+					<div
+						style={{
+							width: '100%'
+						}}
 					>
-						<TasksIcon />
-					</NavIcon>
-					<NavIcon
-						href="/calendar"
-						label="Calendar"
-						isActive={pathname === '/calendar'}
-					>
-						<CalendarIcon />
-					</NavIcon>
+						<Separator />
+					</div>
+					<div className="flex flex-col items-center gap-2 pt-4">
+						<NavIcon href="/" label="Notes" isActive={pathname === '/'}>
+							<InboxIcon />
+						</NavIcon>
+						<NavIcon
+							href="/platform-demo"
+							label="Platform Demo"
+							isActive={pathname === '/platform-demo'}
+						>
+							<PlatformDemoIcon />
+						</NavIcon>
+						<NavIcon
+							href="/tasks"
+							label="Tasks"
+							isActive={pathname === '/tasks'}
+						>
+							<TasksIcon />
+						</NavIcon>
+						<NavIcon
+							href="/calendar"
+							label="Calendar"
+							isActive={pathname === '/calendar'}
+						>
+							<CalendarIcon />
+						</NavIcon>
+					</div>
 				</nav>
 
 				<nav
-					className="flex flex-col items-center gap-2"
+					className="flex flex-col items-center gap-2 pb-4"
 					aria-label="Secondary navigation"
 				>
 					<NavIcon
@@ -247,16 +276,22 @@ export function AppNavigationSidebar() {
 
 			{/* Mobile bottom navigation */}
 			<nav
-				className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden items-center justify-around border-t py-3 px-4"
+				className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden items-center justify-around border-t py-3 px-4 bg-background"
 				style={{
-					backgroundColor: 'var(--nav-sidebar-bg)',
-					borderTopColor: 'var(--nav-sidebar-border)',
+					borderTopColor: 'hsl(var(--border))',
 					paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
 				}}
 				aria-label="Mobile navigation"
 			>
 				<NavIcon href="/" label="Notes" isActive={pathname === '/'}>
 					<InboxIcon />
+				</NavIcon>
+				<NavIcon
+					href="/platform-demo"
+					label="Platform Demo"
+					isActive={pathname === '/platform-demo'}
+				>
+					<PlatformDemoIcon />
 				</NavIcon>
 				<NavIcon
 					href="/tasks"
