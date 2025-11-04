@@ -22,7 +22,8 @@ function NavIcon({ children, href, label, isActive }: NavIconProps) {
           <Link
             href={href}
             aria-label={label}
-            className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105"
+            aria-current={isActive ? 'page' : undefined}
+            className="group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
             style={{
               backgroundColor: isActive ? activeBgColor : 'transparent',
             }}
