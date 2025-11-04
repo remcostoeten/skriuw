@@ -75,7 +75,7 @@ export function AppNavigationSidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-50 flex h-screen w-12 flex-col items-center justify-between border-r border-grey-18 bg-grey-7 py-12 px-0"
+      className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center justify-between border-r py-12 px-0"
       style={{
         backgroundColor: '#121212',
         borderRightColor: '#2E2E2E',
