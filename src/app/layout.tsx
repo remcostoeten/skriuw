@@ -1,3 +1,4 @@
+import { AppNavigationSidebar } from "@/components/app-navigation-sidebar";
 import { Providers } from "@/components/providers";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -106,31 +107,34 @@ export default function RootLayout({
       <body suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
       >
-        <nav className="bg-gray-900 text-white p-4 border-b border-gray-800">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 className="text-xl font-bold">InstantDB Notes</h1>
-            <div className="flex space-x-6">
-              <Link
-                href="/"
-              >
-                Notes
-              </Link>
-              <Link
-                href="/platform-demo"
-                className="hover:text-blue-400 transition-colors"
-              >
-                Platform Demo
-              </Link>
-              <Link
-                href="/tasks"
-                className="hover:text-blue-400 transition-colors"
-              >
-                Tasks
-              </Link>
+        <AppNavigationSidebar />
+        <div className="pl-12">
+          <nav className="bg-gray-900 text-white p-4 border-b border-gray-800">
+            <div className="max-w-7xl mx-auto flex justify-between items-center">
+              <h1 className="text-xl font-bold">InstantDB Notes</h1>
+              <div className="flex space-x-6">
+                <Link
+                  href="/"
+                >
+                  Notes
+                </Link>
+                <Link
+                  href="/platform-demo"
+                  className="hover:text-blue-400 transition-colors"
+                >
+                  Platform Demo
+                </Link>
+                <Link
+                  href="/tasks"
+                  className="hover:text-blue-400 transition-colors"
+                >
+                  Tasks
+                </Link>
+              </div>
             </div>
-          </div>
-        </nav>
-        <Providers>{children}</Providers>
+          </nav>
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html >
   );
