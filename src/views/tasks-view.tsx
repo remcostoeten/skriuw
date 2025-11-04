@@ -105,7 +105,7 @@ export function TasksView() {
     }
 
     return (
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen sm:h-screen bg-background" style={{ height: 'calc(100vh - env(safe-area-inset-bottom))' }}>
             {/* Task Sidebar */}
             <TaskSidebar
                 onFilterSelect={handleQuickFilterSelect}

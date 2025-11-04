@@ -136,7 +136,7 @@ export function NotesView() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen sm:h-screen bg-background" style={{ height: 'calc(100vh - env(safe-area-inset-bottom))' }}>
       <FileTreeSidebar
         onNoteSelect={handleNoteSelectFromSidebar}
         onNoteCreate={handleCreateNoteFromSidebar}

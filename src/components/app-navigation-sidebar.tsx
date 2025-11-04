@@ -132,10 +132,11 @@ export function AppNavigationSidebar() {
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden items-center justify-around border-t py-2 px-4 safe-area-pb"
+        className="fixed bottom-0 left-0 right-0 z-50 flex sm:hidden items-center justify-around border-t py-3 px-4"
         style={{
           backgroundColor: 'var(--nav-sidebar-bg)',
           borderTopColor: 'var(--nav-sidebar-border)',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
         }}
         aria-label="Mobile navigation"
       >
