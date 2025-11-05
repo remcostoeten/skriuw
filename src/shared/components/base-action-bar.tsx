@@ -1,4 +1,5 @@
 import { IconButton } from "@/shared/components/icon-button";
+import { TopSectionWrapper } from "@/shared/components/top-section-wrapper";
 import {
     Maximize2,
     Minimize2,
@@ -158,14 +159,8 @@ export function BaseActionBar({
     const isAnyInputVisible = isSearchVisible || isInputVisible;
 
     return (
-        <div className="relative top-0 flex flex-col min-h-10 w-full border-b bg-background overflow-hidden">
-            <div
-                className={cn(
-                    "flex flex-row items-center justify-center w-full h-full px-3.5 gap-2 shrink-0",
-                    "transform transition-all",
-                    isAnyInputVisible ? "-translate-y-12" : "translate-y-0"
-                )}
-            >
+        <div className="relative top-0 flex flex-col min-h-[50px] w-full border-b bg-background overflow-hidden">
+            <TopSectionWrapper isInputVisible={isAnyInputVisible}>
                 {allButtons.map((button, index) => (
                     <IconButton
                         key={`action-button-${button.tooltip}-${index}`}
@@ -175,7 +170,7 @@ export function BaseActionBar({
                         disabled={button.disabled}
                     />
                 ))}
-            </div>
+            </TopSectionWrapper>      
 
             {searchConfig && (
                 <div
