@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Link from 'next/link'
 import './globals.css'
+import { ThemeToggle } from '@/components/theme/theme-toggle'
 
 const geistSans = Geist({
 	variable: '--font-geist-sans',
@@ -167,6 +168,10 @@ export default function RootLayout({
 					href="/apple-splash-2048x2732.png"
 					media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)"
 				/>
+				{/* Set initial theme before hydration to avoid flashes */}
+				<script dangerouslySetInnerHTML={{
+					__html: `(() => { try { const s = localStorage.getItem('theme'); const m = window.matchMedia('(prefers-color-scheme: dark)').matches; const t = s || (m ? 'dark' : 'light'); const r = document.documentElement; r.classList.remove('light','dark'); r.classList.add(t);} catch (e) {} })();`
+				}} />
 			</head>
 			<body
 				suppressHydrationWarning
@@ -191,18 +196,7 @@ export default function RootLayout({
 								>
 									Tasks
 								</Link>
-								{/* Theme toggle */}
-								{typeof window !== 'undefined' && (
-									// eslint-disable-next-line @next/next/no-sync-scripts
-									<script
-										dangerouslySetInnerHTML={{
-											__html: `(() => { try { const s = localStorage.getItem('theme'); const m = window.matchMedia('(prefers-color-scheme: dark)').matches; const t = s || (m ? 'dark' : 'light'); const r = document.documentElement; r.classList.remove('light','dark'); r.classList.add(t);} catch (e) {} })();`
-										}}
-									/>
-								)}
-								{/* Render toggle button */}
-								{/* @ts-expect-error Server Component imports client */}
-								{require('@/components/theme/theme-toggle').ThemeToggle?.()}
+								<ThemeToggle />
 							</div>
 						</div>
 					</nav>
