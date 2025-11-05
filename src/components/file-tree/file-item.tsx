@@ -161,14 +161,15 @@ export const FileItem = ({
                     "h-7 w-full rounded-md px-3 text-xs font-medium",
                     "flex items-center gap-2 justify-start",
                     "transition-all hover:text-foreground active:scale-[0.98]",
+                    "outline-none border-none",
                     isActive && !isEditing
-                        ? "bg-accent text-foreground"
-                        : "text-secondary-foreground/80 hover:bg-accent",
+                        ? "bg-muted text-foreground"
+                        : "text-secondary-foreground/80 hover:bg-muted/50",
                     isDragged && "opacity-50 cursor-grabbing",
                     !isDragged && !isEditing && "cursor-grab active:cursor-grabbing",
                     dragOverState && "bg-accent/20",
                     isEditing && "select-none focus:outline-none",
-                    isFocused && "ring-2 ring-blue-500 ring-offset-1"
+                    isFocused && !isActive && "ring-1 ring-primary/50 ring-offset-1"
                 )}
                 style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
                 tabIndex={isFocused ? 0 : -1}

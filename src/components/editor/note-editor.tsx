@@ -9,12 +9,15 @@ import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
-import { BubbleMenu, EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
+import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Heading2, Italic, Strikethrough } from 'lucide-react';
+import { Bold, Code, Heading2, Italic, Strikethrough, Link2, CheckSquare2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
+import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
+import { useCreateTask } from '@/modules/tasks/api/mutations/create';
 
 /**
  * ToDo: create a global keyboard event listener HoC
@@ -25,13 +28,15 @@ type Props = {
   onNoteSelect?: (noteId: string) => void;
 };
 
-function NoteEditorComponent({ note, onNoteSelect }: Props) {
+export function NoteEditor({ note, onNoteSelect }: Props) {
   const [title, setTitle] = useState(note.title);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | undefined>(undefined);
 
   const { updateNote, isLoading: isUpdatingNote } = useUpdateNote();
   const { notes } = useGetNotes();
+  const { tasks } = useGetAllTasks();
+  const { createTask } = useCreateTask();
 
   const { handleError } = useErrorHandler();
 
@@ -82,10 +87,81 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
   const availableTasksRef = useRef<TaskMention[]>([]);
   const onNoteSelectRef = useRef(onNoteSelect);
 
+  // Update available tasks
+  useEffect(() => {
+    availableTasksRef.current = (tasks || []).map((t) => ({
+      id: t.id,
+      label: t.content.replace(/<[^>]*>/g, '').slice(0, 50) || 'Untitled Task',
+    }));
+  }, [tasks]);
+
   useEffect(() => {
     availableNotesRef.current = availableNotes;
     onNoteSelectRef.current = onNoteSelect;
   }, [availableNotes, onNoteSelect]);
+
+  // Handle note tagging - insert @ mention at cursor (triggers visual mention dropdown)
+  const handleLinkNote = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().insertContent('@').run();
+  }, [editor]);
+
+  // Handle task creation from selected text
+  const handleCreateTask = useCallback(async () => {
+    if (!editor) return;
+    
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+    
+    if (!selectedText.trim()) {
+      // If no selection, just insert $ to trigger task mention
+      editor.chain().focus().insertContent('$').run();
+      return;
+    }
+
+    try {
+      // Create task with selected text as content
+      const result = await createTask({
+        content: selectedText,
+        position: Date.now(),
+        noteId: note.id,
+        priority: 'med',
+      });
+
+      if (result?.id) {
+        // Replace selected text with task mention using $ syntax
+        editor
+          .chain()
+          .focus()
+          .deleteSelection()
+          .insertContent(`$${result.id}`)
+          .run();
+      }
+    } catch (error) {
+      handleError(error, 'create task from selection');
+    }
+  }, [editor, note.id, createTask, handleError]);
+
+  // Keyboard shortcuts for accessibility
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl + K for note linking
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        handleLinkNote();
+      }
+      // Cmd/Ctrl + Shift + T for task creation
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'T') {
+        event.preventDefault();
+        handleCreateTask();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editor, handleLinkNote, handleCreateTask]);
 
   const handleMentionClick = useCallback((_view: any, _pos: any, event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -448,56 +524,125 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
                 <BubbleMenu
                   editor={editor}
                   tippyOptions={{
-                    theme: 'bubble',
                     placement: 'top',
-                    offset: [0, 12],
+                    offset: [0, 8],
                     animation: 'shift-away',
-                    duration: [150, 100],
-                    arrow: true,
+                    duration: [200, 150],
+                    arrow: false,
                     maxWidth: 'none',
+                    interactive: true,
+                    appendTo: () => document.body,
                   }}
                 >
-                  <div className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1">
+                  <div 
+                    role="toolbar"
+                    aria-label="Text formatting and actions"
+                    className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1"
+                  >
                     <button
                       onClick={() => editor.chain().focus().toggleBold().run()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          editor.chain().focus().toggleBold().run();
+                        }
+                      }}
                       className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('bold') ? 'bg-accent/40' : ''}`}
                       aria-label="Bold"
+                      aria-pressed={editor.isActive('bold')}
                       title="Bold (Cmd+B)"
                     >
                       <Bold className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => editor.chain().focus().toggleItalic().run()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          editor.chain().focus().toggleItalic().run();
+                        }
+                      }}
                       className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('italic') ? 'bg-accent/40' : ''}`}
                       aria-label="Italic"
+                      aria-pressed={editor.isActive('italic')}
                       title="Italic (Cmd+I)"
                     >
                       <Italic className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => editor.chain().focus().toggleStrike().run()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          editor.chain().focus().toggleStrike().run();
+                        }
+                      }}
                       className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('strike') ? 'bg-accent/40' : ''}`}
                       aria-label="Strikethrough"
+                      aria-pressed={editor.isActive('strike')}
                       title="Strikethrough"
                     >
                       <Strikethrough className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => editor.chain().focus().toggleCode().run()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          editor.chain().focus().toggleCode().run();
+                        }
+                      }}
                       className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('code') ? 'bg-accent/40' : ''}`}
                       aria-label="Code"
+                      aria-pressed={editor.isActive('code')}
                       title="Code"
                     >
                       <Code className="h-4 w-4" />
                     </button>
-                    <div className="w-px h-5 bg-border/70 mx-1" />
+                    <div className="w-px h-5 bg-border/70 mx-1" aria-hidden="true" />
                     <button
                       onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          editor.chain().focus().toggleHeading({ level: 2 }).run();
+                        }
+                      }}
                       className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent/40' : ''}`}
                       aria-label="Heading 2"
+                      aria-pressed={editor.isActive('heading', { level: 2 })}
                       title="Heading 2"
                     >
                       <Heading2 className="h-4 w-4" />
+                    </button>
+                    <div className="w-px h-5 bg-border/70 mx-1" aria-hidden="true" />
+                    <button
+                      onClick={handleLinkNote}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleLinkNote();
+                        }
+                      }}
+                      className="p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                      aria-label="Link note"
+                      title="Link note (Cmd+K)"
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleCreateTask}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleCreateTask();
+                        }
+                      }}
+                      className="p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                      aria-label="Create task from selection"
+                      title="Create task (Cmd+Shift+T)"
+                    >
+                      <CheckSquare2 className="h-4 w-4" />
                     </button>
                   </div>
                 </BubbleMenu>
@@ -513,12 +658,5 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
   );
 }
 
-export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.note.id === nextProps.note.id &&
-    prevProps.note.content === nextProps.note.content &&
-    prevProps.note.title === nextProps.note.title &&
-    prevProps.onNoteSelect === nextProps.onNoteSelect
-  );
-});
+
 
