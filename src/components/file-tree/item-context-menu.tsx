@@ -155,7 +155,7 @@ export function ItemContextMenu({ children, items, className, open, onOpenChange
   }
 
   return (
-    <ContextMenu open={open} onOpenChange={onOpenChange}>
+    <ContextMenu>
       <ContextMenuTrigger asChild className={className}>
         {children}
       </ContextMenuTrigger>

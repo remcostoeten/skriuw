@@ -15,10 +15,18 @@ export function usePinNote() {
     const note = notes.find((n: Note) => n.id === noteId);
     if (!note) return;
 
+    // Get the folder ID for this note (null for root notes)
+    const noteFolderId = (note.folder as any)?.id || null;
+
+    // Filter notes by the same folder context
+    const folderNotes = notes.filter((n: Note) => {
+      const folderId = (n.folder as any)?.id || null;
+      return folderId === noteFolderId;
+    });
+
     if (pinned) {
-      // When pinning, move to top by setting position to negative of current timestamp
-      // This ensures it appears at the top of pinned notes
-      const pinnedNotes = notes.filter((n: Note) => n.pinned && n.id !== noteId);
+      // When pinning, move to top by setting position to be at the top of pinned notes in the same folder
+      const pinnedNotes = folderNotes.filter((n: Note) => n.pinned && n.id !== noteId);
       const maxPinnedPosition = pinnedNotes.length > 0
         ? Math.min(...pinnedNotes.map((n: Note) => n.position || 0))
         : 0;
@@ -34,8 +42,8 @@ export function usePinNote() {
         })
       ]);
     } else {
-      // When unpinning, move to end of unpinned notes
-      const unpinnedNotes = notes.filter((n: Note) => !n.pinned && n.id !== noteId);
+      // When unpinning, move to end of unpinned notes in the same folder
+      const unpinnedNotes = folderNotes.filter((n: Note) => !n.pinned && n.id !== noteId);
       const maxUnpinnedPosition = unpinnedNotes.length > 0
         ? Math.max(...unpinnedNotes.map((n: Note) => n.position || 0))
         : Date.now();

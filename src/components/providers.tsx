@@ -3,6 +3,7 @@
 import { ToastProvider } from "@/components/error-toast";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ShortcutProvider } from "@/components/shortcut-provider";
+import { ThemeProvider } from "@/lib/theme/theme-context";
 import { useEffect } from "react";
 
 type props = {
@@ -24,12 +25,14 @@ export function Providers({ children }: props) {
     }, []);
 
     return (
-        <ToastProvider>
-            <TooltipProvider delayDuration={50}>
-                <ShortcutProvider>
-                    {children}
-                </ShortcutProvider>
-            </TooltipProvider>
-        </ToastProvider>
+        <ThemeProvider>
+            <ToastProvider>
+                <TooltipProvider delayDuration={50}>
+                    <ShortcutProvider>
+                        {children}
+                    </ShortcutProvider>
+                </TooltipProvider>
+            </ToastProvider>
+        </ThemeProvider>
     )
 }

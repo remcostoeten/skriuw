@@ -7,8 +7,11 @@ const nextConfig: NextConfig = {
   },
   // For workspace monorepo path resolution with pnpm
   outputFileTracingRoot: process.cwd(),
-  // Generate static export for Tauri
-  output: 'export',
+  // Disable static export for now - the app uses client-side hooks that break static generation
+  // output: 'export',
+  // Disable all static generation
+  trailingSlash: false,
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;

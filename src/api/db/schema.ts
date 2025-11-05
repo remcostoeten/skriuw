@@ -54,6 +54,12 @@ export const schema = i.graph(
       // optional key/value to store field deltas as JSON string
       meta: i.string().optional(),
     }),
+    userSettings: i.entity({
+      key: i.string().indexed(),
+      value: i.any(),
+      createdAt: i.number().indexed(),
+      updatedAt: i.number(),
+    }),
   },
   {
     noteTasks: {
@@ -230,5 +236,13 @@ export type Folder = {
   parent?: Folder;
   children?: Folder[];
   notes?: Note[];
+};
+
+export type UserSetting = {
+  id: string;
+  key: string;
+  value: any;
+  createdAt: number;
+  updatedAt: number;
 };
 
