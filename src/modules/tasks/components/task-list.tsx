@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useGetTasks } from "@/modules/tasks/api/queries/get-tasks";
 import { useCreateTask } from "@/modules/tasks/api/mutations/create";
 import { useUpdateTask } from "@/modules/tasks/api/mutations/update";
 import { useDestroyTask } from "@/modules/tasks/api/mutations/destroy";
 import { useAddTaskComment } from "@/modules/tasks/api/mutations/add-comment";
+import { useGetProjects } from "@/modules/projects/api/queries/get-projects";
 import { applyList, savedLists } from "@/modules/tasks/utils/saved-filters";
 import type { Task } from "@/api/db/schema";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -29,9 +30,12 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
     const { updateTask } = useUpdateTask();
     const { destroyTask } = useDestroyTask();
     const { addComment } = useAddTaskComment();
+    const { projects } = useGetProjects();
 
     const [newTask, setNewTask] = useState("");
     const [listId, setListId] = useState<string | null>(null);
+    const [newTaskId, setNewTaskId] = useState<string | null>(null);
+    const editorRefs = useRef<Record<string, any>>({});
 
     const nextPosition = useMemo(() => {
         if (!tasks || tasks.length === 0) return 0;
@@ -43,8 +47,11 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
     async function handleAddTask() {
         const trimmed = newTask.trim();
         if (!trimmed) return;
-        await createTask({ noteId: noteId ?? undefined, content: trimmed, position: nextPosition });
+        const result = await createTask({ noteId: noteId ?? undefined, content: trimmed, position: nextPosition });
         setNewTask("");
+        if (result && result.id) {
+            setNewTaskId(result.id);
+        }
     }
 
     async function handleToggleTask(taskId: string, completed: boolean) {
@@ -55,6 +62,10 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
         await destroyTask(taskId);
     }
 
+    async function handleAssignProject(taskId: string, projectId: string | null) {
+        await updateTask(taskId, { projectId });
+    }
+
     function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === "Enter") {
             e.preventDefault();
@@ -63,6 +74,35 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
     }
 
     const isDisabled = false;
+
+    // Focus on newly created task
+    useEffect(() => {
+        if (newTaskId && editorRefs.current[newTaskId]) {
+            const editor = editorRefs.current[newTaskId];
+            if (editor && editor.commands && editor.commands.focus) {
+                // Focus the editor and select all content
+                setTimeout(() => {
+                    editor.commands.focus('end');
+                    editor.commands.selectAll();
+                }, 50); // Small delay to ensure DOM is ready
+            }
+            // Clear the new task ID after focusing
+            setNewTaskId(null);
+        }
+    }, [newTaskId, tasks, providedTasks]);
+
+    // Cleanup editor refs when component unmounts or tasks change
+    useEffect(() => {
+        return () => {
+            // Clear refs for tasks that no longer exist
+            const currentTaskIds = new Set(tasks.map(t => t.id));
+            Object.keys(editorRefs.current).forEach(id => {
+                if (!currentTaskIds.has(id)) {
+                    delete editorRefs.current[id];
+                }
+            });
+        };
+    }, [tasks]);
 
     return (
         <div className="pt-8 border-t border-border/50">
@@ -100,13 +140,32 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                 className="mt-1"
                             />
                             <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <InlineTaskEditor task={task} onUpdate={(html) => updateTask(task.id, { content: html })} />
-                                    {task.project && (
-                                        <span className="text-xs text-foreground/80 bg-muted px-1.5 py-0.5 rounded">
-                                            {task.project.title}
-                                        </span>
-                                    )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <InlineTaskEditor
+                                        task={task}
+                                        onUpdate={(html) => updateTask(task.id, { content: html })}
+                                        onEditorReady={(editor) => {
+                                            editorRefs.current[task.id] = editor;
+                                        }}
+                                    />
+                                    <Select
+                                        value={task.project?.id ?? "no-project"}
+                                        onValueChange={(value) => handleAssignProject(task.id, value === "no-project" ? null : value)}
+                                    >
+                                        <SelectTrigger className="w-24 h-6 text-xs">
+                                            <SelectValue placeholder="Project" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="no-project">No Project</SelectItem>
+                                            {projects
+                                                .filter((p) => p.status === 'active')
+                                                .map((project) => (
+                                                    <SelectItem key={project.id} value={project.id}>
+                                                        {project.title}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                             {/* status removed to match schema */}
@@ -153,7 +212,13 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                             className="mt-1"
                                         />
                                         <div className="flex-1">
-                                            <InlineTaskEditor task={st} onUpdate={(html) => updateTask(st.id, { content: html })} />
+                                            <InlineTaskEditor
+                                            task={st}
+                                            onUpdate={(html) => updateTask(st.id, { content: html })}
+                                            onEditorReady={(editor) => {
+                                                editorRefs.current[st.id] = editor;
+                                            }}
+                                        />
                                         </div>
                                     </div>
                                 ))}
@@ -206,9 +271,13 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
 
 export default TaskList;
 
-type InlineTaskEditorProps = { task: Task; onUpdate: (html: string) => void };
+type InlineTaskEditorProps = {
+    task: Task;
+    onUpdate: (html: string) => void;
+    onEditorReady?: (editor: any) => void;
+};
 
-function InlineTaskEditor({ task, onUpdate }: InlineTaskEditorProps) {
+function InlineTaskEditor({ task, onUpdate, onEditorReady }: InlineTaskEditorProps) {
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
@@ -223,7 +292,14 @@ function InlineTaskEditor({ task, onUpdate }: InlineTaskEditorProps) {
                 onUpdate(html);
             }
         }
-    }, [task.id]);
+    }, [task.id, onEditorReady]);
+
+    // Call onEditorReady when editor is created
+    useEffect(() => {
+        if (editor && onEditorReady) {
+            onEditorReady(editor);
+        }
+    }, [editor, onEditorReady]);
 
     return <EditorContent editor={editor} />;
 }

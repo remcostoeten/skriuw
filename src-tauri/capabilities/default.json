@@ -11,6 +11,12 @@
     "dialog:allow-open",
     "dialog:default",
     "fs:allow-write-file",
-    "core:path:default"
+    "core:path:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-save"
   ]
 }

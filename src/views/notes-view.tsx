@@ -148,11 +148,24 @@ export function NotesView() {
 			className="flex h-screen sm:h-screen bg-background"
 			style={{ height: 'calc(100vh - env(safe-area-inset-bottom))' }}
 		>
-			<FileTreeSidebar
-				onNoteSelect={handleNoteSelectFromSidebar}
-				onNoteCreate={handleCreateNoteFromSidebar}
-				selectedNoteId={selectedNote?.id}
-			/>
+		<FileTreeSidebar
+			onNoteSelect={handleNoteSelectFromSidebar}
+			onNoteCreate={handleCreateNoteFromSidebar}
+			onNoteDuplicate={async (noteId: string) => {
+				// Wait for note to appear in list, then select it
+				const checkInterval = setInterval(() => {
+					const note = notes.find((n: Note) => n.id === noteId)
+					if (note) {
+						clearInterval(checkInterval)
+						setSelectedNoteId(noteId)
+					}
+				}, 50)
+				// Clear interval after 2 seconds if note doesn't appear
+				setTimeout(() => clearInterval(checkInterval), 2000)
+				return noteId
+			}}
+			selectedNoteId={selectedNote?.id}
+		/>
 
 			<div className="flex-1 relative sm:ml-[220px] ml-0">
 				{selectedNote ? (

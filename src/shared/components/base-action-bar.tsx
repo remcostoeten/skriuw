@@ -22,6 +22,7 @@ type SearchConfig = {
     close: () => void;
     toggle?: () => void;
     updateOptions: (option: 'caseSensitive' | 'wholeWord') => void;
+    isOpen?: boolean;
 };
 
 type InputConfig = {
@@ -52,11 +53,16 @@ export function BaseActionBar({
     inputConfig,
     expandConfig,
 }: props) {
-    const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [isInputVisible, setIsInputVisible] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Use searchState.isOpen if provided, otherwise fall back to local state
+    const [localSearchVisible, setLocalSearchVisible] = useState(false);
+    const isSearchVisible = searchConfig?.isOpen !== undefined
+        ? searchConfig.isOpen
+        : localSearchVisible;
 
     useEffect(() => {
         if (isSearchVisible && searchInputRef.current) {
@@ -78,15 +84,17 @@ export function BaseActionBar({
     const handleSearchToggle = useCallback(() => {
         if (searchToggle) {
             searchToggle();
+        } else {
+            setLocalSearchVisible((prev) => !prev);
         }
-        setIsSearchVisible((prev) => !prev);
     }, [searchToggle]);
 
     const handleSearchClose = useCallback(() => {
         if (searchClose) {
             searchClose();
+        } else {
+            setLocalSearchVisible(false);
         }
-        setIsSearchVisible(false);
     }, [searchClose]);
 
     const handleInputToggle = useCallback(() => {

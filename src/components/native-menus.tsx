@@ -3,8 +3,8 @@
  * Works in both web and Tauri environments
  */
 
-import { useEffect, useCallback } from 'react';
-import { isTauri, NativeUtils } from '@/utils/native-utils';
+import { isTauri } from '@/utils/native-utils';
+import { useCallback, useEffect } from 'react';
 
 export type MenuItemType = 'separator' | 'submenu' | 'item';
 
@@ -24,7 +24,6 @@ export interface MenuConfig {
   items: NativeMenuItem[];
 }
 
-// Default application menu structure
 export const defaultAppMenu: MenuConfig[] = [
   {
     id: 'file',
