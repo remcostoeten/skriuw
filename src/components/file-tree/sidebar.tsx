@@ -606,6 +606,7 @@ export const Sidebar = ({
 							onClick={handleNoteClick}
 							isDragged={dragState.draggedNoteId === note.id}
 							draggedNoteId={dragState.draggedNoteId}
+							draggedFolderId={dragState.draggedFolderId}
 							onDragStart={() => handleDragStart('note', note.id)}
 							onDragEnd={handleDragEnd}
 							onNoteReorder={handleNoteReorder}
