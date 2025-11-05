@@ -1,4 +1,4 @@
-import { AppNavigationSidebar } from '@/components/app-navigation-sidebar'
+import { Navigation } from '@/components/navigation'
 import { Providers } from '@/components/providers'
 import { metadata, viewport } from '@/core/config/metadata'
 import { geistSans, geistMono } from '@/core/config/fonts'
@@ -72,9 +72,9 @@ export default function RootLayout({
 			</head>
 			<body
 				suppressHydrationWarning
-				className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
+				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
-				<AppNavigationSidebar />
+				<Navigation />
 				<div className="sm:pl-12 pb-16 sm:pb-0">
 					<Providers>{children}</Providers>
 				</div>

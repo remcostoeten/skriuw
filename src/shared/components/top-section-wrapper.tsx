@@ -1,8 +1,7 @@
 import { cn } from 'utils';
-import type { ReactNode } from 'react';
 
 type props = {
-	children: ReactNode;
+	children: React.ReactNode;
 	isInputVisible?: boolean;
 	className?: string;
 }

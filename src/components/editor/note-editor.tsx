@@ -2,7 +2,8 @@
 
 import type { Note } from '@/api/db/schema';
 import { ErrorBoundary } from '@/components/error-boundary';
-import MentionList from '@/components/mention-list';
+import { SyncStatus } from '@/components/loading-states';
+import MentionList from '@/components/editor/mention-list';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import Mention from '@tiptap/extension-mention';

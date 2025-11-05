@@ -5,48 +5,44 @@ import { usePathname } from 'next/navigation'
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
+	Separator,
 	TooltipTrigger
-} from '@/components/ui/tooltip'
+} from '@/shared/components/ui'
 import { Logo } from './logo'
-import { Separator } from '@/shared/components/ui/separator'
 import { TopSectionWrapper } from '@/shared/components/top-section-wrapper'
 
-interface NavIconProps {
+type props = {
 	children: React.ReactNode
 	href: string
 	label: string
 	isActive?: boolean
 }
 
-function NavIcon({ children, href, label, isActive }: NavIconProps) {
+function NavIcon({ children, href, label, isActive }: props) {
 	return (
-		<TooltipProvider delayDuration={0}>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Link
-						href={href}
-						aria-label={label}
-						aria-current={isActive ? 'page' : undefined}
-						className={`group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background ${
-							isActive
-								? 'bg-muted'
-								: 'hover:bg-muted/50'
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Link
+					href={href}
+					aria-label={label}
+					aria-current={isActive ? 'page' : undefined}
+					className={`group relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background ${isActive
+							? 'bg-muted'
+							: 'hover:bg-muted/50'
 						}`}
-					>
-						<div className="transition-opacity group-hover:opacity-90">
-							{children}
-						</div>
-					</Link>
-				</TooltipTrigger>
-				<TooltipContent
-					side="right"
-					className="font-medium hidden sm:block"
 				>
-					{label}
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+					<div className="transition-opacity group-hover:opacity-90">
+						{children}
+					</div>
+				</Link>
+			</TooltipTrigger>
+			<TooltipContent
+				side="right"
+				className="font-medium hidden sm:block"
+			>
+				{label}
+			</TooltipContent>
+		</Tooltip>
 	)
 }
 
@@ -199,12 +195,11 @@ function SettingsIcon() {
 	)
 }
 
-export function AppNavigationSidebar() {
+export function Navigation() {
 	const pathname = usePathname()
 
 	return (
 		<>
-			{/* Desktop sidebar */}
 			<aside
 				className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center border-r overflow-hidden bg-background"
 				style={{

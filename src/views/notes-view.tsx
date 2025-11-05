@@ -3,13 +3,14 @@
 import type { Note } from '@/api/db/schema'
 import { NoteEditor } from '@/components/editor/note-editor'
 import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar'
+import { NotesViewSkeleton } from '@/components/shells/skeletons/notes-view-skeleton'
 import { useCreateNote } from '@/modules/notes/api/mutations/create'
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'
 import { DockManager } from '@/utils/dock-utils'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-export function NotesView() {
+export default function NotesView() {
 	const { notes, isLoading } = useGetNotes()
 	const { createNote } = useCreateNote()
 	const { destroyNote } = useDestroyNote()
@@ -136,11 +137,7 @@ export function NotesView() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="h-screen flex items-center justify-center">
-				<p className="text-sm text-muted-foreground">Loading...</p>
-			</div>
-		)
+		return <NotesViewSkeleton />
 	}
 
 	return (
