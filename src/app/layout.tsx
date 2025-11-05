@@ -170,16 +170,14 @@ export default function RootLayout({
 			</head>
 			<body
 				suppressHydrationWarning
-				className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
+				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
 				<AppNavigationSidebar />
 				<div className="sm:pl-12 pb-16 sm:pb-0">
-					<nav className="bg-gray-900 text-white p-4 border-b border-gray-800">
+					<nav className="bg-background text-foreground p-4 border-b border-border">
 						<div className="max-w-7xl mx-auto flex justify-between items-center">
-							<h1 className="text-xl font-bold">
-								InstantDB Notes
-							</h1>
-							<div className="flex space-x-6">
+							<h1 className="text-xl font-bold">InstantDB Notes</h1>
+							<div className="flex items-center gap-4">
 								<Link href="/">Notes</Link>
 								<Link
 									href="/platform-demo"
@@ -193,6 +191,18 @@ export default function RootLayout({
 								>
 									Tasks
 								</Link>
+								{/* Theme toggle */}
+								{typeof window !== 'undefined' && (
+									// eslint-disable-next-line @next/next/no-sync-scripts
+									<script
+										dangerouslySetInnerHTML={{
+											__html: `(() => { try { const s = localStorage.getItem('theme'); const m = window.matchMedia('(prefers-color-scheme: dark)').matches; const t = s || (m ? 'dark' : 'light'); const r = document.documentElement; r.classList.remove('light','dark'); r.classList.add(t);} catch (e) {} })();`
+										}}
+									/>
+								)}
+								{/* Render toggle button */}
+								{/* @ts-expect-error Server Component imports client */}
+								{require('@/components/theme/theme-toggle').ThemeToggle?.()}
 							</div>
 						</div>
 					</nav>
