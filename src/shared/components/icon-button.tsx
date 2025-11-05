@@ -2,7 +2,7 @@ import {
     Tooltip,
     TooltipContent,
     TooltipTrigger
-} from "@/components/ui/tooltip";
+} from "@/shared/components/ui/tooltip";
 import * as React from "react";
 import { cn } from "utils";
 

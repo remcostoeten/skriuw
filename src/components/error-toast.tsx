@@ -6,7 +6,7 @@ import React, { createContext, useCallback, useContext, useState } from 'react';
 
 type ToastType = 'error' | 'success' | 'warning' | 'info';
 
-interface Toast {
+type props = {
   id: string;
   type: ToastType;
   title: string;
@@ -18,16 +18,15 @@ interface Toast {
   };
 }
 
-interface ToastContextType {
-  showToast: (toast: Omit<Toast, 'id'>) => void;
-  showError: (title: string, message?: string, action?: Toast['action']) => void;
+type ctx = {
+  showToast: (toast: Omit<props, 'id'>) => void;
+  showError: (title: string, message?: string, action?: props['action']) => void;
   showSuccess: (title: string, message?: string) => void;
   showWarning: (title: string, message?: string) => void;
   showInfo: (title: string, message?: string) => void;
   clearToast: (id: string) => void;
 }
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const ToastContext = createContext<ctx | undefined>(undefined);
 
 export function useToast() {
   const context = useContext(ToastContext);
@@ -46,9 +45,9 @@ export function useToast() {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toasts, setToasts] = useState<props[]>([]);
 
-  const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
+  const showToast = useCallback((toast: Omit<props, 'id'>) => {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast = { ...toast, id };
 
@@ -67,7 +66,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const showError = useCallback((title: string, message?: string, action?: Toast['action']) => {
+  const showError = useCallback((title: string, message?: string, action?: props['action']) => {
     showToast({ type: 'error', title, message, action });
   }, [showToast]);
 
@@ -83,7 +82,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     showToast({ type: 'info', title, message });
   }, [showToast]);
 
-  const value: ToastContextType = {
+  const value: ctx = {
     showToast,
     showError,
     showSuccess,
@@ -100,7 +99,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ToastContainer({ toasts, onClear }: { toasts: Toast[]; onClear: (id: string) => void }) {
+function ToastContainer({ toasts, onClear }: { toasts: props[]; onClear: (id: string) => void }) {
   if (toasts.length === 0) return null;
 
   return (
@@ -112,7 +111,7 @@ function ToastContainer({ toasts, onClear }: { toasts: Toast[]; onClear: (id: st
   );
 }
 
-function ToastItem({ toast, onClear }: { toast: Toast; onClear: (id: string) => void }) {
+function ToastItem({ toast, onClear }: { toast: props; onClear: (id: string) => void }) {
   const getIcon = () => {
     switch (toast.type) {
       case 'error':
