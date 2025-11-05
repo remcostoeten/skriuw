@@ -1,7 +1,8 @@
 import type { Folder, Note } from "@/api/db/schema";
 import { ActionBar } from "@/components/file-tree/action-bar";
 import { useDragState } from "@/hooks/use-drag-state";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useUnifiedShortcuts } from "@/hooks/use-unified-shortcuts";
+import { useDestroyFolder } from "@/modules/folders/api/mutations/destroy";
 import { useMoveFolder, useMoveFolderToRoot } from "@/modules/folders/api/mutations/move";
 import { useUpdateFolder } from "@/modules/folders/api/mutations/update";
 import { useGetFolders } from "@/modules/folders/api/queries/get-folders";
@@ -47,6 +48,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
     const dragState = useDragState();
     const { moveFolder } = useMoveFolder();
     const { moveFolderToRoot } = useMoveFolderToRoot();
+    const { destroyFolder } = useDestroyFolder();
     const { moveNote } = useMoveNote();
     const { moveNoteToRoot } = useMoveNoteToRoot();
     const { reorderNote } = useReorderNote();
@@ -85,11 +87,6 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
         return () => console.log('[Sidebar] Unmounting - unregistering shortcut handlers')
     }, [handleToggleSearch, handleNewNote])
 
-    useKeyboardShortcuts({
-        'CmdOrCtrl+F': handleToggleSearch,
-        'CmdOrCtrl+N': handleNewNote,
-    });
-
     useEffect(() => {
         if (!dragState.draggedFolderId && !dragState.draggedNoteId) {
             dragState.clearDragOver();
@@ -101,7 +98,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
         [folders]
     );
     const rootNotes = useMemo(() =>
-        notes.filter((n: Note) => !(n.folder as any)),
+        notes.filter((n: Note) => !(n.folder as any)?.id),
         [notes]
     );
 
@@ -185,6 +182,25 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
         setIsExpanded(!isExpanded);
     }, [isExpanded, displayFolders]);
 
+    // Register unified shortcuts
+    useUnifiedShortcuts([
+        {
+            id: 'toggle-search',
+            handler: handleToggleSearch
+        },
+        {
+            id: 'new-note',
+            handler: handleNewNote
+        },
+        {
+            id: 'toggle-folders',
+            handler: handleExpandToggle
+        }
+    ], {
+        context: 'file-tree',
+        enabled: true
+    });
+
     const toggleFolder = (folderId: string) => {
         setOpenFolders(prev => {
             const next = new Set(prev);
@@ -202,6 +218,38 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
             await updateFolder(id, { name: newName });
         } catch (error) {
             console.error("Failed to rename folder:", error);
+        }
+    };
+
+    const handleFolderDelete = async (id: string) => {
+        try {
+            await destroyFolder(id);
+        } catch (error) {
+            console.error("Failed to delete folder:", error);
+        }
+    };
+
+    const handleFolderMove = async (folderId: string, targetFolderId: string | null) => {
+        try {
+            if (targetFolderId === null) {
+                await moveFolderToRoot({ draggedFolderId: folderId, folders });
+            } else {
+                await moveFolder({
+                    draggedFolderId: folderId,
+                    targetFolderId,
+                    position: 'inside',
+                    folders,
+                });
+                // Expand the target folder
+                const pathToExpand = getFolderPath(targetFolderId);
+                setOpenFolders(prev => {
+                    const next = new Set(prev);
+                    pathToExpand.forEach(folderId => next.add(folderId));
+                    return next;
+                });
+            }
+        } catch (error) {
+            console.error("Failed to move folder:", error);
         }
     };
 
@@ -512,6 +560,7 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
 
     return (
         <nav
+            data-context="file-tree"
             className={cn(
                 " left-[220px] flex flex-col justify-start items-center bg-background overflow-y-auto",
                 "transform transition-all duration-300 border-r"
@@ -599,6 +648,8 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
                             onNoteDuplicate={handleNoteDuplicate}
                             onNoteMove={handleNoteMove}
                             onNotePin={handleNotePin}
+                            onFolderDelete={handleFolderDelete}
+                            onFolderMove={handleFolderMove}
                             isFocused={isItemFocused('folder', folder.id)}
                             onFocus={() => handleItemFocus('folder', folder.id)}
                             isItemFocused={isItemFocused}
@@ -626,6 +677,8 @@ export const Sidebar = ({ onNoteSelect, onNoteCreate, onNoteDuplicate, selectedN
                             onNoteDelete={handleNoteDelete}
                             onNoteDuplicate={handleNoteDuplicate}
                             onNoteMove={handleNoteMove}
+                            onNotePin={handleNotePin}
+                            pinned={note.pinned || false}
                             folders={folders}
                             isFocused={isItemFocused('note', note.id)}
                             onFocus={() => handleItemFocus('note', note.id)}

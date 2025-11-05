@@ -149,6 +149,7 @@ export function NotesView() {
             }, 50);
             // Clear interval after 2 seconds if note doesn't appear
             setTimeout(() => clearInterval(checkInterval), 2000);
+            return noteId;
           }}
           selectedNoteId={selectedNote?.id}
         />

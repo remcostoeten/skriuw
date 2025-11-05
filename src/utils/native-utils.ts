@@ -3,11 +3,9 @@
  * Works in both web and Tauri environments
  */
 
-// Check if we're running in Tauri
 export const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 
-// Lazy load Tauri APIs only when needed
-const loadTauriAPIs = async () => {
+async function loadTauriAPIs() {
   if (!isTauri) return null;
 
   try {
@@ -26,7 +24,7 @@ const loadTauriAPIs = async () => {
 /**
  * Native Dialogs
  */
-export interface DialogOptions {
+type props = {
   title?: string;
   message?: string;
   defaultPath?: string;
@@ -36,7 +34,7 @@ export interface DialogOptions {
   }>;
 }
 
-export interface DialogResult {
+type Res = {
   path?: string;
   success: boolean;
   cancelled: boolean;
@@ -46,7 +44,7 @@ export class NativeDialogs {
   /**
    * Show a file save dialog
    */
-  static async saveFile(options: DialogOptions = {}): Promise<DialogResult> {
+  static async saveFile(options: props = {}): Promise<Res> {
     if (!isTauri) {
       // Web fallback: use download link
       return this.webSaveFile(options);
@@ -78,7 +76,7 @@ export class NativeDialogs {
   /**
    * Show a file open dialog
    */
-  static async openFile(options: DialogOptions = {}): Promise<DialogResult> {
+  static async openFile(options: props = {}): Promise<Res> {
     if (!isTauri) {
       // Web fallback: use file input
       return this.webOpenFile(options);
@@ -160,7 +158,7 @@ export class NativeDialogs {
     }
   }
 
-  private static webSaveFile(options: DialogOptions): Promise<DialogResult> {
+  private static webSaveFile(options: props): Promise<Res> {
     return new Promise((resolve) => {
       // Create a temporary file input for web fallback
       const input = document.createElement('input');
@@ -184,7 +182,7 @@ export class NativeDialogs {
     });
   }
 
-  private static webOpenFile(options: DialogOptions): Promise<DialogResult> {
+  private static webOpenFile(options: props): Promise<Res> {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';

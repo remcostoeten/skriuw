@@ -1,8 +1,9 @@
-import { cn } from "utils";
+import type { Folder as TFolder } from "@/api/db/schema";
+import { useUserSetting } from "@/hooks/use-user-setting";
+import { ChevronRight, Copy, Edit2, Eye, Folder, FolderOpen, Pin, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "utils";
 import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
-import { Eye, Folder, FolderOpen, Edit2, Copy, Pin, Trash2, ChevronRight } from "lucide-react";
-import type { Folder } from "@/api/db/schema";
 
 interface FileItemProps {
     id: string;
@@ -22,7 +23,7 @@ interface FileItemProps {
     onNoteMove?: (noteId: string, folderId: string | null) => void;
     onNotePin?: (noteId: string, pinned: boolean) => Promise<void>;
     pinned?: boolean;
-    folders?: Folder[];
+    folders?: TFolder[];
     isFocused?: boolean;
     onFocus?: () => void;
 }
@@ -56,6 +57,9 @@ export const FileItem = ({
     const noteRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Get setting for allowing delete without context menu
+    const [allowDeleteWithoutContextMenu] = useUserSetting<boolean>('allowDeleteWithoutContextMenu', false);
+
     useEffect(() => {
         if (isEditing && inputRef.current) {
             const timer = setTimeout(() => {
@@ -72,43 +76,56 @@ export const FileItem = ({
         setEditName(name);
     }, [name]);
 
+    // Clear drag over state when drag ends (draggedNoteId becomes null)
+    useEffect(() => {
+        if (!draggedNoteId) {
+            setDragOverState(null);
+        }
+    }, [draggedNoteId]);
+
     // Handle keyboard shortcuts when context menu is open
     useEffect(() => {
         if (!isContextMenuOpen) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Check for Shift+R (Rename)
-            if (e.shiftKey && e.key === 'R' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            if (e.shiftKey && (e.key === 'R' || e.key === 'r') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
                 setIsContextMenuOpen(false);
-                // Use setTimeout to ensure context menu closes before focusing input
-                setTimeout(() => {
-                    setIsEditing(true);
-                    setEditName(name);
-                }, 0);
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        setIsEditing(true);
+                        setEditName(name);
+                        setTimeout(() => {
+                            if (inputRef.current) {
+                                inputRef.current.focus();
+                                inputRef.current.select();
+                            }
+                        }, 50);
+                    }, 100);
+                });
                 return;
             }
 
-            // Check for Shift+D (Duplicate)
-            if (e.shiftKey && e.key === 'D' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            // Check for Shift+D (Duplicate) - check both uppercase and lowercase
+            if (e.shiftKey && (e.key === 'D' || e.key === 'd') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
                 setIsContextMenuOpen(false);
                 setTimeout(async () => {
                     await onNoteDuplicate?.(id);
-                }, 0);
+                }, 100);
                 return;
             }
 
-            // Check for Shift+P (Pin/Unpin)
-            if (e.shiftKey && e.key === 'P' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            // Check for Shift+P (Pin/Unpin) - check both uppercase and lowercase
+            if (e.shiftKey && (e.key === 'P' || e.key === 'p') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
                 setIsContextMenuOpen(false);
                 setTimeout(async () => {
                     await onNotePin?.(id, !pinned);
-                }, 0);
+                }, 100);
                 return;
             }
 
@@ -119,8 +136,29 @@ export const FileItem = ({
                 setIsContextMenuOpen(false);
                 setTimeout(() => {
                     onNoteDelete?.(id);
-                }, 0);
+                }, 100);
                 return;
+            }
+        };
+
+        // Use capture phase to catch events before context menu handles them
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown, true);
+        };
+    }, [isContextMenuOpen, name, id, onNoteDuplicate, onNoteDelete, onNotePin, pinned]);
+
+    // Handle delete shortcut when context menu is closed (if setting enabled)
+    useEffect(() => {
+        if (!allowDeleteWithoutContextMenu || isContextMenuOpen || isEditing) return;
+        if (!(isFocused || isActive)) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check for Shift+Backspace (Delete)
+            if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                onNoteDelete?.(id);
             }
         };
 
@@ -128,7 +166,7 @@ export const FileItem = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isContextMenuOpen, name, id, onNoteDuplicate, onNoteDelete, onNotePin, pinned]);
+    }, [allowDeleteWithoutContextMenu, isContextMenuOpen, isEditing, isFocused, isActive, id, onNoteDelete]);
 
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -255,7 +293,7 @@ export const FileItem = ({
 
     // Build folder hierarchy for "Move to" submenu - recursively shows nested folders
     const buildFolderTree = (parentId: string | null = null, excludeId?: string): SubMenuItem[] => {
-        const childFolders = folders.filter((f: Folder) => {
+        const childFolders = folders.filter((f: TFolder) => {
             const folderParentId = (f.parent as any)?.id || null;
             return folderParentId === parentId && f.id !== excludeId && !f.deletedAt;
         });
@@ -264,7 +302,7 @@ export const FileItem = ({
             return [];
         }
 
-        return childFolders.map((folder: Folder) => {
+        return childFolders.map((folder: TFolder) => {
             const subFolders = buildFolderTree(folder.id, excludeId);
             return {
                 id: folder.id,
@@ -365,8 +403,13 @@ export const FileItem = ({
 
     return (
         <div className="relative w-full">
-            {dragOverState === 'before' && (
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+            {draggedNoteId && dragOverState === 'before' && (
+                <div
+                    className="absolute top-0 left-0 right-0 h-px z-10"
+                    style={{
+                        background: 'linear-gradient(to right, transparent, hsl(var(--primary)), transparent)',
+                    }}
+                />
             )}
             <ItemContextMenu
                 items={contextMenuItems}
@@ -388,7 +431,7 @@ export const FileItem = ({
                         "h-7 w-full rounded-md px-3 text-xs font-medium",
                         "flex items-center gap-2 justify-start",
                         "transition-all hover:text-foreground active:scale-[0.98]",
-                        isActive && !isEditing
+                        (isActive || isContextMenuOpen) && !isEditing
                             ? "bg-accent text-foreground"
                             : "text-secondary-foreground/80 hover:bg-accent",
                         pinned && "bg-accent/50",
@@ -418,16 +461,23 @@ export const FileItem = ({
                             onClick={(e) => e.stopPropagation()}
                             onMouseDown={(e) => e.stopPropagation()}
                             onDoubleClick={(e) => e.stopPropagation()}
-                            className="flex-1 bg-transparent outline-none border-none p-0 m-0 text-inherit font-inherit truncate min-w-0 select-text"
+                            className="flex-1 bg-transparent outline-none border-none p-0 m-0 text-inherit font-inherit truncate min-w-0 select-text cursor-text"
                             style={{ width: '100%', caretColor: 'hsl(var(--foreground))' }}
                         />
                     ) : (
-                        <span className="truncate">{name}</span>
+                        <span className="truncate cursor-text">
+                            {name}
+                        </span>
                     )}
                 </div>
             </ItemContextMenu>
-            {dragOverState === 'after' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+            {draggedNoteId && dragOverState === 'after' && (
+                <div
+                    className="absolute bottom-0 left-0 right-0 h-px z-10"
+                    style={{
+                        background: 'linear-gradient(to right, transparent, hsl(var(--primary)), transparent)',
+                    }}
+                />
             )}
         </div>
     );
