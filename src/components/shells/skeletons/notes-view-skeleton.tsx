@@ -87,7 +87,7 @@ export function NotesViewSkeleton() {
 						{/* Content lines skeleton */}
 						<div className="space-y-3 pt-4">
 							{Array.from({ length: 8 }).map((_, i) => (
-								<div
+								<span
 									key={i}
 									className="h-5 rounded bg-muted animate-pulse"
 									style={{

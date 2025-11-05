@@ -4,8 +4,9 @@ import { ChevronRight, Copy, Edit2, Eye, Folder, FolderOpen, Pin, Trash2 } from 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "utils";
 import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
 
-interface FileItemProps {
+type props = {
     id: string;
     name: string;
     path: string;
@@ -14,6 +15,7 @@ interface FileItemProps {
     onClick?: (id: string) => void;
     isDragged?: boolean;
     draggedNoteId?: string | null;
+    draggedFolderId?: string | null;
     onDragStart?: () => void;
     onDragEnd?: () => void;
     onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
@@ -37,6 +39,7 @@ export const FileItem = ({
     onClick,
     isDragged = false,
     draggedNoteId,
+    draggedFolderId,
     onDragStart,
     onDragEnd,
     onNoteReorder,
@@ -49,7 +52,7 @@ export const FileItem = ({
     folders = [],
     isFocused = false,
     onFocus,
-}: FileItemProps) => {
+}: props) => {
     const [dragOverState, setDragOverState] = useState<'before' | 'after' | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(name);
@@ -198,6 +201,7 @@ export const FileItem = ({
         }
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
+        hapticDragStart();
         onDragStart?.();
     };
 
@@ -207,24 +211,46 @@ export const FileItem = ({
     };
 
     const handleDragOver = (e: React.DragEvent) => {
+        // If a folder is being dragged, let it bubble up to folder handlers
+        if (draggedFolderId) return;
+        
+        // Only handle note reordering if we have the handler
         if (!draggedNoteId || draggedNoteId === id || !onNoteReorder) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
 
         const rect = noteRef.current?.getBoundingClientRect();
         if (!rect) return;
 
         const y = e.clientY - rect.top;
         const height = rect.height;
-        const threshold = height / 3;
+        // Use smaller edge zones (20% top/bottom) to allow more space for folder drops
+        const edgeThreshold = height * 0.2;
 
-        const newState: 'before' | 'after' = y < threshold ? 'before' : 'after';
-        setDragOverState(newState);
+        // Only handle if we're in the edge zones (for reordering)
+        // Otherwise, let the event bubble to parent folder for "inside" drops
+        if (y < edgeThreshold) {
+            // Top edge - show "before" indicator
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverState('before');
+        } else if (y > height - edgeThreshold) {
+            // Bottom edge - show "after" indicator
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverState('after');
+        } else {
+            // Middle area - clear our indicators and let it bubble to folder
+            setDragOverState(null);
+            e.preventDefault(); // Still prevent default to allow drop
+            // Don't stopPropagation - let folder handle it
+        }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
+        // If a folder is being dragged, let it bubble
+        if (draggedFolderId) return;
+        
         const rect = noteRef.current?.getBoundingClientRect();
         if (!rect) return;
 
@@ -244,13 +270,24 @@ export const FileItem = ({
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!draggedNoteId || !dragOverState || draggedNoteId === id || !onNoteReorder) return;
-
-        onNoteReorder(draggedNoteId, id, dragOverState);
-        setDragOverState(null);
+        // If a folder is being dragged, let it bubble
+        if (draggedFolderId) return;
+        
+        // Only handle note reordering if we have a drag over state (edge zone)
+        // If no dragOverState, we were in the middle area, so let it bubble to folder
+        if (!draggedNoteId || draggedNoteId === id || !onNoteReorder) return;
+        
+        if (dragOverState) {
+            // We're in an edge zone, handle the reorder
+            e.preventDefault();
+            e.stopPropagation();
+            hapticDrop();
+            onNoteReorder(draggedNoteId, id, dragOverState);
+            setDragOverState(null);
+        } else {
+            // We're in the middle area, let it bubble to the folder
+            setDragOverState(null);
+        }
     };
 
     const handleRename = () => {
@@ -435,12 +472,11 @@ export const FileItem = ({
                             ? "bg-accent text-foreground"
                             : "text-secondary-foreground/80 hover:bg-accent",
                         pinned && "bg-accent/50",
-                        isDragged && "opacity-50 cursor-grabbing",
-                        !isDragged && !isEditing && "cursor-grab active:cursor-grabbing",
                         dragOverState && "bg-accent/20",
-                        isEditing && "select-none focus:outline-none"
+                        isEditing && "select-none focus:outline-none",
+                        getDragClasses({ isDragged, isEditing, isFocused, isActive })
                     )}
-                    style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+                    style={getDragStyles({ level })}
                     tabIndex={isFocused ? 0 : -1}
                     role="treeitem"
                     aria-selected={isFocused || isActive}
@@ -448,7 +484,7 @@ export const FileItem = ({
                     aria-label={`File ${name}`}
                 >
                     {pinned && (
-                        <Pin className="h-3 w-3 text-primary flex-shrink-0" />
+                        <Pin className="h-3 w-3 text-primary shrink-0" />
                     )}
                     {isEditing ? (
                         <input
