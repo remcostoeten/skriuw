@@ -6,6 +6,7 @@ export const schema = i.graph(
       title: i.string(),
       content: i.string(),
       position: i.number(),
+      pinned: i.boolean().optional(),
       createdAt: i.number().indexed(),
       updatedAt: i.number(),
     }),
@@ -52,6 +53,12 @@ export const schema = i.graph(
       createdAt: i.number().indexed(),
       // optional key/value to store field deltas as JSON string
       meta: i.string().optional(),
+    }),
+    userSettings: i.entity({
+      key: i.string().indexed(),
+      value: i.any(),
+      createdAt: i.number().indexed(),
+      updatedAt: i.number(),
     }),
   },
   {
@@ -161,6 +168,7 @@ export type Note = {
   title: string;
   content: string;
   position: number;
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
   tasks?: Task[];
@@ -228,5 +236,13 @@ export type Folder = {
   parent?: Folder;
   children?: Folder[];
   notes?: Note[];
+};
+
+export type UserSetting = {
+  id: string;
+  key: string;
+  value: any;
+  createdAt: number;
+  updatedAt: number;
 };
 

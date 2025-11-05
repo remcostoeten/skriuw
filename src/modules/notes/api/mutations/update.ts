@@ -4,6 +4,7 @@ interface UpdateNoteInput {
   title?: string;
   content?: string;
   position?: number;
+  pinned?: boolean;
 }
 
 export function useUpdateNote() {

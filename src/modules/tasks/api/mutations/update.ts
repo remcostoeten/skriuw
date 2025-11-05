@@ -11,6 +11,7 @@ type props = {
   tags?: string[];
   parentId?: string | null;
   dependsOnIds?: string[];
+  projectId?: string | null;
 };
 
 export function useUpdateTask() {
@@ -33,6 +34,13 @@ export function useUpdateTask() {
       await transact([
         tx.tasks[id].unlink({ dependsOn: null as any }),
         ...input.dependsOnIds.map(depId => tx.tasks[id].link({ dependsOn: depId })),
+      ]);
+    }
+
+    if (input.projectId !== undefined) {
+      await transact([
+        tx.tasks[id].unlink({ project: null as any }),
+        ...(input.projectId ? [tx.tasks[id].link({ project: input.projectId })] : []),
       ]);
     }
     return { id };

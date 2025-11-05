@@ -1,8 +1,10 @@
 import type { Folder as FolderType, Note } from "@/api/db/schema";
-import { cn } from "utils";
-import { Folder, FolderOpen } from "lucide-react";
+import { useUserSetting } from "@/hooks/use-user-setting";
+import { Edit2, Folder, FolderOpen, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "utils";
 import { FileItem } from "./file-item";
+import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
 
 type props = {
     name: string;
@@ -21,7 +23,7 @@ type props = {
     onToggleFolder?: (folderId: string) => void;
     getFolderNotes?: (folderId: string) => Note[];
     getSubFolders?: (folderId: string) => FolderType[];
-    getChildrenCount?: (folderId: string) => number;
+    getChildrenCount?: (foldetorId: string) => number;
     folders?: FolderType[];
     notes?: Note[];
     onDragStartFolder?: (type: 'folder' | 'note', id: string) => void;
@@ -32,7 +34,6 @@ type props = {
     draggedNoteId?: string | null;
     dropPositionGlobal?: 'before' | 'after' | 'inside' | null;
     onDragLeaveFolder?: () => void;
-    // Drag and drop props
     isDragged?: boolean;
     isDragOver?: boolean;
     dropPosition?: 'before' | 'after' | 'inside' | null;
@@ -43,6 +44,12 @@ type props = {
     onDrop?: (position: 'before' | 'after' | 'inside') => void;
     onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
     onNoteRename?: (id: string, newName: string) => void;
+    onNoteDelete?: (id: string) => void;
+    onNoteDuplicate?: (id: string) => Promise<void>;
+    onNoteMove?: (noteId: string, folderId: string | null) => void;
+    onNotePin?: (noteId: string, pinned: boolean) => Promise<void>;
+    onFolderDelete?: (id: string) => void;
+    onFolderMove?: (folderId: string, targetFolderId: string | null) => void;
     isFocused?: boolean;
     onFocus?: () => void;
     isItemFocused?: (type: 'folder' | 'note', id: string) => boolean;
@@ -51,7 +58,6 @@ type props = {
 
 export const FolderItem = ({
     name,
-    path,
     id,
     files,
     subFolders = [],
@@ -87,6 +93,12 @@ export const FolderItem = ({
     onDrop,
     onNoteReorder,
     onNoteRename,
+    onNoteDelete,
+    onNoteDuplicate,
+    onNoteMove,
+    onNotePin,
+    onFolderDelete,
+    onFolderMove,
     isFocused = false,
     onFocus,
     isItemFocused,
@@ -97,8 +109,12 @@ export const FolderItem = ({
     const folderRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(name);
+    const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Get setting for allowing delete without context menu
+    const [allowDeleteWithoutContextMenu] = useUserSetting<boolean>('allowDeleteWithoutContextMenu', false);
 
     const canDrop = () => {
         if (draggedFolderId && draggedFolderId === id) return false;
@@ -116,7 +132,6 @@ export const FolderItem = ({
         return true;
     };
 
-    // Drag event handlers
     const handleDragStart = (e: React.DragEvent) => {
         if (isEditing) {
             e.preventDefault();
@@ -235,6 +250,144 @@ export const FolderItem = ({
         setIsEditing(false);
     };
 
+    const handleRename = () => {
+        setIsContextMenuOpen(false);
+        setTimeout(() => {
+            setIsEditing(true);
+            setEditName(name);
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.select();
+                }
+            }, 10);
+        }, 0);
+    };
+
+    const handleDelete = () => {
+        setIsContextMenuOpen(false);
+        setTimeout(() => {
+            onFolderDelete?.(id);
+        }, 0);
+    };
+
+    const handleMoveToFolder = (targetFolderId: string | null) => {
+        setIsContextMenuOpen(false);
+        setTimeout(() => {
+            onFolderMove?.(id, targetFolderId);
+        }, 0);
+    };
+
+    // Build folder hierarchy for "Move to" submenu - recursively shows nested folders
+    const buildFolderTree = (parentId: string | null = null, excludeId?: string): SubMenuItem[] => {
+        if (!folders) return [];
+
+        const childFolders = folders.filter((f: FolderType) => {
+            const folderParentId = (f.parent as any)?.id || null;
+            return folderParentId === parentId && f.id !== excludeId && f.id !== id && !f.deletedAt;
+        });
+
+        if (childFolders.length === 0) {
+            return [];
+        }
+
+        return childFolders.map((folder: FolderType) => {
+            const subFolders = buildFolderTree(folder.id, excludeId);
+            return {
+                id: folder.id,
+                label: folder.name,
+                icon: FolderOpen,
+                onSelect: () => handleMoveToFolder(folder.id),
+                ...(subFolders.length > 0 ? { subItems: subFolders } : {}),
+            };
+        });
+    };
+
+    const contextMenuItems: MenuItem[] = [
+        {
+            id: "rename",
+            label: "Rename",
+            icon: Edit2,
+            shortcut: "⇧R",
+            onSelect: handleRename,
+        },
+        {
+            id: "move-to",
+            label: "Move to",
+            icon: Folder,
+            subItems: [
+                {
+                    id: "root",
+                    label: "Root",
+                    icon: FolderOpen,
+                    onSelect: () => handleMoveToFolder(null),
+                },
+                ...(buildFolderTree(null) || []),
+            ],
+        },
+        {
+            id: "separator-1",
+            label: "",
+            separator: true,
+        },
+        {
+            id: "delete",
+            label: "Delete",
+            icon: Trash2,
+            shortcut: "⇧⌫",
+            variant: "destructive",
+            onSelect: handleDelete,
+        },
+    ];
+
+    // Handle keyboard shortcuts when context menu is open
+    useEffect(() => {
+        if (!isContextMenuOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check for Shift+R (Rename)
+            if (e.shiftKey && e.key === 'R' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleRename();
+                return;
+            }
+
+            // Check for Shift+Backspace (Delete)
+            if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete();
+                return;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isContextMenuOpen, name, id]);
+
+    // Handle delete shortcut when context menu is closed (if setting enabled)
+    useEffect(() => {
+        if (!allowDeleteWithoutContextMenu || isContextMenuOpen || isEditing) return;
+        if (!isFocused) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check for Shift+Backspace (Delete)
+            if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [allowDeleteWithoutContextMenu, isContextMenuOpen, isEditing, isFocused, handleDelete]);
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
             handleRenameSubmit();
@@ -247,74 +400,91 @@ export const FolderItem = ({
     return (
         <div className="w-full relative">
             {/* Drop indicators */}
-            {isDragOver && dropPosition === 'before' && (
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+            {(draggedFolderId || draggedNoteId) && isDragOver && dropPosition === 'before' && (
+                <div
+                    className="absolute top-0 left-0 right-0 h-px z-10"
+                    style={{
+                        background: 'linear-gradient(to right, transparent, hsl(var(--primary)), transparent)',
+                    }}
+                />
             )}
-            {isDragOver && dropPosition === 'after' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 z-10" />
+            {(draggedFolderId || draggedNoteId) && isDragOver && dropPosition === 'after' && (
+                <div
+                    className="absolute bottom-0 left-0 right-0 h-px z-10"
+                    style={{
+                        background: 'linear-gradient(to right, transparent, hsl(var(--primary)), transparent)',
+                    }}
+                />
             )}
 
-            <div
-                ref={folderRef}
-                draggable={!isEditing}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={cn(
-                    "h-7 w-full rounded-md px-3 text-xs font-medium",
-                    "flex items-center justify-between gap-2",
-                    "fill-muted-foreground hover:fill-foreground",
-                    "text-secondary-foreground/80 hover:text-foreground",
-                    hasChildren && !isEditing && "hover:bg-accent transition-all active:scale-[0.98]",
-                    isEditing && "select-none focus:outline-none",
-                    isDragged && "opacity-50 cursor-grabbing",
-                    isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-blue-500/50",
-                    !isEditing && !isDragged && "cursor-grab active:cursor-grabbing",
-                    isFocused && "ring-2 ring-blue-500 ring-offset-1"
-                )}
-                style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
-                onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
-                onDoubleClick={handleDoubleClick}
-                onFocus={onFocus}
-                tabIndex={isFocused ? 0 : -1}
-                role="treeitem"
-                aria-expanded={isOpen}
-                aria-selected={isFocused}
-                aria-level={level + 1}
-                aria-label={`Folder ${name}, ${hasChildren ? `${totalCount} items` : 'empty'}`}
+            <ItemContextMenu
+                items={contextMenuItems}
+                open={isContextMenuOpen}
+                onOpenChange={setIsContextMenuOpen}
             >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {isOpen ? (
-                        <FolderOpen className="w-[18px] h-[18px] shrink-0" />
-                    ) : (
-                        <Folder className="w-[18px] h-[18px] shrink-0" />
+                <div
+                    ref={folderRef}
+                    draggable={!isEditing}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={cn(
+                        "h-7 w-full rounded-md px-3 text-xs font-medium",
+                        "flex items-center justify-between gap-2",
+                        "fill-muted-foreground hover:fill-foreground",
+                        "text-secondary-foreground/80 hover:text-foreground",
+                        hasChildren && !isEditing && "hover:bg-accent transition-all active:scale-[0.98]",
+                        isEditing && "select-none focus:outline-none",
+                        isDragged && "opacity-50 cursor-grabbing",
+                        !isDragged && !isEditing && "cursor-grab active:cursor-grabbing",
+                        isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-primary/50"
                     )}
-                    {isEditing ? (
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            onBlur={handleRenameSubmit}
-                            onKeyDown={handleKeyDown}
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                            className="flex-1 bg-transparent outline-none border-none p-0 m-0 text-inherit font-inherit truncate min-w-0 select-text"
-                            style={{ width: '100%', caretColor: 'hsl(var(--foreground))' }}
-                        />
-                    ) : (
-                        <span className="truncate">{name}</span>
-                    )}
+                    style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+                    onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
+                    onDoubleClick={handleDoubleClick}
+                    onFocus={onFocus}
+                    tabIndex={isFocused ? 0 : -1}
+                    role="treeitem"
+                    aria-expanded={isOpen}
+                    aria-selected={isFocused}
+                    aria-level={level + 1}
+                    aria-label={`Folder ${name}, ${hasChildren ? `${totalCount} items` : 'empty'}`}
+                >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {isOpen ? (
+                            <FolderOpen className="w-[18px] h-[18px] shrink-0" />
+                        ) : (
+                            <Folder className="w-[18px] h-[18px] shrink-0" />
+                        )}
+                        {isEditing ? (
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onBlur={handleRenameSubmit}
+                                onKeyDown={handleKeyDown}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                className="flex-1 bg-transparent outline-none border-none p-0 m-0 text-inherit font-inherit truncate min-w-0 select-text cursor-text"
+                                style={{ width: '100%', caretColor: 'hsl(var(--foreground))' }}
+                            />
+                        ) : (
+                            <span className="truncate cursor-text">
+                                {name}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {hasChildren && (
+                            <span className="text-foreground/40">{totalCount}</span>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    {hasChildren && (
-                        <span className="text-foreground/40">{totalCount}</span>
-                    )}
-                </div>
-            </div>
+            </ItemContextMenu>
 
             {isOpen && (
                 <div
@@ -429,6 +599,12 @@ export const FolderItem = ({
                             onDragEnd={onDragEnd}
                             onNoteReorder={onNoteReorder}
                             onNoteRename={onNoteRename}
+                            onNoteDelete={onNoteDelete}
+                            onNoteDuplicate={onNoteDuplicate}
+                            onNoteMove={onNoteMove}
+                            onNotePin={onNotePin}
+                            pinned={file.pinned || false}
+                            folders={folders}
                             isFocused={isItemFocused?.('note', file.id) || false}
                             onFocus={() => handleItemFocus?.('note', file.id)}
                         />

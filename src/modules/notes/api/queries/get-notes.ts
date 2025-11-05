@@ -8,6 +8,7 @@ const useNotesQuery = createQueryHook(
         order: { createdAt: 'desc' },
       },
       tasks: {},
+      folder: {},
     },
   }),
   {

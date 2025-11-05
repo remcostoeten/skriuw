@@ -63,7 +63,8 @@ export function ActionBar({
         close: searchState.close,
         toggle: searchState.toggle,
         updateOptions: searchState.updateOptions,
-    }), [searchState.query, searchState.setQuery, searchState.close, searchState.toggle, searchState.updateOptions]);
+        isOpen: searchState.isOpen,
+    }), [searchState.query, searchState.setQuery, searchState.close, searchState.toggle, searchState.updateOptions, searchState.isOpen]);
 
     const expandConfig = useMemo(() => ({
         isExpanded,

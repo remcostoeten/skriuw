@@ -2,23 +2,18 @@
 
 import type { Note } from '@/api/db/schema';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { SyncStatus } from '@/components/loading-states';
 import MentionList from '@/components/mention-list';
 import { useUpdateNote } from '@/modules/notes/api/mutations/update';
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
-import { BubbleMenu, EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
+import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Heading2, Italic, Strikethrough } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
-
-/**
- * ToDo: create a global keyboard event listener HoC
- */
+import { useUnifiedShortcuts } from '@/hooks/use-unified-shortcuts';
 
 type Props = {
   note: Note;
@@ -27,32 +22,11 @@ type Props = {
 
 function NoteEditorComponent({ note, onNoteSelect }: Props) {
   const [title, setTitle] = useState(note.title);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | undefined>(undefined);
 
   const { updateNote, isLoading: isUpdatingNote } = useUpdateNote();
   const { notes } = useGetNotes();
 
   const { handleError } = useErrorHandler();
-
-  const isMutating = isUpdatingNote;
-
-  const withSyncTracking = useCallback(async <T,>(
-    operation: () => Promise<T>,
-    operationName: string
-  ): Promise<T | undefined> => {
-    setIsSyncing(true);
-    try {
-      const result = await operation();
-      setLastSync(new Date());
-      return result;
-    } catch (error) {
-      handleError(error, operationName);
-      return undefined;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [handleError]);
 
   // Silent save function that doesn't update UI state
   const silentSaveRef = useRef<((content: string) => Promise<void>) | null>(null);
@@ -60,7 +34,6 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
   const silentSave = useCallback(async (content: string) => {
     try {
       await updateNote(noteIdRef.current, { content });
-      setLastSync(new Date());
     } catch (error) {
       handleError(error, 'auto-save note content');
     }
@@ -121,6 +94,7 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
       }),
       Placeholder.configure({
         placeholder: 'Start writing... Type @ to link notes, ## for headings, **bold**, *italic*, - for lists...',
+        emptyEditorClass: 'is-editor-empty',
       }),
       Typography,
       Mention.configure({
@@ -302,30 +276,30 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
     content: note.content,
     editorProps: {
       attributes: {
-        class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
+        class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground [&_.is-editor-empty::before]:text-muted-foreground/60 [&_.is-editor-empty::before]:content-[attr(data-placeholder)] [&_.is-editor-empty::before]:pointer-events-none [&_.is-editor-empty::before]:float-left [&_.is-editor-empty::before]:h-0 [&_.is-editor-empty::before]:font-normal',
       },
       handleClick: handleMentionClick,
-      handleFocus: () => {
-        isEditorFocusedRef.current = true;
-      },
-      handleBlur: () => {
-        isEditorFocusedRef.current = false;
+    },
+    onFocus: () => {
+      isEditorFocusedRef.current = true;
+    },
+    onBlur: () => {
+      isEditorFocusedRef.current = false;
 
-        // Clear inactivity timer
-        if (inactivityTimerRef.current) {
-          clearTimeout(inactivityTimerRef.current);
-          inactivityTimerRef.current = null;
-        }
+      // Clear inactivity timer
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
 
-        // Save immediately on blur if content changed
-        if (editorRef.current && silentSaveRef.current) {
-          const html = editorRef.current.getHTML();
-          if (html !== noteContentRef.current) {
-            silentSaveRef.current(html);
-            noteContentRef.current = html;
-          }
+      // Save immediately on blur if content changed
+      if (editorRef.current && silentSaveRef.current) {
+        const html = editorRef.current.getHTML();
+        if (html !== noteContentRef.current) {
+          silentSaveRef.current(html);
+          noteContentRef.current = html;
         }
-      },
+      }
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -386,11 +360,63 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
 
   const handleTitleChange = async (newTitle: string) => {
     setTitle(newTitle);
-    await withSyncTracking(
-      () => updateNote(note.id, { title: newTitle }),
-      'update note title'
-    );
+    try {
+      await updateNote(note.id, { title: newTitle });
+    } catch (error) {
+      handleError(error, 'update note title');
+    }
   };
+
+  // Editor-specific shortcuts
+  const handleBold = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().toggleBold().run();
+    }
+  }, [editor]);
+
+  const handleItalic = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().toggleItalic().run();
+    }
+  }, [editor]);
+
+  const handleUnderline = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().toggleUnderline().run();
+    }
+  }, [editor]);
+
+  const handleInsertLink = useCallback(() => {
+    if (editor) {
+      const url = window.prompt('Enter URL:');
+      if (url) {
+        editor.chain().focus().setLink({ href: url }).run();
+      }
+    }
+  }, [editor]);
+
+  // Register editor shortcuts
+  useUnifiedShortcuts([
+    {
+      id: 'editor-bold',
+      handler: handleBold
+    },
+    {
+      id: 'editor-italic',
+      handler: handleItalic
+    },
+    {
+      id: 'editor-underline',
+      handler: handleUnderline
+    },
+    {
+      id: 'editor-insert-link',
+      handler: handleInsertLink
+    }
+  ], {
+    context: 'editor',
+    enabled: true
+  });
 
 
   return (
@@ -412,7 +438,7 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
         </div>
       )}
     >
-      <div className="h-full overflow-y-auto scrollbar-content">
+      <div data-context="editor" className="h-full overflow-y-auto scrollbar-content">
         <div className="max-w-4xl mx-auto px-8 sm:px-12 lg:px-16 py-12 sm:py-16">
           {/* Title */}
           <input
@@ -423,89 +449,21 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
             placeholder="Untitled"
           />
 
-          <div className="flex items-center justify-between mb-8">
-            <div className="text-xs text-muted-foreground">
+          
+          <div className="relative mb-8">
+            {editor && (
+              <EditorContent editor={editor} />
+            )}
+
+            {/* Timestamp in bottom right */}
+            <div className="absolute bottom-2 right-2 text-xs text-muted-foreground/60">
               {new Date(note.updatedAt).toLocaleDateString('en-US', {
-                month: 'long',
+                month: 'short',
                 day: 'numeric',
-                year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
               })}
             </div>
-
-            <SyncStatus
-              isLoading={isSyncing}
-              isOnline={navigator.onLine}
-              lastSync={lastSync}
-              showDetails={true}
-            />
-          </div>
-
-          <div className="mb-8">
-            {editor && (
-              <>
-                <BubbleMenu
-                  editor={editor}
-                  tippyOptions={{
-                    theme: 'bubble',
-                    placement: 'top',
-                    offset: [0, 12],
-                    animation: 'shift-away',
-                    duration: [150, 100],
-                    arrow: true,
-                    maxWidth: 'none',
-                  }}
-                >
-                  <div className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1">
-                    <button
-                      onClick={() => editor.chain().focus().toggleBold().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('bold') ? 'bg-accent/40' : ''}`}
-                      aria-label="Bold"
-                      title="Bold (Cmd+B)"
-                    >
-                      <Bold className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleItalic().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('italic') ? 'bg-accent/40' : ''}`}
-                      aria-label="Italic"
-                      title="Italic (Cmd+I)"
-                    >
-                      <Italic className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleStrike().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('strike') ? 'bg-accent/40' : ''}`}
-                      aria-label="Strikethrough"
-                      title="Strikethrough"
-                    >
-                      <Strikethrough className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => editor.chain().focus().toggleCode().run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('code') ? 'bg-accent/40' : ''}`}
-                      aria-label="Code"
-                      title="Code"
-                    >
-                      <Code className="h-4 w-4" />
-                    </button>
-                    <div className="w-px h-5 bg-border/70 mx-1" />
-                    <button
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                      className={`p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-accent/40' : ''}`}
-                      aria-label="Heading 2"
-                      title="Heading 2"
-                    >
-                      <Heading2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </BubbleMenu>
-                <EditorContent editor={editor} />
-              </>
-            )}
-
-
           </div>
         </div>
       </div>
@@ -513,7 +471,7 @@ function NoteEditorComponent({ note, onNoteSelect }: Props) {
   );
 }
 
-export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
+const MemoizedNoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
   return (
     prevProps.note.id === nextProps.note.id &&
     prevProps.note.content === nextProps.note.content &&
@@ -521,4 +479,7 @@ export const NoteEditor = memo(NoteEditorComponent, (prevProps, nextProps) => {
     prevProps.onNoteSelect === nextProps.onNoteSelect
   );
 });
+
+export const NoteEditor = MemoizedNoteEditor;
+export default MemoizedNoteEditor;
 

@@ -1,17 +1,21 @@
 import type { Folder, Note } from '@/api/db/schema'
 import { ActionBar } from '@/components/file-tree/action-bar'
 import { useDragState } from '@/hooks/use-drag-state'
+import { useDestroyFolder } from '@/modules/folders/api/mutations/destroy'
 import {
 	useMoveFolder,
 	useMoveFolderToRoot
 } from '@/modules/folders/api/mutations/move'
 import { useUpdateFolder } from '@/modules/folders/api/mutations/update'
 import { useGetFolders } from '@/modules/folders/api/queries/get-folders'
+import { useDestroyNote } from '@/modules/notes/api/mutations/destroy'
+import { useDuplicateNote } from '@/modules/notes/api/mutations/duplicate'
 import {
 	useMoveNote,
 	useMoveNoteToRoot,
 	useReorderNote
 } from '@/modules/notes/api/mutations/move'
+import { usePinNote } from '@/modules/notes/api/mutations/pin'
 import { useUpdateNote } from '@/modules/notes/api/mutations/update'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'
 import { useSidebarSearch } from '@/modules/search/hooks/use-sidebar-search'
@@ -23,12 +27,14 @@ import { FolderItem } from './folder-item'
 type props = {
 	onNoteSelect?: (noteId: string) => void
 	onNoteCreate?: (noteId: string) => void
+	onNoteDuplicate?: (noteId: string) => Promise<string | undefined>
 	selectedNoteId?: string | null
 }
 
 export const Sidebar = ({
 	onNoteSelect,
 	onNoteCreate,
+	onNoteDuplicate,
 	selectedNoteId
 }: props = {}) => {
 	const { folders = [] } = useGetFolders()
@@ -58,9 +64,13 @@ export const Sidebar = ({
 	const dragState = useDragState()
 	const { moveFolder } = useMoveFolder()
 	const { moveFolderToRoot } = useMoveFolderToRoot()
+	const { destroyFolder } = useDestroyFolder()
 	const { moveNote } = useMoveNote()
 	const { moveNoteToRoot } = useMoveNoteToRoot()
 	const { reorderNote } = useReorderNote()
+	const { destroyNote } = useDestroyNote()
+	const { duplicateNote } = useDuplicateNote()
+	const { pinNote } = usePinNote()
 
 	useEffect(() => {
 		if (!dragState.draggedFolderId && !dragState.draggedNoteId) {
@@ -94,9 +104,18 @@ export const Sidebar = ({
 		if (searchState.query) {
 			return searchNotes
 		}
-		return [...rootNotes].sort(
-			(a: Note, b: Note) => (a.position || 0) - (b.position || 0)
-		)
+		// Sort: pinned notes first (by position ascending), then unpinned notes (by position ascending)
+		return [...rootNotes].sort((a: Note, b: Note) => {
+			const aPinned = a.pinned || false
+			const bPinned = b.pinned || false
+
+			// Pinned notes come first
+			if (aPinned && !bPinned) return -1
+			if (!aPinned && bPinned) return 1
+
+			// Within same pinned status, sort by position
+			return (a.position || 0) - (b.position || 0)
+		})
 	}, [searchState.query, searchNotes, rootNotes])
 
 	const getChildrenCount = (folderId: string) => {
@@ -128,7 +147,17 @@ export const Sidebar = ({
 	const getFolderNotes = (folderId: string) => {
 		return notes
 			.filter((note: Note) => (note.folder as any)?.id === folderId)
-			.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0))
+			.sort((a: Note, b: Note) => {
+				const aPinned = a.pinned || false
+				const bPinned = b.pinned || false
+
+				// Pinned notes come first
+				if (aPinned && !bPinned) return -1
+				if (!aPinned && bPinned) return 1
+
+				// Within same pinned status, sort by position
+				return (a.position || 0) - (b.position || 0)
+			})
 	}
 
 	// Get sub-folders for a specific folder
@@ -176,11 +205,111 @@ export const Sidebar = ({
 		}
 	}
 
+	const handleFolderDelete = async (id: string) => {
+		try {
+			await destroyFolder(id)
+		} catch (error) {
+			console.error('Failed to delete folder:', error)
+		}
+	}
+
+	const handleFolderMove = async (
+		folderId: string,
+		targetFolderId: string | null
+	) => {
+		try {
+			if (targetFolderId === null) {
+				await moveFolderToRoot({ draggedFolderId: folderId, folders })
+			} else {
+				await moveFolder({
+					draggedFolderId: folderId,
+					targetFolderId,
+					position: 'inside',
+					folders
+				})
+				// Expand the target folder
+				const pathToExpand = getFolderPath(targetFolderId)
+				setOpenFolders(prev => {
+					const next = new Set(prev)
+					pathToExpand.forEach(folderId => next.add(folderId))
+					return next
+				})
+			}
+		} catch (error) {
+			console.error('Failed to move folder:', error)
+		}
+	}
+
 	const handleNoteRename = async (id: string, newName: string) => {
 		try {
 			await updateNote(id, { title: newName })
 		} catch (error) {
 			console.error('Failed to rename note:', error)
+		}
+	}
+
+	const handleNoteDelete = async (id: string) => {
+		try {
+			await destroyNote(id)
+			if (activeFile === id) {
+				setActiveFile(null)
+				onNoteSelect?.(null as any)
+			}
+		} catch (error) {
+			console.error('Failed to delete note:', error)
+		}
+	}
+
+	const handleNoteDuplicate = async (id: string) => {
+		try {
+			const result = await duplicateNote({ noteId: id, notes })
+			if (result?.id && onNoteDuplicate) {
+				// Wait a bit for the note to be available in the list
+				setTimeout(() => {
+					onNoteDuplicate(result.id)
+				}, 100)
+			}
+		} catch (error) {
+			console.error('Failed to duplicate note:', error)
+		}
+	}
+
+	const handleNoteMove = async (noteId: string, folderId: string | null) => {
+		try {
+			if (folderId === null) {
+				await moveNoteToRoot({ draggedNoteId: noteId, notes })
+			} else {
+				await moveNote({
+					draggedNoteId: noteId,
+					targetFolderId: folderId,
+					position: 'inside',
+					notes,
+					folders
+				})
+				// Expand the target folder
+				const pathToExpand = getFolderPath(folderId)
+				setOpenFolders(prev => {
+					const next = new Set(prev)
+					pathToExpand.forEach(folderId => next.add(folderId))
+					return next
+				})
+			}
+		} catch (error) {
+			console.error('Failed to move note:', error)
+		}
+	}
+
+	const handleNotePin = async (noteId: string, pinned: boolean) => {
+		try {
+			await pinNote({ noteId, notes, pinned })
+			if (pinned) {
+				// Select the pinned note after pinning
+				setTimeout(() => {
+					onNoteSelect?.(noteId)
+				}, 100)
+			}
+		} catch (error) {
+			console.error('Failed to pin/unpin note:', error)
 		}
 	}
 
@@ -586,6 +715,12 @@ export const Sidebar = ({
 							onDrop={position => handleDrop(folder.id, position)}
 							onNoteReorder={handleNoteReorder}
 							onNoteRename={handleNoteRename}
+							onNoteDelete={handleNoteDelete}
+							onNoteDuplicate={handleNoteDuplicate}
+							onNoteMove={handleNoteMove}
+							onNotePin={handleNotePin}
+							onFolderDelete={handleFolderDelete}
+							onFolderMove={handleFolderMove}
 							isFocused={isItemFocused('folder', folder.id)}
 							onFocus={() => handleItemFocus('folder', folder.id)}
 							isItemFocused={isItemFocused}
@@ -610,6 +745,12 @@ export const Sidebar = ({
 							onDragEnd={handleDragEnd}
 							onNoteReorder={handleNoteReorder}
 							onNoteRename={handleNoteRename}
+							onNoteDelete={handleNoteDelete}
+							onNoteDuplicate={handleNoteDuplicate}
+							onNoteMove={handleNoteMove}
+							onNotePin={handleNotePin}
+							pinned={note.pinned || false}
+							folders={folders}
 							isFocused={isItemFocused('note', note.id)}
 							onFocus={() => handleItemFocus('note', note.id)}
 						/>
