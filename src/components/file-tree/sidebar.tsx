@@ -150,7 +150,7 @@ export const Sidebar = ({
 		} else {
 			// Expand all folders
 			setOpenFolders(
-				new Set(displayFolders.map((f: any) => f.item?.id || f.id))
+				new Set(displayFolders.map((f: any) => ('item' in f ? f.item?.id : f.id)))
 			)
 		}
 		setIsExpanded(!isExpanded)
@@ -324,7 +324,7 @@ export const Sidebar = ({
 
 		const addFolderItems = (folderList: any[], level: number = 0) => {
 			folderList.forEach(folderData => {
-				const folder = folderData.item || folderData
+				const folder = 'item' in folderData ? folderData.item : folderData
 				items.push({
 					type: 'folder',
 					id: folder.id,
@@ -356,7 +356,7 @@ export const Sidebar = ({
 
 		// Add root level notes
 		displayNotes.forEach(noteData => {
-			const note = noteData.item || noteData
+			const note = 'item' in noteData ? noteData.item : noteData
 			items.push({
 				type: 'note',
 				id: note.id,
@@ -532,7 +532,7 @@ export const Sidebar = ({
 				tabIndex={0}
 			>
 				{displayFolders.map((folderData: any) => {
-					const folder = folderData.item || folderData
+					const folder = 'item' in folderData ? folderData.item : folderData
 					const folderFiles = getFolderNotes(folder.id)
 					const folderSubFolders = getSubFolders(folder.id)
 					const folderChildrenCount = getChildrenCount(folder.id)
@@ -595,7 +595,7 @@ export const Sidebar = ({
 				})}
 
 				{displayNotes.map((noteData: any) => {
-					const note = noteData.item || noteData
+					const note = 'item' in noteData ? noteData.item : noteData
 					return (
 						<FileItem
 							key={note.id}

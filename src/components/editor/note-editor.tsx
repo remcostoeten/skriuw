@@ -19,10 +19,6 @@ import { useErrorHandler } from '../../hooks/use-error-handler';
 import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create';
 
-/**
- * ToDo: create a global keyboard event listener HoC
- */
-
 type Props = {
   note: Note;
   onNoteSelect?: (noteId: string) => void;
@@ -100,68 +96,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     onNoteSelectRef.current = onNoteSelect;
   }, [availableNotes, onNoteSelect]);
 
-  // Handle note tagging - insert @ mention at cursor (triggers visual mention dropdown)
-  const handleLinkNote = useCallback(() => {
-    if (!editor) return;
-    editor.chain().focus().insertContent('@').run();
-  }, [editor]);
-
-  // Handle task creation from selected text
-  const handleCreateTask = useCallback(async () => {
-    if (!editor) return;
-    
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
-    
-    if (!selectedText.trim()) {
-      // If no selection, just insert $ to trigger task mention
-      editor.chain().focus().insertContent('$').run();
-      return;
-    }
-
-    try {
-      // Create task with selected text as content
-      const result = await createTask({
-        content: selectedText,
-        position: Date.now(),
-        noteId: note.id,
-        priority: 'med',
-      });
-
-      if (result?.id) {
-        // Replace selected text with task mention using $ syntax
-        editor
-          .chain()
-          .focus()
-          .deleteSelection()
-          .insertContent(`$${result.id}`)
-          .run();
-      }
-    } catch (error) {
-      handleError(error, 'create task from selection');
-    }
-  }, [editor, note.id, createTask, handleError]);
-
-  // Keyboard shortcuts for accessibility
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Cmd/Ctrl + K for note linking
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-        event.preventDefault();
-        handleLinkNote();
-      }
-      // Cmd/Ctrl + Shift + T for task creation
-      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'T') {
-        event.preventDefault();
-        handleCreateTask();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editor, handleLinkNote, handleCreateTask]);
+  // Keyboard shortcuts for accessibility will be set up after editor declaration
 
   const handleMentionClick = useCallback((_view: any, _pos: any, event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -381,27 +316,6 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
         class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
       },
       handleClick: handleMentionClick,
-      handleFocus: () => {
-        isEditorFocusedRef.current = true;
-      },
-      handleBlur: () => {
-        isEditorFocusedRef.current = false;
-
-        // Clear inactivity timer
-        if (inactivityTimerRef.current) {
-          clearTimeout(inactivityTimerRef.current);
-          inactivityTimerRef.current = null;
-        }
-
-        // Save immediately on blur if content changed
-        if (editorRef.current && silentSaveRef.current) {
-          const html = editorRef.current.getHTML();
-          if (html !== noteContentRef.current) {
-            silentSaveRef.current(html);
-            noteContentRef.current = html;
-          }
-        }
-      },
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -422,6 +336,105 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       }
     },
   }, [note.id]);
+
+  // Set up focus and blur event listeners
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleFocus = () => {
+      isEditorFocusedRef.current = true;
+    };
+
+    const handleBlur = () => {
+      isEditorFocusedRef.current = false;
+
+      // Clear inactivity timer
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+
+      // Save immediately on blur if content changed
+      if (editorRef.current && silentSaveRef.current) {
+        const html = editorRef.current.getHTML();
+        if (html !== noteContentRef.current) {
+          silentSaveRef.current(html);
+          noteContentRef.current = html;
+        }
+      }
+    };
+
+    editor.on('focus', handleFocus);
+    editor.on('blur', handleBlur);
+
+    return () => {
+      editor.off('focus', handleFocus);
+      editor.off('blur', handleBlur);
+    };
+  }, [editor]);
+
+  // Handle note tagging - insert @ mention at cursor (triggers visual mention dropdown)
+  const handleLinkNote = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().insertContent('@').run();
+  }, [editor]);
+
+  // Handle task creation from selected text
+  const handleCreateTask = useCallback(async () => {
+    if (!editor) return;
+
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
+    if (!selectedText.trim()) {
+      // If no selection, just insert $ to trigger task mention
+      editor.chain().focus().insertContent('$').run();
+      return;
+    }
+
+    try {
+      // Create task with selected text as content
+      const result = await createTask({
+        content: selectedText,
+        position: Date.now(),
+        noteId: note.id,
+        priority: 'med',
+      });
+
+      if (result?.id) {
+        // Replace selected text with task mention using $ syntax
+        editor
+          .chain()
+          .focus()
+          .deleteSelection()
+          .insertContent(`$${result.id}`)
+          .run();
+      }
+    } catch (error) {
+      handleError(error, 'create task from selection');
+    }
+  }, [editor, note.id, createTask, handleError]);
+
+  // Keyboard shortcuts for accessibility
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl + K for note linking
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        handleLinkNote();
+      }
+      // Cmd/Ctrl + Shift + T for task creation
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'T') {
+        event.preventDefault();
+        handleCreateTask();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editor, handleLinkNote, handleCreateTask]);
 
   // Store editor reference
   useEffect(() => {
@@ -523,18 +536,12 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               <>
                 <BubbleMenu
                   editor={editor}
-                  tippyOptions={{
-                    placement: 'top',
-                    offset: [0, 8],
-                    animation: 'shift-away',
-                    duration: [200, 150],
-                    arrow: false,
-                    maxWidth: 'none',
-                    interactive: true,
-                    appendTo: () => document.body,
+                  shouldShow={({ editor, view, state, oldState, from, to }) => {
+                    // Only show when there's some content selected
+                    return from !== to;
                   }}
                 >
-                  <div 
+                  <div
                     role="toolbar"
                     aria-label="Text formatting and actions"
                     className="flex items-center gap-1 bg-popover/95 text-popover-foreground border border-border/60 rounded-full shadow-xl ring-1 ring-black/10 backdrop-blur supports-[backdrop-filter]:bg-popover/85 px-1.5 py-1"
@@ -644,11 +651,11 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
                     >
                       <CheckSquare2 className="h-4 w-4" />
                     </button>
-                  </div>
+                  </div>tem
                 </BubbleMenu>
                 <EditorContent editor={editor} />
               </>
-            )}
+            )}la
 
 
           </div>
