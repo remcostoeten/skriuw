@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "utils";
 import { FileItem } from "./file-item";
 import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
 
 type props = {
     name: string;
@@ -139,6 +140,7 @@ export const FolderItem = ({
         }
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
+        hapticDragStart();
         onDragStart?.();
     };
 
@@ -164,24 +166,42 @@ export const FolderItem = ({
 
         const y = e.clientY - rect.top;
         const height = rect.height;
-        const threshold = height * 0.25;
-
+        
         let position: 'before' | 'after' | 'inside';
 
-        if (y < threshold) {
-            position = 'before';
-        } else if (y > height - threshold) {
-            position = 'after';
-        } else {
-            position = 'inside';
-            if (!isOpen && hasChildren && onToggle) {
-                if (expandTimeoutRef.current) {
-                    clearTimeout(expandTimeoutRef.current);
-                }
-                expandTimeoutRef.current = setTimeout(() => {
-                    onToggle();
-                }, 500);
+        // When dragging a NOTE onto a folder, strongly favor "inside" placement
+        // Only use before/after if explicitly hovering on the very edge
+        // When dragging a FOLDER, use larger edge zones for easier sibling placement
+        if (draggedNoteId) {
+            // For notes: use tiny edge zones (3px or 10% of height, whichever is smaller)
+            const noteThreshold = Math.min(3, height * 0.1);
+            if (y < noteThreshold) {
+                position = 'before';
+            } else if (y > height - noteThreshold) {
+                position = 'after';
+            } else {
+                position = 'inside';
             }
+        } else {
+            // For folders: use 25% edge zones for easier sibling placement
+            const folderThreshold = height * 0.25;
+            if (y < folderThreshold) {
+                position = 'before';
+            } else if (y > height - folderThreshold) {
+                position = 'after';
+            } else {
+                position = 'inside';
+            }
+        }
+
+        // Auto-expand closed folders when hovering to drop inside
+        if (position === 'inside' && !isOpen && onToggle) {
+            if (expandTimeoutRef.current) {
+                clearTimeout(expandTimeoutRef.current);
+            }
+            expandTimeoutRef.current = setTimeout(() => {
+                onToggle();
+            }, 500);
         }
 
         onDragOver?.(position);
@@ -219,6 +239,7 @@ export const FolderItem = ({
         e.preventDefault();
         e.stopPropagation();
 
+        hapticDrop();
         const position = dropPosition || 'inside';
         onDrop?.(position);
         onDragLeave?.();
@@ -437,11 +458,10 @@ export const FolderItem = ({
                         "text-secondary-foreground/80 hover:text-foreground",
                         hasChildren && !isEditing && "hover:bg-accent transition-all active:scale-[0.98]",
                         isEditing && "select-none focus:outline-none",
-                        isDragged && "opacity-50 cursor-grabbing",
-                        !isDragged && !isEditing && "cursor-grab active:cursor-grabbing",
-                        isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-primary/50"
+                        isDragOver && dropPosition === 'inside' && "bg-accent/50 border border-primary/50",
+                        getDragClasses({ isDragged, isEditing, isFocused, isDragOver, dropPosition })
                     )}
-                    style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+                    style={getDragStyles({ level, isDragged })}
                     onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}
                     onDoubleClick={handleDoubleClick}
                     onFocus={onFocus}
@@ -489,8 +509,7 @@ export const FolderItem = ({
             {isOpen && (
                 <div
                     className={cn(
-                        "flex flex-col gap-1 mt-1",
-                        (draggedNoteId || draggedFolderId) && isDragOverFolderId === id && dropPositionGlobal === 'inside' && "min-h-[20px] bg-accent/20 rounded-md"
+                        "flex flex-col gap-1 mt-1"
                     )}
                     onDragOver={(e) => {
                         if (!draggedNoteId && !draggedFolderId) return;
@@ -595,6 +614,7 @@ export const FolderItem = ({
                             onClick={() => onFileClick?.(file)}
                             isDragged={draggedNoteId === file.id}
                             draggedNoteId={draggedNoteId}
+                            draggedFolderId={draggedFolderId}
                             onDragStart={() => onDragStartFolder?.('note', file.id)}
                             onDragEnd={onDragEnd}
                             onNoteReorder={onNoteReorder}

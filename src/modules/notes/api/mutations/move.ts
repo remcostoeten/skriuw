@@ -33,19 +33,10 @@ export function useMoveNote() {
 
             newParentId = targetFolderId;
 
-            const transactions = [
-                tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() })
-            ];
-
-            // Unlink from current folder if it exists and is different
-            if (currentParentId && currentParentId !== targetFolderId) {
-                transactions.push(tx.notes[draggedNoteId].unlink({ folder: currentParentId }));
-            }
-
-            // Link to new folder
-            transactions.push(tx.notes[draggedNoteId].link({ folder: targetFolderId }));
-
-            await transact(transactions);
+            await transact([
+                tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() }),
+                tx.notes[draggedNoteId].link({ folder: targetFolderId })
+            ]);
         } else {
             newParentId = (targetFolder.parent as any)?.id || null;
 
