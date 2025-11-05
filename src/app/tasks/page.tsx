@@ -1,8 +1,6 @@
-'use client';
-
 import TasksView from '@/views/tasks-view';
 
-export default function Page() {
+export default function TaskPage() {
     return <TasksView />;
 }
 

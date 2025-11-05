@@ -1,5 +1,5 @@
-import { NotesView } from '@/views/notes-view';
+import NotesView from '@/views/notes-view';
 
-export default function Home() {
+export default function IndexPage() {
   return <NotesView />;
 }

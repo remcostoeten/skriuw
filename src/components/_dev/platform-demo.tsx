@@ -3,20 +3,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Platform } from 'utils';
 
-interface FileContent {
+type props = {
     text: string;
     timestamp: string;
     platform: string;
 }
 
-export default function ExampleComponent() {
+export function PlatformDemo() {
     const [mounted, setMounted] = useState(false)
-    const [fileContent, setFileContent] = useState<FileContent | null>(null)
+    const [fileContent, setFileContent] = useState<props | null>(null)
     const [lastAction, setLastAction] = useState<string>('')
 
     useEffect(() => {
         setMounted(true)
-        // Initialize with some sample content
         setFileContent({
             text: `# Welcome to InstantDB Notes
 
@@ -41,6 +40,7 @@ Start typing below to see auto-save in action!`,
             <div className="text-center">
                 <h1 className="text-3xl font-bold mb-2">Platform Detection Demo</h1>
                 <p className="text-muted-foreground">A comprehensive demo showing Tauri and browser capabilities</p>
+                ,a
             </div>
 
             {Platform.isTauri() ? <DesktopFeatures fileContent={fileContent} setFileContent={setFileContent} setLastAction={setLastAction} /> : <WebFeatures setLastAction={setLastAction} />}
@@ -66,8 +66,8 @@ function DesktopFeatures({
     setFileContent,
     setLastAction
 }: {
-    fileContent: FileContent | null
-    setFileContent: (content: FileContent | null) => void
+    fileContent: props | null
+    setFileContent: (content: props | null) => void
     setLastAction: (action: string) => void
 }) {
     const handleOpenFile = async () => {
@@ -275,7 +275,7 @@ function KeyboardShortcuts({
     fileContent,
     setLastAction
 }: {
-    fileContent: FileContent | null
+    fileContent: props | null
     setLastAction: (action: string) => void
 }) {
     const handleSave = useCallback(async () => {
@@ -369,8 +369,8 @@ function FileEditor({
     setLastAction,
     isDesktop
 }: {
-    fileContent: FileContent | null
-    setFileContent: (content: FileContent | null) => void
+    fileContent: props | null
+    setFileContent: (content: props | null) => void
     setLastAction: (action: string) => void
     isDesktop: boolean
 }) {

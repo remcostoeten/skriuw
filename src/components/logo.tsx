@@ -2,6 +2,7 @@
 
 import { motion, easeInOut } from 'framer-motion'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 const LogoIcon = () => {
 	const pathVariants = {
@@ -186,6 +187,27 @@ const LogoIcon = () => {
 }
 
 export function Logo() {
+	const [isMounted, setIsMounted] = useState(false)
+
+	useEffect(() => {
+		setIsMounted(true)
+	}, [])
+
+	// Render static placeholder during SSR to avoid hydration mismatch with framer-motion
+	if (!isMounted) {
+		return (
+			<div className="flex items-center justify-center">
+				<Link href="/">
+					<div className="group relative flex h-[35px] w-[35px] items-center justify-center">
+						<div className="relative flex h-full w-full items-center justify-center rounded-md bg-gradient-to-br from-background/80 to-background/60 backdrop-blur-sm shadow-lg border border-primary/20">
+							<div className="h-5 w-5 rounded-md bg-muted animate-pulse" />
+						</div>
+					</div>
+				</Link>
+			</div>
+		)
+	}
+
 	return (
 		<div className="flex items-center justify-center">
 			<Link href="/">
