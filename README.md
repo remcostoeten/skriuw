@@ -1,5 +1,8 @@
 # Skriuw
 
+Say goodbye to clutter in your head and organize yourself on any platform, fully accessible without any loading times and completely private data storage on your own machine with opt-in cloud-sync storage ... something local ai or cloud....
+
+
 A feature rich _me_ multiplatform app 
 A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
 
@@ -77,7 +80,7 @@ The CLI manager provides a powerful, interactive interface for development:
 - **Deployment** - Direct Vercel deployment from CLI
 - **Live Monitoring** - Real-time status of running apps
 
-See [tools/cli-manager/README.md](tools/cli-manager/README.md) for detailed documentation.
+Full documentation is available in the [CLI Manager docs](http://localhost:3000/docs/cli) (start the docs app first).
 
 ## Tech Stack
 
@@ -136,9 +139,11 @@ bun run tauri:build
 
 ## Documentation
 
-- [CLI Manager Documentation](tools/cli-manager/README.md)
-- [Seeding Guide](SEEDING.md)
-- [Shortcuts Reference](SHORTCUTS.md)
+- [CLI Manager Documentation](http://localhost:3000/docs/cli) - Complete guide for the interactive CLI tool
+- [Seeding Guide](SEEDING.md) - Database seeding utilities
+- [Shortcuts Reference](SHORTCUTS.md) - Keyboard shortcuts reference
+
+For the full documentation site, run `bun run cli` and select "Run Docs App", then visit `http://localhost:3000`.
 
 ## License
 
