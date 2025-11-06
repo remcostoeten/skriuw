@@ -1,139 +1,82 @@
 ---
-title: Tauri App
-description: Desktop application documentation for Skriuw
+title: Tauri Desktop App (Legacy)
+description: Redirects to main app documentation
 ---
 
-# Tauri App
+<Callout type="info">
+  This page has been superseded by the comprehensive [Notys App Documentation](/docs/app).
+  
+  Please visit the new documentation for complete information about the Tauri 2.0 + Next.js + InstantDB application.
+</Callout>
 
-The Skriuw desktop application is built with Tauri 2.0, providing a native desktop experience across Windows, macOS, and Linux.
+# Tauri Desktop App
 
-## Overview
+The Notys desktop application is built with Tauri 2.0, providing a native desktop experience across Windows, macOS, and Linux.
 
-The Tauri app (`apps/instantdb`) combines:
+## Documentation Moved
 
-- **Tauri 2.0** - Rust-based desktop framework
-- **Next.js** - React frontend
-- **InstantDB** - Real-time database with offline support
-- **TypeScript** - Type-safe development
+All Tauri-related documentation has been consolidated into the main app documentation:
 
-## Architecture
+<Cards>
+  <Card title="App Overview" href="/docs/app">
+    Introduction to the Notys application
+  </Card>
+  <Card title="Setup Guide" href="/docs/app/setup">
+    Complete setup including Tauri dependencies
+  </Card>
+  <Card title="Architecture" href="/docs/app/architecture">
+    How Tauri integrates with Next.js and InstantDB
+  </Card>
+  <Card title="Tech Stack" href="/docs/app/tech-stack">
+    In-depth Tauri 2.0 information and plugins
+  </Card>
+</Cards>
 
-### Frontend
-- Next.js 15 with React 18
-- Tailwind CSS for styling
-- TipTap for rich text editing
-- InstantDB React hooks for data management
+## Quick Links
 
-### Backend
-- Tauri 2.0 Rust backend
-- Native file system access
-- System integration APIs
-- Secure IPC communication
+For specific Tauri topics, see:
 
-## Development
+- **Tauri Setup** → [Setup Guide - Tauri Dependencies](/docs/app/setup#tauri-dependencies)
+- **Tauri Configuration** → [Tech Stack - Tauri 2.0](/docs/app/tech-stack#tauri-20)
+- **Tauri APIs** → [API Reference - Tauri APIs](/docs/app/api-reference#tauri-apis)
+- **Building Desktop App** → [Setup Guide - Running the Desktop App](/docs/app/setup#running-the-desktop-app)
 
-### Prerequisites
+## What You'll Find in the New Docs
 
-- Rust toolchain
-- Bun 1.1.0+
-- Node.js 18+
+The new comprehensive documentation includes:
 
-### Running Locally
+### Complete Setup Instructions
+- All Tauri dependencies for Linux, macOS, and Windows
+- Step-by-step installation guide
+- Environment configuration
+- Troubleshooting common issues
 
-Using the CLI Manager:
+### Architecture Details
+- How Tauri integrates with Next.js
+- IPC communication patterns
+- Plugin system explanation
+- Desktop-specific features
 
-```bash
-bun run cli
-# Select "Run Tauri App"
-```
+### Development Workflows
+- Running in development mode
+- Building production bundles
+- Platform-specific builds (DEB, DMG, MSI)
+- Hot-reload setup
 
-Or manually:
+### API Documentation
+- All Tauri plugins (store, dialog, fs, global-shortcut)
+- Platform detection utilities
+- Native dialog examples
+- File system operations
 
-```bash
-cd apps/instantdb
-bun run tauri:dev
-```
+## Migration Guide
 
-### Building
+If you were referencing this page, update your links:
 
-Build for production:
-
-```bash
-bun run cli
-# Select "Build Tauri App"
-```
-
-Or manually:
-
-```bash
-cd apps/instantdb
-bun run build
-bun run tauri:build
-```
-
-## Platform-Specific Builds
-
-### Linux (DEB)
-
-```bash
-bun run deb:build
-bun run deb:install
-```
-
-### macOS
-
-```bash
-bun run tauri:build
-# Output in src-tauri/target/release/bundle/macos/
-```
-
-### Windows
-
-```bash
-bun run tauri:build
-# Output in src-tauri/target/release/bundle/msi/
-```
-
-## Configuration
-
-Tauri configuration is in `apps/instantdb/src-tauri/tauri.conf.json`:
-
-- App metadata
-- Window settings
-- Security permissions
-- Build options
-
-## Features
-
-- Native file system access
-- System tray integration
-- Global shortcuts
-- Auto-updater support
-- Offline-first data storage
-
-## Troubleshooting
-
-### Build Issues
-
-If Tauri build fails:
-
-1. Ensure Rust is installed: `rustc --version`
-2. Check Rust toolchain: `rustup show`
-3. Clean build: `cd src-tauri && cargo clean`
-4. Rebuild: `bun run tauri:build`
-
-### Runtime Errors
-
-Check the Tauri console for detailed error messages:
-
-```bash
-bun run tauri:dev
-# Check terminal output for errors
-```
-
-## Next Steps
-
-- Learn about the [Web App](/docs/web)
-- Check the [CLI Manager](/docs/cli) for development tools
-- Review [Seeder Tool](/docs/seeder) for database setup
+| Old Link | New Link |
+|----------|----------|
+| `/docs/tauri` | `/docs/app` |
+| `/docs/tauri#development` | `/docs/app/setup` |
+| `/docs/tauri#architecture` | `/docs/app/architecture` |
+| `/docs/tauri#features` | `/docs/app/tech-stack#tauri-20` |
 

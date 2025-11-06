@@ -55,19 +55,19 @@ npm install
 
 2. Verify CLI is installed:
    ```bash
-   ls tools/cli-manager/
+   ls tools/sk/
    ```
 
 3. Rebuild the CLI:
    ```bash
-   cd tools/cli-manager
+   cd tools/sk
    bun install
    bun run build
    ```
 
 4. Try running directly:
    ```bash
-   cd tools/cli-manager
+   cd tools/sk
    bun run dev
    ```
 
@@ -109,7 +109,7 @@ bun run build
    kill -9 [PID]
    ```
 
-3. Or change the port in `tools/cli-manager/src/config.ts`:
+3. Or change the port in `tools/sk/src/config.ts`:
    ```typescript
    port: 42070  // Changed from 42069
    ```
@@ -331,7 +331,7 @@ vercel login
 
 1. Rebuild the CLI:
    ```bash
-   cd tools/cli-manager
+   cd tools/sk
    bun run build
    ```
 
@@ -339,7 +339,7 @@ vercel login
 
 3. For live changes during development:
    ```bash
-   cd tools/cli-manager
+   cd tools/sk
    bun run dev
    ```
 
@@ -351,7 +351,7 @@ vercel login
 
 1. Check TypeScript compilation:
    ```bash
-   cd tools/cli-manager
+   cd tools/sk
    bun run build
    # Read error messages
    ```
@@ -434,7 +434,7 @@ vercel login
 
 1. Check if TypeScript is compiled:
    ```bash
-   ls tools/cli-manager/dist/
+   ls tools/sk/dist/
    # Should see index.js
    ```
 

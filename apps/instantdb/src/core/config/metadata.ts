@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
 	metadataBase: new URL('http://localhost:42069'),
-	title: 'Notys - Manage your mess, with speed',
+	title: 'Skriuw - Manage your mess, with speed',
 	description:
 		'A powerful note-taking and task management app that helps you organize your thoughts and boost productivity.',
 	keywords: [
@@ -10,37 +10,37 @@ export const metadata: Metadata = {
 		'task management',
 		'productivity',
 		'organization',
-		'notys'
+		'skriuw'
 	],
-	authors: [{ name: 'Notys Team' }],
-	applicationName: 'Notys',
+	authors: [{ name: 'Skriuw Team' }],
+	applicationName: 'Skriuw',
 	appleWebApp: {
 		capable: true,
 		statusBarStyle: 'black-translucent',
-		title: 'Notys'
+		title: 'Skriuw'
 	},
 	formatDetection: {
 		telephone: false
 	},
 	openGraph: {
-		title: 'Notys - Manage your mess, with speed',
+		title: 'Skriuw - Manage your mess, with speed',
 		description:
 			'A powerful note-taking and task management app that helps you organize your thoughts and boost productivity.',
 		type: 'website',
 		locale: 'en_US',
-		siteName: 'Notys',
+		siteName: 'Skriuw',
 		images: [
 			{
 				url: '/android-chrome-512x512.png',
 				width: 512,
 				height: 512,
-				alt: 'Notys Logo'
+				alt: 'Skriuw Logo'
 			}
 		]
 	},
 	twitter: {
 		card: 'summary_large_image',
-		title: 'Notys - Manage your mess, with speed',
+		title: 'Skriuw - Manage your mess, with speed',
 		description:
 			'A powerful note-taking and task management app that helps you organize your thoughts and boost productivity.',
 		images: ['/android-chrome-512x512.png']

@@ -15,10 +15,10 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "deb:build": "tauri build --bundles deb",
-    "deb:install": "sudo dpkg -i src-tauri/target/release/bundle/deb/Notys_0.0.1_amd64.deb",
-    "deb:reinstall": "sudo dpkg -i --force-overwrite src-tauri/target/release/bundle/deb/Notys_0.0.1_amd64.deb",
-    "deb:uninstall": "sudo dpkg -r notys || echo 'Package not installed'",
-    "deb:purge": "sudo dpkg --purge notys || echo 'Package not installed'",
+    "deb:install": "sudo dpkg -i src-tauri/target/release/bundle/deb/Skriuw_0.0.1_amd64.deb",
+    "deb:reinstall": "sudo dpkg -i --force-overwrite src-tauri/target/release/bundle/deb/Skriuw_0.0.1_amd64.deb",
+    "deb:uninstall": "sudo dpkg -r skriuw || echo 'Package not installed'",
+    "deb:purge": "sudo dpkg --purge skriuw || echo 'Package not installed'",
     "deb:test": "bun run deb:build && bun run deb:reinstall"
   },
   "dependencies": {
