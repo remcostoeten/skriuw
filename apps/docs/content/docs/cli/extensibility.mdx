@@ -1,0 +1,224 @@
+---
+title: Extensibility
+description: Learn how to extend SK with custom tools and workflows
+---
+
+# Extensibility
+
+SK is designed to be **agnostic and extensible**. You can easily add custom tools, commands, and workflows.
+
+## Architecture
+
+SK uses a simple configuration-based approach:
+
+1. **Apps** - Development applications (Vite, Vinxi, Next.js, etc.)
+2. **Tools** - Custom utilities (seeders, scripts, etc.)
+3. **Deploy URLs** - Quick access to deployed apps
+4. **Extensible Menu** - Automatically includes configured tools
+
+## Adding Custom Tools
+
+### Example: Adding the Seeder Tool
+
+Already configured in `tools/sk/src/config.ts`:
+
+```typescript
+tools: [
+  {
+    name: 'seeder',
+    displayName: 'Database Seeder',
+    path: './tools/seeder',
+    command: 'bun run start',
+    description: 'Seed the database with sample data',
+    color: '#8b5cf6' // purple
+  }
+]
+```
+
+### Adding More Tools
+
+Simply add to the `tools` array in `config.ts`:
+
+```typescript
+tools: [
+  {
+    name: 'seeder',
+    displayName: 'Database Seeder',
+    path: './tools/seeder',
+    command: 'bun run start',
+    description: 'Seed the database with sample data',
+    color: '#8b5cf6'
+  },
+  {
+    name: 'migrate',
+    displayName: 'Database Migrations',
+    path: './tools/migrate',
+    command: 'bun run migrate',
+    description: 'Run database migrations',
+    color: '#f59e0b'
+  },
+  {
+    name: 'test',
+    displayName: 'Run Tests',
+    path: '.',
+    command: 'bun test',
+    description: 'Run all tests',
+    color: '#10b981'
+  }
+]
+```
+
+## Tool Configuration Options
+
+```typescript
+interface ToolConfig {
+  name: string;              // Unique identifier
+  displayName: string;       // Display name in menu
+  path: string;              // Relative path from project root
+  command: string;           // Command to run (e.g., "bun run start")
+  description?: string;       // Optional description
+  color?: string;            // Optional color (hex)
+}
+```
+
+## Adding Deploy URLs
+
+Add `deployUrl` to any app:
+
+```typescript
+apps: [
+  {
+    name: 'docs',
+    displayName: 'Docs App',
+    path: './apps/docs',
+    dev: 'bun run dev',
+    build: 'bun run build',
+    port: 6969,
+    color: '#10b981',
+    deployUrl: 'https://docs-skriuw.vercel.app'  // ← Add this
+  }
+]
+```
+
+Deploy URLs appear in the menu and can be opened directly.
+
+## Extensibility Points
+
+### 1. Configuration (`config.ts`)
+
+- **Apps**: Add/remove/modify apps
+- **Tools**: Add custom tools
+- **Deploy URLs**: Add per-app deploy URLs
+- **Editor**: Change default editor
+- **Deploy Commands**: Customize deployment
+
+### 2. Framework Detection (`framework.ts`)
+
+- Add new framework detection
+- Customize port patterns
+- Customize ready patterns
+- Add framework-specific commands
+
+### 3. Menu System (`index.ts`)
+
+- Tools automatically appear in menu
+- Conditional sections (only show if tools exist)
+- Custom separators and organization
+
+### 4. Storage & Logging (`storage.ts`, `logging.ts`)
+
+- JSON-based storage (configurable path)
+- Automatic log rotation (10MB max, keeps 5 files)
+- Custom log formats
+- Additional storage options
+
+## Examples
+
+### Custom Script Runner
+
+```typescript
+tools: [
+  {
+    name: 'clean',
+    displayName: 'Clean Build',
+    path: '.',
+    command: 'rm -rf dist .next node_modules/.cache',
+    description: 'Clean build artifacts'
+  }
+]
+```
+
+### Database Tool
+
+```typescript
+tools: [
+  {
+    name: 'db:reset',
+    displayName: 'Reset Database',
+    path: './tools/db',
+    command: 'bun run reset',
+    description: 'Reset database to initial state'
+  }
+]
+```
+
+### Linting Tool
+
+```typescript
+tools: [
+  {
+    name: 'lint:fix',
+    displayName: 'Fix Linting',
+    path: '.',
+    command: 'bun run lint --fix',
+    description: 'Auto-fix linting issues'
+  }
+]
+```
+
+## How It Works
+
+1. **Configuration**: Tools defined in `config.ts`
+2. **Menu Generation**: Tools automatically added to menu
+3. **Execution**: Tools run in their configured directory
+4. **Logging**: All tool runs are logged
+5. **Error Handling**: Failures are caught and displayed
+
+## Benefits
+
+- ✅ **Zero Code Changes** - Just edit config
+- ✅ **Automatic Integration** - Tools appear in menu
+- ✅ **Consistent UX** - Same interface for all tools
+- ✅ **Logging** - All runs are logged
+- ✅ **Error Handling** - Built-in error handling
+- ✅ **Flexible** - Any command, any path
+
+## Future Extensibility
+
+Planned features:
+- **Plugin System** - External plugins
+- **Script Hooks** - Pre/post hooks
+- **Tool Dependencies** - Run tools in sequence
+- **Interactive Tools** - Tools with prompts
+- **Tool Categories** - Organize tools by category
+
+## Best Practices
+
+1. **Use Descriptive Names** - Clear tool names
+2. **Add Descriptions** - Help users understand tools
+3. **Use Colors** - Visual organization
+4. **Group Related Tools** - Logical organization
+5. **Test Commands** - Ensure commands work
+
+## Summary
+
+SK is **highly extensible**:
+- ✅ Add tools via config (no code changes)
+- ✅ Tools automatically appear in menu
+- ✅ Consistent execution and logging
+- ✅ Easy to customize and extend
+- ✅ Framework-agnostic
+- ✅ Project-agnostic
+
+Just edit `config.ts` and add your tools!
+

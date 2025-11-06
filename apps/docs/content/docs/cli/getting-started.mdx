@@ -1,0 +1,179 @@
+---
+title: Getting Started
+description: Quick start guide for the CLI Manager
+---
+
+# Getting Started with CLI Manager
+
+Get up and running with the Skriuw CLI Manager in minutes.
+
+## Prerequisites
+
+Before using the CLI Manager, ensure you have:
+
+- **Bun 1.1.0+** installed
+- **Node.js 18+** (for some tools)
+- **Git** (for repository features)
+- **Vercel CLI** (optional, for deployment features)
+
+## Installation
+
+The CLI Manager is already included in the monorepo. No additional installation required!
+
+### Dependencies
+
+From the project root, install all dependencies:
+
+```bash
+bun install
+```
+
+This will install dependencies for:
+- The root workspace
+- All apps (instantdb, docs)
+- All tools (cli-manager, seeder)
+
+## First Launch
+
+Start the CLI from the project root:
+
+```bash
+bun run cli
+```
+
+You'll see the ASCII logo followed by an interactive menu:
+
+```
+╔═══════════════════════════════════════╗
+║                                       ║
+║     ███████ ██   ██ ██████  ██        ║
+║     ██      ██  ██  ██   ██ ██        ║
+║     ███████ █████   ██████  ██        ║
+║          ██ ██  ██  ██   ██ ██        ║
+║     ███████ ██   ██ ██   ██ ██        ║
+║                                       ║
+║         Project Manager v1.0          ║
+║                                       ║
+╚═══════════════════════════════════════╝
+
+? What would you like to do?
+❯ Run Tauri App (port 42069)
+  Run Docs App (port 3000)
+  Run All Apps
+  Build Tauri App
+  Build Docs App
+  Build All Apps
+  Deploy to Staging
+  Deploy to Production
+  Open Repository
+  Manage Running Apps
+  Exit
+```
+
+## Basic Usage
+
+### Starting an App
+
+1. Use arrow keys (↑/↓) to navigate the menu
+2. Select "Run Tauri App" or "Run Docs App"
+3. Press Enter
+4. Wait for the app to start
+
+You'll see a status box:
+
+```
+┌────────────────────────────────────────┐
+│  Tauri App                             │
+├────────────────────────────────────────┤
+│  Status:      Running                  │
+│  Port:        42069                    │
+│  Path:        ./apps/instantdb         │
+│  URL:         http://localhost:42069   │
+└────────────────────────────────────────┘
+```
+
+### Managing Running Apps
+
+While apps are running:
+
+1. Navigate back to the main menu
+2. Select "Manage Running Apps"
+3. Choose the app you want to manage
+4. Use hotkeys for quick actions:
+   - **O** - Open in browser
+   - **C** - Open in code editor
+   - **R** - Restart
+   - **S** - Stop
+   - **I** - Install package
+
+### Building Apps
+
+To build for production:
+
+1. Select "Build All Apps" from the menu
+2. Watch the progress for each app
+3. Review the summary report
+
+### Exiting
+
+Press Ctrl+C anytime, or select "Exit" from the menu. The CLI will gracefully shut down all running apps.
+
+## Access Methods
+
+There are three ways to launch the CLI:
+
+### Method 1: Full Command
+```bash
+bun run cli
+```
+
+### Method 2: Short Alias
+```bash
+bun run sk
+```
+
+### Method 3: Shell Script
+```bash
+./sk
+```
+
+All three methods are equivalent - use whichever you prefer!
+
+## Next Steps
+
+Now that you're set up, explore the CLI's features:
+
+<Cards>
+  <Card title="Configuration" href="/docs/cli/configuration" />
+  <Card title="Features" href="/docs/cli/features" />
+  <Card title="Usage Guide" href="/docs/cli/usage" />
+</Cards>
+
+## Troubleshooting
+
+### "bun: command not found"
+
+Install Bun:
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+### "Port already in use"
+
+Check what's using the port:
+```bash
+lsof -i :42069
+```
+
+Kill the process or change the port in `tools/cli-manager/src/config.ts`.
+
+### "App not starting"
+
+1. Check that dependencies are installed: `bun install`
+2. Verify the app path in config.ts
+3. Try starting the app manually to see detailed errors
+
+### CLI doesn't show colors
+
+Ensure your terminal supports ANSI colors. Most modern terminals do by default.
+
