@@ -1122,7 +1122,7 @@ echo "Reinstall complete!"
     });
   }
 
-  // Direct dev mode (replaces bun run dev)
+  // Direct dev mode (replaces bun run dev) with interactive controls
   async startDirectDev(): Promise<void> {
     const apps = await this.detectApps();
     
@@ -1131,7 +1131,7 @@ echo "Reinstall complete!"
       process.exit(1);
     }
 
-    // Single app: start it directly
+    // Single app: start it directly with interactive controls
     if (apps.length === 1) {
       const app = apps[0];
       console.log(chalk.cyan(`Starting ${app.displayName}...\n`));
@@ -1140,27 +1140,315 @@ echo "Reinstall complete!"
       const frameworkConfig = FrameworkDetector.detect(appPath);
       const [command, ...args] = frameworkConfig.devCommand.split(' ');
       
-      // Spawn process and pipe output directly (like bun run dev)
+      // Use detected port
+      let port = app.port;
+      if (frameworkConfig.port && frameworkConfig.port !== 3000) {
+        port = frameworkConfig.port;
+      }
+      
+      // Spawn process with captured output (for port detection)
       const proc = spawn(command, args, {
         cwd: appPath,
-        stdio: 'inherit',
-        shell: true
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: true,
+        detached: false
       });
 
+      let detectedPort = port;
+      let isReady = false;
+      let lastOutputTime = Date.now();
+
+      // Store running app for interactive controls
+      const runningApp: RunningApp = {
+        name: app.name,
+        displayName: app.displayName,
+        port: detectedPort,
+        path: app.path,
+        process: proc,
+        color: app.color,
+        framework: frameworkConfig,
+        detectedPort: detectedPort
+      };
+      this.runningApps.set(app.name, runningApp);
+
+      // Handle stdout - show output and detect ready/port
+      proc.stdout?.on('data', (data: Buffer) => {
+        const output = data.toString();
+        process.stdout.write(output); // Show output to user
+        
+        // Extract port from output
+        const extractedPort = FrameworkDetector.extractPort(output, frameworkConfig.portPatterns);
+        if (extractedPort && extractedPort !== detectedPort) {
+          detectedPort = extractedPort;
+          runningApp.port = detectedPort;
+          runningApp.detectedPort = detectedPort;
+        }
+        
+        // Check if ready
+        if (FrameworkDetector.isReady(output, frameworkConfig.readyPatterns)) {
+          if (!isReady) {
+            isReady = true;
+            this.showInteractiveStatusBar(runningApp);
+          }
+        }
+        
+        lastOutputTime = Date.now();
+      });
+
+      // Handle stderr - show errors but filter warnings
+      proc.stderr?.on('data', (data: Buffer) => {
+        const error = data.toString();
+        // Show errors but filter common warnings
+        if (!error.includes('warn') && !error.includes('info')) {
+          process.stderr.write(error);
+        } else {
+          // Still show warnings but less prominently
+          process.stderr.write(chalk.gray(error));
+        }
+        lastOutputTime = Date.now();
+      });
+
+      // Setup interactive hotkeys
+      this.setupDirectModeHotkeys(runningApp);
+
+      // Show initial status bar
+      setTimeout(() => {
+        if (!isReady) {
+          this.showInteractiveStatusBar(runningApp);
+        }
+      }, 2000);
+
       // Handle cleanup
+      proc.on('exit', (code) => {
+        this.runningApps.delete(app.name);
+        if (code !== 0 && code !== null) {
+          console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
+        }
+        process.exit(code || 0);
+      });
+
+      // Handle SIGINT
       process.on('SIGINT', () => {
         proc.kill();
+        this.runningApps.delete(app.name);
         process.exit(0);
       });
 
-      proc.on('exit', (code) => {
-        process.exit(code || 0);
-      });
     } else {
       // Multiple apps: show menu
       console.log(chalk.yellow('[INFO] Multiple apps detected. Showing menu...\n'));
       await this.showMainMenu();
     }
+  }
+
+  // Show interactive status bar in direct mode
+  showInteractiveStatusBar(app: RunningApp): void {
+    // Write status bar on new lines (won't interfere with dev output)
+    process.stdout.write('\n');
+    process.stdout.write(chalk.gray('─'.repeat(80)) + '\n');
+    process.stdout.write(
+      chalk.cyan(`[${app.displayName}]`) + ' ' +
+      chalk.green(`Running on http://localhost:${app.port}`) + ' | ' +
+      chalk.yellow('[O]pen') + ' ' +
+      chalk.yellow('[C]ode') + ' ' +
+      chalk.yellow('[R]estart') + ' ' +
+      chalk.yellow('[S]top') + ' ' +
+      chalk.yellow('[G]it') + ' ' +
+      chalk.yellow('[M]enu') + '\n'
+    );
+    process.stdout.write(chalk.gray('─'.repeat(80)) + '\n');
+  }
+
+  // Setup hotkeys for direct dev mode
+  setupDirectModeHotkeys(app: RunningApp): void {
+    if (!process.stdin.isTTY) return;
+
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+
+    process.stdin.on('keypress', async (str, key) => {
+      // Only handle single character keys (not Ctrl+C, etc.)
+      if (key.ctrl && key.name === 'c') {
+        // Let SIGINT handler deal with it
+        return;
+      }
+
+      const keyName = key.name?.toLowerCase();
+      
+      switch (keyName) {
+        case 'o':
+          // Open in browser
+          process.stdout.write('\n');
+          await this.openInBrowserDirect(app);
+          this.showInteractiveStatusBar(app);
+          break;
+        case 'c':
+          // Open in editor
+          process.stdout.write('\n');
+          await this.openInEditorDirect(app);
+          this.showInteractiveStatusBar(app);
+          break;
+        case 'r':
+          // Restart
+          process.stdout.write('\n');
+          await this.restartAppDirect(app);
+          break;
+        case 's':
+          // Stop
+          process.stdout.write('\n');
+          await this.stopAppDirect(app);
+          break;
+        case 'g':
+          // Open repository
+          process.stdout.write('\n');
+          await this.openRepositoryDirect();
+          this.showInteractiveStatusBar(app);
+          break;
+        case 'm':
+          // Switch to menu mode
+          process.stdout.write('\n');
+          process.stdin.setRawMode(false);
+          await this.showMainMenu();
+          break;
+      }
+    });
+  }
+
+  // Direct mode versions of actions (non-blocking, minimal output)
+  async openInBrowserDirect(app: RunningApp): Promise<void> {
+    try {
+      await open(`http://localhost:${app.port}`);
+      console.log(chalk.green(`[INFO] Opened http://localhost:${app.port} in browser`));
+    } catch (error) {
+      console.log(chalk.red('[ERROR] Failed to open browser'));
+    }
+  }
+
+  async openInEditorDirect(app: RunningApp): Promise<void> {
+    try {
+      const appPath = path.join(this.rootDir, app.path);
+      await execa(config.editor, [appPath], { stdio: 'ignore' });
+      console.log(chalk.green(`[INFO] Opened ${app.displayName} in ${config.editor}`));
+    } catch (error) {
+      console.log(chalk.red(`[ERROR] Failed to open ${config.editor}`));
+    }
+  }
+
+  async restartAppDirect(app: RunningApp): Promise<void> {
+    console.log(chalk.yellow(`[INFO] Restarting ${app.displayName}...`));
+    
+    // Stop current process
+    app.process.kill();
+    this.runningApps.delete(app.name);
+    
+    // Wait for clean shutdown
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Restart
+    const apps = await this.detectApps();
+    const appConfig = apps.find(a => a.name === app.name);
+    if (appConfig) {
+      await this.runAppDirectMode(appConfig, app);
+    }
+  }
+
+  async stopAppDirect(app: RunningApp): Promise<void> {
+    console.log(chalk.yellow(`[INFO] Stopping ${app.displayName}...`));
+    app.process.kill();
+    this.runningApps.delete(app.name);
+    process.exit(0);
+  }
+
+  async openRepositoryDirect(): Promise<void> {
+    try {
+      const { stdout } = await execa('git', ['remote', '-v'], {
+        cwd: this.rootDir,
+        reject: false
+      });
+
+      const match = stdout.match(/https:\/\/[^\s]+/);
+      if (match) {
+        const url = match[0].replace('.git', '');
+        await open(url);
+        console.log(chalk.green(`[INFO] Opened repository in browser`));
+      } else {
+        console.log(chalk.red('[ERROR] No remote repository found'));
+      }
+    } catch (error) {
+      console.log(chalk.red('[ERROR] Failed to get repository URL'));
+    }
+  }
+
+  // Run app in direct mode (for restart)
+  async runAppDirectMode(app: AppConfig, previousApp?: RunningApp): Promise<void> {
+    const appPath = path.join(this.rootDir, app.path);
+    const frameworkConfig = FrameworkDetector.detect(appPath);
+    const [command, ...args] = frameworkConfig.devCommand.split(' ');
+    
+    let port = app.port;
+    if (frameworkConfig.port && frameworkConfig.port !== 3000) {
+      port = frameworkConfig.port;
+    }
+    
+    const proc = spawn(command, args, {
+      cwd: appPath,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+      detached: false
+    });
+
+    let detectedPort = port;
+    let isReady = false;
+
+    const runningApp: RunningApp = {
+      name: app.name,
+      displayName: app.displayName,
+      port: detectedPort,
+      path: app.path,
+      process: proc,
+      color: app.color,
+      framework: frameworkConfig,
+      detectedPort: detectedPort
+    };
+    this.runningApps.set(app.name, runningApp);
+
+    proc.stdout?.on('data', (data: Buffer) => {
+      const output = data.toString();
+      process.stdout.write(output);
+      
+      const extractedPort = FrameworkDetector.extractPort(output, frameworkConfig.portPatterns);
+      if (extractedPort && extractedPort !== detectedPort) {
+        detectedPort = extractedPort;
+        runningApp.port = detectedPort;
+        runningApp.detectedPort = detectedPort;
+      }
+      
+      if (FrameworkDetector.isReady(output, frameworkConfig.readyPatterns)) {
+        if (!isReady) {
+          isReady = true;
+          this.showInteractiveStatusBar(runningApp);
+        }
+      }
+    });
+
+    proc.stderr?.on('data', (data: Buffer) => {
+      const error = data.toString();
+      if (!error.includes('warn') && !error.includes('info')) {
+        process.stderr.write(error);
+      } else {
+        process.stderr.write(chalk.gray(error));
+      }
+    });
+
+    this.setupDirectModeHotkeys(runningApp);
+
+    proc.on('exit', (code) => {
+      this.runningApps.delete(app.name);
+      if (code !== 0 && code !== null) {
+        console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
+      }
+      process.exit(code || 0);
+    });
   }
 
   // Start the CLI
