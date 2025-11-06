@@ -9,9 +9,10 @@
     "sk": "./dist/index.js"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/index.ts dev",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "start:dev": "node dist/index.js dev"
   },
   "dependencies": {
     "chalk": "^5.6.2",
