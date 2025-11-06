@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import ora, { Ora } from 'ora';
 import open from 'open';
 import { execa } from 'execa';
-import { config, AppConfig } from './config.js';
+import { config, AppConfig, ToolConfig } from './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -102,8 +102,19 @@ class CLIManager {
       })),
       { name: 'Build All Apps', value: 'build:all' },
       new inquirer.Separator(chalk.bold.yellow('── Deploy ──')),
+      ...apps.filter(app => app.deployUrl).map(app => ({
+        name: `Open ${app.displayName} ${chalk.gray(`(${app.deployUrl})`)}`,
+        value: `deploy:open:${app.name}`
+      })),
       { name: 'Deploy to Staging', value: 'deploy:staging' },
       { name: 'Deploy to Production', value: 'deploy:production' },
+      ...(config.tools && config.tools.length > 0 ? [
+        new inquirer.Separator(chalk.bold.magenta('── Tools ──')),
+        ...config.tools.map(tool => ({
+          name: `Run ${chalk.blue(tool.displayName)} ${tool.description ? chalk.gray(`(${tool.description})`) : ''}`,
+          value: `tool:${tool.name}`
+        }))
+      ] : []),
       new inquirer.Separator(chalk.bold.magenta('── Utilities ──')),
       { name: 'Open Repository', value: 'repo:open' },
       { name: 'Manage Running Apps', value: 'manage:apps' },
@@ -146,7 +157,15 @@ class CLIManager {
         }
         break;
       case 'deploy':
-        await this.deploy(target);
+        if (target.startsWith('open:')) {
+          const appName = target.replace('open:', '');
+          await this.openDeployUrl(appName);
+        } else {
+          await this.deploy(target);
+        }
+        break;
+      case 'tool':
+        await this.runTool(target);
         break;
       case 'repo':
         await this.openRepository();
@@ -487,6 +506,68 @@ class CLIManager {
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Duration:'.padEnd(12)) + chalk.white(`${totalDuration}s`.padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('└────────────────────────────────────────┘'));
     console.log();
+
+    await this.pressEnterToContinue();
+    return this.showMainMenu();
+  }
+
+  // Open deploy URL
+  async openDeployUrl(appName: string): Promise<void> {
+    const apps = await this.detectApps();
+    const app = apps.find(a => a.name === appName);
+    
+    if (!app || !app.deployUrl) {
+      console.log(chalk.red(`\n[ERROR] App "${appName}" not found or has no deploy URL`));
+      await this.pressEnterToContinue();
+      return this.showMainMenu();
+    }
+
+    const spinner = ora(`Opening ${app.deployUrl}...`).start();
+    try {
+      await open(app.deployUrl);
+      spinner.succeed(chalk.green(`Opened ${app.displayName} deploy URL`));
+    } catch (error) {
+      spinner.fail(chalk.red('Failed to open deploy URL'));
+    }
+    
+    await this.pressEnterToContinue();
+    return this.showMainMenu();
+  }
+
+  // Run tool
+  async runTool(toolName: string): Promise<void> {
+    if (!config.tools || config.tools.length === 0) {
+      console.log(chalk.red('\n[ERROR] No tools configured'));
+      await this.pressEnterToContinue();
+      return this.showMainMenu();
+    }
+
+    const tool = config.tools.find(t => t.name === toolName);
+    if (!tool) {
+      console.log(chalk.red(`\n[ERROR] Tool "${toolName}" not found`));
+      await this.pressEnterToContinue();
+      return this.showMainMenu();
+    }
+
+    console.clear();
+    const spinner = ora(`Running ${tool.displayName}...`).start();
+    this.logManager.log('info', `Running ${tool.displayName}`, toolName);
+
+    try {
+      const toolPath = path.join(this.rootDir, tool.path);
+      const [command, ...args] = tool.command.split(' ');
+      
+      await execa(command, args, {
+        cwd: toolPath,
+        stdio: 'inherit'
+      });
+
+      spinner.succeed(chalk.green(`${tool.displayName} completed successfully`));
+      this.logManager.log('info', `${tool.displayName} completed successfully`, toolName);
+    } catch (error) {
+      spinner.fail(chalk.red(`${tool.displayName} failed`));
+      this.logManager.log('error', `${tool.displayName} failed: ${error}`, toolName);
+    }
 
     await this.pressEnterToContinue();
     return this.showMainMenu();
