@@ -1071,10 +1071,10 @@ class CLIManager {
 
     const script = `#!/bin/bash
 # Auto-generated reinstall script
-echo "Uninstalling @skriuw/cli-manager..."
-bun remove -g @skriuw/cli-manager || npm uninstall -g @skriuw/cli-manager || true
-echo "Installing @skriuw/cli-manager..."
-cd "${this.rootDir}/tools/cli-manager"
+echo "Uninstalling @skriuw/sk..."
+bun remove -g @skriuw/sk || npm uninstall -g @skriuw/sk || true
+echo "Installing @skriuw/sk..."
+cd "${this.rootDir}/tools/sk"
 bun install
 bun run build
 echo "Reinstall complete!"
