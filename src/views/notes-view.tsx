@@ -8,7 +8,7 @@ import { useCreateNote } from '@/modules/notes/api/mutations/create'
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'
 import { DockManager } from '@/utils/dock-utils'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function NotesView() {
 	const { notes, isLoading } = useGetNotes()
@@ -88,13 +88,20 @@ export default function NotesView() {
 			window.dispatchEvent(searchCloseEvent)
 		}
 
+		const handleNoteCreateEvent = () => {
+			handleCreateNoteFromSidebar()
+		}
+
 		window.addEventListener('menu:toggle-search', handleToggleSearch)
 		window.addEventListener('menu:close-search', handleCloseSearch)
+		window.addEventListener('note:create', handleNoteCreateEvent)
 
 		return () => {
 			window.removeEventListener('menu:toggle-search', handleToggleSearch)
 			window.removeEventListener('menu:close-search', handleCloseSearch)
+			window.removeEventListener('note:create', handleNoteCreateEvent)
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
 	async function handleCreateNote() {
@@ -145,24 +152,24 @@ export default function NotesView() {
 			className="flex h-screen sm:h-screen bg-background"
 			style={{ height: 'calc(100vh - env(safe-area-inset-bottom))' }}
 		>
-		<FileTreeSidebar
-			onNoteSelect={handleNoteSelectFromSidebar}
-			onNoteCreate={handleCreateNoteFromSidebar}
-			onNoteDuplicate={async (noteId: string) => {
-				// Wait for note to appear in list, then select it
-				const checkInterval = setInterval(() => {
-					const note = notes.find((n: Note) => n.id === noteId)
-					if (note) {
-						clearInterval(checkInterval)
-						setSelectedNoteId(noteId)
-					}
-				}, 50)
-				// Clear interval after 2 seconds if note doesn't appear
-				setTimeout(() => clearInterval(checkInterval), 2000)
-				return noteId
-			}}
-			selectedNoteId={selectedNote?.id}
-		/>
+			<FileTreeSidebar
+				onNoteSelect={handleNoteSelectFromSidebar}
+				onNoteCreate={handleCreateNoteFromSidebar}
+				onNoteDuplicate={async (noteId: string) => {
+					// Wait for note to appear in list, then select it
+					const checkInterval = setInterval(() => {
+						const note = notes.find((n: Note) => n.id === noteId)
+						if (note) {
+							clearInterval(checkInterval)
+							setSelectedNoteId(noteId)
+						}
+					}, 50)
+					// Clear interval after 2 seconds if note doesn't appear
+					setTimeout(() => clearInterval(checkInterval), 2000)
+					return noteId
+				}}
+				selectedNoteId={selectedNote?.id}
+			/>
 
 			<div className="flex-1 relative sm:ml-[220px] ml-0">
 				{selectedNote ? (

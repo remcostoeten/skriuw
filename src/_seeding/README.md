@@ -1,0 +1,354 @@
+# 🌱 Seeding Module (Development)
+
+> **Note:** The `_` prefix indicates this is a development-only module.
+
+This module contains organized utilities for seeding the database during development. All seeding methods are centralized here for easy access and maintenance.
+
+## 📁 Structure
+
+```
+src/_seeding/
+├── README.md              # This file
+├── index.ts               # Public exports
+└── shortcuts-note/
+    ├── content.ts         # Note content (markdown)
+    ├── seed.ts            # Core seeding logic
+    ├── seed-button.tsx    # React component
+    ├── route.ts           # API route handler
+    └── script.ts          # Backend CLI script
+```
+
+---
+
+## 🚀 Quick Start
+
+### Method 1: Browser Console (Fastest) ⭐
+
+Open your app's browser console (F12) and run:
+
+```javascript
+fetch('/api/seed/shortcuts-note',{method:'POST'}).then(r=>r.json()).then(console.log)
+```
+
+### Method 2: Import in Component
+
+```typescript
+import { seedKeyboardShortcutsNote } from '@/_seeding';
+
+// In your component or function
+await seedKeyboardShortcutsNote({ pinned: false, position: 0 });
+```
+
+### Method 3: React Button Component
+
+```tsx
+import { SeedShortcutsNoteButton } from '@/_seeding';
+
+// Add temporarily to any page
+export default function DevPage() {
+  return (
+    <>
+      {process.env.NODE_ENV === 'development' && <SeedShortcutsNoteButton />}
+    </>
+  );
+}
+```
+
+### Method 4: Backend Script
+
+```bash
+npx tsx src/_seeding/shortcuts-note/script.ts
+# or
+bun src/_seeding/shortcuts-note/script.ts
+```
+
+---
+
+## 📚 API Reference
+
+### `seedKeyboardShortcutsNote(options?)`
+
+Seeds the "Keyboard Shortcuts" documentation note.
+
+**Parameters:**
+- `options` (optional)
+  - `pinned?: boolean` - Pin the note (default: `false`)
+  - `position?: number` - Position in list (default: `0`)
+
+**Returns:** `Promise<SeedResult>`
+- `id: string` - Generated note ID
+- `title: string` - Note title ("Keyboard Shortcuts")
+- `success: boolean` - Success status
+
+**Example:**
+
+```typescript
+const result = await seedKeyboardShortcutsNote({
+  pinned: true,
+  position: 0
+});
+
+console.log(result);
+// { id: 'xxx-xxx-xxx', title: 'Keyboard Shortcuts', success: true }
+```
+
+---
+
+## 🔌 API Endpoints
+
+### POST `/api/seed/shortcuts-note`
+
+Creates the Keyboard Shortcuts note via HTTP request.
+
+**Request Body:**
+```json
+{
+  "pinned": false,
+  "position": 0
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Keyboard Shortcuts note created successfully",
+  "data": {
+    "id": "xxx-xxx-xxx",
+    "title": "Keyboard Shortcuts",
+    "success": true
+  }
+}
+```
+
+**Usage Examples:**
+
+```javascript
+// Fetch API
+const response = await fetch('/api/seed/shortcuts-note', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ pinned: false, position: 0 })
+});
+const data = await response.json();
+```
+
+```bash
+# cURL
+curl -X POST http://localhost:3000/api/seed/shortcuts-note \
+  -H "Content-Type: application/json" \
+  -d '{"pinned":false,"position":0}'
+```
+
+---
+
+## 🎨 Component Usage
+
+### `<SeedShortcutsNoteButton />`
+
+A floating button component for one-time seeding.
+
+**Features:**
+- Visual feedback (loading, success, error states)
+- Displays created note ID
+- Self-contained UI with instructions
+- Disabled after successful creation
+
+**Example:**
+
+```tsx
+import { SeedShortcutsNoteButton } from '@/_seeding';
+
+export default function Page() {
+  return (
+    <div>
+      {/* Your app content */}
+
+      {/* Temporary seeding button - remove after use */}
+      {process.env.NODE_ENV === 'development' && (
+        <SeedShortcutsNoteButton />
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 🛠️ Backend Script
+
+For CI/CD or automated seeding, use the backend script:
+
+```bash
+# Using tsx
+npx tsx src/_seeding/shortcuts-note/script.ts
+
+# Using ts-node
+npx ts-node src/_seeding/shortcuts-note/script.ts
+
+# Using bun
+bun src/_seeding/shortcuts-note/script.ts
+```
+
+**Requirements:**
+- `.env` file with `NEXT_PUBLIC_INSTANT_APP_ID`
+- Internet connection
+- Active InstantDB app
+
+**Output:**
+```
+🔑 InstantDB App ID: xxx-xxx-xxx
+🚀 Starting database seeding for Keyboard Shortcuts note...
+📡 Connecting to InstantDB...
+📝 Creating note with ID: xxx-xxx-xxx
+✅ Successfully created Keyboard Shortcuts note!
+🆔 Note ID: xxx-xxx-xxx
+📋 Title: "Keyboard Shortcuts"
+📍 Position: 0 (top of list)
+🎉 Seeding completed successfully!
+```
+
+---
+
+## ✅ Verification
+
+After seeding, verify the note was created:
+
+1. **Check notes list:** Look for "Keyboard Shortcuts" at the top
+2. **Open the note:** Verify rich-text markdown content
+3. **Check console:** Look for success messages
+4. **Refresh app:** Note should persist and sync
+
+---
+
+## 🐛 Troubleshooting
+
+### "Module not found" error
+
+Make sure you're importing from the correct path:
+
+```typescript
+// ✅ Correct
+import { seedKeyboardShortcutsNote } from '@/_seeding';
+
+// ❌ Wrong
+import { seedKeyboardShortcutsNote } from '@/utils/seed-shortcuts-note';
+```
+
+### API route not found
+
+The route file is at `src/_seeding/shortcuts-note/route.ts` but needs to be symlinked or copied to:
+```
+src/app/api/seed/shortcuts-note/route.ts
+```
+
+### Backend script fails
+
+1. Verify `.env` exists with `NEXT_PUBLIC_INSTANT_APP_ID`
+2. Check InstantDB app is active
+3. Ensure internet connection
+4. Check console for detailed error messages
+
+### Note not appearing
+
+1. Hard refresh the page (Cmd/Ctrl + Shift + R)
+2. Check browser console for errors
+3. Verify InstantDB connection in Network tab
+4. Check that `useGetNotes()` hook is working
+
+---
+
+## 🧹 Cleanup
+
+After successfully seeding:
+
+1. **Remove the button component** from your app if you used Method 3
+2. **Keep the module** for future development use
+3. The created note is **permanent** and will sync across all devices
+
+---
+
+## 📝 Adding New Seeds
+
+To add a new seeding utility:
+
+1. Create a new directory: `src/_seeding/your-seed-name/`
+2. Add these files:
+   - `content.ts` - Data content
+   - `seed.ts` - Core seeding logic
+   - `seed-button.tsx` - React component (optional)
+   - `route.ts` - API route (optional)
+   - `script.ts` - Backend script (optional)
+3. Export from `src/_seeding/index.ts`:
+   ```typescript
+   export { seedYourSeedName } from './your-seed-name/seed';
+   ```
+4. Update this README with usage instructions
+
+---
+
+## 🔒 Production Notes
+
+**This module should NOT be used in production.** The `_` prefix indicates development-only code.
+
+Consider:
+- Using environment checks (`process.env.NODE_ENV === 'development'`)
+- Tree-shaking to remove from production builds
+- Using separate build configurations
+- Implementing proper database migrations for production
+
+---
+
+## 📚 Technical Details
+
+### InstantDB Pattern
+
+All seeding methods use the correct InstantDB transaction pattern:
+
+```typescript
+import { transact, tx } from '@/api/db/client';
+
+await transact([
+  tx.notes[id].update({
+    title: 'Note Title',
+    content: 'Note content...',
+    position: 0,
+    pinned: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  })
+]);
+```
+
+This pattern:
+- ✅ Supports optimistic updates
+- ✅ Syncs across all devices automatically
+- ✅ Works in both frontend and backend
+- ✅ No custom sync logic needed
+
+### Schema Compatibility
+
+Seeds follow the existing schema definitions in `src/api/db/schema.ts`:
+
+```typescript
+notes: i.entity({
+  title: i.string(),
+  content: i.string(),
+  position: i.number(),
+  pinned: i.boolean().optional(),
+  createdAt: i.number().indexed(),
+  updatedAt: i.number(),
+})
+```
+
+---
+
+## 🎉 Summary
+
+**Fastest:** Browser console with `fetch('/api/seed/shortcuts-note',{method:'POST'})`
+**Easiest:** React button component
+**Most Flexible:** Direct function import
+**Best for CI/CD:** Backend script
+
+Choose the method that best fits your workflow!
+
