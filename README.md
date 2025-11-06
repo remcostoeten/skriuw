@@ -1,5 +1,6 @@
 # Skriuw
 
+A feature rich _me_ multiplatform app 
 A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
 
 ## About

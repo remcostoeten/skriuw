@@ -1,15 +1,25 @@
 {
-  "name": "docs",
-  "version": "0.0.0",
+  "name": "@skriuw/docs",
+  "version": "0.0.1",
   "private": true,
-  "scripts": {
+  "description": "Documentation site for the features & architecture of Skriuw",
+  "author": "Remco Stoeten",
+  "license": "MIT",
+  "homepage": "docs-skriuw.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/remcostoeten/skriuw.git"
+  },
+  "keywords": ["tauri","multiplaform","skriuw", "documentation", "fumadocs", "next.js"],
+  "scripts": {  
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --port 6969",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.17",
+    "@vercel/analytics": "^1.5.0",
     "fumadocs-core": "16.0.7",
     "fumadocs-mdx": "13.0.5",
     "fumadocs-ui": "16.0.7",
