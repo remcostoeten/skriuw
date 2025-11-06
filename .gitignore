@@ -16,8 +16,8 @@ out/
 .vercel
 
 # Tauri
-src-tauri/target/
-src-tauri/WixTools/
+apps/*/src-tauri/target/
+apps/*/src-tauri/WixTools/
 
 # Environment
 .env

@@ -14,6 +14,8 @@ Interactive CLI tool for seeding notes into InstantDB.
 
 ## Usage
 
+From the monorepo root:
+
 ```bash
 bun run tools/seeder/src/index.ts
 ```
