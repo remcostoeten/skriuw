@@ -1,6 +1,10 @@
 "use client"
+
 import type { ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
+import {
+
+} from "@/shared/components/ui/context-menu"
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -10,13 +14,12 @@ import {
   ContextMenuSubTrigger,
   ContextMenuSubContent,
   ContextMenuSeparator,
-  ContextMenuShortcut,
-} from "@/components/ui/context-menu"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+  ContextMenuShortcut, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
+} from "ui"
 
 export type MenuItemVariant = "default" | "destructive"
 
-export interface SubMenuItem {
+export type SubMenuItem = {
   id: string
   label: string
   icon?: LucideIcon
@@ -26,7 +29,7 @@ export interface SubMenuItem {
   subItems?: SubMenuItem[]
 }
 
-export interface MenuItem {
+export type MenuItem = {
   id: string
   label: string
   icon?: LucideIcon
@@ -39,7 +42,7 @@ export interface MenuItem {
   subItems?: SubMenuItem[]
 }
 
-export interface ItemContextMenuProps {
+type props = {
   children: ReactNode
   items: MenuItem[]
   className?: string
@@ -47,12 +50,10 @@ export interface ItemContextMenuProps {
   onOpenChange?: (open: boolean) => void
 }
 
-export function ItemContextMenu({ children, items, className, open, onOpenChange }: ItemContextMenuProps) {
-  // Recursively render submenu items (handles any nesting depth)
+export function ItemContextMenu({ children, items, className, open, onOpenChange }: props) {
   const renderSubMenuItem = (subItem: SubMenuItem) => {
     const SubIcon = subItem.icon
 
-    // If subItem has nested subItems, render as nested submenu (recursive)
     if (subItem.subItems && subItem.subItems.length > 0) {
       return (
         <ContextMenuSub key={subItem.id}>
@@ -67,7 +68,6 @@ export function ItemContextMenu({ children, items, className, open, onOpenChange
       )
     }
 
-    // Regular submenu item
     const subItemContent = (
       <ContextMenuItem key={subItem.id} disabled={subItem.disabled} onClick={subItem.onSelect}>
         {SubIcon && <SubIcon className="h-4 w-4" />}

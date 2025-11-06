@@ -1,5 +1,6 @@
 import type { Task } from '@/api/db/schema';
 import { createQueryHook } from '@/hooks/core';
+import { arrayQueryOptions } from '@/shared/utilities/query-helpers';
 
 const useAllTasksQuery = createQueryHook(
     () => ({
@@ -18,14 +19,7 @@ const useAllTasksQuery = createQueryHook(
             },
         },
     }),
-    {
-        select: (raw) => {
-            const tasks = (raw?.tasks as Task[]) ?? [];
-            // Keep the existing order by createdAt for top-level tasks
-            return tasks;
-        },
-        initialData: [] as Task[],
-    }
+    arrayQueryOptions<Task>('tasks')
 );
 
 export function useGetAllTasks() {

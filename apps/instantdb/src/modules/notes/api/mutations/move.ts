@@ -1,213 +1,231 @@
 import { transact, tx } from '@/api/db/client';
 import type { Folder, Note } from '@/api/db/schema';
 import { useMutation } from '@/hooks/core';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-type MoveNoteInput = {
-    draggedNoteId: string;
-    targetFolderId: string;
-    position: 'before' | 'after' | 'inside';
-    notes: Note[];
-    folders: Folder[];
-}
+type Id = UUID;
+
+const getId = (x?: { id?: string } | null) => x?.id ?? null;
+const pos = (n?: { position?: number | null } | null) => n?.position ?? 0;
+
+const byPosAsc = <T extends { position?: number | null }>(a: T, b: T) =>
+  pos(a) - pos(b);
+
+const maxPos = (items: Array<{ position?: number | null }>) =>
+  items.length ? Math.max(...items.map(pos)) : 0;
+
+const between = (x: number, lo: number, hi: number) => x > lo && x < hi;
+
+const cloneSortByPos = <T extends { position?: number | null }>(arr: T[]) =>
+  [...arr].sort(byPosAsc);
+
+const noteFolderId = (n: Note) => getId((n as any).folder);
+const folderParentId = (f: Folder) => getId((f as any).parent);
+
+const notesInFolder = (notes: Note[], folderId: Nullable<Id>, excludeId?: Id) =>
+  notes.filter(n => noteFolderId(n) === folderId && n.id !== excludeId);
+
+const foldersInParent = (folders: Folder[], parentId: Nullable<Id>) =>
+  folders.filter(f => folderParentId(f) === parentId && !(f as any).deletedAt);
+
+const linkOps = (noteId: Id, fromId: Nullable<Id>, toId: Nullable<Id>) => {
+  if (fromId === toId) return [];
+  if (toId) return [tx.notes[noteId].link({ folder: toId })];
+  if (fromId) return [tx.notes[noteId].unlink({ folder: fromId })];
+  return [];
+};
+
+const mid = (a: number, b: number) => (a + b) / 2;
+
+/**
+ * @name Move Note Mutation
+ * @description Mutation hook for moving a note
+ */
+
+type MoveProps = {
+  draggedNoteId: Id;
+  targetFolderId: Id;
+  position: 'before' | 'after' | 'inside';
+  notes: Note[];
+  folders: Folder[];
+};
 
 export function useMoveNote() {
-    const { mutate, isLoading, error } = useMutation(async (input: MoveNoteInput) => {
-        const { draggedNoteId, targetFolderId, position, notes, folders } = input;
+  const { mutate, isLoading, error } = useMutation(async (input: MoveProps) => {
+    const { draggedNoteId, targetFolderId, position, notes, folders } = input;
 
-        const draggedNote = notes.find((n: Note) => n.id === draggedNoteId);
-        const targetFolder = folders.find((f: Folder) => f.id === targetFolderId);
+    const draggedNote = notes.find(n => n.id === draggedNoteId);
+    const targetFolder = folders.find(f => f.id === targetFolderId);
+    if (!draggedNote || !targetFolder) return;
 
-        if (!draggedNote || !targetFolder) return;
+    const currentParentId = noteFolderId(draggedNote);
+    let newParentId: Nullable<Id> = null;
 
-        let newParentId: string | null = null;
-        const currentParentId = (draggedNote.folder as any)?.id || null;
+    if (position === 'inside') {
+      newParentId = targetFolderId;
 
-        if (position === 'inside') {
-            const targetFolderNotes = notes.filter((n: Note) =>
-                (n.folder as any)?.id === targetFolderId && n.id !== draggedNoteId
-            );
-            const sortedTargetNotes = targetFolderNotes.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
-            const newPosition = sortedTargetNotes.length > 0
-                ? Math.max(...sortedTargetNotes.map((n: Note) => n.position || 0)) + 1
-                : 0;
+      const targetNotes = notesInFolder(notes, targetFolderId, draggedNoteId);
+      const newPosition = (targetNotes.length ? maxPos(targetNotes) : -1) + 1;
 
-            newParentId = targetFolderId;
+      await transact([
+        tx.notes[draggedNoteId].update(withTimestamps({ position: newPosition })),
+        tx.notes[draggedNoteId].link({ folder: targetFolderId }),
+      ]);
+    } else {
+      newParentId = folderParentId(targetFolder);
 
-            await transact([
-                tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() }),
-                tx.notes[draggedNoteId].link({ folder: targetFolderId })
-            ]);
+      const ops = linkOps(draggedNoteId, currentParentId, newParentId);
+      if (ops.length) await transact(ops);
+
+      const siblingNotes = notesInFolder(notes, newParentId, draggedNoteId);
+      const siblingFolders = foldersInParent(folders, newParentId);
+
+      const sortedNotes = cloneSortByPos(siblingNotes);
+      const sortedFolders = cloneSortByPos(siblingFolders as Array<{ position?: number | null; id: string }>);
+
+      const folderIndex = sortedFolders.findIndex(f => f.id === targetFolderId);
+      const targetFolderPos = pos(targetFolder as { position?: number | null });
+
+      let newPosition: number;
+
+      if (position === 'before') {
+        const prevFolder = folderIndex > 0 ? sortedFolders[folderIndex - 1] : null;
+        const prevPos = prevFolder ? pos(prevFolder as { position?: number | null }) : 0;
+
+        const notesInRange = sortedNotes.filter(n =>
+          between(pos(n), prevPos, targetFolderPos),
+        );
+
+        if (notesInRange.length) {
+          const last = notesInRange[notesInRange.length - 1];
+          newPosition = mid(pos(last), targetFolderPos);
         } else {
-            newParentId = (targetFolder.parent as any)?.id || null;
-
-            if (currentParentId !== newParentId) {
-                if (newParentId) {
-                    await transact([tx.notes[draggedNoteId].link({ folder: newParentId })]);
-                } else {
-                    if (currentParentId) {
-                        await transact([tx.notes[draggedNoteId].unlink({ folder: currentParentId })]);
-                    }
-                }
-            }
-
-            const siblingNotes = newParentId
-                ? notes.filter((n: Note) => (n.folder as any)?.id === newParentId && n.id !== draggedNoteId)
-                : notes.filter((n: Note) => !(n.folder as any) && n.id !== draggedNoteId);
-
-            const siblingFolders = newParentId
-                ? folders.filter((f: Folder) => (f.parent as any)?.id === newParentId && !f.deletedAt)
-                : folders.filter((f: Folder) => !(f.parent as any) && !f.deletedAt);
-
-            const sortedSiblingNotes = siblingNotes.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
-            const sortedSiblingFolders = siblingFolders.sort((a: Folder, b: Folder) => (a.position || 0) - (b.position || 0));
-
-            let newPosition: number;
-
-            if (position === 'before') {
-                const folderIndex = sortedSiblingFolders.findIndex((f: Folder) => f.id === targetFolderId);
-                const prevFolder = folderIndex > 0 ? sortedSiblingFolders[folderIndex - 1] : null;
-                const targetFolderPos = targetFolder.position || 0;
-                const prevFolderPos = prevFolder?.position || 0;
-
-                const notesInRange = sortedSiblingNotes.filter(n => {
-                    const notePos = n.position || 0;
-                    return notePos > prevFolderPos && notePos < targetFolderPos;
-                });
-
-                if (notesInRange.length > 0) {
-                    const lastNote = notesInRange[notesInRange.length - 1];
-                    newPosition = (lastNote.position || 0) + (targetFolderPos - (lastNote.position || 0)) / 2;
-                } else {
-                    newPosition = (prevFolderPos + targetFolderPos) / 2;
-                }
-            } else {
-                const folderIndex = sortedSiblingFolders.findIndex((f: Folder) => f.id === targetFolderId);
-                const nextFolder = folderIndex < sortedSiblingFolders.length - 1
-                    ? sortedSiblingFolders[folderIndex + 1]
-                    : null;
-                const targetFolderPos = targetFolder.position || 0;
-                const nextFolderPos = nextFolder?.position || (targetFolderPos + 100);
-
-                const notesInRange = sortedSiblingNotes.filter(n => {
-                    const notePos = n.position || 0;
-                    return notePos > targetFolderPos && notePos < nextFolderPos;
-                });
-
-                if (notesInRange.length > 0) {
-                    const firstNote = notesInRange[0];
-                    newPosition = (targetFolderPos + (firstNote.position || 0)) / 2;
-                } else {
-                    newPosition = (targetFolderPos + nextFolderPos) / 2;
-                }
-            }
-
-            await transact([tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() })]);
+          newPosition = mid(prevPos, targetFolderPos);
         }
+      } else {
+        const nextFolder =
+          folderIndex >= 0 && folderIndex < sortedFolders.length - 1
+            ? sortedFolders[folderIndex + 1]
+            : null;
 
-        return {
-            id: draggedNoteId,
-            newParentId,
-            oldParentId: currentParentId
-        };
-    });
+        const nextPos = nextFolder ? pos(nextFolder) : targetFolderPos + 100;
 
-    return { moveNote: mutate, isLoading, error };
+        const notesInRange = sortedNotes.filter(n =>
+          between(pos(n), targetFolderPos, nextPos),
+        );
+
+        if (notesInRange.length) {
+          const first = notesInRange[0];
+          newPosition = mid(targetFolderPos, pos(first));
+        } else {
+          newPosition = mid(targetFolderPos, nextPos);
+        }
+      }
+
+      await transact([
+        tx.notes[draggedNoteId].update(withTimestamps({ position: newPosition })),
+      ]);
+    }
+
+    return {
+      id: draggedNoteId,
+      newParentId,
+      oldParentId: currentParentId,
+    };
+  });
+
+  return { moveNote: mutate, isLoading, error };
 }
+
+/**
+ * @name Move Note to Root Mutation
+ * @description Mutation hook for moving a note to the root
+ */
 
 type MoveNoteToRootInput = {
-    draggedNoteId: string;
-    notes: Note[];
-}
+  draggedNoteId: Id;
+  notes: Note[];
+};
 
 export function useMoveNoteToRoot() {
-    const { mutate, isLoading, error } = useMutation(async (input: MoveNoteToRootInput) => {
-        const { draggedNoteId, notes } = input;
+  const { mutate, isLoading, error } = useMutation(
+    async (input: MoveNoteToRootInput) => {
+      const { draggedNoteId, notes } = input;
 
-        const draggedNote = notes.find((n: Note) => n.id === draggedNoteId);
-        if (!draggedNote) return;
+      const draggedNote = notes.find(n => n.id === draggedNoteId);
+      if (!draggedNote) return;
 
-        const rootNotes = notes.filter((n: Note) => !(n.folder as any) && n.id !== draggedNoteId);
-        const newPosition = rootNotes.length > 0
-            ? Math.max(...rootNotes.map((n: Note) => n.position || 0)) + 1
-            : 0;
+      const rootNotes = notesInFolder(notes, null, draggedNoteId);
+      const newPosition = (rootNotes.length ? maxPos(rootNotes) : -1) + 1;
 
-        const transactions = [
-            tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() })
-        ];
+      const txs = [
+        tx.notes[draggedNoteId].update(withTimestamps({ position: newPosition })),
+      ];
 
-        if ((draggedNote.folder as any)?.id) {
-            transactions.push(tx.notes[draggedNoteId].unlink({ folder: (draggedNote.folder as any).id }));
-        }
+      const fromId = noteFolderId(draggedNote);
+      if (fromId) txs.push(tx.notes[draggedNoteId].unlink({ folder: fromId }));
 
-        await transact(transactions);
+      await transact(txs);
 
-        return { id: draggedNoteId };
-    });
+      return { id: draggedNoteId };
+    },
+  );
 
-    return { moveNoteToRoot: mutate, isLoading, error };
+  return { moveNoteToRoot: mutate, isLoading, error };
 }
 
-type ReorderNoteInput = {
-    draggedNoteId: string;
-    targetNoteId: string;
-    position: 'before' | 'after';
-    notes: Note[];
-}
+/**
+ * @name Reorder Note Mutation
+ * @description Mutation hook for reordering a note
+ */
+
+type ReorderProps = {
+  draggedNoteId: Id;
+  targetNoteId: Id;
+  position: 'before' | 'after';
+  notes: Note[];
+};
 
 export function useReorderNote() {
-    const { mutate, isLoading, error } = useMutation(async (input: ReorderNoteInput) => {
-        const { draggedNoteId, targetNoteId, position, notes } = input;
+  const { mutate, isLoading, error } = useMutation(async (input: ReorderProps) => {
+    const { draggedNoteId, targetNoteId, position, notes } = input;
 
-        const draggedNote = notes.find((n: Note) => n.id === draggedNoteId);
-        const targetNote = notes.find((n: Note) => n.id === targetNoteId);
+    const dragged = notes.find(n => n.id === draggedNoteId);
+    const target = notes.find(n => n.id === targetNoteId);
+    if (!dragged || !target || dragged.id === target.id) return;
 
-        if (!draggedNote || !targetNote || draggedNote.id === targetNote.id) return;
+    const fromFolderId = noteFolderId(dragged);
+    const toFolderId = noteFolderId(target);
 
-        const draggedFolderId = (draggedNote.folder as any)?.id;
-        const targetFolderId = (targetNote.folder as any)?.id;
+    const ops = linkOps(draggedNoteId, fromFolderId, toFolderId);
+    if (ops.length) await transact(ops);
 
-        if (draggedFolderId !== targetFolderId) {
-            if (targetFolderId) {
-                await transact([tx.notes[draggedNoteId].link({ folder: targetFolderId })]);
-            } else {
-                if (draggedFolderId) {
-                    await transact([tx.notes[draggedNoteId].unlink({ folder: draggedFolderId })]);
-                }
-            }
-        }
+    const folderNotes = notesInFolder(notes, toFolderId, draggedNoteId);
+    const sorted = cloneSortByPos(folderNotes);
 
-        const folderNotes = targetFolderId
-            ? notes.filter((n: Note) => (n.folder as any)?.id === targetFolderId && n.id !== draggedNoteId)
-            : notes.filter((n: Note) => !(n.folder as any) && n.id !== draggedNoteId);
+    const idx = sorted.findIndex(n => n.id === targetNoteId);
 
-        const sortedNotes = folderNotes.sort((a: Note, b: Note) => (a.position || 0) - (b.position || 0));
-        const targetIndex = sortedNotes.findIndex((n: Note) => n.id === targetNoteId);
+    let newPosition: number;
 
-        let newPosition: number;
+    if (idx === -1) {
+      newPosition = (sorted.length ? maxPos(sorted) : -1) + 1;
+    } else {
+      const tPos = pos(sorted[idx]);
+      if (position === 'before') {
+        const prevPos = idx > 0 ? pos(sorted[idx - 1]) : 0;
+        newPosition = mid(prevPos, tPos);
+      } else {
+        const nextPos = idx < sorted.length - 1 ? pos(sorted[idx + 1]) : tPos + 2;
+        newPosition = mid(tPos, nextPos);
+      }
+    }
 
-        if (targetIndex === -1) {
-            newPosition = sortedNotes.length > 0
-                ? Math.max(...sortedNotes.map((n: Note) => n.position || 0)) + 1
-                : 0;
-        } else {
-            const targetPosition = sortedNotes[targetIndex].position || 0;
+    await transact([
+      tx.notes[draggedNoteId].update(withTimestamps({ position: newPosition })),
+    ]);
 
-            if (position === 'before') {
-                const prevPosition = targetIndex > 0 ? sortedNotes[targetIndex - 1].position || 0 : 0;
-                newPosition = (prevPosition + targetPosition) / 2;
-            } else {
-                const nextPosition = targetIndex < sortedNotes.length - 1
-                    ? sortedNotes[targetIndex + 1].position || 0
-                    : targetPosition + 2;
-                newPosition = (targetPosition + nextPosition) / 2;
-            }
-        }
+    return { id: draggedNoteId };
+  });
 
-        await transact([tx.notes[draggedNoteId].update({ position: newPosition, updatedAt: Date.now() })]);
-
-        return { id: draggedNoteId };
-    });
-
-    return { reorderNote: mutate, isLoading, error };
+  return { reorderNote: mutate, isLoading, error };
 }
-

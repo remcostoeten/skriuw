@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, easeInOut } from 'framer-motion'
+import { motion, easeInOut } from 'motion/react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 

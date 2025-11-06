@@ -1,18 +1,17 @@
 import { useCreate, useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
 type props = {
   title: string;
   content: string;
-  position: number;
-}
+} & Positionable;
 
 export function useCreateNote() {
   const { create } = useCreate('notes');
   const { mutate, isLoading, error } = useMutation(async (input: props) => {
     const id = generateId();
-    const now = Date.now();
-    await create(id, { ...input, createdAt: now, updatedAt: now });
+    await create(id, withTimestamps(input, true));
     return { id, ...input };
   });
 

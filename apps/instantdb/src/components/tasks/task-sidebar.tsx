@@ -34,7 +34,6 @@ export function TaskSidebar({
 			} else {
 				onFilterSelect?.(filterId)
 			}
-			// Clear project selection when selecting a filter
 			if (filterId !== 'all') {
 				onProjectSelect?.(null)
 			}
@@ -49,7 +48,6 @@ export function TaskSidebar({
 			} else {
 				onProjectSelect?.(projectId)
 			}
-			// Clear filter selection when selecting a project
 			onFilterSelect?.(null)
 		},
 		[selectedProjectId, onProjectSelect, onFilterSelect]
@@ -72,15 +70,12 @@ export function TaskSidebar({
 		[destroyProject, selectedProjectId, onProjectSelect]
 	)
 
-	const handleCreateTask = useCallback(() => {
-		// Task creation is handled by the action bar
-	}, [])
+	const handleCreateTask = useCallback(() => {}, [])
 
 	const activeProjects = projects.filter(
 		(p: Project) => p.status === 'active'
 	)
 
-	// Calculate task counts
 	const allTasksCount = allTasks.length
 	const projectTaskCounts = activeProjects.map((project: Project) => {
 		const projectTasks = allTasks.filter(
@@ -93,13 +88,13 @@ export function TaskSidebar({
 		return { filterId: list.id, count: filtered.length }
 	})
 
-	const getProjectTaskCount = (projectId: string) => {
+	function getProjectTaskCount(projectId: string) {
 		return (
 			projectTaskCounts.find(p => p.projectId === projectId)?.count ?? 0
 		)
 	}
 
-	const getFilterTaskCount = (filterId: string) => {
+	function getFilterTaskCount(filterId: string) {
 		return filterTaskCounts.find(f => f.filterId === filterId)?.count ?? 0
 	}
 
@@ -114,12 +109,11 @@ export function TaskSidebar({
 				height: 'calc(100vh - 4.5rem)'
 			}}
 		>
-			{/* Resize handle */}
 			<div
 				className={cn(
 					'h-full w-1 border-r cursor-col-resize absolute top-0 right-0 z-10',
 					'hover:bg-foreground/10 hover:delay-75 transition-all duration-200',
-					'active:bg-foreground/20 active:!cursor-col-resize'
+					'active:bg-foreground/20 active:cursor-col-resize!'
 				)}
 				role="presentation"
 			/>
@@ -129,7 +123,6 @@ export function TaskSidebar({
 				selectedProjectId={selectedProjectId}
 			/>
 
-			{/* Projects section */}
 			<div className="flex flex-col items-start gap-1 w-full px-2 pt-2 pb-2 border-b">
 				<div className="w-full flex items-center justify-between px-2 py-1 mb-1">
 					<h3 className="text-xs uppercase tracking-wide text-foreground font-semibold">
@@ -140,20 +133,44 @@ export function TaskSidebar({
 				{activeProjects.map((project: Project) => (
 					<div
 						key={project.id}
-						onClick={() => handleProjectClick(project.id)}
+						onClick={() =>
+							handleProjectClick(
+								typeof project.id === 'string'
+									? project.id
+									: String(project.id)
+							)
+						}
 						className={cn(
 							'w-full flex items-center justify-between group px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
 							'hover:bg-accent/50',
-							selectedProjectId === project.id
+							selectedProjectId ===
+								(typeof project.id === 'string'
+									? project.id
+									: String(project.id))
 								? 'bg-accent text-foreground font-medium'
 								: 'text-muted-foreground'
 						)}
 					>
 						<span className="flex-1 truncate">
-							{project.title} ({getProjectTaskCount(project.id)})
+							{project.title} (
+							{getProjectTaskCount(
+								typeof project.id === 'string'
+									? project.id
+									: String(project.id)
+							)}
+							)
 						</span>
 						<button
-							onClick={e => handleDeleteProject(project.id, e)}
+							type="button"
+							onClick={e => {
+								e.stopPropagation()
+								handleDeleteProject(
+									typeof project.id === 'string'
+										? project.id
+										: String(project.id),
+									e
+								)
+							}}
 							className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity ml-1"
 							title="Delete project"
 						>
@@ -163,7 +180,6 @@ export function TaskSidebar({
 				))}
 			</div>
 
-			{/* Filter list */}
 			<div className="flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4">
 				<div className="w-full px-2 py-1 mb-1">
 					<h3 className="text-xs uppercase tracking-wide text-foreground font-semibold">

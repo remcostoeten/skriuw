@@ -13,7 +13,7 @@ export function encodeRecurrence(r: SimpleRecurrence): string {
     return parts.join(';');
 }
 
-export function nextRun(from: number, rule: string): number | undefined {
+export function nextRun(from: number, rule: string): Optional<number> {
     const map = Object.fromEntries(rule.split(';').map(kv => kv.split('=')));
     const freq = map['FREQ'];
     const interval = parseInt(map['INTERVAL'] || '1', 10);

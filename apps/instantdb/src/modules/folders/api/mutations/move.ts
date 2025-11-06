@@ -77,7 +77,7 @@ export function useMoveFolderToRoot() {
         const draggedFolder = folders.find((f: Folder) => f.id === draggedFolderId);
         if (!draggedFolder) return;
 
-        const rootFolders = folders.filter((f: Folder) => !(f.parent as any) && f.id !== draggedFolderId && !f.deletedAt);
+        const rootFolders = folders.filter((f: Folder) => !(f.parent as any) && f.id !== draggedFolderId && !(f as any).deletedAt);
         const newPosition = rootFolders.length > 0
             ? Math.max(...rootFolders.map((f: Folder) => f.position || 0)) + 1
             : 0;

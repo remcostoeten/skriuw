@@ -6,6 +6,7 @@
 import type { Shortcut as ShortcutEntity } from '@/api/db/schema'
 import { createQueryHook } from '@/hooks/core'
 import type { TShortcut, TShortcutAction } from '../../types'
+import { selectArray } from '@/shared/utilities/query-helpers'
 
 const useShortcutsQuery = createQueryHook(
     () => ({
@@ -17,7 +18,7 @@ const useShortcutsQuery = createQueryHook(
     }),
     {
         select: (raw) => {
-            const shortcuts = (raw?.shortcuts as ShortcutEntity[]) ?? []
+            const shortcuts = selectArray<ShortcutEntity>('shortcuts')(raw)
             return shortcuts.map(s => ({
                 id: s.id,
                 action: s.action as TShortcutAction,

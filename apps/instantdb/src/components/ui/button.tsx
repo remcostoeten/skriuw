@@ -1,4 +1,4 @@
-import React, { forwardRef, ButtonHTMLAttributes } from 'react';
+import React, { forwardRef, ElementRef } from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
@@ -37,8 +37,12 @@ const buttonVariants = cva(
   }
 );
 
+type ButtonElementProps = React.ComponentPropsWithoutRef<'button'>;
+type AnchorElementProps = React.ComponentPropsWithoutRef<'a'>;
+
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<ButtonElementProps, 'href'>,
+    Omit<AnchorElementProps, keyof ButtonElementProps>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
@@ -48,7 +52,7 @@ export interface ButtonProps
   fullWidth?: boolean;
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+const Button = forwardRef<unknown, ButtonProps>(
   (
     {
       className,
@@ -108,15 +112,51 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       </>
     );
 
+    const commonProps = {
+      className: buttonClasses,
+      'aria-disabled': disabled || loading,
+      'aria-describedby': loading ? 'loading-description' : undefined,
+    };
+
+    if (asChild) {
+      return (
+        <Slot ref={ref as any} {...commonProps} {...props}>
+          {renderContent()}
+          {loading && (
+            <span id="loading-description" className="sr-only">
+              Loading, please wait
+            </span>
+          )}
+        </Slot>
+      );
+    }
+
+    if (href) {
+      const { disabled: _, ...anchorProps } = props as any;
+      return (
+        <a
+          ref={ref as any}
+          href={href}
+          {...commonProps}
+          {...anchorProps}
+        >
+          {renderContent()}
+          {loading && (
+            <span id="loading-description" className="sr-only">
+              Loading, please wait
+            </span>
+          )}
+        </a>
+      );
+    }
+
+    const { href: _, ...buttonProps } = props as any;
     return (
-      <Comp
-        className={buttonClasses}
-        ref={ref}
+      <button
+        ref={ref as any}
         disabled={disabled || loading}
-        href={href}
-        aria-disabled={disabled || loading}
-        aria-describedby={loading ? 'loading-description' : undefined}
-        {...props}
+        {...commonProps}
+        {...buttonProps}
       >
         {renderContent()}
         {loading && (
@@ -124,7 +164,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             Loading, please wait
           </span>
         )}
-      </Comp>
+      </button>
     );
   }
 );

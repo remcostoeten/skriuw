@@ -1,5 +1,6 @@
 import type { Project } from '@/api/db/schema';
 import { createQueryHook } from '@/hooks/core';
+import { arrayQueryOptions } from '@/shared/utilities/query-helpers';
 
 const useProjectsQuery = createQueryHook(
     () => ({
@@ -12,10 +13,7 @@ const useProjectsQuery = createQueryHook(
             },
         },
     }),
-    {
-        select: (raw) => (raw?.projects as Project[]) ?? [],
-        initialData: [] as Project[],
-    }
+    arrayQueryOptions<Project>('projects')
 );
 
 export function useGetProjects() {

@@ -40,7 +40,7 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
     const nextPosition = useMemo(() => {
         if (!tasks || tasks.length === 0) return 0;
         return (
-            tasks.reduce((max, t) => (t.position > max ? t.position : max), 0) + 1
+            tasks.reduce((max, t) => ((t as any).position > max ? (t as any).position : max), 0) + 1
         );
     }, [tasks]);
 
@@ -135,7 +135,7 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                             <Checkbox
                                 checked={task.completed}
                                 onCheckedChange={(checked) =>
-                                    handleToggleTask(task.id, Boolean(checked))
+                                    handleToggleTask(String(task.id), Boolean(checked))
                                 }
                                 className="mt-1"
                             />
@@ -143,14 +143,14 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <InlineTaskEditor
                                         task={task}
-                                        onUpdate={(html) => updateTask(task.id, { content: html })}
+                                        onUpdate={(html) => updateTask(String(task.id), { content: html })}
                                         onEditorReady={(editor) => {
-                                            editorRefs.current[task.id] = editor;
+                                            editorRefs.current[String(task.id)] = editor;
                                         }}
                                     />
                                     <Select
-                                        value={task.project?.id ?? "no-project"}
-                                        onValueChange={(value) => handleAssignProject(task.id, value === "no-project" ? null : value)}
+                                        value={String(task.project?.id ?? "no-project")}
+                                        onValueChange={(value) => handleAssignProject(String(task.id), value === "no-project" ? null : value)}
                                     >
                                         <SelectTrigger className="w-24 h-6 text-xs">
                                             <SelectValue placeholder="Project" />
@@ -160,7 +160,7 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                             {projects
                                                 .filter((p) => p.status === 'active')
                                                 .map((project) => (
-                                                    <SelectItem key={project.id} value={project.id}>
+                                                    <SelectItem key={String(project.id)} value={String(project.id)}>
                                                         {project.title}
                                                     </SelectItem>
                                                 ))}
@@ -171,7 +171,7 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                             {/* status removed to match schema */}
                             <Select
                                 value={task.priority}
-                                onValueChange={(value) => updateTask(task.id, { priority: value as any } as any)}
+                                onValueChange={(value) => updateTask(String(task.id), { priority: value as any } as any)}
                             >
                                 <SelectTrigger className="w-20 h-7 text-sm">
                                     <SelectValue placeholder="Priority" />
@@ -190,12 +190,12 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     const ms = val ? new Date(val + 'T00:00:00').getTime() : undefined;
-                                    updateTask(task.id, { dueAt: ms as any } as any);
+                                    updateTask(String(task.id), { dueAt: ms as any } as any);
                                 }}
                                 aria-label="Due date"
                             />
                             <button
-                                onClick={() => handleDeleteTask(task.id)}
+                                onClick={() => handleDeleteTask(String(task.id))}
                                 className="opacity-0 group-hover:opacity-100 text-foreground/60 hover:text-destructive transition-opacity text-lg leading-none"
                                 aria-label="Delete task"
                             >
@@ -208,15 +208,15 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                                     <div key={st.id} className="flex items-start gap-2">
                                         <Checkbox
                                             checked={st.completed}
-                                            onCheckedChange={(checked) => updateTask(st.id, { completed: Boolean(checked) })}
+                                            onCheckedChange={(checked) => updateTask(String(st.id), { completed: Boolean(checked) })}
                                             className="mt-1"
                                         />
                                         <div className="flex-1">
                                             <InlineTaskEditor
                                             task={st}
-                                            onUpdate={(html) => updateTask(st.id, { content: html })}
+                                            onUpdate={(html) => updateTask(String(st.id), { content: html })}
                                             onEditorReady={(editor) => {
-                                                editorRefs.current[st.id] = editor;
+                                                editorRefs.current[String(st.id)] = editor;
                                             }}
                                         />
                                         </div>
@@ -225,10 +225,10 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                             </div>
                         )}
                         <AddSubtaskInput
-                            parentId={task.id}
+                            parentId={String(task.id)}
                             noteId={noteId}
                             onAdd={(content) =>
-                                createTask({ noteId: noteId ?? undefined, content, position: nextPosition, parentId: task.id })
+                                createTask({ noteId: noteId ?? undefined, content, position: nextPosition, parentId: String(task.id) })
                             }
                         />
 
@@ -236,7 +236,7 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
                             task={task}
                             onAdd={async (body) => {
                                 if (!body.trim()) return;
-                                await addComment({ taskId: task.id, body });
+                                await addComment({ taskId: String(task.id), body });
                             }}
                         />
                     </div>

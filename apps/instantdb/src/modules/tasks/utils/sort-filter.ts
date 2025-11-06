@@ -28,7 +28,7 @@ export function sortTasks(tasks: Task[], sort: TaskSort = 'position'): Task[] {
             return copy.sort((a, b) => a.createdAt - b.createdAt);
         case 'position':
         default:
-            return copy.sort((a, b) => (a.position || 0) - (b.position || 0));
+            return copy.sort((a, b) => ((a as any).position || 0) - ((b as any).position || 0));
     }
 }
 

@@ -1,6 +1,7 @@
 import { useMutation, useUpdate } from '@/hooks/core';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-interface UpdateNoteInput {
+type props = {
   title?: string;
   content?: string;
   position?: number;
@@ -9,12 +10,12 @@ interface UpdateNoteInput {
 
 export function useUpdateNote() {
   const { update } = useUpdate('notes');
-  const { mutate, isLoading, error } = useMutation(async ({ id, input }: { id: string; input: UpdateNoteInput }) => {
-    await update(id, { ...input, updatedAt: Date.now() });
+  const { mutate, isLoading, error } = useMutation(async ({ id, input }: { id: UUID; input: props }) => {
+    await update(id, withTimestamps(input));
     return { id };
   });
 
-  const updateNote = (id: string, input: UpdateNoteInput) => mutate({ id, input });
+  const updateNote = (id: UUID, input: props) => mutate({ id, input });
   return { updateNote, isLoading, error };
 }
 
