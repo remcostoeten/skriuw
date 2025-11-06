@@ -398,6 +398,9 @@ class CLIManager {
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Port:'.padEnd(12)) + chalk.white(String(app.port).padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Path:'.padEnd(12)) + chalk.white(app.path.padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('│') + '  ' + chalk.gray('URL:'.padEnd(12)) + chalk.blue(`http://localhost:${app.port}`.padEnd(24)) + chalk.cyan('  │'));
+    if (app.deployUrl) {
+      console.log(chalk.cyan('│') + '  ' + chalk.gray('Deploy:'.padEnd(12)) + chalk.blue(app.deployUrl.padEnd(24)) + chalk.cyan('  │'));
+    }
     console.log(chalk.cyan('└────────────────────────────────────────┘'));
     console.log();
   }
