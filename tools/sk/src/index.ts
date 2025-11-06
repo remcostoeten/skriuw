@@ -41,39 +41,56 @@ class CLIManager {
   private logManager: LogManager;
 
   constructor() {
-    // Navigate to project root
-    // From dist/index.js: ../../.. gets to project root
-    // From src/index.ts (dev): ../../.. gets to project root
-    // More robust: find package.json or go up until we find apps/ directory
-    let currentDir = path.resolve(__dirname);
-    
-    // Try to find project root by looking for apps/ directory or root package.json
-    for (let i = 0; i < 5; i++) {
-      const appsDir = path.join(currentDir, 'apps');
-      const packageJson = path.join(currentDir, 'package.json');
-      
-      if (existsSync(appsDir) && existsSync(packageJson)) {
-        this.rootDir = currentDir;
+    const explicitRoot = process.env.SK_ROOT ? path.resolve(process.env.SK_ROOT) : null;
+    const searchStarts = [
+      explicitRoot,
+      path.resolve(process.cwd()),
+      path.resolve(__dirname),
+      path.resolve(__dirname, '../../..')
+    ].filter((value, index, array) => value && array.indexOf(value) === index) as string[];
+
+    for (const start of searchStarts) {
+      const maybeRoot = this.findProjectRoot(start);
+      if (maybeRoot) {
+        this.rootDir = maybeRoot;
         break;
       }
-      
-      // Check if this is a single-app project (has package.json but no apps/)
-      if (existsSync(packageJson) && !existsSync(appsDir)) {
-        this.rootDir = currentDir;
-        break;
-      }
-      
-      currentDir = path.resolve(currentDir, '..');
-    }
-    
-    // Fallback to 3 levels up (original behavior)
-    if (!this.rootDir) {
-      this.rootDir = path.resolve(__dirname, '../../..');
     }
 
-    // Initialize storage and logging
+    if (!this.rootDir) {
+      console.error(
+        chalk.red(
+          'Failed to locate the Skriuw project root. Please run `sk` inside the project directory or set SK_ROOT.'
+        )
+      );
+      process.exit(1);
+    }
+
     this.storageManager = new StorageManager();
     this.logManager = new LogManager(this.storageManager);
+  }
+
+  private findProjectRoot(start: string): string | null {
+    let currentDir = path.resolve(start);
+
+    for (let i = 0; i < 10; i++) {
+      const packageJson = path.join(currentDir, 'package.json');
+      const appsDir = path.join(currentDir, 'apps');
+      const toolsSkDir = path.join(currentDir, 'tools', 'sk');
+
+      if (existsSync(packageJson) && (existsSync(appsDir) || existsSync(toolsSkDir))) {
+        return currentDir;
+      }
+
+      const parentDir = path.dirname(currentDir);
+      if (parentDir === currentDir) {
+        break;
+      }
+
+      currentDir = parentDir;
+    }
+
+    return null;
   }
 
   // Display ASCII logo
@@ -141,7 +158,8 @@ class CLIManager {
 
   // Handle menu actions
   async handleAction(action: string): Promise<void> {
-    const [type, target] = action.split(':');
+    const [type, ...rest] = action.split(':');
+    const target = rest.join(':');
 
     switch (type) {
       case 'dev':

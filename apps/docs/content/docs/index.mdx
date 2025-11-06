@@ -29,12 +29,12 @@ The Skriuw monorepo consists of:
 
 ### Tools
 
-- **CLI Manager** (`tools/cli-manager`) - Interactive CLI for managing the monorepo
+- **SK** (`tools/sk`) - Interactive CLI for managing the monorepo
 - **Seeder** (`tools/seeder`) - Database seeding utilities
 
 ## Quick Start
 
-### Using the CLI Manager (Recommended)
+### Using SK (Recommended)
 
 The easiest way to get started:
 
@@ -51,6 +51,7 @@ This launches an interactive menu where you can:
 - Build for production
 - Deploy to Vercel
 - Manage running processes
+- Run tools like the seeder
 
 ### Manual Setup
 
@@ -71,24 +72,24 @@ bun run dev
 
 <Cards>
   <Card 
-    title="CLI Manager" 
+    title="Skriuw App" 
+    href="/docs/app" 
+    description="Main application documentation - Tauri 2.0 + Next.js + InstantDB architecture, setup, and development"
+  />
+  <Card 
+    title="SK CLI" 
     href="/docs/cli" 
     description="Interactive command-line tool for managing the monorepo, running apps, building, and deploying"
   />
   <Card 
-    title="Tauri App" 
-    href="/docs/tauri" 
-    description="Desktop application documentation - architecture, development, and deployment"
-  />
-  <Card 
-    title="Web App" 
-    href="/docs/web" 
-    description="Next.js web application documentation - features, API, and deployment"
-  />
-  <Card 
     title="Seeder Tool" 
     href="/docs/seeder" 
-    description="Database seeding utilities and how to populate your database"
+    description="Database seeding utilities for development - populate your database with test data"
+  />
+  <Card 
+    title="Plans & Ideas" 
+    href="/docs/plans" 
+    description="Feature plans, ideas, and future enhancements - accent colors, note sharing, analytics, and more"
   />
 </Cards>
 
@@ -111,9 +112,11 @@ bun run dev
 
 ## Getting Help
 
-- **CLI Issues?** Check the [CLI Troubleshooting](/docs/cli/troubleshooting) guide
-- **Development Questions?** See the [Tauri App](/docs/tauri) or [Web App](/docs/web) docs
-- **Database Setup?** Review the [Seeder Tool](/docs/seeder) documentation
+- **Setup Issues?** Check the [Setup Guide](/docs/app/setup) for detailed installation instructions
+- **Architecture Questions?** Review the [Architecture Documentation](/docs/app/architecture)
+- **SK Issues?** Check the [SK Troubleshooting](/docs/cli/troubleshooting) guide
+- **Development Questions?** See the [Development Guide](/docs/app/development)
+- **Database Seeding?** Review the [Seeder Tool](/docs/seeder) documentation
 
 ## Contributing
 
@@ -122,7 +125,7 @@ We welcome contributions! Here's how to get started:
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test using the CLI manager
+4. Test using SK
 5. Submit a pull request
 
 For more details, see the individual documentation sections for each component.

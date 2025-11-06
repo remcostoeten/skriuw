@@ -1,0 +1,294 @@
+---
+title: Setup Guide
+description: Complete setup instructions for developing Skriuw
+---
+
+# Setup Guide
+
+This guide walks you through setting up the Skriuw development environment from scratch.>
+
+## Prerequisites
+
+Tauri is build on top Rust
+
+Before you begin, ensure you have the following installed:
+
+### Required
+
+- **Bun 1.1.0+** - Primary package manager and runtime
+  ```bash
+  curl -fsSL https://bun.sh/install | bash
+  ```
+
+- **Node.js 18+** - Required for some tooling
+  ```bash
+  # Using nvm (recommended)
+  nvm install 18
+  nvm use 18
+  ```
+
+- **Git** - Version control
+  ```bash
+  git --version
+  ```
+
+### Tauri Dependencies
+
+Tauri requires platform-specific dependencies:
+
+#### Linux (Debian/Ubuntu)
+```bash
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libxdo-dev \
+  libssl-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+```
+
+#### macOS
+```bash
+xcode-select --install
+```
+
+#### Windows
+Install the following:
+- [Microsoft Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/remcostoeten/skriuw.git
+cd skriuw
+```
+
+### 2. Install Dependencies
+
+From the project root:
+
+```bash
+bun install
+```
+
+This will install dependencies for all workspace packages:
+- Main app (`apps/instantdb`)
+- Documentation site (`apps/docs`)
+- CLI tool (`tools/sk`)
+- Seeder utilities (`tools/seeder`)
+
+### 3. Configure Environment Variables
+
+Create a `.env` file in `apps/instantdb/`:
+
+```bash
+cd apps/instantdb
+cp .env.example .env
+```
+
+Edit `.env` and add your InstantDB app ID:
+
+```env
+NEXT_PUBLIC_INSTANT_APP_ID=your-instant-app-id-here
+```
+
+<Callout type="info">
+  **Getting an InstantDB App ID**
+  
+  1. Go to [instantdb.com](https://www.instantdb.com/)
+  2. Sign up or log in
+  3. Create a new app
+  4. Copy the App ID from your dashboard
+</Callout>
+>
+### 4. Verify Installation
+
+Run the app in development mode:
+
+```bash
+# Using SK (recommended)
+bun run sk
+# Select "Run InstantDB App"
+
+# Or manually
+cd apps/instantdb
+bun run dev
+```
+
+Open [http://localhost:42069](http://localhost:42069) in your browser.
+
+## Development Tools Setup
+
+### Using SK (Interactive CLI)
+
+SK is the recommended way to manage the monorepo:
+
+```bash
+# From project root
+bun run sk
+```
+
+This provides an interactive menu for:
+- Starting/stopping apps
+- Building production bundles
+- Deploying to Vercel
+- Managing processes with hotkeys
+
+See the [SK documentation](/docs/cli) for full details.
+
+### IDE Configuration
+
+#### VS Code
+
+Install recommended extensions:
+- **Rust Analyzer** - Rust language support
+- **Tauri** - Tauri-specific features
+- **ESLint** - JavaScript/TypeScript linting
+- **Prettier** - Code formatting
+
+The workspace includes settings in `.vscode/settings.json` for automatic formatting.
+
+#### Cursor
+
+The project includes Cursor-specific rules in `.cursor/rules/`:
+- `spec.mdc` - Monorepo structure and patterns
+- Core API patterns and conventions
+
+## Running the Desktop App
+y
+### Development Mode
+
+```bash
+cd apps/instantdb
+bun run tauri:dev
+```
+
+This will:
+1. Start Next.js dev server on port 42069
+2. Build the Rust binary
+3. Launch the desktop window
+4. Enable hot-reload for both frontend and backend
+
+### Production Build
+
+```bash
+cd apps/instantdb
+bun run build         # Build Next.js
+bun run tauri:build   # Create desktop bundle
+```
+
+Platform-specific bundles will be created in `src-tauri/target/release/bundle/`:
+
+- **Linux**: `.deb`, `.AppImage`
+- **macOS**: `.dmg`, `.app`
+- **Windows**: `.msi`, `.exe`
+
+### Linux-Specific Scripts
+
+For Debian/Ubuntu development:
+
+```bash
+# Build .deb package
+bun run deb:build
+
+# Install locally
+bun run deb:install
+
+# Reinstall (overwrites existing)
+bun run deb:reinstall
+
+# Uninstall
+bun run deb:uninstall
+
+# Build and reinstall in one command
+bun run deb:test
+```
+
+## Verifying Your Setup
+
+### 1. Check InstantDB Connection
+
+Open the browser console (F12) and look for:
+
+```
+✓ InstantDB initialized
+✓ Connected to app: your-app-id
+```
+
+### 2. Create a Test Note
+
+1. Click "New Note" in the sidebar
+2. Type some content
+3. Refresh the page
+4. Verify the note persists
+
+### 3. Test Offline Sync
+
+1. Create a note while online
+2. Disable your internet connection
+3. Create another note (should work)
+4. Re-enable internet
+5. Both notes should sync to the cloud
+
+## Troubleshooting
+
+### Port 42069 Already in Use
+
+Kill the process using the port:
+
+```bash
+# Linux/macOS
+lsof -ti:42069 | xargs kill -9
+
+# Windows
+netstat -ano | findstr :42069
+taskkill /PID <PID> /F
+```
+
+### InstantDB Connection Failed
+
+1. Verify your `NEXT_PUBLIC_INSTANT_APP_ID` in `.env`
+2. Check your internet connection
+3. Verify the app ID is correct in your InstantDB dashboard
+4. Check browser console for specific errors
+
+### Tauri Build Fails
+
+**Linux**: Ensure all system dependencies are installed (see Prerequisites)
+
+**macOS**: Run `xcode-select --install` again
+
+**Windows**: Verify Visual Studio Build Tools are installed with C++ components
+
+### Bun vs npm/pnpm
+
+This project uses Bun exclusively. Using npm or pnpm may cause dependency conflicts:
+
+```bash
+# Wrong
+npm install
+
+# Correct
+bun install
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Architecture Overview" href="/docs/app/architecture">
+    Understand how the app is structured
+  </Card>
+  <Card title="Development Guide" href="/docs/app/development">
+    Learn development workflows and patterns
+  </Card>
+  <Card title="Tech Stack Deep Dive" href="/docs/app/tech-stack">
+    Explore each technology in detail
+  </Card>
+</Cards>
+

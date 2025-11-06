@@ -1,0 +1,14 @@
+{
+  "title": "Seeder Tool",
+  "description": "Database seeding utilities for development",
+  "pages": [
+    "index",
+    "getting-started",
+    "usage",
+    "command-builder",
+    "features",
+    "troubleshooting",
+    "seeding-in-app"
+  ]
+}
+
