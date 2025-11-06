@@ -6,6 +6,6 @@
  */
 
 export { seedKeyboardShortcutsNote } from './shortcuts-note/seed';
-export { SeedShortcutsNoteButton } from './shortcuts-note/seed-button';
 export type { SeedOptions, SeedResult } from './shortcuts-note/seed';
+export { SeedShortcutsNoteButton } from './shortcuts-note/seed-button';
 

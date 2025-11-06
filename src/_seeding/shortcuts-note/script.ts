@@ -9,8 +9,8 @@ import { resolve } from 'path';
 // Load environment variables
 config({ path: resolve(__dirname, '../../../.env') });
 
-import { init } from '@instantdb/core';
 import { schema } from '@/api/db/schema';
+import { init } from '@instantdb/core';
 import { SHORTCUTS_NOTE_CONTENT } from './content';
 
 const APP_ID = process.env.NEXT_PUBLIC_INSTANT_APP_ID;
@@ -33,7 +33,7 @@ const { transact, tx } = db;
 
 // Generate UUID
 function generateId(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         const r = Math.random() * 16 | 0;
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
