@@ -22,7 +22,6 @@ export function TaskActionBar({
             await createTask({
                 content: 'New Task',
                 position: Date.now(),
-                priority: priority ?? 'med',
                 projectId: selectedProjectId || undefined,
             });
             onCreateTask(priority);
@@ -45,6 +44,7 @@ export function TaskActionBar({
             await createProject({
                 title: newProjectTitle.trim(),
                 status: 'active',
+                position: Date.now(),
             });
             setNewProjectTitle('');
         } catch (error) {

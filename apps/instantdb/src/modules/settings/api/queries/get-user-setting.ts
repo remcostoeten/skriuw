@@ -1,5 +1,6 @@
 import { createQueryHook } from '@/hooks/core';
 import type { UserSetting } from '@/api/db/schema';
+import { singleQueryOptions } from '@/shared/utilities/query-helpers';
 
 const useUserSettingQuery = createQueryHook(
   (key: string) => ({
@@ -11,11 +12,7 @@ const useUserSettingQuery = createQueryHook(
     },
   }),
   {
-    select: (raw) => {
-      const settings = raw?.userSettings as UserSetting[] | undefined;
-      return settings && settings.length > 0 ? settings[0] : null;
-    },
-    initialData: null as UserSetting | null,
+    ...singleQueryOptions<UserSetting>('userSettings'),
     showErrorToast: false,
   }
 );

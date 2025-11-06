@@ -7,23 +7,23 @@ import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context
 import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop, addDraggingClass, removeDraggingClass } from "./drag-animations";
 
 type props = {
-    id: string;
+    id: UUID;
     name: string;
     path: string;
     level?: number;
     isActive?: boolean;
-    onClick?: (id: string) => void;
+    onClick?: (id: UUID) => void;
     isDragged?: boolean;
-    draggedNoteId?: string | null;
-    draggedFolderId?: string | null;
+    draggedNoteId?: Nullable<UUID>;
+    draggedFolderId?: Nullable<UUID>;
     onDragStart?: () => void;
     onDragEnd?: () => void;
-    onNoteReorder?: (draggedNoteId: string, targetNoteId: string, position: 'before' | 'after') => void;
-    onNoteRename?: (id: string, newName: string) => void;
-    onNoteDelete?: (id: string) => void;
-    onNoteDuplicate?: (id: string) => Promise<void>;
-    onNoteMove?: (noteId: string, folderId: string | null) => void;
-    onNotePin?: (noteId: string, pinned: boolean) => Promise<void>;
+    onNoteReorder?: (draggedNoteId: UUID, targetNoteId: UUID, position: 'before' | 'after') => void;
+    onNoteRename?: (id: UUID, newName: string) => void;
+    onNoteDelete?: (id: UUID) => void;
+    onNoteDuplicate?: (id: UUID) => Promise<void>;
+    onNoteMove?: (noteId: UUID, folderId: Nullable<UUID>) => void;
+    onNotePin?: (noteId: UUID, pinned: boolean) => Promise<void>;
     pinned?: boolean;
     folders?: TFolder[];
     isFocused?: boolean;
@@ -59,8 +59,6 @@ export function FileItem({
     const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
     const noteRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    // Get setting for allowing delete without context menu
     const [allowDeleteWithoutContextMenu] = useUserSetting<boolean>('allowDeleteWithoutContextMenu', false);
 
     useEffect(() => {
@@ -79,14 +77,12 @@ export function FileItem({
         setEditName(name);
     }, [name]);
 
-    // Clear drag over state when drag ends (draggedNoteId becomes null)
     useEffect(() => {
         if (!draggedNoteId) {
             setDragOverState(null);
         }
     }, [draggedNoteId]);
 
-    // Handle keyboard shortcuts when context menu is open
     useEffect(() => {
         if (!isContextMenuOpen) return;
 
@@ -110,7 +106,6 @@ export function FileItem({
                 return;
             }
 
-            // Check for Shift+D (Duplicate) - check both uppercase and lowercase
             if (e.shiftKey && (e.key === 'D' || e.key === 'd') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -121,7 +116,6 @@ export function FileItem({
                 return;
             }
 
-            // Check for Shift+P (Pin/Unpin) - check both uppercase and lowercase
             if (e.shiftKey && (e.key === 'P' || e.key === 'p') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -132,7 +126,6 @@ export function FileItem({
                 return;
             }
 
-            // Check for Shift+Backspace (Delete)
             if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -144,20 +137,17 @@ export function FileItem({
             }
         };
 
-        // Use capture phase to catch events before context menu handles them
         window.addEventListener('keydown', handleKeyDown, true);
         return () => {
             window.removeEventListener('keydown', handleKeyDown, true);
         };
     }, [isContextMenuOpen, name, id, onNoteDuplicate, onNoteDelete, onNotePin, pinned]);
 
-    // Handle delete shortcut when context menu is closed (if setting enabled)
     useEffect(() => {
         if (!allowDeleteWithoutContextMenu || isContextMenuOpen || isEditing) return;
         if (!(isFocused || isActive)) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Check for Shift+Backspace (Delete)
             if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -216,10 +206,7 @@ export function FileItem({
     };
 
     const handleDragOver = (e: React.DragEvent) => {
-        // If a folder is being dragged, let it bubble up to folder handlers
         if (draggedFolderId) return;
-        
-        // Only handle note reordering if we have the handler
         if (!draggedNoteId || draggedNoteId === id || !onNoteReorder) return;
 
         const rect = noteRef.current?.getBoundingClientRect();
@@ -227,33 +214,25 @@ export function FileItem({
 
         const y = e.clientY - rect.top;
         const height = rect.height;
-        // Use smaller edge zones (20% top/bottom) to allow more space for folder drops
         const edgeThreshold = height * 0.2;
 
-        // Only handle if we're in the edge zones (for reordering)
-        // Otherwise, let the event bubble to parent folder for "inside" drops
         if (y < edgeThreshold) {
-            // Top edge - show "before" indicator
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = 'move';
             setDragOverState('before');
         } else if (y > height - edgeThreshold) {
-            // Bottom edge - show "after" indicator
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = 'move';
             setDragOverState('after');
         } else {
-            // Middle area - clear our indicators and let it bubble to folder
             setDragOverState(null);
-            e.preventDefault(); // Still prevent default to allow drop
-            // Don't stopPropagation - let folder handle it
+            e.preventDefault();
         }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
-        // If a folder is being dragged, let it bubble
         if (draggedFolderId) return;
         
         const rect = noteRef.current?.getBoundingClientRect();
@@ -275,33 +254,25 @@ export function FileItem({
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        // If a folder is being dragged, let it bubble
         if (draggedFolderId) return;
-        
-        // Only handle note reordering if we have a drag over state (edge zone)
-        // If no dragOverState, we were in the middle area, so let it bubble to folder
         if (!draggedNoteId || draggedNoteId === id || !onNoteReorder) return;
         
         if (dragOverState) {
-            // We're in an edge zone, handle the reorder
             e.preventDefault();
             e.stopPropagation();
             hapticDrop();
             onNoteReorder(draggedNoteId, id, dragOverState);
             setDragOverState(null);
         } else {
-            // We're in the middle area, let it bubble to the folder
             setDragOverState(null);
         }
     };
 
     const handleRename = () => {
         setIsContextMenuOpen(false);
-        // Use setTimeout to ensure context menu closes before focusing input
         setTimeout(() => {
             setIsEditing(true);
             setEditName(name);
-            // Focus the input after it's rendered
             setTimeout(() => {
                 if (inputRef.current) {
                     inputRef.current.focus();
@@ -329,15 +300,18 @@ export function FileItem({
         }, 0);
     };
 
-    const handleMoveToFolder = (folderId: string | null) => {
+    const handleMoveToFolder = (folderId: Nullable<UUID>) => {
         onNoteMove?.(id, folderId);
     };
 
-    // Build folder hierarchy for "Move to" submenu - recursively shows nested folders
-    const buildFolderTree = (parentId: string | null = null, excludeId?: string): SubMenuItem[] => {
+    const buildFolderTree = (parentId: Nullable<UUID> = null, excludeId?: UUID): SubMenuItem[] => {
         const childFolders = folders.filter((f: TFolder) => {
             const folderParentId = (f.parent as any)?.id || null;
-            return folderParentId === parentId && f.id !== excludeId && !f.deletedAt;
+            const folderId = typeof f.id === 'string' ? f.id : String(f.id);
+            const parentIdStr = parentId === null ? null : (typeof parentId === 'string' ? parentId : String(parentId));
+            const excludeIdStr = excludeId === undefined ? undefined : (typeof excludeId === 'string' ? excludeId : String(excludeId));
+            const deletedAt = (f as any).deletedAt;
+            return folderParentId === parentIdStr && folderId !== excludeIdStr && !deletedAt;
         });
 
         if (childFolders.length === 0) {
@@ -345,13 +319,13 @@ export function FileItem({
         }
 
         return childFolders.map((folder: TFolder) => {
-            const subFolders = buildFolderTree(folder.id, excludeId);
+            const folderId = typeof folder.id === 'string' ? folder.id : String(folder.id);
+            const subFolders = buildFolderTree(folderId as UUID, excludeId);
             return {
-                id: folder.id,
+                id: folderId,
                 label: folder.name,
                 icon: FolderOpen,
-                onSelect: () => handleMoveToFolder(folder.id),
-                // Only include subItems if there are nested folders
+                onSelect: () => handleMoveToFolder(folderId as UUID),
                 ...(subFolders.length > 0 ? { subItems: subFolders } : {}),
             };
         });

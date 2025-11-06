@@ -2,21 +2,22 @@ import { transact, tx } from '@/api/db/client';
 import type { Note } from '@/api/db/schema';
 import { useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-type DuplicateNoteInput = {
-  noteId: string;
+type props = {
+  noteId: UUID;
   notes: Note[];
 }
 
 export function useDuplicateNote() {
-  const { mutate, isLoading, error } = useMutation(async (input: DuplicateNoteInput) => {
+  const { mutate, isLoading, error } = useMutation(async (input: props) => {
     const { noteId, notes } = input;
 
     const sourceNote = notes.find((n: Note) => n.id === noteId);
     if (!sourceNote) return;
 
     // Find the source note's position and folder
-    const sourceFolderId = (sourceNote.folder as any)?.id || null;
+    const sourceFolderId: Nullable<UUID> = (sourceNote.folder as any)?.id || null;
     const sourcePosition = sourceNote.position || 0;
 
     // Get all notes in the same folder (or root)
@@ -38,16 +39,13 @@ export function useDuplicateNote() {
     }
 
     const newId = generateId();
-    const now = Date.now();
 
     const transactions = [
-      tx.notes[newId].update({
+      tx.notes[newId].update(withTimestamps({
         title: `${sourceNote.title} (Copy)`,
         content: sourceNote.content || '',
         position: newPosition,
-        createdAt: now,
-        updatedAt: now,
-      })
+      }, true))
     ];
 
     if (sourceFolderId) {

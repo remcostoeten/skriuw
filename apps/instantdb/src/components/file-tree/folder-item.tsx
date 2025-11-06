@@ -113,8 +113,6 @@ export const FolderItem = ({
     const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Get setting for allowing delete without context menu
     const [allowDeleteWithoutContextMenu] = useUserSetting<boolean>('allowDeleteWithoutContextMenu', false);
 
     const canDrop = () => {
@@ -151,7 +149,6 @@ export const FolderItem = ({
             expandTimeoutRef.current = null;
         }
         removeDraggingClass();
-        // Blur the element if it's focused
         if (folderRef.current && folderRef.current === document.activeElement) {
             folderRef.current.blur();
         }
@@ -176,11 +173,7 @@ export const FolderItem = ({
         
         let position: 'before' | 'after' | 'inside';
 
-        // When dragging a NOTE onto a folder, strongly favor "inside" placement
-        // Only use before/after if explicitly hovering on the very edge
-        // When dragging a FOLDER, use larger edge zones for easier sibling placement
         if (draggedNoteId) {
-            // For notes: use tiny edge zones (3px or 10% of height, whichever is smaller)
             const noteThreshold = Math.min(3, height * 0.1);
             if (y < noteThreshold) {
                 position = 'before';
@@ -190,7 +183,6 @@ export const FolderItem = ({
                 position = 'inside';
             }
         } else {
-            // For folders: use 25% edge zones for easier sibling placement
             const folderThreshold = height * 0.25;
             if (y < folderThreshold) {
                 position = 'before';
@@ -201,7 +193,6 @@ export const FolderItem = ({
             }
         }
 
-        // Auto-expand closed folders when hovering to drop inside
         if (position === 'inside' && !isOpen && onToggle) {
             if (expandTimeoutRef.current) {
                 clearTimeout(expandTimeoutRef.current);
@@ -306,26 +297,23 @@ export const FolderItem = ({
         }, 0);
     };
 
-    // Build folder hierarchy for "Move to" submenu - recursively shows nested folders
     const buildFolderTree = (parentId: string | null = null, excludeId?: string): SubMenuItem[] => {
         if (!folders) return [];
-
         const childFolders = folders.filter((f: FolderType) => {
             const folderParentId = (f.parent as any)?.id || null;
-            return folderParentId === parentId && f.id !== excludeId && f.id !== id && !f.deletedAt;
+            const folderId = typeof f.id === 'string' ? f.id : String(f.id);
+            const deletedAt = (f as any).deletedAt;
+            return folderParentId === parentId && folderId !== excludeId && folderId !== id && !deletedAt;
         });
-
-        if (childFolders.length === 0) {
-            return [];
-        }
-
+        if (childFolders.length === 0) return [];
         return childFolders.map((folder: FolderType) => {
-            const subFolders = buildFolderTree(folder.id, excludeId);
+            const folderId = typeof folder.id === 'string' ? folder.id : String(folder.id);
+            const subFolders = buildFolderTree(folderId, excludeId);
             return {
-                id: folder.id,
+                id: folderId,
                 label: folder.name,
                 icon: FolderOpen,
-                onSelect: () => handleMoveToFolder(folder.id),
+                onSelect: () => handleMoveToFolder(folderId),
                 ...(subFolders.length > 0 ? { subItems: subFolders } : {}),
             };
         });
@@ -368,12 +356,10 @@ export const FolderItem = ({
         },
     ];
 
-    // Handle keyboard shortcuts when context menu is open
     useEffect(() => {
         if (!isContextMenuOpen) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Check for Shift+R (Rename)
             if (e.shiftKey && e.key === 'R' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -381,7 +367,6 @@ export const FolderItem = ({
                 return;
             }
 
-            // Check for Shift+Backspace (Delete)
             if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -396,13 +381,11 @@ export const FolderItem = ({
         };
     }, [isContextMenuOpen, name, id]);
 
-    // Handle delete shortcut when context menu is closed (if setting enabled)
     useEffect(() => {
         if (!allowDeleteWithoutContextMenu || isContextMenuOpen || isEditing) return;
         if (!isFocused) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Check for Shift+Backspace (Delete)
             if (e.shiftKey && e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -427,7 +410,6 @@ export const FolderItem = ({
 
     return (
         <div className="w-full relative">
-            {/* Drop indicators */}
             {(draggedFolderId || draggedNoteId) && isDragOver && dropPosition === 'before' && (
                 <div
                     className="absolute top-0 left-0 right-0 h-px z-10"
@@ -526,7 +508,6 @@ export const FolderItem = ({
                         e.stopPropagation();
                         e.dataTransfer.dropEffect = 'move';
 
-                        // Only set drag over if not already set, or if dragging over empty space
                         if (isDragOverFolderId !== id || dropPositionGlobal !== 'inside') {
                             onDragOverFolder?.(id, 'inside');
                         }
@@ -537,7 +518,6 @@ export const FolderItem = ({
                         const y = e.clientY;
                         const margin = 10;
 
-                        // Only clear if truly leaving the area
                         if (x < rect.left - margin || x > rect.right + margin ||
                             y < rect.top - margin || y > rect.bottom + margin) {
                             if (isDragOverFolderId === id && dropPositionGlobal === 'inside') {
@@ -559,13 +539,14 @@ export const FolderItem = ({
                 >
                     {subFolders && subFolders.length > 0 && getSubFolders && getFolderNotes && getChildrenCount && openFolders && onToggleFolder && onDragStartFolder && onDragOverFolder && onDropFolder && onDragLeaveFolder && (
                         subFolders.map((subFolder) => {
-                            const subFolderNotes = getFolderNotes(subFolder.id);
-                            const subFolderSubFolders = getSubFolders(subFolder.id);
-                            const subFolderChildrenCount = getChildrenCount(subFolder.id);
+                            const subfolderId = typeof subFolder.id === 'string' ? subFolder.id : String(subFolder.id);
+                            const subFolderNotes = getFolderNotes(subfolderId);
+                            const subFolderSubFolders = getSubFolders(subfolderId);
+                            const subFolderChildrenCount = getChildrenCount(subfolderId);
                             return (
                                 <FolderItem
-                                    key={subFolder.id}
-                                    id={subFolder.id}
+                                    key={subfolderId}
+                                    id={subfolderId}
                                     name={subFolder.name}
                                     path={`/${subFolder.name}`}
                                     files={subFolderNotes}
@@ -575,8 +556,8 @@ export const FolderItem = ({
                                     activeFile={activeFile}
                                     onFileClick={onFileClick}
                                     onFolderRename={onFolderRename}
-                                    isOpen={openFolders.has(subFolder.id)}
-                                    onToggle={() => onToggleFolder(subFolder.id)}
+                                    isOpen={openFolders.has(subfolderId)}
+                                    onToggle={() => onToggleFolder(subfolderId)}
                                     openFolders={openFolders}
                                     onToggleFolder={onToggleFolder}
                                     getFolderNotes={getFolderNotes}
@@ -592,50 +573,53 @@ export const FolderItem = ({
                                     draggedNoteId={draggedNoteId}
                                     dropPositionGlobal={dropPositionGlobal}
                                     onDragLeaveFolder={onDragLeaveFolder}
-                                    isDragged={draggedFolderId === subFolder.id}
-                                    isDragOver={isDragOverFolderId === subFolder.id}
-                                    dropPosition={isDragOverFolderId === subFolder.id ? dropPositionGlobal : null}
-                                    onDragStart={() => onDragStartFolder('folder', subFolder.id)}
+                                    isDragged={draggedFolderId === subfolderId}
+                                    isDragOver={isDragOverFolderId === subfolderId}
+                                    dropPosition={isDragOverFolderId === subfolderId ? dropPositionGlobal : null}
+                                    onDragStart={() => onDragStartFolder('folder', subfolderId)}
                                     onDragEnd={onDragEnd}
-                                    onDragOver={(position) => onDragOverFolder(subFolder.id, position)}
+                                    onDragOver={(position) => onDragOverFolder(subfolderId, position)}
                                     onDragLeave={onDragLeaveFolder}
-                                    onDrop={(position) => onDropFolder(subFolder.id, position)}
+                                    onDrop={(position) => onDropFolder(subfolderId, position)}
                                     onNoteReorder={onNoteReorder}
                                     onNoteRename={onNoteRename}
-                                    isFocused={isItemFocused?.('folder', subFolder.id) || false}
-                                    onFocus={() => handleItemFocus?.('folder', subFolder.id)}
+                                    isFocused={isItemFocused?.('folder', subfolderId) || false}
+                                    onFocus={() => handleItemFocus?.('folder', subfolderId)}
                                     isItemFocused={isItemFocused}
                                     handleItemFocus={handleItemFocus}
                                 />
                             );
                         })
                     )}
-                    {files.map((file) => (
-                        <FileItem
-                            key={file.id}
-                            id={file.id}
-                            name={file.title}
-                            path={`/${file.title}`}
-                            level={level + 1}
-                            isActive={activeFile === file.id}
-                            onClick={() => onFileClick?.(file)}
-                            isDragged={draggedNoteId === file.id}
-                            draggedNoteId={draggedNoteId}
-                            draggedFolderId={draggedFolderId}
-                            onDragStart={() => onDragStartFolder?.('note', file.id)}
-                            onDragEnd={onDragEnd}
-                            onNoteReorder={onNoteReorder}
-                            onNoteRename={onNoteRename}
-                            onNoteDelete={onNoteDelete}
-                            onNoteDuplicate={onNoteDuplicate}
-                            onNoteMove={onNoteMove}
-                            onNotePin={onNotePin}
-                            pinned={file.pinned || false}
-                            folders={folders}
-                            isFocused={isItemFocused?.('note', file.id) || false}
-                            onFocus={() => handleItemFocus?.('note', file.id)}
-                        />
-                    ))}
+                    {files.map((file) => {
+                        const fileId = typeof file.id === 'string' ? file.id : String(file.id);
+                        return (
+                            <FileItem
+                                key={fileId}
+                                id={fileId}
+                                name={file.title}
+                                path={`/${file.title}`}
+                                level={level + 1}
+                                isActive={activeFile === fileId}
+                                onClick={() => onFileClick?.(file)}
+                                isDragged={draggedNoteId === fileId}
+                                draggedNoteId={draggedNoteId}
+                                draggedFolderId={draggedFolderId}
+                                onDragStart={() => onDragStartFolder?.('note', fileId)}
+                                onDragEnd={onDragEnd}
+                                onNoteReorder={onNoteReorder}
+                                onNoteRename={onNoteRename}
+                                onNoteDelete={onNoteDelete}
+                                onNoteDuplicate={onNoteDuplicate}
+                                onNoteMove={onNoteMove ? (noteId, folderId) => onNoteMove(noteId, folderId ?? null) : undefined}
+                                onNotePin={onNotePin}
+                                pinned={file.pinned || false}
+                                folders={folders}
+                                isFocused={isItemFocused?.('note', fileId) || false}
+                                onFocus={() => handleItemFocus?.('note', fileId)}
+                            />
+                        );
+                    })}
                 </div>
             )}
         </div>

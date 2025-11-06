@@ -1,35 +1,34 @@
 import { transact, tx } from '@/api/db/client';
 import { useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
-import { TaskStatus, TaskPriority, EntityId, Timestamp } from '@/types';
+import { TaskStatus, TaskPriority } from '@/types';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-type CreateTaskInput = {
-  noteId?: EntityId;
-  projectId?: EntityId;
+type props = {
+  noteId?: UUID;
+  projectId?: UUID;
   content: string;
-  position: number;
+} & Positionable & {
   priority?: TaskPriority;
-  dueAt?: Timestamp;
-  parentId?: EntityId;
+  dueAt?: number;
+  parentId?: UUID;
   tags?: string[];
-  dependsOnIds?: EntityId[];
+  dependsOnIds?: UUID[];
 }
 
 export function useCreateTask() {
-  const { mutate, isLoading, error } = useMutation(async (input: CreateTaskInput) => {
-    const id: EntityId = generateId();
-    const now: Timestamp = Date.now();
+  const { mutate, isLoading, error } = useMutation(async (input: props) => {
+    const id: UUID = generateId();
     await transact([
-      tx.tasks[id].update({
+      tx.tasks[id].update(withTimestamps({
         content: input.content,
         completed: false,
         status: TaskStatus.TODO,
         position: input.position,
-        createdAt: now,
         priority: input.priority ?? TaskPriority.MEDIUM,
         dueAt: input.dueAt,
         tags: input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined,
-      }),
+      }, true)),
       ...(input.noteId ? [tx.tasks[id].link({ note: input.noteId })] : []),
       ...(input.projectId ? [tx.tasks[id].link({ project: input.projectId })] : []),
       ...(input.parentId ? [tx.tasks[id].link({ parent: input.parentId })] : []),

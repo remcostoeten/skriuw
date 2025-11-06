@@ -1,22 +1,27 @@
 import { transact, tx, db } from '@/api/db/client';
 import { useMutation } from '@/hooks/core';
+import { withTimestamps } from '@/shared/utilities/timestamps';
+import { updateRelation } from '@/shared/utilities/relations';
 
 export function useUpdateFolder() {
   const { mutate, isLoading, error } = useMutation(
     async ({ id, data, currentParentId }: {
-      id: string;
-      data: { name?: string; parentId?: string | null; position?: number };
-      currentParentId?: string | null;
+      id: UUID;
+      data: { name?: string; parentId?: Nullable<UUID>; position?: number };
+      currentParentId?: Nullable<UUID>;
     }) => {
+      const operations: any[] = [];
+      
+      // Build update operations
       const updates: any = {};
       if (data.name !== undefined) updates.name = data.name;
       if (data.position !== undefined) updates.position = data.position;
-      updates.updatedAt = Date.now();
+      
+      operations.push(tx.folders[id].update(withTimestamps(updates)));
 
-      await transact([tx.folders[id].update(updates)]);
-
+      // Handle parent relationship changes
       if (data.parentId !== undefined) {
-        // Fetch current parent if not provided and we're changing the parent
+        // Fetch current parent if not provided (needed for conditional unlink logic)
         let effectiveCurrentParentId = currentParentId;
 
         if (effectiveCurrentParentId === undefined) {
@@ -29,24 +34,22 @@ export function useUpdateFolder() {
           effectiveCurrentParentId = result?.data?.folders?.[0]?.parent?.id || null;
         }
 
-        // Always unlink from current parent if it exists and is different from the new parent
-        if (effectiveCurrentParentId && effectiveCurrentParentId !== data.parentId) {
-          await transact([tx.folders[id].unlink({ parent: effectiveCurrentParentId })]);
-        }
-
-        // Link to new parent if parentId is not null
-        if (data.parentId) {
-          await transact([tx.folders[id].link({ parent: data.parentId })]);
+        // Only update relation if it's actually changing
+        if (effectiveCurrentParentId !== data.parentId) {
+          operations.push(...updateRelation('folders', id, 'parent', data.parentId));
         }
       }
+      
+      // Execute all operations in a single atomic transaction
+      await transact(operations);
       return { id };
     }
   );
 
   const updateFolder = (
-    id: string,
-    data: { name?: string; parentId?: string | null; position?: number },
-    currentParentId?: string | null
+    id: UUID,
+    data: { name?: string; parentId?: Nullable<UUID>; position?: number },
+    currentParentId?: Nullable<UUID>
   ) => mutate({ id, data, currentParentId });
   return { updateFolder, isLoading, error };
 }

@@ -1,5 +1,6 @@
 import { createQueryHook } from '@/hooks/core';
 import type { Note } from '@/api/db/schema';
+import { arrayQueryOptions } from '@/shared/utilities/query-helpers';
 
 const useNotesQuery = createQueryHook(
   () => ({
@@ -12,8 +13,7 @@ const useNotesQuery = createQueryHook(
     },
   }),
   {
-    select: (raw) => (raw?.notes as Note[]) ?? [],
-    initialData: [] as Note[],
+    ...arrayQueryOptions<Note>('notes'),
     showErrorToast: false,
   }
 );

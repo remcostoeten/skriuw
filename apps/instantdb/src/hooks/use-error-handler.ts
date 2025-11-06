@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { useToast } from '@/components/error-toast';
 
-type ErrorHandlerOptions = {
+export type ErrorHandlerOptions = {
     showToast?: boolean;
     fallbackMessage?: string;
     logToConsole?: boolean;

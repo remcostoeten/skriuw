@@ -1,15 +1,16 @@
 import { transact, tx } from '@/api/db/client';
 import type { Note } from '@/api/db/schema';
 import { useMutation } from '@/hooks/core';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-type PinNoteInput = {
-  noteId: string;
+type props = {
+  noteId: UUID;
   notes: Note[];
   pinned: boolean;
 }
 
 export function usePinNote() {
-  const { mutate, isLoading, error } = useMutation(async (input: PinNoteInput) => {
+  const { mutate, isLoading, error } = useMutation(async (input: props) => {
     const { noteId, notes, pinned } = input;
 
     const note = notes.find((n: Note) => n.id === noteId);
@@ -35,11 +36,10 @@ export function usePinNote() {
       const newPosition = maxPinnedPosition - 1;
 
       await transact([
-        tx.notes[noteId].update({
+        tx.notes[noteId].update(withTimestamps({
           pinned: true,
           position: newPosition,
-          updatedAt: Date.now()
-        })
+        }))
       ]);
     } else {
       // When unpinning, move to end of unpinned notes in the same folder
@@ -49,11 +49,10 @@ export function usePinNote() {
         : Date.now();
 
       await transact([
-        tx.notes[noteId].update({
+        tx.notes[noteId].update(withTimestamps({
           pinned: false,
           position: maxUnpinnedPosition + 1,
-          updatedAt: Date.now()
-        })
+        }))
       ]);
     }
 

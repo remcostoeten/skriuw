@@ -19,7 +19,7 @@ import { usePinNote } from '@/modules/notes/api/mutations/pin'
 import { useUpdateNote } from '@/modules/notes/api/mutations/update'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'
 import { useSidebarSearch } from '@/modules/search/hooks/use-sidebar-search'
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from 'utils'
 import { FileItem } from './file-item'
 import { FolderItem } from './folder-item'
@@ -83,11 +83,11 @@ export const Sidebar = ({
 	])
 
 	const rootFolders = useMemo(
-		() => folders.filter((f: Folder) => !f.deletedAt && !(f.parent as any)),
+		() => folders.filter((f: Folder) => !f.parent && !(f as any).deletedAt),
 		[folders]
 	)
 	const rootNotes = useMemo(
-		() => notes.filter((n: Note) => !(n.folder as any)),
+		() => notes.filter((n: Note) => !n.folder && !(n as any).deletedAt),
 		[notes]
 	)
 
@@ -104,33 +104,29 @@ export const Sidebar = ({
 		if (searchState.query) {
 			return searchNotes
 		}
-		// Sort: pinned notes first (by position ascending), then unpinned notes (by position ascending)
 		return [...rootNotes].sort((a: Note, b: Note) => {
 			const aPinned = a.pinned || false
 			const bPinned = b.pinned || false
 
-			// Pinned notes come first
 			if (aPinned && !bPinned) return -1
 			if (!aPinned && bPinned) return 1
 
-			// Within same pinned status, sort by position
 			return (a.position || 0) - (b.position || 0)
 		})
 	}, [searchState.query, searchNotes, rootNotes])
 
-	const getChildrenCount = (folderId: string) => {
+	function getChildrenCount(folderId: string) {
 		const childNotes = notes.filter(
-			(note: Note) => (note.folder as any)?.id === folderId
+			(note: Note) => note.folder?.id === folderId
 		)
 		const childFolders = folders.filter(
 			(folder: Folder) =>
-				(folder.parent as any)?.id === folderId && !folder.deletedAt
+				folder.parent?.id === folderId
 		)
 		return childNotes.length + childFolders.length
 	}
 
-	// Get the full path of a folder (all parent IDs)
-	const getFolderPath = (folderId: string): string[] => {
+	function getFolderPath(folderId: string): string[] {
 		const path: string[] = []
 		let currentId = folderId
 
@@ -143,29 +139,25 @@ export const Sidebar = ({
 		return path
 	}
 
-	// Get notes for a specific folder
-	const getFolderNotes = (folderId: string) => {
+	function getFolderNotes(folderId: string) {
 		return notes
-			.filter((note: Note) => (note.folder as any)?.id === folderId)
+			.filter((note: Note) => note.folder?.id === folderId)
 			.sort((a: Note, b: Note) => {
 				const aPinned = a.pinned || false
 				const bPinned = b.pinned || false
 
-				// Pinned notes come first
 				if (aPinned && !bPinned) return -1
 				if (!aPinned && bPinned) return 1
 
-				// Within same pinned status, sort by position
 				return (a.position || 0) - (b.position || 0)
 			})
 	}
 
-	// Get sub-folders for a specific folder
-	const getSubFolders = (folderId: string) => {
+	function getSubFolders(folderId: string) {
 		return folders
 			.filter(
 				(folder: Folder) =>
-					(folder.parent as any)?.id === folderId && !folder.deletedAt
+					folder.parent?.id === folderId
 			)
 			.sort(
 				(a: Folder, b: Folder) => (a.position || 0) - (b.position || 0)
@@ -174,18 +166,16 @@ export const Sidebar = ({
 
 	const handleExpandToggle = useCallback(() => {
 		if (isExpanded) {
-			// Collapse all folders
 			setOpenFolders(new Set())
 		} else {
-			// Expand all folders
 			setOpenFolders(
-				new Set(displayFolders.map((f: any) => ('item' in f ? f.item?.id : f.id)))
+				new Set(displayFolders.map((f: Folder) => typeof f.id === 'string' ? f.id : String(f.id)))
 			)
 		}
 		setIsExpanded(!isExpanded)
 	}, [isExpanded, displayFolders])
 
-	const toggleFolder = (folderId: string) => {
+	function toggleFolder(folderId: string) {
 		setOpenFolders(prev => {
 			const next = new Set(prev)
 			if (next.has(folderId)) {
@@ -197,7 +187,7 @@ export const Sidebar = ({
 		})
 	}
 
-	const handleFolderRename = async (id: string, newName: string) => {
+	async function handleFolderRename(id: string, newName: string) {
 		try {
 			await updateFolder(id, { name: newName })
 		} catch (error) {
@@ -205,7 +195,7 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleFolderDelete = async (id: string) => {
+	async function handleFolderDelete(id: string) {
 		try {
 			await destroyFolder(id)
 		} catch (error) {
@@ -213,10 +203,10 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleFolderMove = async (
+	async function handleFolderMove(
 		folderId: string,
 		targetFolderId: string | null
-	) => {
+	) {
 		try {
 			if (targetFolderId === null) {
 				await moveFolderToRoot({ draggedFolderId: folderId, folders })
@@ -227,7 +217,6 @@ export const Sidebar = ({
 					position: 'inside',
 					folders
 				})
-				// Expand the target folder
 				const pathToExpand = getFolderPath(targetFolderId)
 				setOpenFolders(prev => {
 					const next = new Set(prev)
@@ -240,7 +229,7 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleNoteRename = async (id: string, newName: string) => {
+	async function handleNoteRename(id: string, newName: string) {
 		try {
 			await updateNote(id, { title: newName })
 		} catch (error) {
@@ -248,23 +237,22 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleNoteDelete = async (id: string) => {
+	async function handleNoteDelete(id: string) {
 		try {
 			await destroyNote(id)
 			if (activeFile === id) {
 				setActiveFile(null)
-				onNoteSelect?.(null as any)
+ 				onNoteSelect?.(null as unknown as string)
 			}
 		} catch (error) {
 			console.error('Failed to delete note:', error)
 		}
 	}
 
-	const handleNoteDuplicate = async (id: string) => {
+	async function handleNoteDuplicate(id: string) {
 		try {
 			const result = await duplicateNote({ noteId: id, notes })
 			if (result?.id && onNoteDuplicate) {
-				// Wait a bit for the note to be available in the list
 				setTimeout(() => {
 					onNoteDuplicate(result.id)
 				}, 100)
@@ -274,7 +262,7 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleNoteMove = async (noteId: string, folderId: string | null) => {
+	async function handleNoteMove(noteId: string, folderId: string | null) {
 		try {
 			if (folderId === null) {
 				await moveNoteToRoot({ draggedNoteId: noteId, notes })
@@ -286,7 +274,6 @@ export const Sidebar = ({
 					notes,
 					folders
 				})
-				// Expand the target folder
 				const pathToExpand = getFolderPath(folderId)
 				setOpenFolders(prev => {
 					const next = new Set(prev)
@@ -299,11 +286,10 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleNotePin = async (noteId: string, pinned: boolean) => {
+	async function handleNotePin(noteId: string, pinned: boolean) {
 		try {
 			await pinNote({ noteId, notes, pinned })
 			if (pinned) {
-				// Select the pinned note after pinning
 				setTimeout(() => {
 					onNoteSelect?.(noteId)
 				}, 100)
@@ -321,7 +307,7 @@ export const Sidebar = ({
 		[onNoteSelect]
 	)
 
-	const handleDragStart = (type: 'folder' | 'note', id: string) => {
+	function handleDragStart(type: 'folder' | 'note', id: string) {
 		if (type === 'folder') {
 			dragState.startDragFolder(id)
 		} else {
@@ -329,28 +315,28 @@ export const Sidebar = ({
 		}
 	}
 
-	const handleDragEnd = () => {
+	function handleDragEnd() {
 		dragState.endDrag()
 		dragState.clearDragOver()
 		setFocusedIndex(-1)
 	}
 
-	const handleDragOver = (
+	function handleDragOver(
 		folderId: string,
 		position: 'before' | 'after' | 'inside'
-	) => {
+	) {
 		if (dragState.draggedFolderId === folderId) return
 		dragState.setDragOver(folderId, position)
 	}
 
-	const handleDragLeave = () => {
+	function handleDragLeave() {
 		dragState.clearDragOver()
 	}
 
-	const handleDrop = async (
+	async function handleDrop(
 		targetFolderId: string,
 		position: 'before' | 'after' | 'inside'
-	) => {
+	) {
 		try {
 			if (dragState.draggedFolderId) {
 				const result = await moveFolder({
@@ -401,18 +387,18 @@ export const Sidebar = ({
 		setFocusedIndex(-1)
 	}
 
-	const handleDragOverRoot = (e: React.DragEvent) => {
+	function handleDragOverRoot(e: React.DragEvent) {
 		if (!dragState.draggedNoteId && !dragState.draggedFolderId) return
 		e.preventDefault()
 		e.dataTransfer.dropEffect = 'move'
 		dragState.setDragOverRoot(true)
 	}
 
-	const handleDragLeaveRoot = () => {
+	function handleDragLeaveRoot() {
 		dragState.setDragOverRoot(false)
 	}
 
-	const handleDropOnRoot = async (e: React.DragEvent) => {
+	async function handleDropOnRoot(e: React.DragEvent) {
 		e.preventDefault()
 		try {
 			if (dragState.draggedNoteId) {
@@ -435,11 +421,11 @@ export const Sidebar = ({
 		setFocusedIndex(-1)
 	}
 
-	const handleNoteReorder = async (
+	async function handleNoteReorder(
 		draggedNoteId: string,
 		targetNoteId: string,
 		position: 'before' | 'after'
-	) => {
+	) {
 		try {
 			await reorderNote({ draggedNoteId, targetNoteId, position, notes })
 		} catch (error) {
@@ -450,7 +436,6 @@ export const Sidebar = ({
 		setFocusedIndex(-1)
 	}
 
-	// Create a flat list of all navigable items for keyboard navigation
 	const getFlatItemsList = useCallback(() => {
 		const items: Array<{
 			type: 'folder' | 'note'
@@ -462,24 +447,26 @@ export const Sidebar = ({
 		const addFolderItems = (folderList: any[], level: number = 0) => {
 			folderList.forEach(folderData => {
 				const folder = 'item' in folderData ? folderData.item : folderData
+				const folderId = typeof folder.id === 'string' ? folder.id : String(folder.id)
 				items.push({
 					type: 'folder',
-					id: folder.id,
+					id: folderId,
 					name: folder.name,
 					level
 				})
 
-				if (openFolders.has(folder.id)) {
-					const subFolders = getSubFolders(folder.id)
+				if (openFolders.has(folderId)) {
+					const subFolders = getSubFolders(folderId)
 					if (subFolders.length > 0) {
 						addFolderItems(subFolders, level + 1)
 					}
 
-					const folderNotes = getFolderNotes(folder.id)
+					const folderNotes = getFolderNotes(folderId)
 					folderNotes.forEach(note => {
+						const noteId = typeof note.id === 'string' ? note.id : String(note.id)
 						items.push({
 							type: 'note',
-							id: note.id,
+							id: noteId,
 							name: note.title,
 							level: level + 1
 						})
@@ -488,15 +475,14 @@ export const Sidebar = ({
 			})
 		}
 
-		// Add folders and their contents
 		addFolderItems(displayFolders)
 
-		// Add root level notes
 		displayNotes.forEach(noteData => {
 			const note = 'item' in noteData ? noteData.item : noteData
+			const noteId = typeof note.id === 'string' ? note.id : String(note.id)
 			items.push({
 				type: 'note',
-				id: note.id,
+				id: noteId,
 				name: note.title,
 				level: 0
 			})
@@ -511,7 +497,6 @@ export const Sidebar = ({
 		getFolderNotes
 	])
 
-	// Handle keyboard navigation
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			const items = getFlatItemsList()
@@ -591,7 +576,6 @@ export const Sidebar = ({
 		]
 	)
 
-	// Get current focused item for rendering focus state
 	const getFocusedItem = useCallback(() => {
 		const items = getFlatItemsList()
 		if (focusedIndex >= 0 && focusedIndex < items.length) {
@@ -602,7 +586,6 @@ export const Sidebar = ({
 
 	const focusedItem = getFocusedItem()
 
-	// Check if an item should be focused
 	const isItemFocused = useCallback(
 		(type: 'folder' | 'note', id: string) => {
 			return focusedItem?.type === type && focusedItem?.id === id
@@ -610,7 +593,6 @@ export const Sidebar = ({
 		[focusedItem]
 	)
 
-	// Handle focus for tree items
 	const handleItemFocus = useCallback(
 		(type: 'folder' | 'note', id: string) => {
 			const items = getFlatItemsList()
@@ -637,12 +619,11 @@ export const Sidebar = ({
 			role="navigation"
 			aria-label="File and folder navigation"
 		>
-			{/* Resize handle */}
 			<div
 				className={cn(
 					'h-full w-1 border-r cursor-col-resize absolute top-0 right-0 z-10',
 					'hover:bg-foreground/10 hover:delay-75 transition-all duration-200',
-					'active:bg-foreground/20 active:!cursor-col-resize'
+					'active:bg-foreground/20 active:cursor-col-resize!'
 				)}
 				role="presentation"
 			/>
@@ -653,7 +634,6 @@ export const Sidebar = ({
 				onNoteCreate={onNoteCreate}
 			/>
 
-			{/* File list */}
 			<div
 				ref={treeRef}
 				className={cn(
@@ -669,24 +649,28 @@ export const Sidebar = ({
 			>
 				{displayFolders.map((folderData: any) => {
 					const folder = 'item' in folderData ? folderData.item : folderData
-					const folderFiles = getFolderNotes(folder.id)
-					const folderSubFolders = getSubFolders(folder.id)
-					const folderChildrenCount = getChildrenCount(folder.id)
+					const folderId = typeof folder.id === 'string' ? folder.id : String(folder.id)
+					const folderFiles = getFolderNotes(folderId)
+					const folderSubFolders = getSubFolders(folderId)
+					const folderChildrenCount = getChildrenCount(folderId)
 
 					return (
 						<FolderItem
-							key={folder.id}
-							id={folder.id}
+							key={folderId}
+							id={folderId}
 							name={folder.name}
 							path={folder.path || `/${folder.name}`}
 							files={folderFiles}
 							subFolders={folderSubFolders}
 							childrenCount={folderChildrenCount}
 							activeFile={activeFile || undefined}
-							onFileClick={note => handleNoteClick(note.id)}
+							onFileClick={note => {
+								const noteId = typeof note.id === 'string' ? note.id : String(note.id)
+								handleNoteClick(noteId)
+							}}
 							onFolderRename={handleFolderRename}
-							isOpen={openFolders.has(folder.id)}
-							onToggle={() => toggleFolder(folder.id)}
+							isOpen={openFolders.has(folderId)}
+							onToggle={() => toggleFolder(folderId)}
 							openFolders={openFolders}
 							onToggleFolder={toggleFolder}
 							getFolderNotes={getFolderNotes}
@@ -702,34 +686,34 @@ export const Sidebar = ({
 							draggedNoteId={dragState.draggedNoteId}
 							dropPositionGlobal={dragState.dropPosition}
 							onDragLeaveFolder={handleDragLeave}
-							isDragged={dragState.draggedFolderId === folder.id}
+							isDragged={dragState.draggedFolderId === folderId}
 							isDragOver={
-								dragState.dragOverFolderId === folder.id
+								dragState.dragOverFolderId === folderId
 							}
 							dropPosition={
-								dragState.dragOverFolderId === folder.id
+								dragState.dragOverFolderId === folderId
 									? dragState.dropPosition
 									: null
 							}
 							onDragStart={() =>
-								handleDragStart('folder', folder.id)
+								handleDragStart('folder', folderId)
 							}
 							onDragEnd={handleDragEnd}
 							onDragOver={position =>
-								handleDragOver(folder.id, position)
+								handleDragOver(folderId, position)
 							}
 							onDragLeave={handleDragLeave}
-							onDrop={position => handleDrop(folder.id, position)}
+							onDrop={position => handleDrop(folderId, position)}
 							onNoteReorder={handleNoteReorder}
 							onNoteRename={handleNoteRename}
 							onNoteDelete={handleNoteDelete}
 							onNoteDuplicate={handleNoteDuplicate}
-							onNoteMove={handleNoteMove}
+							onNoteMove={(noteId, folderId) => handleNoteMove(noteId, folderId ?? null)}
 							onNotePin={handleNotePin}
 							onFolderDelete={handleFolderDelete}
 							onFolderMove={handleFolderMove}
-							isFocused={isItemFocused('folder', folder.id)}
-							onFocus={() => handleItemFocus('folder', folder.id)}
+							isFocused={isItemFocused('folder', folderId)}
+							onFocus={() => handleItemFocus('folder', folderId)}
 							isItemFocused={isItemFocused}
 							handleItemFocus={handleItemFocus}
 						/>
@@ -755,7 +739,7 @@ export const Sidebar = ({
 							onNoteRename={handleNoteRename}
 							onNoteDelete={handleNoteDelete}
 							onNoteDuplicate={handleNoteDuplicate}
-							onNoteMove={handleNoteMove}
+							onNoteMove={(noteId, folderId) => handleNoteMove(noteId, folderId ?? null)}
 							onNotePin={handleNotePin}
 							pinned={note.pinned || false}
 							folders={folders}

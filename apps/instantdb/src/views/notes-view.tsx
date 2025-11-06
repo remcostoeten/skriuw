@@ -56,7 +56,7 @@ export default function NotesView() {
 	// Memoize the onNoteSelect callback to prevent NoteEditor from re-rendering
 	const handleNoteSelect = useMemo(
 		() => (noteId: Note['id']) => {
-			setSelectedNoteId(noteId)
+			setSelectedNoteId(String(noteId))
 		},
 		[]
 	)
@@ -71,7 +71,7 @@ export default function NotesView() {
 				(n: Note) => n.id === pendingNoteIdRef.current
 			)
 			if (note) {
-				setSelectedNoteId(note.id)
+				setSelectedNoteId(String(note.id))
 				pendingNoteIdRef.current = null
 			}
 		}
@@ -116,14 +116,14 @@ export default function NotesView() {
 				: 0
 
 		const note = await createNote({ title, content: '', position })
-		setSelectedNoteId((note as Note).id)
+		setSelectedNoteId(String((note as Note).id))
 	}
 
 	async function handleCreateNoteFromSidebar(noteId?: string) {
 		if (noteId) {
 			const note = notes.find((n: Note) => n.id === noteId)
 			if (note) {
-				setSelectedNoteId(note.id)
+				setSelectedNoteId(String(note.id))
 			} else {
 				pendingNoteIdRef.current = noteId
 			}
@@ -168,7 +168,7 @@ export default function NotesView() {
 					setTimeout(() => clearInterval(checkInterval), 2000)
 					return noteId
 				}}
-				selectedNoteId={selectedNote?.id}
+				selectedNoteId={selectedNote?.id ? String(selectedNote.id) : undefined}
 			/>
 
 			<div className="flex-1 relative sm:ml-[220px] ml-0">

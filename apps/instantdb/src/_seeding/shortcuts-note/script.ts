@@ -5,12 +5,12 @@
 
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { init } from '@instantdb/react';
 
 // Load environment variables
 config({ path: resolve(__dirname, '../../../.env') });
 
 import { schema } from '@/api/db/schema';
-import { init } from '@instantdb/core';
 import { SHORTCUTS_NOTE_CONTENT } from './content';
 
 const APP_ID = process.env.NEXT_PUBLIC_INSTANT_APP_ID;

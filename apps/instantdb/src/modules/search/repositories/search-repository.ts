@@ -76,7 +76,7 @@ export const searchRepository = {
   // Folder-specific search functions
   searchFolders: (folders: Folder[], query: string, options: SearchOptions): SearchResult<Folder>[] => {
     return folders
-      .filter(folder => !folder.deletedAt)
+      .filter(folder => !(folder as any).deletedAt)
       .map(folder => ({
         item: folder,
         highlightedText: searchRepository.highlightText(folder.name, query, options),
@@ -96,7 +96,7 @@ export const searchRepository = {
 
   // Combined search for sidebar
   searchSidebar: (folders: Folder[], notes: Note[], query: string, options: SearchOptions) => {
-    const rootFolders = folders.filter(f => !f.parent && !f.deletedAt);
+    const rootFolders = folders.filter(f => !f.parent && !(f as any).deletedAt);
     const rootNotes = notes.filter(n => !n.folder);
 
     return {

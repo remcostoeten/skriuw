@@ -1,14 +1,15 @@
 import { useMutation } from '@/hooks/core';
 import { transact, tx, db } from '@/api/db/client';
 import { generateId } from 'utils';
+import { withTimestamps } from '@/shared/utilities/timestamps';
 
-type Props = {
+type props = {
   key: string;
   value: any;
 };
 
 export function useUpdateUserSetting() {
-  const { mutate, isLoading, error } = useMutation(async (input: Props) => {
+  const { mutate, isLoading, error } = useMutation(async (input: props) => {
     // First, try to find existing setting
     const result = await db.queryOnce({
       userSettings: {
@@ -20,27 +21,23 @@ export function useUpdateUserSetting() {
     });
 
     const existingSetting = result?.data?.userSettings?.[0];
-    const now = Date.now();
 
     if (existingSetting) {
       // Update existing setting
       await transact([
-        tx.userSettings[existingSetting.id].update({
+        tx.userSettings[existingSetting.id].update(withTimestamps({
           value: input.value,
-          updatedAt: now,
-        }),
+        })),
       ]);
       return { id: existingSetting.id, ...input };
     } else {
       // Create new setting
       const id = generateId();
       await transact([
-        tx.userSettings[id].update({
+        tx.userSettings[id].update(withTimestamps({
           key: input.key,
           value: input.value,
-          createdAt: now,
-          updatedAt: now,
-        }),
+        }, true)),
       ]);
       return { id, ...input };
     }

@@ -91,7 +91,7 @@ export function TasksView() {
 		if (!filteredTasks || filteredTasks.length === 0) return 0
 		return (
 			filteredTasks.reduce(
-				(max, t) => (t.position > max ? t.position : max),
+				(max, t) => ((t as any).position > max ? (t as any).position : max),
 				0
 			) + 1
 		)

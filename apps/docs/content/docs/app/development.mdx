@@ -106,6 +106,15 @@ export const NoteEditor: React.FC<Props> = ({ note }) => {
 };
 ```
 
+#### Shared Type Utilities
+
+- Reuse the shared primitives defined in `apps/instantdb/src/types/global.d.ts` (and re-exported from `@/types`).
+  - `UUID`, `Identifier`, `Nullable`, `Optional`, `Positionable`, `Timestamps`, `BaseEntity`, and `Children`.
+- Avoid creating new union types like `string | null` or `number | undefined`; prefer the provided aliases (`Nullable<T>`, `Optional<T>`).
+- When persisting data, call `withTimestamps` (or `createTimestamp`) from `@/shared/utilities/timestamps` instead of `Date.now()` inline.
+- Keep `position` semantics aligned with the `Positionable` type and ensure new sortable entities implement it.
+- If a new shared type is required, add it to `global.d.ts`, re-export it from `@/types`, and update this section alongside the `.cursor` shared type rule.
+
 #### Formatting
 
 **Prettier config:**

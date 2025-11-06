@@ -18,7 +18,7 @@ import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
 import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create';
-import { useComponentShortcuts } from '@/modules/shortcuts';
+import { TShortcutAction, useComponentShortcuts } from '@/modules/shortcuts';
 import { TaskPriority } from '@/types';
 
 type Props = {
@@ -65,7 +65,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
 
   const silentSave = useCallback(async (content: string) => {
     try {
-      await updateNote(noteIdRef.current, { content });
+      await updateNote(noteIdRef.current as UUID, { content });
     } catch (error) {
       handleError(error, 'auto-save note content');
     }
@@ -90,7 +90,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
   // Update available tasks
   useEffect(() => {
     availableTasksRef.current = (tasks || []).map((t) => ({
-      id: t.id,
+      id: t.id as UUID,
       label: t.content.replace(/<[^>]*>/g, '').slice(0, 50) || 'Untitled Task',
     }));
   }, [tasks]);
@@ -100,13 +100,12 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     onNoteSelectRef.current = onNoteSelect;
   }, [availableNotes, onNoteSelect]);
 
-  // Keyboard shortcuts for accessibility will be set up after editor declaration
-
-  const handleMentionClick = useCallback((_view: any, _pos: any, event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (target.classList.contains('mention')) {
-      event.preventDefault();
-      const mentionId = target.getAttribute('data-mention-id');
+  const handleMentionClick = useCallback(
+    (_view: any, _pos: any, event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.classList.contains('mention')) {
+        event.preventDefault();
+        const mentionId = target.getAttribute('data-mention-id');
       if (mentionId && onNoteSelectRef.current) {
         onNoteSelectRef.current(mentionId);
       }
@@ -471,7 +470,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       const result = await createTask({
         content: selectedText,
         position: Date.now(),
-        noteId: note.id,
+        noteId: note.id as UUID,
         priority: TaskPriority.MEDIUM,
       });
 
@@ -572,7 +571,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     if (timeSinceLastUpdate > 500) {
       lastTitleUpdateRef.current = now;
       withSyncTracking(
-        () => updateNote(note.id, { title: newTitle }),
+        () => updateNote(note.id as UUID, { title: newTitle }),
         'update note title'
       );
     } else {
@@ -580,7 +579,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       titleTimerRef.current = setTimeout(async () => {
         lastTitleUpdateRef.current = Date.now();
         await withSyncTracking(
-          () => updateNote(note.id, { title: newTitle }),
+          () => updateNote(note.id as UUID, { title: newTitle }),
           'update note title'
         );
       }, 300);
@@ -618,23 +617,22 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
   // Register editor shortcuts
   useComponentShortcuts([
     {
-      id: 'editor-bold',
+      id: 'toggle-bold' as TShortcutAction,
       handler: handleBold
     },
     {
-      id: 'editor-italic',
+      id: 'toggle-italic' as TShortcutAction,
       handler: handleItalic
     },
     {
-      id: 'editor-underline',
+      id: 'toggle-underline' as TShortcutAction,
       handler: handleUnderline
     },
     {
-      id: 'editor-insert-link',
+      id: 'insert-link' as TShortcutAction,
       handler: handleInsertLink
     }
   ], {
-    context: 'editor',
     enabled: true
   });
 

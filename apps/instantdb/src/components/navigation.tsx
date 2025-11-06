@@ -10,9 +10,10 @@ import {
 } from '@/shared/components/ui'
 import { Logo } from './logo'
 import { TopSectionWrapper } from '@/shared/components/top-section-wrapper'
+import type { Children } from '@/types'
 
 type props = {
-	children: React.ReactNode
+	children: Children
 	href: string
 	label: string
 	isActive?: boolean

@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/shared/components/ui/button';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import { Home, AlertTriangle, RefreshCw } from 'lucide-react';
 import React from 'react';
 
 interface ErrorBoundaryState {
@@ -85,7 +85,6 @@ function DefaultErrorFallback({ error, retry }: { error?: Error; retry: () => vo
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-
           <Button
             variant="outline"
             onClick={() => window.location.href = '/'}

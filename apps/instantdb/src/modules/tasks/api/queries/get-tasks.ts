@@ -1,8 +1,9 @@
 import { createQueryHook } from '@/hooks/core';
 import type { Task } from '@/api/db/schema';
+import { selectArray } from '@/shared/utilities/query-helpers';
 
 const useTasksQuery = createQueryHook(
-  (noteId: string | null) => ({
+  (noteId: Nullable<UUID>) => ({
     tasks: {
       $: {
         ...(noteId ? { where: { 'note.id': noteId } } : {}),
@@ -23,15 +24,15 @@ const useTasksQuery = createQueryHook(
   }),
   {
     select: (raw) => {
-      const tasks = (raw?.tasks as Task[]) ?? [];
+      const tasks = selectArray<Task>('tasks')(raw);
       // Sort by position client-side since it's not indexed on server yet
-      return tasks.sort((a, b) => (a.position || 0) - (b.position || 0));
+      return tasks.sort((a, b) => ((a as any).position || 0) - ((b as any).position || 0));
     },
     initialData: [] as Task[],
   }
 );
 
-export function useGetTasks(noteId: string | null) {
+export function useGetTasks(noteId: Nullable<UUID>) {
   const { data, isLoading, error } = useTasksQuery(noteId);
   return { tasks: data, isLoading, error };
 }

@@ -1,9 +1,10 @@
 import { transact, tx } from '@/api/db/client';
 import { useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
+import { createTimestamp } from '@/shared/utilities/timestamps';
 
 type props = {
-    taskId: string;
+    taskId: UUID;
     body: string;
 };
 
@@ -11,7 +12,7 @@ export function useAddTaskComment() {
     const { mutate, isLoading, error } = useMutation(async (input: props) => {
         const id = generateId();
         const activityId = generateId();
-        const now = Date.now();
+        const now = createTimestamp();
         await transact([
             tx.comments[id].update({ body: input.body, createdAt: now }),
             tx.comments[id].link({ task: input.taskId }),

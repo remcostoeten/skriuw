@@ -19,13 +19,13 @@ export const IconButton = React.memo(function IconButton(props: props) {
 
     const styledIcon = React.useMemo(() => {
         if (React.isValidElement(icon)) {
-            const existingClassName = (icon as React.ReactElement).props?.className || "";
+            const existingClassName = (icon as any).props?.className || "";
             return React.cloneElement(icon as React.ReactElement, {
                 className: cn(
                     "w-[18px] text-muted-foreground h-[18px]",
                     existingClassName
                 ),
-            });
+            } as any);
         }
         return icon;
     }, [icon]);

@@ -5,20 +5,17 @@
 import { useCreate, useMutation } from '@/hooks/core'
 import { generateId } from 'utils'
 import type { TShortcut } from '../../types'
+import { withTimestamps } from '@/shared/utilities/timestamps'
 
-type CreateShortcutInput = Omit<TShortcut, 'id' | 'createdAt' | 'updatedAt'>
+type props = Omit<TShortcut, 'id' | 'createdAt' | 'updatedAt'>      
 
 export function useCreateShortcut() {
     const { create } = useCreate('shortcuts')
-    const { mutate, isLoading, error } = useMutation(async (input: CreateShortcutInput) => {
+    const { mutate, isLoading, error } = useMutation(async (input: props) => {
         const id = generateId()
-        const now = Date.now()
-        await create(id, {
-            ...input,
-            createdAt: now,
-            updatedAt: now,
-        })
-        return { id, ...input, createdAt: now, updatedAt: now }
+        const data = withTimestamps(input, true)
+        await create(id, data)
+        return { id, ...data }
     })
 
     return { createShortcut: mutate, isLoading, error }
