@@ -11,6 +11,10 @@ import { config, AppConfig } from './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
+import { StorageManager } from './storage.js';
+import { LogManager } from './logging.js';
+import Fuse from 'fuse.js';
+import { join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,8 +30,10 @@ interface RunningApp {
 
 class CLIManager {
   private runningApps: Map<string, RunningApp> = new Map();
-  private rootDir: string;
+  private rootDir: string = '';
   private isListeningForHotkeys: boolean = false;
+  private storageManager: StorageManager;
+  private logManager: LogManager;
 
   constructor() {
     // Navigate to project root
@@ -43,14 +49,20 @@ class CLIManager {
       
       if (existsSync(appsDir) && existsSync(packageJson)) {
         this.rootDir = currentDir;
-        return;
+        break;
       }
       
       currentDir = path.resolve(currentDir, '..');
     }
     
     // Fallback to 3 levels up (original behavior)
-    this.rootDir = path.resolve(__dirname, '../../..');
+    if (!this.rootDir) {
+      this.rootDir = path.resolve(__dirname, '../../..');
+    }
+
+    // Initialize storage and logging
+    this.storageManager = new StorageManager();
+    this.logManager = new LogManager(this.storageManager);
   }
 
   // Display ASCII logo
@@ -83,6 +95,8 @@ class CLIManager {
       new inquirer.Separator(chalk.bold.magenta('── Utilities ──')),
       { name: 'Open Repository', value: 'repo:open' },
       { name: 'Manage Running Apps', value: 'manage:apps' },
+      new inquirer.Separator(chalk.bold.blue('── Advanced ──')),
+      { name: 'Advanced Options', value: 'advanced:menu' },
       new inquirer.Separator(),
       { name: chalk.red('Exit'), value: 'exit' }
     ];
@@ -128,10 +142,35 @@ class CLIManager {
       case 'manage':
         await this.manageRunningApps();
         break;
+      case 'advanced':
+        await this.showAdvancedMenu(target);
+        break;
       case 'exit':
         await this.cleanup();
         process.exit(0);
         break;
+    }
+  }
+
+  // Check if port is in use
+  async checkPortInUse(port: number): Promise<boolean> {
+    try {
+      const { stdout } = await execa('lsof', ['-i', `:${port}`], {
+        cwd: this.rootDir,
+        reject: false
+      });
+      return stdout.trim().length > 0;
+    } catch {
+      // If lsof fails, try netstat (Windows/Linux fallback)
+      try {
+        const { stdout } = await execa('netstat', ['-an'], {
+          cwd: this.rootDir,
+          reject: false
+        });
+        return stdout.includes(`:${port}`);
+      } catch {
+        return false;
+      }
     }
   }
 
@@ -144,6 +183,22 @@ class CLIManager {
       return this.showMainMenu();
     }
 
+    // Check port conflict
+    const portInUse = await this.checkPortInUse(app.port);
+    if (portInUse && !this.runningApps.has(appName)) {
+      const { proceed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'proceed',
+          message: `Port ${app.port} is already in use. Continue anyway?`,
+          default: false
+        }
+      ]);
+      if (!proceed) {
+        return this.showMainMenu();
+      }
+    }
+
     if (this.runningApps.has(appName)) {
       console.log(chalk.yellow(`\n[WARN] ${app.displayName} is already running`));
       await this.pressEnterToContinue();
@@ -151,6 +206,7 @@ class CLIManager {
     }
 
     const spinner = ora(`Starting ${app.displayName}...`).start();
+    this.logManager.log('info', `Starting ${app.displayName}`, appName);
 
     try {
       const appPath = path.join(this.rootDir, app.path);
@@ -181,6 +237,7 @@ class CLIManager {
           if (!isReady) {
             isReady = true;
             spinner.succeed(chalk.green(`${app.displayName} is running`));
+            this.logManager.log('info', `${app.displayName} is running on port ${app.port}`, appName);
             this.displayAppInfo(app);
             this.startHotkeyListener();
           }
@@ -199,6 +256,9 @@ class CLIManager {
         this.runningApps.delete(appName);
         if (code !== 0 && code !== null) {
           console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
+          this.logManager.log('error', `${app.displayName} exited with code ${code}`, appName);
+        } else {
+          this.logManager.log('info', `${app.displayName} stopped`, appName);
         }
       });
 
@@ -207,13 +267,16 @@ class CLIManager {
       
       if (!isReady) {
         spinner.succeed(chalk.green(`${app.displayName} is starting...`));
+        this.logManager.log('info', `${app.displayName} is starting...`, appName);
         this.displayAppInfo(app);
         this.startHotkeyListener();
       }
 
     } catch (error) {
       spinner.fail(chalk.red(`Failed to start ${app.displayName}`));
-      console.log(chalk.red(error instanceof Error ? error.message : String(error)));
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(chalk.red(errorMsg));
+      this.logManager.log('error', `Failed to start: ${errorMsg}`, appName);
       await this.pressEnterToContinue();
     }
 
@@ -564,6 +627,384 @@ class CLIManager {
 
     console.log(chalk.gray('\nHotkeys: [O]pen | [C]ode | [R]estart | [S]top | [I]nstall | [M]enu'));
     console.log();
+  }
+
+  // Advanced Menu
+  async showAdvancedMenu(target: string): Promise<void> {
+    if (target === 'menu') {
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'Advanced Options:',
+          choices: [
+            new inquirer.Separator(chalk.bold.cyan('── Storage Configuration ──')),
+            { name: 'Storage Configuration', value: 'advanced:storage' },
+            new inquirer.Separator(chalk.bold.green('── Logs ──')),
+            { name: 'View Logs', value: 'advanced:logs:view' },
+            { name: 'Logs Configuration', value: 'advanced:logs:config' },
+            new inquirer.Separator(chalk.bold.yellow('── System ──')),
+            { name: 'Health Check', value: 'advanced:health' },
+            { name: 'Reinstall SK', value: 'advanced:reinstall' },
+            new inquirer.Separator(),
+            { name: chalk.gray('← Back'), value: 'back' }
+          ]
+        }
+      ]);
+
+      if (action === 'back') {
+        return this.showMainMenu();
+      }
+
+      await this.handleAction(action);
+    } else {
+      await this.handleAdvancedAction(target);
+    }
+  }
+
+  // Handle advanced actions
+  async handleAdvancedAction(action: string): Promise<void> {
+    const [category, subcategory] = action.split(':');
+
+    switch (category) {
+      case 'storage':
+        await this.handleStorageConfig();
+        break;
+      case 'logs':
+        if (subcategory === 'view') {
+          await this.viewLogs();
+        } else if (subcategory === 'config') {
+          await this.handleLogsConfig();
+        }
+        break;
+      case 'health':
+        await this.healthCheck();
+        break;
+      case 'reinstall':
+        await this.reinstallSK();
+        break;
+    }
+
+    return this.showAdvancedMenu('menu');
+  }
+
+  // Storage Configuration
+  async handleStorageConfig(): Promise<void> {
+    const storageConfig = this.storageManager.getConfig();
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'Storage Configuration:',
+        choices: [
+          { name: `Set Storage Path (Current: ${storageConfig.storagePath})`, value: 'set-path' },
+          { name: `Set Storage Type (Current: ${storageConfig.storageType})`, value: 'set-type' },
+          { name: `Disable Storage ${storageConfig.storageEnabled ? '' : '(Currently Disabled)'}`, value: 'disable' },
+          { name: `Enable Storage ${storageConfig.storageEnabled ? '(Currently Enabled)' : ''}`, value: 'enable' },
+          { name: 'Open Storage Path', value: 'open' },
+          new inquirer.Separator(),
+          { name: chalk.gray('← Back'), value: 'back' }
+        ]
+      }
+    ]);
+
+    if (action === 'back') return;
+
+    switch (action) {
+      case 'set-path':
+        const { path: newPath } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'path',
+            message: 'Enter storage path:',
+            default: storageConfig.storagePath,
+            validate: (input: string) => input.trim().length > 0 || 'Path is required'
+          }
+        ]);
+        this.storageManager.setStoragePath(newPath.trim());
+        console.log(chalk.green(`Storage path set to: ${newPath}`));
+        break;
+      case 'set-type':
+        const { type } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'type',
+            message: 'Select storage type:',
+            choices: [
+              { name: 'JSON', value: 'json' },
+              { name: 'SQLite', value: 'sqlite' }
+            ]
+          }
+        ]);
+        this.storageManager.setStorageType(type);
+        console.log(chalk.green(`Storage type set to: ${type}`));
+        break;
+      case 'disable':
+        this.storageManager.setStorageEnabled(false);
+        console.log(chalk.yellow('Storage disabled (logging also disabled)'));
+        break;
+      case 'enable':
+        this.storageManager.setStorageEnabled(true);
+        console.log(chalk.green('Storage enabled'));
+        break;
+      case 'open':
+        const storagePath = this.storageManager.getStoragePath();
+        await execa(config.editor, [storagePath]);
+        console.log(chalk.green(`Opened storage path in ${config.editor}`));
+        break;
+    }
+
+    await this.pressEnterToContinue();
+  }
+
+  // View Logs
+  async viewLogs(): Promise<void> {
+    if (!this.storageManager.isLoggingEnabled()) {
+      console.log(chalk.yellow('\n[INFO] Logging is disabled'));
+      await this.pressEnterToContinue();
+      return;
+    }
+
+    const logs = this.logManager.getLogs(1000); // Get last 1000 entries
+
+    if (logs.length === 0) {
+      console.log(chalk.yellow('\n[INFO] No logs found'));
+      await this.pressEnterToContinue();
+      return;
+    }
+
+    // Fuzzy search
+    const { search } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'search',
+        message: 'Search logs (fuzzy search, press Enter for all):',
+        default: ''
+      }
+    ]);
+
+    let filteredLogs = logs;
+    if (search.trim()) {
+      const fuse = new Fuse(logs, {
+        keys: ['message', 'app', 'level'],
+        threshold: 0.3
+      });
+      filteredLogs = fuse.search(search).map(result => result.item);
+    }
+
+    // Display logs
+    console.clear();
+    console.log(chalk.bold.cyan('\nLogs:\n'));
+    console.log(chalk.gray('─'.repeat(80)));
+    
+    filteredLogs.slice(-50).forEach(entry => {
+      const time = new Date(entry.timestamp).toLocaleString();
+      const levelColor = entry.level === 'error' ? 'red' : 
+                        entry.level === 'warn' ? 'yellow' : 
+                        entry.level === 'debug' ? 'gray' : 'green';
+      const levelText = entry.level.toUpperCase().padEnd(5);
+      const appText = entry.app ? `[${entry.app}]` : '';
+      
+      console.log(
+        chalk.gray(`[${time}]`) + ' ' +
+        chalk[levelColor](`[${levelText}]`) + ' ' +
+        (appText ? chalk.blue(appText) + ' ' : '') +
+        entry.message
+      );
+    });
+
+    console.log(chalk.gray('─'.repeat(80)));
+    console.log(chalk.gray(`\nShowing ${filteredLogs.length} of ${logs.length} log entries`));
+    console.log(chalk.gray('Press E to open in editor, or Enter to continue'));
+
+    // Wait for E key or Enter
+    if (process.stdin.isTTY) {
+      readline.emitKeypressEvents(process.stdin);
+      process.stdin.setRawMode(true);
+      
+      process.stdin.once('keypress', async (str, key) => {
+        process.stdin.setRawMode(false);
+        if (key.name === 'e' || key.name === 'E') {
+          const logFile = join(this.storageManager.getLogPath(), 'cli.log');
+          await execa(config.editor, [logFile]);
+          console.log(chalk.green(`\nOpened logs in ${config.editor}`));
+        }
+        await this.pressEnterToContinue();
+      });
+    } else {
+      await this.pressEnterToContinue();
+    }
+  }
+
+  // Logs Configuration
+  async handleLogsConfig(): Promise<void> {
+    const storageConfig = this.storageManager.getConfig();
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'Logs Configuration:',
+        choices: [
+          { name: `Set Log Directory (Current: ${storageConfig.logPath})`, value: 'set-path' },
+          { name: `Disable Logging ${storageConfig.loggingEnabled ? '' : '(Currently Disabled)'}`, value: 'disable' },
+          { name: `Enable Logging ${storageConfig.loggingEnabled ? '(Currently Enabled)' : ''}`, value: 'enable' },
+          { name: 'Open Logs Directory', value: 'open' },
+          { name: 'Clear Logs', value: 'clear' },
+          new inquirer.Separator(),
+          { name: chalk.gray('← Back'), value: 'back' }
+        ]
+      }
+    ]);
+
+    if (action === 'back') return;
+
+    switch (action) {
+      case 'set-path':
+        const { path: newPath } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'path',
+            message: 'Enter log directory path:',
+            default: storageConfig.logPath,
+            validate: (input: string) => input.trim().length > 0 || 'Path is required'
+          }
+        ]);
+        this.storageManager.setLogPath(newPath.trim());
+        console.log(chalk.green(`Log directory set to: ${newPath}`));
+        break;
+      case 'disable':
+        this.storageManager.setLoggingEnabled(false);
+        console.log(chalk.yellow('Logging disabled'));
+        break;
+      case 'enable':
+        if (!this.storageManager.isStorageEnabled()) {
+          console.log(chalk.red('[ERROR] Cannot enable logging when storage is disabled'));
+        } else {
+          this.storageManager.setLoggingEnabled(true);
+          console.log(chalk.green('Logging enabled'));
+        }
+        break;
+      case 'open':
+        const logPath = this.storageManager.getLogPath();
+        await execa(config.editor, [logPath]);
+        console.log(chalk.green(`Opened logs directory in ${config.editor}`));
+        break;
+      case 'clear':
+        const { confirm } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message: 'Are you sure you want to clear all logs?',
+            default: false
+          }
+        ]);
+        if (confirm) {
+          this.logManager.clearLogs();
+          console.log(chalk.green('Logs cleared'));
+        }
+        break;
+    }
+
+    await this.pressEnterToContinue();
+  }
+
+  // Health Check
+  async healthCheck(): Promise<void> {
+    console.clear();
+    console.log(chalk.bold.cyan('\nHealth Check\n'));
+    console.log(chalk.gray('─'.repeat(80)));
+
+    const checks = [];
+
+    // Check running apps
+    for (const [name, app] of this.runningApps) {
+      const portInUse = await this.checkPortInUse(app.port);
+      const health = portInUse ? 'healthy' : 'unhealthy';
+      checks.push({
+        name: app.displayName,
+        status: health,
+        port: app.port,
+        running: true
+      });
+    }
+
+    // Check configured apps
+    for (const app of config.apps) {
+      if (!this.runningApps.has(app.name)) {
+        const portInUse = await this.checkPortInUse(app.port);
+        checks.push({
+          name: app.displayName,
+          status: portInUse ? 'port-conflict' : 'not-running',
+          port: app.port,
+          running: false
+        });
+      }
+    }
+
+    // Display results
+    checks.forEach(check => {
+      const statusColor = check.status === 'healthy' ? 'green' :
+                         check.status === 'port-conflict' ? 'yellow' : 'gray';
+      const statusText = check.status === 'healthy' ? 'HEALTHY' :
+                        check.status === 'port-conflict' ? 'PORT CONFLICT' : 'NOT RUNNING';
+      
+      console.log(
+        chalk.white(check.name.padEnd(20)) + ' ' +
+        chalk[statusColor](statusText.padEnd(15)) + ' ' +
+        chalk.gray(`Port: ${check.port}`)
+      );
+    });
+
+    console.log(chalk.gray('─'.repeat(80)));
+    await this.pressEnterToContinue();
+  }
+
+  // Reinstall SK
+  async reinstallSK(): Promise<void> {
+    const { confirm } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'confirm',
+        message: 'This will uninstall and reinstall the CLI. Continue?',
+        default: false
+      }
+    ]);
+
+    if (!confirm) return;
+
+    const storagePath = this.storageManager.getStoragePath();
+    const scriptPath = join(storagePath, 'reinstall.sh');
+
+    const script = `#!/bin/bash
+# Auto-generated reinstall script
+echo "Uninstalling @skriuw/cli-manager..."
+bun remove -g @skriuw/cli-manager || npm uninstall -g @skriuw/cli-manager || true
+echo "Installing @skriuw/cli-manager..."
+cd "${this.rootDir}/tools/cli-manager"
+bun install
+bun run build
+echo "Reinstall complete!"
+`;
+
+    try {
+      const { writeFileSync, chmodSync } = require('fs');
+      writeFileSync(scriptPath, script, 'utf-8');
+      chmodSync(scriptPath, 0o755);
+      
+      console.log(chalk.green(`\nReinstall script created at: ${scriptPath}`));
+      console.log(chalk.yellow('Executing reinstall script...\n'));
+      
+      await execa('bash', [scriptPath], {
+        stdio: 'inherit',
+        cwd: storagePath
+      });
+    } catch (error) {
+      console.log(chalk.red(`[ERROR] Failed to create/execute reinstall script: ${error}`));
+    }
+
+    await this.pressEnterToContinue();
   }
 
   // Cleanup
