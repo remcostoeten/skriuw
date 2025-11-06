@@ -54,3 +54,5 @@ plans/
 # Rust Analyzer
 target/
 static-ui/
+
+*rrrwa*

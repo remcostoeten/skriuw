@@ -1,0 +1,244 @@
+---
+title: CLI Command Builder
+description: Build CLI commands with arguments for the Seeder Tool
+---
+
+# CLI Command Builder
+
+Build CLI commands with arguments for the Seeder Tool. While the seeder is currently interactive-only, this guide helps you understand how to structure commands for future CLI argument support or scripting.
+
+## Interactive Command Builder
+
+Use the interactive component below to build your commands:
+
+<SeederCommandBuilder />
+
+## Command Structure
+
+### Seed Command
+
+```bash
+bun run tools/seeder/src/index.ts seed [options]
+```
+
+### Move Command
+
+```bash
+bun run tools/seeder/src/index.ts move [options]
+```
+
+## Command Options Reference
+
+### Seed Command Options
+
+#### Required Arguments
+
+- `--title "Note Title"` - The title of the note
+- `--date "dd-mm-yyyy"` - Creation date in Dutch format
+
+#### Content Source (choose one)
+
+- `--content-file "./path/to/file.md"` - Load content from markdown file
+- `--content "# Markdown\n\nContent"` - Direct markdown content
+
+#### Optional Arguments
+
+- `--pinned` - Pin the note (boolean flag)
+- `--folder-id "folder-uuid"` - Place note in folder (UUID)
+- `--position 5` - Custom position number
+- `--task-ids "id1,id2"` - Comma-separated task IDs to link
+
+### Move Command Options
+
+#### Required Arguments
+
+- `--note-id "note-uuid"` - ID of note to move
+
+#### Position (choose one)
+
+- `--position 0` - Specific position number
+- `--end` - Place at end of list (flag)
+
+#### Optional Arguments
+
+- `--folder-id "folder-uuid"` - Target folder ID (or `null` for root)
+
+## Example Commands
+
+### Example 1: Create Simple Note
+
+```bash
+bun run tools/seeder/src/index.ts seed \
+  --title "Quick Note" \
+  --date "06-11-2024" \
+  --content "# Quick Note\n\nThis is content."
+```
+
+### Example 2: Create Pinned Note from File
+
+```bash
+bun run tools/seeder/src/index.ts seed \
+  --title "Important" \
+  --date "06-11-2024" \
+  --content-file "./docs/important.md" \
+  --pinned
+```
+
+### Example 3: Create Note in Folder
+
+```bash
+bun run tools/seeder/src/index.ts seed \
+  --title "Project Notes" \
+  --date "06-11-2024" \
+  --content-file "./notes/project.md" \
+  --folder-id "abc-123-folder-id" \
+  --position 0
+```
+
+### Example 4: Create Note with Linked Tasks
+
+```bash
+bun run tools/seeder/src/index.ts seed \
+  --title "Task List" \
+  --date "06-11-2024" \
+  --content "# Tasks\n\nMy task list" \
+  --task-ids "task-1,task-2,task-3"
+```
+
+### Example 5: Move Note to Top
+
+```bash
+bun run tools/seeder/src/index.ts move \
+  --note-id "note-123-uuid" \
+  --position 0
+```
+
+### Example 6: Move Note to Folder
+
+```bash
+bun run tools/seeder/src/index.ts move \
+  --note-id "note-123-uuid" \
+  --folder-id "folder-456-uuid" \
+  --end
+```
+
+### Example 7: Move Note to Root
+
+```bash
+bun run tools/seeder/src/index.ts move \
+  --note-id "note-123-uuid" \
+  --folder-id null \
+  --position 0
+```
+
+## Finding IDs
+
+### Note IDs
+
+Currently, find note IDs by:
+1. Running interactive seeder
+2. Selecting "Move/reposition an existing note"
+3. Note IDs are shown in selection list
+4. Or check InstantDB dashboard
+
+### Folder IDs
+
+1. Check InstantDB dashboard
+2. Inspect folder objects in your app
+3. Use InstantDB query tools
+
+### Task IDs
+
+1. Check InstantDB dashboard
+2. Inspect task objects in your app
+3. Use InstantDB query tools
+
+## Current Status
+
+**Important**: The Seeder Tool currently uses an **interactive menu system** and does not support CLI arguments. The commands above are examples of how CLI arguments could work if implemented.
+
+### Using Interactive Mode
+
+For now, use the interactive mode:
+
+```bash
+bun run tools/seeder/src/index.ts
+```
+
+Or via SK:
+```bash
+bun run sk
+# Navigate to: Tools → Run Database Seeder
+```
+
+## Future Implementation
+
+To add CLI argument support, the seeder would need:
+
+1. **Argument Parser** - Use `yargs`, `commander`, or similar
+2. **Command Handlers** - Separate functions for CLI vs interactive
+3. **Validation** - Validate arguments before processing
+4. **Fallback** - Interactive mode when no arguments provided
+
+### Example Implementation
+
+```typescript
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+
+const argv = await yargs(hideBin(process.argv))
+  .command('seed', 'Seed a new note', (yargs) => {
+    return yargs
+      .option('title', { type: 'string', demandOption: true })
+      .option('date', { type: 'string', demandOption: true })
+      .option('content-file', { type: 'string' })
+      .option('content', { type: 'string' })
+      .option('pinned', { type: 'boolean', default: false })
+      .option('folder-id', { type: 'string' })
+      .option('position', { type: 'number' })
+      .option('task-ids', { type: 'string' });
+  })
+  .command('move', 'Move a note', (yargs) => {
+    return yargs
+      .option('note-id', { type: 'string', demandOption: true })
+      .option('folder-id', { type: 'string' })
+      .option('position', { type: 'number' })
+      .option('end', { type: 'boolean', default: false });
+  })
+  .parse();
+
+if (argv._[0] === 'seed') {
+  await seedNoteWithArgs(argv);
+} else if (argv._[0] === 'move') {
+  await moveNoteWithArgs(argv);
+} else {
+  await main(); // Interactive mode
+}
+```
+
+## Benefits of CLI Arguments
+
+### Automation
+- Script bulk operations
+- Integrate with CI/CD
+- Batch processing
+- Scheduled tasks
+
+### Efficiency
+- Faster for experienced users
+- Repeatable commands
+- Less interaction needed
+- Better for power users
+
+### Integration
+- Use in other scripts
+- Combine with other tools
+- Chain operations
+- Build workflows
+
+## Next Steps
+
+- Learn [Usage Examples](/docs/seeder/usage)
+- Troubleshoot [Common Issues](/docs/seeder/troubleshooting)
+- Explore [All Features](/docs/seeder/features)
+

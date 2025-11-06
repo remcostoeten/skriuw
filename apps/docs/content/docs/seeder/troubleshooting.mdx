@@ -1,0 +1,383 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for the Seeder Tool
+---
+
+# Troubleshooting
+
+Solutions to common problems you might encounter while using the Seeder Tool.
+
+## Environment Issues
+
+### "NEXT_PUBLIC_INSTANT_APP_ID is not defined"
+
+**Problem**: Environment variable is missing.
+
+**Solution**:
+```bash
+# Check if .env file exists
+ls -la .env
+
+# Add to .env file
+echo "NEXT_PUBLIC_INSTANT_APP_ID=your-app-id-here" >> .env
+
+# Verify it's set
+cat .env | grep NEXT_PUBLIC_INSTANT_APP_ID
+```
+
+**Finding Your App ID**:
+1. Go to [InstantDB Dashboard](https://instantdb.com)
+2. Select your app
+3. Copy the App ID from settings
+
+### Environment Variable Not Loading
+
+**Problem**: `.env` file exists but variable isn't loaded.
+
+**Solution**:
+```bash
+# Ensure .env is in project root
+pwd  # Should show project root
+
+# Check file location
+ls -la .env
+
+# Verify dotenv is installed
+bun list | grep dotenv
+```
+
+## File Reading Issues
+
+### "Failed to read file"
+
+**Problem**: File path is incorrect or file doesn't exist.
+
+**Solution**:
+```bash
+# Check if file exists
+ls -la ./path/to/file.md
+
+# Use absolute path
+bun run tools/seeder/src/index.ts
+# Enter: /absolute/path/to/file.md
+
+# Check file permissions
+chmod 644 ./path/to/file.md
+```
+
+**Common Issues**:
+- Relative paths are relative to **project root**, not seeder directory
+- File must be readable
+- File must have `.md` or `.mdx` extension
+
+### File Path Resolution
+
+**Understanding Paths**:
+- `./notes/file.md` - Relative to project root
+- `../other/file.md` - Relative to project root
+- `/absolute/path/file.md` - Absolute path
+
+**Best Practice**: Use paths relative to project root.
+
+## Date Format Issues
+
+### "Invalid date format"
+
+**Problem**: Date doesn't match `dd-mm-yyyy` format.
+
+**Solution**:
+```bash
+# Correct format examples:
+06-11-2024  # November 6, 2024
+01-01-2024  # January 1, 2024
+31-12-2023  # December 31, 2023
+
+# Common mistakes:
+11-06-2024  # Wrong: This is November 6, not June 11
+2024-11-06  # Wrong: Wrong order
+11/06/2024  # Wrong: Uses slashes instead of dashes
+```
+
+**Validation Rules**:
+- Must use dashes (`-`)
+- Day: 01-31 (valid for month)
+- Month: 01-12
+- Year: 4 digits
+
+### Invalid Date Values
+
+**Problem**: Date is valid format but invalid value (e.g., Feb 30).
+
+**Solution**:
+- Check month has that many days
+- February has 28/29 days
+- April, June, September, November have 30 days
+- Others have 31 days
+
+## Database Connection Issues
+
+### "Cannot connect to InstantDB"
+
+**Problem**: Database connection fails.
+
+**Solution**:
+1. **Check App ID**:
+   ```bash
+   echo $NEXT_PUBLIC_INSTANT_APP_ID
+   ```
+
+2. **Verify Network**:
+   ```bash
+   curl https://instantdb.com
+   ```
+
+3. **Check InstantDB Status**:
+   - Visit [InstantDB Dashboard](https://instantdb.com)
+   - Verify app is active
+   - Check for service status
+
+4. **Verify Schema**:
+   - Ensure schema matches `apps/instantdb/src/api/db/schema.ts`
+   - Check table names and fields
+
+### Schema Mismatch
+
+**Problem**: Schema doesn't match expected structure.
+
+**Solution**:
+1. Check `apps/instantdb/src/api/db/schema.ts`
+2. Verify tables exist: `notes`, `folders`, `tasks`
+3. Verify fields match expected structure
+4. Update schema if needed
+
+## Note Creation Issues
+
+### Note Created But Not Visible
+
+**Problem**: Note created successfully but doesn't appear in app.
+
+**Solution**:
+1. **Refresh App**: Reload your Skriuw app
+2. **Check Folder**: Note might be in a folder
+3. **Check Position**: Note might be at end of list
+4. **Verify Database**: Check InstantDB dashboard
+
+### Position Issues
+
+**Problem**: Note appears at wrong position.
+
+**Solution**:
+- **Pinned Notes**: Always position 0
+- **Custom Position**: Other notes shift
+- **Automatic Position**: Calculated from max position
+- **Folder-Specific**: Positions are per-folder
+
+**Debugging**:
+1. Check note position in InstantDB dashboard
+2. Verify folder assignment
+3. Check other notes' positions
+4. Recalculate if needed
+
+## Folder Issues
+
+### Folder Not Found
+
+**Problem**: Selected folder doesn't exist.
+
+**Solution**:
+1. **List Folders**: Use interactive mode to see available folders
+2. **Check Dashboard**: Verify folder exists in InstantDB
+3. **Create Folder**: Create folder in app first
+4. **Use Root**: Select "Root (no folder)" if needed
+
+### Folder Tree Not Displaying
+
+**Problem**: Folders don't show in tree structure.
+
+**Solution**:
+1. **Check Database**: Verify folders exist
+2. **Check Schema**: Ensure `parent` field exists
+3. **Refresh**: Re-run seeder to reload folders
+4. **Verify Structure**: Check folder relationships
+
+## Task Linking Issues
+
+### Tasks Not Linking
+
+**Problem**: Selected tasks don't link to note.
+
+**Solution**:
+1. **Verify Tasks Exist**: Check tasks in InstantDB dashboard
+2. **Check Schema**: Ensure `tasks.note` field exists
+3. **Verify Transaction**: Check transaction completed
+4. **Refresh App**: Reload to see linked tasks
+
+### Task Relationship Confusion
+
+**Important**: Tasks link **TO** notes, not the reverse.
+
+- Note doesn't have a `tasks` field
+- Task has a `note` field
+- Multiple tasks can link to one note
+- One task can link to multiple notes
+
+## Move Operation Issues
+
+### "No notes found"
+
+**Problem**: No notes exist to move.
+
+**Solution**:
+1. **Create Notes First**: Use seed operation
+2. **Check Database**: Verify notes exist
+3. **Check Folder**: Notes might be in folders
+4. **Verify Query**: Check InstantDB query
+
+### Position Not Updating
+
+**Problem**: Note moved but position doesn't change.
+
+**Solution**:
+1. **Check Transaction**: Verify transaction completed
+2. **Refresh App**: Reload to see changes
+3. **Check Folder**: Position is folder-specific
+4. **Verify Position**: Check in InstantDB dashboard
+
+### Other Notes Not Shifting
+
+**Problem**: When inserting at custom position, other notes don't shift.
+
+**Solution**:
+- This should happen automatically
+- Check transaction completed successfully
+- Verify `updateNotePositions` ran
+- Check for errors in console
+
+## Performance Issues
+
+### Slow Operations
+
+**Problem**: Seeder operations are slow.
+
+**Solution**:
+1. **Check Network**: Slow connection to InstantDB
+2. **Check Database Size**: Large datasets take longer
+3. **Check Queries**: Complex queries may be slow
+4. **Optimize**: Consider batch operations
+
+### Timeout Errors
+
+**Problem**: Operations timeout.
+
+**Solution**:
+1. **Check Network**: Ensure stable connection
+2. **Check InstantDB**: Verify service status
+3. **Retry**: Operation may succeed on retry
+4. **Reduce Data**: Process smaller batches
+
+## Editor Issues
+
+### Editor Not Opening
+
+**Problem**: Editor doesn't open for content input.
+
+**Solution**:
+```bash
+# Set your editor
+export EDITOR=cursor  # or vim, nano, code, etc.
+
+# Verify it's set
+echo $EDITOR
+
+# Try running seeder again
+bun run tools/seeder/src/index.ts
+```
+
+**Common Editors**:
+- `cursor` - Cursor editor
+- `code` - VS Code
+- `vim` - Vim
+- `nano` - Nano
+- `npx` - Open with npm package
+
+### Editor Content Not Saving
+
+**Problem**: Content entered in editor doesn't save.
+
+**Solution**:
+1. **Save Before Closing**: Ensure editor saves on close
+2. **Check Exit Code**: Editor must exit with code 0
+3. **Check File**: Some editors save to temp file
+4. **Use File Input**: Use `--content-file` instead
+
+## Transaction Issues
+
+### Partial Updates
+
+**Problem**: Some changes apply but others don't.
+
+**Solution**:
+- Transactions are atomic (all or nothing)
+- Check for errors in console
+- Verify all operations completed
+- Retry if transaction failed
+
+### Rollback Issues
+
+**Problem**: Transaction fails but changes remain.
+
+**Solution**:
+- This shouldn't happen (transactions are atomic)
+- Check InstantDB logs
+- Verify transaction implementation
+- Report as bug if occurs
+
+## Getting Help
+
+### Debug Mode
+
+Enable verbose logging:
+```bash
+DEBUG=* bun run tools/seeder/src/index.ts
+```
+
+### Check Logs
+
+1. **Console Output**: Check terminal for errors
+2. **InstantDB Dashboard**: Check database logs
+3. **Network Tab**: Check API requests (if using browser tools)
+
+### Common Error Messages
+
+**"Error: Invalid date format"**
+- Use `dd-mm-yyyy` format
+- Ensure valid date values
+
+**"Error: Failed to read file"**
+- Check file path
+- Verify file exists
+- Check permissions
+
+**"Error: NEXT_PUBLIC_INSTANT_APP_ID is not defined"**
+- Add to `.env` file
+- Verify variable name
+- Restart terminal
+
+## Still Having Issues?
+
+1. **Check Documentation**: Review [Usage Guide](/docs/seeder/usage)
+2. **Verify Setup**: Ensure [Prerequisites](/docs/seeder/getting-started) are met
+3. **Check Schema**: Verify database schema matches
+4. **Test Connection**: Verify InstantDB connectivity
+5. **Report Issue**: Create issue with:
+   - Error message
+   - Steps to reproduce
+   - Environment details
+   - Expected vs actual behavior
+
+## Next Steps
+
+- Review [Usage Examples](/docs/seeder/usage)
+- Explore [All Features](/docs/seeder/features)
+- Build [CLI Commands](/docs/seeder/command-builder)
+

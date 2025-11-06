@@ -1,11 +1,11 @@
 ---
 title: Configuration
-description: How to configure the CLI Manager for your project
+description: How to configure SK for your project
 ---
 
 # Configuration
 
-The CLI Manager uses a single configuration file located at `tools/cli-manager/src/config.ts`. This file controls all aspects of the CLI's behavior.
+SK uses a single configuration file located at `tools/sk/src/config.ts`. This file controls all aspects of the CLI's behavior.
 
 ## Configuration Structure
 
@@ -68,7 +68,7 @@ apps: [
 
 To add a new app to the CLI:
 
-1. Open `tools/cli-manager/src/config.ts`
+1. Open `tools/sk/src/config.ts`
 2. Add a new entry to the `apps` array:
 
 ```typescript
@@ -83,7 +83,7 @@ To add a new app to the CLI:
 }
 ```
 
-3. Save and rebuild the CLI: `cd tools/cli-manager && bun run build`
+3. Save and rebuild the CLI: `cd tools/sk && bun run build`
 
 The new app will immediately appear in all menus!
 
@@ -286,14 +286,14 @@ If validation fails, you'll see a clear error message.
 After modifying the config:
 
 ```bash
-cd tools/cli-manager
+cd tools/sk
 bun run build
 ```
 
 Or use dev mode for live reloading:
 
 ```bash
-cd tools/cli-manager
+cd tools/sk
 bun run dev
 ```
 

@@ -1,0 +1,870 @@
+---
+title: API Reference
+description: Complete reference for hooks, utilities, and APIs in Notys
+---
+
+# API Reference
+
+Complete documentation of available hooks, utilities, and APIs in the Notys application.
+
+## Core Hooks
+
+These are the building blocks for all data operations in the app. Every module uses these patterns.
+
+### createQueryHook
+
+Creates a typed query hook with automatic error handling and loading states. This is how ALL queries are built.
+
+```typescript
+function createQueryHook<TArgs extends AnyFn, TData = any>(
+  buildQuery: TArgs,
+  options?: CreateQueryOptions<TData>
+): (...args: Parameters<TArgs>) => QueryResult<TData>
+```
+
+**Options:**
+- `select?: (raw: any) => TData` - Transform raw data
+- `initialData?: TData` - Fallback value
+- `enabled?: (...args: any[]) => boolean` - Conditional execution
+- `showErrorToast?: boolean` - Show error notifications (default: `true`)
+- `errorContext?: string` - Error message context
+- `onError?: (error: Error) => void` - Error callback
+
+**Returns:**
+```typescript
+{
+  data: TData,
+  isLoading: boolean,
+  error: Error | null,
+  isSuccess: boolean,
+  isError: boolean
+}
+```
+
+**Example:**
+```typescript
+// modules/notes/api/queries/get-notes.ts
+import { createQueryHook } from '@/hooks/core';
+import type { Note } from '@/api/db/schema';
+
+const useNotesQuery = createQueryHook(
+  () => ({
+    notes: {
+      $: { order: { createdAt: 'desc' } },
+      folder: {},  // Include relations
+      tasks: {},
+    },
+  }),
+  {
+    select: (raw) => (raw?.notes as Note[]) ?? [],
+    initialData: [] as Note[],
+    showErrorToast: false,
+  }
+);
+
+export function useGetNotes() {
+  const { data, isLoading, error } = useNotesQuery();
+  return { notes: data, isLoading, error };
+}
+```
+
+**With Parameters:**
+```typescript
+const useNoteQuery = createQueryHook(
+  (noteId: string) => ({
+    notes: {
+      $: { where: { id: noteId } },
+    },
+  }),
+  {
+    select: (raw) => raw?.notes?.[0] ?? null,
+    enabled: (noteId) => !!noteId,  // Only query if ID exists
+  }
+);
+
+// Usage
+const { data: note } = useNoteQuery(noteId);
+```
+
+---
+
+### useMutation
+
+Wraps async mutations with loading/error states and callbacks.
+
+```typescript
+function useMutation<TData, TVariables = void>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options?: UseMutationOptions<TData, TVariables>
+): MutationResult<TData, TVariables>
+```
+
+**Options:**
+- `onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>`
+- `onError?: (error: Error, variables: TVariables) => void | Promise<void>`
+- `showErrorToast?: boolean` - Show error toast (default: `true`)
+- `errorContext?: string` - Context for error messages
+
+**Returns:**
+```typescript
+{
+  mutate: (variables: TVariables) => Promise<TData>,
+  isLoading: boolean,
+  error: Error | null,
+  reset: () => void
+}
+```
+
+**Example - Simple Mutation:**
+```typescript
+// modules/notes/api/mutations/create.ts
+import { useCreate, useMutation } from '@/hooks/core';
+import { generateId } from 'utils';
+
+type CreateNoteInput = {
+  title: string;
+  content: string;
+  position: number;
+};
+
+export function useCreateNote() {
+  const { create } = useCreate('notes');
+  
+  const { mutate, isLoading, error } = useMutation(
+    async (input: CreateNoteInput) => {
+      const id = generateId();
+      const now = Date.now();
+      
+      await create(id, {
+        ...input,
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      return { id, ...input };
+    },
+    {
+      errorContext: 'Creating note',
+      onSuccess: (data) => {
+        console.log('Note created:', data.id);
+      },
+    }
+  );
+
+  return { createNote: mutate, isLoading, error };
+}
+```
+
+**Example - Complex Mutation:**
+```typescript
+export function useUpdateNote() {
+  const { update } = useUpdate('notes');
+  
+  const { mutate, isLoading } = useMutation(
+    async ({ id, ...data }: UpdateInput) => {
+      await update(id, {
+        ...data,
+        updatedAt: Date.now(),
+      });
+    },
+    {
+      errorContext: 'Updating note',
+      showErrorToast: true,
+    }
+  );
+
+  return { updateNote: mutate, isLoading };
+}
+```
+
+---
+
+### useCreate
+
+Entity creation helper with automatic ID generation and timestamps.
+
+```typescript
+function useCreate<T extends Record<string, any>>(
+  entityName: string
+): {
+  create: (id: string, data: T) => Promise<void>
+}
+```
+
+**Example:**
+```typescript
+const { create } = useCreate('notes');
+
+await create(generateId(), {
+  title: 'New Note',
+  content: '',
+  position: 0,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+});
+```
+
+---
+
+### useUpdate
+
+Entity update helper.
+
+```typescript
+function useUpdate<T extends Record<string, any>>(
+  entityName: string
+): {
+  update: (id: string, data: Partial<T>) => Promise<void>
+}
+```
+
+**Example:**
+```typescript
+const { update } = useUpdate('notes');
+
+await update(noteId, {
+  title: 'Updated Title',
+  updatedAt: Date.now(),
+});
+```
+
+---
+
+### useDestroy
+
+Entity deletion helper.
+
+```typescript
+function useDestroy(entityName: string): {
+  destroy: (id: string) => Promise<void>
+}
+```
+
+**Example:**
+```typescript
+const { destroy } = useDestroy('notes');
+
+await destroy(noteId);
+```
+
+---
+
+## Module APIs
+
+### Notes Module
+
+#### Queries
+
+##### useGetNotes()
+Fetches all notes with related data.
+
+```typescript
+function useGetNotes(): {
+  notes: Note[],
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+**Example:**
+```typescript
+const { notes, isLoading } = useGetNotes();
+
+if (isLoading) return <Spinner />;
+
+return (
+  <div>
+    {notes.map(note => (
+      <NoteItem key={note.id} note={note} />
+    ))}
+  </div>
+);
+```
+
+##### useGetNote(noteId)
+Fetches a single note by ID.
+
+```typescript
+function useGetNote(noteId: string): {
+  note: Note | null,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+#### Mutations
+
+##### useCreateNote()
+Creates a new note.
+
+```typescript
+function useCreateNote(): {
+  createNote: (input: CreateNoteInput) => Promise<CreateNoteResult>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type CreateNoteInput = {
+  title: string,
+  content: string,
+  position: number
+}
+
+type CreateNoteResult = {
+  id: string,
+  title: string,
+  content: string,
+  position: number
+}
+```
+
+**Example:**
+```typescript
+const { createNote, isLoading } = useCreateNote();
+
+await createNote({
+  title: 'My Note',
+  content: 'Note content...',
+  position: 0,
+});
+```
+
+##### useUpdateNote()
+Updates an existing note.
+
+```typescript
+function useUpdateNote(): {
+  updateNote: (input: UpdateNoteInput) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type UpdateNoteInput = {
+  id: string,
+  title?: string,
+  content?: string,
+  position?: number,
+  pinned?: boolean
+}
+```
+
+##### useDestroyNote()
+Deletes a note.
+
+```typescript
+function useDestroyNote(): {
+  destroyNote: (id: string) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+##### usePinNote()
+Toggles note pinned status.
+
+```typescript
+function usePinNote(): {
+  pinNote: (input: PinNoteInput) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type PinNoteInput = {
+  id: string,
+  pinned: boolean
+}
+```
+
+##### useMoveNote()
+Moves a note to a different position or folder.
+
+```typescript
+function useMoveNote(): {
+  moveNote: (input: MoveNoteInput) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type MoveNoteInput = {
+  id: string,
+  position: number,
+  folderId?: string | null
+}
+```
+
+##### useDuplicateNote()
+Duplicates an existing note.
+
+```typescript
+function useDuplicateNote(): {
+  duplicateNote: (id: string) => Promise<DuplicateNoteResult>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type DuplicateNoteResult = {
+  id: string,
+  originalId: string
+}
+```
+
+---
+
+### Tasks Module
+
+#### Queries
+
+##### useGetTasks()
+Fetches all tasks.
+
+```typescript
+function useGetTasks(): {
+  tasks: Task[],
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+##### useGetAllTasks()
+Fetches tasks with extended filtering options.
+
+```typescript
+function useGetAllTasks(): {
+  tasks: Task[],
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+#### Mutations
+
+##### useCreateTask()
+Creates a new task.
+
+```typescript
+function useCreateTask(): {
+  createTask: (input: CreateTaskInput) => Promise<CreateTaskResult>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type CreateTaskInput = {
+  content: string,
+  priority: 'low' | 'medium' | 'high',
+  status: 'todo' | 'in-progress' | 'done',
+  position: number,
+  dueAt?: number,
+  tags?: string,
+  recurrence?: string
+}
+```
+
+##### useUpdateTask()
+Updates an existing task.
+
+```typescript
+function useUpdateTask(): {
+  updateTask: (input: UpdateTaskInput) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type UpdateTaskInput = {
+  id: string,
+  content?: string,
+  completed?: boolean,
+  priority?: string,
+  status?: string,
+  dueAt?: number,
+  tags?: string
+}
+```
+
+##### useDestroyTask()
+Deletes a task.
+
+```typescript
+function useDestroyTask(): {
+  destroyTask: (id: string) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+---
+
+### Folders Module
+
+#### Queries
+
+##### useGetFolders()
+Fetches all folders.
+
+```typescript
+function useGetFolders(): {
+  folders: Folder[],
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+#### Mutations
+
+##### useCreateFolder()
+Creates a new folder.
+
+```typescript
+function useCreateFolder(): {
+  createFolder: (input: CreateFolderInput) => Promise<CreateFolderResult>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type CreateFolderInput = {
+  name: string,
+  position: number
+}
+```
+
+##### useUpdateFolder()
+Updates a folder.
+
+```typescript
+function useUpdateFolder(): {
+  updateFolder: (input: UpdateFolderInput) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type UpdateFolderInput = {
+  id: string,
+  name?: string,
+  position?: number
+}
+```
+
+##### useDestroyFolder()
+Deletes a folder.
+
+```typescript
+function useDestroyFolder(): {
+  destroyFolder: (id: string) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+---
+
+### Projects Module
+
+#### Queries
+
+##### useGetProjects()
+Fetches all projects.
+
+```typescript
+function useGetProjects(): {
+  projects: Project[],
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+#### Mutations
+
+##### useCreateProject()
+Creates a new project.
+
+```typescript
+function useCreateProject(): {
+  createProject: (input: CreateProjectInput) => Promise<CreateProjectResult>,
+  isLoading: boolean,
+  error: Error | null
+}
+
+type CreateProjectInput = {
+  title: string,
+  description?: string,
+  status: 'active' | 'completed' | 'archived',
+  position: number
+}
+```
+
+---
+
+### Settings Module
+
+#### Queries
+
+##### useGetUserSetting(key)
+Fetches a specific user setting.
+
+```typescript
+function useGetUserSetting(key: string): {
+  setting: UserSetting | null,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+#### Mutations
+
+##### useUpdateUserSetting()
+Updates or creates a user setting.
+
+```typescript
+function useUpdateUserSetting(): {
+  updateSetting: (key: string, value: any) => Promise<void>,
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+**Example:**
+```typescript
+const { updateSetting } = useUpdateUserSetting();
+
+await updateSetting('theme', 'dark');
+await updateSetting('editorFontSize', 14);
+```
+
+---
+
+### Shortcuts Module
+
+#### Queries
+
+##### useGetShortcuts()
+Fetches all keyboard shortcuts.
+
+```typescript
+function useGetShortcuts(): {
+  shortcuts: Shortcut[],
+  loading: boolean,
+  error: Error | null
+}
+```
+
+#### Hooks
+
+##### useGlobalShortcuts()
+Registers global keyboard shortcuts.
+
+```typescript
+function useGlobalShortcuts(): void
+```
+
+**Usage:**
+```typescript
+// Already included in ShortcutProvider
+// No need to call manually
+```
+
+---
+
+## Utilities
+
+### generateId()
+Generates a unique ID for entities.
+
+```typescript
+function generateId(): string
+```
+
+**Example:**
+```typescript
+import { generateId } from 'utils';
+
+const noteId = generateId();
+// => "abc123-def456-..."
+```
+
+---
+
+### cn(...classes)
+Merges Tailwind class names with conflict resolution.
+
+```typescript
+function cn(...inputs: ClassValue[]): string
+```
+
+**Example:**
+```typescript
+import { cn } from '@/shared/utilities/cn';
+
+const className = cn(
+  'px-4 py-2',
+  isActive && 'bg-blue-500',
+  'hover:bg-blue-600'
+);
+```
+
+---
+
+### Platform Detection
+
+```typescript
+function isTauri(): boolean
+function isMobile(): boolean
+function isDesktop(): boolean
+function getOS(): 'windows' | 'macos' | 'linux' | 'unknown'
+```
+
+**Example:**
+```typescript
+import { isTauri, getOS } from '@/shared/utilities/platform';
+
+if (isTauri()) {
+  console.log('Running in Tauri');
+  console.log('OS:', getOS());
+}
+```
+
+---
+
+## Tauri APIs
+
+### Store
+
+Persistent key-value storage.
+
+```typescript
+import { Store } from '@tauri-apps/plugin-store';
+
+const store = new Store('settings.dat');
+
+// Set value
+await store.set('key', 'value');
+
+// Get value
+const value = await store.get('key');
+
+// Delete value
+await store.delete('key');
+
+// Clear all
+await store.clear();
+
+// Get all entries
+const entries = await store.entries();
+```
+
+---
+
+### Dialog
+
+Native file/folder dialogs.
+
+```typescript
+import { open, save } from '@tauri-apps/plugin-dialog';
+
+// Open file picker
+const selected = await open({
+  multiple: false,
+  filters: [{ name: 'Markdown', extensions: ['md', 'txt'] }],
+});
+
+// Save file dialog
+const path = await save({
+  defaultPath: 'note.md',
+  filters: [{ name: 'Markdown', extensions: ['md'] }],
+});
+```
+
+---
+
+### File System
+
+File operations.
+
+```typescript
+import {
+  readTextFile,
+  writeTextFile,
+  exists,
+  remove,
+} from '@tauri-apps/plugin-fs';
+
+// Read file
+const content = await readTextFile('path/to/file.txt');
+
+// Write file
+await writeTextFile('path/to/file.txt', 'content');
+
+// Check existence
+const fileExists = await exists('path/to/file.txt');
+
+// Delete file
+await remove('path/to/file.txt');
+```
+
+---
+
+### Global Shortcuts
+
+System-wide keyboard shortcuts.
+
+```typescript
+import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
+
+// Register shortcut
+await register('CommandOrControl+Shift+N', () => {
+  console.log('Shortcut triggered!');
+});
+
+// Unregister shortcut
+await unregister('CommandOrControl+Shift+N');
+```
+
+---
+
+## TypeScript Types
+
+### Schema Types
+
+```typescript
+import type { Schema } from '@/api/db/schema';
+
+type Note = Schema['notes'];
+type Task = Schema['tasks'];
+type Folder = Schema['folders'];
+type Project = Schema['projects'];
+type Comment = Schema['comments'];
+```
+
+### Entity Types
+
+```typescript
+type BaseEntity = {
+  id: string;
+};
+
+type Timestamps = {
+  createdAt: number;
+  updatedAt: number;
+};
+
+type TimestampedEntity = BaseEntity & Timestamps;
+
+type Positionable = {
+  position: number;
+};
+```
+
+---
+
+## Next Steps
+
+<Cards>
+  <Card title="Development Guide" href="/docs/app/development">
+    Learn how to use these APIs in practice
+  </Card>
+  <Card title="Architecture" href="/docs/app/architecture">
+    Understand how APIs fit together
+  </Card>
+  <Card title="Setup Guide" href="/docs/app/setup">
+    Get started with development
+  </Card>
+</Cards>
+

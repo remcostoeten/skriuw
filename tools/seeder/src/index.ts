@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 import { init } from '@instantdb/react';
-import { schema, type Schema } from '../../apps/instantdb/src/api/db/schema';
+import { schema, type Schema } from '../../../apps/instantdb/src/api/db/schema.ts';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -499,4 +499,3 @@ async function main() {
 }
 
 main();
-

@@ -1,0 +1,79 @@
+---
+title: Seeder Tool
+description: Interactive CLI tool for seeding notes into InstantDB
+---
+
+# Seeder Tool
+
+The Seeder Tool is an interactive command-line utility for populating your InstantDB database with notes, folders, and task relationships. It provides a user-friendly interface for creating and managing notes without writing code.
+
+## Overview
+
+The Seeder Tool enables you to:
+
+- **Create Notes** - Seed new notes with markdown content
+- **Move Notes** - Reposition existing notes within folders
+- **Manage Folders** - Organize notes in nested folder structures
+- **Link Tasks** - Connect tasks to notes for better organization
+- **Custom Positioning** - Control exact note positions or use automatic placement
+
+## Quick Start
+
+### Prerequisites
+
+1. **Environment Setup**: Ensure `NEXT_PUBLIC_INSTANT_APP_ID` is set in your `.env` file
+2. **Database Access**: Your InstantDB app must be configured and accessible
+
+### Running the Seeder
+
+**Option 1: From Project Root**
+```bash
+bun run tools/seeder/src/index.ts
+```
+
+**Option 2: From Seeder Directory**
+```bash
+cd tools/seeder
+bun run start
+```
+
+**Option 3: Using SK CLI**
+```bash
+bun run sk
+# Navigate to Tools → Run Database Seeder
+```
+
+## Features at a Glance
+
+### Interactive Prompts
+- Beautiful CLI interface with colorized output
+- Step-by-step prompts for all note fields
+- Validation and error handling
+- Progress indicators for long operations
+
+### Content Sources
+- **File Import** - Load markdown from `.md` or `.mdx` files
+- **Direct Input** - Paste markdown content directly
+- **Editor Mode** - Opens your default editor for content input
+
+### Note Management
+- **Pinned Notes** - Pin notes to position 0
+- **Folder Organization** - Place notes in nested folders
+- **Position Control** - Custom positions or automatic end-of-list
+- **Task Linking** - Connect existing tasks to notes
+
+### Date Handling
+- **Dutch Format** - Uses `dd-mm-yyyy` format for dates
+- **Automatic Conversion** - Converts to Unix timestamps
+- **Validation** - Ensures valid dates before creation
+
+## Documentation
+
+<Cards>
+  <Card title="Getting Started" href="/docs/seeder/getting-started" description="Installation, setup, and first use" />
+  <Card title="Features" href="/docs/seeder/features" description="Complete feature list and capabilities" />
+  <Card title="Usage Guide" href="/docs/seeder/usage" description="Workflows, examples, and advanced usage" />
+  <Card title="CLI Command Builder" href="/docs/seeder/command-builder" description="Build CLI commands with arguments" />
+  <Card title="Troubleshooting" href="/docs/seeder/troubleshooting" description="Common issues and solutions" />
+</Cards>
+

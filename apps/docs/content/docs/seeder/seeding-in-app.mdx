@@ -1,14 +1,20 @@
-# 🌱 Seeding Module (Development)
+---
+title: In-App Seeding
+description: How to use the seeding module within the Notys application
+---
 
-> **Note:** The `_` prefix indicates this is a development-only module.
+# In-App Seeding
 
-This module contains organized utilities for seeding the database during development. All seeding methods are centralized here for easy access and maintenance.
+The Notys app includes a built-in seeding module at `src/_seeding/` for populating the database during development.
 
-## 📁 Structure
+<Callout type="info">
+  The `_` prefix indicates this is a **development-only** module and should not be used in production.
+</Callout>
+
+## Structure
 
 ```
 src/_seeding/
-├── README.md              # This file
 ├── index.ts               # Public exports
 └── shortcuts-note/
     ├── content.ts         # Note content (markdown)
@@ -18,9 +24,7 @@ src/_seeding/
     └── script.ts          # Backend CLI script
 ```
 
----
-
-## 🚀 Quick Start
+## Quick Start Methods
 
 ### Method 1: Browser Console (Fastest) ⭐
 
@@ -62,9 +66,7 @@ npx tsx src/_seeding/shortcuts-note/script.ts
 bun src/_seeding/shortcuts-note/script.ts
 ```
 
----
-
-## 📚 API Reference
+## API Reference
 
 ### `seedKeyboardShortcutsNote(options?)`
 
@@ -94,9 +96,7 @@ console.log(result);
 // { id: 'xxx-xxx-xxx', title: 'Keyboard Shortcuts', success: true }
 ```
 
----
-
-## 🔌 API Endpoints
+## API Endpoints
 
 ### POST `/api/seed/shortcuts-note`
 
@@ -139,14 +139,12 @@ const data = await response.json();
 
 ```bash
 # cURL
-curl -X POST http://localhost:3000/api/seed/shortcuts-note \
+curl -X POST http://localhost:42069/api/seed/shortcuts-note \
   -H "Content-Type: application/json" \
   -d '{"pinned":false,"position":0}'
 ```
 
----
-
-## 🎨 Component Usage
+## Component Usage
 
 ### `<SeedShortcutsNoteButton />`
 
@@ -178,9 +176,7 @@ export default function Page() {
 }
 ```
 
----
-
-## 🛠️ Backend Script
+## Backend Script
 
 For CI/CD or automated seeding, use the backend script:
 
@@ -215,9 +211,7 @@ bun src/_seeding/shortcuts-note/script.ts
 🎉 Seeding completed successfully!
 ```
 
----
-
-## ✅ Verification
+## Verification
 
 After seeding, verify the note was created:
 
@@ -226,9 +220,7 @@ After seeding, verify the note was created:
 3. **Check console:** Look for success messages
 4. **Refresh app:** Note should persist and sync
 
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Module not found" error
 
@@ -244,7 +236,7 @@ import { seedKeyboardShortcutsNote } from '@/utils/seed-shortcuts-note';
 
 ### API route not found
 
-The route file is at `src/_seeding/shortcuts-note/route.ts` but needs to be symlinked or copied to:
+Ensure the API route exists at:
 
 ```
 src/app/api/seed/shortcuts-note/route.ts
@@ -264,19 +256,7 @@ src/app/api/seed/shortcuts-note/route.ts
 3. Verify InstantDB connection in Network tab
 4. Check that `useGetNotes()` hook is working
 
----
-
-## 🧹 Cleanup
-
-After successfully seeding:
-
-1. **Remove the button component** from your app if you used Method 3
-2. **Keep the module** for future development use
-3. The created note is **permanent** and will sync across all devices
-
----
-
-## 📝 Adding New Seeds
+## Adding New Seeds
 
 To add a new seeding utility:
 
@@ -293,24 +273,9 @@ To add a new seeding utility:
    export { seedYourSeedName } from './your-seed-name/seed';
    ```
 
-4. Update this README with usage instructions
+4. Document usage in this guide
 
----
-
-## 🔒 Production Notes
-
-**This module should NOT be used in production.** The `_` prefix indicates development-only code.
-
-Consider:
-
-- Using environment checks (`process.env.NODE_ENV === 'development'`)
-- Tree-shaking to remove from production builds
-- Using separate build configurations
-- Implementing proper database migrations for production
-
----
-
-## 📚 Technical Details
+## Technical Details
 
 ### InstantDB Pattern
 
@@ -353,13 +318,29 @@ notes: i.entity({
 })
 ```
 
----
-
-## 🎉 Summary
+## Summary
 
 **Fastest:** Browser console with `fetch('/api/seed/shortcuts-note',{method:'POST'})`
+
 **Easiest:** React button component
+
 **Most Flexible:** Direct function import
+
 **Best for CI/CD:** Backend script
 
 Choose the method that best fits your workflow!
+
+## Next Steps
+
+<Cards>
+  <Card title="Seeder CLI Tool" href="/docs/seeder">
+    Learn about the standalone seeding tool
+  </Card>
+  <Card title="Development Guide" href="/docs/app/development">
+    Understand the development workflow
+  </Card>
+  <Card title="Architecture" href="/docs/app/architecture">
+    Learn about the app's structure
+  </Card>
+</Cards>
+

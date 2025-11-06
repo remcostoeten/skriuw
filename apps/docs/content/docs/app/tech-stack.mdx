@@ -1,0 +1,113 @@
+---
+title: Tech Stack
+description: Technologies powering Skriuw
+---
+
+# Tech Stack
+
+## Frontend
+
+### Next.js 15
+React framework with App Router. No API routes or server components - just client-side React with routing conveniences.
+
+**Version:** `^15.1.6`
+
+### React 18.3
+Standard hooks-based React. Context for theme/shortcuts, custom hooks for data operations.
+
+**Version:** `^18.3.1`
+
+### TypeScript 5.6
+Strict mode enabled. Path aliases (`@/*`) for cleaner imports. Types auto-generated from InstantDB schema.
+
+**Version:** `^5.6.3`
+
+### Tailwind CSS 4.1
+Utility-first styling with dark mode support.
+
+**Version:** `^4.1.16`
+
+### TipTap 3.9
+Rich text editor built on ProseMirror. Includes StarterKit, Bubble Menu, Placeholder, and Typography extensions.
+
+**Version:** `^3.9.1`
+
+---
+
+## Backend
+
+### Tauri 2.0
+Rust-based desktop framework. 10-50x smaller than Electron, better performance, more secure.
+
+**Plugins:**
+- `tauri-plugin-store` - Persistent key-value storage
+- `tauri-plugin-dialog` - Native file/folder dialogs
+- `tauri-plugin-fs` - File system access
+- `tauri-plugin-global-shortcut` - System-wide keyboard shortcuts
+
+**Version:** `^2.1.0` (CLI), `2.9.2` (Rust)
+
+### InstantDB
+Zero-config real-time database with offline support and optimistic updates. No backend code needed - all data operations go directly through InstantDB client.
+
+**Key Features:**
+- Local-first with automatic cloud sync
+- Type-safe schema with auto-generated TypeScript types
+- Conflict resolution built-in
+- Indexed queries for performance
+
+<Callout type="info">
+  **No API Routes:** This app doesn't use Next.js API routes. All data flows through InstantDB. One minimal `/api/seed/shortcuts-note` route exists only for dev seeding.
+</Callout>
+
+**Version:** `^0.22.40`
+
+---
+
+## UI Libraries
+
+### Radix UI
+Accessible, unstyled primitives: Checkbox, Context Menu, Select, Separator, Tooltip.
+
+### Lucide Icons
+Tree-shakeable icon library with 1000+ icons.
+
+**Version:** `^0.552.0`
+
+---
+
+## Development
+
+### Bun
+Fast package manager and runtime. Drop-in npm replacement.
+
+### ESLint + Prettier
+Single quotes, 4-space tabs, no semicolons.
+
+---
+
+## Bundle Sizes
+
+**Development:**
+- Next.js: ~5-10 MB
+- Tauri: ~600 KB
+
+**Production:**
+- Next.js: ~500 KB - 2 MB
+- Desktop bundles: 10-15 MB
+
+---
+
+## Next Steps
+
+<Cards>
+  <Card title="Development Guide" href="/docs/app/development">
+    Learn how to build features
+  </Card>
+  <Card title="Architecture" href="/docs/app/architecture">
+    Understand the design patterns
+  </Card>
+  <Card title="API Reference" href="/docs/app/api-reference">
+    Explore available APIs
+  </Card>
+</Cards>

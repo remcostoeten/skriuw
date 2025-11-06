@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Notys",
+  "productName": "Skriuw",
   "version": "0.0.1",
-  "identifier": "app.notys.notys",
+  "identifier": "app.skriuw.skriuw",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:42069",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Notys",
+        "title": "Skriuw",
 
         "width": 1000,
         "height": 900,
