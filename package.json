@@ -13,8 +13,8 @@
     "lint": "bun run --filter @skriuw/instantdb lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "cli": "bun run --filter @skriuw/cli-manager dev",
-    "sk": "bun run --filter @skriuw/cli-manager dev"
+    "cli": "bun run --filter @skriuw/sk dev",
+    "sk": "bun run --filter @skriuw/sk dev"
   },
   "devDependencies": {
     "prettier": "^3.3.3"

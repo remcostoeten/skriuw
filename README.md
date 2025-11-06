@@ -24,16 +24,16 @@ skriuw/
 │   ├── instantdb/    # Main Tauri + Next.js app
 │   └── docs/         # Documentation site (Fumadocs)
 ├── tools/
-│   ├── cli-manager/  # Interactive CLI tool for managing the monorepo
+│   ├── sk/            # Interactive CLI tool (SK)
 │   └── seeder/       # Database seeding utilities
 └── plans/            # Project planning and documentation
 ```
 
 ## Quick Start
 
-### Using the CLI Manager (Recommended)
+### Using SK (Recommended)
 
-The easiest way to manage this monorepo is with the interactive CLI:
+The easiest way to manage this monorepo is with SK, the interactive CLI:
 
 ```bash
 # From project root
@@ -69,9 +69,9 @@ cd apps/docs
 bun run dev
 ```
 
-## CLI Manager Features
+## SK Features
 
-The CLI manager provides a powerful, interactive interface for development:
+SK provides a powerful, interactive interface for development:
 
 - **Interactive Menu** - Beautiful ASCII art and arrow-key navigation
 - **Process Management** - Run multiple apps without blocking
@@ -80,7 +80,7 @@ The CLI manager provides a powerful, interactive interface for development:
 - **Deployment** - Direct Vercel deployment from CLI
 - **Live Monitoring** - Real-time status of running apps
 
-Full documentation is available in the [CLI Manager docs](http://localhost:3000/docs/cli) (start the docs app first).
+Full documentation is available in the [SK docs](http://localhost:3000/docs/cli) (start the docs app first).
 
 ## Tech Stack
 
@@ -107,18 +107,18 @@ Full documentation is available in the [CLI Manager docs](http://localhost:3000/
 From the project root:
 
 ```bash
-bun run cli          # Launch CLI manager
-bun run sk           # Short alias for CLI
-bun run dev          # Run main app directly
+bun run cli          # Launch SK (interactive menu)
+bun run sk           # Short alias for SK
+bun run dev          # Run main app directly (or use 'sk dev')
 bun run build        # Build main app
 bun run format       # Format code with Prettier
 ```
 
 ### Building for Production
 
-Using the CLI:
+Using SK:
 ```bash
-bun run cli
+sk
 # Select "Build All Apps" from menu
 ```
 
@@ -139,7 +139,7 @@ bun run tauri:build
 
 ## Documentation
 
-- [CLI Manager Documentation](http://localhost:3000/docs/cli) - Complete guide for the interactive CLI tool
+- [SK Documentation](http://localhost:3000/docs/cli) - Complete guide for the interactive CLI tool
 - [Seeding Guide](SEEDING.md) - Database seeding utilities
 - [Shortcuts Reference](SHORTCUTS.md) - Keyboard shortcuts reference
 

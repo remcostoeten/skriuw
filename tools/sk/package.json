@@ -1,7 +1,7 @@
 {
-  "name": "@skriuw/cli-manager",
+  "name": "@skriuw/sk",
   "version": "1.0.0",
-  "description": "Interactive CLI tool for managing Skriuw monorepo",
+  "description": "Interactive CLI tool for managing Skriuw monorepo and development workflows",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
