@@ -15,6 +15,7 @@ import { StorageManager } from './storage.js';
 import { LogManager } from './logging.js';
 import Fuse from 'fuse.js';
 import { join } from 'path';
+import { FrameworkDetector, FrameworkConfig } from './framework.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,8 @@ interface RunningApp {
   path: string;
   process: ChildProcess;
   color: string;
+  framework?: FrameworkConfig;
+  detectedPort?: number;
 }
 
 class CLIManager {
@@ -48,6 +51,12 @@ class CLIManager {
       const packageJson = path.join(currentDir, 'package.json');
       
       if (existsSync(appsDir) && existsSync(packageJson)) {
+        this.rootDir = currentDir;
+        break;
+      }
+      
+      // Check if this is a single-app project (has package.json but no apps/)
+      if (existsSync(packageJson) && !existsSync(appsDir)) {
         this.rootDir = currentDir;
         break;
       }
@@ -76,15 +85,18 @@ class CLIManager {
   async showMainMenu(): Promise<void> {
     this.showLogo();
 
+    // Auto-detect apps if config is empty or detect single-app mode
+    const apps = await this.detectApps();
+
     const choices = [
       new inquirer.Separator(chalk.bold.cyan('── Development ──')),
-      ...config.apps.map(app => ({
+      ...apps.map(app => ({
         name: `Run ${chalk.blue(app.displayName)} ${chalk.gray(`(port ${app.port})`)}`,
         value: `dev:${app.name}`
       })),
       { name: 'Run All Apps', value: 'dev:all' },
       new inquirer.Separator(chalk.bold.green('── Build ──')),
-      ...config.apps.map(app => ({
+      ...apps.map(app => ({
         name: `Build ${chalk.blue(app.displayName)}`,
         value: `build:${app.name}`
       })),
@@ -152,6 +164,51 @@ class CLIManager {
     }
   }
 
+  // Detect apps (monorepo or single-app)
+  async detectApps(): Promise<AppConfig[]> {
+    // If config has apps, use them
+    if (config.apps && config.apps.length > 0) {
+      return config.apps;
+    }
+
+    // Check if this is a monorepo
+    const appsDir = path.join(this.rootDir, 'apps');
+    if (existsSync(appsDir)) {
+      // Auto-detect apps in apps/ directory
+      const { readdirSync } = require('fs');
+      const appDirs = readdirSync(appsDir, { withFileTypes: true })
+        .filter((dirent: any) => dirent.isDirectory())
+        .map((dirent: any) => dirent.name);
+
+      return appDirs.map((appDir: string) => {
+        const appPath = path.join(appsDir, appDir);
+        const frameworkConfig = FrameworkDetector.detect(appPath);
+        
+        return {
+          name: appDir,
+          displayName: appDir.charAt(0).toUpperCase() + appDir.slice(1),
+          path: `./apps/${appDir}`,
+          dev: frameworkConfig.devCommand,
+          build: frameworkConfig.buildCommand,
+          port: frameworkConfig.port,
+          color: '#3b82f6'
+        };
+      });
+    }
+
+    // Single-app mode: detect framework in current directory
+    const frameworkConfig = FrameworkDetector.detect(this.rootDir);
+    return [{
+      name: 'app',
+      displayName: 'App',
+      path: '.',
+      dev: frameworkConfig.devCommand,
+      build: frameworkConfig.buildCommand,
+      port: frameworkConfig.port,
+      color: '#3b82f6'
+    }];
+  }
+
   // Check if port is in use
   async checkPortInUse(port: number): Promise<boolean> {
     try {
@@ -176,21 +233,32 @@ class CLIManager {
 
   // Run a single app
   async runApp(appName: string): Promise<void> {
-    const app = config.apps.find(a => a.name === appName);
+    const apps = await this.detectApps();
+    const app = apps.find(a => a.name === appName);
     if (!app) {
       console.log(chalk.red(`\n[ERROR] App "${appName}" not found`));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
 
+    // Detect framework for this app
+    const appPath = path.join(this.rootDir, app.path);
+    const frameworkConfig = FrameworkDetector.detect(appPath);
+    
+    // Use detected port if available, otherwise use config port
+    let port = app.port;
+    if (frameworkConfig.port && frameworkConfig.port !== 3000) {
+      port = frameworkConfig.port;
+    }
+
     // Check port conflict
-    const portInUse = await this.checkPortInUse(app.port);
+    const portInUse = await this.checkPortInUse(port);
     if (portInUse && !this.runningApps.has(appName)) {
       const { proceed } = await inquirer.prompt([
         {
           type: 'confirm',
           name: 'proceed',
-          message: `Port ${app.port} is already in use. Continue anyway?`,
+          message: `Port ${port} is already in use. Continue anyway?`,
           default: false
         }
       ]);
@@ -209,8 +277,7 @@ class CLIManager {
     this.logManager.log('info', `Starting ${app.displayName}`, appName);
 
     try {
-      const appPath = path.join(this.rootDir, app.path);
-      const [command, ...args] = app.dev.split(' ');
+      const [command, ...args] = frameworkConfig.devCommand.split(' ');
       
       const proc = spawn(command, args, {
         cwd: appPath,
@@ -219,26 +286,45 @@ class CLIManager {
         detached: false
       });
 
-      // Store the running app
+      // Store the running app with framework config
+      let detectedPort = port;
       this.runningApps.set(appName, {
         name: appName,
         displayName: app.displayName,
-        port: app.port,
+        port: detectedPort,
         path: app.path,
         process: proc,
-        color: app.color
+        color: app.color,
+        framework: frameworkConfig,
+        detectedPort: detectedPort
       });
 
-      // Handle process output (suppress noisy Next.js output)
+      // Handle process output with framework-specific patterns
       let isReady = false;
       proc.stdout?.on('data', (data: Buffer) => {
         const output = data.toString();
-        if (output.includes('Ready') || output.includes('started') || output.includes('localhost')) {
+        
+        // Extract port from output if detected
+        const extractedPort = FrameworkDetector.extractPort(output, frameworkConfig.portPatterns);
+        if (extractedPort && extractedPort !== detectedPort) {
+          detectedPort = extractedPort;
+          const runningApp = this.runningApps.get(appName);
+          if (runningApp) {
+            runningApp.port = detectedPort;
+            runningApp.detectedPort = detectedPort;
+          }
+        }
+        
+        // Check if ready using framework-specific patterns
+        if (FrameworkDetector.isReady(output, frameworkConfig.readyPatterns)) {
           if (!isReady) {
             isReady = true;
             spinner.succeed(chalk.green(`${app.displayName} is running`));
-            this.logManager.log('info', `${app.displayName} is running on port ${app.port}`, appName);
-            this.displayAppInfo(app);
+            this.logManager.log('info', `${app.displayName} is running on port ${detectedPort}`, appName);
+            
+            // Update app info with detected port
+            const updatedApp = { ...app, port: detectedPort };
+            this.displayAppInfo(updatedApp);
             this.startHotkeyListener();
           }
         }
@@ -302,7 +388,8 @@ class CLIManager {
     console.clear();
     console.log(chalk.bold.cyan('\nStarting all apps...\n'));
 
-    for (const app of config.apps) {
+    const apps = await this.detectApps();
+    for (const app of apps) {
       if (!this.runningApps.has(app.name)) {
         await this.runApp(app.name);
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -314,7 +401,8 @@ class CLIManager {
 
   // Build a single app
   async buildApp(appName: string): Promise<void> {
-    const app = config.apps.find(a => a.name === appName);
+    const apps = await this.detectApps();
+    const app = apps.find(a => a.name === appName);
     if (!app) {
       console.log(chalk.red(`\n[ERROR] App "${appName}" not found`));
       await this.pressEnterToContinue();
@@ -327,7 +415,8 @@ class CLIManager {
 
     try {
       const appPath = path.join(this.rootDir, app.path);
-      const [command, ...args] = app.build.split(' ');
+      const frameworkConfig = FrameworkDetector.detect(appPath);
+      const [command, ...args] = frameworkConfig.buildCommand.split(' ');
 
       await execa(command, args, {
         cwd: appPath,
@@ -365,11 +454,13 @@ class CLIManager {
     let successCount = 0;
     let failCount = 0;
 
-    for (const app of config.apps) {
+    const apps = await this.detectApps();
+    for (const app of apps) {
       try {
         const spinner = ora(`Building ${app.displayName}...`).start();
         const appPath = path.join(this.rootDir, app.path);
-        const [command, ...args] = app.build.split(' ');
+        const frameworkConfig = FrameworkDetector.detect(appPath);
+        const [command, ...args] = frameworkConfig.buildCommand.split(' ');
 
         await execa(command, args, {
           cwd: appPath,
@@ -390,7 +481,7 @@ class CLIManager {
     console.log(chalk.cyan('┌────────────────────────────────────────┐'));
     console.log(chalk.cyan('│') + '  ' + chalk.bold.white('Build Summary'.padEnd(36)) + chalk.cyan('  │'));
     console.log(chalk.cyan('├────────────────────────────────────────┤'));
-    console.log(chalk.cyan('│') + '  ' + chalk.gray('Total Apps:'.padEnd(12)) + chalk.white(String(config.apps.length).padEnd(24)) + chalk.cyan('  │'));
+    console.log(chalk.cyan('│') + '  ' + chalk.gray('Total Apps:'.padEnd(12)) + chalk.white(String(apps.length).padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Successful:'.padEnd(12)) + chalk.green(String(successCount).padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Failed:'.padEnd(12)) + chalk.red(String(failCount).padEnd(24)) + chalk.cyan('  │'));
     console.log(chalk.cyan('│') + '  ' + chalk.gray('Duration:'.padEnd(12)) + chalk.white(`${totalDuration}s`.padEnd(24)) + chalk.cyan('  │'));
@@ -931,7 +1022,8 @@ class CLIManager {
     }
 
     // Check configured apps
-    for (const app of config.apps) {
+    const apps = await this.detectApps();
+    for (const app of apps) {
       if (!this.runningApps.has(app.name)) {
         const portInUse = await this.checkPortInUse(app.port);
         checks.push({
@@ -1030,6 +1122,47 @@ echo "Reinstall complete!"
     });
   }
 
+  // Direct dev mode (replaces bun run dev)
+  async startDirectDev(): Promise<void> {
+    const apps = await this.detectApps();
+    
+    if (apps.length === 0) {
+      console.log(chalk.red('[ERROR] No apps detected'));
+      process.exit(1);
+    }
+
+    // Single app: start it directly
+    if (apps.length === 1) {
+      const app = apps[0];
+      console.log(chalk.cyan(`Starting ${app.displayName}...\n`));
+      
+      const appPath = path.join(this.rootDir, app.path);
+      const frameworkConfig = FrameworkDetector.detect(appPath);
+      const [command, ...args] = frameworkConfig.devCommand.split(' ');
+      
+      // Spawn process and pipe output directly (like bun run dev)
+      const proc = spawn(command, args, {
+        cwd: appPath,
+        stdio: 'inherit',
+        shell: true
+      });
+
+      // Handle cleanup
+      process.on('SIGINT', () => {
+        proc.kill();
+        process.exit(0);
+      });
+
+      proc.on('exit', (code) => {
+        process.exit(code || 0);
+      });
+    } else {
+      // Multiple apps: show menu
+      console.log(chalk.yellow('[INFO] Multiple apps detected. Showing menu...\n'));
+      await this.showMainMenu();
+    }
+  }
+
   // Start the CLI
   async start(): Promise<void> {
     // Handle process termination
@@ -1050,8 +1183,29 @@ echo "Reinstall complete!"
 
 // Start the CLI
 const cli = new CLIManager();
-cli.start().catch((error) => {
-  console.error(chalk.red('Fatal error:'), error);
-  process.exit(1);
-});
+
+// Check for command-line arguments for direct dev mode
+const args = process.argv.slice(2);
+
+if (args.length > 0) {
+  // Direct mode: run dev without menu
+  if (args[0] === 'dev' || args[0] === 'start') {
+    cli.startDirectDev().catch((error) => {
+      console.error(chalk.red('Fatal error:'), error);
+      process.exit(1);
+    });
+  } else {
+    // Show menu normally
+    cli.start().catch((error) => {
+      console.error(chalk.red('Fatal error:'), error);
+      process.exit(1);
+    });
+  }
+} else {
+  // No args: show menu
+  cli.start().catch((error) => {
+    console.error(chalk.red('Fatal error:'), error);
+    process.exit(1);
+  });
+}
 
