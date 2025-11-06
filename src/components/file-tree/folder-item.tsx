@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "utils";
 import { FileItem } from "./file-item";
 import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
-import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop, addDraggingClass, removeDraggingClass } from "./drag-animations";
 
 type props = {
     name: string;
@@ -141,6 +141,7 @@ export const FolderItem = ({
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
         hapticDragStart();
+        addDraggingClass();
         onDragStart?.();
     };
 
@@ -149,6 +150,12 @@ export const FolderItem = ({
             clearTimeout(expandTimeoutRef.current);
             expandTimeoutRef.current = null;
         }
+        removeDraggingClass();
+        // Blur the element if it's focused
+        if (folderRef.current && folderRef.current === document.activeElement) {
+            folderRef.current.blur();
+        }
+        onDragLeave?.();
         onDragEnd?.();
     };
 

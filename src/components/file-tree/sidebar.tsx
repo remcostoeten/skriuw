@@ -331,6 +331,8 @@ export const Sidebar = ({
 
 	const handleDragEnd = () => {
 		dragState.endDrag()
+		dragState.clearDragOver()
+		setFocusedIndex(-1)
 	}
 
 	const handleDragOver = (
@@ -395,6 +397,8 @@ export const Sidebar = ({
 		}
 
 		dragState.endDrag()
+		dragState.clearDragOver()
+		setFocusedIndex(-1)
 	}
 
 	const handleDragOverRoot = (e: React.DragEvent) => {
@@ -427,6 +431,8 @@ export const Sidebar = ({
 		}
 		dragState.setDragOverRoot(false)
 		dragState.endDrag()
+		dragState.clearDragOver()
+		setFocusedIndex(-1)
 	}
 
 	const handleNoteReorder = async (
@@ -440,6 +446,8 @@ export const Sidebar = ({
 			console.error('Failed to reorder note:', error)
 		}
 		dragState.endDrag()
+		dragState.clearDragOver()
+		setFocusedIndex(-1)
 	}
 
 	// Create a flat list of all navigable items for keyboard navigation
@@ -649,8 +657,7 @@ export const Sidebar = ({
 			<div
 				ref={treeRef}
 				className={cn(
-					'flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4',
-					dragState.dragOverRoot && 'bg-accent/10'
+					'flex flex-col items-start gap-1 w-full px-2 h-full overflow-auto pt-2 pb-4'
 				)}
 				onDragOver={handleDragOverRoot}
 				onDragLeave={handleDragLeaveRoot}

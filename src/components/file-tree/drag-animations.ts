@@ -56,19 +56,20 @@ export function getDragClasses(params: TDragClasses) {
             `opacity-${Math.round(dragAnimations.draggedOpacity * 100)}`,
             "cursor-grabbing",
             `scale-${Math.round(dragAnimations.activeScale * 100)}`,
-            "shadow-lg",
             "z-50",
-            "rotate-[2deg]"
+            "outline-none",
+            "focus:outline-none",
+            "focus-visible:outline-none",
+            "ring-0",
+            "ring-offset-0"
         ],
         !isDragged && !isEditing && [
             "cursor-grab",
             `active:scale-${Math.round(dragAnimations.activeScale * 100)}`,
             "active:transition-none"
         ],
-        isFocused && !isActive && !isDragged && "ring-1 ring-primary/50 ring-offset-1",
-        isDragOver && dropPosition === 'before' && "before:content-[''] before:absolute before:left-0 before:right-0 before:-top-[2px] before:h-[2px] before:bg-primary before:rounded-full before:shadow-[0_0_8px_rgba(var(--primary),0.5)]",
-        isDragOver && dropPosition === 'after' && "after:content-[''] after:absolute after:left-0 after:right-0 after:-bottom-[2px] after:h-[2px] after:bg-primary after:rounded-full after:shadow-[0_0_8px_rgba(var(--primary),0.5)]",
-        isDragOver && dropPosition === 'inside' && "bg-primary/10 ring-2 ring-primary/50 ring-inset shadow-[inset_0_0_12px_rgba(var(--primary),0.2)]"
+        isDragOver && dropPosition === 'before' && "before:content-[''] before:absolute before:left-0 before:right-0 before:-top-[1px] before:h-[1px] before:bg-foreground/20 before:rounded-full",
+        isDragOver && dropPosition === 'after' && "after:content-[''] after:absolute after:left-0 after:right-0 after:-bottom-[1px] after:h-[1px] after:bg-foreground/20 after:rounded-full"
     );
 }
 
@@ -88,4 +89,12 @@ export function hapticDragStart() {
 
 export function hapticDrop() {
     triggerHaptic(dragAnimations.haptic.drop);
+}
+
+export function addDraggingClass() {
+    document.body.classList.add('dragging');
+}
+
+export function removeDraggingClass() {
+    document.body.classList.remove('dragging');
 }

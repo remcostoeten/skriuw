@@ -4,7 +4,7 @@ import { ChevronRight, Copy, Edit2, Eye, Folder, FolderOpen, Pin, Trash2 } from 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "utils";
 import { ItemContextMenu, type MenuItem, type SubMenuItem } from "./item-context-menu";
-import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop, addDraggingClass, removeDraggingClass } from "./drag-animations";
 
 type props = {
     id: string;
@@ -30,7 +30,7 @@ type props = {
     onFocus?: () => void;
 }
 
-export const FileItem = ({
+export function FileItem({
     id,
     name,
     path,
@@ -52,7 +52,7 @@ export const FileItem = ({
     folders = [],
     isFocused = false,
     onFocus,
-}: props) => {
+}: props) {
     const [dragOverState, setDragOverState] = useState<'before' | 'after' | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(name);
@@ -202,11 +202,16 @@ export const FileItem = ({
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
         hapticDragStart();
+        addDraggingClass();
         onDragStart?.();
     };
 
     const handleDragEnd = () => {
         setDragOverState(null);
+        removeDraggingClass();
+        if (noteRef.current && noteRef.current === document.activeElement) {
+            noteRef.current.blur();
+        }
         onDragEnd?.();
     };
 
@@ -517,4 +522,4 @@ export const FileItem = ({
             )}
         </div>
     );
-};
+}

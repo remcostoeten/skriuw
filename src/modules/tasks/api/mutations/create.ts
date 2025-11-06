@@ -1,31 +1,32 @@
 import { transact, tx } from '@/api/db/client';
 import { useMutation } from '@/hooks/core';
 import { generateId } from 'utils';
+import { TaskStatus, TaskPriority, EntityId, Timestamp } from '@/types';
 
-type props = {
-  noteId?: string;
-  projectId?: string;
+type CreateTaskInput = {
+  noteId?: EntityId;
+  projectId?: EntityId;
   content: string;
   position: number;
-  priority?: 'low' | 'med' | 'high' | 'urgent';
-  dueAt?: number;
-  parentId?: string;
+  priority?: TaskPriority;
+  dueAt?: Timestamp;
+  parentId?: EntityId;
   tags?: string[];
-  dependsOnIds?: string[];
+  dependsOnIds?: EntityId[];
 }
 
 export function useCreateTask() {
-  const { mutate, isLoading, error } = useMutation(async (input: props) => {
-    const id = generateId();
-    const now = Date.now();
+  const { mutate, isLoading, error } = useMutation(async (input: CreateTaskInput) => {
+    const id: EntityId = generateId();
+    const now: Timestamp = Date.now();
     await transact([
       tx.tasks[id].update({
         content: input.content,
         completed: false,
-        status: 'todo',
+        status: TaskStatus.TODO,
         position: input.position,
         createdAt: now,
-        priority: input.priority ?? 'med',
+        priority: input.priority ?? TaskPriority.MEDIUM,
         dueAt: input.dueAt,
         tags: input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined,
       }),
