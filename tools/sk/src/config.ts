@@ -1,7 +1,7 @@
 /**
- * CLI Manager Configuration
+ * SK Configuration
  * 
- * Modify this file to customize your project's apps and commands
+ * Modify this file to customize your project's apps, commands, and tools
  */
 
 export interface AppConfig {
@@ -12,10 +12,21 @@ export interface AppConfig {
   build: string;
   port: number;
   color: string;
+  deployUrl?: string; // Optional deploy URL
+}
+
+export interface ToolConfig {
+  name: string;
+  displayName: string;
+  path: string;
+  command: string;
+  description?: string;
+  color?: string;
 }
 
 export interface Config {
   apps: AppConfig[];
+  tools?: ToolConfig[]; // Optional custom tools
   editor: string;
   deploy: {
     staging: string;
@@ -41,8 +52,19 @@ export const config: Config = {
       path: './apps/docs',
       dev: 'bun run dev',
       build: 'bun run build',
-      port: 3000,
-      color: '#10b981' // green
+      port: 6969,
+      color: '#10b981', // green
+      deployUrl: 'https://docs-skriuw.vercel.app'
+    }
+  ],
+  tools: [
+    {
+      name: 'seeder',
+      displayName: 'Database Seeder',
+      path: './tools/seeder',
+      command: 'bun run start',
+      description: 'Seed the database with sample data',
+      color: '#8b5cf6' // purple
     }
   ],
   editor: 'cursor',
