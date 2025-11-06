@@ -71,11 +71,13 @@ bun src/_seeding/shortcuts-note/script.ts
 Seeds the "Keyboard Shortcuts" documentation note.
 
 **Parameters:**
+
 - `options` (optional)
   - `pinned?: boolean` - Pin the note (default: `false`)
   - `position?: number` - Position in list (default: `0`)
 
 **Returns:** `Promise<SeedResult>`
+
 - `id: string` - Generated note ID
 - `title: string` - Note title ("Keyboard Shortcuts")
 - `success: boolean` - Success status
@@ -101,6 +103,7 @@ console.log(result);
 Creates the Keyboard Shortcuts note via HTTP request.
 
 **Request Body:**
+
 ```json
 {
   "pinned": false,
@@ -109,6 +112,7 @@ Creates the Keyboard Shortcuts note via HTTP request.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -149,6 +153,7 @@ curl -X POST http://localhost:3000/api/seed/shortcuts-note \
 A floating button component for one-time seeding.
 
 **Features:**
+
 - Visual feedback (loading, success, error states)
 - Displays created note ID
 - Self-contained UI with instructions
@@ -191,11 +196,13 @@ bun src/_seeding/shortcuts-note/script.ts
 ```
 
 **Requirements:**
+
 - `.env` file with `NEXT_PUBLIC_INSTANT_APP_ID`
 - Internet connection
 - Active InstantDB app
 
 **Output:**
+
 ```
 🔑 InstantDB App ID: xxx-xxx-xxx
 🚀 Starting database seeding for Keyboard Shortcuts note...
@@ -238,6 +245,7 @@ import { seedKeyboardShortcutsNote } from '@/utils/seed-shortcuts-note';
 ### API route not found
 
 The route file is at `src/_seeding/shortcuts-note/route.ts` but needs to be symlinked or copied to:
+
 ```
 src/app/api/seed/shortcuts-note/route.ts
 ```
@@ -280,9 +288,11 @@ To add a new seeding utility:
    - `route.ts` - API route (optional)
    - `script.ts` - Backend script (optional)
 3. Export from `src/_seeding/index.ts`:
+
    ```typescript
    export { seedYourSeedName } from './your-seed-name/seed';
    ```
+
 4. Update this README with usage instructions
 
 ---
@@ -292,6 +302,7 @@ To add a new seeding utility:
 **This module should NOT be used in production.** The `_` prefix indicates development-only code.
 
 Consider:
+
 - Using environment checks (`process.env.NODE_ENV === 'development'`)
 - Tree-shaking to remove from production builds
 - Using separate build configurations
@@ -321,6 +332,7 @@ await transact([
 ```
 
 This pattern:
+
 - ✅ Supports optimistic updates
 - ✅ Syncs across all devices automatically
 - ✅ Works in both frontend and backend
@@ -351,4 +363,3 @@ notes: i.entity({
 **Best for CI/CD:** Backend script
 
 Choose the method that best fits your workflow!
-
