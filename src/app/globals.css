@@ -53,25 +53,7 @@
 		--sidebar-border: oklch(0.922 0 0);
 		--sidebar-ring: oklch(0.708 0 0);
 
-		/* User-configurable accent colors - Base color generates all variations */
-		--accent-base: #4ec9b0; /* User changes only this color */
-
-		/* Automatically generated variations */
-		--accent: var(--accent-base);
-		--accent-dark: #3ba890;
-		--accent-darker: #2b7f6f;
-		--accent-bg: #1e3a2e;
-		--accent-bg-hover: #2a5040;
-		--accent-subtle: rgba(78, 201, 176, 0.15);
-		--accent-glow: rgba(78, 201, 176, 0.3);
-
-		/* Fallback OKLCH values for CSS calculations */
-		--accent-oklch: 0.72 0.15 162; /* Will be updated from hex */
-		--accent-dark-oklch: 0.65 0.14 162;
-		--accent-darker-oklch: 0.55 0.12 162;
-		--accent-bg-oklch: 0.35 0.08 162;
-		--accent-bg-hover-oklch: 0.42 0.10 162;
-	}
+		}
 
 	.dark {
 		--background: 20 14.3% 4.1%;
@@ -163,13 +145,6 @@
 	--color-chart-3: var(--chart-3);
 	--color-chart-2: var(--chart-2);
 	--color-chart-1: var(--chart-1);
-	--color-accent-user: var(--accent);
-	--color-accent-user-dark: var(--accent-dark);
-	--color-accent-user-darker: var(--accent-darker);
-	--color-accent-user-bg: var(--accent-bg);
-	--color-accent-user-bg-hover: var(--accent-bg-hover);
-	--color-accent-user-subtle: var(--accent-subtle);
-	--color-accent-user-glow: var(--accent-glow);
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);

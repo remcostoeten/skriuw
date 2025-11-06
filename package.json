@@ -13,7 +13,6 @@
   "scripts": {
     "dev": "next dev --port 42069",
     "build": "next build",
-    "prebuild": "echo 'Skipping linting for now'",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
