@@ -3,7 +3,7 @@
  * Handles log file creation, reading, and management
  */
 
-import { appendFileSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
+import { appendFileSync, readFileSync, writeFileSync, readdirSync, existsSync, statSync, unlinkSync, renameSync } from 'fs';
 import { join } from 'path';
 import { StorageManager } from './storage.js';
 
@@ -14,6 +14,9 @@ export interface LogEntry {
   app?: string;
 }
 
+const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_LOG_FILES = 5;
+
 export class LogManager {
   private storageManager: StorageManager;
   private logFile: string;
@@ -21,12 +24,58 @@ export class LogManager {
   constructor(storageManager: StorageManager) {
     this.storageManager = storageManager;
     this.logFile = join(storageManager.getLogPath(), 'cli.log');
+    this.ensureLogRotation();
+  }
+
+  private ensureLogRotation(): void {
+    if (!existsSync(this.logFile)) {
+      return;
+    }
+
+    try {
+      const stats = statSync(this.logFile);
+      if (stats.size > MAX_LOG_SIZE) {
+        this.rotateLogs();
+      }
+    } catch (error) {
+      // Ignore errors during rotation check
+    }
+  }
+
+  private rotateLogs(): void {
+    try {
+      const logDir = this.storageManager.getLogPath();
+      const logFiles = readdirSync(logDir)
+        .filter((file: string) => file.startsWith('cli.log'))
+        .map((file: string) => ({
+          name: file,
+          path: join(logDir, file),
+          time: statSync(join(logDir, file)).mtimeMs
+        }))
+        .sort((a, b) => b.time - a.time);
+
+      // Keep only MAX_LOG_FILES
+      for (let i = MAX_LOG_FILES - 1; i < logFiles.length; i++) {
+        unlinkSync(logFiles[i].path);
+      }
+
+      // Rotate current log
+      if (existsSync(this.logFile)) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        renameSync(this.logFile, join(logDir, `cli.log.${timestamp}`));
+      }
+    } catch (error) {
+      // Ignore rotation errors
+    }
   }
 
   log(level: LogEntry['level'], message: string, app?: string): void {
     if (!this.storageManager.isLoggingEnabled()) {
       return;
     }
+
+    // Check log rotation before writing
+    this.ensureLogRotation();
 
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),

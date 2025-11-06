@@ -1,11 +1,11 @@
 ---
 title: Usage Guide
-description: Detailed usage examples and workflows for the CLI Manager
+description: Detailed usage examples and workflows for SK
 ---
 
 # Usage Guide
 
-This guide walks you through common workflows and advanced usage patterns for the CLI Manager.
+This guide walks you through common workflows and advanced usage patterns for SK.
 
 ## Basic Workflows
 
@@ -147,6 +147,50 @@ For Next.js:
 5. **Verify**: Test staging deployment
 6. **Release**: "Deploy to Production"
 7. **Confirm**: Check production URL
+
+## Version Management
+
+### Updating Version from CLI
+
+**Goal**: Update package version before release
+
+1. Run `bun run cli`
+2. Navigate to "Advanced Options"
+3. Select "Update Version"
+4. Choose version increment type:
+   - **Patch**: `1.0.0` → `1.0.1` (bug fixes)
+   - **Minor**: `1.0.0` → `1.1.0` (new features)
+   - **Major**: `1.0.0` → `2.0.0` (breaking changes)
+   - **Custom**: Set any version manually
+5. Version is updated in `package.json`
+
+### Releasing to npm
+
+**Goal**: Publish new version to npm registry
+
+**Option 1: Using CLI**
+1. Navigate to "Advanced Options" → "Update Version"
+2. Select "Release & Publish to npm"
+3. Script automatically:
+   - Increments patch version
+   - Builds the package
+   - Publishes to npm
+   - Creates git tag
+4. Optionally push with `npm run release:push`
+
+**Option 2: Using Release Script**
+```bash
+cd tools/sk
+npm run release        # Release without pushing git
+npm run release:push   # Release and push to git
+```
+
+The release script:
+- Increments version (0.0.0 → 1.0.0, then 1.0.1, 1.0.2, etc.)
+- Builds TypeScript
+- Publishes to npm (public access)
+- Creates git tag (`v1.0.1`)
+- Optionally pushes changes and tags
 
 ## Advanced Usage
 

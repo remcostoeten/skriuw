@@ -35,6 +35,69 @@ export interface Config {
   logo: string[];
 }
 
+function validateConfig(config: Config): void {
+  if (!Array.isArray(config.apps)) {
+    throw new Error('Config.apps must be an array');
+  }
+
+  for (const app of config.apps) {
+    if (!app.name || typeof app.name !== 'string') {
+      throw new Error('App must have a name (string)');
+    }
+    if (!app.displayName || typeof app.displayName !== 'string') {
+      throw new Error(`App "${app.name}" must have a displayName (string)`);
+    }
+    if (!app.path || typeof app.path !== 'string') {
+      throw new Error(`App "${app.name}" must have a path (string)`);
+    }
+    if (!app.dev || typeof app.dev !== 'string') {
+      throw new Error(`App "${app.name}" must have a dev command (string)`);
+    }
+    if (!app.build || typeof app.build !== 'string') {
+      throw new Error(`App "${app.name}" must have a build command (string)`);
+    }
+    if (typeof app.port !== 'number' || app.port < 1 || app.port > 65535) {
+      throw new Error(`App "${app.name}" must have a valid port (1-65535)`);
+    }
+    if (!app.color || typeof app.color !== 'string') {
+      throw new Error(`App "${app.name}" must have a color (string)`);
+    }
+  }
+
+  if (config.tools && !Array.isArray(config.tools)) {
+    throw new Error('Config.tools must be an array if provided');
+  }
+
+  if (config.tools) {
+    for (const tool of config.tools) {
+      if (!tool.name || typeof tool.name !== 'string') {
+        throw new Error('Tool must have a name (string)');
+      }
+      if (!tool.displayName || typeof tool.displayName !== 'string') {
+        throw new Error(`Tool "${tool.name}" must have a displayName (string)`);
+      }
+      if (!tool.path || typeof tool.path !== 'string') {
+        throw new Error(`Tool "${tool.name}" must have a path (string)`);
+      }
+      if (!tool.command || typeof tool.command !== 'string') {
+        throw new Error(`Tool "${tool.name}" must have a command (string)`);
+      }
+    }
+  }
+
+  if (!config.editor || typeof config.editor !== 'string') {
+    throw new Error('Config must have an editor (string)');
+  }
+
+  if (!config.deploy || typeof config.deploy.staging !== 'string' || typeof config.deploy.production !== 'string') {
+    throw new Error('Config must have deploy.staging and deploy.production (strings)');
+  }
+
+  if (!Array.isArray(config.logo)) {
+    throw new Error('Config.logo must be an array of strings');
+  }
+}
+
 export const config: Config = {
   apps: [
     {
@@ -87,3 +150,10 @@ export const config: Config = {
   ]
 };
 
+// Validate config on load
+try {
+  validateConfig(config);
+} catch (error) {
+  console.error('Configuration error:', error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
