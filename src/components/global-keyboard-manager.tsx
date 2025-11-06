@@ -6,10 +6,8 @@
 
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { useUnifiedShortcuts, useModifierKeys } from '@/hooks/use-unified-shortcuts'
-import { shortcutRegistry, getAllShortcuts, findShortcutConflicts } from '@/lib/shortcut-registry'
-import { isTauri } from '@/utils/native-utils'
+import { useGetShortcuts, useModifierKeys } from '@/modules/shortcuts'
+import { useCallback, useEffect, useState } from 'react'
 
 export interface KeyboardManagerProps {
   children: React.ReactNode
@@ -34,9 +32,22 @@ export function GlobalKeyboardManager({
   const [isDebugMode, setIsDebugMode] = useState(enableDebugging)
   const [currentContext, setCurrentContext] = useState<string>('global')
   const [keyRecording, setKeyRecording] = useState<KeyRecording | null>(null)
-  const [conflicts, setConflicts] = useState(findShortcutConflicts())
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
+  const { shortcuts } = useGetShortcuts()
   const modifiers = useModifierKeys()
+
+  // Find conflicts (shortcuts with same combo)
+  type Conflict = { combo: string; actions: string[] }
+  const conflicts = shortcuts.reduce((acc: Conflict[], shortcut) => {
+    if (!shortcut.enabled) return acc
+    const existing = acc.find((c: Conflict) => c.combo === shortcut.combo)
+    if (existing) {
+      existing.actions.push(shortcut.action)
+    } else {
+      acc.push({ combo: shortcut.combo, actions: [shortcut.action] })
+    }
+    return acc
+  }, []).filter((c: Conflict) => c.actions.length > 1)
 
   const debugLog = useCallback((message: string, data?: any) => {
     if (isDebugMode) {
@@ -77,49 +88,24 @@ export function GlobalKeyboardManager({
     }
   }, [currentContext, debugLog])
 
-  // Register application-level shortcuts
-  const { setEnabled, setContext } = useUnifiedShortcuts([
-    {
-      id: 'toggle-shortcut-help',
-      handler: () => {
+  // Register application-level shortcuts (using window events instead)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Toggle shortcut help with Ctrl+Shift+?
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === '?') {
+        event.preventDefault()
         setShowShortcutHelp(prev => !prev)
         debugLog('Shortcut help toggled')
       }
-    },
-    {
-      id: 'toggle-debug-mode',
-      handler: () => {
+      // Toggle debug mode with Ctrl+Shift+D
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'D') {
+        event.preventDefault()
         setIsDebugMode(prev => !prev)
         debugLog('Debug mode toggled')
       }
     }
-  ], {
-    context: 'global',
-    enabled: true
-  })
-
-  // Listen for shortcut registry updates
-  useEffect(() => {
-    const handleRegistryUpdate = () => {
-      const newConflicts = findShortcutConflicts()
-      setConflicts(newConflicts)
-      debugLog('Shortcut registry updated', { conflicts: newConflicts })
-    }
-
-    shortcutRegistry.addEventListener('shortcut-updated', handleRegistryUpdate)
-
-    return () => {
-      shortcutRegistry.removeEventListener('shortcut-updated', handleRegistryUpdate)
-    }
-  }, [debugLog])
-
-  // Load shortcuts from Tauri on mount
-  useEffect(() => {
-    if (isTauri) {
-      shortcutRegistry.loadFromTauri().then(() => {
-        debugLog('Shortcuts loaded from Tauri')
-      })
-    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [debugLog])
 
   // Handle global keyboard events for debugging and key recording
@@ -141,12 +127,11 @@ export function GlobalKeyboardManager({
 
       // Notify about shortcut triggers
       if (onShortcutTriggered) {
-        const allShortcuts = getAllShortcuts()
-        const matchingShortcut = allShortcuts.find(shortcut =>
-          shortcut.enabled && event.ctrlKey && shortcut.key.includes('ctrl')
+        const matchingShortcut = shortcuts.find(shortcut =>
+          shortcut.enabled && (event.ctrlKey || event.metaKey)
         )
         if (matchingShortcut) {
-          onShortcutTriggered(matchingShortcut.action, matchingShortcut.key)
+          onShortcutTriggered(matchingShortcut.action, matchingShortcut.combo)
         }
       }
     }
@@ -165,12 +150,7 @@ export function GlobalKeyboardManager({
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
     }
-  }, [keyRecording, debugLog, onShortcutTriggered])
-
-  // Update context for unified shortcuts
-  useEffect(() => {
-    setContext(currentContext)
-  }, [currentContext, setContext])
+  }, [keyRecording, debugLog, onShortcutTriggered, shortcuts])
 
   // Utility functions exposed to the app
   const utilities = {
@@ -218,10 +198,8 @@ export function GlobalKeyboardManager({
      * Get all shortcuts for current context
      */
     getContextualShortcuts: () => {
-      return getAllShortcuts().filter(shortcut =>
-        shortcut.priority === 'global' ||
-        shortcut.context === currentContext ||
-        !shortcut.context
+      return shortcuts.filter(shortcut =>
+        shortcut.global || shortcut.enabled
       )
     }
   }
@@ -271,31 +249,15 @@ export function GlobalKeyboardManager({
 
               <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                 <div>
-                  <h3 className="font-semibold mb-2">Global Shortcuts</h3>
+                  <h3 className="font-semibold mb-2">All Shortcuts</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    {getAllShortcuts()
-                      .filter(s => s.priority === 'global')
+                    {shortcuts
+                      .filter(s => s.enabled)
                       .map(shortcut => (
                         <div key={shortcut.id} className="flex justify-between p-2 bg-gray-50 rounded">
-                          <span>{shortcut.description || shortcut.id}</span>
+                          <span>{shortcut.description || shortcut.action}</span>
                           <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">
-                            {shortcut.key}
-                          </kbd>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Context: {currentContext}</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {utilities.getContextualShortcuts()
-                      .filter(s => s.priority !== 'global')
-                      .map(shortcut => (
-                        <div key={shortcut.id} className="flex justify-between p-2 bg-gray-50 rounded">
-                          <span>{shortcut.description || shortcut.id}</span>
-                          <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">
-                            {shortcut.key}
+                            {shortcut.combo}
                           </kbd>
                         </div>
                       ))}
@@ -306,11 +268,11 @@ export function GlobalKeyboardManager({
                   <div>
                     <h3 className="font-semibold mb-2 text-red-600">⚠️ Conflicts</h3>
                     <div className="space-y-2 text-sm">
-                      {conflicts.map((conflict, index) => (
+                      {conflicts.map((conflict: { combo: string; actions: string[] }, index: number) => (
                         <div key={index} className="p-2 bg-red-50 rounded">
-                          <div className="font-medium">{conflict.key}</div>
+                          <div className="font-medium">{conflict.combo}</div>
                           <div className="text-xs text-gray-600">
-                            {conflict.shortcuts.map(s => s.id).join(', ')}
+                            {conflict.actions.join(', ')}
                           </div>
                         </div>
                       ))}

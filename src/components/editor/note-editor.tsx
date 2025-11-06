@@ -18,7 +18,7 @@ import tippy from 'tippy.js';
 import { useErrorHandler } from '../../hooks/use-error-handler';
 import { useGetAllTasks } from '@/modules/tasks/api/queries/get-all-tasks';
 import { useCreateTask } from '@/modules/tasks/api/mutations/create';
-import { useUnifiedShortcuts } from '@/hooks/use-unified-shortcuts';
+import { useComponentShortcuts } from '@/modules/shortcuts';
 import { TaskPriority } from '@/types';
 
 type Props = {
@@ -545,7 +545,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       if (isNewNote) {
         lastTitleUpdateRef.current = 0;
       }
-      
+
       setTitle(note.title);
       if (editor && note.content !== editor.getHTML()) {
         // prevent triggering onUpdate when setting from outside
@@ -558,10 +558,10 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    
+
     const now = Date.now();
     const timeSinceLastUpdate = now - lastTitleUpdateRef.current;
-    
+
     // Clear existing timer
     if (titleTimerRef.current) {
       clearTimeout(titleTimerRef.current);
@@ -616,7 +616,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
   }, [editor]);
 
   // Register editor shortcuts
-  useUnifiedShortcuts([
+  useComponentShortcuts([
     {
       id: 'editor-bold',
       handler: handleBold
@@ -669,7 +669,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
             placeholder="Untitled"
           />
 
-          
+
           <div className="relative mb-8">
             {editor && (
               <EditorContent editor={editor} />

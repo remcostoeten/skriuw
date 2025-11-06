@@ -74,6 +74,15 @@ export const schema = i.graph(
       createdAt: i.number().indexed(),
       updatedAt: i.number(),
     }),
+    shortcuts: i.entity({
+      action: i.string().indexed(),
+      combo: i.string(),
+      description: i.string(),
+      enabled: i.boolean(),
+      global: i.boolean(),
+      createdAt: i.number().indexed(),
+      updatedAt: i.number(),
+    }),
   },
   {
     noteTasks: {
@@ -240,6 +249,16 @@ export type UserSetting = {
   id: string;
   key: string;
   value: any;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type Shortcut = BaseEntity & {
+  action: string;
+  combo: string;
+  description: string;
+  enabled: boolean;
+  global: boolean;
   createdAt: number;
   updatedAt: number;
 };

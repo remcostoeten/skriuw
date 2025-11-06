@@ -5,21 +5,20 @@
 
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useComponentShortcuts, useGetShortcuts } from '@/modules/shortcuts'
 import { Button } from '@/shared/components/ui/button'
 import {
-  Search,
-  Plus,
-  Settings,
-  MoreVertical,
   ChevronDown,
   ChevronRight,
   FolderPlus,
+  MoreVertical,
+  Plus,
+  Search,
+  Settings,
   ZoomIn,
   ZoomOut
 } from 'lucide-react'
-import { useUnifiedShortcuts } from '@/hooks/use-unified-shortcuts'
-import { shortcutRegistry } from '@/lib/shortcut-registry'
+import { useCallback, useMemo } from 'react'
 import { cn } from 'utils'
 
 export interface SidebarToolbarProps {
@@ -84,48 +83,39 @@ export function SidebarToolbar({
   }, [onZoomOut])
 
   // Register toolbar shortcuts
-  useUnifiedShortcuts([
+  useComponentShortcuts([
     {
-      id: 'toolbar-new-note',
+      id: 'new-note',
       handler: handleNewNote
     },
     {
-      id: 'toolbar-toggle-search',
+      id: 'toggle-search',
       handler: handleToggleSearch
     },
     {
-      id: 'toolbar-new-folder',
+      id: 'new-folder',
       handler: handleNewFolder
     },
     {
-      id: 'toolbar-settings',
+      id: 'open-preferences',
       handler: handleSettings
     },
     {
-      id: 'toolbar-expand',
+      id: 'toggle-folders',
       handler: handleExpand
-    },
-    {
-      id: 'zoom-in',
-      handler: handleZoomIn
-    },
-    {
-      id: 'zoom-out',
-      handler: handleZoomOut
     }
   ], {
-    context: 'sidebar',
     enabled: true
   })
 
-  // Get shortcuts for tooltips
+  // Get shortcuts for tooltips from database
+  const { shortcuts: allShortcuts } = useGetShortcuts()
   const shortcuts = useMemo(() => {
-    const allShortcuts = shortcutRegistry.getAllShortcuts()
-    return new Map(allShortcuts.map(s => [s.action, s.key]))
-  }, [])
+    return new Map(allShortcuts.map(s => [s.action, s.combo]))
+  }, [allShortcuts])
 
-  const getShortcutKey = (action: string) => {
-    return shortcuts.get(action) || ''
+  const getShortcutKey = (action: string): string => {
+    return shortcuts.get(action as any) || ''
   }
 
   return (
@@ -150,7 +140,6 @@ export function SidebarToolbar({
           )}
         </Button>
 
-        {/* New Note button */}
         <Button
           variant="ghost"
           size="sm"
@@ -186,7 +175,7 @@ export function SidebarToolbar({
               onClick={handleZoomOut}
               className="h-6 w-6 p-0"
               disabled={zoom <= 50}
-              title={`Zoom out (${getShortcutKey('zoom-out')})`}
+              title="Zoom out"
             >
               <ZoomOut className="h-3 w-3" />
             </Button>
@@ -201,7 +190,7 @@ export function SidebarToolbar({
               onClick={handleZoomIn}
               className="h-6 w-6 p-0"
               disabled={zoom >= 200}
-              title={`Zoom in (${getShortcutKey('zoom-in')})`}
+              title="Zoom in"
             >
               <ZoomIn className="h-3 w-3" />
             </Button>
