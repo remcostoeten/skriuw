@@ -4,7 +4,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { homedir } from 'os';
 
 export interface StorageConfig {
@@ -12,7 +12,6 @@ export interface StorageConfig {
   logPath: string;
   storageEnabled: boolean;
   loggingEnabled: boolean;
-  storageType: 'sqlite' | 'json';
 }
 
 const DEFAULT_STORAGE_PATH = join(homedir(), '.config', 'sk');
@@ -37,8 +36,7 @@ export class StorageManager {
           storagePath: loaded.storagePath || DEFAULT_STORAGE_PATH,
           logPath: loaded.logPath || join(loaded.storagePath || DEFAULT_STORAGE_PATH, 'logs'),
           storageEnabled: loaded.storageEnabled !== false,
-          loggingEnabled: loaded.loggingEnabled !== false,
-          storageType: loaded.storageType || 'json'
+          loggingEnabled: loaded.loggingEnabled !== false
         };
       } catch (error) {
         return this.getDefaultConfig();
@@ -52,8 +50,7 @@ export class StorageManager {
       storagePath: DEFAULT_STORAGE_PATH,
       logPath: join(DEFAULT_STORAGE_PATH, 'logs'),
       storageEnabled: true,
-      loggingEnabled: true,
-      storageType: 'json'
+      loggingEnabled: true
     };
   }
 
@@ -70,10 +67,15 @@ export class StorageManager {
 
   private saveConfig(): void {
     try {
-      if (!existsSync(DEFAULT_STORAGE_PATH)) {
-        mkdirSync(DEFAULT_STORAGE_PATH, { recursive: true });
+      // Always save to the configured storage path
+      const configDir = this.config.storagePath;
+      if (!existsSync(configDir)) {
+        mkdirSync(configDir, { recursive: true });
       }
-      writeFileSync(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8');
+      const savePath = join(configDir, CONFIG_FILE);
+      writeFileSync(savePath, JSON.stringify(this.config, null, 2), 'utf-8');
+      // Update configPath to point to new location
+      this.configPath = savePath;
     } catch (error) {
       console.error('Failed to save config:', error);
     }
@@ -93,10 +95,6 @@ export class StorageManager {
 
   isLoggingEnabled(): boolean {
     return this.config.loggingEnabled && this.config.storageEnabled;
-  }
-
-  getStorageType(): 'sqlite' | 'json' {
-    return this.config.storageType;
   }
 
   setStoragePath(path: string): void {
@@ -126,11 +124,6 @@ export class StorageManager {
     }
     this.config.loggingEnabled = enabled;
     this.ensureDirectories();
-    this.saveConfig();
-  }
-
-  setStorageType(type: 'sqlite' | 'json'): void {
-    this.config.storageType = type;
     this.saveConfig();
   }
 

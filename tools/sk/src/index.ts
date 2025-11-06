@@ -10,7 +10,7 @@ import { execa } from 'execa';
 import { config, AppConfig, ToolConfig } from './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync, writeFileSync, chmodSync, readFileSync } from 'fs';
 import { StorageManager } from './storage.js';
 import { LogManager } from './logging.js';
 import Fuse from 'fuse.js';
@@ -35,6 +35,8 @@ class CLIManager {
   private runningApps: Map<string, RunningApp> = new Map();
   private rootDir: string = '';
   private isListeningForHotkeys: boolean = false;
+  private hotkeyListener: ((str: string, key: any) => void) | null = null;
+  private sigintHandler: (() => void) | null = null;
   private storageManager: StorageManager;
   private logManager: LogManager;
 
@@ -194,7 +196,6 @@ class CLIManager {
     const appsDir = path.join(this.rootDir, 'apps');
     if (existsSync(appsDir)) {
       // Auto-detect apps in apps/ directory
-      const { readdirSync } = require('fs');
       const appDirs = readdirSync(appsDir, { withFileTypes: true })
         .filter((dirent: any) => dirent.isDirectory())
         .map((dirent: any) => dirent.name);
@@ -237,7 +238,7 @@ class CLIManager {
       });
       return stdout.trim().length > 0;
     } catch {
-      // If lsof fails, try netstat (Windows/Linux fallback)
+      // If lsof fails, try netstat (Linux fallback)
       try {
         const { stdout } = await execa('netstat', ['-an'], {
           cwd: this.rootDir,
@@ -331,6 +332,12 @@ class CLIManager {
           if (runningApp) {
             runningApp.port = detectedPort;
             runningApp.detectedPort = detectedPort;
+            // Re-check port conflict with new port
+            this.checkPortInUse(detectedPort).then(inUse => {
+              if (inUse && !this.runningApps.has(appName)) {
+                console.log(chalk.yellow(`\n[WARN] Detected port ${detectedPort} is in use`));
+              }
+            });
           }
         }
         
@@ -358,6 +365,7 @@ class CLIManager {
       });
 
       proc.on('exit', (code) => {
+        // Ensure cleanup happens
         this.runningApps.delete(appName);
         if (code !== 0 && code !== null) {
           console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
@@ -365,6 +373,14 @@ class CLIManager {
         } else {
           this.logManager.log('info', `${app.displayName} stopped`, appName);
         }
+      });
+
+      proc.on('error', (error) => {
+        // Handle process spawn errors
+        this.runningApps.delete(appName);
+        spinner.fail(chalk.red(`Failed to start ${app.displayName}`));
+        console.log(chalk.red(error.message));
+        this.logManager.log('error', `Process spawn error: ${error.message}`, appName);
       });
 
       // Wait a bit for the process to start
@@ -734,11 +750,23 @@ class CLIManager {
   async restartApp(app: RunningApp): Promise<void> {
     const spinner = ora(`Restarting ${app.displayName}...`).start();
     
-    // Stop the app
-    app.process.kill();
-    this.runningApps.delete(app.name);
+    // Stop the app with graceful shutdown
+    app.process.kill('SIGTERM');
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for clean shutdown with timeout
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        app.process.kill('SIGKILL');
+        resolve();
+      }, 5000);
+      
+      app.process.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    
+    this.runningApps.delete(app.name);
     
     spinner.text = `Starting ${app.displayName}...`;
     
@@ -753,7 +781,21 @@ class CLIManager {
   async stopApp(app: RunningApp): Promise<void> {
     const spinner = ora(`Stopping ${app.displayName}...`).start();
     
-    app.process.kill();
+    app.process.kill('SIGTERM');
+    
+    // Wait for clean shutdown with timeout
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        app.process.kill('SIGKILL');
+        resolve();
+      }, 5000);
+      
+      app.process.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    
     this.runningApps.delete(app.name);
     
     spinner.succeed(chalk.green(`${app.displayName} stopped`));
@@ -798,10 +840,67 @@ class CLIManager {
     if (process.stdin.isTTY) {
       readline.emitKeypressEvents(process.stdin);
       process.stdin.setRawMode(true);
+      
+      this.hotkeyListener = async (str: string, key: any) => {
+        if (key.ctrl && key.name === 'c') {
+          await this.cleanup();
+          process.exit(0);
+          return;
+        }
+
+        const keyName = key.name?.toLowerCase();
+        
+        if (this.runningApps.size === 0) return;
+        
+        // Get first running app for hotkeys
+        const firstApp = Array.from(this.runningApps.values())[0];
+        
+        switch (keyName) {
+          case 'o':
+            await this.openInBrowser(firstApp);
+            break;
+          case 'c':
+            await this.openInEditor(firstApp);
+            break;
+          case 'r':
+            await this.restartApp(firstApp);
+            break;
+          case 's':
+            await this.stopApp(firstApp);
+            break;
+          case 'i':
+            await this.installPackage(firstApp);
+            break;
+          case 'm':
+            process.stdin.setRawMode(false);
+            if (this.hotkeyListener) {
+              process.stdin.removeListener('keypress', this.hotkeyListener);
+              this.hotkeyListener = null;
+            }
+            this.isListeningForHotkeys = false;
+            await this.showMainMenu();
+            break;
+        }
+      };
+      
+      process.stdin.on('keypress', this.hotkeyListener);
     }
 
     console.log(chalk.gray('\nHotkeys: [O]pen | [C]ode | [R]estart | [S]top | [I]nstall | [M]enu'));
     console.log();
+  }
+
+  // Stop hotkey listener
+  stopHotkeyListener(): void {
+    if (!this.isListeningForHotkeys) return;
+    
+    if (this.hotkeyListener && process.stdin.isTTY) {
+      process.stdin.removeListener('keypress', this.hotkeyListener);
+      process.stdin.setRawMode(false);
+      this.hotkeyListener = null;
+    }
+    
+    this.isListeningForHotkeys = false;
   }
 
   // Advanced Menu
@@ -820,6 +919,7 @@ class CLIManager {
             { name: 'Logs Configuration', value: 'advanced:logs:config' },
             new inquirer.Separator(chalk.bold.yellow('── System ──')),
             { name: 'Health Check', value: 'advanced:health' },
+            { name: 'Update Version', value: 'advanced:version' },
             { name: 'Reinstall SK', value: 'advanced:reinstall' },
             new inquirer.Separator(),
             { name: chalk.gray('← Back'), value: 'back' }
@@ -855,6 +955,9 @@ class CLIManager {
       case 'health':
         await this.healthCheck();
         break;
+      case 'version':
+        await this.updateVersion();
+        break;
       case 'reinstall':
         await this.reinstallSK();
         break;
@@ -874,7 +977,6 @@ class CLIManager {
         message: 'Storage Configuration:',
         choices: [
           { name: `Set Storage Path (Current: ${storageConfig.storagePath})`, value: 'set-path' },
-          { name: `Set Storage Type (Current: ${storageConfig.storageType})`, value: 'set-type' },
           { name: `Disable Storage ${storageConfig.storageEnabled ? '' : '(Currently Disabled)'}`, value: 'disable' },
           { name: `Enable Storage ${storageConfig.storageEnabled ? '(Currently Enabled)' : ''}`, value: 'enable' },
           { name: 'Open Storage Path', value: 'open' },
@@ -899,21 +1001,6 @@ class CLIManager {
         ]);
         this.storageManager.setStoragePath(newPath.trim());
         console.log(chalk.green(`Storage path set to: ${newPath}`));
-        break;
-      case 'set-type':
-        const { type } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'type',
-            message: 'Select storage type:',
-            choices: [
-              { name: 'JSON', value: 'json' },
-              { name: 'SQLite', value: 'sqlite' }
-            ]
-          }
-        ]);
-        this.storageManager.setStorageType(type);
-        console.log(chalk.green(`Storage type set to: ${type}`));
         break;
       case 'disable':
         this.storageManager.setStorageEnabled(false);
@@ -998,15 +1085,18 @@ class CLIManager {
       readline.emitKeypressEvents(process.stdin);
       process.stdin.setRawMode(true);
       
-      process.stdin.once('keypress', async (str, key) => {
+      const keypressHandler = async (str: string, key: any) => {
         process.stdin.setRawMode(false);
+        process.stdin.removeListener('keypress', keypressHandler);
         if (key.name === 'e' || key.name === 'E') {
           const logFile = join(this.storageManager.getLogPath(), 'cli.log');
           await execa(config.editor, [logFile]);
           console.log(chalk.green(`\nOpened logs in ${config.editor}`));
         }
         await this.pressEnterToContinue();
-      });
+      };
+      
+      process.stdin.once('keypress', keypressHandler);
     } else {
       await this.pressEnterToContinue();
     }
@@ -1137,6 +1227,110 @@ class CLIManager {
     await this.pressEnterToContinue();
   }
 
+  // Update Version
+  async updateVersion(): Promise<void> {
+    const packageJsonPath = path.join(__dirname, '../package.json');
+    
+    try {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+      const currentVersion = packageJson.version;
+      
+      console.log(chalk.cyan(`\nCurrent version: ${chalk.bold(currentVersion)}\n`));
+      
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to do?',
+          choices: [
+            { name: `Increment Patch Version (${currentVersion} -> ${this.incrementVersion(currentVersion, 'patch')})`, value: 'patch' },
+            { name: `Increment Minor Version (${currentVersion} -> ${this.incrementVersion(currentVersion, 'minor')})`, value: 'minor' },
+            { name: `Increment Major Version (${currentVersion} -> ${this.incrementVersion(currentVersion, 'major')})`, value: 'major' },
+            { name: 'Set Custom Version', value: 'custom' },
+            { name: 'Release & Publish to npm', value: 'release' },
+            new inquirer.Separator(),
+            { name: chalk.gray('← Back'), value: 'back' }
+          ]
+        }
+      ]);
+      
+      if (action === 'back') return;
+      
+      let newVersion: string;
+      
+      if (action === 'custom') {
+        const { version } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'version',
+            message: 'Enter new version (format: x.y.z):',
+            default: currentVersion,
+            validate: (input: string) => {
+              const versionRegex = /^\d+\.\d+\.\d+$/;
+              return versionRegex.test(input) || 'Invalid version format. Use x.y.z (e.g., 1.0.0)';
+            }
+          }
+        ]);
+        newVersion = version;
+      } else if (action === 'release') {
+        // Run the release script
+        console.log(chalk.yellow('\n🚀 Running release script...\n'));
+        try {
+          await execa('npm', ['run', 'release'], {
+            cwd: path.join(__dirname, '..'),
+            stdio: 'inherit'
+          });
+          console.log(chalk.green('\n✅ Release completed successfully!'));
+        } catch (error) {
+          console.log(chalk.red('\n❌ Release failed. See errors above.'));
+        }
+        await this.pressEnterToContinue();
+        return;
+      } else {
+        newVersion = this.incrementVersion(currentVersion, action);
+      }
+      
+      // Update package.json
+      packageJson.version = newVersion;
+      writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n', 'utf-8');
+      
+      console.log(chalk.green(`\n✅ Version updated to ${chalk.bold(newVersion)}`));
+      this.logManager.log('info', `Version updated to ${newVersion}`);
+      
+      await this.pressEnterToContinue();
+    } catch (error) {
+      console.log(chalk.red(`\n[ERROR] Failed to update version: ${error instanceof Error ? error.message : String(error)}`));
+      await this.pressEnterToContinue();
+    }
+  }
+
+  // Helper to increment version
+  private incrementVersion(version: string, type: 'major' | 'minor' | 'patch'): string {
+    const parts = version.split('.');
+    if (parts.length !== 3) {
+      throw new Error(`Invalid version format: ${version}. Expected format: x.y.z`);
+    }
+    
+    const major = parseInt(parts[0], 10);
+    const minor = parseInt(parts[1], 10);
+    const patch = parseInt(parts[2], 10);
+    
+    if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
+      throw new Error(`Invalid version format: ${version}`);
+    }
+    
+    switch (type) {
+      case 'major':
+        return `${major + 1}.0.0`;
+      case 'minor':
+        return `${major}.${minor + 1}.0`;
+      case 'patch':
+        return `${major}.${minor}.${patch + 1}`;
+      default:
+        throw new Error(`Invalid version type: ${type}`);
+    }
+  }
+
   // Reinstall SK
   async reinstallSK(): Promise<void> {
     const { confirm } = await inquirer.prompt([
@@ -1165,7 +1359,6 @@ echo "Reinstall complete!"
 `;
 
     try {
-      const { writeFileSync, chmodSync } = require('fs');
       writeFileSync(scriptPath, script, 'utf-8');
       chmodSync(scriptPath, 0o755);
       
@@ -1185,12 +1378,36 @@ echo "Reinstall complete!"
 
   // Cleanup
   async cleanup(): Promise<void> {
+    // Stop hotkey listener
+    this.stopHotkeyListener();
+    
     console.log(chalk.yellow('\n\nShutting down all apps...'));
+    
+    const shutdownPromises: Promise<void>[] = [];
     
     for (const [name, app] of this.runningApps) {
       console.log(chalk.gray(`Stopping ${app.displayName}...`));
-      app.process.kill();
+      
+      const shutdownPromise = new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          // Force kill after 5 seconds
+          app.process.kill('SIGKILL');
+          resolve();
+        }, 5000);
+        
+        app.process.once('exit', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        
+        app.process.kill('SIGTERM');
+      });
+      
+      shutdownPromises.push(shutdownPromise);
     }
+    
+    // Wait for all processes to shutdown (max 5 seconds each)
+    await Promise.all(shutdownPromises);
     
     this.runningApps.clear();
     console.log(chalk.green('[SUCCESS] All apps stopped'));
@@ -1305,18 +1522,37 @@ echo "Reinstall complete!"
       // Handle cleanup
       proc.on('exit', (code) => {
         this.runningApps.delete(app.name);
+        this.stopHotkeyListener();
         if (code !== 0 && code !== null) {
           console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
         }
         process.exit(code || 0);
       });
 
-      // Handle SIGINT
-      process.on('SIGINT', () => {
-        proc.kill();
+      proc.on('error', (error) => {
         this.runningApps.delete(app.name);
-        process.exit(0);
+        this.stopHotkeyListener();
+        console.log(chalk.red(`\n[ERROR] Failed to start ${app.displayName}: ${error.message}`));
+        process.exit(1);
       });
+
+      // Handle SIGINT - remove any existing handler first
+      if (this.sigintHandler) {
+        process.removeListener('SIGINT', this.sigintHandler);
+      }
+      
+      this.sigintHandler = () => {
+        this.stopHotkeyListener();
+        proc.kill('SIGTERM');
+        this.runningApps.delete(app.name);
+        
+        // Force exit after timeout
+        setTimeout(() => {
+          process.exit(0);
+        }, 2000);
+      };
+      
+      process.on('SIGINT', this.sigintHandler);
 
     } else {
       // Multiple apps: show menu
@@ -1421,11 +1657,25 @@ echo "Reinstall complete!"
   async restartAppDirect(app: RunningApp): Promise<void> {
     console.log(chalk.yellow(`[INFO] Restarting ${app.displayName}...`));
     
-    // Stop current process
-    app.process.kill();
+    // Stop current process with graceful shutdown
+    app.process.kill('SIGTERM');
+    
+    // Wait for clean shutdown with timeout
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        app.process.kill('SIGKILL');
+        resolve();
+      }, 5000);
+      
+      app.process.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    
     this.runningApps.delete(app.name);
     
-    // Wait for clean shutdown
+    // Wait a bit before restarting
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Restart
@@ -1438,8 +1688,24 @@ echo "Reinstall complete!"
 
   async stopAppDirect(app: RunningApp): Promise<void> {
     console.log(chalk.yellow(`[INFO] Stopping ${app.displayName}...`));
-    app.process.kill();
+    
+    app.process.kill('SIGTERM');
+    
+    // Wait for clean shutdown with timeout
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        app.process.kill('SIGKILL');
+        resolve();
+      }, 5000);
+      
+      app.process.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    
     this.runningApps.delete(app.name);
+    this.stopHotkeyListener();
     process.exit(0);
   }
 
@@ -1528,25 +1794,37 @@ echo "Reinstall complete!"
 
     proc.on('exit', (code) => {
       this.runningApps.delete(app.name);
+      this.stopHotkeyListener();
       if (code !== 0 && code !== null) {
         console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
       }
       process.exit(code || 0);
     });
+
+    proc.on('error', (error) => {
+      this.runningApps.delete(app.name);
+      this.stopHotkeyListener();
+      console.log(chalk.red(`\n[ERROR] Failed to start ${app.displayName}: ${error.message}`));
+      process.exit(1);
+    });
   }
 
   // Start the CLI
   async start(): Promise<void> {
-    // Handle process termination
-    process.on('SIGINT', async () => {
+    // Handle process termination - use single handler
+    const signalHandler = async () => {
       await this.cleanup();
       process.exit(0);
-    });
-
-    process.on('SIGTERM', async () => {
-      await this.cleanup();
-      process.exit(0);
-    });
+    };
+    
+    // Remove any existing handlers first
+    if (this.sigintHandler) {
+      process.removeListener('SIGINT', this.sigintHandler);
+    }
+    
+    this.sigintHandler = signalHandler;
+    process.on('SIGINT', signalHandler);
+    process.on('SIGTERM', signalHandler);
 
     // Show main menu
     await this.showMainMenu();
