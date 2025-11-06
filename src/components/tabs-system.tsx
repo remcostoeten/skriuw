@@ -4,6 +4,7 @@ import type { Note } from '@/api/db/schema';
 import { Button } from '@/shared/components/ui/button';
 import { GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { addDraggingClass, removeDraggingClass } from '@/components/file-tree/drag-animations';
 
 interface Tab {
   id: string;
@@ -35,6 +36,7 @@ export function TabSystem({
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDraggedTab(index);
     e.dataTransfer.effectAllowed = 'move';
+    addDraggingClass();
 
     // Create a custom drag image
     const dragImage = e.target as HTMLElement;
@@ -58,6 +60,7 @@ export function TabSystem({
   const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     setDragOverTab(null);
+    removeDraggingClass();
 
     if (draggedTab !== null && draggedTab !== dropIndex) {
       onTabReorder(draggedTab, dropIndex);
@@ -69,6 +72,7 @@ export function TabSystem({
   const handleDragEnd = useCallback(() => {
     setDraggedTab(null);
     setDragOverTab(null);
+    removeDraggingClass();
   }, []);
 
   const handleTabClose = useCallback((e: React.MouseEvent, tabId: string) => {
