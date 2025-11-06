@@ -1,0 +1,30 @@
+{
+  "name": "@skriuw/cli-manager",
+  "version": "1.0.0",
+  "description": "Interactive CLI tool for managing Skriuw monorepo",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "skriuw": "./dist/index.js",
+    "sk": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "inquirer": "^12.10.0",
+    "ora": "^9.0.0",
+    "open": "^10.2.0",
+    "execa": "^9.5.2"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
+
