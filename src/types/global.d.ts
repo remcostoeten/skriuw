@@ -8,18 +8,18 @@ declare global {
 	 * @example
 	 * ```tsx
 	 * type ComponentProps = {
-	 *   children: ChildrenProp
+	 *   children: Children
 	 * }
 	 * ```
 	 *
 	 * @example
 	 * ```tsx
-	 * const MyComponent = ({ children }: { children: ChildrenProp }) => {
+	 * const MyComponent = ({ children }: { children: Children }) => {
 	 *   return <div>{children}</div>
 	 * }
 	 * ```
 	 */
-	type ChildrenProp = ReactNode
+	type Children = ReactNode
 }
 
-export {}
+export { }
