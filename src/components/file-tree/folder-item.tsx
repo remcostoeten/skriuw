@@ -1,9 +1,10 @@
 import type { Folder as FolderType, Note } from "@/api/db/schema";
+import type { EntityId } from "@/types";
 import { cn } from "utils";
 import { Folder, FolderOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FileItem } from "./file-item";
-import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop, addDraggingClass, removeDraggingClass } from "./drag-animations";
 
 type props = {
     name: string;
@@ -126,6 +127,7 @@ export const FolderItem = ({
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
         hapticDragStart();
+        addDraggingClass();
         onDragStart?.();
     };
 
@@ -134,6 +136,12 @@ export const FolderItem = ({
             clearTimeout(expandTimeoutRef.current);
             expandTimeoutRef.current = null;
         }
+        removeDraggingClass();
+        // Blur the element if it's focused
+        if (folderRef.current && folderRef.current === document.activeElement) {
+            folderRef.current.blur();
+        }
+        onDragLeave?.();
         onDragEnd?.();
     };
 
@@ -282,7 +290,8 @@ export const FolderItem = ({
                     "text-secondary-foreground/80 hover:text-foreground",
                     hasChildren && !isEditing && "hover:bg-accent",
                     isEditing && "select-none focus:outline-none",
-                    getDragClasses({ isDragged, isEditing, isFocused })
+                    "ring-0 ring-offset-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+                    getDragClasses({ isDragged, isEditing, isFocused, isDragOver, dropPosition })
                 )}
                 style={getDragStyles({ level })}
                 onClick={!isEditing && !isDragged && hasChildren ? onToggle : undefined}

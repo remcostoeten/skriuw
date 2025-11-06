@@ -55,6 +55,10 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     }
   }, [handleError]);
 
+  // Timer ref for title debouncing
+  const titleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTitleUpdateRef = useRef<number>(0);
+
   // Silent save function that doesn't update UI state
   const silentSaveRef = useRef<((content: string) => Promise<void>) | null>(null);
 
@@ -121,6 +125,44 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     noteContentRef.current = note.content;
     noteIdRef.current = note.id;
   }, [note.content, note.id]);
+
+  const formatMarkdownContent = useCallback((pastedText: string): string => {
+    // Clean up common markdown formatting issues
+    return pastedText
+      // Remove excessive empty lines at the start
+      .replace(/^\n+/, '')
+      // Convert multiple consecutive empty lines to just two
+      .replace(/\n{3,}/g, '\n\n')
+      // Ensure proper spacing around headers
+      .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+      .replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, '$1\n\n$2')
+      // Ensure proper list formatting
+      .replace(/\n([-\*+]\s)/g, '\n$1')
+      // Clean up bullet points that should be lists
+      .replace(/^([^\n\-\*\+]+)\n([-\*+]\s)/gm, '$1\n\n$2')
+      // Fix blockquotes
+      .replace(/([^\n>])\n(>\s)/g, '$1\n\n$2')
+      .replace(/(>\s[^\n]+)\n([^\n>])/g, '$1\n\n$2')
+      // Ensure code blocks are properly formatted
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+        const trimmedCode = code.trim();
+        return `\`\`\`${lang || ''}\n${trimmedCode}\n\`\`\``;
+      })
+      .trim();
+  }, []);
+
+  const handlePaste = useCallback(({ event, editor }: { event: ClipboardEvent; editor: any }) => {
+    const pastedText = event.clipboardData?.getData('text/plain');
+    if (!pastedText) return false;
+
+    // Format the pasted markdown content
+    const formattedContent = formatMarkdownContent(pastedText);
+
+    // Insert the formatted content
+    editor.chain().focus().insertContent(formattedContent).run();
+
+    return true; // Prevent default paste behavior
+  }, [formatMarkdownContent]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -316,6 +358,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
         class: 'tiptap focus:outline-none min-h-[300px] text-foreground [&_*]:text-foreground',
       },
       handleClick: handleMentionClick,
+      handlePaste: handlePaste,
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -335,7 +378,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
         }, 3000); // 3 seconds of inactivity
       }
     },
-  }, [note.id]);
+  }, [note.id, handlePaste]);
 
   // Set up focus and blur event listeners
   useEffect(() => {
@@ -449,6 +492,9 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
+      if (titleTimerRef.current) {
+        clearTimeout(titleTimerRef.current);
+      }
     };
   }, []);
 
@@ -463,6 +509,12 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       prevNoteRef.current.title !== note.title;
 
     if (noteChanged) {
+      // Reset title update timestamp when switching notes
+      const isNewNote = !prevNoteRef.current || prevNoteRef.current.id !== note.id;
+      if (isNewNote) {
+        lastTitleUpdateRef.current = 0;
+      }
+      
       setTitle(note.title);
       if (editor && note.content !== editor.getHTML()) {
         // prevent triggering onUpdate when setting from outside
@@ -473,12 +525,35 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     }
   }, [note.id, note.content, note.title, editor]);
 
-  const handleTitleChange = async (newTitle: string) => {
+  const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    await withSyncTracking(
-      () => updateNote(note.id, { title: newTitle }),
-      'update note title'
-    );
+    
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastTitleUpdateRef.current;
+    
+    // Clear existing timer
+    if (titleTimerRef.current) {
+      clearTimeout(titleTimerRef.current);
+    }
+
+    // If it's been more than 500ms since last update, update immediately
+    // This makes the first keystroke (or after a pause) feel instant
+    if (timeSinceLastUpdate > 500) {
+      lastTitleUpdateRef.current = now;
+      withSyncTracking(
+        () => updateNote(note.id, { title: newTitle }),
+        'update note title'
+      );
+    } else {
+      // For rapid keystrokes, debounce to prevent event storms
+      titleTimerRef.current = setTimeout(async () => {
+        lastTitleUpdateRef.current = Date.now();
+        await withSyncTracking(
+          () => updateNote(note.id, { title: newTitle }),
+          'update note title'
+        );
+      }, 300);
+    }
   };
 
 

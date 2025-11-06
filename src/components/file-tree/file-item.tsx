@@ -1,6 +1,6 @@
 import { cn } from "utils";
 import { useEffect, useRef, useState } from "react";
-import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop } from "./drag-animations";
+import { getDragClasses, getDragStyles, hapticDragStart, hapticDrop, addDraggingClass, removeDraggingClass } from "./drag-animations";
 
 type props = {
     id: string;
@@ -20,7 +20,7 @@ type props = {
     onFocus?: () => void;
 }
 
-export const FileItem = ({
+export function FileItem({
     id,
     name,
     path,
@@ -36,7 +36,7 @@ export const FileItem = ({
     onNoteRename,
     isFocused = false,
     onFocus,
-}: props) => {
+}: props) {
     const [dragOverState, setDragOverState] = useState<'before' | 'after' | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(name);
@@ -90,11 +90,16 @@ export const FileItem = ({
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
         hapticDragStart();
+        addDraggingClass();
         onDragStart?.();
     };
 
     const handleDragEnd = () => {
         setDragOverState(null);
+        removeDraggingClass();
+        if (noteRef.current && noteRef.current === document.activeElement) {
+            noteRef.current.blur();
+        }
         onDragEnd?.();
     };
 
@@ -196,11 +201,12 @@ export const FileItem = ({
                     "flex items-center gap-2 justify-start",
                     "hover:text-foreground",
                     "outline-none border-none",
+                    "ring-0 ring-offset-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0",
                     isActive && !isEditing
                         ? "bg-muted text-foreground"
                         : "text-secondary-foreground/80 hover:bg-muted/50",
                     isEditing && "select-none focus:outline-none",
-                    getDragClasses({ isDragged, isEditing, isFocused, isActive })
+                    getDragClasses({ isDragged, isEditing, isFocused, isActive, isDragOver: dragOverState !== null, dropPosition: dragOverState || null })
                 )}
                 style={getDragStyles({ level })}
                 tabIndex={isFocused ? 0 : -1}
@@ -229,4 +235,4 @@ export const FileItem = ({
             </div>
         </div>
     );
-};
+}

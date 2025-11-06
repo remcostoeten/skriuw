@@ -1,4 +1,5 @@
 import type { Task } from '@/api/db/schema';
+import { TaskPriority } from '@/types';
 
 export type TaskSort = 'priority' | 'dueAt' | 'position' | 'createdAt';
 export type TaskFilter = {
@@ -9,11 +10,11 @@ export type TaskFilter = {
     completed?: boolean;
 };
 
-const priorityOrder: Record<Task['priority'], number> = {
-    urgent: 0,
-    high: 1,
-    med: 2,
-    low: 3,
+const priorityOrder: Record<TaskPriority, number> = {
+    [TaskPriority.URGENT]: 0,
+    [TaskPriority.HIGH]: 1,
+    [TaskPriority.MEDIUM]: 2,
+    [TaskPriority.LOW]: 3,
 };
 
 export function sortTasks(tasks: Task[], sort: TaskSort = 'position'): Task[] {

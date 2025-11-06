@@ -482,11 +482,22 @@
 		display: none !important;
 	}
 
-	/* Disable pointer events globally, enable only for drag containers */
-	body.dragging * {
+	/* Disable pointer events for input elements during drag to prevent typing interference */
+	body.dragging input,
+	body.dragging textarea,
+	body.dragging [contenteditable="true"] {
 		pointer-events: none;
 	}
 
+	/* Keep pointer events enabled for draggable elements and drop zones */
+	body.dragging [draggable="true"],
+	body.dragging [draggable="true"] *,
+	body.dragging nav,
+	body.dragging nav *,
+	body.dragging [role="tree"],
+	body.dragging [role="tree"] *,
+	body.dragging [role="treeitem"],
+	body.dragging [role="treeitem"] *,
 	body.dragging .drag-container,
 	body.dragging .drag-container * {
 		pointer-events: auto;

@@ -1,4 +1,18 @@
 import { i } from '@instantdb/react';
+import {
+  EntityId,
+  Timestamp,
+  Timestamps,
+  TimestampedEntity,
+  Positionable,
+  IdentifiableEntity,
+  BaseEntity,
+  TaskStatus,
+  TaskPriority,
+  ProjectStatus,
+  ActivityType,
+  Tags
+} from '../../types';
 
 export const schema = i.graph(
   {
@@ -156,30 +170,23 @@ export const schema = i.graph(
 
 export type Schema = typeof schema;
 
-export type Note = {
-  id: string;
+export type Note = BaseEntity & {
   title: string;
   content: string;
-  position: number;
-  createdAt: number;
-  updatedAt: number;
   tasks?: Task[];
   folder?: Folder;
 };
 
-export type Task = {
-  id: string;
+export type Task = BaseEntity & {
   content: string;
   completed: boolean;
-  position: number;
-  createdAt: number;
-  status: 'todo' | 'in_progress' | 'blocked' | 'done';
-  priority: 'low' | 'med' | 'high' | 'urgent';
-  dueAt?: number;
-  tags?: string | string[];
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueAt?: Timestamp;
+  tags?: Tags;
   recurrence?: string;
-  nextRunAt?: number;
-  reminderAt?: number;
+  nextRunAt?: Timestamp;
+  reminderAt?: Timestamp;
   note?: Note;
   project?: Project;
   parent?: Task;
@@ -190,41 +197,29 @@ export type Task = {
   activity?: Activity[];
 };
 
-export type Project = {
-  id: string;
+export type Project = BaseEntity & {
   title: string;
   scope?: string;
   description?: string;
-  status: 'active' | 'completed' | 'archived';
-  position: number;
-  createdAt: number;
-  updatedAt: number;
+  status: ProjectStatus;
   tasks?: Task[];
 };
 
-export type Comment = {
-  id: string;
+export type Comment = TimestampedEntity & IdentifiableEntity & {
   body: string;
-  createdAt: number;
   task?: Task;
 };
 
-export type Activity = {
-  id: string;
-  type: string;
+export type Activity = TimestampedEntity & IdentifiableEntity & {
+  type: ActivityType;
   message: string;
-  createdAt: number;
   meta?: string;
   task?: Task;
 };
 
-export type Folder = {
-  id: string;
+export type Folder = Timestamps & Positionable & {
+  id: EntityId;
   name: string;
-  position: number;
-  createdAt: number;
-  updatedAt: number;
-  deletedAt?: number;
   parent?: Folder;
   children?: Folder[];
   notes?: Note[];

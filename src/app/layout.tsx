@@ -1,4 +1,5 @@
 import { Navigation } from '@/components/navigation'
+import { Header } from '@/components/ui/header'
 import { Providers } from '@/components/providers'
 import { metadata, viewport } from '@/core/config/metadata'
 import { geistSans, geistMono } from '@/core/config/fonts'
@@ -74,8 +75,9 @@ export default function RootLayout({
 				suppressHydrationWarning
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
+				<Header />
 				<Navigation />
-				<div className="sm:pl-12 pb-16 sm:pb-0">
+				<div className="sm:pl-12 pt-9 pb-16 sm:pb-0">
 					<Providers>{children}</Providers>
 				</div>
 			</body>
