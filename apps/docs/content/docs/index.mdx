@@ -1,13 +1,132 @@
 ---
-title: Hello World
-description: Your first document
+title: Skriuw Documentation
+description: Complete documentation for the Skriuw monorepo - a local-first note-taking application
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+# Skriuw Documentation
 
-## What is Next?
+Welcome to the Skriuw documentation! Skriuw is a local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
+
+## What is Skriuw?
+
+Skriuw is a modern note-taking application that combines the best of desktop and web experiences:
+
+- **Local-First Architecture** - Your data lives on your device first
+- **Near-Instant Sync** - Changes sync across devices seamlessly
+- **Cross-Platform** - Desktop app (Tauri) and web app (Next.js)
+- **Offline Support** - Works without an internet connection
+- **Real-Time Collaboration** - Powered by InstantDB
+
+## Project Structure
+
+The Skriuw monorepo consists of:
+
+### Applications
+
+- **Tauri App** (`apps/instantdb`) - Desktop application built with Tauri 2.0
+- **Web App** (`apps/instantdb`) - Next.js web application
+- **Documentation** (`apps/docs`) - This documentation site (Fumadocs)
+
+### Tools
+
+- **CLI Manager** (`tools/cli-manager`) - Interactive CLI for managing the monorepo
+- **Seeder** (`tools/seeder`) - Database seeding utilities
+
+## Quick Start
+
+### Using the CLI Manager (Recommended)
+
+The easiest way to get started:
+
+```bash
+# From project root
+bun run cli
+
+# Or use the short alias
+bun run sk
+```
+
+This launches an interactive menu where you can:
+- Start/stop apps
+- Build for production
+- Deploy to Vercel
+- Manage running processes
+
+### Manual Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Run the main app
+cd apps/instantdb
+bun run dev
+
+# Run the docs site
+cd apps/docs
+bun run dev
+```
+
+## Documentation Sections
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card 
+    title="CLI Manager" 
+    href="/docs/cli" 
+    description="Interactive command-line tool for managing the monorepo, running apps, building, and deploying"
+  />
+  <Card 
+    title="Tauri App" 
+    href="/docs/tauri" 
+    description="Desktop application documentation - architecture, development, and deployment"
+  />
+  <Card 
+    title="Web App" 
+    href="/docs/web" 
+    description="Next.js web application documentation - features, API, and deployment"
+  />
+  <Card 
+    title="Seeder Tool" 
+    href="/docs/seeder" 
+    description="Database seeding utilities and how to populate your database"
+  />
 </Cards>
+
+## Tech Stack
+
+### Core Technologies
+
+- **Tauri 2.0** - Desktop application framework
+- **Next.js 15** - React framework with TypeScript
+- **InstantDB** - Real-time database with offline support
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **TipTap** - Rich text editor
+
+### Development Tools
+
+- **Bun** - Fast JavaScript runtime and package manager
+- **Fumadocs** - Documentation framework
+- **Vercel** - Deployment platform
+
+## Getting Help
+
+- **CLI Issues?** Check the [CLI Troubleshooting](/docs/cli/troubleshooting) guide
+- **Development Questions?** See the [Tauri App](/docs/tauri) or [Web App](/docs/web) docs
+- **Database Setup?** Review the [Seeder Tool](/docs/seeder) documentation
+
+## Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test using the CLI manager
+5. Submit a pull request
+
+For more details, see the individual documentation sections for each component.
+
+## License
+
+MIT License - see LICENSE file for details.
