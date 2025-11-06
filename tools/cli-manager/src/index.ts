@@ -10,6 +10,7 @@ import { execa } from 'execa';
 import { config, AppConfig } from './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,26 @@ class CLIManager {
   private isListeningForHotkeys: boolean = false;
 
   constructor() {
-    // Navigate to project root (3 levels up from dist/index.js or src/index.ts)
+    // Navigate to project root
+    // From dist/index.js: ../../.. gets to project root
+    // From src/index.ts (dev): ../../.. gets to project root
+    // More robust: find package.json or go up until we find apps/ directory
+    let currentDir = path.resolve(__dirname);
+    
+    // Try to find project root by looking for apps/ directory or root package.json
+    for (let i = 0; i < 5; i++) {
+      const appsDir = path.join(currentDir, 'apps');
+      const packageJson = path.join(currentDir, 'package.json');
+      
+      if (existsSync(appsDir) && existsSync(packageJson)) {
+        this.rootDir = currentDir;
+        return;
+      }
+      
+      currentDir = path.resolve(currentDir, '..');
+    }
+    
+    // Fallback to 3 levels up (original behavior)
     this.rootDir = path.resolve(__dirname, '../../..');
   }
 
@@ -119,13 +139,13 @@ class CLIManager {
   async runApp(appName: string): Promise<void> {
     const app = config.apps.find(a => a.name === appName);
     if (!app) {
-      console.log(chalk.red(`\n✗ App "${appName}" not found`));
+      console.log(chalk.red(`\n[ERROR] App "${appName}" not found`));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
 
     if (this.runningApps.has(appName)) {
-      console.log(chalk.yellow(`\n⚠ ${app.displayName} is already running`));
+      console.log(chalk.yellow(`\n[WARN] ${app.displayName} is already running`));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
@@ -178,7 +198,7 @@ class CLIManager {
       proc.on('exit', (code) => {
         this.runningApps.delete(appName);
         if (code !== 0 && code !== null) {
-          console.log(chalk.red(`\n✗ ${app.displayName} exited with code ${code}`));
+          console.log(chalk.red(`\n[ERROR] ${app.displayName} exited with code ${code}`));
         }
       });
 
@@ -217,7 +237,7 @@ class CLIManager {
   // Run all apps
   async runAllApps(): Promise<void> {
     console.clear();
-    console.log(chalk.bold.cyan('\n🚀 Starting all apps...\n'));
+    console.log(chalk.bold.cyan('\nStarting all apps...\n'));
 
     for (const app of config.apps) {
       if (!this.runningApps.has(app.name)) {
@@ -233,7 +253,7 @@ class CLIManager {
   async buildApp(appName: string): Promise<void> {
     const app = config.apps.find(a => a.name === appName);
     if (!app) {
-      console.log(chalk.red(`\n✗ App "${appName}" not found`));
+      console.log(chalk.red(`\n[ERROR] App "${appName}" not found`));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
@@ -276,7 +296,7 @@ class CLIManager {
   // Build all apps
   async buildAllApps(): Promise<void> {
     console.clear();
-    console.log(chalk.bold.cyan('\n🔨 Building all apps...\n'));
+    console.log(chalk.bold.cyan('\nBuilding all apps...\n'));
 
     const startTime = Date.now();
     let successCount = 0;
@@ -297,7 +317,7 @@ class CLIManager {
         successCount++;
       } catch (error) {
         failCount++;
-        console.log(chalk.red(`✗ Failed to build ${app.displayName}`));
+        console.log(chalk.red(`[ERROR] Failed to build ${app.displayName}`));
       }
     }
 
@@ -321,7 +341,7 @@ class CLIManager {
   // Deploy
   async deploy(target: string): Promise<void> {
     if (target !== 'staging' && target !== 'production') {
-      console.log(chalk.red(`\n✗ Invalid deploy target: ${target}`));
+      console.log(chalk.red(`\n[ERROR] Invalid deploy target: ${target}`));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
@@ -376,7 +396,7 @@ class CLIManager {
   // Manage running apps (hotkeys)
   async manageRunningApps(): Promise<void> {
     if (this.runningApps.size === 0) {
-      console.log(chalk.yellow('\n⚠ No apps are currently running'));
+      console.log(chalk.yellow('\n[INFO] No apps are currently running'));
       await this.pressEnterToContinue();
       return this.showMainMenu();
     }
@@ -542,13 +562,13 @@ class CLIManager {
       process.stdin.setRawMode(true);
     }
 
-    console.log(chalk.gray('\n💡 Hotkeys: [O]pen | [C]ode | [R]estart | [S]top | [I]nstall | [M]enu'));
+    console.log(chalk.gray('\nHotkeys: [O]pen | [C]ode | [R]estart | [S]top | [I]nstall | [M]enu'));
     console.log();
   }
 
   // Cleanup
   async cleanup(): Promise<void> {
-    console.log(chalk.yellow('\n\n🛑 Shutting down all apps...'));
+    console.log(chalk.yellow('\n\nShutting down all apps...'));
     
     for (const [name, app] of this.runningApps) {
       console.log(chalk.gray(`Stopping ${app.displayName}...`));
@@ -556,7 +576,7 @@ class CLIManager {
     }
     
     this.runningApps.clear();
-    console.log(chalk.green('✓ All apps stopped'));
+    console.log(chalk.green('[SUCCESS] All apps stopped'));
     console.log(chalk.cyan('\nGoodbye!\n'));
   }
 
