@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Skriuw CLI Manager - Quick Launch Script
+
+cd "$(dirname "$0")"
+bun run sk
+

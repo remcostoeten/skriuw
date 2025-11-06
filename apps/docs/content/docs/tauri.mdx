@@ -1,0 +1,139 @@
+---
+title: Tauri App
+description: Desktop application documentation for Skriuw
+---
+
+# Tauri App
+
+The Skriuw desktop application is built with Tauri 2.0, providing a native desktop experience across Windows, macOS, and Linux.
+
+## Overview
+
+The Tauri app (`apps/instantdb`) combines:
+
+- **Tauri 2.0** - Rust-based desktop framework
+- **Next.js** - React frontend
+- **InstantDB** - Real-time database with offline support
+- **TypeScript** - Type-safe development
+
+## Architecture
+
+### Frontend
+- Next.js 15 with React 18
+- Tailwind CSS for styling
+- TipTap for rich text editing
+- InstantDB React hooks for data management
+
+### Backend
+- Tauri 2.0 Rust backend
+- Native file system access
+- System integration APIs
+- Secure IPC communication
+
+## Development
+
+### Prerequisites
+
+- Rust toolchain
+- Bun 1.1.0+
+- Node.js 18+
+
+### Running Locally
+
+Using the CLI Manager:
+
+```bash
+bun run cli
+# Select "Run Tauri App"
+```
+
+Or manually:
+
+```bash
+cd apps/instantdb
+bun run tauri:dev
+```
+
+### Building
+
+Build for production:
+
+```bash
+bun run cli
+# Select "Build Tauri App"
+```
+
+Or manually:
+
+```bash
+cd apps/instantdb
+bun run build
+bun run tauri:build
+```
+
+## Platform-Specific Builds
+
+### Linux (DEB)
+
+```bash
+bun run deb:build
+bun run deb:install
+```
+
+### macOS
+
+```bash
+bun run tauri:build
+# Output in src-tauri/target/release/bundle/macos/
+```
+
+### Windows
+
+```bash
+bun run tauri:build
+# Output in src-tauri/target/release/bundle/msi/
+```
+
+## Configuration
+
+Tauri configuration is in `apps/instantdb/src-tauri/tauri.conf.json`:
+
+- App metadata
+- Window settings
+- Security permissions
+- Build options
+
+## Features
+
+- Native file system access
+- System tray integration
+- Global shortcuts
+- Auto-updater support
+- Offline-first data storage
+
+## Troubleshooting
+
+### Build Issues
+
+If Tauri build fails:
+
+1. Ensure Rust is installed: `rustc --version`
+2. Check Rust toolchain: `rustup show`
+3. Clean build: `cd src-tauri && cargo clean`
+4. Rebuild: `bun run tauri:build`
+
+### Runtime Errors
+
+Check the Tauri console for detailed error messages:
+
+```bash
+bun run tauri:dev
+# Check terminal output for errors
+```
+
+## Next Steps
+
+- Learn about the [Web App](/docs/web)
+- Check the [CLI Manager](/docs/cli) for development tools
+- Review [Seeder Tool](/docs/seeder) for database setup
+

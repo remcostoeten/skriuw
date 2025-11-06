@@ -1,0 +1,496 @@
+---
+title: Usage Guide
+description: Detailed usage examples and workflows for SK
+---
+
+# Usage Guide
+
+This guide walks you through common workflows and advanced usage patterns for SK.
+
+## Basic Workflows
+
+### Starting a Development Session
+
+**Goal**: Start working on the Tauri app
+
+1. Open terminal in project root
+2. Run `bun run cli`
+3. Select "Run Tauri App (port 42069)"
+4. Wait for "Running" status
+5. App is now accessible at `http://localhost:42069`
+
+The terminal remains interactive while the app runs in the background.
+
+### Running Multiple Apps
+
+**Goal**: Work on both the main app and docs simultaneously
+
+1. Run `bun run cli`
+2. Select "Run All Apps"
+3. Both apps start automatically
+4. Return to menu to manage them
+
+Or start them individually:
+1. Select "Run Tauri App"
+2. Return to menu (apps keep running)
+3. Select "Run Docs App"
+4. Both are now running
+
+### Making Quick Changes
+
+**Goal**: Open an app in your editor, make changes, see live reload
+
+1. With app running, select "Manage Running Apps"
+2. Choose the app (e.g., Tauri App)
+3. Press `C` to open in Cursor
+4. Make your changes
+5. Save - app auto-reloads (Next.js hot reload)
+
+### Installing Dependencies
+
+**Goal**: Add a new package without stopping the dev server
+
+1. Select "Manage Running Apps"
+2. Choose your app
+3. Press `I` for Install
+4. Enter package name (e.g., "lodash")
+5. Press Enter
+6. Package installs while app keeps running
+
+### Testing in Browser
+
+**Goal**: Quickly open the running app in your browser
+
+1. Select "Manage Running Apps"
+2. Choose the app
+3. Press `O` for Open
+4. Browser opens to `http://localhost:[port]`
+
+### Restarting After Issues
+
+**Goal**: App behaving strangely, need fresh start
+
+1. Select "Manage Running Apps"
+2. Choose the problematic app
+3. Press `R` for Restart
+4. App stops, then starts fresh
+5. Check status box for "Running"
+
+## Build Workflows
+
+### Building a Single App
+
+**Goal**: Create production build of docs app
+
+1. Run `bun run cli`
+2. Select "Build Docs App"
+3. Watch build progress (terminal shows output)
+4. Review build summary
+5. Press Enter to return to menu
+
+### Building Everything
+
+**Goal**: Prepare all apps for deployment
+
+1. Run `bun run cli`
+2. Select "Build All Apps"
+3. CLI builds each app sequentially
+4. Review comprehensive summary:
+   - Total apps
+   - Successful builds
+   - Failed builds (if any)
+   - Total duration
+
+### Incremental Builds
+
+**Goal**: Build only what changed
+
+Since the CLI runs standard build commands, incremental builds work automatically (if your build tool supports them).
+
+For Next.js:
+- Subsequent builds are faster
+- Only changed pages rebuild
+- Cache is preserved
+
+## Deployment Workflows
+
+### Deploying to Staging
+
+**Goal**: Create a preview deployment for testing
+
+1. Ensure Vercel CLI is installed: `npm i -g vercel`
+2. Run `bun run cli`
+3. Select "Deploy to Staging"
+4. CLI runs `vercel deploy`
+5. Preview URL is generated
+6. Test the preview
+
+### Deploying to Production
+
+**Goal**: Push to production after testing
+
+1. Test thoroughly on staging first
+2. Run `bun run cli`
+3. Select "Deploy to Production"
+4. CLI runs `vercel deploy --prod`
+5. Confirm deployment (Vercel prompts)
+6. Production URL updated
+
+### Complete Release Workflow
+
+**Goal**: Full release cycle from code to production
+
+1. **Develop**: Run apps locally, make changes
+2. **Test**: Use running apps to verify features
+3. **Build**: "Build All Apps" to ensure no errors
+4. **Stage**: "Deploy to Staging" for QA
+5. **Verify**: Test staging deployment
+6. **Release**: "Deploy to Production"
+7. **Confirm**: Check production URL
+
+## Version Management
+
+### Updating Version from CLI
+
+**Goal**: Update package version before release
+
+1. Run `bun run cli`
+2. Navigate to "Advanced Options"
+3. Select "Update Version"
+4. Choose version increment type:
+   - **Patch**: `1.0.0` → `1.0.1` (bug fixes)
+   - **Minor**: `1.0.0` → `1.1.0` (new features)
+   - **Major**: `1.0.0` → `2.0.0` (breaking changes)
+   - **Custom**: Set any version manually
+5. Version is updated in `package.json`
+
+### Releasing to npm
+
+**Goal**: Publish new version to npm registry
+
+**Option 1: Using CLI**
+1. Navigate to "Advanced Options" → "Update Version"
+2. Select "Release & Publish to npm"
+3. Script automatically:
+   - Increments patch version
+   - Builds the package
+   - Publishes to npm
+   - Creates git tag
+4. Optionally push with `npm run release:push`
+
+**Option 2: Using Release Script**
+```bash
+cd tools/sk
+npm run release        # Release without pushing git
+npm run release:push   # Release and push to git
+```
+
+The release script:
+- Increments version (0.0.0 → 1.0.0, then 1.0.1, 1.0.2, etc.)
+- Builds TypeScript
+- Publishes to npm (public access)
+- Creates git tag (`v1.0.1`)
+- Optionally pushes changes and tags
+
+## Advanced Usage
+
+### Working on Specific Apps
+
+**Goal**: Only work on docs, not the main app
+
+1. Run `bun run cli`
+2. Select "Run Docs App" only
+3. Work on documentation
+4. When done, select "Manage Running Apps"
+5. Press `S` to stop
+
+### Parallel Development
+
+**Goal**: Two features in different apps
+
+1. Run "Run All Apps"
+2. Open Tauri app with `C` hotkey
+3. Work on feature A
+4. Open Docs app with `C` hotkey
+5. Work on feature B
+6. Both apps live-reload independently
+
+### Debugging Build Issues
+
+**Goal**: Figure out why build fails
+
+1. Select "Build [App Name]"
+2. Watch full build output (not filtered)
+3. Note the error messages
+4. Fix issues in code
+5. Run build again to verify
+
+**Tip**: Build output shows more detail than dev server output.
+
+### Package Management During Development
+
+**Goal**: Try a new library without interrupting work
+
+1. App is running, you're testing features
+2. Need a new package (e.g., date-fns)
+3. Press `I` in manage menu
+4. Enter "date-fns"
+5. Package installs in background
+6. Import and use immediately (with hot reload)
+
+### Switching Between Apps
+
+**Goal**: Work across multiple apps efficiently
+
+1. Start all apps
+2. Use "Manage Running Apps" as your hub
+3. Select app → Press `C` to edit
+4. Select app → Press `O` to view
+5. Navigate between apps quickly
+
+### Repository Management
+
+**Goal**: Quickly view GitHub issues or PRs
+
+1. Run `bun run cli`
+2. Select "Open Repository"
+3. GitHub opens in browser
+4. Navigate to Issues or PRs tab
+
+## Troubleshooting Workflows
+
+### Port Already in Use
+
+**Symptom**: App fails to start, port conflict
+
+**Solution**:
+1. Find what's using the port:
+   ```bash
+   lsof -i :42069
+   ```
+2. Kill the process or change port in config
+3. Restart the app
+
+### App Won't Start
+
+**Symptom**: Spinner runs forever, no "Running" status
+
+**Solution**:
+1. Stop the app (`S` key)
+2. Navigate to app directory manually:
+   ```bash
+   cd apps/instantdb
+   bun run dev
+   ```
+3. Check error messages
+4. Fix dependencies or configuration
+5. Try again in CLI
+
+### Build Fails
+
+**Symptom**: Build shows errors
+
+**Solution**:
+1. Read error messages carefully
+2. Common issues:
+   - Missing dependencies: `bun install`
+   - TypeScript errors: Fix in code
+   - Environment variables: Add to `.env`
+3. Fix issues
+4. Run build again
+
+### Hotkeys Not Working
+
+**Symptom**: Pressing `O`, `C`, etc. does nothing
+
+**Solution**:
+1. Ensure you're in "Manage Running Apps" menu
+2. Select an app first
+3. Then use hotkeys
+4. If still not working, check terminal compatibility
+
+### CLI Hangs
+
+**Symptom**: CLI becomes unresponsive
+
+**Solution**:
+1. Press Ctrl+C to force exit
+2. Check if any processes are still running:
+   ```bash
+   ps aux | grep node
+   ```
+3. Kill zombie processes if needed
+4. Restart CLI
+
+## Tips & Tricks
+
+### Quick Launch Alias
+
+Add to your shell config (~/.bashrc, ~/.zshrc):
+
+```bash
+alias sk='cd /path/to/skriuw && bun run sk'
+```
+
+Now `sk` from anywhere launches the CLI!
+
+### Development Routine
+
+Establish a daily workflow:
+
+```bash
+# Morning:
+bun run cli
+→ Run All Apps
+→ Press O to check each app
+→ Press C to start coding
+
+# Throughout day:
+→ Use I to add packages
+→ Use R to restart when needed
+
+# End of day:
+→ Ctrl+C to stop all
+```
+
+### Fast App Switching
+
+Use number keys + Enter in some terminals:
+
+```
+? Select an app:
+  1. Tauri App
+  2. Docs App
+```
+
+Type `1` and Enter to select quickly.
+
+### Monitoring Logs
+
+For detailed logs, run apps manually:
+
+```bash
+cd apps/instantdb
+bun run dev
+```
+
+CLI filters logs for cleanliness; manual run shows everything.
+
+### Pre-flight Checklist
+
+Before deploying:
+
+- [ ] All tests passing
+- [ ] Build succeeds locally
+- [ ] Staging deployment works
+- [ ] No console errors in browser
+- [ ] Environment variables set
+
+### Keyboard Shortcuts
+
+Memorize hotkeys for efficiency:
+
+- `O` - Open (think "Open browser")
+- `C` - Code (think "Code editor")
+- `R` - Restart (think "Reload")
+- `S` - Stop (think "Stop")
+- `I` - Install (think "Install package")
+
+## Example Sessions
+
+### Session 1: Bug Fix
+
+```bash
+$ bun run cli
+
+# Start the affected app
+→ Run Tauri App
+✓ Running on port 42069
+
+# Open in editor
+→ Manage Running Apps → Tauri App
+→ Press C
+
+# [Make changes in editor]
+# [Save, app hot-reloads]
+
+# View in browser
+→ Press O
+# [Test the fix]
+
+# Done!
+→ Press S to stop
+→ Exit
+```
+
+### Session 2: New Feature
+
+```bash
+$ bun run cli
+
+# Start both apps (feature spans both)
+→ Run All Apps
+✓ Tauri App running on 42069
+✓ Docs App running on 3000
+
+# Need new package
+→ Manage Running Apps → Tauri App
+→ Press I → "react-query" → Enter
+✓ Installed
+
+# Code the feature
+→ Press C
+# [Implement feature]
+
+# Update docs
+→ Manage Running Apps → Docs App
+→ Press C
+# [Document feature]
+
+# Build everything
+→ Build All Apps
+✓ All builds successful
+
+# Deploy to staging
+→ Deploy to Staging
+✓ Deployed to preview URL
+
+# Test, then deploy to prod
+→ Deploy to Production
+✓ Live!
+```
+
+### Session 3: Team Onboarding
+
+```bash
+# New team member:
+$ git clone [repo]
+$ bun install
+$ bun run cli
+
+# They see beautiful menu
+→ Run All Apps
+
+# Everything just works
+✓ Tauri App running
+✓ Docs App running
+
+# They're productive immediately!
+→ Press O to explore
+→ Press C to start coding
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Configuration" href="/docs/cli/configuration" />
+  <Card title="Features" href="/docs/cli/features" />
+  <Card title="Getting Started" href="/docs/cli/getting-started" />
+</Cards>
+
+## Questions?
+
+- Check [Configuration](/docs/cli/configuration) for setup issues
+- Review [Features](/docs/cli/features) for capabilities
+- See [Getting Started](/docs/cli/getting-started) for basics
+

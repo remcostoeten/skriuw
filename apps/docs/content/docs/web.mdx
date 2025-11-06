@@ -1,0 +1,157 @@
+---
+title: Web App
+description: Next.js web application documentation for Skriuw
+---
+
+# Web App
+
+The Skriuw web application is a Next.js 15 application that shares the same codebase and database as the Tauri desktop app.
+
+## Overview
+
+The web app (`apps/instantdb`) provides:
+
+- **Next.js 15** - React framework with App Router
+- **InstantDB** - Real-time sync with offline support
+- **TypeScript** - Full type safety
+- **Tailwind CSS** - Modern styling
+- **Server Components** - Optimized rendering
+
+## Architecture
+
+### Frontend
+- Next.js App Router
+- React Server Components
+- Client Components for interactivity
+- InstantDB React hooks
+
+### Backend
+- Next.js API Routes
+- InstantDB server-side queries
+- Edge runtime support
+
+## Development
+
+### Running Locally
+
+Using the CLI Manager:
+
+```bash
+bun run cli
+# Select "Run Tauri App" (includes web server)
+```
+
+Or manually:
+
+```bash
+cd apps/instantdb
+bun run dev
+```
+
+The app runs on `http://localhost:42069` by default.
+
+### Building
+
+Build for production:
+
+```bash
+bun run cli
+# Select "Build Tauri App"
+```
+
+Or manually:
+
+```bash
+cd apps/instantdb
+bun run build
+```
+
+## Deployment
+
+### Vercel (Recommended)
+
+Using the CLI Manager:
+
+```bash
+bun run cli
+# Select "Deploy to Production"
+```
+
+Or manually:
+
+```bash
+vercel deploy --prod
+```
+
+### Environment Variables
+
+Required environment variables:
+
+```env
+INSTANTDB_APP_ID=your_app_id
+INSTANTDB_API_KEY=your_api_key
+```
+
+## Features
+
+### Real-Time Sync
+- InstantDB provides real-time updates
+- Offline support with local cache
+- Optimistic updates
+- Conflict resolution
+
+### Performance
+- Server Components for faster initial load
+- Automatic code splitting
+- Image optimization
+- Edge caching
+
+### SEO
+- Server-side rendering
+- Meta tags
+- Open Graph support
+- Sitemap generation
+
+## API Routes
+
+API routes are located in `apps/instantdb/src/app/api/`:
+
+- `/api/db/*` - Database operations
+- `/api/seed/*` - Seeding endpoints
+
+## Styling
+
+Uses Tailwind CSS with:
+
+- Custom theme configuration
+- Dark mode support
+- Responsive design
+- Component utilities
+
+## Troubleshooting
+
+### Build Errors
+
+If build fails:
+
+1. Check TypeScript errors: `bun run build`
+2. Verify environment variables
+3. Check InstantDB connection
+4. Review Next.js logs
+
+### Runtime Issues
+
+Check browser console and Next.js logs:
+
+```bash
+bun run dev
+# Check terminal for server errors
+# Check browser console for client errors
+```
+
+## Next Steps
+
+- Learn about the [Tauri App](/docs/tauri)
+- Check the [CLI Manager](/docs/cli) for development tools
+- Review [Seeder Tool](/docs/seeder) for database setup
+

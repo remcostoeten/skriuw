@@ -1,0 +1,68 @@
+{
+  "name": "@remcostoeten/sk",
+  "version": "1.0.0",
+  "description": "Interactive CLI tool for managing Node.js monorepos and development workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "skriuw": "./dist/index.js",
+    "sk": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts dev",
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "release": "node scripts/release.js",
+    "release:push": "node scripts/release.js --push",
+    "start": "node dist/index.js",
+    "start:dev": "node dist/index.js dev"
+  },
+  "keywords": [
+    "cli",
+    "monorepo",
+    "development",
+    "tool",
+    "dev-tools",
+    "vite",
+    "nextjs",
+    "vinxi",
+    "project-manager",
+    "workflow"
+  ],
+  "author": "Remco Stoeten",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/remcostoeten/skriuw.git",
+    "directory": "tools/sk"
+  },
+  "bugs": {
+    "url": "https://github.com/remcostoeten/skriuw/issues"
+  },
+  "homepage": "https://docs-skriuw.vercel.app/docs/cli",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "inquirer": "^12.10.0",
+    "ora": "^9.0.0",
+    "open": "^10.2.0",
+    "execa": "^9.5.2",
+    "fuse.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
