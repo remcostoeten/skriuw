@@ -11,6 +11,9 @@ type UpdateTaskInput = {
   priority?: 'low' | 'med' | 'high' | 'urgent';
   dueAt?: number;
   tags?: string[];
+  recurrence?: string;
+  nextRunAt?: number;
+  reminderAt?: number;
   parentId?: Nullable<UUID>;
   dependsOnIds?: UUID[];
   projectId?: Nullable<UUID>;
@@ -28,6 +31,9 @@ export function useUpdateTask() {
     if (input.status !== undefined) scalarUpdates.status = input.status;
     if (input.priority !== undefined) scalarUpdates.priority = input.priority;
     if (input.dueAt !== undefined) scalarUpdates.dueAt = input.dueAt;
+    if (input.recurrence !== undefined) scalarUpdates.recurrence = input.recurrence;
+    if (input.nextRunAt !== undefined) scalarUpdates.nextRunAt = input.nextRunAt;
+    if (input.reminderAt !== undefined) scalarUpdates.reminderAt = input.reminderAt;
     if (input.tags !== undefined) {
       scalarUpdates.tags = Array.isArray(input.tags) ? input.tags.join(',') : input.tags;
     }

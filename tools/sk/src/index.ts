@@ -106,50 +106,61 @@ class CLIManager {
 
     // Auto-detect apps if config is empty or detect single-app mode
     const apps = await this.detectApps();
+    
+    // Show running apps status
+    const runningAppsList = Array.from(this.runningApps.values());
+    if (runningAppsList.length > 0) {
+      console.log(chalk.green('● Running:'), runningAppsList.map(a => `${a.displayName} (${a.port})`).join(', '));
+      console.log();
+    }
 
     const choices = [
-      new inquirer.Separator(chalk.bold.cyan('── Development ──')),
+      new inquirer.Separator(chalk.bold.cyan(' Development ')),
+      ...apps.map(app => {
+        const isRunning = this.runningApps.has(app.name);
+        const status = isRunning ? chalk.green('●') : chalk.gray('○');
+        return {
+          name: `${status} ${chalk.blue(app.displayName)} ${chalk.gray(`(port ${app.port})`)}`,
+          value: `dev:${app.name}`
+        };
+      }),
+      ...(apps.length > 1 ? [{ name: `${chalk.cyan('▶')} Run All Apps`, value: 'dev:all' }] : []),
+      new inquirer.Separator(chalk.bold.green(' Build ')),
       ...apps.map(app => ({
-        name: `Run ${chalk.blue(app.displayName)} ${chalk.gray(`(port ${app.port})`)}`,
-        value: `dev:${app.name}`
-      })),
-      { name: 'Run All Apps', value: 'dev:all' },
-      new inquirer.Separator(chalk.bold.green('── Build ──')),
-      ...apps.map(app => ({
-        name: `Build ${chalk.blue(app.displayName)}`,
+        name: `${chalk.yellow('📦')} Build ${chalk.blue(app.displayName)}`,
         value: `build:${app.name}`
       })),
-      { name: 'Build All Apps', value: 'build:all' },
-      new inquirer.Separator(chalk.bold.yellow('── Deploy ──')),
-      ...apps.filter(app => app.deployUrl).map(app => ({
-        name: `Open ${app.displayName} ${chalk.gray(`(${app.deployUrl})`)}`,
-        value: `deploy:open:${app.name}`
-      })),
-      { name: 'Deploy to Staging', value: 'deploy:staging' },
-      { name: 'Deploy to Production', value: 'deploy:production' },
+      ...(apps.length > 1 ? [{ name: `${chalk.yellow('📦')} Build All Apps`, value: 'build:all' }] : []),
       ...(config.tools && config.tools.length > 0 ? [
-        new inquirer.Separator(chalk.bold.magenta('── Tools ──')),
+        new inquirer.Separator(chalk.bold.magenta(' Tools ')),
         ...config.tools.map(tool => ({
-          name: `Run ${chalk.blue(tool.displayName)} ${tool.description ? chalk.gray(`(${tool.description})`) : ''}`,
+          name: `${chalk.magenta('🔧')} ${tool.displayName} ${tool.description ? chalk.gray(`(${tool.description})`) : ''}`,
           value: `tool:${tool.name}`
         }))
       ] : []),
-      new inquirer.Separator(chalk.bold.magenta('── Utilities ──')),
-      { name: 'Open Repository', value: 'repo:open' },
-      { name: 'Manage Running Apps', value: 'manage:apps' },
-      new inquirer.Separator(chalk.bold.blue('── Advanced ──')),
-      { name: 'Advanced Options', value: 'advanced:menu' },
+      new inquirer.Separator(chalk.bold.blue(' Utilities ')),
+      ...(runningAppsList.length > 0 ? [{ name: `${chalk.blue('⚙')} Manage Running Apps`, value: 'manage:apps' }] : []),
+      { name: `${chalk.blue('🔗')} Open Repository`, value: 'repo:open' },
+      ...(apps.filter(app => app.deployUrl).length > 0 ? [
+        new inquirer.Separator(chalk.bold.yellow(' Deploy ')),
+        ...apps.filter(app => app.deployUrl).map(app => ({
+          name: `${chalk.yellow('🚀')} Open ${app.displayName} ${chalk.gray(`(${app.deployUrl})`)}`,
+          value: `deploy:open:${app.name}`
+        })),
+        { name: `${chalk.yellow('🚀')} Deploy to Staging`, value: 'deploy:staging' },
+        { name: `${chalk.yellow('🚀')} Deploy to Production`, value: 'deploy:production' }
+      ] : []),
       new inquirer.Separator(),
-      { name: chalk.red('Exit'), value: 'exit' }
+      { name: `${chalk.red('✕')} Exit`, value: 'exit' }
     ];
 
     const { action } = await inquirer.prompt([
       {
         type: 'list',
         name: 'action',
-        message: 'What would you like to do?',
+        message: chalk.cyan('Select an option:'),
         choices,
-        pageSize: 20
+        pageSize: 15
       }
     ]);
 
@@ -161,46 +172,62 @@ class CLIManager {
     const [type, ...rest] = action.split(':');
     const target = rest.join(':');
 
-    switch (type) {
-      case 'dev':
-        if (target === 'all') {
-          await this.runAllApps();
-        } else {
-          await this.runApp(target);
-        }
-        break;
-      case 'build':
-        if (target === 'all') {
-          await this.buildAllApps();
-        } else {
-          await this.buildApp(target);
-        }
-        break;
-      case 'deploy':
-        if (target.startsWith('open:')) {
-          const appName = target.replace('open:', '');
-          await this.openDeployUrl(appName);
-        } else {
-          await this.deploy(target);
-        }
-        break;
-      case 'tool':
-        await this.runTool(target);
-        break;
-      case 'repo':
-        await this.openRepository();
-        break;
-      case 'manage':
-        await this.manageRunningApps();
-        break;
-      case 'advanced':
-        await this.showAdvancedMenu(target);
-        break;
-      case 'exit':
-        await this.cleanup();
-        process.exit(0);
-        break;
+    try {
+      switch (type) {
+        case 'dev':
+          if (target === 'all') {
+            await this.runAllApps();
+          } else {
+            await this.runApp(target);
+          }
+          // Don't return to menu if app is running - let it run
+          if (this.runningApps.has(target)) {
+            return;
+          }
+          break;
+        case 'build':
+          if (target === 'all') {
+            await this.buildAllApps();
+          } else {
+            await this.buildApp(target);
+          }
+          break;
+        case 'deploy':
+          if (target.startsWith('open:')) {
+            const appName = target.replace('open:', '');
+            await this.openDeployUrl(appName);
+          } else {
+            await this.deploy(target);
+          }
+          break;
+        case 'tool':
+          await this.runTool(target);
+          break;
+        case 'repo':
+          await this.openRepository();
+          break;
+        case 'manage':
+          await this.manageRunningApps();
+          break;
+        case 'advanced':
+          await this.showAdvancedMenu(target);
+          break;
+        case 'exit':
+          await this.cleanup();
+          process.exit(0);
+          return;
+        default:
+          console.log(chalk.red(`\n[ERROR] Unknown action: ${action}`));
+          await this.pressEnterToContinue();
+          break;
+      }
+    } catch (error) {
+      console.error(chalk.red(`\n[ERROR] Failed to execute action: ${error instanceof Error ? error.message : String(error)}`));
+      await this.pressEnterToContinue();
     }
+
+    // Return to menu after action completes (unless app is running)
+    return this.showMainMenu();
   }
 
   // Detect apps (monorepo or single-app)
@@ -402,7 +429,7 @@ class CLIManager {
       });
 
       // Wait a bit for the process to start
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       if (!isReady) {
         spinner.succeed(chalk.green(`${app.displayName} is starting...`));
@@ -411,15 +438,21 @@ class CLIManager {
         this.startHotkeyListener();
       }
 
+      // Show status and return to menu
+      console.log(chalk.gray('\nPress [M] in the menu to return, or Ctrl+C to stop all apps.\n'));
+      
     } catch (error) {
       spinner.fail(chalk.red(`Failed to start ${app.displayName}`));
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.log(chalk.red(errorMsg));
       this.logManager.log('error', `Failed to start: ${errorMsg}`, appName);
       await this.pressEnterToContinue();
+      return this.showMainMenu();
     }
 
-    return this.showMainMenu();
+    // Don't return to menu immediately - let the app run
+    // User can press Ctrl+C or use hotkeys to manage
+    return;
   }
 
   // Display app info
@@ -445,14 +478,30 @@ class CLIManager {
     console.log(chalk.bold.cyan('\nStarting all apps...\n'));
 
     const apps = await this.detectApps();
+    let startedCount = 0;
+    
     for (const app of apps) {
       if (!this.runningApps.has(app.name)) {
+        console.log(chalk.gray(`Starting ${app.displayName}...`));
         await this.runApp(app.name);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        startedCount++;
+        // Small delay between starts
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.log(chalk.yellow(`${app.displayName} is already running`));
       }
     }
 
-    return this.showMainMenu();
+    if (startedCount > 0) {
+      console.log(chalk.green(`\n✓ Started ${startedCount} app(s)`));
+      console.log(chalk.gray('Press [M] in the menu to return, or Ctrl+C to stop all apps.\n'));
+    } else {
+      console.log(chalk.yellow('\nAll apps are already running.\n'));
+      await this.pressEnterToContinue();
+    }
+
+    // Don't return to menu immediately - let apps run
+    return;
   }
 
   // Build a single app
@@ -890,12 +939,9 @@ class CLIManager {
             await this.installPackage(firstApp);
             break;
           case 'm':
-            process.stdin.setRawMode(false);
-            if (this.hotkeyListener) {
-              process.stdin.removeListener('keypress', this.hotkeyListener);
-              this.hotkeyListener = null;
-            }
-            this.isListeningForHotkeys = false;
+            // Stop hotkey listener and return to menu
+            this.stopHotkeyListener();
+            console.clear();
             await this.showMainMenu();
             break;
         }
@@ -1876,4 +1922,5 @@ if (args.length > 0) {
     process.exit(1);
   });
 }
+
 

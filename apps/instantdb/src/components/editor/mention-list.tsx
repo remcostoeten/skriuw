@@ -76,25 +76,29 @@ const MentionList = forwardRef<MentionListRef, SuggestionProps<MentionItem>>((pr
       role="listbox"
       aria-label="Suggestions"
       aria-activedescendant={`${listboxId}-option-${selectedIndex}`}
-      className="bg-popover border border-border rounded-lg shadow-lg overflow-auto max-h-72 scrollbar-content"
+      className="bg-popover border border-border rounded-lg shadow-lg overflow-hidden max-h-72 min-w-[200px] backdrop-blur-sm"
     >
-      {props.items.map((item, index) => (
-        <button
-          key={item.id}
-          id={`${listboxId}-option-${index}`}
-          role="option"
-          aria-selected={index === selectedIndex}
-          tabIndex={-1}
-          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-            index === selectedIndex ? 'bg-accent' : ''
-          }`}
-          onMouseEnter={() => setSelectedIndex(index)}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => selectItem(index)}
-        >
-          {item.title}
-        </button>
-      ))}
+      <div className="overflow-auto max-h-72 scrollbar-thin">
+        {props.items.map((item, index) => (
+          <button
+            key={item.id}
+            id={`${listboxId}-option-${index}`}
+            role="option"
+            aria-selected={index === selectedIndex}
+            tabIndex={-1}
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors focus:outline-none focus:bg-accent ${
+              index === selectedIndex 
+                ? 'bg-accent text-accent-foreground' 
+                : 'text-foreground hover:bg-accent/50'
+            }`}
+            onMouseEnter={() => setSelectedIndex(index)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => selectItem(index)}
+          >
+            <span className="block truncate">{item.title}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 });

@@ -198,7 +198,7 @@ export function Logo() {
 		return (
 			<div className="flex items-center justify-center">
 				<Link href="/">
-					<div className="group relative flex h-[35px] w-[35px] items-center justify-center">
+					<div className="group relative flex h-[30px] w-[30px] items-center justify-center">
 						<div className="relative flex h-full w-full items-center justify-center rounded-md bg-gradient-to-br from-background/80 to-background/60 backdrop-blur-sm shadow-lg border border-primary/20">
 							<div className="h-5 w-5 rounded-md bg-muted animate-pulse" />
 						</div>
@@ -212,7 +212,7 @@ export function Logo() {
 		<div className="flex items-center justify-center">
 			<Link href="/">
 				<motion.div
-					className="group relative flex h-[35px] w-[35px] items-center justify-center"
+					className="group relative flex h-[30px] w-[30px] items-center justify-center"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					transition={{

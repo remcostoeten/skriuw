@@ -10,7 +10,11 @@ type props = {
   content: string;
 } & Positionable & {
   priority?: TaskPriority;
+  status?: TaskStatus;
   dueAt?: number;
+  recurrence?: string;
+  nextRunAt?: number;
+  reminderAt?: number;
   parentId?: UUID;
   tags?: string[];
   dependsOnIds?: UUID[];
@@ -23,10 +27,13 @@ export function useCreateTask() {
       tx.tasks[id].update(withTimestamps({
         content: input.content,
         completed: false,
-        status: TaskStatus.TODO,
+        status: input.status ?? TaskStatus.TODO,
         position: input.position,
         priority: input.priority ?? TaskPriority.MEDIUM,
         dueAt: input.dueAt,
+        recurrence: input.recurrence,
+        nextRunAt: input.nextRunAt,
+        reminderAt: input.reminderAt,
         tags: input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined,
       }, true)),
       ...(input.noteId ? [tx.tasks[id].link({ note: input.noteId })] : []),
