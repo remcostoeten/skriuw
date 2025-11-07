@@ -77,6 +77,34 @@ const DEFAULT_SHORTCUTS: Array<Omit<TShortcut, 'id' | 'createdAt' | 'updatedAt'>
     enabled: true,
     global: false,
   },
+  {
+    action: 'toggle-bold',
+    combo: 'CmdOrCtrl+B',
+    description: 'Toggle bold text',
+    enabled: true,
+    global: false,
+  },
+  {
+    action: 'toggle-italic',
+    combo: 'CmdOrCtrl+I',
+    description: 'Toggle italic text',
+    enabled: true,
+    global: false,
+  },
+  {
+    action: 'toggle-underline',
+    combo: 'CmdOrCtrl+U',
+    description: 'Toggle underline text',
+    enabled: true,
+    global: false,
+  },
+  {
+    action: 'insert-link',
+    combo: 'CmdOrCtrl+K',
+    description: 'Insert link',
+    enabled: true,
+    global: false,
+  },
 ]
 
 export async function setupDefaultShortcuts(shortcuts: TShortcut[]) {

@@ -60,17 +60,25 @@ export function TasksView() {
 
 	const isLoading = tasksLoading
 
-	// Filter tasks based on current filters
 	const filteredTasks = useMemo(() => {
 		let filtered = [...allTasks]
 
-		// Search filter
 		if (searchQuery.trim()) {
 			const query = searchQuery.toLowerCase()
-			filtered = filtered.filter(t => 
-				t.content.toLowerCase().includes(query) ||
-				(t.tags && t.tags.toLowerCase().includes(query))
-			)
+			filtered = filtered.filter(t => {
+				const contentMatch = t.content.toLowerCase().includes(query)
+				if (contentMatch) return true
+				
+				if (!t.tags) return false
+				
+				const tagsArray = Array.isArray(t.tags) 
+					? t.tags 
+					: typeof t.tags === 'string' 
+						? t.tags.split(',').map(tag => tag.trim())
+						: []
+				
+				return tagsArray.some((tag: string) => tag.toLowerCase().includes(query))
+			})
 		}
 
 		if (selectedProjectId) {
@@ -458,33 +466,24 @@ function StatCard({
 	value: number
 	color: 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'yellow'
 }) {
-	const colorClasses = {
-		blue: 'from-blue-500/10 to-blue-500/5 border-blue-500/20 text-blue-600 dark:text-blue-400',
-		green: 'from-green-500/10 to-green-500/5 border-green-500/20 text-green-600 dark:text-green-400',
-		purple: 'from-purple-500/10 to-purple-500/5 border-purple-500/20 text-purple-600 dark:text-purple-400',
-		red: 'from-red-500/10 to-red-500/5 border-red-500/20 text-red-600 dark:text-red-400',
-		orange: 'from-orange-500/10 to-orange-500/5 border-orange-500/20 text-orange-600 dark:text-orange-400',
-		yellow: 'from-yellow-500/10 to-yellow-500/5 border-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-	}
-
 	return (
 		<div className={`
 			relative overflow-hidden
-			bg-gradient-to-br ${colorClasses[color]}
-			backdrop-blur-sm rounded-xl border p-4
-			transition-all duration-300 hover:scale-105 hover:shadow-lg
+			bg-gradient-to-br from-muted/50 to-muted/20
+			backdrop-blur-sm rounded-xl border border-border/50 p-4
+			transition-all duration-300 hover:shadow-lg hover:border-border
 			group cursor-default
 		`}>
 			<div className="flex items-center justify-between mb-2">
-				<div className="opacity-80 group-hover:opacity-100 transition-opacity">
+				<div className="text-muted-foreground opacity-80 group-hover:opacity-100 group-hover:text-foreground transition-all">
 					{icon}
 				</div>
-				<span className="text-2xl font-bold">{value}</span>
+				<span className="text-2xl font-bold text-foreground">{value}</span>
 			</div>
-			<p className="text-xs font-medium opacity-80">{label}</p>
+			<p className="text-xs font-medium text-muted-foreground opacity-80 group-hover:opacity-100">{label}</p>
 			
 			{/* Animated background effect */}
-			<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+			<div className="absolute inset-0 bg-gradient-to-br from-foreground/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 		</div>
 	)
 }

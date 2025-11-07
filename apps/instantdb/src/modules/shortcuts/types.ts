@@ -23,6 +23,10 @@ export type TShortcutAction =
   | 'multi-select-add'
   | 'multi-select-range'
   | 'clear-selection'
+  | 'toggle-bold'
+  | 'toggle-italic'
+  | 'toggle-underline'
+  | 'insert-link'
 
 export type TShortcut = {
   id: string

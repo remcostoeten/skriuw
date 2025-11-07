@@ -100,8 +100,7 @@ export default function NotesView() {
 
 	useEffect(() => {
 		const handleToggleSearch = () => {
-			const searchToggleEvent = new CustomEvent('search:toggle')
-			window.dispatchEvent(searchToggleEvent)
+			// Trigger search toggle - this will be handled by search components
 		}
 
 		const handleCloseSearch = () => {
@@ -113,12 +112,12 @@ export default function NotesView() {
 			handleCreateNoteFromSidebar()
 		}
 
-		window.addEventListener('menu:toggle-search', handleToggleSearch)
+		window.addEventListener('search:toggle', handleToggleSearch)
 		window.addEventListener('menu:close-search', handleCloseSearch)
 		window.addEventListener('note:create', handleNoteCreateEvent)
 
 		return () => {
-			window.removeEventListener('menu:toggle-search', handleToggleSearch)
+			window.removeEventListener('search:toggle', handleToggleSearch)
 			window.removeEventListener('menu:close-search', handleCloseSearch)
 			window.removeEventListener('note:create', handleNoteCreateEvent)
 		}

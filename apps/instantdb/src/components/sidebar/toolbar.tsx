@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useComponentShortcuts, useGetShortcuts } from '@/modules/shortcuts'
+import { useGetShortcuts } from '@/modules/shortcuts'
 import { Button } from '@/shared/components/ui/button'
 import {
   ChevronDown,
@@ -18,7 +18,7 @@ import {
   ZoomIn,
   ZoomOut
 } from 'lucide-react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { cn } from 'utils'
 
 export interface SidebarToolbarProps {
@@ -82,31 +82,28 @@ export function SidebarToolbar({
     console.log('[SidebarToolbar] Zoom out button clicked')
   }, [onZoomOut])
 
-  // Register toolbar shortcuts
-  useComponentShortcuts([
-    {
-      id: 'new-note',
-      handler: handleNewNote
-    },
-    {
-      id: 'toggle-search',
-      handler: handleToggleSearch
-    },
-    {
-      id: 'new-folder',
-      handler: handleNewFolder
-    },
-    {
-      id: 'open-preferences',
-      handler: handleSettings
-    },
-    {
-      id: 'toggle-folders',
-      handler: handleExpand
+  // Listen to global shortcut events instead of registering duplicate handlers
+  useEffect(() => {
+    const handleNoteCreate = () => handleNewNote()
+    const handleSearchToggle = () => handleToggleSearch()
+    const handleFolderCreate = () => handleNewFolder()
+    const handlePreferencesOpen = () => handleSettings()
+    const handleFoldersToggle = () => handleExpand()
+
+    window.addEventListener('note:create', handleNoteCreate)
+    window.addEventListener('search:toggle', handleSearchToggle)
+    window.addEventListener('folder:create', handleFolderCreate)
+    window.addEventListener('preferences:open', handlePreferencesOpen)
+    window.addEventListener('folders:toggle', handleFoldersToggle)
+
+    return () => {
+      window.removeEventListener('note:create', handleNoteCreate)
+      window.removeEventListener('search:toggle', handleSearchToggle)
+      window.removeEventListener('folder:create', handleFolderCreate)
+      window.removeEventListener('preferences:open', handlePreferencesOpen)
+      window.removeEventListener('folders:toggle', handleFoldersToggle)
     }
-  ], {
-    enabled: true
-  })
+  }, [handleNewNote, handleToggleSearch, handleNewFolder, handleSettings, handleExpand])
 
   // Get shortcuts for tooltips from database
   const { shortcuts: allShortcuts } = useGetShortcuts()

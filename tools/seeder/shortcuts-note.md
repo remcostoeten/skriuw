@@ -1,9 +1,4 @@
-/**
- * Keyboard Shortcuts Documentation Content
- * Comprehensive guide to the keyboard shortcut system
- */
-
-export const SHORTCUTS_NOTE_CONTENT = `# Keyboard Shortcuts Guide
+# Keyboard Shortcuts Guide
 
 This document explains the complete keyboard shortcut system in Skriuw, including how it works, all available shortcuts, and how to customize them.
 
@@ -13,13 +8,13 @@ This document explains the complete keyboard shortcut system in Skriuw, includin
 
 The shortcut system uses a centralized, event-driven architecture:
 
-\`\`\`
+```
 User Input → Global Handler → Database Lookup → Event Dispatch → Component Handlers
-\`\`\`
+```
 
 **Key Components:**
-- **Database**: All shortcuts stored in InstantDB (\`shortcuts\` entity)
-- **Global Handler**: \`useGlobalShortcuts()\` listens for all key presses
+- **Database**: All shortcuts stored in InstantDB (`shortcuts` entity)
+- **Global Handler**: `useGlobalShortcuts()` listens for all key presses
 - **Event System**: Custom events dispatched for loose coupling
 - **Component Handlers**: Components listen to events they care about
 
@@ -28,16 +23,16 @@ User Input → Global Handler → Database Lookup → Event Dispatch → Compone
 1. **Database-Backed**: All shortcuts stored in InstantDB, fully customizable
 2. **Event-Driven**: Uses custom events for loose coupling between components
 3. **Context-Aware**: Shortcuts can be global or context-specific (editor, sidebar, etc.)
-4. **Cross-Platform**: Automatically handles Mac (\`Cmd\`) vs Windows/Linux (\`Ctrl\`) differences
+4. **Cross-Platform**: Automatically handles Mac (`Cmd`) vs Windows/Linux (`Ctrl`) differences
 5. **Smart Prevention**: Prevents shortcuts when typing in input fields (unless modifier keys are pressed)
 
 ### How Shortcuts are Processed
 
 1. **Key Press**: User presses a key combination
-2. **Global Detection**: \`useGlobalShortcuts()\` captures the keypress
+2. **Global Detection**: `useGlobalShortcuts()` captures the keypress
 3. **Database Lookup**: System checks enabled shortcuts in database
 4. **Match Check**: Compares key combination against shortcut combos
-5. **Event Dispatch**: Dispatches custom event (e.g., \`note:create\`)
+5. **Event Dispatch**: Dispatches custom event (e.g., `note:create`)
 6. **Component Response**: Components listening to that event respond
 
 ## All Available Shortcuts
@@ -46,17 +41,17 @@ User Input → Global Handler → Database Lookup → Event Dispatch → Compone
 
 | Shortcut | Action | Description | Global |
 |----------|--------|-------------|--------|
-| \`CmdOrCtrl+F\` | \`toggle-search\` | Toggle search panel | ✅ Yes |
-| \`CmdOrCtrl+0\` | \`toggle-folders\` | Toggle folders panel | ✅ Yes |
-| \`Escape\` | \`clear-selection\` | Clear any active selections | ❌ No |
+| `CmdOrCtrl+F` | `toggle-search` | Toggle search panel | ✅ Yes |
+| `CmdOrCtrl+0` | `toggle-folders` | Toggle folders panel | ✅ Yes |
+| `Escape` | `clear-selection` | Clear any active selections | ❌ No |
 
 ### Note & Folder Management
 
 | Shortcut | Action | Description | Global |
 |----------|--------|-------------|--------|
-| \`CmdOrCtrl+N\` | \`new-note\` | Create a new note | ✅ Yes |
-| \`CmdOrCtrl+Shift+N\` | \`new-folder\` | Create a new folder | ✅ Yes |
-| \`CmdOrCtrl+,\` | \`open-preferences\` | Open application settings | ✅ Yes |
+| `CmdOrCtrl+N` | `new-note` | Create a new note | ✅ Yes |
+| `CmdOrCtrl+Shift+N` | `new-folder` | Create a new folder | ✅ Yes |
+| `CmdOrCtrl+,` | `open-preferences` | Open application settings | ✅ Yes |
 
 ### Context Menu Actions
 
@@ -64,10 +59,10 @@ These shortcuts work when items are selected or context menu is open:
 
 | Shortcut | Action | Description | Global |
 |----------|--------|-------------|--------|
-| \`Shift+R\` | \`context-rename\` | Rename selected note or folder | ❌ No |
-| \`Shift+D\` | \`context-duplicate\` | Duplicate selected item | ❌ No |
-| \`Shift+P\` | \`context-pin\` | Pin or unpin selected item | ❌ No |
-| \`Shift+Backspace\` | \`context-delete\` | Delete selected item | ❌ No |
+| `Shift+R` | `context-rename` | Rename selected note or folder | ❌ No |
+| `Shift+D` | `context-duplicate` | Duplicate selected item | ❌ No |
+| `Shift+P` | `context-pin` | Pin or unpin selected item | ❌ No |
+| `Shift+Backspace` | `context-delete` | Delete selected item | ❌ No |
 
 ### Text Editor Shortcuts
 
@@ -75,10 +70,10 @@ These shortcuts work when the note editor is focused:
 
 | Shortcut | Action | Description | Global |
 |----------|--------|-------------|--------|
-| \`CmdOrCtrl+B\` | \`toggle-bold\` | Toggle bold text formatting | ❌ No |
-| \`CmdOrCtrl+I\` | \`toggle-italic\` | Toggle italic text formatting | ❌ No |
-| \`CmdOrCtrl+U\` | \`toggle-underline\` | Toggle underline text formatting | ❌ No |
-| \`CmdOrCtrl+K\` | \`insert-link\` | Insert/edit link | ❌ No |
+| `CmdOrCtrl+B` | `toggle-bold` | Toggle bold text formatting | ❌ No |
+| `CmdOrCtrl+I` | `toggle-italic` | Toggle italic text formatting | ❌ No |
+| `CmdOrCtrl+U` | `toggle-underline` | Toggle underline text formatting | ❌ No |
+| `CmdOrCtrl+K` | `insert-link` | Insert/edit link | ❌ No |
 
 ## Event System
 
@@ -86,46 +81,46 @@ The shortcut system uses custom events for communication. Here are all the event
 
 ### Global Events
 
-- \`search:toggle\` - Toggle search panel
-- \`folders:toggle\` - Toggle folders panel
-- \`note:create\` - Create new note
-- \`folder:create\` - Create new folder
-- \`preferences:open\` - Open preferences/settings
+- `search:toggle` - Toggle search panel
+- `folders:toggle` - Toggle folders panel
+- `note:create` - Create new note
+- `folder:create` - Create new folder
+- `preferences:open` - Open preferences/settings
 
 ### Context Events
 
-- \`context:rename\` - Rename selected item
-- \`context:duplicate\` - Duplicate selected item
-- \`context:pin\` - Pin/unpin selected item
-- \`context:delete\` - Delete selected item
-- \`selection:clear\` - Clear selection
+- `context:rename` - Rename selected item
+- `context:duplicate` - Duplicate selected item
+- `context:pin` - Pin/unpin selected item
+- `context:delete` - Delete selected item
+- `selection:clear` - Clear selection
 
 ### Editor Events
 
-- \`editor:toggle-bold\` - Toggle bold formatting
-- \`editor:toggle-italic\` - Toggle italic formatting
-- \`editor:toggle-underline\` - Toggle underline formatting
-- \`editor:insert-link\` - Insert link
+- `editor:toggle-bold` - Toggle bold formatting
+- `editor:toggle-italic` - Toggle italic formatting
+- `editor:toggle-underline` - Toggle underline formatting
+- `editor:insert-link` - Insert link
 
 ## Platform Differences
 
 The system automatically handles platform differences:
 
-- **Mac**: \`Cmd\` key is used for \`CmdOrCtrl\` shortcuts
-- **Windows/Linux**: \`Ctrl\` key is used for \`CmdOrCtrl\` shortcuts
-- **All platforms**: \`Shift\`, \`Alt\`, and \`Meta\` keys work consistently
+- **Mac**: `Cmd` key is used for `CmdOrCtrl` shortcuts
+- **Windows/Linux**: `Ctrl` key is used for `CmdOrCtrl` shortcuts
+- **All platforms**: `Shift`, `Alt`, and `Meta` keys work consistently
 
-The \`CmdOrCtrl\` notation means:
-- On Mac: Uses \`Command\` (⌘) key
-- On Windows/Linux: Uses \`Control\` (Ctrl) key
+The `CmdOrCtrl` notation means:
+- On Mac: Uses `Command` (⌘) key
+- On Windows/Linux: Uses `Control` (Ctrl) key
 
 ## Customization
 
 ### How Shortcuts are Stored
 
-All shortcuts are stored in the InstantDB \`shortcuts\` entity with the following structure:
+All shortcuts are stored in the InstantDB `shortcuts` entity with the following structure:
 
-\`\`\`typescript
+```typescript
 {
   id: string
   action: TShortcutAction  // e.g., 'new-note', 'toggle-search'
@@ -136,7 +131,7 @@ All shortcuts are stored in the InstantDB \`shortcuts\` entity with the followin
   createdAt: number
   updatedAt: number
 }
-\`\`\`
+```
 
 ### Default Shortcuts
 
@@ -146,9 +141,9 @@ Default shortcuts are automatically created when the app first loads if they don
 
 **Via Database:**
 - Directly modify shortcut records in InstantDB
-- Change \`combo\` to remap shortcuts
-- Set \`enabled: false\` to disable shortcuts
-- Modify \`global\` flag to change scope
+- Change `combo` to remap shortcuts
+- Set `enabled: false` to disable shortcuts
+- Modify `global` flag to change scope
 
 **Via API (Future):**
 - Settings UI for shortcut customization (planned)
@@ -158,7 +153,7 @@ Default shortcuts are automatically created when the app first loads if they don
 
 ### Module Structure
 
-\`\`\`
+```
 src/modules/shortcuts/
 ├── types.ts              # Type definitions (TShortcutAction, etc.)
 ├── defaults.ts           # Default shortcut configurations
@@ -173,12 +168,12 @@ src/modules/shortcuts/
 │       ├── update.ts              # Update shortcuts
 │       └── destroy.ts             # Delete shortcuts
 └── index.ts              # Module exports
-\`\`\`
+```
 
 ### Usage Patterns
 
 **Global Shortcuts (Event-Based):**
-\`\`\`typescript
+```typescript
 // Components listen to events dispatched by global handler
 useEffect(() => {
   const handleNoteCreate = () => {
@@ -187,10 +182,10 @@ useEffect(() => {
   window.addEventListener('note:create', handleNoteCreate)
   return () => window.removeEventListener('note:create', handleNoteCreate)
 }, [])
-\`\`\`
+```
 
 **Component Shortcuts (Direct Handlers):**
-\`\`\`typescript
+```typescript
 // For context-specific shortcuts (like editor formatting)
 useComponentShortcuts([
   {
@@ -198,14 +193,14 @@ useComponentShortcuts([
     handler: () => editor.chain().focus().toggleBold().run()
   }
 ], { enabled: true })
-\`\`\`
+```
 
 ### Shortcut Matching Logic
 
 The system uses smart matching:
 - Case-insensitive key matching
 - Modifier key detection (Ctrl, Shift, Alt, Meta)
-- Platform-aware \`CmdOrCtrl\` handling
+- Platform-aware `CmdOrCtrl` handling
 - Prevents shortcuts when typing in inputs (unless modifier pressed)
 
 ## Troubleshooting
@@ -250,4 +245,5 @@ Planned improvements:
 
 ---
 
-*This document reflects the current state of the keyboard shortcut system. Last updated: ${new Date().toLocaleDateString()}*`;
+*This document reflects the current state of the keyboard shortcut system. Last updated: ${new Date().toLocaleDateString()}*
+

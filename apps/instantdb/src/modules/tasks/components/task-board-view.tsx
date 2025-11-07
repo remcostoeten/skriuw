@@ -21,10 +21,10 @@ type TaskBoardViewProps = {
 }
 
 const STATUS_COLUMNS = [
-	{ id: 'todo', label: 'To Do', icon: Circle, color: 'text-gray-500' },
-	{ id: 'in_progress', label: 'In Progress', icon: Clock, color: 'text-blue-500' },
-	{ id: 'blocked', label: 'Blocked', icon: AlertTriangle, color: 'text-orange-500' },
-	{ id: 'done', label: 'Done', icon: CheckCircle2, color: 'text-green-500' }
+	{ id: 'todo', label: 'To Do', icon: Circle, color: 'text-muted-foreground' },
+	{ id: 'in_progress', label: 'In Progress', icon: Clock, color: 'text-foreground' },
+	{ id: 'blocked', label: 'Blocked', icon: AlertTriangle, color: 'text-foreground' },
+	{ id: 'done', label: 'Done', icon: CheckCircle2, color: 'text-muted-foreground' }
 ]
 
 export function TaskBoardView({ tasks, onTaskClick }: TaskBoardViewProps) {
@@ -127,17 +127,17 @@ type TaskCardProps = {
 
 function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 	const priorityColors = {
-		urgent: 'border-l-red-500 bg-red-500/5',
-		high: 'border-l-orange-500 bg-orange-500/5',
-		med: 'border-l-yellow-500 bg-yellow-500/5',
-		low: 'border-l-green-500 bg-green-500/5'
+		urgent: 'border-l-foreground bg-muted/30',
+		high: 'border-l-foreground/80 bg-muted/20',
+		med: 'border-l-border bg-muted/10',
+		low: 'border-l-border bg-background'
 	}
 
 	const priorityBadges = {
-		urgent: { label: 'Urgent', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
-		high: { label: 'High', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
-		med: { label: 'Med', color: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' },
-		low: { label: 'Low', color: 'bg-green-500/10 text-green-600 dark:text-green-400' }
+		urgent: { label: 'Urgent', color: 'bg-muted text-foreground border border-border' },
+		high: { label: 'High', color: 'bg-muted text-foreground border border-border' },
+		med: { label: 'Med', color: 'bg-muted/50 text-muted-foreground border border-border/50' },
+		low: { label: 'Low', color: 'bg-muted/30 text-muted-foreground border border-border/30' }
 	}
 
 	const isOverdue = task.dueAt && task.dueAt < Date.now() && !task.completed
@@ -157,7 +157,7 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 				bg-background rounded-lg border-l-4 border-y border-r border-border/50
 				p-3 cursor-pointer
 				transition-all duration-200
-				hover:shadow-lg hover:scale-[1.02]
+				hover:shadow-lg
 				${priorityColors[task.priority]}
 				${task.completed ? 'opacity-60' : ''}
 			`}
@@ -172,7 +172,7 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 				</span>
 				
 				{task.completed && (
-					<CheckCircle2 className="w-4 h-4 text-green-500" />
+					<CheckCircle2 className="w-4 h-4 text-muted-foreground" />
 				)}
 			</div>
 
@@ -187,7 +187,7 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 			{/* Project Badge */}
 			{task.project && (
 				<div className="mb-2">
-					<span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium">
+					<span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border/50 font-medium">
 						{task.project.title}
 					</span>
 				</div>
@@ -212,8 +212,8 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 			{/* Due Date */}
 			{task.dueAt && (
 				<div className={`flex items-center gap-1 text-[11px] mb-2 ${
-					isOverdue ? 'text-red-500 font-semibold' : 
-					isDueToday ? 'text-orange-500 font-medium' : 
+					isOverdue ? 'text-foreground font-semibold' : 
+					isDueToday ? 'text-foreground font-medium' : 
 					'text-muted-foreground'
 				}`}>
 					<Calendar className="w-3 h-3" />
@@ -224,7 +224,7 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 
 			{/* Reminder */}
 			{task.reminderAt && (
-				<div className="flex items-center gap-1 text-[11px] text-blue-500 mb-2">
+				<div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-2">
 					<Clock className="w-3 h-3" />
 					<span>Reminder set</span>
 				</div>
@@ -232,7 +232,7 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 
 			{/* Recurrence */}
 			{task.recurrence && (
-				<div className="flex items-center gap-1 text-[11px] text-purple-500 mb-2">
+				<div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-2">
 					<svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 					</svg>
@@ -270,4 +270,3 @@ function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
 		</div>
 	)
 }
-

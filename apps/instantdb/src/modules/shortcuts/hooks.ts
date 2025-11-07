@@ -17,12 +17,10 @@ function createShortcutHandler(action: TShortcutAction): (() => void) | null {
     case 'toggle-search':
       return () => {
         window.dispatchEvent(new CustomEvent('search:toggle'))
-        window.dispatchEvent(new CustomEvent('menu:toggle-search'))
       }
     case 'toggle-folders':
       return () => {
         window.dispatchEvent(new CustomEvent('folders:toggle'))
-        window.dispatchEvent(new CustomEvent('folders:expand-toggle'))
       }
     case 'new-note':
     case 'create-note':
@@ -38,6 +36,42 @@ function createShortcutHandler(action: TShortcutAction): (() => void) | null {
     case 'open-preferences':
       return () => {
         window.dispatchEvent(new CustomEvent('preferences:open'))
+      }
+    case 'context-rename':
+      return () => {
+        window.dispatchEvent(new CustomEvent('context:rename'))
+      }
+    case 'context-duplicate':
+      return () => {
+        window.dispatchEvent(new CustomEvent('context:duplicate'))
+      }
+    case 'context-pin':
+      return () => {
+        window.dispatchEvent(new CustomEvent('context:pin'))
+      }
+    case 'context-delete':
+      return () => {
+        window.dispatchEvent(new CustomEvent('context:delete'))
+      }
+    case 'clear-selection':
+      return () => {
+        window.dispatchEvent(new CustomEvent('selection:clear'))
+      }
+    case 'toggle-bold':
+      return () => {
+        window.dispatchEvent(new CustomEvent('editor:toggle-bold'))
+      }
+    case 'toggle-italic':
+      return () => {
+        window.dispatchEvent(new CustomEvent('editor:toggle-italic'))
+      }
+    case 'toggle-underline':
+      return () => {
+        window.dispatchEvent(new CustomEvent('editor:toggle-underline'))
+      }
+    case 'insert-link':
+      return () => {
+        window.dispatchEvent(new CustomEvent('editor:insert-link'))
       }
     default:
       return null

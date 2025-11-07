@@ -37,6 +37,7 @@ export const schema = i.graph(
       status: i.string(),
       position: i.number().indexed(),
       createdAt: i.number().indexed(),
+      updatedAt: i.number(),
       priority: i.string(),
       dueAt: i.number().optional(),
       // Store tags as a comma-separated string for simplicity

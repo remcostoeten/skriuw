@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from './button';
 import { WindowManager } from '@/utils/native-utils';
+import { Platform } from '@/shared/utilities/platform';
 import { Minus, Maximize2, X } from 'lucide-react';
 
-interface HeaderProps {
+type HeaderProps = {
   title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
@@ -17,56 +18,14 @@ function useIsTauri(): boolean {
   const [isTauri, setIsTauri] = useState(false);
 
   useEffect(() => {
-    // Check for Tauri in multiple ways
-    const checkTauri = () => {
-      if (typeof window === 'undefined') return false;
-
-      const win = window as any;
-
-      // Check for Tauri 2.0 internals (always present in Tauri 2.0)
-      if (win.__TAURI_INTERNALS__) return true;
-
-      // Check for Tauri global (may require withGlobalTauri config)
-      if (win.__TAURI__) return true;
-
-      // Check user agent - Tauri apps have a specific user agent
-      if (typeof navigator !== 'undefined') {
-        const ua = navigator.userAgent.toLowerCase();
-        if (ua.includes('tauri')) return true;
-      }
-
-      // Try to detect by checking if WindowManager methods would work
-      // This is a fallback that checks for Tauri runtime capabilities
-      try {
-        // Check for Tauri metadata or other indicators
-        if (typeof win.__TAURI_METADATA__ !== 'undefined') {
-          return true;
-        }
-        // Check if we're in a Tauri context by looking for IPC capabilities
-        if (typeof win.__TAURI_IPC__ !== 'undefined') {
-          return true;
-        }
-      } catch {
-        // Ignore errors
-      }
-
-      return false;
-    };
-
-    // Check immediately
-    const initialCheck = checkTauri();
-    setIsTauri(initialCheck);
-
-    // If not detected initially, check multiple times with increasing delays
-    // This handles cases where Tauri loads asynchronously
-    if (!initialCheck) {
+    setIsTauri(Platform.isTauri());
+    if (!Platform.isTauri()) {
       const timeouts: NodeJS.Timeout[] = [];
 
       // Check at 50ms, 100ms, 200ms, 500ms, 1000ms
       [50, 100, 200, 500, 1000].forEach((delay) => {
         const timeout = setTimeout(() => {
-          const result = checkTauri();
-          if (result) {
+          if (Platform.isTauri()) {
             setIsTauri(true);
             // Clear remaining timeouts once we detect Tauri
             timeouts.forEach((t) => clearTimeout(t));
@@ -79,8 +38,6 @@ function useIsTauri(): boolean {
         timeouts.forEach((t) => clearTimeout(t));
       };
     }
-
-    return undefined;
   }, []);
 
   return isTauri;

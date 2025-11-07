@@ -409,10 +409,10 @@ function TaskComments({ task, onAdd }: TaskCommentsProps) {
 
 function getStatusBadge(status: string) {
     const badges: Record<string, string> = {
-        todo: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
-        in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-        blocked: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-        done: 'bg-green-500/10 text-green-600 dark:text-green-400'
+        todo: 'bg-muted/50 text-muted-foreground border border-border/50',
+        in_progress: 'bg-muted text-foreground border border-border',
+        blocked: 'bg-muted text-foreground border border-border',
+        done: 'bg-muted/50 text-muted-foreground border border-border/50'
     }
     return badges[status] || badges.todo
 }
