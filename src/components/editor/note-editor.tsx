@@ -647,7 +647,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
                       }}
                       className="p-2 rounded-full hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                       aria-label="Create task from selection"
-                      title="Create task (Cmd+Shift+T)"
+                      title="Create task (Cmd+Shift+T) ad"
                     >
                       <CheckSquare2 className="h-4 w-4" />
                     </button>
