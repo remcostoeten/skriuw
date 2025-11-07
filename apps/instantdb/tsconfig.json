@@ -29,6 +29,12 @@
       "ui": [
         "./src/shared/components/ui/index.ts"
       ],
+      "modules": [
+        "./src/modules/*"
+      ],
+      "shared": [
+        "./src/shared/*"
+      ],
       "utils": [
       "./src/shared/utilities/index.ts"
       ],

@@ -631,22 +631,22 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
     }
   }, [editor]);
 
-  // Register editor shortcuts
+  // Register editor shortcuts - these work when editor is focused
   useComponentShortcuts([
     {
-      id: 'toggle-bold' as TShortcutAction,
+      id: 'toggle-bold',
       handler: handleBold
     },
     {
-      id: 'toggle-italic' as TShortcutAction,
+      id: 'toggle-italic',
       handler: handleItalic
     },
     {
-      id: 'toggle-underline' as TShortcutAction,
+      id: 'toggle-underline',
       handler: handleUnderline
     },
     {
-      id: 'insert-link' as TShortcutAction,
+      id: 'insert-link',
       handler: handleInsertLink
     }
   ], {

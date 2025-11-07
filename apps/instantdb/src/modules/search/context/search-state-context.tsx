@@ -78,6 +78,10 @@ export function SearchStateProvider({ children }: { children: ReactNode }) {
 export function useSearchStateContext() {
   const context = useContext(SearchStateContext);
   if (context === undefined) {
+    // Provide a fallback in development to help debug provider issues
+    if (process.env.NODE_ENV === 'development') {
+      console.error('useSearchStateContext must be used within a SearchStateProvider');
+    }
     throw new Error('useSearchStateContext must be used within a SearchStateProvider');
   }
   return context;

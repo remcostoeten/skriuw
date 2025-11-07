@@ -7,8 +7,6 @@
  */
 
 import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/shared/utilities/platform';
 import type { Note } from '@/api/db/schema';
 
@@ -19,6 +17,9 @@ export async function updateRecentNotesMenu(notes: Note[]): Promise<void> {
     if (!isTauri()) return;
 
     try {
+        // Dynamically import Tauri APIs only when needed
+        const { invoke } = await import('@tauri-apps/api/core');
+        
         // Get the 5 most recent notes (they're already sorted by createdAt desc)
         const recentNotes = notes.slice(0, 5).map(note => [
             note.id,
@@ -41,30 +42,40 @@ export function useNativeMenu(handlers: {
     useEffect(() => {
         if (!isTauri()) return;
 
-        const unlistenPromises: Promise<() => void>[] = [];
+        let unlisteners: Array<() => void> = [];
 
-        // Handle new note event
-        if (handlers.onNewNote) {
-            unlistenPromises.push(
-                listen('menu:new-note', () => {
-                    handlers.onNewNote?.();
-                })
-            );
-        }
+        // Dynamically import and set up Tauri event listeners
+        (async () => {
+            try {
+                const { listen } = await import('@tauri-apps/api/event');
+                const unlistenPromises: Promise<() => void>[] = [];
 
-        // Handle open recent note event
-        if (handlers.onOpenRecentNote) {
-            unlistenPromises.push(
-                listen<string>('menu:open-recent-note', (event) => {
-                    handlers.onOpenRecentNote?.(event.payload);
-                })
-            );
-        }
+                // Handle new note event
+                if (handlers.onNewNote) {
+                    unlistenPromises.push(
+                        listen('menu:new-note', () => {
+                            handlers.onNewNote?.();
+                        })
+                    );
+                }
+
+                // Handle open recent note event
+                if (handlers.onOpenRecentNote) {
+                    unlistenPromises.push(
+                        listen<string>('menu:open-recent-note', (event) => {
+                            handlers.onOpenRecentNote?.(event.payload);
+                        })
+                    );
+                }
+
+                unlisteners = await Promise.all(unlistenPromises);
+            } catch (error) {
+                console.error('Failed to set up native menu listeners:', error);
+            }
+        })();
 
         return () => {
-            Promise.all(unlistenPromises).then(unlisteners => {
-                unlisteners.forEach(unlisten => unlisten());
-            });
+            unlisteners.forEach(unlisten => unlisten());
         };
     }, [handlers]);
 }

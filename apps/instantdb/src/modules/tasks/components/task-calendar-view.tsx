@@ -226,7 +226,7 @@ function CalendarDay({ day, tasks, isToday, onTaskClick }: CalendarDayProps) {
 							w-full text-left text-[10px] px-1.5 py-1 rounded
 							border-l-2 truncate
 							transition-all duration-150
-							hover:shadow-sm hover:scale-[1.02]
+							hover:shadow-sm
 							${task.completed 
 								? 'bg-muted/50 text-muted-foreground border-l-gray-400 line-through' 
 								: getPriorityClasses(task.priority)
@@ -277,4 +277,3 @@ function stripHtml(html: string): string {
 	tmp.innerHTML = html
 	return tmp.textContent || tmp.innerText || ''
 }
-

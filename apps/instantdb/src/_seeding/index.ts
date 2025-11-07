@@ -9,3 +9,6 @@ export { seedKeyboardShortcutsNote } from './shortcuts-note/seed';
 export type { SeedOptions, SeedResult } from './shortcuts-note/seed';
 export { SeedShortcutsNoteButton } from './shortcuts-note/seed-button';
 
+export { seedTodosNote } from './todos-note/seed';
+export type { SeedOptions as TodosSeedOptions, SeedResult as TodosSeedResult } from './todos-note/seed';
+

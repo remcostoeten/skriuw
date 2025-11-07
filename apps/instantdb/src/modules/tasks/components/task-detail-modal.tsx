@@ -150,7 +150,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 							className={`
 								p-2 rounded-lg transition-all
 								${task.completed 
-									? 'bg-green-500/20 text-green-600' 
+									? 'bg-muted text-foreground' 
 									: 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
 								}
 							`}
@@ -242,9 +242,9 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 										type="date"
 										value={task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : ''}
 										onChange={e => handleSetDueDate(e.target.value)}
-										className={`h-9 ${isOverdue ? 'border-red-500 text-red-600' : ''}`}
+										className={`h-9 ${isOverdue ? 'border-foreground text-foreground' : ''}`}
 									/>
-									{isOverdue && <AlertCircle className="w-4 h-4 text-red-500" />}
+									{isOverdue && <AlertCircle className="w-4 h-4 text-foreground" />}
 								</div>
 							</MetadataItem>
 
@@ -541,20 +541,20 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 
 function getPriorityBadge(priority: string) {
 	const badges = {
-		urgent: { label: 'Urgent', className: 'bg-red-500/10 text-red-600 dark:text-red-400' },
-		high: { label: 'High', className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
-		med: { label: 'Medium', className: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' },
-		low: { label: 'Low', className: 'bg-green-500/10 text-green-600 dark:text-green-400' }
+		urgent: { label: 'Urgent', className: 'bg-muted text-foreground border border-border' },
+		high: { label: 'High', className: 'bg-muted text-foreground border border-border' },
+		med: { label: 'Medium', className: 'bg-muted/50 text-muted-foreground border border-border/50' },
+		low: { label: 'Low', className: 'bg-muted/30 text-muted-foreground border border-border/30' }
 	}
 	return badges[priority as keyof typeof badges] || badges.med
 }
 
 function getStatusBadge(status: string) {
 	const badges = {
-		todo: { label: 'To Do', className: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
-		in_progress: { label: 'In Progress', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-		blocked: { label: 'Blocked', className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
-		done: { label: 'Done', className: 'bg-green-500/10 text-green-600 dark:text-green-400' }
+		todo: { label: 'To Do', className: 'bg-muted/50 text-muted-foreground border border-border/50' },
+		in_progress: { label: 'In Progress', className: 'bg-muted text-foreground border border-border' },
+		blocked: { label: 'Blocked', className: 'bg-muted text-foreground border border-border' },
+		done: { label: 'Done', className: 'bg-muted/50 text-muted-foreground border border-border/50' }
 	}
 	return badges[status as keyof typeof badges] || badges.todo
 }
