@@ -8,6 +8,7 @@ import { useCreateNote } from '@/modules/notes/api/mutations/create'
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'
 import { DockManager } from '@/utils/dock-utils'
+import { updateRecentNotesMenu, useNativeMenu } from '@/utils/native-menu-linux'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function NotesView() {
@@ -64,6 +65,26 @@ export default function NotesView() {
 	useEffect(() => {
 		DockManager.setBadge(notes.length)
 	}, [notes])
+
+	// Update native menu with recent notes
+	useEffect(() => {
+		if (!isLoading && notes.length > 0) {
+			updateRecentNotesMenu(notes)
+		}
+	}, [notes, isLoading])
+
+	// Handle native menu events
+	useNativeMenu({
+		onNewNote: () => {
+			handleCreateNote()
+		},
+		onOpenRecentNote: (noteId: string) => {
+			const note = notes.find((n: Note) => n.id === noteId)
+			if (note) {
+				setSelectedNoteId(String(note.id))
+			}
+		}
+	})
 
 	useEffect(() => {
 		if (pendingNoteIdRef.current) {

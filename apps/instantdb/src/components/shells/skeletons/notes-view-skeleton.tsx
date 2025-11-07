@@ -86,16 +86,20 @@ export function NotesViewSkeleton() {
 
 						{/* Content lines skeleton */}
 						<div className="space-y-3 pt-4">
-							{Array.from({ length: 8 }).map((_, i) => (
-								<span
-									key={i}
-									className="h-5 rounded bg-muted animate-pulse"
-									style={{
-										width: `${Math.random() * 30 + 70}%`,
-										animationDelay: `${i * 0.05}s`
-									}}
-								/>
-							))}
+							{Array.from({ length: 8 }).map((_, i) => {
+								// Use deterministic widths based on index to avoid hydration mismatch
+								const widths = [85, 92, 75, 93, 81, 94, 88, 98];
+								return (
+									<span
+										key={i}
+										className="h-5 rounded bg-muted animate-pulse"
+										style={{
+											width: `${widths[i]}%`,
+											animationDelay: `${i * 0.05}s`
+										}}
+									/>
+								);
+							})}
 						</div>
 					</div>
 				</div>

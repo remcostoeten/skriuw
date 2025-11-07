@@ -30,9 +30,20 @@ const foldersInParent = (folders: Folder[], parentId: Nullable<Id>) =>
 
 const linkOps = (noteId: Id, fromId: Nullable<Id>, toId: Nullable<Id>) => {
   if (fromId === toId) return [];
-  if (toId) return [tx.notes[noteId].link({ folder: toId })];
-  if (fromId) return [tx.notes[noteId].unlink({ folder: fromId })];
-  return [];
+  const ops: any[] = [];
+  
+  // Always unlink existing relationship first (if there is one)
+  // InstantDB's unlink expects null to unlink any existing relationship
+  if (fromId) {
+    ops.push(tx.notes[noteId].unlink({ folder: null as any }));
+  }
+  
+  // Then link to new folder if provided
+  if (toId) {
+    ops.push(tx.notes[noteId].link({ folder: toId }));
+  }
+  
+  return ops;
 };
 
 const mid = (a: number, b: number) => (a + b) / 2;
@@ -67,10 +78,15 @@ export function useMoveNote() {
       const targetNotes = notesInFolder(notes, targetFolderId, draggedNoteId);
       const newPosition = (targetNotes.length ? maxPos(targetNotes) : -1) + 1;
 
-      await transact([
+      const ops = [
         tx.notes[draggedNoteId].update(withTimestamps({ position: newPosition })),
-        tx.notes[draggedNoteId].link({ folder: targetFolderId }),
-      ]);
+      ];
+      
+      // Handle folder relationship change
+      const folderOps = linkOps(draggedNoteId, currentParentId, targetFolderId);
+      ops.push(...folderOps);
+
+      await transact(ops);
     } else {
       newParentId = folderParentId(targetFolder);
 
@@ -163,7 +179,9 @@ export function useMoveNoteToRoot() {
       ];
 
       const fromId = noteFolderId(draggedNote);
-      if (fromId) txs.push(tx.notes[draggedNoteId].unlink({ folder: fromId }));
+      // Use linkOps to handle unlinking properly
+      const folderOps = linkOps(draggedNoteId, fromId, null);
+      txs.push(...folderOps);
 
       await transact(txs);
 

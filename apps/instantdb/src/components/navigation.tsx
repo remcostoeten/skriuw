@@ -202,7 +202,7 @@ export function Navigation() {
 	return (
 		<>
 			<aside
-				className="fixed left-0 top-0 z-50 hidden sm:flex h-screen w-12 flex-col items-center border-r overflow-hidden bg-background"
+				className="fixed left-0 top-8 z-50 max-h-screen h-screen pb-8 sm:flex w-12 flex-col items-center border-r overflow-hidden bg-background"
 				style={{
 					borderRightColor: 'hsl(var(--border))'
 				}}
@@ -250,7 +250,7 @@ export function Navigation() {
 				</nav>
 
 				<nav
-					className="flex flex-col items-center gap-2 pb-4"
+					className="flex flex-col items-center gap-4 pb-4 border-t"
 					aria-label="Secondary navigation"
 				>
 					<NavIcon
@@ -303,20 +303,20 @@ export function Navigation() {
 				>
 					<CalendarIcon />
 				</NavIcon>
-				<NavIcon
-					href="/folders"
-					label="Folders"
-					isActive={pathname === '/folders'}
-				>
-					<FolderIcon />
-				</NavIcon>
-				<NavIcon
-					href="/settings"
-					label="Settings"
-					isActive={pathname === '/settings'}
-				>
-					<SettingsIcon />
-				</NavIcon>
+					<NavIcon
+						href="/folders"
+						label="Folders"
+						isActive={pathname === '/folders'}
+					>
+						<FolderIcon />
+					</NavIcon>
+					<NavIcon
+						href="/settings"
+						label="Settings"
+						isActive={pathname === '/settings'}
+					>
+						<SettingsIcon />
+					</NavIcon>
 			</nav>
 		</>
 	)

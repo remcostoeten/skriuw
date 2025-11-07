@@ -195,7 +195,11 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               .filter((note) =>
                 note.title.toLowerCase().includes(query.toLowerCase())
               )
-              .slice(0, 5);
+              .slice(0, 5)
+              .map((note) => ({
+                id: note.id,
+                label: note.title, // Map title to label for TipTap Mention
+              }));
           },
           render: () => {
             let component: any;
@@ -218,8 +222,9 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
                     arrow: false,
                     theme: 'menu',
                     maxWidth: 'none',
-                    offset: [0, 6],
-                    zIndex: 9999,
+                    offset: [0, 8],
+                    zIndex: 10000,
+                    duration: [200, 150],
                   });
                 }
               },
@@ -246,6 +251,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
           },
         },
         renderHTML({ options, node }) {
+          const label = node.attrs.label || node.attrs.id;
           return [
             'a',
             {
@@ -253,8 +259,10 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               'data-mention-id': node.attrs.id,
               'href': '#',
               'class': 'mention',
+              'title': label,
+              'aria-label': `Note: ${label}`,
             },
-            `@${node.attrs.label ?? node.attrs.id}`,
+            `@${label}`,
           ];
         },
       }),
@@ -316,8 +324,9 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
                     arrow: false,
                     theme: 'menu',
                     maxWidth: 'none',
-                    offset: [0, 6],
-                    zIndex: 9999,
+                    offset: [0, 8],
+                    zIndex: 10000,
+                    duration: [200, 150],
                   });
                 }
               },
@@ -344,8 +353,7 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
           },
         },
         renderHTML({ options, node }) {
-          const short = node.attrs.label ?? node.attrs.id;
-          const title = `Task ${short}`;
+          const label = node.attrs.label || node.attrs.id;
           return [
             'a',
             {
@@ -353,10 +361,10 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
               'data-task-id': node.attrs.id,
               'href': `#task-${node.attrs.id}`,
               'class': 'task-mention',
-              'title': title,
-              'aria-label': title,
+              'title': label,
+              'aria-label': `Task: ${label}`,
             },
-            `$${short}`,
+            `$${label}`,
           ];
         },
       }),
@@ -475,13 +483,22 @@ export function NoteEditor({ note, onNoteSelect }: Props) {
       });
 
       if (result?.id) {
-        // Replace selected text with task mention using $ syntax
-        editor
-          .chain()
-          .focus()
-          .deleteSelection()
-          .insertContent(`$${result.id}`)
-          .run();
+        // Replace selected text with task mention
+        // Get the task label from available tasks or use the content
+        const taskLabel = selectedText.length > 50 
+          ? `${selectedText.slice(0, 47)}...` 
+          : selectedText;
+        
+        // Insert the mention node directly using TipTap's transaction API
+        const { state, dispatch } = editor.view;
+        const { from, to } = state.selection;
+        const mentionNode = state.schema.nodes.mention.create({
+          id: result.id,
+          label: taskLabel,
+        });
+        const transaction = state.tr.replaceWith(from, to, mentionNode);
+        dispatch(transaction);
+        editor.view.focus();
       }
     } catch (error) {
       handleError(error, 'create task from selection');

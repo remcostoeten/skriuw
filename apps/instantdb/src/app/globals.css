@@ -11,6 +11,25 @@
 		@apply border-border;
 	}
 
+	/* Default to dark background to prevent white flash */
+	html {
+		background-color: hsl(20 14.3% 4.1%);
+	}
+
+	html.dark {
+		background-color: hsl(20 14.3% 4.1%);
+	}
+
+	html:not(.dark) {
+		background-color: hsl(0 0% 100%);
+	}
+
+	body {
+		@apply bg-background text-foreground;
+		background-color: hsl(var(--background));
+		min-height: 100vh;
+	}
+
 	/* Safe area insets for mobile devices */
 	.safe-area-pb {
 		padding-bottom: env(safe-area-inset-bottom);

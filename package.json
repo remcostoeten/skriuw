@@ -9,12 +9,18 @@
   ],
   "scripts": {
     "dev": "bun run --filter @skriuw/instantdb dev",
+    "tauri": "bun run --filter @skriuw/instantdb tauri",
     "build": "bun run --filter @skriuw/instantdb build",
     "lint": "bun run --filter @skriuw/instantdb lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "cli": "bun run --filter @skriuw/sk dev",
-    "sk": "bun run --filter @skriuw/sk dev"
+    "sk": "bun run --filter @skriuw/sk dev",
+    "seeder": "bun run --filter @skriuw/seeder dev",
+    "seed": "bun run --filter @skriuw/seeder seed",
+    "seed-cli": "bun run --filter @skriuw/seeder seed-cli",
+    "seed-quick": "bun run --filter @skriuw/seeder seed-quick",
+    "kill:dev": "bash scripts/kill-dev.sh"
   },
   "devDependencies": {
     "prettier": "^3.3.3"

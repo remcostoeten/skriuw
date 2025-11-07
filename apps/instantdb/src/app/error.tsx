@@ -16,42 +16,43 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card rounded-lg shadow-sm border p-6 max-w-md w-full">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="bg-destructive/10 rounded-full p-2">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background/90 to-background flex items-center justify-center p-6">
+      <div className="w-full max-w-lg rounded-2xl border border-border/60 bg-card/90 p-8 shadow-xl backdrop-blur">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="rounded-full bg-destructive/15 p-3">
             <AlertTriangle className="h-6 w-6 text-destructive" />
           </div>
-          <h1 className="text-lg font-semibold text-foreground">Something went wrong</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
+            <p className="text-sm text-muted-foreground">
+              We ran into an unexpected error. Your work was saved, so feel free to refresh or head back home.
+            </p>
+          </div>
         </div>
 
-        <p className="text-muted-foreground mb-4">
-          We encountered an unexpected error. Your work has been saved, and you can try refreshing the page.
-        </p>
-
         {process.env.NODE_ENV === 'development' && (
-          <details className="mb-4 p-3 bg-muted rounded border">
-            <summary className="text-sm font-medium text-foreground cursor-pointer mb-2">
-              Error Details (Development Only)
+          <details className="mb-6 overflow-hidden rounded-xl border border-border/50 bg-muted/40 text-left shadow-inner">
+            <summary className="cursor-pointer bg-muted/60 px-4 py-3 text-sm font-medium text-foreground">
+              Error details (development only)
             </summary>
-            <pre className="text-xs text-muted-foreground overflow-auto">
+            <pre className="max-h-72 overflow-auto bg-muted/20 px-4 py-4 text-xs leading-relaxed text-muted-foreground">
               {error.message}
               {error.stack && `\n\n${error.stack}`}
             </pre>
           </details>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={reset} className="flex items-center justify-center">
-            <RefreshCw className="h-4 w-4 mr-2" />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={reset} className="flex flex-1 items-center justify-center gap-2">
+            <RefreshCw className="h-4 w-4" />
             Try Again
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => (window.location.href = '/')}
-            className="flex items-center justify-center"
+            className="flex flex-1 items-center justify-center gap-2 text-foreground"
           >
-            <Home className="h-4 w-4 mr-2" />
+            <Home className="h-4 w-4" />
             Go Home
           </Button>
         </div>
@@ -59,4 +60,3 @@ export default function Error({
     </div>
   )
 }
-

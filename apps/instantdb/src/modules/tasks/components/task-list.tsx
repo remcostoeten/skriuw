@@ -21,9 +21,10 @@ import Placeholder from "@tiptap/extension-placeholder";
 type props = {
     noteId: string | null;
     tasks?: Task[];
+    onTaskClick?: (task: Task) => void;
 };
 
-export function TaskList({ noteId, tasks: providedTasks }: props) {
+export function TaskList({ noteId, tasks: providedTasks, onTaskClick }: props) {
     const { tasks: fetchedTasks } = useGetTasks(noteId);
     const tasks = providedTasks ?? fetchedTasks;
     const { createTask, isLoading: isCreating } = useCreateTask();
@@ -131,71 +132,90 @@ export function TaskList({ noteId, tasks: providedTasks }: props) {
             <div className="space-y-3 mb-4">
                 {(listId ? applyList(tasks, listId) : tasks).map((task: Task) => (
                     <div key={task.id} className="space-y-2">
-                        <div className="flex items-start gap-3 group py-1">
+                        <div 
+                            className="flex items-start gap-3 group py-2 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer border border-transparent hover:border-border/30"
+                            onClick={() => onTaskClick && onTaskClick(task)}
+                        >
                             <Checkbox
                                 checked={task.completed}
                                 onCheckedChange={(checked) =>
                                     handleToggleTask(String(task.id), Boolean(checked))
                                 }
                                 className="mt-1"
+                                onClick={(e) => e.stopPropagation()}
                             />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <InlineTaskEditor
-                                        task={task}
-                                        onUpdate={(html) => updateTask(String(task.id), { content: html })}
-                                        onEditorReady={(editor) => {
-                                            editorRefs.current[String(task.id)] = editor;
-                                        }}
-                                    />
-                                    <Select
-                                        value={String(task.project?.id ?? "no-project")}
-                                        onValueChange={(value) => handleAssignProject(String(task.id), value === "no-project" ? null : value)}
-                                    >
-                                        <SelectTrigger className="w-24 h-6 text-xs">
-                                            <SelectValue placeholder="Project" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="no-project">No Project</SelectItem>
-                                            {projects
-                                                .filter((p) => p.status === 'active')
-                                                .map((project) => (
-                                                    <SelectItem key={String(project.id)} value={String(project.id)}>
-                                                        {project.title}
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <InlineTaskEditor
+                                            task={task}
+                                            onUpdate={(html) => updateTask(String(task.id), { content: html })}
+                                            onEditorReady={(editor) => {
+                                                editorRefs.current[String(task.id)] = editor;
+                                            }}
+                                        />
+                                    </div>
+                                    
+                                    {/* Status Badge */}
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${getStatusBadge(task.status)}`}>
+                                        {getStatusLabel(task.status)}
+                                    </span>
+                                    
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                            value={String(task.project?.id ?? "no-project")}
+                                            onValueChange={(value) => handleAssignProject(String(task.id), value === "no-project" ? null : value)}
+                                        >
+                                            <SelectTrigger className="w-24 h-6 text-xs">
+                                                <SelectValue placeholder="Project" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="no-project">No Project</SelectItem>
+                                                {projects
+                                                    .filter((p) => p.status === 'active')
+                                                    .map((project) => (
+                                                        <SelectItem key={String(project.id)} value={String(project.id)}>
+                                                            {project.title}
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
-                            {/* status removed to match schema */}
-                            <Select
-                                value={task.priority}
-                                onValueChange={(value) => updateTask(String(task.id), { priority: value as any } as any)}
-                            >
-                                <SelectTrigger className="w-20 h-7 text-sm">
-                                    <SelectValue placeholder="Priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="low">Low</SelectItem>
-                                    <SelectItem value="med">Med</SelectItem>
-                                    <SelectItem value="high">High</SelectItem>
-                                    <SelectItem value="urgent">Urgent</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <Select
+                                    value={task.priority}
+                                    onValueChange={(value) => updateTask(String(task.id), { priority: value as any } as any)}
+                                >
+                                    <SelectTrigger className="w-24 h-7 text-xs">
+                                        <SelectValue placeholder="Priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="low">🟢 Low</SelectItem>
+                                        <SelectItem value="med">🟡 Med</SelectItem>
+                                        <SelectItem value="high">🟠 High</SelectItem>
+                                        <SelectItem value="urgent">🔴 Urgent</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <input
                                 type="date"
-                                className="bg-transparent text-sm text-muted-foreground border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-border/60 h-7"
+                                className="bg-transparent text-xs text-muted-foreground border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-border/60 h-7 w-28"
                                 value={task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : ""}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     const ms = val ? new Date(val + 'T00:00:00').getTime() : undefined;
                                     updateTask(String(task.id), { dueAt: ms as any } as any);
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                                 aria-label="Due date"
                             />
                             <button
-                                onClick={() => handleDeleteTask(String(task.id))}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTask(String(task.id));
+                                }}
                                 className="opacity-0 group-hover:opacity-100 text-foreground/60 hover:text-destructive transition-opacity text-lg leading-none"
                                 aria-label="Delete task"
                             >
@@ -385,6 +405,26 @@ function TaskComments({ task, onAdd }: TaskCommentsProps) {
             )}
         </div>
     );
+}
+
+function getStatusBadge(status: string) {
+    const badges: Record<string, string> = {
+        todo: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+        in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+        blocked: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+        done: 'bg-green-500/10 text-green-600 dark:text-green-400'
+    }
+    return badges[status] || badges.todo
+}
+
+function getStatusLabel(status: string) {
+    const labels: Record<string, string> = {
+        todo: 'To Do',
+        in_progress: 'In Progress',
+        blocked: 'Blocked',
+        done: 'Done'
+    }
+    return labels[status] || 'To Do'
 }
 
 

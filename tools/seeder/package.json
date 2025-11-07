@@ -6,7 +6,9 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "bun run src/index.ts",
-    "seed": "bun run src/index.ts"
+    "seed": "bun run src/index.ts",
+    "seed-cli": "bun run src/seed-cli.ts",
+    "seed-quick": "bun run src/seed-quick.ts"
   },
   "dependencies": {
     "@instantdb/react": "^0.22.40",

@@ -21,7 +21,15 @@ const db = init<Schema>({
   schema,
 });
 
-const { transact, tx, query } = db;
+const { transact, tx } = db;
+
+// Get query function - it should be available from db
+const queryFn = (db as any).query;
+if (!queryFn || typeof queryFn !== 'function') {
+  console.error(chalk.red('Error: query function is not available from InstantDB.'));
+  console.error(chalk.yellow('Available properties:', Object.keys(db).join(', ')));
+  process.exit(1);
+}
 
 // Helper to generate ID (using crypto in Node.js)
 function generateIdNode(): string {
@@ -79,13 +87,13 @@ async function fetchNotes(folderId?: string | null): Promise<any[]> {
     }
   }
 
-  const result = await query(queryObj);
+  const result = await queryFn(queryObj);
   return (result?.notes as any[]) || [];
 }
 
 // Fetch all tasks
 async function fetchTasks(): Promise<any[]> {
-  const result = await query({
+  const result = await queryFn({
     tasks: {
       $: {
         order: { createdAt: 'desc' },
@@ -97,7 +105,7 @@ async function fetchTasks(): Promise<any[]> {
 
 // Fetch all folders
 async function fetchFolders(): Promise<any[]> {
-  const result = await query({
+  const result = await queryFn({
     folders: {
       parent: {},
     },

@@ -13,8 +13,22 @@ export default function RootLayout({
 	children: React.ReactNode
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="en" suppressHydrationWarning className="dark">
 			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							(function() {
+								const theme = localStorage.getItem('ui-theme') || 'system';
+								const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+								if (isDark) {
+									document.documentElement.classList.add('dark');
+									document.body.classList.add('dark');
+								}
+							})();
+						`
+					}}
+				/>
 				<meta name="msapplication-TileColor" content="#111827" />
 				<meta
 					name="msapplication-config"
@@ -73,14 +87,15 @@ export default function RootLayout({
 			</head>
 			<body
 				suppressHydrationWarning
-				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+				className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
 			>
+			
 				<Header />
-				<Navigation />
-				<div className="sm:pl-12 pt-9 pb-16 sm:pb-0">
-					<Providers>{children}</Providers>
-				</div>
-			</body>
-		</html>
-	)
+        <Navigation />
+        <div className="sm:pl-12 pt-8 pb-16 sm:pb-0 bg-background min-h-screen">
+          <Providers>{children}</Providers>
+        </div>
+      </body>
+    </html>
+  );
 }
