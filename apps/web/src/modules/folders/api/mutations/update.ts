@@ -1,7 +1,6 @@
 import { transact, tx, db } from '@/api/db/client';
 import { useMutation } from '@/hooks/core';
 import { withTimestamps } from '@/shared/utilities/timestamps';
-import { updateRelation } from '@/shared/utilities/relations';
 
 export function useUpdateFolder() {
   const { mutate, isLoading, error } = useMutation(
@@ -13,11 +12,16 @@ export function useUpdateFolder() {
       const operations: any[] = [];
       
       // Build update operations
-      const updates: any = {};
+      const updates: Record<string, any> = {};
       if (data.name !== undefined) updates.name = data.name;
       if (data.position !== undefined) updates.position = data.position;
-      
-      operations.push(tx.folders[id].update(withTimestamps(updates)));
+
+      // Always bump updatedAt when we have scalar updates
+      const shouldUpdateTimestamp =
+        Object.keys(updates).length > 0 || data.parentId !== undefined;
+      if (shouldUpdateTimestamp) {
+        operations.push(tx.folders[id].update(withTimestamps(updates)));
+      }
 
       // Handle parent relationship changes
       if (data.parentId !== undefined) {
@@ -31,15 +35,33 @@ export function useUpdateFolder() {
               parent: {},
             },
           });
-          effectiveCurrentParentId = result?.data?.folders?.[0]?.parent?.id || null;
+          effectiveCurrentParentId = result?.data?.folders?.[0]?.parent?.id ?? null;
         }
 
         // Only update relation if it's actually changing
         if (effectiveCurrentParentId !== data.parentId) {
-          operations.push(...updateRelation('folders', id, 'parent', data.parentId));
+          if (effectiveCurrentParentId) {
+            operations.push(
+              tx.folders[id].unlink({
+                parent: null as any,
+              })
+            );
+          }
+
+          if (data.parentId) {
+            operations.push(
+              tx.folders[id].link({
+                parent: data.parentId,
+              })
+            );
+          }
         }
       }
       
+      if (!operations.length) {
+        return { id };
+      }
+
       // Execute all operations in a single atomic transaction
       await transact(operations);
       return { id };
