@@ -14,7 +14,7 @@ export function TopSectionWrapper({
 	return (
 		<div
 			className={cn(
-				"flex flex-row items-center justify-center w-full h-[50px] px-3.5 gap-2 shrink-0",
+				"flex flex-row items-center justify-center w-full h-40px px-3.5 gap-2 shrink-0",
 				"transform transition-all",
 				isInputVisible ? "-translate-y-12" : "translate-y-0",
 				className

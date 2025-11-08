@@ -377,3 +377,17 @@ export const NativeUtils = {
     System: SystemUtils,
     isTauri
 };
+
+/**
+ * React hook to detect Tauri environment
+ * Use this in components instead of direct isTauri checks to avoid hydration issues
+ */
+export function useIsTauri(): boolean {
+    const { useSyncExternalStore } = require('react');
+    
+    return useSyncExternalStore(
+      () => () => {}, // subscribe (never changes)
+      () => isTauri,  // client snapshot
+      () => false     // server snapshot
+    );
+  }

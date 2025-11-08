@@ -159,7 +159,7 @@ export function BaseActionBar({
     const isAnyInputVisible = isSearchVisible || isInputVisible;
 
     return (
-        <div className="relative top-0 flex flex-col min-h-[50px] w-full border-b bg-background overflow-hidden">
+        <div className="relative top-0 flex flex-col min-h-8 w-full border-b bg-background overflow-hidden">
             <TopSectionWrapper isInputVisible={isAnyInputVisible}>
                 {allButtons.map((button, index) => (
                     <IconButton

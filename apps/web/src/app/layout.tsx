@@ -89,13 +89,13 @@ export default function RootLayout({
 				suppressHydrationWarning
 				className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
 			>
-			
-				<Header />
-        <Navigation />
-        <div className="sm:pl-12 pt-8 pb-16 sm:pb-0 bg-background min-h-screen">
-          <Providers>{children}</Providers>
-        </div>
-      </body>
-    </html>
-  );
+
+				<Header hasActions={false} />
+				<Navigation />
+				<div className="sm:pl-12 pt-8 pb-16 sm:pb-0 bg-background min-h-screen">
+					<Providers>{children}</Providers>
+				</div>
+			</body>
+		</html>
+	);
 }

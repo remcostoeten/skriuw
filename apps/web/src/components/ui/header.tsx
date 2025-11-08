@@ -1,52 +1,19 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Button } from './button';
 import { WindowManager } from '@/utils/native-utils';
-import { Platform } from '@/shared/utilities/platform';
+import { useIsTauri } from '@/utils/native-utils';
 import { Minus, Maximize2, X } from 'lucide-react';
 
 type HeaderProps = {
-  title?: string;
-  subtitle?: string;
-  actions?: React.ReactNode;
+  hasActions?: boolean;
   className?: string;
   controlsAlign?: 'left' | 'right';
 }
 
-function useIsTauri(): boolean {
-  const [isTauri, setIsTauri] = useState(false);
-
-  useEffect(() => {
-    setIsTauri(Platform.isTauri());
-    if (!Platform.isTauri()) {
-      const timeouts: NodeJS.Timeout[] = [];
-
-      // Check at 50ms, 100ms, 200ms, 500ms, 1000ms
-      [50, 100, 200, 500, 1000].forEach((delay) => {
-        const timeout = setTimeout(() => {
-          if (Platform.isTauri()) {
-            setIsTauri(true);
-            // Clear remaining timeouts once we detect Tauri
-            timeouts.forEach((t) => clearTimeout(t));
-          }
-        }, delay);
-        timeouts.push(timeout);
-      });
-
-      return () => {
-        timeouts.forEach((t) => clearTimeout(t));
-      };
-    }
-  }, []);
-
-  return isTauri;
-}
-
 export function Header({
-  title,
-  subtitle,
-  actions,
+  hasActions = true,
   className = '',
   controlsAlign = 'right'
 }: HeaderProps) {
@@ -55,7 +22,7 @@ export function Header({
 
   const renderActions = () => (
     <div className="flex gap-[4px]">
-      {actions || (
+      {hasActions && (
         <>
           {isDesktop ? (
             <>
@@ -93,19 +60,19 @@ export function Header({
           ) : (
             <>
               <Button
-                href="https://go.haptic.md/github"
+                href="https://github.com/remcostoeten/skriuw"
                 variant="static"
                 size="static"
               >
                 Star on Github
               </Button>
-              <Button
+              {/* <Button
                 href="https://go.haptic.md/download"
                 variant="primary"
                 size="static"
               >
                 Download
-              </Button>
+              </Button> */}
             </>
           )}
         </>
@@ -116,27 +83,17 @@ export function Header({
   return (
     <header
       data-tauri-drag-region
-      className={`items-center border-b flex justify-between gap-3 absolute w-full h-8 top-0 bg-background border-border pt-0 pr-[6px] pb-0 z-[40] ${className}`}
+      className={`fixed top-0 left-0 right-0 items-center border-b flex justify-between gap-3 w-full h-8 bg-background border-border pt-0 pr-[6px] pb-0 z-[40] ${className}`}
     >
       {controlsOnLeft && renderActions()}
 
-      <div className="flex items-center gap-4 flex-1">
-        {title && (
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
-            {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
-          </div>
-        )}
-
-        {!title && (
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
           <p
-            className="outline-solid pointer-events-none text-foreground/85 text-[14px] leading-[20px] outline-black/0 outline-offset-[2px] outline-[2px]"
+            className="text-foreground/85 text-[14px] leading-[20px] whitespace-nowrap"
             style={{ textDecoration: 'none solid rgba(3, 7, 18, 0.85)' }}
           >
             Skriuw InstantDB
-            {/* Empty paragraph from original design */}
           </p>
-        )}
       </div>
 
       {!controlsOnLeft && renderActions()}
