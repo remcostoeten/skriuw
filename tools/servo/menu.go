@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 type MenuType int
@@ -12,15 +13,17 @@ const (
 	MenuTypeRunAction
 	MenuTypeBuildAction
 	MenuTypeDeployAction
+	MenuTypeUtilityAction
 	MenuTypeExit
 )
 
 type MenuItem struct {
-	Name       string
-	Icon       string
-	Type       MenuType
-	SubmenuKey string
-	Action     *Action
+	Name          string
+	Icon          string
+	Type          MenuType
+	SubmenuKey    string
+	Action        *Action
+	UtilityAction func() (string, error)
 }
 
 type Action struct {
@@ -81,38 +84,25 @@ func buildSubmenu(parentItem MenuItem, config *ServoConfig) *MenuContext {
 func buildRunMenu(config *ServoConfig) *MenuContext {
 	items := []MenuItem{}
 
-	if app, ok := config.Apps["instantdb"]; ok {
+	// Dynamically build menu items from discovered apps
+	for _, app := range config.Apps {
 		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			icon := getAppIcon(app.Name)
 			items = append(items, MenuItem{
 				Name:   fmt.Sprintf("Run %s", app.Name),
-				Icon:   "🌐",
+				Icon:   icon,
 				Type:   MenuTypeRunAction,
 				Action: action,
 			})
 		}
 	}
 
-	if app, ok := config.Apps["tauri"]; ok {
-		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
-			items = append(items, MenuItem{
-				Name:   fmt.Sprintf("Run %s", app.Name),
-				Icon:   "⚡",
-				Type:   MenuTypeRunAction,
-				Action: action,
-			})
-		}
-	}
-
-	if app, ok := config.Apps["docs"]; ok {
-		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
-			items = append(items, MenuItem{
-				Name:   fmt.Sprintf("Run %s", app.Name),
-				Icon:   "📚",
-				Type:   MenuTypeRunAction,
-				Action: action,
-			})
-		}
-	}
+	items = append(items, MenuItem{
+		Name:          "Kill Dev Processes",
+		Icon:          "🛑",
+		Type:          MenuTypeUtilityAction,
+		UtilityAction: killDevProcesses,
+	})
 
 	items = append(items, MenuItem{
 		Name: "← Back",
@@ -129,33 +119,17 @@ func buildRunMenu(config *ServoConfig) *MenuContext {
 func buildBuildMenu(config *ServoConfig) *MenuContext {
 	items := []MenuItem{}
 
-	if app, ok := config.Apps["instantdb"]; ok {
+	// Dynamically build menu items from discovered apps
+	for _, app := range config.Apps {
 		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			icon := getAppIcon(app.Name)
+			verb := "Build"
+			if strings.Contains(strings.ToLower(app.Name), "tauri") {
+				verb = "Compile"
+			}
 			items = append(items, MenuItem{
-				Name:   fmt.Sprintf("Build %s", app.Name),
-				Icon:   "🌐",
-				Type:   MenuTypeBuildAction,
-				Action: action,
-			})
-		}
-	}
-
-	if app, ok := config.Apps["tauri"]; ok {
-		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
-			items = append(items, MenuItem{
-				Name:   fmt.Sprintf("Compile %s", app.Name),
-				Icon:   "⚡",
-				Type:   MenuTypeBuildAction,
-				Action: action,
-			})
-		}
-	}
-
-	if app, ok := config.Apps["docs"]; ok {
-		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
-			items = append(items, MenuItem{
-				Name:   fmt.Sprintf("Build %s", app.Name),
-				Icon:   "📚",
+				Name:   fmt.Sprintf("%s %s", verb, app.Name),
+				Icon:   icon,
 				Type:   MenuTypeBuildAction,
 				Action: action,
 			})
@@ -277,4 +251,22 @@ func newAction(cmd []string, workDir string) *Action {
 		Args:    cmd[1:],
 		WorkDir: workDir,
 	}
+}
+
+func getAppIcon(appName string) string {
+	name := strings.ToLower(appName)
+
+	// Icon selection based on app name patterns
+	if strings.Contains(name, "tauri") {
+		return "⚡"
+	}
+	if strings.Contains(name, "doc") {
+		return "📚"
+	}
+	if strings.Contains(name, "web") || strings.Contains(name, "app") {
+		return "🌐"
+	}
+
+	// Default icon
+	return "🚀"
 }

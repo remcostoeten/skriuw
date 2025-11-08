@@ -14,5 +14,5 @@ kill_port 42069   # Skriuw Next.js dev server
 kill_port 6969    # Docs dev server
 kill_port 1420    # Tauri dev server (default)
 
-# Tauri sometimes leaves cargo-tauri / bun processes running without ports
+# Tauri sois imetimes leaves cargo-tauri / bun processes running without ports
 pkill -f "tauri dev" >/dev/null 2>&1 && echo "Killed lingering Tauri dev processes" || true

@@ -31,6 +31,26 @@ func (m model) viewMenu() string {
 		s.WriteString("\n\n")
 	}
 
+	if m.statusMessage != "" {
+		statusBox := statusBoxStyle
+		var rendered string
+
+		switch m.statusState {
+		case statusLevelSuccess:
+			statusBox = statusBox.BorderForeground(successColor)
+			rendered = successStyle.Render(m.statusMessage)
+		case statusLevelError:
+			statusBox = statusBox.BorderForeground(errorColor)
+			rendered = errorStyle.Render(m.statusMessage)
+		default:
+			statusBox = statusBox.BorderForeground(infoColor)
+			rendered = infoStyle.Render(m.statusMessage)
+		}
+
+		s.WriteString(statusBox.Render(rendered))
+		s.WriteString("\n\n")
+	}
+
 	// Menu items
 	for i, item := range m.currentMenu.Items {
 		if m.currentMenu.Cursor == i {

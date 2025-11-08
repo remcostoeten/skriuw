@@ -22,55 +22,89 @@ type AppConfig struct {
 func LoadServoConfig() *ServoConfig {
 	rootDir := resolveRootDir()
 
+	// Auto-detect project structure
+	structure, err := detectProjectStructure(rootDir)
+	if err != nil {
+		// Fallback to empty config if detection fails
+		return &ServoConfig{
+			ProjectName: "Servo",
+			RootDir:     rootDir,
+			GitHubRepo:  "",
+			Apps:        make(map[string]AppConfig),
+		}
+	}
+
+	// Convert discovered apps to AppConfig map
+	apps := make(map[string]AppConfig)
+	for _, discoveredApp := range structure.Apps {
+		apps[discoveredApp.Key] = AppConfig{
+			Name:     discoveredApp.Name,
+			Dir:      discoveredApp.Dir,
+			DevCmd:   discoveredApp.DevCmd,
+			BuildCmd: discoveredApp.BuildCmd,
+		}
+	}
+
+	// Try to extract GitHub repo from package.json
+	githubRepo := ""
+	if structure.RootPackage != nil {
+		// Could parse repository field from package.json if needed
+		// For now, keep it empty or try to detect from git remote
+		githubRepo = detectGitHubRepo(rootDir)
+	}
+
+	projectName := "Servo"
+	if structure.RootPackage != nil && structure.RootPackage.Name != "" {
+		projectName = structure.RootPackage.Name
+	}
+
 	return &ServoConfig{
-		ProjectName: "Servo",
+		ProjectName: projectName,
 		RootDir:     rootDir,
-		GitHubRepo:  "skriuw-dev/skriuw",
-		Apps: map[string]AppConfig{
-			"instantdb": {
-				Name:     "Skriuw App",
-				Dir:      "apps/web",
-				DevCmd:   []string{"bun", "run", "dev"},
-				BuildCmd: []string{"bun", "run", "build"},
-			},
-			"tauri": {
-				Name:     "Skriuw Tauri",
-				Dir:      "apps/web",
-				DevCmd:   []string{"bun", "run", "tauri", "dev"},
-				BuildCmd: []string{"bun", "run", "tauri", "build"},
-			},
-			"docs": {
-				Name:     "Documentation",
-				Dir:      "apps/docs",
-				DevCmd:   []string{"bun", "run", "dev"},
-				BuildCmd: []string{"bun", "run", "build"},
-			},
-		},
+		GitHubRepo:  githubRepo,
+		Apps:        apps,
 	}
 }
 
 func resolveRootDir() string {
+	// First, try from executable path (if running as installed binary)
 	if exePath, err := os.Executable(); err == nil {
-		if root := filepath.Clean(filepath.Join(filepath.Dir(exePath), "..", "..")); isRepoRoot(root) {
+		exeDir := filepath.Dir(exePath)
+		if root := searchUpForPackageJSON(exeDir); root != "" {
 			return root
 		}
 	}
 
+	// Then, try from current working directory
 	if wd, err := os.Getwd(); err == nil {
-		candidates := []string{
-			wd,
-			filepath.Join(wd, ".."),
-			filepath.Join(wd, "..", ".."),
-		}
-
-		for _, candidate := range candidates {
-			if isRepoRoot(candidate) {
-				return filepath.Clean(candidate)
-			}
+		if root := searchUpForPackageJSON(wd); root != "" {
+			return root
 		}
 	}
 
+	// Fallback to current directory
 	return "."
+}
+
+// searchUpForPackageJSON searches up the directory tree until it finds a package.json
+// or reaches the filesystem root
+func searchUpForPackageJSON(startPath string) string {
+	current := filepath.Clean(startPath)
+
+	for {
+		if isRepoRoot(current) {
+			return current
+		}
+
+		parent := filepath.Dir(current)
+		// Stop if we've reached the filesystem root (parent == current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	return ""
 }
 
 func isRepoRoot(path string) bool {
@@ -78,18 +112,18 @@ func isRepoRoot(path string) bool {
 		return false
 	}
 
-	required := []string{
-		filepath.Join(path, "apps"),
-		filepath.Join(path, "tools"),
+	// Check for package.json (Node.js project)
+	if _, err := os.Stat(filepath.Join(path, "package.json")); err == nil {
+		return true
 	}
 
-	for _, dir := range required {
-		if !dirExists(dir) {
-			return false
-		}
-	}
+	return false
+}
 
-	return true
+func detectGitHubRepo(rootDir string) string {
+	// Try to read .git/config or use git command
+	// For now, return empty - can be enhanced later
+	return ""
 }
 
 func dirExists(path string) bool {

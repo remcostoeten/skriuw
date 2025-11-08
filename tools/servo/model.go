@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +17,14 @@ const (
 	stateDeploying
 )
 
+type statusLevel int
+
+const (
+	statusLevelInfo statusLevel = iota
+	statusLevelSuccess
+	statusLevelError
+)
+
 type model struct {
 	config        *ServoConfig
 	state         appState
@@ -23,6 +32,8 @@ type model struct {
 	currentMenu   *MenuContext
 	serverProcess *ServerProcess
 	buildProcess  *BuildProcess
+	statusMessage string
+	statusState   statusLevel
 	width         int
 	height        int
 }
@@ -42,6 +53,7 @@ func initialModel(config *ServoConfig) model {
 		state:       stateMenu,
 		menuStack:   []*MenuContext{mainMenu},
 		currentMenu: mainMenu,
+		statusState: statusLevelInfo,
 	}
 }
 
@@ -122,6 +134,7 @@ func (m model) handleMenuSelection(item MenuItem) (tea.Model, tea.Cmd) {
 	case MenuTypeRunAction:
 		// Start server
 		m.state = stateRunning
+		m.statusMessage = ""
 		m.serverProcess = NewServerProcess(
 			item.Action.Command,
 			item.Action.Args,
@@ -132,6 +145,7 @@ func (m model) handleMenuSelection(item MenuItem) (tea.Model, tea.Cmd) {
 	case MenuTypeBuildAction:
 		// Start build
 		m.state = stateBuilding
+		m.statusMessage = ""
 		m.buildProcess = NewBuildProcess(
 			item.Action.Command,
 			item.Action.Args,
@@ -143,6 +157,7 @@ func (m model) handleMenuSelection(item MenuItem) (tea.Model, tea.Cmd) {
 	case MenuTypeDeployAction:
 		// Start deploy
 		m.state = stateDeploying
+		m.statusMessage = ""
 		m.buildProcess = NewBuildProcess(
 			item.Action.Command,
 			item.Action.Args,
@@ -150,6 +165,24 @@ func (m model) handleMenuSelection(item MenuItem) (tea.Model, tea.Cmd) {
 			item.Name,
 		)
 		return m, m.buildProcess.Start()
+
+	case MenuTypeUtilityAction:
+		if item.UtilityAction == nil {
+			m.statusState = statusLevelError
+			m.statusMessage = "✗ No action defined for this item"
+			return m, nil
+		}
+
+		result, err := item.UtilityAction()
+		if err != nil {
+			m.statusState = statusLevelError
+			m.statusMessage = formatStatusMessage("✗", err.Error())
+			return m, nil
+		}
+
+		m.statusState = statusLevelSuccess
+		m.statusMessage = formatStatusMessage("✓", result)
+		return m, nil
 
 	case MenuTypeExit:
 		return m, tea.Quit
@@ -285,4 +318,19 @@ func (m model) View() string {
 	}
 
 	return ""
+}
+
+func formatStatusMessage(prefix string, message string) string {
+	msg := strings.TrimSpace(message)
+	if msg == "" {
+		return prefix
+	}
+
+	lines := strings.Split(msg, "\n")
+	lines[0] = fmt.Sprintf("%s %s", prefix, strings.TrimSpace(lines[0]))
+	for i := 1; i < len(lines); i++ {
+		lines[i] = fmt.Sprintf("  %s", strings.TrimSpace(lines[i]))
+	}
+
+	return strings.Join(lines, "\n")
 }
