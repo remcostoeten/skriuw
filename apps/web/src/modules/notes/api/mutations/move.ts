@@ -33,7 +33,7 @@ const linkOps = (noteId: Id, fromId: Nullable<Id>, toId: Nullable<Id>) => {
   const ops: any[] = [];
   
   // Always unlink existing relationship first (if there is one)
-  // InstantDB's unlink expects null to unlink any existing relationship
+  // Skriuw's unlink expects null to unlink any existing relationship
   if (fromId) {
     ops.push(tx.notes[noteId].unlink({ folder: null as any }));
   }

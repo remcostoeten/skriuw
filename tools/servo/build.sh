@@ -1,12 +1,13 @@
-# tools/servo/build.sh
 #!/bin/bash
 
-echo "🔨 Building Servo..."
+echo "\033[0;32m🔨 Building Servo...\033[0m"
 
 cd "$(dirname "$0")"
 
 go mod init servo 2>/dev/null || true
+
 go mod tidy
+
 go build -o servo
 
-echo "✅ Build complete! Run with: ./servo"
+echo "\033[0;32m✅ Build complete! Run with: ./servo\033[0m"

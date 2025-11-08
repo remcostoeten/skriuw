@@ -17,7 +17,7 @@ export function PlatformDemo() {
     useEffect(() => {
         setMounted(true)
         setFileContent({
-            text: `# Welcome to InstantDB Notes
+            text: `# Welcome to Skriuw Notes
 
 This is a sample note created with the platform demo.
 
@@ -168,7 +168,7 @@ function DesktopFeatures({
                     ...fileContent,
                     savedAt: new Date().toISOString(),
                     appInfo: {
-                        name: 'InstantDB Notes',
+                        name: 'Skriuw Notes',
                         version: '0.1.0',
                         platform: Platform.platformTag()
                     }

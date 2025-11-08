@@ -1,7 +1,7 @@
 
 import 'dotenv/config';
 
-// This script clears InstantDB data for either the entire app (all entities)
+// This script clears Skriuw data for either the entire app (all entities)
 // or a single table when passed via --table <name>.
 //
 // Usage:
@@ -58,7 +58,7 @@ async function run() {
 
   const entities = getEntitiesToClear(table);
   const startTime = Date.now();
-  console.log(`Connected to InstantDB app ${INSTANT_APP_ID}`);
+  console.log(`Connected to Skriuw app ${INSTANT_APP_ID}`);
   if (dryRun) {
     console.log('(dry run mode – no deletions will be performed)');
   }

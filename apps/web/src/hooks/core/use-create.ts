@@ -10,7 +10,7 @@ export function useCreate<T extends Record<string, any>>(entityName: string) {
             setIsLoading(true);
             setError(null);
 
-            // InstantDB transact with optimistic updates
+            // Skriuw transact with optimistic updates
             await transact([
                 tx[entityName as keyof typeof tx][id].update(data),
             ]);

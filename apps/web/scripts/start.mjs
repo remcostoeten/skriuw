@@ -74,7 +74,7 @@ function getLatestDesktopBundle(app) {
 }
 
 async function startDesktopBundle() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const latest = getLatestDesktopBundle();
   if (!latest) {
     console.log(
@@ -128,7 +128,7 @@ function getRunningTasks() {
       if (meta.status !== 'stopped') {
         tasks.push({
           key,
-          label: `${meta.app === 'turso' ? 'Turso' : 'InstantDB'} ${meta.type === 'web' ? 'Web' : 'Tauri'} (${meta.status})`,
+          label: `${meta.app === 'turso' ? 'Turso' : 'Skriuw'} ${meta.type === 'web' ? 'Web' : 'Tauri'} (${meta.status})`,
           value: `task-${key}`,
           ...meta,
         });
@@ -143,7 +143,7 @@ function getRunningTasks() {
       if (meta.status !== 'stopped' && meta.status !== 'completed' && meta.status !== 'failed') {
         tasks.push({
           key,
-          label: `${meta.app === 'turso' ? 'Turso' : 'InstantDB'} ${meta.type === 'build-web' ? 'Web Build' : 'Tauri Build'} (${meta.status})`,
+          label: `${meta.app === 'turso' ? 'Turso' : 'Skriuw'} ${meta.type === 'build-web' ? 'Web Build' : 'Tauri Build'} (${meta.status})`,
           value: `build-${key}`,
           isBuild: true,
           ...meta,
@@ -157,7 +157,7 @@ function getRunningTasks() {
 
 // Start web dev server (non-blocking)
 async function startWeb() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const port = 3000;
   const key = 'web';
 
@@ -226,7 +226,7 @@ async function startWeb() {
 
 // Start Tauri desktop app
 async function startTauri() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const key = 'tauri';
 
   if (runningProcesses[key]) {
@@ -286,7 +286,7 @@ async function startTauri() {
 
 // Build app
 async function buildApp() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const spinner = ora(`Building ${appName} app...`).start();
 
   return new Promise((resolve) => {
@@ -308,7 +308,7 @@ async function buildApp() {
 
 // Build Tauri app
 async function buildTauri() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const spinner = ora(`Building ${appName} Tauri app...`).start();
 
   return new Promise((resolve) => {
@@ -330,7 +330,7 @@ async function buildTauri() {
 
 // Show menu when app is running
 async function showRunningMenu(type) {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const port = 3000;
 
   const key = type === 'web' ? 'web' : 'tauri';
@@ -386,7 +386,7 @@ async function showRunningMenu(type) {
 
 // App submenu
 async function showAppMenu() {
-  const appName = 'InstantDB';
+  const appName = 'Skriuw';
   const lastUpdated = getLastUpdated(`.`);
   const latest = getLatestDesktopBundle();
 
@@ -453,7 +453,7 @@ async function showAppMenu() {
 
 // Start app (web)
 async function startAll() {
-  console.log(chalk.cyan('\nStarting InstantDB web...\n'));
+  console.log(chalk.cyan('\nStarting Skriuw web...\n'));
   await startWeb();
 }
 
@@ -461,11 +461,11 @@ async function startAll() {
 async function showAllAppsMenu() {
   while (true) {
     const action = await numericMenu(
-      'InstantDB running',
+      'Skriuw running',
       [
         {
           label: 'Open',
-          items: [{ name: 'Open InstantDB in browser', value: 'open' }],
+          items: [{ name: 'Open Skriuw in browser', value: 'open' }],
         },
         {
           label: 'Manage',
@@ -513,10 +513,10 @@ function showHelp() {
   console.log(chalk.gray('    • Press Enter to confirm\n'));
 
   console.log(chalk.white('  App Structure:'));
-  console.log(chalk.gray('    • Root app - Tauri + Next.js + InstantDB\n'));
+  console.log(chalk.gray('    • Root app - Tauri + Next.js + Skriuw\n'));
 
   console.log(chalk.white('  Ports:'));
-  console.log(chalk.gray('    • InstantDB web: http://localhost:3000\n'));
+  console.log(chalk.gray('    • Skriuw web: http://localhost:3000\n'));
 
   console.log(chalk.white('  Commands:'));
   console.log(chalk.gray('    • ./start        - Launch this menu'));
@@ -537,7 +537,7 @@ async function showMainMenu() {
       {
         label: 'App',
         items: [
-          { name: `InstantDB ${chalk.gray(`(Updated: ${instantdbUpdated})`)}`, value: 'instantdb' },
+          { name: `Skriuw ${chalk.gray(`(Updated: ${instantdbUpdated})`)}`, value: 'instantdb' },
         ],
       },
       {

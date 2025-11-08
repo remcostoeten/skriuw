@@ -2,7 +2,7 @@
   "name": "@skriuw/instantdb",
   "version": "0.0.1",
   "private": true,
-  "description": "InstantDB MVP - Tauri + Next.js app",
+  "description": "Skriuw MVP - Tauri + Next.js app",
   "scripts": {
     "dev": "next dev --port 42069",
     "build": "next build",

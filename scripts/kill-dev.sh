@@ -10,7 +10,7 @@ kill_port() {
   fi
 }
 
-kill_port 42069   # InstantDB Next.js dev server
+kill_port 42069   # Skriuw Next.js dev server
 kill_port 6969    # Docs dev server
 kill_port 1420    # Tauri dev server (default)
 

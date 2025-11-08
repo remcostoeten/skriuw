@@ -8,7 +8,7 @@ type AnyFn = (...args: any[]) => any;
  * Options for `createQueryHook`.
  */
 export type CreateQueryOptions<TData> = {
-    /** Maps the raw InstantDB response to the desired data shape. */
+    /** Maps the raw Skriuw response to the desired data shape. */
     select?: (raw: any) => TData;
     /** Fallback value returned when no data is available. */
     initialData?: TData;

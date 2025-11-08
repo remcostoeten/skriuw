@@ -21,7 +21,7 @@ if (!APP_ID) {
     process.exit(1);
 }
 
-console.log('🔑 InstantDB App ID:', APP_ID);
+console.log('🔑 Skriuw App ID:', APP_ID);
 
 // Initialize the database client
 const db = init({
@@ -43,7 +43,7 @@ function generateId(): string {
 async function seedShortcutsNote() {
     try {
         console.log('🚀 Starting database seeding for Keyboard Shortcuts note...');
-        console.log('📡 Connecting to InstantDB...');
+        console.log('📡 Connecting to Skriuw...');
 
         const id = generateId();
         const now = Date.now();
@@ -79,7 +79,7 @@ async function seedShortcutsNote() {
 
         console.log('\n🔄 Troubleshooting tips:');
         console.log('1. Make sure your .env file contains NEXT_PUBLIC_INSTANT_APP_ID');
-        console.log('2. Verify your InstantDB app is active and accessible');
+        console.log('2. Verify your Skriuw app is active and accessible');
         console.log('3. Check your internet connection');
         console.log('4. Make sure you have the correct permissions');
 

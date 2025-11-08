@@ -92,7 +92,7 @@ export function Header({
             className="text-foreground/85 text-[14px] leading-[20px] whitespace-nowrap"
             style={{ textDecoration: 'none solid rgba(3, 7, 18, 0.85)' }}
           >
-            Skriuw InstantDB
+            Skriuw Skriuw
           </p>
       </div>
 

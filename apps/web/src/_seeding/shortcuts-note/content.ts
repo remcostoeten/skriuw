@@ -18,14 +18,14 @@ User Input → Global Handler → Database Lookup → Event Dispatch → Compone
 \`\`\`
 
 **Key Components:**
-- **Database**: All shortcuts stored in InstantDB (\`shortcuts\` entity)
+- **Database**: All shortcuts stored in Skriuw (\`shortcuts\` entity)
 - **Global Handler**: \`useGlobalShortcuts()\` listens for all key presses
 - **Event System**: Custom events dispatched for loose coupling
 - **Component Handlers**: Components listen to events they care about
 
 ### Key Features
 
-1. **Database-Backed**: All shortcuts stored in InstantDB, fully customizable
+1. **Database-Backed**: All shortcuts stored in Skriuw, fully customizable
 2. **Event-Driven**: Uses custom events for loose coupling between components
 3. **Context-Aware**: Shortcuts can be global or context-specific (editor, sidebar, etc.)
 4. **Cross-Platform**: Automatically handles Mac (\`Cmd\`) vs Windows/Linux (\`Ctrl\`) differences
@@ -123,7 +123,7 @@ The \`CmdOrCtrl\` notation means:
 
 ### How Shortcuts are Stored
 
-All shortcuts are stored in the InstantDB \`shortcuts\` entity with the following structure:
+All shortcuts are stored in the Skriuw \`shortcuts\` entity with the following structure:
 
 \`\`\`typescript
 {
@@ -145,7 +145,7 @@ Default shortcuts are automatically created when the app first loads if they don
 ### Modifying Shortcuts
 
 **Via Database:**
-- Directly modify shortcut records in InstantDB
+- Directly modify shortcut records in Skriuw
 - Change \`combo\` to remap shortcuts
 - Set \`enabled: false\` to disable shortcuts
 - Modify \`global\` flag to change scope

@@ -11,7 +11,7 @@ This guide will help you set up and use the Seeder Tool for the first time.
 
 ### 1. Environment Configuration
 
-The Seeder Tool requires your InstantDB App ID to be configured:
+The Seeder Tool requires your Skriuw App ID to be configured:
 
 ```bash
 # In your .env file (project root)
@@ -19,25 +19,25 @@ NEXT_PUBLIC_INSTANT_APP_ID=your-app-id-here
 ```
 
 **Finding Your App ID:**
-1. Log in to [InstantDB Dashboard](https://instantdb.com)
+1. Log in to [Skriuw Dashboard](https://instantdb.com)
 2. Select your app
 3. Copy the App ID from the settings page
 
 ### 2. Database Schema
 
-Ensure your InstantDB schema includes:
+Ensure your Skriuw schema includes:
 - `notes` table with fields: `title`, `content`, `position`, `pinned`, `createdAt`, `updatedAt`
 - `folders` table with fields: `name`, `parent` (for nesting)
 - `tasks` table with fields: `content`, `note` (for linking)
 
-The seeder uses the schema from `apps/instantdb/src/api/db/schema.ts`.
+The seeder uses the schema from `apps/web/src/api/db/schema.ts`.
 
 ## Installation
 
 The Seeder Tool is already included in the monorepo. No additional installation is required.
 
 **Dependencies:**
-- `@instantdb/react` - InstantDB client
+- `@instantdb/react` - Skriuw client
 - `inquirer` - Interactive CLI prompts
 - `chalk` - Colorized terminal output
 - `ora` - Loading spinners

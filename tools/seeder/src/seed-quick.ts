@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 import { init } from '@instantdb/react';
-import { schema, type Schema } from '../../../apps/instantdb/src/api/db/schema.ts';
+import { schema, type Schema } from '../../../apps/web/src/api/db/schema.ts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { readFile } from 'fs/promises';

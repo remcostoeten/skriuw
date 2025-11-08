@@ -14,16 +14,16 @@ graph TB
     UI[UI Layer - React Components]
     Hooks[Hooks Layer - Data Access]
     API[API Layer - Mutations & Queries]
-    InstantDB[InstantDB Client]
+    Skriuw[Skriuw Client]
     Tauri[Tauri Backend]
     
     UI --> Hooks
     Hooks --> API
-    API --> InstantDB
+    API --> Skriuw
     UI --> Tauri
     
-    InstantDB --> LocalDB[Local Storage]
-    InstantDB --> Cloud[Cloud Sync]
+    Skriuw --> LocalDB[Local Storage]
+    Skriuw --> Cloud[Cloud Sync]
     
     Tauri --> FS[File System]
     Tauri --> Shortcuts[Global Shortcuts]
@@ -33,9 +33,9 @@ graph TB
 ## Directory Structure
 
 ```
-apps/instantdb/
+apps/web/
 ├── src/
-│   ├── api/                    # InstantDB configuration
+│   ├── api/                    # Skriuw configuration
 │   │   └── db/
 │   │       ├── client.ts       # DB initialization
 │   │       └── schema.ts       # Type-safe schema
@@ -197,10 +197,10 @@ Wraps async operations with:
 Entity-specific CRUD operations that:
 - Generate IDs
 - Add timestamps
-- Handle InstantDB transactions
+- Handle Skriuw transactions
 - Provide consistent API
 
-### 4. InstantDB Schema & Client
+### 4. Skriuw Schema & Client
 
 #### Schema Definition
 
@@ -329,7 +329,7 @@ App (layout.tsx)
     ↓
 3. createQueryHook executes query
     ↓
-4. InstantDB fetches from local cache
+4. Skriuw fetches from local cache
     ↓
 5. If stale, syncs from cloud
     ↓
@@ -349,7 +349,7 @@ App (layout.tsx)
     ↓
 4. ID generated, timestamps added
     ↓
-5. InstantDB transact() called
+5. Skriuw transact() called
     ↓
 6. Optimistic update applied locally
     ↓
@@ -364,7 +364,7 @@ App (layout.tsx)
 
 ### Schema Types
 
-InstantDB generates types from the schema:
+Skriuw generates types from the schema:
 
 ```typescript
 import type { Schema } from '@/api/db/schema';
@@ -415,7 +415,7 @@ All queries and mutations automatically use this for consistent error reporting.
 ## Performance Optimizations
 
 ### 1. Optimistic Updates
-InstantDB applies changes locally before server confirmation.
+Skriuw applies changes locally before server confirmation.
 
 ### 2. Indexed Queries
 Frequently queried fields are indexed in the schema:

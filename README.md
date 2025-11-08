@@ -4,14 +4,14 @@ Say goodbye to clutter in your head and organize yourself on any platform, fully
 
 
 A feature rich _me_ multiplatform app 
-A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
+A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and Skriuw.
 
 ## About
 
 I've wanted to build a desktop app for years but always quit — Electron's DX was painful, and Tauri felt daunting.
 Rust was intimidating, sync engines messy, and rich text editors a nightmare. My perfectionism over design didn't help either.
 
-Then I discovered a Svelte note app that nailed the exact UI I wanted. I lost it after reinstalling my OS. Seemed unmaintained and permissively licensed, I rebuilt it — this time with **Tauri 2.0**, **Next.js**, and **InstantDB**.
+Then I discovered a Svelte note app that nailed the exact UI I wanted. I lost it after reinstalling my OS. Seemed unmaintained and permissively licensed, I rebuilt it — this time with **Tauri 2.0**, **Next.js**, and **Skriuw**.
 
 Some visuals stay true to the original, but I'm gradually adding my own flavor and broader features.
 Much love to that forgotten minimalist app — it finally pushed me to finish the one I kept abandoning.
@@ -61,7 +61,7 @@ This launches an interactive menu where you can:
 bun install
 
 # Run the main app
-cd apps/instantdb
+cd apps/web
 bun run dev
 
 # Run docs
@@ -84,10 +84,10 @@ Full documentation is available in the [SK docs](http://localhost:3000/docs/cli)
 
 ## Tech Stack
 
-### Main App (apps/instantdb)
+### Main App (apps/web)
 - **Tauri 2.0** - Desktop application framework
 - **Next.js** - React framework with TypeScript
-- **InstantDB** - Real-time database with offline support
+- **Skriuw** - Real-time database with offline support
 - **Tailwind CSS** - Utility-first CSS framework
 - **TipTap** - Rich text editor
 
@@ -124,7 +124,7 @@ sk
 
 Manual build:
 ```bash
-cd apps/instantdb
+cd apps/web
 bun run build
 bun run tauri:build
 ```

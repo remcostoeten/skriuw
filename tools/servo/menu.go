@@ -200,7 +200,7 @@ func buildDeployMenu(config *ServoConfig) *MenuContext {
 }
 
 func buildDeployWebMenu(config *ServoConfig) *MenuContext {
-	appDir := filepath.Join(config.RootDir, "apps/instantdb")
+	appDir := filepath.Join(config.RootDir, "apps/web")
 
 	return &MenuContext{
 		Title: "🌐 Deploy Web",

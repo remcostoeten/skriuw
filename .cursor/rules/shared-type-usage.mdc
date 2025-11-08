@@ -1,7 +1,7 @@
 ---
 title: Shared Type Utilities (Mandatory)
 priority: high
-scope: apps/instantdb/src
+scope: apps/web/src
 ---
 
 # Rule: Use shared ID and timestamp types
@@ -10,6 +10,6 @@ scope: apps/instantdb/src
   - Prefer `UUID`, `Identifier`, `Nullable`, `Optional`, `Positionable`, `Timestamps`, and `BaseEntity` over ad-hoc `string | null` unions.
 - Do not inline `string` or `number` for entity identifiers. Alias them through `UUID`/`Identifier` or reuse existing domain models.
 - When creating or updating records, use `withTimestamps` (or `createTimestamp`) instead of calling `Date.now()` directly.
-- Keep new utility types in `apps/instantdb/src/types/` and update the docs if you add or change shared primitives.
+- Keep new utility types in `apps/web/src/types/` and update the docs if you add or change shared primitives.
 - Existing files that still rely on raw primitives should be migrated when touched; never introduce new raw ID/timestamp unions.
 

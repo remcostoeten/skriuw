@@ -28,14 +28,14 @@ func LoadServoConfig() *ServoConfig {
 		GitHubRepo:  "skriuw-dev/skriuw",
 		Apps: map[string]AppConfig{
 			"instantdb": {
-				Name:     "InstantDB App",
-				Dir:      "apps/instantdb",
+				Name:     "Skriuw App",
+				Dir:      "apps/web",
 				DevCmd:   []string{"bun", "run", "dev"},
 				BuildCmd: []string{"bun", "run", "build"},
 			},
 			"tauri": {
-				Name:     "InstantDB Tauri",
-				Dir:      "apps/instantdb",
+				Name:     "Skriuw Tauri",
+				Dir:      "apps/web",
 				DevCmd:   []string{"bun", "run", "tauri", "dev"},
 				BuildCmd: []string{"bun", "run", "tauri", "build"},
 			},
