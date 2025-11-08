@@ -1,0 +1,95 @@
+---
+title: Servo
+description: Terminal-based dev launcher with intelligent project detection
+---
+
+# Servo
+
+Servo is a terminal-based development launcher built with Go and Bubble Tea. It provides an elegant, keyboard-driven interface for managing development workflows in monorepos and standalone projects.
+
+## Overview
+
+Servo automatically discovers your project structure and provides a unified interface for:
+
+- **Running Applications** - Start dev servers with live output monitoring
+- **Building Projects** - Compile applications with progress tracking
+- **Deploying** - Deploy to Vercel (staging/production)
+- **Process Management** - Kill lingering dev processes
+- **Quick Actions** - Open browser, install packages, view GitHub
+
+## Key Features
+
+### 🎯 Intelligent Auto-Detection
+
+Servo automatically detects:
+- Monorepo vs standalone project structure
+- Package manager (bun, pnpm, yarn, npm)
+- Workspace apps from `package.json` workspaces
+- Tauri variants (desktop app builds)
+- Project root directory
+
+### 🎨 Beautiful Terminal UI
+
+Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern TUI experience:
+- Dark theme with shadcn-inspired colors
+- Hierarchical menu navigation with breadcrumbs
+- Live output streaming for running processes
+- Status indicators (success/error/info)
+- Keyboard shortcuts displayed inline
+
+### 🚀 Zero Configuration
+
+No config files needed! Servo reads your `package.json` and discovers everything automatically. Just run it from your project root.
+
+## Quick Start
+
+```bash
+# From project root
+cd tools/servo
+go run .
+
+# Or if installed
+servo
+```
+
+You'll see an interactive menu with all discovered apps ready to run, build, or deploy.
+
+## Why Servo?
+
+### Problem
+
+Managing development workflows in monorepos can be tedious:
+- Remembering which commands to run for each app
+- Switching between terminal windows
+- Managing multiple dev processes
+- Port conflicts and lingering processes
+- No unified view of project state
+
+### Solution
+
+Servo provides:
+- **Single entry point** for all dev operations
+- **Auto-discovery** - no manual configuration
+- **Process awareness** - knows what's running
+- **Port detection** - automatically finds and opens servers
+- **Clean interface** - organized, keyboard-driven workflow
+
+## Architecture
+
+Servo is built with:
+- **Go 1.21+** - Fast, compiled binary
+- **Bubble Tea** - Terminal UI framework
+- **Lipgloss** - Terminal styling library
+
+The tool is lightweight, fast, and has zero runtime dependencies beyond Go.
+
+## Documentation
+
+<Cards>
+  <Card title="Requirements" href="/docs/servo/requirements" description="System requirements, dependencies, and project structure needs" />
+  <Card title="Getting Started" href="/docs/servo/getting-started" description="Installation, first launch, and basic usage" />
+  <Card title="Features" href="/docs/servo/features" description="Complete feature list and capabilities" />
+  <Card title="Usage Guide" href="/docs/servo/usage" description="Workflows, examples, and advanced usage" />
+  <Card title="Architecture" href="/docs/servo/architecture" description="Technical details, code structure, and extensibility" />
+</Cards>
+
