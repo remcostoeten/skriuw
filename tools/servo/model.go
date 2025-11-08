@@ -1,4 +1,3 @@
-// tools/servo/model.go
 package main
 
 import (
@@ -168,11 +167,12 @@ func (m model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.serverProcess.Stop()
 			}
 			m.state = stateMenu
+			m.serverProcess = nil
 			return m, nil
 
 		case "o", "O":
 			if m.serverProcess != nil && m.serverProcess.Port != "" {
-				return m, openBrowser(m.serverProcess.Port)
+				return m, tea.Batch(openBrowser(m.serverProcess.Port), waitForServerOutput())
 			}
 
 		case "r", "R":
@@ -187,10 +187,18 @@ func (m model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "p", "P":
-			return m, promptInstallPackage("bun", m.serverProcess.WorkDir)
+			if m.serverProcess != nil {
+				return m, tea.Batch(
+					promptInstallPackage("bun", m.serverProcess.WorkDir),
+					waitForServerOutput(),
+				)
+			}
 
 		case "g", "G":
-			return m, openGitHubRepo(m.config.GitHubRepo)
+			return m, tea.Batch(
+				openGitHubRepo(m.config.GitHubRepo),
+				waitForServerOutput(),
+			)
 		}
 
 	case serverOutputMsg:
@@ -198,20 +206,23 @@ func (m model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if line := string(msg); line != "" {
 				m.serverProcess.AddOutput(line)
 			}
+			return m, waitForServerOutput()
 		}
-		return m, waitForServerOutput()
+		return m, nil
 
 	case serverPortMsg:
 		if m.serverProcess != nil {
 			m.serverProcess.Port = string(msg)
+			return m, waitForServerOutput()
 		}
-		return m, waitForServerOutput()
+		return m, nil
 
 	case serverErrorMsg:
 		if m.serverProcess != nil {
 			m.serverProcess.AddOutput(fmt.Sprintf("Error: %v", msg.err))
+			return m, waitForServerOutput()
 		}
-		return m, waitForServerOutput()
+		return m, nil
 	}
 
 	return m, nil
@@ -220,29 +231,26 @@ func (m model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) updateBuilding(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case buildOutputMsg:
+		// Check if build is complete
 		if m.buildProcess != nil {
-			if line := string(msg); line != "" {
-				m.buildProcess.AddOutput(line)
+			if m.buildProcess.IsDone() {
+				// Wait a bit before returning to menu so user can see result
+				if m.buildProcess.HasError() {
+					return m, tea.Tick(time.Second*3, func(t time.Time) tea.Msg {
+						return returnToMenuMsg{}
+					})
+				}
+				return m, tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
+					return returnToMenuMsg{}
+				})
 			}
 		}
+		// Keep polling for output
 		return m, waitForBuildOutput()
-
-	case buildCompleteMsg:
-		m.state = stateMenu
-		return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-			return returnToMenuMsg{}
-		})
-
-	case buildErrorMsg:
-		if m.buildProcess != nil {
-			m.buildProcess.AddOutput(fmt.Sprintf("Error: %v", msg.err))
-		}
-		return m, tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
-			return returnToMenuMsg{}
-		})
 
 	case returnToMenuMsg:
 		m.state = stateMenu
+		m.buildProcess = nil
 		return m, nil
 
 	case tea.KeyMsg:
@@ -251,6 +259,7 @@ func (m model) updateBuilding(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.buildProcess.Stop()
 			}
 			m.state = stateMenu
+			m.buildProcess = nil
 			return m, nil
 		}
 	}
@@ -259,7 +268,7 @@ func (m model) updateBuilding(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateDeploying(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Same as building for now
+	// Same logic as building
 	return m.updateBuilding(msg)
 }
 

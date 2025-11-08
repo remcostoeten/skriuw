@@ -1,3 +1,4 @@
+// tools/servo/build.go
 package main
 
 import (
@@ -12,8 +13,8 @@ import (
 
 type buildOutputMsg string
 type buildCompleteMsg struct{}
-type returnToMenuMsg struct{}
 type buildErrorMsg struct{ err error }
+type returnToMenuMsg struct{}
 
 type BuildProcess struct {
 	Command  string
@@ -24,6 +25,7 @@ type BuildProcess struct {
 	output   []string
 	mu       sync.Mutex
 	done     bool
+	errored  bool
 }
 
 func NewBuildProcess(command string, args []string, workDir string, taskName string) *BuildProcess {
@@ -71,10 +73,15 @@ func (bp *BuildProcess) Start() tea.Cmd {
 			}
 		}()
 
-		// Wait for completion
+		// Wait for completion in background
 		go func() {
-			bp.cmd.Wait()
+			err := bp.cmd.Wait()
+			bp.mu.Lock()
 			bp.done = true
+			if err != nil {
+				bp.errored = true
+			}
+			bp.mu.Unlock()
 		}()
 
 		return waitForBuildOutput()
@@ -82,7 +89,7 @@ func (bp *BuildProcess) Start() tea.Cmd {
 }
 
 func waitForBuildOutput() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 		return buildOutputMsg("")
 	})
 }
@@ -123,4 +130,10 @@ func (bp *BuildProcess) IsDone() bool {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 	return bp.done
+}
+
+func (bp *BuildProcess) HasError() bool {
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+	return bp.errored
 }

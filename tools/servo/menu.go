@@ -1,6 +1,9 @@
 package main
 
-import "path/filepath"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 type MenuType int
 
@@ -76,72 +79,98 @@ func buildSubmenu(parentItem MenuItem, config *ServoConfig) *MenuContext {
 }
 
 func buildRunMenu(config *ServoConfig) *MenuContext {
-	webApp := config.Apps["web"]
-	tauriApp := config.Apps["tauri"]
-	docsApp := config.Apps["docs"]
+	items := []MenuItem{}
+
+	if app, ok := config.Apps["instantdb"]; ok {
+		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Run %s", app.Name),
+				Icon:   "🌐",
+				Type:   MenuTypeRunAction,
+				Action: action,
+			})
+		}
+	}
+
+	if app, ok := config.Apps["tauri"]; ok {
+		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Run %s", app.Name),
+				Icon:   "⚡",
+				Type:   MenuTypeRunAction,
+				Action: action,
+			})
+		}
+	}
+
+	if app, ok := config.Apps["docs"]; ok {
+		if action := newAction(app.DevCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Run %s", app.Name),
+				Icon:   "📚",
+				Type:   MenuTypeRunAction,
+				Action: action,
+			})
+		}
+	}
+
+	items = append(items, MenuItem{
+		Name: "← Back",
+		Icon: "↩️",
+		Type: MenuTypeSubmenu,
+	})
 
 	return &MenuContext{
 		Title: "🚀 Run Application",
-		Items: []MenuItem{
-			{
-				Name:   "Run Web",
-				Icon:   "🌐",
-				Type:   MenuTypeRunAction,
-				Action: newAction(webApp.DevCmd, filepath.Join(config.RootDir, webApp.Dir)),
-			},
-			{
-				Name:   "Run Tauri",
-				Icon:   "⚡",
-				Type:   MenuTypeRunAction,
-				Action: newAction(tauriApp.DevCmd, filepath.Join(config.RootDir, tauriApp.Dir)),
-			},
-			{
-				Name:   "Run Docs",
-				Icon:   "📚",
-				Type:   MenuTypeRunAction,
-				Action: newAction(docsApp.DevCmd, filepath.Join(config.RootDir, docsApp.Dir)),
-			},
-			{
-				Name: "← Back",
-				Icon: "↩️",
-				Type: MenuTypeSubmenu,
-			},
-		},
+		Items: items,
 	}
 }
 
 func buildBuildMenu(config *ServoConfig) *MenuContext {
-	webApp := config.Apps["web"]
-	tauriApp := config.Apps["tauri"]
-	docsApp := config.Apps["docs"]
+	items := []MenuItem{}
+
+	if app, ok := config.Apps["instantdb"]; ok {
+		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Build %s", app.Name),
+				Icon:   "🌐",
+				Type:   MenuTypeBuildAction,
+				Action: action,
+			})
+		}
+	}
+
+	if app, ok := config.Apps["tauri"]; ok {
+		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Compile %s", app.Name),
+				Icon:   "⚡",
+				Type:   MenuTypeBuildAction,
+				Action: action,
+			})
+		}
+	}
+
+	if app, ok := config.Apps["docs"]; ok {
+		if action := newAction(app.BuildCmd, filepath.Join(config.RootDir, app.Dir)); action != nil {
+			items = append(items, MenuItem{
+				Name:   fmt.Sprintf("Build %s", app.Name),
+				Icon:   "📚",
+				Type:   MenuTypeBuildAction,
+				Action: action,
+			})
+		}
+	}
+
+	items = append(items, MenuItem{
+		Name: "← Back",
+		Icon: "↩️",
+		Type: MenuTypeSubmenu,
+	})
 
 	return &MenuContext{
 		Title: "🔨 Build Application",
-		Items: []MenuItem{
-			{
-				Name:   "Build Web",
-				Icon:   "🌐",
-				Type:   MenuTypeBuildAction,
-				Action: newAction(webApp.BuildCmd, filepath.Join(config.RootDir, webApp.Dir)),
-			},
-			{
-				Name:   "Compile Tauri",
-				Icon:   "⚡",
-				Type:   MenuTypeBuildAction,
-				Action: newAction(tauriApp.BuildCmd, filepath.Join(config.RootDir, tauriApp.Dir)),
-			},
-			{
-				Name:   "Build Docs",
-				Icon:   "📚",
-				Type:   MenuTypeBuildAction,
-				Action: newAction(docsApp.BuildCmd, filepath.Join(config.RootDir, docsApp.Dir)),
-			},
-			{
-				Name: "← Back",
-				Icon: "↩️",
-				Type: MenuTypeSubmenu,
-			},
-		},
+		Items: items,
 	}
 }
 
@@ -171,6 +200,8 @@ func buildDeployMenu(config *ServoConfig) *MenuContext {
 }
 
 func buildDeployWebMenu(config *ServoConfig) *MenuContext {
+	appDir := filepath.Join(config.RootDir, "apps/instantdb")
+
 	return &MenuContext{
 		Title: "🌐 Deploy Web",
 		Items: []MenuItem{
@@ -181,7 +212,7 @@ func buildDeployWebMenu(config *ServoConfig) *MenuContext {
 				Action: &Action{
 					Command: "vercel",
 					Args:    []string{"deploy"},
-					WorkDir: filepath.Join(config.RootDir, "apps/instantdb"),
+					WorkDir: appDir,
 				},
 			},
 			{
@@ -191,7 +222,7 @@ func buildDeployWebMenu(config *ServoConfig) *MenuContext {
 				Action: &Action{
 					Command: "vercel",
 					Args:    []string{"deploy", "--prod"},
-					WorkDir: filepath.Join(config.RootDir, "apps/instantdb"),
+					WorkDir: appDir,
 				},
 			},
 			{

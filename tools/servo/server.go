@@ -53,21 +53,22 @@ func (sp *ServerProcess) Start() tea.Cmd {
 			return serverErrorMsg{err}
 		}
 
-		// Read stdout in goroutine
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				line := scanner.Text()
 				sp.AddOutput(line)
 
-				// Try to extract port
-				if port := extractPort(line); port != "" && sp.Port == "" {
-					sp.Port = port
+				if port := extractPort(line); port != "" {
+					sp.mu.Lock()
+					if sp.Port == "" {
+						sp.Port = port
+					}
+					sp.mu.Unlock()
 				}
 			}
 		}()
 
-		// Read stderr in goroutine
 		go func() {
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
@@ -75,7 +76,7 @@ func (sp *ServerProcess) Start() tea.Cmd {
 			}
 		}()
 
-		return waitForServerOutput()
+		return serverOutputMsg("")
 	}
 }
 

@@ -1,10 +1,9 @@
+// tools/servo/view.go (updated with better styling)
 package main
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 func (m model) viewMenu() string {
@@ -19,24 +18,27 @@ func (m model) viewMenu() string {
 	if len(m.menuStack) > 1 {
 		breadcrumbs := make([]string, len(m.menuStack))
 		for i, menu := range m.menuStack {
+			// Clean title (remove emojis for breadcrumbs)
+			cleanTitle := strings.TrimSpace(strings.TrimLeft(menu.Title, "🎯🚀🔨🌐📚"))
+
 			if i == len(m.menuStack)-1 {
-				breadcrumbs[i] = accentStyle.Render(menu.Title)
+				breadcrumbs[i] = breadcrumbActiveStyle.Render(cleanTitle)
 			} else {
-				breadcrumbs[i] = dimStyle.Render(menu.Title)
+				breadcrumbs[i] = breadcrumbStyle.Render(cleanTitle)
 			}
 		}
-		s.WriteString(strings.Join(breadcrumbs, dimStyle.Render(" › ")))
+		s.WriteString(strings.Join(breadcrumbs, dimStyle.Render(" / ")))
 		s.WriteString("\n\n")
 	}
 
 	// Menu items
 	for i, item := range m.currentMenu.Items {
-		cursor := "  "
 		if m.currentMenu.Cursor == i {
-			cursor = "▶ "
+			cursor := "▸"
 			itemText := fmt.Sprintf("%s %s %s", cursor, item.Icon, item.Name)
 			s.WriteString(selectedItemStyle.Render(itemText))
 		} else {
+			cursor := " "
 			itemText := fmt.Sprintf("%s %s %s", cursor, item.Icon, item.Name)
 			s.WriteString(itemStyle.Render(itemText))
 		}
@@ -46,9 +48,22 @@ func (m model) viewMenu() string {
 	// Help text
 	s.WriteString("\n")
 	if len(m.menuStack) > 1 {
-		s.WriteString(helpStyle.Render("↑/↓: navigate • enter: select • backspace: back • q: quit"))
+		keys := []string{
+			dimStyle.Render("↑↓"),
+			dimStyle.Render("enter"),
+			dimStyle.Render("backspace"),
+			dimStyle.Render("q"),
+		}
+		s.WriteString(helpStyle.Render(fmt.Sprintf("%s navigate  %s select  %s back  %s quit",
+			keys[0], keys[1], keys[2], keys[3])))
 	} else {
-		s.WriteString(helpStyle.Render("↑/↓: navigate • enter: select • q: quit"))
+		keys := []string{
+			dimStyle.Render("↑↓"),
+			dimStyle.Render("enter"),
+			dimStyle.Render("q"),
+		}
+		s.WriteString(helpStyle.Render(fmt.Sprintf("%s navigate  %s select  %s quit",
+			keys[0], keys[1], keys[2])))
 	}
 
 	return boxStyle.Render(s.String())
@@ -62,17 +77,24 @@ func (m model) viewRunning() string {
 	var s strings.Builder
 
 	// Title
-	s.WriteString(titleStyle.Render("🚀 Server Running"))
+	s.WriteString(titleStyle.Render("Server Running"))
 	s.WriteString("\n\n")
 
-	// Status
+	// Status box
 	if m.serverProcess.Port != "" {
-		statusLine := fmt.Sprintf("✓ Running on http://localhost:%s", m.serverProcess.Port)
-		s.WriteString(successStyle.Render(statusLine))
+		statusContent := fmt.Sprintf("● Running on http://localhost:%s", m.serverProcess.Port)
+		statusBox := statusBoxStyle.
+			BorderForeground(successColor).
+			Render(successStyle.Render(statusContent))
+		s.WriteString(statusBox)
 	} else {
-		s.WriteString(infoStyle.Render("⏳ Starting server..."))
+		statusContent := "○ Starting server..."
+		statusBox := statusBoxStyle.
+			BorderForeground(infoColor).
+			Render(infoStyle.Render(statusContent))
+		s.WriteString(statusBox)
 	}
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 
 	// Output box
 	output := m.serverProcess.GetRecentOutput(12)
@@ -80,24 +102,26 @@ func (m model) viewRunning() string {
 	s.WriteString(outputBox)
 	s.WriteString("\n\n")
 
-	// Keyboard shortcuts
+	// Keyboard shortcuts - clean grid layout
 	shortcuts := []struct {
 		key  string
 		desc string
-		style lipgloss.Style
 	}{
-		{"O", "Open in browser", successStyle},
-		{"R", "Restart server", warningStyle},
-		{"P", "Install package", infoStyle},
-		{"G", "Open GitHub", accentStyle},
-		{"Q", "Stop & return", dimStyle},
+		{"o", "open browser"},
+		{"r", "restart"},
+		{"p", "install pkg"},
+		{"g", "github"},
+		{"q", "quit"},
 	}
 
+	var shortcutLines []string
 	for _, sc := range shortcuts {
-		line := fmt.Sprintf("%s  %s", sc.style.Render(sc.key), sc.desc)
-		s.WriteString(line)
-		s.WriteString("  ")
+		line := fmt.Sprintf("%s %s",
+			keyStyle.Render(sc.key),
+			keyDescStyle.Render(sc.desc))
+		shortcutLines = append(shortcutLines, line)
 	}
+	s.WriteString(strings.Join(shortcutLines, "  "))
 
 	return boxStyle.Render(s.String())
 }
@@ -110,16 +134,22 @@ func (m model) viewBuilding() string {
 	var s strings.Builder
 
 	// Title
-	s.WriteString(titleStyle.Render(fmt.Sprintf("🔨 %s", m.buildProcess.TaskName)))
+	s.WriteString(titleStyle.Render(m.buildProcess.TaskName))
 	s.WriteString("\n\n")
 
 	// Status
 	if m.buildProcess.IsDone() {
-		s.WriteString(successStyle.Render("✓ Build completed!"))
+		statusBox := statusBoxStyle.
+			BorderForeground(successColor).
+			Render(successStyle.Render("✓ Build completed"))
+		s.WriteString(statusBox)
 		s.WriteString("\n")
 		s.WriteString(dimStyle.Render("Returning to menu..."))
 	} else {
-		s.WriteString(spinnerStyle.Render("⚙  Building... Please wait"))
+		statusBox := statusBoxStyle.
+			BorderForeground(infoColor).
+			Render(spinnerStyle.Render("○ Building..."))
+		s.WriteString(statusBox)
 	}
 	s.WriteString("\n\n")
 
@@ -129,7 +159,7 @@ func (m model) viewBuilding() string {
 	s.WriteString(outputBox)
 
 	s.WriteString("\n\n")
-	s.WriteString(helpStyle.Render("ctrl+c: cancel"))
+	s.WriteString(helpStyle.Render(fmt.Sprintf("%s cancel", keyStyle.Render("ctrl+c"))))
 
 	return boxStyle.Render(s.String())
 }
@@ -142,16 +172,22 @@ func (m model) viewDeploying() string {
 	var s strings.Builder
 
 	// Title
-	s.WriteString(titleStyle.Render(fmt.Sprintf("🌐 %s", m.buildProcess.TaskName)))
+	s.WriteString(titleStyle.Render(m.buildProcess.TaskName))
 	s.WriteString("\n\n")
 
 	// Status
 	if m.buildProcess.IsDone() {
-		s.WriteString(successStyle.Render("✓ Deployment completed!"))
+		statusBox := statusBoxStyle.
+			BorderForeground(successColor).
+			Render(successStyle.Render("✓ Deployment completed"))
+		s.WriteString(statusBox)
 		s.WriteString("\n")
 		s.WriteString(dimStyle.Render("Returning to menu..."))
 	} else {
-		s.WriteString(spinnerStyle.Render("🚀 Deploying... Please wait"))
+		statusBox := statusBoxStyle.
+			BorderForeground(infoColor).
+			Render(spinnerStyle.Render("○ Deploying..."))
+		s.WriteString(statusBox)
 	}
 	s.WriteString("\n\n")
 
@@ -161,7 +197,7 @@ func (m model) viewDeploying() string {
 	s.WriteString(outputBox)
 
 	s.WriteString("\n\n")
-	s.WriteString(helpStyle.Render("ctrl+c: cancel"))
+	s.WriteString(helpStyle.Render(fmt.Sprintf("%s cancel", keyStyle.Render("ctrl+c"))))
 
 	return boxStyle.Render(s.String())
 }
