@@ -46,11 +46,15 @@ No config files needed! Servo reads your `package.json` and discovers everything
 ```bash
 # From project root
 cd tools/servo
-go run .
 
-# Or if installed
+# Use pre-built binary (no Go required!)
+./install.sh
+
+# Or if already installed globally
 servo
 ```
+
+**No Go Required!** Servo is distributed as a pre-compiled binary. The install script automatically uses the binary if available, or builds from source if you have Go installed.
 
 You'll see an interactive menu with all discovered apps ready to run, build, or deploy.
 

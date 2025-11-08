@@ -11,46 +11,74 @@ Get up and running with Servo in minutes.
 
 Before using Servo, ensure you have:
 
-- **Go 1.21+** installed
 - **Node.js project** with `package.json` at root
 - **Terminal** with true color and Unicode support
-
-Check your Go version:
-
-```bash
-go version
-# Should show: go version go1.21.x or later
-```
+- **Go 1.21+** (optional - only needed if building from source)
 
 ## Installation
 
-### Option 1: Run from Source (Development)
+Servo is distributed as a pre-compiled binary - **you don't need Go installed** to use it!
+
+### Option 1: Use Pre-built Binary (Recommended) ⭐
 
 ```bash
 # Navigate to Servo directory
 cd tools/servo
 
-# Run directly
-go run .
+# Install script automatically uses pre-built binary if available
+./install.sh
+
+# Or install globally
+./install.sh --global
 ```
 
-### Option 2: Build and Install
+The install script will:
+1. Check for a pre-built binary in `bin/` directory
+2. Use it if found (no Go required!)
+3. Fall back to building from source if Go is installed
+4. Show an error if neither is available
+
+### Option 2: Build from Source (Development)
+
+**Only needed if:**
+- You want to modify Servo's code
+- No pre-built binary is available for your platform
+- You prefer building yourself
 
 ```bash
+# Ensure Go 1.21+ is installed
+go version
+
+# Navigate to Servo directory
+cd tools/servo
+
 # Build the binary
-cd tools/servo
-go build -o servo .
+./build.sh
 
-# Install to PATH (optional)
-sudo mv servo /usr/local/bin/
+# Or build manually
+go build -ldflags="-s -w" -o servo .
 ```
 
-### Option 3: Use Build Script
+### Option 3: Cross-compile for All Platforms
+
+If you have Go installed and want to build binaries for all platforms:
 
 ```bash
 cd tools/servo
-./build.sh
-# This creates a binary in the current directory
+./build-all.sh
+# Creates binaries in bin/ directory for:
+# - Linux (amd64, arm64)
+# - macOS (amd64, arm64)
+# - Windows (amd64, arm64)
+```
+
+### Option 4: Run Directly (No Installation)
+
+If a binary already exists:
+
+```bash
+cd tools/servo
+./servo
 ```
 
 ## First Launch
@@ -243,6 +271,15 @@ servo
 
 ## Troubleshooting
 
+### No Binary Found and Go Not Installed
+
+**Error:** `❌ Error: No pre-built binary found and Go is not installed.`
+
+**Solutions:**
+1. **Download pre-built binary** from GitHub releases (recommended)
+2. **Install Go** from https://go.dev/dl/ and build from source
+3. **Ask maintainer** to add binary for your platform
+
 ### Servo Doesn't Detect Apps
 
 **Check:**
@@ -260,7 +297,7 @@ ls apps/*/package.json
 
 # Run from root
 cd /path/to/project/root
-servo
+tools/servo/servo  # or just 'servo' if installed globally
 ```
 
 ### Port Already in Use

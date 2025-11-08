@@ -34,14 +34,50 @@ fi
 
 echo "\033[0;32m📦 Installing Servo...\033[0m"
 
-./build.sh
+# Detect platform
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+# Map architecture names
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+esac
+
+BINARY_NAME="servo-${OS}-${ARCH}"
+if [ "$OS" = "linux" ]; then
+    BINARY_NAME="servo"  # Use simple name for Linux
+fi
+
+# Check if binary exists in bin/ directory
+if [ -f "bin/${BINARY_NAME}" ]; then
+    echo "📦 Using pre-built binary..."
+    cp "bin/${BINARY_NAME}" servo
+    chmod +x servo
+elif [ -f "servo" ]; then
+    echo "📦 Using existing binary..."
+else
+    # Check if Go is available
+    if command -v go &> /dev/null; then
+        echo "🔨 Building from source (Go required)..."
+        ./build.sh
+    else
+        echo "\033[0;31m❌ Error: No pre-built binary found and Go is not installed.\033[0m"
+        echo ""
+        echo "Please either:"
+        echo "  1. Install Go: https://go.dev/dl/"
+        echo "  2. Or download a pre-built binary from GitHub releases"
+        echo ""
+        exit 1
+    fi
+fi
 
 if [ "$1" = "--global" ]; then
 	sudo cp servo /usr/local/bin/servo
 	echo
 	echo "\033[0;32m✅ Servo installed globally! Run from anywhere with: servo\033[0m"
 else
-	echo "\033[0;32m✅ Servo built! Run with: ./servo\033[0m"
+	echo "\033[0;32m✅ Servo ready! Run with: ./servo\033[0m"
 	echo "   To install globally, run: ./install.sh --global"
 fi
 

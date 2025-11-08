@@ -10,23 +10,27 @@ description: System requirements, dependencies, and project structure
 ### Operating System
 
 Servo works on:
-- **Linux** (tested on Debian/Ubuntu)
-- **macOS** (Darwin)
-- **Windows** (with WSL or native Go support)
+- **Linux** (tested on Debian/Ubuntu) - amd64, arm64
+- **macOS** (Darwin) - amd64, arm64
+- **Windows** - amd64, arm64
 
-### Go Version
+### Runtime Dependencies
 
-- **Go 1.21 or later** required
+**None!** Servo is distributed as a statically-linked binary. No runtime dependencies required.
+
+### Build Dependencies (Optional)
+
+**Only needed if building from source:**
+
+- **Go 1.21 or later** (for compiling)
 - Check your version: `go version`
 
-### Dependencies
-
-Servo has minimal dependencies:
+**Go dependencies (automatically fetched):**
 - Go standard library
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) v0.25.0
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) v0.9.1
 
-All dependencies are managed via `go.mod` and fetched automatically.
+All dependencies are managed via `go.mod` and fetched automatically when building.
 
 ## Project Structure Requirements
 
