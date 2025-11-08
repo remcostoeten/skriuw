@@ -21,12 +21,12 @@ Much love to that forgotten minimalist app — it finally pushed me to finish th
 ```
 skriuw/
 ├── apps/
-│   ├── instantdb/    # Main Tauri + Next.js app
-│   └── docs/         # Documentation site (Fumadocs)
+│   ├── web/            # Main Tauri + Next.js app
+│   └── docs/           # Documentation site (Fumadocs)
 ├── tools/
 │   ├── sk/            # Interactive CLI tool (SK)
-│   └── seeder/       # Database seeding utilities
-└── plans/            # Project planning and documentation
+│   └── seeder/        # Database seeding utilities
+└── plans/             # Project planning and documentation
 ```
 
 ## Quick Start

@@ -1,5 +1,5 @@
 {
-  "name": "@skriuw/instantdb",
+  "name": "@skriuw/web",
   "version": "0.0.1",
   "private": true,
   "description": "Skriuw MVP - Tauri + Next.js app",

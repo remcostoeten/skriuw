@@ -8,11 +8,11 @@
     "tools/*"
   ],
   "scripts": {
-    "dev": "bash dev.sh",
-    "dev:direct": "bun run --filter @skriuw/instantdb dev",
-    "tauri": "bun run --filter @skriuw/instantdb tauri",
-    "build": "bun run --filter @skriuw/instantdb build",
-    "lint": "bun run --filter @skriuw/instantdb lint",
+    "dev": "bash scripts/dev.sh",
+    "dev:direct": "bun run --filter @skriuw/web dev",
+    "tauri": "bun run --filter @skriuw/web tauri",
+    "build": "bun run --filter @skriuw/web build",
+    "lint": "bun run --filter @skriuw/web lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seeder": "bun run --filter @skriuw/seeder dev",

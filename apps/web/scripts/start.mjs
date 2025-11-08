@@ -20,8 +20,8 @@ const runningProcesses = {
 
 // Track process metadata (logs, status, etc.)
 const processMetadata = {
-  web: { type: 'web', app: 'instantdb', status: 'stopped', logs: [], port: 3000 },
-  tauri: { type: 'tauri', app: 'instantdb', status: 'stopped', logs: [] },
+  web: { type: 'web', app: 'web', status: 'stopped', logs: [], port: 3000 },
+  tauri: { type: 'tauri', app: 'web', status: 'stopped', logs: [] },
 };
 
 // Track build processes
@@ -31,8 +31,8 @@ const buildProcesses = {
 };
 
 const buildMetadata = {
-  web: { type: 'build-web', app: 'instantdb', status: 'stopped', logs: [] },
-  tauri: { type: 'build-tauri', app: 'instantdb', status: 'stopped', logs: [] },
+  web: { type: 'build-web', app: 'web', status: 'stopped', logs: [] },
+  tauri: { type: 'build-tauri', app: 'web', status: 'stopped', logs: [] },
 };
 
 // Get last modified date of apps
@@ -529,7 +529,7 @@ async function showMainMenu() {
   console.clear();
   showWelcome();
 
-  const instantdbUpdated = getLastUpdated('.');
+  const webUpdated = getLastUpdated('.');
 
   const choice = await numericMenu(
     'Main menu',
@@ -537,7 +537,7 @@ async function showMainMenu() {
       {
         label: 'App',
         items: [
-          { name: `Skriuw ${chalk.gray(`(Updated: ${instantdbUpdated})`)}`, value: 'instantdb' },
+          { name: `Skriuw ${chalk.gray(`(Updated: ${webUpdated})`)}`, value: 'web' },
         ],
       },
       {
@@ -563,7 +563,7 @@ async function showMainMenu() {
   );
 
   switch (choice) {
-    case 'instantdb':
+    case 'web':
       await showAppMenu();
       await showMainMenu();
       break;
