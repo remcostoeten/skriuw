@@ -31,19 +31,42 @@ skriuw/
 
 ## Quick Start
 
-### Using SK (Recommended)
+### Start Development Server
 
-The easiest way to manage this monorepo is with SK, the interactive CLI:
+The easiest way to get started:
 
 ```bash
-# From project root
-bun run cli
+# Install dependencies
+bun install
 
-# Or use the short alias
-bun run sk
+# Start dev server (automatically uses Servo if available)
+bun run dev
+```
 
-# Or use the shell script
-./sk
+This will:
+- **Use Servo** if it's installed (better dev experience with interactive menu)
+- **Fall back** to regular `bun run dev` if Servo isn't available
+- Show a helpful message if Servo isn't found
+
+### Using Servo (Optional but Recommended)
+
+Servo provides an interactive menu for managing the monorepo:
+
+```bash
+# Install Servo (one-time setup)
+cd tools/servo
+./install.sh
+
+# Now `bun run dev` will use Servo automatically
+cd ../..
+bun run dev
+```
+
+Or run Servo directly:
+
+```bash
+cd tools/servo
+./servo
 ```
 
 This launches an interactive menu where you can:
@@ -54,13 +77,18 @@ This launches an interactive menu where you can:
 - Install packages without stopping apps
 - Open repository in browser
 
-### Manual Development
+### Manual Development (Without Servo)
+
+If you prefer not to use Servo:
 
 ```bash
 # Install dependencies
 bun install
 
-# Run the main app
+# Run the main app directly
+bun run dev:direct
+
+# Or manually
 cd apps/web
 bun run dev
 
@@ -107,11 +135,20 @@ Full documentation is available in the [SK docs](http://localhost:3000/docs/cli)
 From the project root:
 
 ```bash
-bun run cli          # Launch SK (interactive menu)
-bun run sk           # Short alias for SK
-bun run dev          # Run main app directly (or use 'sk dev')
+bun run dev          # Start dev server (uses Servo if available, falls back to regular dev)
+bun run dev:direct   # Run dev server directly (bypasses Servo)
 bun run build        # Build main app
 bun run format       # Format code with Prettier
+```
+
+### Using Servo
+
+If Servo is installed, `bun run dev` will automatically use it. Otherwise, it falls back to regular dev commands.
+
+To install Servo:
+```bash
+cd tools/servo
+./install.sh
 ```
 
 ### Building for Production

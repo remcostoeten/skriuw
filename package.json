@@ -8,7 +8,8 @@
     "tools/*"
   ],
   "scripts": {
-    "dev": "bun run --filter @skriuw/instantdb dev",
+    "dev": "bash dev.sh",
+    "dev:direct": "bun run --filter @skriuw/instantdb dev",
     "tauri": "bun run --filter @skriuw/instantdb tauri",
     "build": "bun run --filter @skriuw/instantdb build",
     "lint": "bun run --filter @skriuw/instantdb lint",
