@@ -16,6 +16,6 @@ go mod init servo 2>/dev/null || true
 go mod tidy
 
 # Build with optimizations (smaller binary)
-go build -ldflags="-s -w" -o servo
+go build -ldflags="-s -w" -o servo ./cmd/servo
 
 echo "\033[0;32m✅ Build complete! Run with: ./servo\033[0m"
