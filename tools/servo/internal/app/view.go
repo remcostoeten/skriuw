@@ -115,10 +115,39 @@ func (m Model) viewRunning() string {
 	}
 	s.WriteString("\n")
 
-	// Output box
-	output := m.serverProcess.GetRecentOutput(12)
-	outputBox := OutputBoxStyle.Render(output)
+	// Output box with scrolling
+	allOutput := m.serverProcess.GetAllOutput()
+	outputLines := strings.Split(allOutput, "\n")
+	totalLines := len(outputLines)
+	visibleLines := 12
+
+	start := m.outputOffset
+	if start > totalLines-visibleLines {
+		start = totalLines - visibleLines
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	end := start + visibleLines
+	if end > totalLines {
+		end = totalLines
+	}
+
+	visibleOutput := strings.Join(outputLines[start:end], "\n")
+	if visibleOutput == "" {
+		visibleOutput = "Waiting for output..."
+	}
+
+	outputBox := OutputBoxStyle.Render(visibleOutput)
 	s.WriteString(outputBox)
+
+	// Scroll indicator
+	if totalLines > visibleLines {
+		scrollInfo := fmt.Sprintf("Lines %d-%d of %d", start+1, end, totalLines)
+		s.WriteString("\n")
+		s.WriteString(DimStyle.Render(scrollInfo))
+	}
 	s.WriteString("\n\n")
 
 	// Keyboard shortcuts - clean grid layout
@@ -130,6 +159,8 @@ func (m Model) viewRunning() string {
 		{"r", "restart"},
 		{"p", "install pkg"},
 		{"g", "github"},
+		{"↑↓/jk", "scroll"},
+		{"h", "help"},
 		{"q", "quit"},
 	}
 

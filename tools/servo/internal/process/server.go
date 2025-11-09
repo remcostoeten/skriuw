@@ -119,6 +119,17 @@ func (sp *ServerProcess) GetRecentOutput(n int) string {
 	return strings.Join(sp.output[start:], "\n")
 }
 
+func (sp *ServerProcess) GetAllOutput() string {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+
+	if len(sp.output) == 0 {
+		return "Starting server..."
+	}
+
+	return strings.Join(sp.output, "\n")
+}
+
 func extractPort(line string) string {
 	patterns := []string{
 		`localhost:(\d+)`,

@@ -21,6 +21,7 @@ const (
 	StateDeploying
 	StateToolRunning
 	StateDirPicker
+	StateHelp
 )
 
 type StatusLevel int
@@ -44,6 +45,8 @@ type Model struct {
 	statusState   StatusLevel
 	width         int
 	height        int
+	outputOffset  int 
+	showHelp      bool
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
@@ -72,6 +75,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case StateMenu:
+		if m.showHelp {
+			return m.updateHelp(msg)
+		}
 		return m.updateMenu(msg)
 	case StateRunning:
 		return m.updateRunning(msg)
@@ -83,6 +89,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateToolRunning(msg)
 	case StateDirPicker:
 		return m.updateDirPicker(msg)
+	case StateHelp:
+		return m.updateHelp(msg)
 	}
 
 	return m, nil
@@ -102,9 +110,22 @@ func (m Model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "backspace", "esc":
+			if m.showHelp {
+				m.showHelp = false
+				return m, nil
+			}
 			if len(m.menuStack) > 1 {
 				m.menuStack = m.menuStack[:len(m.menuStack)-1]
 				m.currentMenu = m.menuStack[len(m.menuStack)-1]
+			}
+			return m, nil
+
+		case "h", "H", "?":
+			m.showHelp = !m.showHelp
+			if m.showHelp {
+				m.state = StateHelp
+			} else {
+				m.state = StateMenu
 			}
 			return m, nil
 
@@ -248,6 +269,24 @@ func (m Model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 				commands.OpenGitHubRepo(m.config.GitHubRepo),
 				process.WaitForServerOutput(),
 			)
+
+		case "h", "H", "?":
+			m.showHelp = !m.showHelp
+			return m, nil
+
+		case "up", "k":
+			if m.outputOffset > 0 {
+				m.outputOffset--
+			}
+			return m, nil
+
+		case "down", "j":
+			m.outputOffset++
+			return m, nil
+
+		case "home":
+			m.outputOffset = 0
+			return m, nil
 		}
 
 	case process.ServerOutputMsg:
@@ -375,8 +414,27 @@ func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.serverProcess.Args,
 					m.serverProcess.WorkDir,
 				)
+				m.outputOffset = 0 // Reset scroll on restart
 				return m, m.serverProcess.Start()
 			}
+
+		case "h", "H", "?":
+			m.showHelp = !m.showHelp
+			return m, nil
+
+		case "up", "k":
+			if m.outputOffset > 0 {
+				m.outputOffset--
+			}
+			return m, nil
+
+		case "down", "j":
+			m.outputOffset++
+			return m, nil
+
+		case "home":
+			m.outputOffset = 0
+			return m, nil
 		}
 
 	case process.ServerOutputMsg:
@@ -406,6 +464,19 @@ func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "h", "H", "?", "q", "esc":
+			m.showHelp = false
+			m.state = StateMenu
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	switch m.state {
 	case StateMenu:
@@ -423,6 +494,8 @@ func (m Model) View() string {
 			return m.dirPicker.View()
 		}
 		return ""
+	case StateHelp:
+		return m.viewHelp()
 	}
 
 	return ""
