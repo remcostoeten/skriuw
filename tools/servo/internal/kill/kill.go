@@ -7,6 +7,43 @@ import (
 	"strings"
 )
 
+// CheckPort checks if a port is in use
+func CheckPort(port string) (bool, string, error) {
+	cmd := exec.Command("lsof", "-ti:"+port)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 1 {
+				// Port is not in use
+				return false, "", nil
+			}
+		}
+
+		var execErr *exec.Error
+		if errors.As(err, &execErr) {
+			return false, "", fmt.Errorf("lsof command not available: %w", err)
+		}
+
+		return false, "", fmt.Errorf("failed to check port %s: %w", port, err)
+	}
+
+	pids := strings.Fields(strings.TrimSpace(string(output)))
+	if len(pids) == 0 {
+		return false, "", nil
+	}
+
+	// Try to get process name
+	processName := "unknown"
+	if len(pids) > 0 {
+		psCmd := exec.Command("ps", "-p", pids[0], "-o", "comm=")
+		if psOutput, err := psCmd.Output(); err == nil {
+			processName = strings.TrimSpace(string(psOutput))
+		}
+	}
+
+	return true, fmt.Sprintf("Port %s is in use by %s (PID: %s)", port, processName, strings.Join(pids, ", ")), nil
+}
+
 func KillDevProcesses() (string, error) {
 	var messages []string
 	ports := []string{"42069", "6969", "1420"}
@@ -88,4 +125,3 @@ func KillByPattern(pattern string, successMessage string) (string, error) {
 
 	return successMessage, nil
 }
-

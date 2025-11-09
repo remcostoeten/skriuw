@@ -2,12 +2,15 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"servo/internal/commands"
 	"servo/internal/config"
+	"servo/internal/kill"
 	"servo/internal/menu"
 	"servo/internal/process"
 )
@@ -22,6 +25,7 @@ const (
 	StateToolRunning
 	StateDirPicker
 	StateHelp
+	StateProcessDashboard
 )
 
 type StatusLevel int
@@ -32,32 +36,45 @@ const (
 	StatusLevelError
 )
 
+type RunningProcess struct {
+	Name    string
+	Port    string
+	Process *process.ServerProcess
+	WorkDir string
+}
+
 type Model struct {
-	config        *config.ServoConfig
-	state         AppState
-	menuStack     []*menu.MenuContext
-	currentMenu   *menu.MenuContext
-	serverProcess *process.ServerProcess
-	buildProcess  *process.BuildProcess
-	dirPicker     *DirPickerModel
-	pendingTool   *menu.MenuItem
-	statusMessage string
-	statusState   StatusLevel
-	width         int
-	height        int
-	outputOffset  int 
-	showHelp      bool
+	config          *config.ServoConfig
+	state           AppState
+	menuStack       []*menu.MenuContext
+	currentMenu     *menu.MenuContext
+	serverProcess   *process.ServerProcess
+	buildProcess    *process.BuildProcess
+	dirPicker       *DirPickerModel
+	pendingTool     *menu.MenuItem
+	runningProcesses map[string]*RunningProcess
+	statusMessage   string
+	statusState     StatusLevel
+	width           int
+	height          int
+	outputOffset    int
+	outputFilter    string
+	showHelp        bool
+	loggingEnabled  bool
+	logFile         string
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
 	mainMenu := menu.BuildMainMenu(cfg)
 
 	return Model{
-		config:      cfg,
-		state:       StateMenu,
-		menuStack:   []*menu.MenuContext{mainMenu},
-		currentMenu: mainMenu,
-		statusState: StatusLevelInfo,
+		config:           cfg,
+		state:            StateMenu,
+		menuStack:        []*menu.MenuContext{mainMenu},
+		currentMenu:      mainMenu,
+		statusState:      StatusLevelInfo,
+		runningProcesses: make(map[string]*RunningProcess),
+		loggingEnabled:   false,
 	}
 }
 
@@ -91,6 +108,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDirPicker(msg)
 	case StateHelp:
 		return m.updateHelp(msg)
+	case StateProcessDashboard:
+		return m.updateProcessDashboard(msg)
 	}
 
 	return m, nil
@@ -158,14 +177,55 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case menu.MenuTypeRunAction:
+		// Check for port conflicts before starting
+		// Extract expected port from command/args if possible
+		expectedPorts := []string{"42069", "6969", "1420"} // Common dev ports
+		
+		var portConflictMsg string
+		for _, port := range expectedPorts {
+			inUse, msg, err := kill.CheckPort(port)
+			if err != nil {
+				// If check fails, continue anyway
+				continue
+			}
+			if inUse {
+				portConflictMsg = msg
+				break
+			}
+		}
+
+		if portConflictMsg != "" {
+			m.statusState = StatusLevelError
+			m.statusMessage = formatStatusMessage("⚠️", portConflictMsg+"\nUse 'Kill Dev Processes' to free ports")
+			return m, nil
+		}
+
 		// Start server
 		m.state = StateRunning
 		m.statusMessage = ""
-		m.serverProcess = process.NewServerProcess(
+		m.outputOffset = 0
+		proc := process.NewServerProcess(
 			item.Action.Command,
 			item.Action.Args,
 			item.Action.WorkDir,
 		)
+		m.serverProcess = proc
+		
+		// Track running process
+		processKey := item.Name
+		m.runningProcesses[processKey] = &RunningProcess{
+			Name:    item.Name,
+			Process: proc,
+			WorkDir: item.Action.WorkDir,
+		}
+
+		// Enable logging if configured
+		if m.loggingEnabled {
+			logFile := filepath.Join(m.config.RootDir, ".servo", fmt.Sprintf("%s.log", strings.ReplaceAll(processKey, " ", "_")))
+			os.MkdirAll(filepath.Dir(logFile), 0755)
+			proc.SetLogFile(logFile)
+		}
+
 		return m, m.serverProcess.Start()
 
 	case menu.MenuTypeBuildAction:
@@ -204,6 +264,12 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 		return m, m.dirPicker.Init()
 
 	case menu.MenuTypeUtilityAction:
+		// Special handling for dashboard
+		if item.Name == "View Dashboard" {
+			m.state = StateProcessDashboard
+			return m, nil
+		}
+
 		if item.UtilityAction == nil {
 			m.statusState = StatusLevelError
 			m.statusMessage = "✗ No action defined for this item"
@@ -235,6 +301,13 @@ func (m Model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q", "esc":
 			if m.serverProcess != nil {
 				m.serverProcess.Stop()
+				// Remove from running processes
+				for key, proc := range m.runningProcesses {
+					if proc.Process == m.serverProcess {
+						delete(m.runningProcesses, key)
+						break
+					}
+				}
 			}
 			m.state = StateMenu
 			m.serverProcess = nil
@@ -401,6 +474,13 @@ func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q", "esc":
 			if m.serverProcess != nil {
 				m.serverProcess.Stop()
+				// Remove from running processes
+				for key, proc := range m.runningProcesses {
+					if proc.Process == m.serverProcess {
+						delete(m.runningProcesses, key)
+						break
+					}
+				}
 			}
 			m.state = StateMenu
 			m.serverProcess = nil
@@ -477,6 +557,30 @@ func (m Model) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateProcessDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc":
+			m.state = StateMenu
+			return m, nil
+		case "s", "S":
+			// Stop all processes
+			for _, proc := range m.runningProcesses {
+				if proc.Process != nil {
+					proc.Process.Stop()
+				}
+			}
+			m.runningProcesses = make(map[string]*RunningProcess)
+			m.statusState = StatusLevelSuccess
+			m.statusMessage = "✓ All processes stopped"
+			m.state = StateMenu
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	switch m.state {
 	case StateMenu:
@@ -496,6 +600,8 @@ func (m Model) View() string {
 		return ""
 	case StateHelp:
 		return m.viewHelp()
+	case StateProcessDashboard:
+		return m.viewProcessDashboard()
 	}
 
 	return ""

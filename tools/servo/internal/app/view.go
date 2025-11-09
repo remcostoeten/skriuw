@@ -115,9 +115,22 @@ func (m Model) viewRunning() string {
 	}
 	s.WriteString("\n")
 
-	// Output box with scrolling
+	// Output box with scrolling and filtering
 	allOutput := m.serverProcess.GetAllOutput()
 	outputLines := strings.Split(allOutput, "\n")
+	
+	// Apply filter if set
+	if m.outputFilter != "" {
+		filtered := make([]string, 0)
+		filterLower := strings.ToLower(m.outputFilter)
+		for _, line := range outputLines {
+			if strings.Contains(strings.ToLower(line), filterLower) {
+				filtered = append(filtered, line)
+			}
+		}
+		outputLines = filtered
+	}
+	
 	totalLines := len(outputLines)
 	visibleLines := 12
 
@@ -136,17 +149,27 @@ func (m Model) viewRunning() string {
 
 	visibleOutput := strings.Join(outputLines[start:end], "\n")
 	if visibleOutput == "" {
-		visibleOutput = "Waiting for output..."
+		if m.outputFilter != "" {
+			visibleOutput = fmt.Sprintf("No lines matching '%s'", m.outputFilter)
+		} else {
+			visibleOutput = "Waiting for output..."
+		}
 	}
 
 	outputBox := OutputBoxStyle.Render(visibleOutput)
 	s.WriteString(outputBox)
 
-	// Scroll indicator
+	// Scroll indicator and filter info
+	infoParts := []string{}
 	if totalLines > visibleLines {
-		scrollInfo := fmt.Sprintf("Lines %d-%d of %d", start+1, end, totalLines)
+		infoParts = append(infoParts, fmt.Sprintf("Lines %d-%d of %d", start+1, end, totalLines))
+	}
+	if m.outputFilter != "" {
+		infoParts = append(infoParts, fmt.Sprintf("Filter: '%s'", m.outputFilter))
+	}
+	if len(infoParts) > 0 {
 		s.WriteString("\n")
-		s.WriteString(DimStyle.Render(scrollInfo))
+		s.WriteString(DimStyle.Render(strings.Join(infoParts, " | ")))
 	}
 	s.WriteString("\n\n")
 
@@ -160,6 +183,7 @@ func (m Model) viewRunning() string {
 		{"p", "install pkg"},
 		{"g", "github"},
 		{"↑↓/jk", "scroll"},
+		{"/", "filter"},
 		{"h", "help"},
 		{"q", "quit"},
 	}

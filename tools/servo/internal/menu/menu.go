@@ -72,6 +72,12 @@ func BuildMainMenu(cfg *config.ServoConfig) *MenuContext {
 			SubmenuKey: "tools",
 		},
 		{
+			Name:       "Process Dashboard",
+			Icon:       "📊",
+			Type:       MenuTypeSubmenu,
+			SubmenuKey: "dashboard",
+		},
+		{
 			Name: "Exit",
 			Icon: "❌",
 			Type: MenuTypeExit,
@@ -95,6 +101,8 @@ func BuildSubmenu(parentItem MenuItem, cfg *config.ServoConfig) *MenuContext {
 		return BuildDeployDocsMenu(cfg)
 	case "tools":
 		return BuildToolsMenu(cfg)
+	case "dashboard":
+		return BuildDashboardMenu(cfg)
 	default:
 		return BuildMainMenu(cfg)
 	}
@@ -339,5 +347,23 @@ func GetToolIcon(toolName string) string {
 
 	// Default tool icon
 	return "🛠️"
+}
+
+func BuildDashboardMenu(cfg *config.ServoConfig) *MenuContext {
+	return &MenuContext{
+		Title: "📊 Process Dashboard",
+		Items: []MenuItem{
+			{
+				Name: "View Dashboard",
+				Icon: "📊",
+				Type: MenuTypeUtilityAction,
+			},
+			{
+				Name: "← Back",
+				Icon: "↩️",
+				Type: MenuTypeSubmenu,
+			},
+		},
+	}
 }
 

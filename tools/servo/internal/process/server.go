@@ -2,6 +2,8 @@ package process
 
 import (
 	"bufio"
+	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -22,6 +24,7 @@ type ServerProcess struct {
 	Port    string
 	cmd     *exec.Cmd
 	output  []string
+	logFile string
 	mu      sync.Mutex
 }
 
@@ -93,6 +96,12 @@ func (sp *ServerProcess) Stop() {
 	}
 }
 
+func (sp *ServerProcess) SetLogFile(logFile string) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.logFile = logFile
+}
+
 func (sp *ServerProcess) AddOutput(line string) {
 	sp.mu.Lock()
 	defer sp.mu.Unlock()
@@ -100,6 +109,14 @@ func (sp *ServerProcess) AddOutput(line string) {
 	sp.output = append(sp.output, line)
 	if len(sp.output) > 200 {
 		sp.output = sp.output[len(sp.output)-200:]
+	}
+
+	// Write to log file if enabled
+	if sp.logFile != "" {
+		if f, err := os.OpenFile(sp.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			fmt.Fprintln(f, line)
+			f.Close()
+		}
 	}
 }
 
