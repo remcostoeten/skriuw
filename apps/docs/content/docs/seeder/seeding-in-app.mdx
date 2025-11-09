@@ -195,14 +195,14 @@ bun src/_seeding/shortcuts-note/script.ts
 
 - `.env` file with `NEXT_PUBLIC_INSTANT_APP_ID`
 - Internet connection
-- Active InstantDB app
+- Active Skriuw app
 
 **Output:**
 
 ```
-🔑 InstantDB App ID: xxx-xxx-xxx
+🔑 Skriuw App ID: xxx-xxx-xxx
 🚀 Starting database seeding for Keyboard Shortcuts note...
-📡 Connecting to InstantDB...
+📡 Connecting to Skriuw...
 📝 Creating note with ID: xxx-xxx-xxx
 ✅ Successfully created Keyboard Shortcuts note!
 🆔 Note ID: xxx-xxx-xxx
@@ -245,7 +245,7 @@ src/app/api/seed/shortcuts-note/route.ts
 ### Backend script fails
 
 1. Verify `.env` exists with `NEXT_PUBLIC_INSTANT_APP_ID`
-2. Check InstantDB app is active
+2. Check Skriuw app is active
 3. Ensure internet connection
 4. Check console for detailed error messages
 
@@ -253,7 +253,7 @@ src/app/api/seed/shortcuts-note/route.ts
 
 1. Hard refresh the page (Cmd/Ctrl + Shift + R)
 2. Check browser console for errors
-3. Verify InstantDB connection in Network tab
+3. Verify Skriuw connection in Network tab
 4. Check that `useGetNotes()` hook is working
 
 ## Adding New Seeds
@@ -277,9 +277,9 @@ To add a new seeding utility:
 
 ## Technical Details
 
-### InstantDB Pattern
+### Skriuw Pattern
 
-All seeding methods use the correct InstantDB transaction pattern:
+All seeding methods use the correct Skriuw transaction pattern:
 
 ```typescript
 import { transact, tx } from '@/api/db/client';

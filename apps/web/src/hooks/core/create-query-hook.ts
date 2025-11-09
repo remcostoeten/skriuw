@@ -1,0 +1,66 @@
+import { useMemo, useEffect } from 'react';
+import { useQuery as useInstantQuery } from '@/api/db/client';
+import { useErrorHandler } from '@/hooks/use-error-handler';
+
+type AnyFn = (...args: any[]) => any;
+
+/**
+ * Options for `createQueryHook`.
+ */
+export type CreateQueryOptions<TData> = {
+    /** Maps the raw Skriuw response to the desired data shape. */
+    select?: (raw: any) => TData;
+    /** Fallback value returned when no data is available. */
+    initialData?: TData;
+    /** Predicate that controls whether the query executes. */
+    enabled?: (...args: any[]) => boolean;
+    /** Whether to show error toast notifications. */
+    showErrorToast?: boolean;
+    /** Context for error messages. */
+    errorContext?: string;
+    /** Callback for handling errors. */
+    onError?: (error: Error) => void;
+}
+
+// Temporary alias for backward compatibility
+export type options<TData> = CreateQueryOptions<TData>;
+
+/**
+ * Creates a typed query hook that returns `{ data, isLoading, error, isSuccess, isError, isError }`.
+ */
+export function createQueryHook<TArgs extends AnyFn, TData = any>(
+    buildQuery: TArgs,
+    options?: CreateQueryOptions<TData>
+) {
+    return (...args: Parameters<TArgs>) => {
+        const isEnabled = options?.enabled ? options.enabled(...args) : true;
+        const query = useMemo(() => (isEnabled ? buildQuery(...args) : null), [isEnabled, ...args]);
+
+        const { data: raw, isLoading, error } = useInstantQuery(query ?? {});
+        const { handleError } = useErrorHandler({ showToast: options?.showErrorToast !== false });
+
+        const data = (options?.select ? options.select(raw) : (raw as TData)) ?? options?.initialData;
+        const isSuccess = !isLoading && !error && isEnabled;
+        const isError = !!error && isEnabled;
+
+        useEffect(() => {
+            if (error && isError && options?.showErrorToast !== false) {
+                handleError(error, options?.errorContext);
+            }
+
+            if (error && isError && options?.onError) {
+                options.onError(error as Error);
+            }
+        }, [error, isError, handleError, options?.onError, options?.errorContext, options?.showErrorToast]);
+
+        return {
+            data: data as TData,
+            isLoading: !!isEnabled && isLoading,
+            error: error as Error | null,
+            isSuccess,
+            isError
+        } as const;
+    };
+}
+
+

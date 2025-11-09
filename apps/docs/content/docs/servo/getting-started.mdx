@@ -1,0 +1,327 @@
+---
+title: Getting Started
+description: Installation, first launch, and basic usage
+---
+
+# Getting Started with Servo
+
+Get up and running with Servo in minutes.
+
+## Prerequisites
+
+Before using Servo, ensure you have:
+
+- **Node.js project** with `package.json` at root
+- **Terminal** with true color and Unicode support
+- **Go 1.21+** (optional - only needed if building from source)
+
+## Installation
+
+Servo is distributed as a pre-compiled binary - **you don't need Go installed** to use it!
+
+### Option 1: Use Pre-built Binary (Recommended) ⭐
+
+```bash
+# Navigate to Servo directory
+cd tools/servo
+
+# Install script automatically uses pre-built binary if available
+./install.sh
+
+# Or install globally
+./install.sh --global
+```
+
+The install script will:
+1. Check for a pre-built binary in `bin/` directory
+2. Use it if found (no Go required!)
+3. Fall back to building from source if Go is installed
+4. Show an error if neither is available
+
+### Option 2: Build from Source (Development)
+
+**Only needed if:**
+- You want to modify Servo's code
+- No pre-built binary is available for your platform
+- You prefer building yourself
+
+```bash
+# Ensure Go 1.21+ is installed
+go version
+
+# Navigate to Servo directory
+cd tools/servo
+
+# Build the binary
+./build.sh
+
+# Or build manually
+go build -ldflags="-s -w" -o servo .
+```
+
+### Option 3: Cross-compile for All Platforms
+
+If you have Go installed and want to build binaries for all platforms:
+
+```bash
+cd tools/servo
+./build-all.sh
+# Creates binaries in bin/ directory for:
+# - Linux (amd64, arm64)
+# - macOS (amd64, arm64)
+# - Windows (amd64, arm64)
+```
+
+### Option 4: Run Directly (No Installation)
+
+If a binary already exists:
+
+```bash
+cd tools/servo
+./servo
+```
+
+## First Launch
+
+Start Servo from your project root:
+
+```bash
+# From project root
+cd /path/to/your/project
+tools/servo/servo
+
+# Or if installed
+servo
+```
+
+You'll see the main menu:
+
+```
+┌────────────────────────────────────────────┐
+│  🎯 Servo - Dev Launcher                  │
+│                                            │
+│  🚀 Run Application                        │
+│  🔨 Build Application                      │
+│  🌐 Deploy Application                     │
+│  ❌ Exit                                   │
+└────────────────────────────────────────────┘
+
+↑↓ navigate  enter select  q quit
+```
+
+## Basic Usage
+
+### Starting a Dev Server
+
+1. Use arrow keys (↑/↓) to navigate
+2. Select "🚀 Run Application"
+3. Press Enter
+4. Choose an app (e.g., "Run Web")
+5. Press Enter
+
+The server will start and you'll see:
+
+```
+┌────────────────────────────────────────────┐
+│  Server Running                             │
+│                                            │
+│  ┌──────────────────────────────────────┐ │
+│  │ ● Running on http://localhost:42069  │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  ┌──────────────────────────────────────┐ │
+│  │ Starting server...                    │ │
+│  │ Ready in 2.3s                        │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  o open browser  r restart  p install    │
+│  pkg  g github  q quit                    │
+└────────────────────────────────────────────┘
+```
+
+### Opening in Browser
+
+While a server is running:
+- Press `o` to open `http://localhost:[port]` in your browser
+
+### Stopping a Server
+
+- Press `q` or `Esc` to stop the server and return to menu
+
+### Building an App
+
+1. Select "🔨 Build Application"
+2. Choose an app (e.g., "Build Web")
+3. Press Enter
+
+You'll see build progress:
+
+```
+┌────────────────────────────────────────────┐
+│  Build Web                                 │
+│                                            │
+│  ┌──────────────────────────────────────┐ │
+│  │ ○ Building...                        │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  ┌──────────────────────────────────────┐ │
+│  │ > next build                         │ │
+│  │   Creating an optimized production... │ │
+│  │   Compiled successfully              │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  ctrl+c cancel                             │
+└────────────────────────────────────────────┘
+```
+
+When complete, you'll automatically return to the menu.
+
+### Deploying
+
+1. Select "🌐 Deploy Application"
+2. Choose "Deploy Web" or "Deploy Docs"
+3. Select "Staging" or "Production"
+4. Press Enter
+
+Deployment progress will be shown, then you'll return to the menu.
+
+### Killing Dev Processes
+
+If you have lingering dev processes:
+
+1. Select "🚀 Run Application"
+2. Choose "🛑 Kill Dev Processes"
+3. Press Enter
+
+Servo will kill processes on ports 42069, 6969, 1420, and any "tauri dev" processes.
+
+## Navigation Tips
+
+### Menu Navigation
+
+- **Arrow Keys** - Move up/down
+- **j/k** - Alternative navigation (vim-style)
+- **Enter** - Select item
+- **Backspace/Esc** - Go back
+- **q** - Quit (from main menu only)
+
+### Breadcrumbs
+
+When in a submenu, you'll see breadcrumbs:
+
+```
+Servo / Run Application
+```
+
+This shows your current location in the menu hierarchy.
+
+### Status Messages
+
+Servo shows status messages at the top of menus:
+
+- ✅ **Green** - Success (e.g., "Killed process on port 42069")
+- ❌ **Red** - Error (e.g., "Failed to start server")
+- ℹ️ **Blue** - Info (e.g., "Starting server...")
+
+## Common Workflows
+
+### Daily Development
+
+```bash
+# 1. Start Servo
+servo
+
+# 2. Run your app
+# Navigate: Run Application → Run Web
+
+# 3. Open in browser
+# Press 'o' when server is running
+
+# 4. Make changes (hot reload works)
+
+# 5. Stop when done
+# Press 'q' to stop and quit
+```
+
+### Building for Production
+
+```bash
+# 1. Start Servo
+servo
+
+# 2. Build app
+# Navigate: Build Application → Build Web
+
+# 3. Wait for completion
+# Auto-returns to menu when done
+```
+
+### Cleaning Up
+
+```bash
+# 1. Start Servo
+servo
+
+# 2. Kill processes
+# Navigate: Run Application → Kill Dev Processes
+
+# 3. Verify
+# Check that ports are free
+```
+
+## Troubleshooting
+
+### No Binary Found and Go Not Installed
+
+**Error:** `❌ Error: No pre-built binary found and Go is not installed.`
+
+**Solutions:**
+1. **Download pre-built binary** from GitHub releases (recommended)
+2. **Install Go** from https://go.dev/dl/ and build from source
+3. **Ask maintainer** to add binary for your platform
+
+### Servo Doesn't Detect Apps
+
+**Check:**
+- ✅ `package.json` exists at project root
+- ✅ Workspaces are defined (for monorepos)
+- ✅ App directories have `package.json` with `dev` script
+- ✅ You're running Servo from project root
+
+**Solution:**
+```bash
+# Verify structure
+ls package.json
+cat package.json | grep workspaces
+ls apps/*/package.json
+
+# Run from root
+cd /path/to/project/root
+tools/servo/servo  # or just 'servo' if installed globally
+```
+
+### Port Already in Use
+
+**Solution:**
+1. Use "Kill Dev Processes" utility
+2. Or manually: `lsof -ti:42069 | xargs kill -9`
+
+### Build Fails
+
+**Check:**
+- Dependencies installed: `bun install`
+- Environment variables set
+- Build script exists in `package.json`
+
+### Terminal Too Small
+
+**Solution:**
+- Resize terminal to at least 90x24 characters
+- Servo will adapt, but UI may be cramped
+
+## Next Steps
+
+- Read the [Features](/docs/servo/features) guide for complete capabilities
+- Check [Usage Guide](/docs/servo/usage) for advanced workflows
+- See [Architecture](/docs/servo/architecture) for technical details
+

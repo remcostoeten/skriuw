@@ -4,14 +4,14 @@ Say goodbye to clutter in your head and organize yourself on any platform, fully
 
 
 A feature rich _me_ multiplatform app 
-A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
+A local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and Skriuw.
 
 ## About
 
 I've wanted to build a desktop app for years but always quit — Electron's DX was painful, and Tauri felt daunting.
 Rust was intimidating, sync engines messy, and rich text editors a nightmare. My perfectionism over design didn't help either.
 
-Then I discovered a Svelte note app that nailed the exact UI I wanted. I lost it after reinstalling my OS. Seemed unmaintained and permissively licensed, I rebuilt it — this time with **Tauri 2.0**, **Next.js**, and **InstantDB**.
+Then I discovered a Svelte note app that nailed the exact UI I wanted. I lost it after reinstalling my OS. Seemed unmaintained and permissively licensed, I rebuilt it — this time with **Tauri 2.0**, **Next.js**, and **Skriuw**.
 
 Some visuals stay true to the original, but I'm gradually adding my own flavor and broader features.
 Much love to that forgotten minimalist app — it finally pushed me to finish the one I kept abandoning.
@@ -21,29 +21,52 @@ Much love to that forgotten minimalist app — it finally pushed me to finish th
 ```
 skriuw/
 ├── apps/
-│   ├── instantdb/    # Main Tauri + Next.js app
-│   └── docs/         # Documentation site (Fumadocs)
+│   ├── web/            # Main Tauri + Next.js app
+│   └── docs/           # Documentation site (Fumadocs)
 ├── tools/
 │   ├── sk/            # Interactive CLI tool (SK)
-│   └── seeder/       # Database seeding utilities
-└── plans/            # Project planning and documentation
+│   └── seeder/        # Database seeding utilities
+└── plans/             # Project planning and documentation
 ```
 
 ## Quick Start
 
-### Using SK (Recommended)
+### Start Development Server
 
-The easiest way to manage this monorepo is with SK, the interactive CLI:
+The easiest way to get started:
 
 ```bash
-# From project root
-bun run cli
+# Install dependencies
+bun install
 
-# Or use the short alias
-bun run sk
+# Start dev server (automatically uses Servo if available)
+bun run dev
+```
 
-# Or use the shell script
-./sk
+This will:
+- **Use Servo** if it's installed (better dev experience with interactive menu)
+- **Fall back** to regular `bun run dev` if Servo isn't available
+- Show a helpful message if Servo isn't found
+
+### Using Servo (Optional but Recommended)
+
+Servo provides an interactive menu for managing the monorepo:
+
+```bash
+# Install Servo (one-time setup)
+cd tools/servo
+./install.sh
+
+# Now `bun run dev` will use Servo automatically
+cd ../..
+bun run dev
+```
+
+Or run Servo directly:
+
+```bash
+cd tools/servo
+./servo
 ```
 
 This launches an interactive menu where you can:
@@ -54,14 +77,19 @@ This launches an interactive menu where you can:
 - Install packages without stopping apps
 - Open repository in browser
 
-### Manual Development
+### Manual Development (Without Servo)
+
+If you prefer not to use Servo:
 
 ```bash
 # Install dependencies
 bun install
 
-# Run the main app
-cd apps/instantdb
+# Run the main app directly
+bun run dev:direct
+
+# Or manually
+cd apps/web
 bun run dev
 
 # Run docs
@@ -84,10 +112,10 @@ Full documentation is available in the [SK docs](http://localhost:3000/docs/cli)
 
 ## Tech Stack
 
-### Main App (apps/instantdb)
+### Main App (apps/web)
 - **Tauri 2.0** - Desktop application framework
 - **Next.js** - React framework with TypeScript
-- **InstantDB** - Real-time database with offline support
+- **Skriuw** - Real-time database with offline support
 - **Tailwind CSS** - Utility-first CSS framework
 - **TipTap** - Rich text editor
 
@@ -107,11 +135,20 @@ Full documentation is available in the [SK docs](http://localhost:3000/docs/cli)
 From the project root:
 
 ```bash
-bun run cli          # Launch SK (interactive menu)
-bun run sk           # Short alias for SK
-bun run dev          # Run main app directly (or use 'sk dev')
+bun run dev          # Start dev server (uses Servo if available, falls back to regular dev)
+bun run dev:direct   # Run dev server directly (bypasses Servo)
 bun run build        # Build main app
 bun run format       # Format code with Prettier
+```
+
+### Using Servo
+
+If Servo is installed, `bun run dev` will automatically use it. Otherwise, it falls back to regular dev commands.
+
+To install Servo:
+```bash
+cd tools/servo
+./install.sh
 ```
 
 ### Building for Production
@@ -124,7 +161,7 @@ sk
 
 Manual build:
 ```bash
-cd apps/instantdb
+cd apps/web
 bun run build
 bun run tauri:build
 ```

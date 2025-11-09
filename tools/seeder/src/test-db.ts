@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 import { init } from '@instantdb/react';
-import { schema, type Schema } from '../../../apps/instantdb/src/api/db/schema.ts';
+import { schema, type Schema } from '../../../apps/web/src/api/db/schema.ts';
 
 const APP_ID = process.env.NEXT_PUBLIC_INSTANT_APP_ID;
 

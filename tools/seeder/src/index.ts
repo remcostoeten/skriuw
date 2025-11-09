@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 import { init } from '@instantdb/react';
-import { schema, type Schema } from '../../../apps/instantdb/src/api/db/schema.ts';
+import { schema, type Schema } from '../../../apps/web/src/api/db/schema.ts';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -26,7 +26,7 @@ const { transact, tx } = db;
 // Get query function - it should be available from db
 const queryFn = (db as any).query;
 if (!queryFn || typeof queryFn !== 'function') {
-  console.error(chalk.red('Error: query function is not available from InstantDB.'));
+  console.error(chalk.red('Error: query function is not available from Skriuw.'));
   console.error(chalk.yellow('Available properties:', Object.keys(db).join(', ')));
   process.exit(1);
 }

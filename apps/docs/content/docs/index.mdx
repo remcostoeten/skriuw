@@ -5,7 +5,7 @@ description: Complete documentation for the Skriuw monorepo - a local-first note
 
 # Skriuw Documentation
 
-Welcome to the Skriuw documentation! Skriuw is a local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and InstantDB.
+Welcome to the Skriuw documentation! Skriuw is a local-first, near-instant sync note-taking application built with Tauri 2.0, Next.js, and Skriuw.
 
 ## What is Skriuw?
 
@@ -15,7 +15,7 @@ Skriuw is a modern note-taking application that combines the best of desktop and
 - **Near-Instant Sync** - Changes sync across devices seamlessly
 - **Cross-Platform** - Desktop app (Tauri) and web app (Next.js)
 - **Offline Support** - Works without an internet connection
-- **Real-Time Collaboration** - Powered by InstantDB
+- **Real-Time Collaboration** - Powered by Skriuw
 
 ## Project Structure
 
@@ -23,34 +23,32 @@ The Skriuw monorepo consists of:
 
 ### Applications
 
-- **Tauri App** (`apps/instantdb`) - Desktop application built with Tauri 2.0
-- **Web App** (`apps/instantdb`) - Next.js web application
+- **Tauri App** (`apps/web`) - Desktop application built with Tauri 2.0
+- **Web App** (`apps/web`) - Next.js web application
 - **Documentation** (`apps/docs`) - This documentation site (Fumadocs)
 
 ### Tools
 
-- **SK** (`tools/sk`) - Interactive CLI for managing the monorepo
 - **Seeder** (`tools/seeder`) - Database seeding utilities
+- **Servo** (`tools/servo`) - Development launcher for building and running applications
 
 ## Quick Start
 
-### Using SK (Recommended)
+### Using Servo (Recommended)
 
-The easiest way to get started:
+The easiest way to get started is to use the Servo development launcher:
 
 ```bash
-# From project root
-bun run cli
-
-# Or use the short alias
-bun run sk
+# Build and run Servo
+cd tools/servo
+./build.sh
+./servo
 ```
 
 This launches an interactive menu where you can:
-- Start/stop apps
+- Run applications (dev server)
 - Build for production
 - Deploy to Vercel
-- Manage running processes
 - Run tools like the seeder
 
 ### Manual Setup
@@ -60,7 +58,7 @@ This launches an interactive menu where you can:
 bun install
 
 # Run the main app
-cd apps/instantdb
+cd apps/web
 bun run dev
 
 # Run the docs site
@@ -74,12 +72,12 @@ bun run dev
   <Card 
     title="Skriuw App" 
     href="/docs/app" 
-    description="Main application documentation - Tauri 2.0 + Next.js + InstantDB architecture, setup, and development"
+    description="Main application documentation - Tauri 2.0 + Next.js + Skriuw architecture, setup, and development"
   />
-  <Card 
-    title="SK CLI" 
-    href="/docs/cli" 
-    description="Interactive command-line tool for managing the monorepo, running apps, building, and deploying"
+  <Card
+    title="Servo Launcher"
+    href="/docs/servo"
+    description="Development launcher for building and running applications"
   />
   <Card 
     title="Seeder Tool" 
@@ -99,7 +97,7 @@ bun run dev
 
 - **Tauri 2.0** - Desktop application framework
 - **Next.js 15** - React framework with TypeScript
-- **InstantDB** - Real-time database with offline support
+- **Skriuw** - Real-time database with offline support
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
 - **TipTap** - Rich text editor
@@ -114,7 +112,7 @@ bun run dev
 
 - **Setup Issues?** Check the [Setup Guide](/docs/app/setup) for detailed installation instructions
 - **Architecture Questions?** Review the [Architecture Documentation](/docs/app/architecture)
-- **SK Issues?** Check the [SK Troubleshooting](/docs/cli/troubleshooting) guide
+- **Servo Issues?** Check the [Servo documentation](/docs/servo)
 - **Development Questions?** See the [Development Guide](/docs/app/development)
 - **Database Seeding?** Review the [Seeder Tool](/docs/seeder) documentation
 
@@ -125,7 +123,7 @@ We welcome contributions! Here's how to get started:
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test using SK
+4. Test using Servo or manual setup
 5. Submit a pull request
 
 For more details, see the individual documentation sections for each component.
