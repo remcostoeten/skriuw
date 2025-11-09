@@ -13,7 +13,7 @@ This guide covers development workflows, coding standards, and best practices fo
 
 1. **Start the app:**
    ```bash
-   cd apps/instantdb
+   cd apps/web
    bun run dev
    ```
 
@@ -36,7 +36,7 @@ SK provides a streamlined workflow:
 bun run sk
 
 # Available options:
-# - Run InstantDB App (port 42069)
+# - Run Skriuw App (port 42069)
 # - Run Docs App (port 3000)
 # - Build Apps
 # - Deploy to Vercel
@@ -108,7 +108,7 @@ export const NoteEditor: React.FC<Props> = ({ note }) => {
 
 #### Shared Type Utilities
 
-- Reuse the shared primitives defined in `apps/instantdb/src/types/global.d.ts` (and re-exported from `@/types`).
+- Reuse the shared primitives defined in `apps/web/src/types/global.d.ts` (and re-exported from `@/types`).
   - `UUID`, `Identifier`, `Nullable`, `Optional`, `Positionable`, `Timestamps`, `BaseEntity`, and `Children`.
 - Avoid creating new union types like `string | null` or `number | undefined`; prefer the provided aliases (`Nullable<T>`, `Optional<T>`).
 - When persisting data, call `withTimestamps` (or `createTimestamp`) from `@/shared/utilities/timestamps` instead of `Date.now()` inline.
@@ -154,7 +154,7 @@ bun run lint:fix
 Example: Adding a "Labels" feature
 
 ```bash
-apps/instantdb/src/modules/labels/
+apps/web/src/modules/labels/
 ├── api/
 │   ├── queries/
 │   │   ├── get-labels.ts
@@ -431,7 +431,7 @@ tests/
 - View props and state
 - Profile performance
 
-**InstantDB DevTools:**
+**Skriuw DevTools:**
 ```typescript
 // Enable debug mode
 const db = init({
@@ -442,7 +442,7 @@ const db = init({
 ```
 
 **Network Tab:**
-- Monitor InstantDB sync requests
+- Monitor Skriuw sync requests
 - Check for failed requests
 
 ### Tauri Debugging
@@ -455,7 +455,7 @@ const db = init({
 **Rust logs:**
 ```bash
 # Logs appear in terminal when running tauri:dev
-cd apps/instantdb
+cd apps/web
 bun run tauri:dev
 ```
 
@@ -518,11 +518,11 @@ createdAt: i.number().indexed(),
 2. Clear `.next` cache: `rm -rf .next`
 3. Check for syntax errors in console
 
-### InstantDB Sync Issues
+### Skriuw Sync Issues
 
 1. Check network tab for failed requests
 2. Verify `NEXT_PUBLIC_INSTANT_APP_ID` in `.env`
-3. Check InstantDB dashboard for outages
+3. Check Skriuw dashboard for outages
 
 ### Tauri Build Fails
 

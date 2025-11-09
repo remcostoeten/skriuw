@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 import { init } from '@instantdb/react';
-import { schema } from './apps/instantdb/src/api/db/schema.js';
+import { schema } from './apps/web/src/api/db/schema.js';
 import { readFile } from 'fs/promises';
 import crypto from 'crypto';
 

@@ -78,28 +78,28 @@ bun install
 ```
 
 This will install dependencies for all workspace packages:
-- Main app (`apps/instantdb`)
+- Main app (`apps/web`)
 - Documentation site (`apps/docs`)
 - CLI tool (`tools/sk`)
 - Seeder utilities (`tools/seeder`)
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file in `apps/instantdb/`:
+Create a `.env` file in `apps/web/`:
 
 ```bash
-cd apps/instantdb
+cd apps/web
 cp .env.example .env
 ```
 
-Edit `.env` and add your InstantDB app ID:
+Edit `.env` and add your Skriuw app ID:
 
 ```bash
 NEXT_PUBLIC_INSTANT_APP_ID=your-instant-app-id-here
 ```
 
 <Callout type="info">
-  **Getting an InstantDB App ID**
+  **Getting an Skriuw App ID**
   
   1. Go to [instantdb.com](https://www.instantdb.com/)
   2. Sign up or log in
@@ -114,10 +114,10 @@ Run the app in development mode:
 ```bash
 # Using SK (recommended)
 bun run sk
-# Select "Run InstantDB App"
+# Select "Run Skriuw App"
 
 # Or manually
-cd apps/instantdb
+cd apps/web
 bun run dev
 ```
 
@@ -165,7 +165,7 @@ y
 ### Development Mode
 
 ```bash
-cd apps/instantdb
+cd apps/web
 bun run tauri:dev
 ```
 
@@ -178,7 +178,7 @@ This will:
 ### Production Build
 
 ```bash
-cd apps/instantdb
+cd apps/web
 bun run build         # Build Next.js
 bun run tauri:build   # Create desktop bundle
 ```
@@ -212,12 +212,12 @@ bun run deb:test
 
 ## Verifying Your Setup
 
-### 1. Check InstantDB Connection
+### 1. Check Skriuw Connection
 
 Open the browser console (F12) and look for:
 
 ```
-✓ InstantDB initialized
+✓ Skriuw initialized
 ✓ Connected to app: your-app-id
 ```
 
@@ -251,11 +251,11 @@ netstat -ano | findstr :42069
 taskkill /PID <PID> /F
 ```
 
-### InstantDB Connection Failed
+### Skriuw Connection Failed
 
 1. Verify your `NEXT_PUBLIC_INSTANT_APP_ID` in `.env`
 2. Check your internet connection
-3. Verify the app ID is correct in your InstantDB dashboard
+3. Verify the app ID is correct in your Skriuw dashboard
 4. Check browser console for specific errors
 
 ### Tauri Build Fails

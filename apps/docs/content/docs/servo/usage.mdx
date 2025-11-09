@@ -1,0 +1,417 @@
+---
+title: Usage Guide
+description: Workflows, examples, and advanced usage patterns
+---
+
+# Usage Guide
+
+Learn how to use Servo effectively for common development workflows.
+
+## Workflow Patterns
+
+### Starting Development Session
+
+**Quick Start:**
+```bash
+servo
+# Navigate: Run Application → Run Web
+# Press 'o' to open browser
+```
+
+**With Multiple Apps:**
+```bash
+servo
+# 1. Run Application → Run Web
+# 2. Press 'q' to return to menu
+# 3. Run Application → Run Docs
+# Both apps run independently
+```
+
+### Development Loop
+
+**Typical workflow:**
+1. Start Servo: `servo`
+2. Run app: Select "Run Application" → Choose app
+3. Open browser: Press `o`
+4. Make code changes (hot reload works)
+5. Restart if needed: Press `r`
+6. Install package: Press `p`, enter package name
+7. Stop when done: Press `q`
+
+### Building Workflow
+
+**Before Deployment:**
+```bash
+servo
+# 1. Build Application → Build Web
+# 2. Wait for completion
+# 3. Check for errors in output
+# 4. Build Application → Compile Web (Tauri)
+# 5. Verify builds succeeded
+```
+
+**Quick Build:**
+- Navigate to build menu
+- Select app
+- Watch output for errors
+- Auto-returns on completion
+
+### Deployment Workflow
+
+**Staging Deployment:**
+```bash
+servo
+# 1. Deploy Application → Deploy Web → Staging
+# 2. Watch deployment progress
+# 3. Check output for URL
+# 4. Test staging environment
+```
+
+**Production Deployment:**
+```bash
+servo
+# 1. Deploy Application → Deploy Web → Production
+# 2. Verify deployment
+# 3. Check production URL
+```
+
+### Cleanup Workflow
+
+**End of Day:**
+```bash
+servo
+# 1. Run Application → Kill Dev Processes
+# 2. Verify all processes stopped
+# 3. Exit Servo
+```
+
+**After Crashes:**
+```bash
+servo
+# 1. Kill Dev Processes (cleans up)
+# 2. Run Application → Run Web (fresh start)
+```
+
+## Keyboard Shortcuts Reference
+
+### Menu Navigation
+
+| Key | Action |
+|-----|--------|
+| `↑` / `k` | Move up |
+| `↓` / `j` | Move down |
+| `Enter` | Select item |
+| `Backspace` / `Esc` | Go back |
+| `q` | Quit (main menu only) |
+
+### Server Running Mode
+
+| Key | Action |
+|-----|--------|
+| `o` | Open browser |
+| `r` | Restart server |
+| `p` | Install package |
+| `g` | Open GitHub repo |
+| `q` / `Esc` | Stop and return |
+
+### Build/Deploy Mode
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+C` | Cancel operation |
+
+## Advanced Usage
+
+### Running Tauri Apps
+
+Tauri apps are automatically detected and shown separately:
+
+```
+🚀 Run Application
+├── 🚀 Run Web
+├── ⚡ Run Web (Tauri)    ← Tauri variant
+└── 📚 Run Docs
+```
+
+**Tauri Development:**
+1. Select "Run Web (Tauri)"
+2. Servo runs `bun run tauri:dev`
+3. Both Next.js and Tauri processes start
+4. Desktop window opens automatically
+
+### Package Installation
+
+**While Server is Running:**
+1. Press `p`
+2. Enter package name (e.g., `lodash`)
+3. Press Enter
+4. Package installs via bun
+5. Server continues running
+
+**Example:**
+```
+Press 'p' to install package
+📦 Package to install: lodash
+✓ Installed lodash successfully
+```
+
+### Port Detection
+
+Servo automatically detects ports from server output:
+
+**Supported Patterns:**
+- `localhost:42069`
+- `http://localhost:42069`
+- `port 42069`
+- `0.0.0.0:42069`
+- `127.0.0.1:42069`
+
+**When Port is Detected:**
+- Status shows: "● Running on http://localhost:42069"
+- Press `o` to open browser
+- Port is remembered for the session
+
+### Process Management
+
+**Kill Specific Ports:**
+The "Kill Dev Processes" utility kills:
+- Port 42069 (Next.js default)
+- Port 6969 (alternative)
+- Port 1420 (alternative)
+- Processes matching "tauri dev"
+
+**Manual Process Killing:**
+```bash
+# Outside Servo
+lsof -ti:42069 | xargs kill -9
+```
+
+### Output Management
+
+**Server Output:**
+- Last 200 lines displayed
+- Scrolls automatically
+- Shows both stdout and stderr
+- Real-time updates
+
+**Build Output:**
+- Last 100 lines displayed
+- Shows compilation progress
+- Error messages highlighted
+- Completion status shown
+
+## Examples
+
+### Example 1: Starting Web App
+
+```bash
+$ servo
+
+# Navigate menu
+🎯 Servo - Dev Launcher
+❯ 🚀 Run Application
+  🔨 Build Application
+  🌐 Deploy Application
+
+# Select Run Application
+🚀 Run Application
+❯ 🚀 Run Web
+  ⚡ Run Web (Tauri)
+  📚 Run Docs
+
+# Server starts
+Server Running
+● Running on http://localhost:42069
+
+# Press 'o' to open
+✓ Opening http://localhost:42069 in browser
+```
+
+### Example 2: Building Tauri App
+
+```bash
+$ servo
+
+# Navigate to Build
+🔨 Build Application
+❯ 🔨 Build Web
+  ⚡ Compile Web (Tauri)
+  🔨 Build Docs
+
+# Select Tauri build
+Build Web (Tauri)
+○ Compiling...
+> tauri build
+  Compiling Rust...
+  Building frontend...
+  Creating bundle...
+
+# Completion
+✓ Build completed
+Returning to menu...
+```
+
+### Example 3: Deploying to Production
+
+```bash
+$ servo
+
+# Navigate to Deploy
+🌐 Deploy Application
+❯ 🌐 Deploy Web
+  📚 Deploy Docs
+
+# Select Deploy Web
+🌐 Deploy Web
+❯ 🧪 Staging
+  🚀 Production
+
+# Select Production
+Deploy Web - Production
+○ Deploying...
+> vercel deploy --prod
+  Deploying to production...
+  ✓ Deployment complete
+  https://myapp.vercel.app
+
+# Auto-returns
+✓ Deployment completed
+Returning to menu...
+```
+
+### Example 4: Cleanup After Crash
+
+```bash
+$ servo
+
+# Kill processes
+🚀 Run Application
+❯ 🚀 Run Web
+  🛑 Kill Dev Processes
+
+# Select Kill
+✓ Killed process on port 42069 (12345)
+✓ Killed lingering Tauri dev processes
+
+# Now safe to restart
+🚀 Run Application
+❯ 🚀 Run Web
+```
+
+## Tips & Best Practices
+
+### 1. Always Start from Project Root
+
+```bash
+# Good
+cd /path/to/project
+servo
+
+# Bad
+cd /path/to/project/apps/web
+servo  # Won't detect apps properly
+```
+
+### 2. Use Kill Processes Before Starting
+
+If you're unsure about lingering processes:
+
+```bash
+servo
+# Always kill first
+Run Application → Kill Dev Processes
+# Then start fresh
+Run Application → Run Web
+```
+
+### 3. Monitor Output for Errors
+
+Watch the output window for:
+- Compilation errors
+- Port conflicts
+- Missing dependencies
+- Build failures
+
+### 4. Use Keyboard Shortcuts
+
+Learn the shortcuts for faster workflow:
+- `o` for browser (faster than menu)
+- `r` for restart (no need to stop/start)
+- `p` for packages (convenient)
+
+### 5. Check Status Messages
+
+Status messages at top of menu show:
+- Success/error states
+- Process information
+- Helpful feedback
+
+## Troubleshooting Common Issues
+
+### Server Won't Start
+
+**Check:**
+1. Port already in use? → Kill processes
+2. Dependencies installed? → `bun install`
+3. Environment variables set?
+4. Check output for specific errors
+
+### Build Fails
+
+**Check:**
+1. All dependencies installed
+2. Environment variables configured
+3. Build script exists in `package.json`
+4. Check output for specific error
+
+### Port Not Detected
+
+**If port isn't auto-detected:**
+- Manually note the port from output
+- Open browser manually: `http://localhost:PORT`
+- Port detection uses regex patterns
+
+### Menu Items Missing
+
+**If apps don't appear:**
+- Check `package.json` has `dev` script
+- Verify workspace structure
+- Ensure running from project root
+- Check package manager detection
+
+## Integration with Other Tools
+
+### With Git
+
+```bash
+# Workflow
+git checkout feature-branch
+servo
+# Run Application → Run Web
+# Develop...
+git commit -m "feat: ..."
+```
+
+### With VS Code/Cursor
+
+```bash
+# Terminal 1: Servo
+servo
+
+# Terminal 2: Editor
+code .  # or cursor .
+```
+
+### With Vercel CLI
+
+Servo uses Vercel CLI for deployments:
+- Must have `vercel` installed
+- Must be logged in: `vercel login`
+- Project must be linked
+
+## Next Steps
+
+- Explore [Features](/docs/servo/features) for complete capabilities
+- Read [Architecture](/docs/servo/architecture) for technical details
+- Check [Requirements](/docs/servo/requirements) for setup
+

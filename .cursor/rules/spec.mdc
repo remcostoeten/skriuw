@@ -1,5 +1,5 @@
 ---
-description: Monorepo with two MVPs (Tauri+Turso, Tauri+InstantDB) and shared requirements
+description: Monorepo with two MVPs (Tauri+Turso, Tauri+Skriuw) and shared requirements
 globs: "**/*"
 tags: [tauri, react, typescript, turso, instantdb, drizzle]
 priority: 2
@@ -13,7 +13,7 @@ version: 1.0.0
 - This monorepo explores two approaches for a local-first, near-instant sync app.
 - App directories:
   - apps/turso
-  - apps/instantdb
+  - apps/web
 
 ## Core requirement
 
@@ -34,7 +34,7 @@ version: 1.0.0
 
 - Tauri 2.0
 - Next.js (TypeScript) + Tailwind CSS
-- InstantDB SDK
+- Skriuw SDK
 - TypeScript-first schema, offline support, optimistic updates
 - Hooks pattern:
   - Core hooks: `useCreate`, `useUpdate`, `useRead`, `useDestroy`

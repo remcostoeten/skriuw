@@ -1,0 +1,13 @@
+{
+  "title": "Servo",
+  "description": "Terminal-based dev launcher with auto-detection",
+  "pages": [
+    "index",
+    "requirements",
+    "getting-started",
+    "features",
+    "usage",
+    "architecture"
+  ]
+}
+

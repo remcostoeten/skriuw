@@ -10,7 +10,7 @@ The shortcuts system allows users to perform actions quickly with keyboard combi
 ## How It Works
 
 ```
-1. Shortcuts stored in InstantDB (shortcuts entity)
+1. Shortcuts stored in Skriuw (shortcuts entity)
 2. ShortcutProvider registers all enabled shortcuts on mount
 3. User presses keys → system dispatches custom events
 4. Components listen for events and respond
@@ -258,7 +258,7 @@ This prevents shortcuts from firing while typing in the note editor or search bo
 
 ## Schema
 
-Shortcuts are stored in InstantDB:
+Shortcuts are stored in Skriuw:
 
 ```typescript
 shortcuts: i.entity({

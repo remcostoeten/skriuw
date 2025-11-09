@@ -26,7 +26,7 @@ cat .env | grep NEXT_PUBLIC_INSTANT_APP_ID
 ```
 
 **Finding Your App ID**:
-1. Go to [InstantDB Dashboard](https://instantdb.com)
+1. Go to [Skriuw Dashboard](https://instantdb.com)
 2. Select your app
 3. Copy the App ID from settings
 
@@ -116,7 +116,7 @@ chmod 644 ./path/to/file.md
 
 ## Database Connection Issues
 
-### "Cannot connect to InstantDB"
+### "Cannot connect to Skriuw"
 
 **Problem**: Database connection fails.
 
@@ -131,13 +131,13 @@ chmod 644 ./path/to/file.md
    curl https://instantdb.com
    ```
 
-3. **Check InstantDB Status**:
-   - Visit [InstantDB Dashboard](https://instantdb.com)
+3. **Check Skriuw Status**:
+   - Visit [Skriuw Dashboard](https://instantdb.com)
    - Verify app is active
    - Check for service status
 
 4. **Verify Schema**:
-   - Ensure schema matches `apps/instantdb/src/api/db/schema.ts`
+   - Ensure schema matches `apps/web/src/api/db/schema.ts`
    - Check table names and fields
 
 ### Schema Mismatch
@@ -145,7 +145,7 @@ chmod 644 ./path/to/file.md
 **Problem**: Schema doesn't match expected structure.
 
 **Solution**:
-1. Check `apps/instantdb/src/api/db/schema.ts`
+1. Check `apps/web/src/api/db/schema.ts`
 2. Verify tables exist: `notes`, `folders`, `tasks`
 3. Verify fields match expected structure
 4. Update schema if needed
@@ -160,7 +160,7 @@ chmod 644 ./path/to/file.md
 1. **Refresh App**: Reload your Skriuw app
 2. **Check Folder**: Note might be in a folder
 3. **Check Position**: Note might be at end of list
-4. **Verify Database**: Check InstantDB dashboard
+4. **Verify Database**: Check Skriuw dashboard
 
 ### Position Issues
 
@@ -173,7 +173,7 @@ chmod 644 ./path/to/file.md
 - **Folder-Specific**: Positions are per-folder
 
 **Debugging**:
-1. Check note position in InstantDB dashboard
+1. Check note position in Skriuw dashboard
 2. Verify folder assignment
 3. Check other notes' positions
 4. Recalculate if needed
@@ -186,7 +186,7 @@ chmod 644 ./path/to/file.md
 
 **Solution**:
 1. **List Folders**: Use interactive mode to see available folders
-2. **Check Dashboard**: Verify folder exists in InstantDB
+2. **Check Dashboard**: Verify folder exists in Skriuw
 3. **Create Folder**: Create folder in app first
 4. **Use Root**: Select "Root (no folder)" if needed
 
@@ -207,7 +207,7 @@ chmod 644 ./path/to/file.md
 **Problem**: Selected tasks don't link to note.
 
 **Solution**:
-1. **Verify Tasks Exist**: Check tasks in InstantDB dashboard
+1. **Verify Tasks Exist**: Check tasks in Skriuw dashboard
 2. **Check Schema**: Ensure `tasks.note` field exists
 3. **Verify Transaction**: Check transaction completed
 4. **Refresh App**: Reload to see linked tasks
@@ -231,7 +231,7 @@ chmod 644 ./path/to/file.md
 1. **Create Notes First**: Use seed operation
 2. **Check Database**: Verify notes exist
 3. **Check Folder**: Notes might be in folders
-4. **Verify Query**: Check InstantDB query
+4. **Verify Query**: Check Skriuw query
 
 ### Position Not Updating
 
@@ -241,7 +241,7 @@ chmod 644 ./path/to/file.md
 1. **Check Transaction**: Verify transaction completed
 2. **Refresh App**: Reload to see changes
 3. **Check Folder**: Position is folder-specific
-4. **Verify Position**: Check in InstantDB dashboard
+4. **Verify Position**: Check in Skriuw dashboard
 
 ### Other Notes Not Shifting
 
@@ -260,7 +260,7 @@ chmod 644 ./path/to/file.md
 **Problem**: Seeder operations are slow.
 
 **Solution**:
-1. **Check Network**: Slow connection to InstantDB
+1. **Check Network**: Slow connection to Skriuw
 2. **Check Database Size**: Large datasets take longer
 3. **Check Queries**: Complex queries may be slow
 4. **Optimize**: Consider batch operations
@@ -271,7 +271,7 @@ chmod 644 ./path/to/file.md
 
 **Solution**:
 1. **Check Network**: Ensure stable connection
-2. **Check InstantDB**: Verify service status
+2. **Check Skriuw**: Verify service status
 3. **Retry**: Operation may succeed on retry
 4. **Reduce Data**: Process smaller batches
 
@@ -328,7 +328,7 @@ bun run tools/seeder/src/index.ts
 
 **Solution**:
 - This shouldn't happen (transactions are atomic)
-- Check InstantDB logs
+- Check Skriuw logs
 - Verify transaction implementation
 - Report as bug if occurs
 
@@ -344,7 +344,7 @@ DEBUG=* bun run tools/seeder/src/index.ts
 ### Check Logs
 
 1. **Console Output**: Check terminal for errors
-2. **InstantDB Dashboard**: Check database logs
+2. **Skriuw Dashboard**: Check database logs
 3. **Network Tab**: Check API requests (if using browser tools)
 
 ### Common Error Messages
@@ -368,7 +368,7 @@ DEBUG=* bun run tools/seeder/src/index.ts
 1. **Check Documentation**: Review [Usage Guide](/docs/seeder/usage)
 2. **Verify Setup**: Ensure [Prerequisites](/docs/seeder/getting-started) are met
 3. **Check Schema**: Verify database schema matches
-4. **Test Connection**: Verify InstantDB connectivity
+4. **Test Connection**: Verify Skriuw connectivity
 5. **Report Issue**: Create issue with:
    - Error message
    - Steps to reproduce
