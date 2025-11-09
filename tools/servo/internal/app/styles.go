@@ -5,52 +5,47 @@ import (
 )
 
 var (
-	// Palette
-	bgColor      = lipgloss.Color("#05070f")
-	panelBg      = lipgloss.Color("#0f172a")
-	highlightBg  = lipgloss.Color("#1e293b")
-	subtleBg     = lipgloss.Color("#111827")
-	borderColor  = lipgloss.Color("#1f2a44")
-	borderAccent = lipgloss.Color("#28407a")
+	// neutral, vercel-inspired palette
+	bgColor      = lipgloss.Color("#0a0a0a")
+	cardBg       = lipgloss.Color("#171717")
+	borderColor  = lipgloss.Color("#27272a")
+	borderAccent = lipgloss.Color("#3f3f46")
 
-	textPrimary   = lipgloss.Color("#f8fafc")
-	textSecondary = lipgloss.Color("#e2e8f0")
-	textMuted     = lipgloss.Color("#94a3b8")
-	textDim       = lipgloss.Color("#64748b")
+	textPrimary   = lipgloss.Color("#fafafa")
+	textSecondary = lipgloss.Color("#e5e5e5")
+	textMuted     = lipgloss.Color("#a1a1aa")
+	textDim       = lipgloss.Color("#71717a")
 
-	accentPrimary   = lipgloss.Color("#38bdf8") // sky blue
-	accentSecondary = lipgloss.Color("#a855f7") // violet
+	accentPrimary = lipgloss.Color("#e5e5e5")
+	accentHover   = lipgloss.Color("#fafafa")
 
-	successColor = lipgloss.Color("#34d399")
-	warningColor = lipgloss.Color("#facc15")
-	errorColor   = lipgloss.Color("#f87171")
-	infoColor    = lipgloss.Color("#60a5fa")
+	successColor = lipgloss.Color("#22c55e")
+	warningColor = lipgloss.Color("#eab308")
+	errorColor   = lipgloss.Color("#ef4444")
+	infoColor    = lipgloss.Color("#3b82f6")
 
 	// Styles
 	BoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderAccent).
-			Background(panelBg).
+			BorderForeground(borderColor).
 			Padding(2, 4).
 			Width(90)
 
 	TitleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(accentPrimary).
-			Underline(true).
+			Foreground(textPrimary).
 			MarginBottom(1)
 
 	SelectedItemStyle = lipgloss.NewStyle().
-				Foreground(accentPrimary).
-				Background(highlightBg).
+				Foreground(accentHover).
 				Bold(true).
+				Background(cardBg).
 				PaddingLeft(2).
 				PaddingRight(2).
 				MarginLeft(0)
 
 	ItemStyle = lipgloss.NewStyle().
 			Foreground(textSecondary).
-			Background(subtleBg).
 			PaddingLeft(2)
 
 	HelpStyle = lipgloss.NewStyle().
@@ -75,20 +70,20 @@ var (
 			Bold(true)
 
 	AccentStyle = lipgloss.NewStyle().
-			Foreground(accentSecondary).
+			Foreground(accentPrimary).
 			Bold(true)
 
 	DimStyle = lipgloss.NewStyle().
 			Foreground(textDim)
 
 	SpinnerStyle = lipgloss.NewStyle().
-			Foreground(accentSecondary).
+			Foreground(textMuted).
 			Bold(true)
 
 	OutputBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(borderColor).
-			Background(subtleBg).
+			Background(cardBg).
 			Padding(1, 2).
 			Width(82).
 			Height(12).
@@ -98,21 +93,20 @@ var (
 			Foreground(textMuted)
 
 	BreadcrumbActiveStyle = lipgloss.NewStyle().
-				Foreground(accentPrimary).
+				Foreground(textSecondary).
 				Bold(true)
 
 	StatusBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(accentSecondary).
-			Background(highlightBg).
+			BorderForeground(borderAccent).
 			Padding(0, 2).
 			Foreground(textSecondary).
 			MarginBottom(1)
 
 	KeyStyle = lipgloss.NewStyle().
-			Foreground(bgColor).
-			Background(accentPrimary).
+			Foreground(textPrimary).
 			Bold(true).
+			Background(cardBg).
 			Padding(0, 1)
 
 	KeyDescStyle = lipgloss.NewStyle().
