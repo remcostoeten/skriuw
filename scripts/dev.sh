@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# dev.sh - Wrapper script that uses Servo if available, otherwise falls back to regular dev
+# dev.sh - Cross-platform wrapper that uses Servo on Linux/macOS, falls back to direct dev on Windows
 
 set -e
 
@@ -9,6 +9,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Detect platform
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+esac
 
 # Check if running in interactive terminal
 is_interactive() {
@@ -28,24 +36,20 @@ find_servo() {
         return 0
     fi
     
-    # Check for local binary
-    if [ -f "tools/servo/servo" ]; then
+    # Linux: check for local binary first
+    if [ "$OS" = "linux" ] && [ -f "tools/servo/servo" ]; then
         echo "tools/servo/servo"
         return 0
     fi
     
-    # Check for binary in bin/ directory
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
-    esac
-    
-    BINARY_NAME="servo-${OS}-${ARCH}"
-    if [ "$OS" = "linux" ] && [ -f "tools/servo/bin/${BINARY_NAME}" ]; then
-        echo "tools/servo/bin/${BINARY_NAME}"
-        return 0
+    # Check for platform-specific binary in bin/ directory
+    if [ "$OS" = "linux" ]; then
+        BINARY_NAME="servo-linux-${ARCH}"
+    elif [ "$OS" = "darwin" ]; then
+        BINARY_NAME="servo-darwin-${ARCH}"
+    else
+        # Windows or other - not supported
+        return 1
     fi
     
     if [ -f "tools/servo/bin/${BINARY_NAME}" ]; then
@@ -55,6 +59,13 @@ find_servo() {
     
     return 1
 }
+
+# Windows: fall back to direct dev immediately
+if [ "$OS" = "windows" ] || [ "$OS" = "msys" ] || [ "$OS" = "cygwin" ]; then
+    echo -e "${GREEN}🚀 Starting development server...${NC}"
+    echo ""
+    exec bun run dev:direct "$@"
+fi
 
 # Try to find Servo
 SERVO_PATH=$(find_servo 2>/dev/null || echo "")
