@@ -97,3 +97,42 @@ func PromptFilter() tea.Cmd {
 		return FilterUpdateMsg(text)
 	}
 }
+
+func ShowUsageSummary() (string, error) {
+	usage := `
+Servo CLI Usage:
+  servo             Start interactive launcher
+  servo dev         Run dev server directly (without the launcher)
+  servo help        Show CLI help
+
+Key Flags (launcher):
+  --help            Display CLI help
+
+Launcher Navigation:
+  ↑ ↓ / j k         Move selection
+  enter             Confirm selection
+  q / esc           Quit / go back
+  numbers (1-9)     Jump directly to menu items
+
+While Running:
+  o                 Open in browser
+  r                 Restart process
+  p                 Install package
+  g                 Open GitHub repo
+  /                 Filter output
+  ↑ ↓ / j k         Scroll output
+`
+	return strings.TrimSpace(usage), nil
+}
+
+func ShowProjectLinks() (string, error) {
+	info := `
+Project Resources:
+  Source (master): https://github.com/remcostoeten/tauri-git/tree/main/tools/servo
+  Issues / Feedback: https://github.com/remcostoeten/tauri-git/issues
+  Documentation: plans and docs within the repository
+
+Tip: copy the URL and open it in your browser.
+`
+	return strings.TrimSpace(info), nil
+}

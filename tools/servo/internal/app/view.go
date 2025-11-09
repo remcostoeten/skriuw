@@ -52,13 +52,14 @@ func (m Model) viewMenu() string {
 
 	// Menu items
 	for i, item := range m.currentMenu.Items {
+		label := fmt.Sprintf("[%d]", i+1)
 		if m.currentMenu.Cursor == i {
 			cursor := "▸"
-			itemText := fmt.Sprintf("%s %s %s", cursor, item.Icon, item.Name)
+			itemText := fmt.Sprintf("%s %s %s %s", cursor, label, item.Icon, item.Name)
 			s.WriteString(SelectedItemStyle.Render(itemText))
 		} else {
 			cursor := " "
-			itemText := fmt.Sprintf("%s %s %s", cursor, item.Icon, item.Name)
+			itemText := fmt.Sprintf("%s %s %s %s", cursor, label, item.Icon, item.Name)
 			s.WriteString(ItemStyle.Render(itemText))
 		}
 		s.WriteString("\n")
@@ -118,7 +119,7 @@ func (m Model) viewRunning() string {
 	// Output box with scrolling and filtering
 	allOutput := m.serverProcess.GetAllOutput()
 	outputLines := strings.Split(allOutput, "\n")
-	
+
 	// Apply filter if set
 	if m.outputFilter != "" {
 		filtered := make([]string, 0)
@@ -130,7 +131,7 @@ func (m Model) viewRunning() string {
 		}
 		outputLines = filtered
 	}
-	
+
 	totalLines := len(outputLines)
 	visibleLines := 12
 
@@ -275,4 +276,3 @@ func (m Model) viewDeploying() string {
 
 	return BoxStyle.Render(s.String())
 }
-

@@ -81,8 +81,28 @@ build_servo_from_source() {
         return 1
     fi
     
-    ./build.sh
-    return $?
+    ./build-all.sh
+    
+    local operating_system=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local processor_type=$(uname -m)
+    case "$processor_type" in
+        x86_64) processor_type="amd64" ;;
+        aarch64|arm64) processor_type="arm64" ;;
+    esac
+    
+    local platform_binary=""
+    if [ "$operating_system" = "linux" ]; then
+        platform_binary="bin/servo-linux-${processor_type}"
+    else
+        platform_binary="bin/servo-${operating_system}-${processor_type}"
+    fi
+    
+    if [ -f "$platform_binary" ]; then
+        cp "$platform_binary" servo
+        chmod +x servo
+    fi
+    
+    return 0
 }
 
 prepare_binary() {

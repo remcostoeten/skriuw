@@ -19,6 +19,7 @@ func (m Model) viewHelp() string {
 		desc string
 	}{
 		{"↑↓ / jk", "Navigate menu items"},
+		{"1-9", "Jump to menu item"},
 		{"enter", "Select item"},
 		{"backspace / esc", "Go back"},
 		{"q", "Quit"},

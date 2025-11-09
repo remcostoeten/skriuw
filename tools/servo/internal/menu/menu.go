@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"servo/internal/commands"
 	"servo/internal/config"
 	"servo/internal/kill"
 )
@@ -78,6 +79,12 @@ func BuildMainMenu(cfg *config.ServoConfig) *MenuContext {
 				SubmenuKey: "dashboard",
 			},
 			{
+				Name:       "Help & Docs",
+				Icon:       "[HELP]",
+				Type:       MenuTypeSubmenu,
+				SubmenuKey: "help",
+			},
+			{
 				Name: "Exit",
 				Icon: "[EXIT]",
 				Type: MenuTypeExit,
@@ -103,6 +110,8 @@ func BuildSubmenu(parentItem MenuItem, cfg *config.ServoConfig) *MenuContext {
 		return BuildToolsMenu(cfg)
 	case "dashboard":
 		return BuildDashboardMenu(cfg)
+	case "help":
+		return BuildHelpMenu(cfg)
 	default:
 		return BuildMainMenu(cfg)
 	}
@@ -364,5 +373,32 @@ func BuildDashboardMenu(cfg *config.ServoConfig) *MenuContext {
 				Type: MenuTypeSubmenu,
 			},
 		},
+	}
+}
+
+func BuildHelpMenu(cfg *config.ServoConfig) *MenuContext {
+	items := []MenuItem{
+		{
+			Name:          "CLI Usage & Arguments",
+			Icon:          "[USAGE]",
+			Type:          MenuTypeUtilityAction,
+			UtilityAction: commands.ShowUsageSummary,
+		},
+		{
+			Name:          "Project Links",
+			Icon:          "[LINK]",
+			Type:          MenuTypeUtilityAction,
+			UtilityAction: commands.ShowProjectLinks,
+		},
+		{
+			Name: "Back",
+			Icon: "[BACK]",
+			Type: MenuTypeSubmenu,
+		},
+	}
+
+	return &MenuContext{
+		Title: "Help & Resources",
+		Items: items,
 	}
 }

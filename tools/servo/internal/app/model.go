@@ -161,6 +161,14 @@ func (m Model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			selectedItem := m.currentMenu.Items[m.currentMenu.Cursor]
 			return m.handleMenuSelection(selectedItem)
+		default:
+			if len(msg.String()) == 1 && msg.String()[0] >= '1' && msg.String()[0] <= '9' {
+				index := int(msg.String()[0]-'0') - 1
+				if index >= 0 && index < len(m.currentMenu.Items) {
+					selectedItem := m.currentMenu.Items[index]
+					return m.handleMenuSelection(selectedItem)
+				}
+			}
 		}
 	}
 
