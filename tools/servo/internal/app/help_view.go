@@ -8,14 +8,14 @@ import (
 func (m Model) viewHelp() string {
 	var s strings.Builder
 
-	s.WriteString(TitleStyle.Render("❓ Servo Help"))
+	s.WriteString(TitleStyle.Render("Servo Help"))
 	s.WriteString("\n\n")
 
 	// General Navigation
 	s.WriteString(AccentStyle.Render("Navigation:"))
 	s.WriteString("\n")
 	helpItems := []struct {
-		key string
+		key  string
 		desc string
 	}{
 		{"↑↓ / jk", "Navigate menu items"},
@@ -37,7 +37,7 @@ func (m Model) viewHelp() string {
 	s.WriteString(AccentStyle.Render("When Server is Running:"))
 	s.WriteString("\n")
 	serverItems := []struct {
-		key string
+		key  string
 		desc string
 	}{
 		{"o", "Open in browser"},
@@ -45,6 +45,7 @@ func (m Model) viewHelp() string {
 		{"p", "Install package"},
 		{"g", "Open GitHub repo"},
 		{"↑↓ / jk", "Scroll output"},
+		{"/", "Filter output"},
 		{"home", "Scroll to top"},
 		{"q", "Stop and quit"},
 	}
@@ -64,7 +65,7 @@ func (m Model) viewHelp() string {
 	s.WriteString("\n")
 	s.WriteString(DimStyle.Render("  • You'll be prompted to select a directory"))
 	s.WriteString("\n")
-	s.WriteString(DimStyle.Render("  • Output is formatted with emoji indicators"))
+	s.WriteString(DimStyle.Render("  • Output includes status tags"))
 	s.WriteString("\n\n")
 
 	// Tips
@@ -82,4 +83,3 @@ func (m Model) viewHelp() string {
 
 	return BoxStyle.Render(s.String())
 }
-

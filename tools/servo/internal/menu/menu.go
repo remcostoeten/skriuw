@@ -45,43 +45,43 @@ type MenuContext struct {
 
 func BuildMainMenu(cfg *config.ServoConfig) *MenuContext {
 	return &MenuContext{
-		Title: "🎯 Servo - Dev Launcher",
+		Title: "Servo · Dev Launcher",
 		Items: []MenuItem{
 			{
 				Name:       "Run Application",
-				Icon:       "🚀",
+				Icon:       "[RUN]",
 				Type:       MenuTypeSubmenu,
 				SubmenuKey: "run",
 			},
 			{
 				Name:       "Build Application",
-				Icon:       "🔨",
+				Icon:       "[BUILD]",
 				Type:       MenuTypeSubmenu,
 				SubmenuKey: "build",
 			},
-		{
-			Name:       "Deploy Application",
-			Icon:       "🌐",
-			Type:       MenuTypeSubmenu,
-			SubmenuKey: "deploy",
-		},
-		{
-			Name:       "Tools",
-			Icon:       "🛠️",
-			Type:       MenuTypeSubmenu,
-			SubmenuKey: "tools",
-		},
-		{
-			Name:       "Process Dashboard",
-			Icon:       "📊",
-			Type:       MenuTypeSubmenu,
-			SubmenuKey: "dashboard",
-		},
-		{
-			Name: "Exit",
-			Icon: "❌",
-			Type: MenuTypeExit,
-		},
+			{
+				Name:       "Deploy Application",
+				Icon:       "[DEPLOY]",
+				Type:       MenuTypeSubmenu,
+				SubmenuKey: "deploy",
+			},
+			{
+				Name:       "Tools",
+				Icon:       "[TOOLS]",
+				Type:       MenuTypeSubmenu,
+				SubmenuKey: "tools",
+			},
+			{
+				Name:       "Process Dashboard",
+				Icon:       "[STATUS]",
+				Type:       MenuTypeSubmenu,
+				SubmenuKey: "dashboard",
+			},
+			{
+				Name: "Exit",
+				Icon: "[EXIT]",
+				Type: MenuTypeExit,
+			},
 		},
 		Cursor: 0,
 	}
@@ -126,19 +126,19 @@ func BuildRunMenu(cfg *config.ServoConfig) *MenuContext {
 
 	items = append(items, MenuItem{
 		Name:          "Kill Dev Processes",
-		Icon:          "🛑",
+		Icon:          "[STOP]",
 		Type:          MenuTypeUtilityAction,
 		UtilityAction: kill.KillDevProcesses,
 	})
 
 	items = append(items, MenuItem{
-		Name: "← Back",
-		Icon: "↩️",
+		Name: "Back",
+		Icon: "[BACK]",
 		Type: MenuTypeSubmenu,
 	})
 
 	return &MenuContext{
-		Title: "🚀 Run Application",
+		Title: "Run Application",
 		Items: items,
 	}
 }
@@ -164,36 +164,36 @@ func BuildBuildMenu(cfg *config.ServoConfig) *MenuContext {
 	}
 
 	items = append(items, MenuItem{
-		Name: "← Back",
-		Icon: "↩️",
+		Name: "Back",
+		Icon: "[BACK]",
 		Type: MenuTypeSubmenu,
 	})
 
 	return &MenuContext{
-		Title: "🔨 Build Application",
+		Title: "Build Application",
 		Items: items,
 	}
 }
 
 func BuildDeployMenu(cfg *config.ServoConfig) *MenuContext {
 	return &MenuContext{
-		Title: "🌐 Deploy Application",
+		Title: "Deploy Application",
 		Items: []MenuItem{
 			{
 				Name:       "Deploy Web",
-				Icon:       "🌐",
+				Icon:       "[WEB]",
 				Type:       MenuTypeSubmenu,
 				SubmenuKey: "deploy-web",
 			},
 			{
 				Name:       "Deploy Docs",
-				Icon:       "📚",
+				Icon:       "[DOCS]",
 				Type:       MenuTypeSubmenu,
 				SubmenuKey: "deploy-docs",
 			},
 			{
-				Name: "← Back",
-				Icon: "↩️",
+				Name: "Back",
+				Icon: "[BACK]",
 				Type: MenuTypeSubmenu,
 			},
 		},
@@ -204,11 +204,11 @@ func BuildDeployWebMenu(cfg *config.ServoConfig) *MenuContext {
 	appDir := filepath.Join(cfg.RootDir, "apps/web")
 
 	return &MenuContext{
-		Title: "🌐 Deploy Web",
+		Title: "Deploy Web",
 		Items: []MenuItem{
 			{
 				Name: "Staging",
-				Icon: "🧪",
+				Icon: "[STAGE]",
 				Type: MenuTypeDeployAction,
 				Action: &Action{
 					Command: "vercel",
@@ -218,7 +218,7 @@ func BuildDeployWebMenu(cfg *config.ServoConfig) *MenuContext {
 			},
 			{
 				Name: "Production",
-				Icon: "🚀",
+				Icon: "[PROD]",
 				Type: MenuTypeDeployAction,
 				Action: &Action{
 					Command: "vercel",
@@ -227,8 +227,8 @@ func BuildDeployWebMenu(cfg *config.ServoConfig) *MenuContext {
 				},
 			},
 			{
-				Name: "← Back",
-				Icon: "↩️",
+				Name: "Back",
+				Icon: "[BACK]",
 				Type: MenuTypeSubmenu,
 			},
 		},
@@ -237,11 +237,11 @@ func BuildDeployWebMenu(cfg *config.ServoConfig) *MenuContext {
 
 func BuildDeployDocsMenu(cfg *config.ServoConfig) *MenuContext {
 	return &MenuContext{
-		Title: "📚 Deploy Docs",
+		Title: "Deploy Docs",
 		Items: []MenuItem{
 			{
 				Name: "Staging",
-				Icon: "🧪",
+				Icon: "[STAGE]",
 				Type: MenuTypeDeployAction,
 				Action: &Action{
 					Command: "vercel",
@@ -251,7 +251,7 @@ func BuildDeployDocsMenu(cfg *config.ServoConfig) *MenuContext {
 			},
 			{
 				Name: "Production",
-				Icon: "🚀",
+				Icon: "[PROD]",
 				Type: MenuTypeDeployAction,
 				Action: &Action{
 					Command: "vercel",
@@ -260,8 +260,8 @@ func BuildDeployDocsMenu(cfg *config.ServoConfig) *MenuContext {
 				},
 			},
 			{
-				Name: "← Back",
-				Icon: "↩️",
+				Name: "Back",
+				Icon: "[BACK]",
 				Type: MenuTypeSubmenu,
 			},
 		},
@@ -299,19 +299,19 @@ func BuildToolsMenu(cfg *config.ServoConfig) *MenuContext {
 	if len(items) == 0 {
 		items = append(items, MenuItem{
 			Name: "No tools found",
-			Icon: "ℹ️",
+			Icon: "[INFO]",
 			Type: MenuTypeUtilityAction,
 		})
 	}
 
 	items = append(items, MenuItem{
-		Name: "← Back",
-		Icon: "↩️",
+		Name: "Back",
+		Icon: "[BACK]",
 		Type: MenuTypeSubmenu,
 	})
 
 	return &MenuContext{
-		Title: "🛠️ Tools",
+		Title: "Tools",
 		Items: items,
 	}
 }
@@ -321,17 +321,17 @@ func GetAppIcon(appName string) string {
 
 	// Icon selection based on app name patterns
 	if strings.Contains(name, "tauri") {
-		return "⚡"
+		return "[TAURI]"
 	}
 	if strings.Contains(name, "doc") {
-		return "📚"
+		return "[DOCS]"
 	}
 	if strings.Contains(name, "web") || strings.Contains(name, "app") {
-		return "🌐"
+		return "[WEB]"
 	}
 
 	// Default icon
-	return "🚀"
+	return "[APP]"
 }
 
 func GetToolIcon(toolName string) string {
@@ -339,31 +339,30 @@ func GetToolIcon(toolName string) string {
 
 	// Icon selection based on tool name patterns
 	if strings.Contains(name, "seed") {
-		return "🌱"
+		return "[SEED]"
 	}
 	if strings.Contains(name, "cli") {
-		return "💻"
+		return "[CLI]"
 	}
 
 	// Default tool icon
-	return "🛠️"
+	return "[TOOL]"
 }
 
 func BuildDashboardMenu(cfg *config.ServoConfig) *MenuContext {
 	return &MenuContext{
-		Title: "📊 Process Dashboard",
+		Title: "Process Dashboard",
 		Items: []MenuItem{
 			{
 				Name: "View Dashboard",
-				Icon: "📊",
+				Icon: "[VIEW]",
 				Type: MenuTypeUtilityAction,
 			},
 			{
-				Name: "← Back",
-				Icon: "↩️",
+				Name: "Back",
+				Icon: "[BACK]",
 				Type: MenuTypeSubmenu,
 			},
 		},
 	}
 }
-

@@ -12,12 +12,12 @@ func (m Model) viewTool() string {
 
 	var s strings.Builder
 
-	// Title with emoji
-	s.WriteString(TitleStyle.Render("🛠️ Tool Running"))
+	// Title
+	s.WriteString(TitleStyle.Render("Tool Session"))
 	s.WriteString("\n\n")
 
 	// Status box
-	statusContent := "○ Tool is running..."
+	statusContent := "Tool session active"
 	statusBox := StatusBoxStyle.
 		BorderForeground(InfoColor).
 		Render(InfoStyle.Render(statusContent))
@@ -38,6 +38,7 @@ func (m Model) viewTool() string {
 	}{
 		{"q", "quit"},
 		{"r", "restart"},
+		{"/", "filter"},
 	}
 
 	var shortcutLines []string
@@ -66,20 +67,20 @@ func formatToolOutput(output string) string {
 			continue
 		}
 
-		// Add emoji indicators for common patterns
+		// Add indicators for common patterns
 		formattedLine := line
 		if strings.Contains(strings.ToLower(line), "error") || strings.Contains(strings.ToLower(line), "failed") {
-			formattedLine = fmt.Sprintf("❌ %s", ErrorStyle.Render(line))
+			formattedLine = fmt.Sprintf("[error] %s", ErrorStyle.Render(line))
 		} else if strings.Contains(strings.ToLower(line), "success") || strings.Contains(strings.ToLower(line), "completed") || strings.Contains(strings.ToLower(line), "done") {
-			formattedLine = fmt.Sprintf("✅ %s", SuccessStyle.Render(line))
+			formattedLine = fmt.Sprintf("[ok] %s", SuccessStyle.Render(line))
 		} else if strings.Contains(strings.ToLower(line), "warning") || strings.Contains(strings.ToLower(line), "warn") {
-			formattedLine = fmt.Sprintf("⚠️  %s", WarningStyle.Render(line))
+			formattedLine = fmt.Sprintf("[warn] %s", WarningStyle.Render(line))
 		} else if strings.Contains(strings.ToLower(line), "info") || strings.Contains(strings.ToLower(line), "info:") {
-			formattedLine = fmt.Sprintf("ℹ️  %s", InfoStyle.Render(line))
+			formattedLine = fmt.Sprintf("[info] %s", InfoStyle.Render(line))
 		} else if strings.Contains(strings.ToLower(line), "seed") || strings.Contains(strings.ToLower(line), "seeding") {
-			formattedLine = fmt.Sprintf("🌱 %s", line)
+			formattedLine = fmt.Sprintf("[seed] %s", line)
 		} else {
-			formattedLine = DimStyle.Render("  ") + line
+			formattedLine = DimStyle.Render(line)
 		}
 
 		formatted = append(formatted, formattedLine)
@@ -87,4 +88,3 @@ func formatToolOutput(output string) string {
 
 	return strings.Join(formatted, "\n")
 }
-

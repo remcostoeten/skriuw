@@ -30,14 +30,14 @@ func OpenBrowser(port string) tea.Cmd {
 			cmd.Run()
 		}
 
-		return process.ServerOutputMsg(fmt.Sprintf("✓ Opening %s in browser", url))
+		return process.ServerOutputMsg(fmt.Sprintf("[info] Opening %s in browser", url))
 	}
 }
 
 func OpenGitHubRepo(repo string) tea.Cmd {
 	return func() tea.Msg {
 		if repo == "" {
-			return process.ServerOutputMsg("✗ No GitHub repo configured")
+			return process.ServerOutputMsg("[error] no GitHub repo configured")
 		}
 
 		url := repo
@@ -59,19 +59,19 @@ func OpenGitHubRepo(repo string) tea.Cmd {
 			cmd.Run()
 		}
 
-		return process.ServerOutputMsg("✓ Opening GitHub repo")
+		return process.ServerOutputMsg("[info] Opening GitHub repo")
 	}
 }
 
 func PromptInstallPackage(packageManager string, workDir string) tea.Cmd {
 	return func() tea.Msg {
-		fmt.Print("\n\n📦 Package to install: ")
+		fmt.Print("\n\nPackage to install: ")
 		reader := bufio.NewReader(os.Stdin)
 		packageName, _ := reader.ReadString('\n')
 		packageName = strings.TrimSpace(packageName)
 
 		if packageName == "" {
-			return process.ServerOutputMsg("✗ Installation cancelled")
+			return process.ServerOutputMsg("[warn] installation cancelled")
 		}
 
 		cmd := exec.Command(packageManager, "install", packageName)
@@ -79,10 +79,21 @@ func PromptInstallPackage(packageManager string, workDir string) tea.Cmd {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return process.ServerOutputMsg(fmt.Sprintf("✗ Failed to install %s: %s", packageName, string(output)))
+			return process.ServerOutputMsg(fmt.Sprintf("[error] failed to install %s: %s", packageName, strings.TrimSpace(string(output))))
 		}
 
-		return process.ServerOutputMsg(fmt.Sprintf("✓ Installed %s successfully", packageName))
+		return process.ServerOutputMsg(fmt.Sprintf("[ok] installed %s successfully", packageName))
 	}
 }
 
+type FilterUpdateMsg string
+
+func PromptFilter() tea.Cmd {
+	return func() tea.Msg {
+		fmt.Print("\n\nFilter text (leave empty to clear): ")
+		reader := bufio.NewReader(os.Stdin)
+		text, _ := reader.ReadString('\n')
+		text = strings.TrimSpace(text)
+		return FilterUpdateMsg(text)
+	}
+}

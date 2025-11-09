@@ -62,7 +62,7 @@ find_servo() {
 
 # Windows: fall back to direct dev immediately
 if [ "$OS" = "windows" ] || [ "$OS" = "msys" ] || [ "$OS" = "cygwin" ]; then
-    echo -e "${GREEN}🚀 Starting development server...${NC}"
+    echo -e "${GREEN}Starting development server...${NC}"
     echo ""
     exec bun run dev:direct "$@"
 fi
@@ -72,22 +72,22 @@ SERVO_PATH=$(find_servo 2>/dev/null || echo "")
 
 if [ -n "$SERVO_PATH" ] && is_interactive; then
     # Servo found and we're in an interactive terminal - use it
-    echo -e "${GREEN}🎯 Using Servo development launcher${NC}"
+    echo -e "${GREEN}Using Servo development launcher${NC}"
     echo ""
     exec "$SERVO_PATH" "$@"
 else
     # Servo not found or non-interactive - fall back to regular dev
     if [ -n "$SERVO_PATH" ] && ! is_interactive; then
-        echo -e "${YELLOW}⚠️  Servo requires an interactive terminal - falling back to regular dev${NC}"
+        echo -e "${YELLOW}Servo requires an interactive terminal - falling back to regular dev${NC}"
     else
-        echo -e "${YELLOW}⚠️  Servo not found - falling back to regular dev commands${NC}"
+        echo -e "${YELLOW}Servo not found - falling back to regular dev commands${NC}"
         echo ""
-        echo -e "${BLUE}💡 Tip: Install Servo for a better dev experience:${NC}"
+        echo -e "${BLUE}Tip: Install Servo for a better dev experience:${NC}"
         echo "   cd tools/servo && ./install.sh"
         echo ""
     fi
     echo ""
-    echo -e "${GREEN}🚀 Starting development server...${NC}"
+    echo -e "${GREEN}Starting development server...${NC}"
     echo ""
     
     # Fall back to regular bun dev command (use dev:direct to avoid recursion)

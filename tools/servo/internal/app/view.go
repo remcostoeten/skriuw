@@ -17,8 +17,8 @@ func (m Model) viewMenu() string {
 	if len(m.menuStack) > 1 {
 		breadcrumbs := make([]string, len(m.menuStack))
 		for i, menu := range m.menuStack {
-			// Clean title (remove emojis for breadcrumbs)
-			cleanTitle := strings.TrimSpace(strings.TrimLeft(menu.Title, "🎯🚀🔨🌐📚"))
+			// Clean title for breadcrumbs
+			cleanTitle := strings.TrimSpace(menu.Title)
 
 			if i == len(m.menuStack)-1 {
 				breadcrumbs[i] = BreadcrumbActiveStyle.Render(cleanTitle)
@@ -215,7 +215,7 @@ func (m Model) viewBuilding() string {
 	if m.buildProcess.IsDone() {
 		statusBox := StatusBoxStyle.
 			BorderForeground(SuccessColor).
-			Render(SuccessStyle.Render("✓ Build completed"))
+			Render(SuccessStyle.Render("[ok] Build completed"))
 		s.WriteString(statusBox)
 		s.WriteString("\n")
 		s.WriteString(DimStyle.Render("Returning to menu..."))
@@ -253,7 +253,7 @@ func (m Model) viewDeploying() string {
 	if m.buildProcess.IsDone() {
 		statusBox := StatusBoxStyle.
 			BorderForeground(SuccessColor).
-			Render(SuccessStyle.Render("✓ Deployment completed"))
+			Render(SuccessStyle.Render("[ok] Deployment completed"))
 		s.WriteString(statusBox)
 		s.WriteString("\n")
 		s.WriteString(DimStyle.Render("Returning to menu..."))

@@ -8,7 +8,7 @@ import (
 func (m Model) viewProcessDashboard() string {
 	var s strings.Builder
 
-	s.WriteString(TitleStyle.Render("📊 Process Dashboard"))
+	s.WriteString(TitleStyle.Render("Process Dashboard"))
 	s.WriteString("\n\n")
 
 	if len(m.runningProcesses) == 0 {
@@ -16,15 +16,14 @@ func (m Model) viewProcessDashboard() string {
 		s.WriteString("\n\n")
 	} else {
 		for name, proc := range m.runningProcesses {
-			status := "● Running"
 			portInfo := ""
 			if proc.Port != "" {
 				portInfo = fmt.Sprintf(" on port %s", proc.Port)
 			} else if proc.Process != nil && proc.Process.Port != "" {
 				portInfo = fmt.Sprintf(" on port %s", proc.Process.Port)
 			}
-			
-			statusLine := fmt.Sprintf("%s %s%s", SuccessStyle.Render(status), name, portInfo)
+
+			statusLine := fmt.Sprintf("%s %s%s", SuccessStyle.Render("[running]"), name, portInfo)
 			s.WriteString(statusLine)
 			s.WriteString("\n")
 			s.WriteString(DimStyle.Render(fmt.Sprintf("  WorkDir: %s", proc.WorkDir)))
@@ -44,4 +43,3 @@ func (m Model) viewProcessDashboard() string {
 
 	return BoxStyle.Render(s.String())
 }
-

@@ -44,24 +44,24 @@ type RunningProcess struct {
 }
 
 type Model struct {
-	config          *config.ServoConfig
-	state           AppState
-	menuStack       []*menu.MenuContext
-	currentMenu     *menu.MenuContext
-	serverProcess   *process.ServerProcess
-	buildProcess    *process.BuildProcess
-	dirPicker       *DirPickerModel
-	pendingTool     *menu.MenuItem
+	config           *config.ServoConfig
+	state            AppState
+	menuStack        []*menu.MenuContext
+	currentMenu      *menu.MenuContext
+	serverProcess    *process.ServerProcess
+	buildProcess     *process.BuildProcess
+	dirPicker        *DirPickerModel
+	pendingTool      *menu.MenuItem
 	runningProcesses map[string]*RunningProcess
-	statusMessage   string
-	statusState     StatusLevel
-	width           int
-	height          int
-	outputOffset    int
-	outputFilter    string
-	showHelp        bool
-	loggingEnabled  bool
-	logFile         string
+	statusMessage    string
+	statusState      StatusLevel
+	width            int
+	height           int
+	outputOffset     int
+	outputFilter     string
+	showHelp         bool
+	loggingEnabled   bool
+	logFile          string
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
@@ -180,7 +180,7 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 		// Check for port conflicts before starting
 		// Extract expected port from command/args if possible
 		expectedPorts := []string{"42069", "6969", "1420"} // Common dev ports
-		
+
 		var portConflictMsg string
 		for _, port := range expectedPorts {
 			inUse, msg, err := kill.CheckPort(port)
@@ -196,7 +196,7 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 
 		if portConflictMsg != "" {
 			m.statusState = StatusLevelError
-			m.statusMessage = formatStatusMessage("⚠️", portConflictMsg+"\nUse 'Kill Dev Processes' to free ports")
+			m.statusMessage = formatStatusMessage("[warn]", fmt.Sprintf("%s\nUse 'Kill Dev Processes' to free ports", portConflictMsg))
 			return m, nil
 		}
 
@@ -210,7 +210,7 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 			item.Action.WorkDir,
 		)
 		m.serverProcess = proc
-		
+
 		// Track running process
 		processKey := item.Name
 		m.runningProcesses[processKey] = &RunningProcess{
@@ -272,19 +272,19 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 
 		if item.UtilityAction == nil {
 			m.statusState = StatusLevelError
-			m.statusMessage = "✗ No action defined for this item"
+			m.statusMessage = formatStatusMessage("[error]", "No action defined for this item")
 			return m, nil
 		}
 
 		result, err := item.UtilityAction()
 		if err != nil {
 			m.statusState = StatusLevelError
-			m.statusMessage = formatStatusMessage("✗", err.Error())
+			m.statusMessage = formatStatusMessage("[error]", err.Error())
 			return m, nil
 		}
 
 		m.statusState = StatusLevelSuccess
-		m.statusMessage = formatStatusMessage("✓", result)
+		m.statusMessage = formatStatusMessage("[ok]", result)
 		return m, nil
 
 	case menu.MenuTypeExit:
@@ -360,6 +360,9 @@ func (m Model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "home":
 			m.outputOffset = 0
 			return m, nil
+
+		case "/":
+			return m, commands.PromptFilter()
 		}
 
 	case process.ServerOutputMsg:
@@ -380,8 +383,21 @@ func (m Model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case process.ServerErrorMsg:
 		if m.serverProcess != nil {
-			m.serverProcess.AddOutput(fmt.Sprintf("Error: %v", msg.Err))
+			m.serverProcess.AddOutput(fmt.Sprintf("[error] %v", msg.Err))
+			m.statusState = StatusLevelError
+			m.statusMessage = formatStatusMessage("[error]", fmt.Sprintf("Process error: %v", msg.Err))
 			return m, process.WaitForServerOutput()
+		}
+		return m, nil
+
+	case commands.FilterUpdateMsg:
+		m.outputFilter = strings.TrimSpace(string(msg))
+		m.outputOffset = 0
+		if m.outputFilter != "" {
+			m.statusState = StatusLevelInfo
+			m.statusMessage = formatStatusMessage("[info]", fmt.Sprintf("Output filtered by \"%s\"", m.outputFilter))
+		} else {
+			m.statusMessage = ""
 		}
 		return m, nil
 	}
@@ -515,6 +531,9 @@ func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "home":
 			m.outputOffset = 0
 			return m, nil
+
+		case "/":
+			return m, commands.PromptFilter()
 		}
 
 	case process.ServerOutputMsg:
@@ -535,8 +554,21 @@ func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case process.ServerErrorMsg:
 		if m.serverProcess != nil {
-			m.serverProcess.AddOutput(fmt.Sprintf("Error: %v", msg.Err))
+			m.serverProcess.AddOutput(fmt.Sprintf("[error] %v", msg.Err))
+			m.statusState = StatusLevelError
+			m.statusMessage = formatStatusMessage("[error]", fmt.Sprintf("Tool error: %v", msg.Err))
 			return m, process.WaitForServerOutput()
+		}
+		return m, nil
+
+	case commands.FilterUpdateMsg:
+		m.outputFilter = strings.TrimSpace(string(msg))
+		m.outputOffset = 0
+		if m.outputFilter != "" {
+			m.statusState = StatusLevelInfo
+			m.statusMessage = formatStatusMessage("[info]", fmt.Sprintf("Output filtered by \"%s\"", m.outputFilter))
+		} else {
+			m.statusMessage = ""
 		}
 		return m, nil
 	}
@@ -573,7 +605,7 @@ func (m Model) updateProcessDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.runningProcesses = make(map[string]*RunningProcess)
 			m.statusState = StatusLevelSuccess
-			m.statusMessage = "✓ All processes stopped"
+			m.statusMessage = formatStatusMessage("[ok]", "All processes stopped")
 			m.state = StateMenu
 			return m, nil
 		}
@@ -621,4 +653,3 @@ func formatStatusMessage(prefix string, message string) string {
 
 	return strings.Join(lines, "\n")
 }
-

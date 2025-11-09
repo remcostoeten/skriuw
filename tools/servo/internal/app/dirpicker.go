@@ -109,7 +109,7 @@ func (d DirPickerModel) Update(msg tea.Msg) (DirPickerModel, tea.Cmd) {
 func (d *DirPickerModel) View() string {
 	var s strings.Builder
 
-	s.WriteString(TitleStyle.Render("📁 Select Directory"))
+	s.WriteString(TitleStyle.Render("Select Directory"))
 	s.WriteString("\n\n")
 
 	// Current path
@@ -124,7 +124,7 @@ func (d *DirPickerModel) View() string {
 	} else {
 		for i, entry := range d.entries {
 			cursor := " "
-			icon := "📁"
+			icon := "[DIR]"
 			if i == d.cursor {
 				cursor = "▸"
 				s.WriteString(SelectedItemStyle.Render(fmt.Sprintf("%s %s %s", cursor, icon, entry.Name())))
@@ -137,11 +137,12 @@ func (d *DirPickerModel) View() string {
 
 	// "Select this directory" option
 	cursor := " "
+	label := "Select this directory"
 	if d.cursor == len(d.entries) {
 		cursor = "▸"
-		s.WriteString(SelectedItemStyle.Render(fmt.Sprintf("%s ✓ Select this directory", cursor)))
+		s.WriteString(SelectedItemStyle.Render(fmt.Sprintf("%s [USE] %s", cursor, label)))
 	} else {
-		s.WriteString(ItemStyle.Render(fmt.Sprintf("%s ✓ Select this directory", cursor)))
+		s.WriteString(ItemStyle.Render(fmt.Sprintf("%s [USE] %s", cursor, label)))
 	}
 	s.WriteString("\n\n")
 
@@ -165,4 +166,3 @@ type DirPickerLoadedMsg struct {
 type DirPickerErrorMsg struct {
 	Err error
 }
-
