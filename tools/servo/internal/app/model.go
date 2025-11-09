@@ -19,6 +19,8 @@ const (
 	StateRunning
 	StateBuilding
 	StateDeploying
+	StateToolRunning
+	StateDirPicker
 )
 
 type StatusLevel int
@@ -36,6 +38,8 @@ type Model struct {
 	currentMenu   *menu.MenuContext
 	serverProcess *process.ServerProcess
 	buildProcess  *process.BuildProcess
+	dirPicker     *DirPickerModel
+	pendingTool   *menu.MenuItem
 	statusMessage string
 	statusState   StatusLevel
 	width         int
@@ -75,6 +79,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateBuilding(msg)
 	case StateDeploying:
 		return m.updateDeploying(msg)
+	case StateToolRunning:
+		return m.updateToolRunning(msg)
+	case StateDirPicker:
+		return m.updateDirPicker(msg)
 	}
 
 	return m, nil
@@ -164,15 +172,15 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 		return m, m.buildProcess.Start()
 
 	case menu.MenuTypeToolAction:
-		// Run tool interactively
-		m.state = StateRunning
-		m.statusMessage = ""
-		m.serverProcess = process.NewServerProcess(
-			item.Action.Command,
-			item.Action.Args,
-			item.Action.WorkDir,
-		)
-		return m, m.serverProcess.Start()
+		// Show directory picker first
+		m.pendingTool = &item
+		startDir := item.Action.WorkDir
+		if startDir == "" {
+			startDir = m.config.RootDir
+		}
+		m.dirPicker = NewDirPickerModel(startDir)
+		m.state = StateDirPicker
+		return m, m.dirPicker.Init()
 
 	case menu.MenuTypeUtilityAction:
 		if item.UtilityAction == nil {
@@ -313,6 +321,91 @@ func (m Model) updateDeploying(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.updateBuilding(msg)
 }
 
+func (m Model) updateDirPicker(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.dirPicker == nil {
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	updatedPicker, cmd := m.dirPicker.Update(msg)
+	m.dirPicker = &updatedPicker
+
+	if m.dirPicker.done {
+		if m.dirPicker.selectedDir != "" && m.pendingTool != nil {
+			// Start tool with selected directory
+			m.state = StateToolRunning
+			m.statusMessage = ""
+			m.serverProcess = process.NewServerProcess(
+				m.pendingTool.Action.Command,
+				m.pendingTool.Action.Args,
+				m.dirPicker.selectedDir,
+			)
+			m.pendingTool = nil
+			m.dirPicker = nil
+			return m, m.serverProcess.Start()
+		} else {
+			// Cancelled, return to menu
+			m.state = StateMenu
+			m.dirPicker = nil
+			m.pendingTool = nil
+			return m, nil
+		}
+	}
+
+	return m, cmd
+}
+
+func (m Model) updateToolRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			if m.serverProcess != nil {
+				m.serverProcess.Stop()
+			}
+			m.state = StateMenu
+			m.serverProcess = nil
+			return m, nil
+
+		case "r", "R":
+			if m.serverProcess != nil {
+				m.serverProcess.Stop()
+				m.serverProcess = process.NewServerProcess(
+					m.serverProcess.Command,
+					m.serverProcess.Args,
+					m.serverProcess.WorkDir,
+				)
+				return m, m.serverProcess.Start()
+			}
+		}
+
+	case process.ServerOutputMsg:
+		if m.serverProcess != nil {
+			if line := string(msg); line != "" {
+				m.serverProcess.AddOutput(line)
+			}
+			return m, process.WaitForServerOutput()
+		}
+		return m, nil
+
+	case process.ServerPortMsg:
+		if m.serverProcess != nil {
+			m.serverProcess.Port = string(msg)
+			return m, process.WaitForServerOutput()
+		}
+		return m, nil
+
+	case process.ServerErrorMsg:
+		if m.serverProcess != nil {
+			m.serverProcess.AddOutput(fmt.Sprintf("Error: %v", msg.Err))
+			return m, process.WaitForServerOutput()
+		}
+		return m, nil
+	}
+
+	return m, nil
+}
+
 func (m Model) View() string {
 	switch m.state {
 	case StateMenu:
@@ -323,6 +416,13 @@ func (m Model) View() string {
 		return m.viewBuilding()
 	case StateDeploying:
 		return m.viewDeploying()
+	case StateToolRunning:
+		return m.viewTool()
+	case StateDirPicker:
+		if m.dirPicker != nil {
+			return m.dirPicker.View()
+		}
+		return ""
 	}
 
 	return ""
