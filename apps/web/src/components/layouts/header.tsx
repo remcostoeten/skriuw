@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button } from './button';
+import { Button } from '@/shared/components/ui/button';
 import { WindowManager } from '@/utils/native-utils';
 import { useIsTauri } from '@/utils/native-utils';
 import { Minus, Maximize2, X } from 'lucide-react';

@@ -1,5 +1,5 @@
 import { Navigation } from '@/components/navigation'
-import { Header } from '@/components/ui/header'
+import { Header } from '@/components/layouts/header'
 import { Providers } from '@/components/providers'
 import { metadata, viewport } from '@/core/config/metadata'
 import { geistSans, geistMono } from '@/core/config/fonts'

@@ -3,7 +3,7 @@
 import type { Note } from '@/api/db/schema'
 import { NoteEditor } from '@/components/editor/note-editor'
 import { Sidebar as FileTreeSidebar } from '@/components/file-tree/sidebar'
-import { NotesViewSkeleton } from '@/components/shells/skeletons/notes-view-skeleton'
+import { NotesViewSkeleton } from '@/components/layouts/skeletons/notes-view-skeleton'
 import { useCreateNote } from '@/modules/notes/api/mutations/create'
 import { useDestroyNote } from '@/modules/notes/api/mutations/destroy'
 import { useGetNotes } from '@/modules/notes/api/queries/get-notes'

@@ -211,17 +211,14 @@ export function Navigation() {
 					className="flex flex-col items-center flex-1 w-full overflow-hidden"
 					aria-label="Main navigation"
 				>
-					<TopSectionWrapper className="flex-col">
-						<Logo />
-					</TopSectionWrapper>
-					<div
-						style={{
-							width: '100%'
-						}}
-					>
-						<Separator />
-					</div>
-					<div className="flex flex-col items-center gap-2 pt-4">
+				<TopSectionWrapper hasBorder className='max-h-[38px]'>
+					<button
+					className='inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border/60 disabled:pointer-events-none disabled:opacity-50 transition-all active:scale-95 h-7 w-7 fill-muted-foreground hover:fill-foreground hover:bg-accent hover:text-accent-foreground'>
+					<Logo/>	</button>
+				</TopSectionWrapper>
+				
+					<div className="flex flex-col justify-baseline gap-1 w-full px-2 
+					-full overflow-auto pt-2 pb-4">
 						<NavIcon href="/" label="Notes" isActive={pathname === '/'}>
 							<InboxIcon />
 						</NavIcon>
