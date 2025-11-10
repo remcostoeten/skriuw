@@ -208,10 +208,15 @@ func (m Model) updateAI(msg tea.Msg) (tea.Model, tea.Cmd) {
 				claudeCmd.Dir = m.serverProcess.WorkDir
 			}
 
-			// Try to run Claude CLI in a new terminal window if possible
-			// Otherwise run in background
+			// Launch Claude CLI in background goroutine
+			// Note: This is a fire-and-forget operation - Claude CLI opens in its own terminal
+			// The goroutine will complete when the command finishes or fails
 			go func() {
-				claudeCmd.Run()
+				if err := claudeCmd.Run(); err != nil {
+					// Silently handle errors - Claude CLI may not be installed or may fail to start
+					// User will see the error in their terminal if Claude CLI is launched
+					_ = err
+				}
 			}()
 
 			// Return to running view

@@ -21,7 +21,7 @@ show_help() {
     echo "Commands:"
     echo "  install     Install Servo (default)"
     echo "  update      Update Servo to latest version"
-    echo "  remove   Remove Servo"c
+    echo "  remove   Remove Servo"
     echo ""
     echo "Options:"
     echo "  --global    Install/update/remove globally (requires sudo)"
@@ -194,7 +194,7 @@ update_servo() {
 remove_servo() {
     local global_only="$1"
     
-    echo -e "${RED}🗑️  removeing Servo...${NC}"
+    echo -e "${RED}🗑️  Removing Servo...${NC}"
     
     local something_was_removed=false
     
@@ -218,7 +218,7 @@ remove_servo() {
     if [ "$something_was_removed" = "false" ] && [ "$global_only" != "true" ]; then
         echo -e "${YELLOW}⚠️  No installation found${NC}"
     elif [ "$something_was_removed" = "true" ]; then
-        echo -e "${GREEN}✅ Servo removeed successfully!${NC}"
+        echo -e "${GREEN}✅ Servo removed successfully!${NC}"
     fi
 }
 

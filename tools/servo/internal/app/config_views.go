@@ -108,13 +108,19 @@ func (m Model) viewConfigEdit() string {
 		}
 	}
 
-	// Open editor in background
+	// Open editor in background goroutine
+	// Note: This is a fire-and-forget operation - editor opens in its own terminal/window
+	// The goroutine will complete when the editor process exits
 	go func() {
 		cmd := exec.Command(editor, configPath)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Run()
+		if err := cmd.Run(); err != nil {
+			// Silently handle errors - editor may fail to start, but user will see the error
+			// in their terminal if the editor is launched interactively
+			_ = err
+		}
 	}()
 
 	// Show status
