@@ -7,6 +7,34 @@ import (
 	"servo/internal/detector"
 )
 
+const (
+	userConfigDirName  = "servo"
+	userConfigFileName = "servo.config.json"
+)
+
+// UserConfigPath returns the expected location of the user's servo configuration file.
+func UserConfigPath() string {
+	if configDir, err := os.UserConfigDir(); err == nil && configDir != "" {
+		return filepath.Join(configDir, userConfigDirName, userConfigFileName)
+	}
+
+	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+		return filepath.Join(homeDir, ".config", userConfigDirName, userConfigFileName)
+	}
+
+	// Fallback to current working directory if home/config cannot be resolved.
+	return filepath.Join(".config", userConfigDirName, userConfigFileName)
+}
+
+// UserConfigExists reports whether a user-level servo configuration file already exists.
+func UserConfigExists() bool {
+	if info, err := os.Stat(UserConfigPath()); err == nil && !info.IsDir() {
+		return true
+	}
+
+	return false
+}
+
 type ServoConfig struct {
 	ProjectName string
 	RootDir     string
@@ -146,4 +174,3 @@ func detectGitHubRepo(rootDir string) string {
 	// For now, return empty - can be enhanced later
 	return ""
 }
-
