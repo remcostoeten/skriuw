@@ -96,6 +96,18 @@ var (
 				Foreground(textSecondary).
 				Bold(true)
 
+	BreadcrumbRecentStyle = lipgloss.NewStyle().
+				Foreground(textPrimary)
+
+	DepthIndicatorStyle = lipgloss.NewStyle().
+				Foreground(infoColor).
+				Bold(true).
+				Italic(true)
+
+	NavHintStyle = lipgloss.NewStyle().
+				Foreground(textMuted).
+				Italic(true)
+
 	StatusBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(borderAccent).

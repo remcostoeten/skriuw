@@ -13,20 +13,42 @@ func (m Model) viewMenu() string {
 	s.WriteString(title)
 	s.WriteString("\n\n")
 
-	// Breadcrumbs
+	// Breadcrumbs with depth indicator
 	if len(m.menuStack) > 1 {
+		// Show depth indicator
+		depthText := fmt.Sprintf("Level %d/%d", len(m.menuStack), len(m.menuStack))
+		depthIndicator := DepthIndicatorStyle.Render("[" + depthText + "]")
+		s.WriteString(depthIndicator)
+		s.WriteString("  ")
+
 		breadcrumbs := make([]string, len(m.menuStack))
 		for i, menu := range m.menuStack {
 			// Clean title for breadcrumbs
 			cleanTitle := strings.TrimSpace(menu.Title)
 
 			if i == len(m.menuStack)-1 {
+				// Current menu - active style with depth-based emphasis
 				breadcrumbs[i] = BreadcrumbActiveStyle.Render(cleanTitle)
 			} else {
-				breadcrumbs[i] = BreadcrumbStyle.Render(cleanTitle)
+				// Parent menus - show with depth-based styling
+				depth := len(m.menuStack) - i
+				var styledBreadcrumb string
+				if depth <= 2 {
+					// Recent parent - more prominent
+					styledBreadcrumb = BreadcrumbRecentStyle.Render(cleanTitle)
+				} else {
+					// Distant parent - more subtle
+					styledBreadcrumb = BreadcrumbStyle.Render(cleanTitle)
+				}
+				breadcrumbs[i] = styledBreadcrumb
 			}
 		}
-		s.WriteString(strings.Join(breadcrumbs, DimStyle.Render(" / ")))
+		s.WriteString(strings.Join(breadcrumbs, DimStyle.Render(" › ")))
+		s.WriteString("\n")
+
+		// Navigation hint
+		navHint := NavHintStyle.Render("Press Backspace to go back")
+		s.WriteString(navHint)
 		s.WriteString("\n\n")
 	}
 

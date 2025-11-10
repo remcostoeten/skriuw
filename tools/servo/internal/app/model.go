@@ -88,6 +88,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+	case clearStatusMessageMsg:
+		m.statusMessage = ""
+		return m, nil
 	}
 
 	switch m.state {
@@ -134,8 +137,18 @@ func (m Model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if len(m.menuStack) > 1 {
+				// Get the name of the menu we're returning to
+				returningToMenu := m.menuStack[len(m.menuStack)-2]
 				m.menuStack = m.menuStack[:len(m.menuStack)-1]
 				m.currentMenu = m.menuStack[len(m.menuStack)-1]
+
+				// Show brief status message about navigation
+				m.setStatusMessage(fmt.Sprintf("← Back to %s", returningToMenu.Title), StatusLevelInfo)
+				m.clearStatusMessageAfter(2 * time.Second)
+			} else {
+				// Already at root menu, show hint
+				m.setStatusMessage("Already at main menu (press 'q' to quit)", StatusLevelInfo)
+				m.clearStatusMessageAfter(2 * time.Second)
 			}
 			return m, nil
 
@@ -661,3 +674,20 @@ func formatStatusMessage(prefix string, message string) string {
 
 	return strings.Join(lines, "\n")
 }
+
+// setStatusMessage sets a status message with the given level
+func (m *Model) setStatusMessage(message string, level StatusLevel) {
+	m.statusMessage = message
+	m.statusState = level
+}
+
+// clearStatusMessageAfter returns a command that clears the status message after the given duration
+func (m *Model) clearStatusMessageAfter(d time.Duration) tea.Cmd {
+	return tea.Tick(d, func(time.Time) tea.Msg {
+		return clearStatusMessageMsg{}
+	})
+}
+
+// clearStatusMessageMsg is a message to clear the status message
+type clearStatusMessageMsg struct{}
+
