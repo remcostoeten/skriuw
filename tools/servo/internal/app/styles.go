@@ -2,130 +2,208 @@ package app
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"servo/internal/theme"
 )
 
+// Global style variables that can be updated dynamically
 var (
-	// neutral, vercel-inspired palette
-	bgColor      = lipgloss.Color("#0a0a0a")
-	cardBg       = lipgloss.Color("#171717")
-	borderColor  = lipgloss.Color("#27272a")
-	borderAccent = lipgloss.Color("#3f3f46")
+	// Current theme colors (can be updated by RebuildStyles)
+	bgColor      lipgloss.Color
+	cardBg       lipgloss.Color
+	borderColor  lipgloss.Color
+	borderAccent lipgloss.Color
 
-	textPrimary   = lipgloss.Color("#fafafa")
-	textSecondary = lipgloss.Color("#e5e5e5")
-	textMuted     = lipgloss.Color("#a1a1aa")
-	textDim       = lipgloss.Color("#71717a")
+	textPrimary   lipgloss.Color
+	textSecondary lipgloss.Color
+	textMuted     lipgloss.Color
+	textDim       lipgloss.Color
 
-	accentPrimary = lipgloss.Color("#e5e5e5")
-	accentHover   = lipgloss.Color("#fafafa")
+	accentPrimary lipgloss.Color
+	accentHover   lipgloss.Color
 
-	successColor = lipgloss.Color("#22c55e")
-	warningColor = lipgloss.Color("#eab308")
-	errorColor   = lipgloss.Color("#ef4444")
-	infoColor    = lipgloss.Color("#3b82f6")
+	successColor lipgloss.Color
+	warningColor lipgloss.Color
+	errorColor   lipgloss.Color
+	infoColor    lipgloss.Color
 
-	// Styles
-	BoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderColor).
-			Padding(2, 4).
-			Width(90)
+	// Styles (will be rebuilt when theme changes)
+	BoxStyle lipgloss.Style
 
-	TitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(textPrimary).
-			MarginBottom(1)
+	TitleStyle lipgloss.Style
 
-	SelectedItemStyle = lipgloss.NewStyle().
-				Foreground(accentHover).
-				Bold(true).
-				Background(cardBg).
-				PaddingLeft(2).
-				PaddingRight(2).
-				MarginLeft(0)
+	SelectedItemStyle lipgloss.Style
 
-	ItemStyle = lipgloss.NewStyle().
-			Foreground(textSecondary).
-			PaddingLeft(2)
+	ItemStyle lipgloss.Style
 
-	HelpStyle = lipgloss.NewStyle().
-			Foreground(textMuted).
-			Italic(true).
-			MarginTop(1)
+	HelpStyle lipgloss.Style
 
-	SuccessStyle = lipgloss.NewStyle().
-			Foreground(successColor).
-			Bold(true)
+	SuccessStyle lipgloss.Style
 
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(errorColor).
-			Bold(true)
+	ErrorStyle lipgloss.Style
 
-	WarningStyle = lipgloss.NewStyle().
-			Foreground(warningColor).
-			Bold(true)
+	WarningStyle lipgloss.Style
 
-	InfoStyle = lipgloss.NewStyle().
-			Foreground(infoColor).
-			Bold(true)
+	InfoStyle lipgloss.Style
 
-	AccentStyle = lipgloss.NewStyle().
-			Foreground(accentPrimary).
-			Bold(true)
+	AccentStyle lipgloss.Style
 
-	DimStyle = lipgloss.NewStyle().
-			Foreground(textDim)
+	DimStyle lipgloss.Style
 
-	SpinnerStyle = lipgloss.NewStyle().
-			Foreground(textMuted).
-			Bold(true)
+	SpinnerStyle lipgloss.Style
 
-	OutputBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderColor).
-			Background(cardBg).
-			Padding(1, 2).
-			Width(82).
-			Height(12).
-			Foreground(textSecondary)
+	OutputBoxStyle lipgloss.Style
 
-	BreadcrumbStyle = lipgloss.NewStyle().
-			Foreground(textMuted)
+	BreadcrumbStyle lipgloss.Style
 
-	BreadcrumbActiveStyle = lipgloss.NewStyle().
-				Foreground(textSecondary).
-				Bold(true)
+	BreadcrumbActiveStyle lipgloss.Style
 
-	BreadcrumbRecentStyle = lipgloss.NewStyle().
-				Foreground(textPrimary)
+	BreadcrumbRecentStyle lipgloss.Style
 
-	DepthIndicatorStyle = lipgloss.NewStyle().
-				Foreground(infoColor).
-				Bold(true).
-				Italic(true)
+	DepthIndicatorStyle lipgloss.Style
 
-	NavHintStyle = lipgloss.NewStyle().
-				Foreground(textMuted).
-				Italic(true)
+	NavHintStyle lipgloss.Style
 
-	StatusBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderAccent).
-			Padding(0, 2).
-			Foreground(textSecondary).
-			MarginBottom(1)
+	StatusBoxStyle lipgloss.Style
 
-	KeyStyle = lipgloss.NewStyle().
-			Foreground(textPrimary).
-			Bold(true).
-			Background(cardBg).
-			Padding(0, 1)
+	KeyStyle lipgloss.Style
 
-	KeyDescStyle = lipgloss.NewStyle().
-			Foreground(textMuted)
+	KeyDescStyle lipgloss.Style
 
 	// Color exports for use in other packages
-	SuccessColor = successColor
-	ErrorColor   = errorColor
-	InfoColor    = infoColor
+	SuccessColor lipgloss.Color
+	ErrorColor   lipgloss.Color
+	InfoColor    lipgloss.Color
 )
+
+func init() {
+	// Initialize with default theme (dark monochrome)
+	RebuildStyles(theme.DarkMonochromeTheme())
+}
+
+// RebuildStyles rebuilds all styles with the given theme
+// This allows instant theme switching without restarting the application
+func RebuildStyles(t theme.Theme) {
+	// Update colors from theme
+	bgColor = t.BgColor
+	cardBg = t.CardBg
+	borderColor = t.BorderColor
+	borderAccent = t.BorderAccent
+
+	textPrimary = t.TextPrimary
+	textSecondary = t.TextSecondary
+	textMuted = t.TextMuted
+	textDim = t.TextDim
+
+	accentPrimary = t.AccentPrimary
+	accentHover = t.AccentHover
+
+	successColor = t.SuccessColor
+	warningColor = t.WarningColor
+	errorColor = t.ErrorColor
+	infoColor = t.InfoColor
+
+	// Rebuild all styles with new colors
+	BoxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		Padding(2, 4).
+		Width(90)
+
+	TitleStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(textPrimary).
+		MarginBottom(1)
+
+	SelectedItemStyle = lipgloss.NewStyle().
+		Foreground(accentHover).
+		Bold(true).
+		Background(cardBg).
+		PaddingLeft(2).
+		PaddingRight(2).
+		MarginLeft(0)
+
+	ItemStyle = lipgloss.NewStyle().
+		Foreground(textSecondary).
+		PaddingLeft(2)
+
+	HelpStyle = lipgloss.NewStyle().
+		Foreground(textMuted).
+		Italic(true).
+		MarginTop(1)
+
+	SuccessStyle = lipgloss.NewStyle().
+		Foreground(successColor).
+		Bold(true)
+
+	ErrorStyle = lipgloss.NewStyle().
+		Foreground(errorColor).
+		Bold(true)
+
+	WarningStyle = lipgloss.NewStyle().
+		Foreground(warningColor).
+		Bold(true)
+
+	InfoStyle = lipgloss.NewStyle().
+		Foreground(infoColor).
+		Bold(true)
+
+	AccentStyle = lipgloss.NewStyle().
+		Foreground(accentPrimary).
+		Bold(true)
+
+	DimStyle = lipgloss.NewStyle().
+		Foreground(textDim)
+
+	SpinnerStyle = lipgloss.NewStyle().
+		Foreground(textMuted).
+		Bold(true)
+
+	OutputBoxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		Background(cardBg).
+		Padding(1, 2).
+		Width(82).
+		Height(12).
+		Foreground(textSecondary)
+
+	BreadcrumbStyle = lipgloss.NewStyle().
+		Foreground(textMuted)
+
+	BreadcrumbActiveStyle = lipgloss.NewStyle().
+		Foreground(textSecondary).
+		Bold(true)
+
+	BreadcrumbRecentStyle = lipgloss.NewStyle().
+		Foreground(textPrimary)
+
+	DepthIndicatorStyle = lipgloss.NewStyle().
+		Foreground(infoColor).
+		Bold(true).
+		Italic(true)
+
+	NavHintStyle = lipgloss.NewStyle().
+		Foreground(textMuted).
+		Italic(true)
+
+	StatusBoxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderAccent).
+		Padding(0, 2).
+		Foreground(textSecondary).
+		MarginBottom(1)
+
+	KeyStyle = lipgloss.NewStyle().
+		Foreground(textPrimary).
+		Bold(true).
+		Background(cardBg).
+		Padding(0, 1)
+
+	KeyDescStyle = lipgloss.NewStyle().
+		Foreground(textMuted)
+
+	// Update exported colors
+	SuccessColor = successColor
+	ErrorColor = errorColor
+	InfoColor = infoColor
+}

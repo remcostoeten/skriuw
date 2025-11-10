@@ -19,6 +19,7 @@ const (
 	MenuTypeDeployAction
 	MenuTypeToolAction
 	MenuTypeUtilityAction
+	MenuTypeSettings
 	MenuTypeExit
 )
 
@@ -77,6 +78,11 @@ func BuildMainMenu(cfg *config.ServoConfig) *MenuContext {
 				Icon:       "[STATUS]",
 				Type:       MenuTypeSubmenu,
 				SubmenuKey: "dashboard",
+			},
+			{
+				Name:       "Settings",
+				Icon:       "[SETTINGS]",
+				Type:       MenuTypeSettings,
 			},
 			{
 				Name:       "Help & Docs",

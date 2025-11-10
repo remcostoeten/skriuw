@@ -13,6 +13,7 @@ import (
 	"servo/internal/kill"
 	"servo/internal/menu"
 	"servo/internal/process"
+	"servo/internal/theme"
 )
 
 type AppState int
@@ -26,6 +27,7 @@ const (
 	StateDirPicker
 	StateHelp
 	StateProcessDashboard
+	StateSettings
 )
 
 type StatusLevel int
@@ -45,6 +47,8 @@ type RunningProcess struct {
 
 type Model struct {
 	config           *config.ServoConfig
+	preferences      *config.UserPreferences
+	currentTheme     theme.Theme
 	state            AppState
 	menuStack        []*menu.MenuContext
 	currentMenu      *menu.MenuContext
@@ -62,19 +66,29 @@ type Model struct {
 	showHelp         bool
 	loggingEnabled   bool
 	logFile          string
+	settingsCursor   int
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
 	mainMenu := menu.BuildMainMenu(cfg)
 
+	// Load user preferences
+	prefs := config.LoadPreferences(cfg.RootDir)
+
+	// Get the current theme based on preferences
+	currentTheme := theme.GetTheme(theme.ThemeName(prefs.Theme))
+
 	return Model{
 		config:           cfg,
+		preferences:      prefs,
+		currentTheme:     currentTheme,
 		state:            StateMenu,
 		menuStack:        []*menu.MenuContext{mainMenu},
 		currentMenu:      mainMenu,
 		statusState:      StatusLevelInfo,
 		runningProcesses: make(map[string]*RunningProcess),
 		loggingEnabled:   false,
+		settingsCursor:   0,
 	}
 }
 
@@ -113,6 +127,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateHelp(msg)
 	case StateProcessDashboard:
 		return m.updateProcessDashboard(msg)
+	case StateSettings:
+		return m.updateSettings(msg)
 	}
 
 	return m, nil
@@ -306,6 +322,19 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 
 		m.statusState = StatusLevelSuccess
 		m.statusMessage = formatStatusMessage("[ok]", result)
+		return m, nil
+
+	case menu.MenuTypeSettings:
+		m.state = StateSettings
+		m.settingsCursor = 0
+		// Find current theme in the list
+		themes := theme.AvailableThemes()
+		for i, t := range themes {
+			if t.Name == m.currentTheme.Name {
+				m.settingsCursor = i
+				break
+			}
+		}
 		return m, nil
 
 	case menu.MenuTypeExit:
@@ -634,6 +663,82 @@ func (m Model) updateProcessDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSettings(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc":
+			m.state = StateMenu
+			return m, nil
+
+		case "up", "k":
+			if m.settingsCursor > 0 {
+				m.settingsCursor--
+			}
+			return m, nil
+
+		case "down", "j":
+			themes := theme.AvailableThemes()
+			if m.settingsCursor < len(themes)-1 {
+				m.settingsCursor++
+			}
+			return m, nil
+
+		case "enter", " ":
+			// Apply selected theme
+			themes := theme.AvailableThemes()
+			if m.settingsCursor >= 0 && m.settingsCursor < len(themes) {
+				selectedTheme := themes[m.settingsCursor]
+				m.currentTheme = selectedTheme
+				m.preferences.Theme = string(selectedTheme.Name)
+
+				// Save preferences
+				if err := config.SavePreferences(m.config.RootDir, m.preferences); err != nil {
+					m.statusState = StatusLevelError
+					m.statusMessage = formatStatusMessage("[error]", fmt.Sprintf("Failed to save theme: %v", err))
+				} else {
+					m.statusState = StatusLevelSuccess
+					m.statusMessage = formatStatusMessage("[ok]", fmt.Sprintf("Theme changed to %s", selectedTheme.DisplayName))
+				}
+
+				// Rebuild styles with new theme
+				RebuildStyles(m.currentTheme)
+
+				return m, nil
+			}
+
+		default:
+			// Number key selection
+			if len(msg.String()) == 1 && msg.String()[0] >= '1' && msg.String()[0] <= '9' {
+				index := int(msg.String()[0]-'0') - 1
+				themes := theme.AvailableThemes()
+				if index >= 0 && index < len(themes) {
+					m.settingsCursor = index
+					// Auto-apply on number selection
+					selectedTheme := themes[index]
+					m.currentTheme = selectedTheme
+					m.preferences.Theme = string(selectedTheme.Name)
+
+					// Save preferences
+					if err := config.SavePreferences(m.config.RootDir, m.preferences); err != nil {
+						m.statusState = StatusLevelError
+						m.statusMessage = formatStatusMessage("[error]", fmt.Sprintf("Failed to save theme: %v", err))
+					} else {
+						m.statusState = StatusLevelSuccess
+						m.statusMessage = formatStatusMessage("[ok]", fmt.Sprintf("Theme changed to %s", selectedTheme.DisplayName))
+					}
+
+					// Rebuild styles with new theme
+					RebuildStyles(m.currentTheme)
+
+					return m, nil
+				}
+			}
+		}
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
 	switch m.state {
 	case StateMenu:
@@ -655,6 +760,8 @@ func (m Model) View() string {
 		return m.viewHelp()
 	case StateProcessDashboard:
 		return m.viewProcessDashboard()
+	case StateSettings:
+		return m.viewSettings()
 	}
 
 	return ""
