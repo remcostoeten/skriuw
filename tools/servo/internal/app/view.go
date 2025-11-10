@@ -205,6 +205,8 @@ func (m Model) viewRunning() string {
 		{"r", "restart"},
 		{"p", "install pkg"},
 		{"g", "github"},
+		{"t", "terminal"},
+		{"a", "AI assistant"},
 		{"↑↓/jk", "scroll"},
 		{"/", "filter"},
 		{"h", "help"},

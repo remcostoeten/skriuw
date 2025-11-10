@@ -28,6 +28,8 @@ const (
 	StateHelp
 	StateProcessDashboard
 	StateSettings
+	StateTerminal
+	StateAI
 )
 
 type StatusLevel int
@@ -67,6 +69,15 @@ type Model struct {
 	loggingEnabled   bool
 	logFile          string
 	settingsCursor   int
+	// Terminal mode fields
+	terminalInput    string
+	terminalOutput   []string
+	terminalHistory  []string
+	terminalHistoryIdx int
+	terminalCmd      *process.ServerProcess // For running terminal commands
+	// AI mode fields
+	aiModeChoice     int // 0 = fresh, 1 = with terminal output
+	aiPromptPrefilled string
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
@@ -89,6 +100,10 @@ func InitialModel(cfg *config.ServoConfig) Model {
 		runningProcesses: make(map[string]*RunningProcess),
 		loggingEnabled:   false,
 		settingsCursor:   0,
+		terminalOutput:   make([]string, 0),
+		terminalHistory:  make([]string, 0),
+		terminalHistoryIdx: -1,
+		aiModeChoice:     0,
 	}
 }
 
@@ -129,6 +144,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateProcessDashboard(msg)
 	case StateSettings:
 		return m.updateSettings(msg)
+	case StateTerminal:
+		return m.updateTerminal(msg)
+	case StateAI:
+		return m.updateAI(msg)
 	}
 
 	return m, nil
@@ -413,6 +432,19 @@ func (m Model) updateRunning(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "/":
 			return m, commands.PromptFilter()
+
+		case "t", "T":
+			// Enter terminal mode
+			m.state = StateTerminal
+			m.terminalInput = ""
+			m.terminalOutput = make([]string, 0)
+			return m, nil
+
+		case "a", "A":
+			// Enter AI mode selection
+			m.state = StateAI
+			m.aiModeChoice = 0
+			return m, nil
 		}
 
 	case process.ServerOutputMsg:
@@ -762,6 +794,10 @@ func (m Model) View() string {
 		return m.viewProcessDashboard()
 	case StateSettings:
 		return m.viewSettings()
+	case StateTerminal:
+		return m.viewTerminal()
+	case StateAI:
+		return m.viewAI()
 	}
 
 	return ""
