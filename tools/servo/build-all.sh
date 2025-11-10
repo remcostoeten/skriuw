@@ -15,7 +15,14 @@ go mod tidy
 
 # Detect current platform
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
+ARCH_RAW=$(uname -m)
+
+# Normalize architecture names for Go
+case "$ARCH_RAW" in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) ARCH="$ARCH_RAW" ;;
+esac
 
 # Create bin directory
 mkdir -p bin
@@ -31,19 +38,19 @@ fi
 echo "📦 Cross-compiling for other platforms..."
 
 # Linux (amd64)
-if [ "$OS" != "linux" ] || [ "$ARCH" != "x86_64" ]; then
+if [ "$OS" != "linux" ] || [ "$ARCH" != "amd64" ]; then
     echo "  → Linux (amd64)..."
     GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/servo-linux-amd64 ./cmd/servo
 fi
 
 # Linux (arm64)
-if [ "$OS" != "linux" ] || [ "$ARCH" != "aarch64" ]; then
+if [ "$OS" != "linux" ] || [ "$ARCH" != "arm64" ]; then
     echo "  → Linux (arm64)..."
     GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/servo-linux-arm64 ./cmd/servo
 fi
 
 # macOS (amd64)
-if [ "$OS" != "darwin" ] || [ "$ARCH" != "x86_64" ]; then
+if [ "$OS" != "darwin" ] || [ "$ARCH" != "amd64" ]; then
     echo "  → macOS (amd64)..."
     GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o bin/servo-darwin-amd64 ./cmd/servo
 fi
