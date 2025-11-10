@@ -10,6 +10,8 @@ import (
 	"servo/internal/config"
 )
 
+const Version = "0.1.0"
+
 func main() {
 	cfg := config.LoadServoConfig()
 
@@ -23,6 +25,9 @@ func main() {
 			return
 		case "help", "-h", "--help":
 			printHelp()
+			return
+		case "version", "--version", "-v":
+			fmt.Println(Version)
 			return
 		}
 	}
@@ -60,6 +65,7 @@ func printHelp() {
 	fmt.Println("Usage:")
 	fmt.Println("  servo           Show interactive menu")
 	fmt.Println("  servo dev       Run dev server directly (no menu)")
+	fmt.Println("  servo version   Show current version")
 	fmt.Println("  servo help      Show this help message")
 	fmt.Println("")
 }

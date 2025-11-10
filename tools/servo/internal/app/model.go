@@ -30,6 +30,9 @@ const (
 	StateSettings
 	StateTerminal
 	StateAI
+	StateConfigView
+	StateConfigEdit
+	StateConfigAdd
 )
 
 type StatusLevel int
@@ -70,18 +73,65 @@ type Model struct {
 	logFile          string
 	settingsCursor   int
 	// Terminal mode fields
-	terminalInput    string
-	terminalOutput   []string
-	terminalHistory  []string
+	terminalInput      string
+	terminalOutput     []string
+	terminalHistory    []string
 	terminalHistoryIdx int
-	terminalCmd      *process.ServerProcess // For running terminal commands
+	terminalCmd        *process.ServerProcess // For running terminal commands
 	// AI mode fields
-	aiModeChoice     int // 0 = fresh, 1 = with terminal output
+	aiModeChoice      int // 0 = fresh, 1 = with terminal output
 	aiPromptPrefilled string
+	// Config add form
+	configAddForm *ConfigAddForm
+}
+
+type ConfigAddForm struct {
+	Step    int
+	Input   string
+	Key     string
+	Name    string
+	Dir     string
+	Command string
+	Error   string
+}
+
+const configAddTotalSteps = 4
+
+func newConfigAddForm() *ConfigAddForm {
+	return &ConfigAddForm{}
+}
+
+func (f *ConfigAddForm) currentPrompt() (string, string) {
+	switch f.Step {
+	case 0:
+		return "Enter app key (identifier, e.g. 'web')", ""
+	case 1:
+		defaultName := f.Key
+		if defaultName == "" {
+			defaultName = "New App"
+		}
+		return "Enter display name", defaultName
+	case 2:
+		defaultDir := f.Dir
+		if defaultDir == "" && f.Key != "" {
+			defaultDir = filepath.Join("apps", f.Key)
+		}
+		if defaultDir == "" {
+			defaultDir = "apps/<folder>"
+		}
+		return "Enter directory path", defaultDir
+	case 3:
+		return "Enter dev command (e.g. 'pnpm run dev')", "pnpm run dev"
+	default:
+		return "", ""
+	}
 }
 
 func InitialModel(cfg *config.ServoConfig) Model {
 	mainMenu := menu.BuildMainMenu(cfg)
+
+	// Bootstrap user config if it doesn't exist
+	config.BootstrapUserConfig()
 
 	// Load user preferences
 	prefs := config.LoadPreferences(cfg.RootDir)
@@ -90,20 +140,20 @@ func InitialModel(cfg *config.ServoConfig) Model {
 	currentTheme := theme.GetTheme(theme.ThemeName(prefs.Theme))
 
 	return Model{
-		config:           cfg,
-		preferences:      prefs,
-		currentTheme:     currentTheme,
-		state:            StateMenu,
-		menuStack:        []*menu.MenuContext{mainMenu},
-		currentMenu:      mainMenu,
-		statusState:      StatusLevelInfo,
-		runningProcesses: make(map[string]*RunningProcess),
-		loggingEnabled:   false,
-		settingsCursor:   0,
-		terminalOutput:   make([]string, 0),
-		terminalHistory:  make([]string, 0),
+		config:             cfg,
+		preferences:        prefs,
+		currentTheme:       currentTheme,
+		state:              StateMenu,
+		menuStack:          []*menu.MenuContext{mainMenu},
+		currentMenu:        mainMenu,
+		statusState:        StatusLevelInfo,
+		runningProcesses:   make(map[string]*RunningProcess),
+		loggingEnabled:     false,
+		settingsCursor:     0,
+		terminalOutput:     make([]string, 0),
+		terminalHistory:    make([]string, 0),
 		terminalHistoryIdx: -1,
-		aiModeChoice:     0,
+		aiModeChoice:       0,
 	}
 }
 
@@ -148,6 +198,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTerminal(msg)
 	case StateAI:
 		return m.updateAI(msg)
+	case StateConfigView:
+		return m.updateConfigView(msg)
+	case StateConfigEdit:
+		return m.updateConfigEdit(msg)
+	case StateConfigAdd:
+		return m.updateConfigAdd(msg)
 	}
 
 	return m, nil
@@ -353,6 +409,29 @@ func (m Model) handleMenuSelection(item menu.MenuItem) (tea.Model, tea.Cmd) {
 				m.settingsCursor = i
 				break
 			}
+		}
+		return m, nil
+
+	case menu.MenuTypeConfigView:
+		m.state = StateConfigView
+		return m, nil
+
+	case menu.MenuTypeConfigEdit:
+		m.state = StateConfigEdit
+		return m, nil
+
+	case menu.MenuTypeConfigAdd:
+		m.state = StateConfigAdd
+		m.configAddForm = newConfigAddForm()
+		return m, nil
+
+	case menu.MenuTypeConfigReset:
+		if err := config.ResetUserConfig(); err != nil {
+			m.statusState = StatusLevelError
+			m.statusMessage = formatStatusMessage("[error]", fmt.Sprintf("Failed to reset config: %v", err))
+		} else {
+			m.statusState = StatusLevelSuccess
+			m.statusMessage = formatStatusMessage("[ok]", "Configuration reset to defaults. Backup created.")
 		}
 		return m, nil
 
@@ -798,6 +877,12 @@ func (m Model) View() string {
 		return m.viewTerminal()
 	case StateAI:
 		return m.viewAI()
+	case StateConfigView:
+		return m.viewConfigView()
+	case StateConfigEdit:
+		return m.viewConfigEdit()
+	case StateConfigAdd:
+		return m.viewConfigAdd()
 	}
 
 	return ""
@@ -833,4 +918,3 @@ func (m *Model) clearStatusMessageAfter(d time.Duration) tea.Cmd {
 
 // clearStatusMessageMsg is a message to clear the status message
 type clearStatusMessageMsg struct{}
-

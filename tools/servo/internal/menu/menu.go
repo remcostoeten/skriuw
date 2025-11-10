@@ -20,6 +20,10 @@ const (
 	MenuTypeToolAction
 	MenuTypeUtilityAction
 	MenuTypeSettings
+	MenuTypeConfigView
+	MenuTypeConfigEdit
+	MenuTypeConfigAdd
+	MenuTypeConfigReset
 	MenuTypeExit
 )
 
@@ -85,6 +89,12 @@ func BuildMainMenu(cfg *config.ServoConfig) *MenuContext {
 				Type:       MenuTypeSettings,
 			},
 			{
+				Name:       "Configuration",
+				Icon:       "[CONFIG]",
+				Type:       MenuTypeSubmenu,
+				SubmenuKey: "config",
+			},
+			{
 				Name:       "Help & Docs",
 				Icon:       "[HELP]",
 				Type:       MenuTypeSubmenu,
@@ -118,6 +128,8 @@ func BuildSubmenu(parentItem MenuItem, cfg *config.ServoConfig) *MenuContext {
 		return BuildDashboardMenu(cfg)
 	case "help":
 		return BuildHelpMenu(cfg)
+	case "config":
+		return BuildConfigMenu(cfg)
 	default:
 		return BuildMainMenu(cfg)
 	}
@@ -372,6 +384,39 @@ func BuildDashboardMenu(cfg *config.ServoConfig) *MenuContext {
 				Name: "View Dashboard",
 				Icon: "[VIEW]",
 				Type: MenuTypeUtilityAction,
+			},
+			{
+				Name: "Back",
+				Icon: "[BACK]",
+				Type: MenuTypeSubmenu,
+			},
+		},
+	}
+}
+
+func BuildConfigMenu(cfg *config.ServoConfig) *MenuContext {
+	return &MenuContext{
+		Title: "Configuration",
+		Items: []MenuItem{
+			{
+				Name: "View Config",
+				Icon: "[VIEW]",
+				Type: MenuTypeConfigView,
+			},
+			{
+				Name: "Edit Configuration",
+				Icon: "[EDIT]",
+				Type: MenuTypeConfigEdit,
+			},
+			{
+				Name: "Add App",
+				Icon: "[ADD]",
+				Type: MenuTypeConfigAdd,
+			},
+			{
+				Name: "Reset Config",
+				Icon: "[RESET]",
+				Type: MenuTypeConfigReset,
 			},
 			{
 				Name: "Back",
