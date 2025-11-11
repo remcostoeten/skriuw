@@ -1,8 +1,8 @@
 import { Folder, FileText, ChevronRight, Search, Plus, FolderPlus, FilePlus, Edit, FolderOpen, Trash2 } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useNotes } from "@/hooks/useNotes";
-import { Item } from "@/services/noteStorage";
+import { useNotes } from "@/features/notes/hooks/useNotes";
+import { Item } from "@/features/notes/services/noteStorage";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -278,14 +278,14 @@ export function Sidebar({ activeNoteId }: props) {
     });
   }, []);
 
-  const handleCreateNote = useCallback((parentId?: string) => {
-    const newNote = createNote("Untitled", parentId);
+  const handleCreateNote = useCallback(async (parentId?: string) => {
+    const newNote = await createNote("Untitled", parentId);
     // Keep expanded state
     navigate(`/note/${newNote.id}`);
   }, [createNote, navigate]);
 
-  const handleCreateFolder = useCallback((parentId?: string) => {
-    createFolder("New Folder", parentId);
+  const handleCreateFolder = useCallback(async (parentId?: string) => {
+    await createFolder("New Folder", parentId);
     // Keep expanded state - it's automatically persisted
   }, [createFolder]);
 

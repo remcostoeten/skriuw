@@ -1,26 +1,33 @@
 import { Block } from "@blocknote/core";
-
-export interface Note {
-  id: string;
-  name: string;
-  content: Block[];
-  createdAt: number;
-  updatedAt: number;
-  type: 'note';
-}
-
-export interface Folder {
-  id: string;
-  name: string;
-  type: 'folder';
-  children: (Note | Folder)[];
-  createdAt: number;
-  updatedAt: number;
-}
-
-export type Item = Note | Folder;
+import { Note, Folder, Item } from "../types";
 
 const STORAGE_KEY = "Skriuw_notes";
+
+class StorageError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = 'StorageError';
+    this.cause = cause;
+  }
+}
+
+const safeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      throw new StorageError(`Failed to read from localStorage: ${key}`, error);
+    }
+  },
+
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      throw new StorageError(`Failed to write to localStorage: ${key}`, error);
+    }
+  }
+};
 
 const DEFAULT_ITEMS: Item[] = [
   {
@@ -114,15 +121,20 @@ const DEFAULT_ITEMS: Item[] = [
 export class NoteStorage {
   static getItems(): Item[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = safeStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Validate the parsed data has the expected structure
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+        throw new StorageError('Invalid data format in storage');
       }
     } catch (error) {
-      console.error("Error loading items:", error);
+      console.error("Error loading items, using defaults:", error);
     }
     const items = DEFAULT_ITEMS;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return items;
   }
 
@@ -173,7 +185,7 @@ export class NoteStorage {
       items.push(newNote);
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return newNote;
   }
 
@@ -199,7 +211,7 @@ export class NoteStorage {
       items.push(newFolder);
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return newFolder;
   }
 
@@ -215,7 +227,7 @@ export class NoteStorage {
     if (name) note.name = name;
     note.updatedAt = Date.now();
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return note;
   }
 
@@ -230,7 +242,7 @@ export class NoteStorage {
     item.name = newName;
     item.updatedAt = Date.now();
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return item;
   }
 
@@ -255,7 +267,7 @@ export class NoteStorage {
 
     const found = deleteRecursive(items);
     if (found) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     }
     return found;
   }
@@ -301,7 +313,7 @@ export class NoteStorage {
       items.push(item);
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     return true;
   }
 

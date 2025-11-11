@@ -8,7 +8,6 @@ export function TopToolbar({ onToggleSidebar }: props) {
   return (
     <div className="h-10 bg-Skriuw-dark border-b border-Skriuw-border flex items-center justify-between px-1.5">
       <div className="flex items-center gap-1.5">
-        {/* Mobile menu button */}
         <button
           className="w-6 h-6 flex lg:hidden items-center justify-center rounded-md hover:bg-Skriuw-border/50 transition-colors"
           onClick={onToggleSidebar}
