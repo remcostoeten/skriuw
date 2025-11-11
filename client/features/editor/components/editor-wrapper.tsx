@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { BlockNoteEditor } from "@blocknote/core";
 import "@blocknote/core/style.css";
 
@@ -6,33 +6,40 @@ type props = {
   editor: BlockNoteEditor | null;
 }
 
-export function EditorWrapper({ editor }: props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+export type EditorWrapperHandle = {
+  focusEditor: () => void;
+}
 
-  useEffect(() => {
-    if (!editor || !containerRef.current) return;
+export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
+  ({ editor }, ref) => {
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    // Mount the editor to the DOM
-    containerRef.current.innerHTML = "";
-    editor.mount(containerRef.current);
+    useImperativeHandle(ref, () => ({
+      focusEditor: () => editor?.domElement?.focus(),
+    }))
 
-    return () => {
-      // Cleanup
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
-      }
-    };
-  }, [editor]);
+    useEffect(() => {
+      if (!editor || !containerRef.current) return;
 
-  return (
-    <div
-      ref={containerRef}
-      className="editor-container w-full h-full overflow-y-auto"
-      style={{
-        background: "transparent",
-      }}
-    >
-      <style>{`
+      containerRef.current.innerHTML = "";
+      editor.mount(containerRef.current);
+
+      return () => {
+        if (containerRef.current) {
+          containerRef.current.innerHTML = "";
+        }
+      };
+    }, [editor]);
+
+    return (
+      <div
+        ref={containerRef}
+        className="editor-container w-full h-full overflow-y-auto"
+        style={{
+          background: "transparent",
+        }}
+      >
+        <style>{`
         .editor-container {
           background: transparent !important;
         }
@@ -97,6 +104,8 @@ export function EditorWrapper({ editor }: props) {
           color: rgba(230, 230, 230, 1);
         }
       `}</style>
-    </div>
-  );
-}
+      </div>
+    );
+  });
+
+EditorWrapper.displayName = 'EditorWrapper';

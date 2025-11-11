@@ -3,9 +3,7 @@ import type {
   StorageAdapter,
   StorageInfo,
   StorageOperation,
-  StorageOperationResult,
-  StorageEvent,
-  StorageEventListener
+  StorageOperationResult, StorageEvent, StorageEventListener
 } from "../types";
 import type { Note, Folder, Item, CreateNoteData, UpdateNoteData, CreateFolderData } from "@/features/notes/types";
 
@@ -18,7 +16,7 @@ export class LocalStorageAdapter implements StorageAdapter {
   private listeners: StorageEventListener[] = [];
 
   constructor(defaultItems?: Item[]) {
-    this.DEFAULT_ITEMS = defaultItems || [
+    this.DEFAULT_ITEMS = (defaultItems || [
       {
         id: "readme",
         name: "README.md",
@@ -42,7 +40,235 @@ export class LocalStorageAdapter implements StorageAdapter {
             ],
             children: [],
           },
-        ],
+          {
+            id: "3",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "If you'd like to learn more about Skriuw, why it's being built, what its goals are, and how it differs from all the other markdown editors out there, click around the other files in this collection.", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "4",
+            type: "heading",
+            props: { level: 2 },
+            content: [{ type: "text", text: "Tech Stack", styles: {} }],
+            children: [],
+          },
+          {
+            id: "5",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Tauri", styles: {} },
+              { type: "text", text: " – Desktop App", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "6",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "PGlite", styles: {} },
+              { type: "text", text: " – Local Database", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "7",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Svelte", styles: {} },
+              { type: "text", text: " – Framework", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "8",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Tailwind", styles: {} },
+              { type: "text", text: " – CSS", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "9",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Shadcn/ui", styles: {} },
+              { type: "text", text: " – Component Library", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "10",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Vercel", styles: {} },
+              { type: "text", text: " – Hosting", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "11",
+            type: "heading",
+            props: { level: 2 },
+            content: [{ type: "text", text: "Deploy Your Own", styles: {} }],
+            children: [],
+          },
+          {
+            id: "12",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "If you're interested in self-hosting your own web instance of Skriuw, please check ", styles: {} },
+              { type: "text", text: "GitHub", styles: {} },
+              { type: "text", text: " for instructions.", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "13",
+            type: "heading",
+            props: { level: 2 },
+            content: [{ type: "text", text: "Roadmap", styles: {} }],
+            children: [],
+          },
+          {
+            id: "14",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "Skriuw is currently still in active development. Here are some of the features planned for the future:", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "15",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Skriuw Sync", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "16",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Mobile support for the web app (Currently dependent on PGlite support for mobile)", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "17",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Native mobile apps for iOS & Android", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "18",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Windows & Linux support for the desktop app", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "19",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "and much, much more, so stay tuned!", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "20",
+            type: "heading",
+            props: { level: 2 },
+            content: [{ type: "text", text: "Contributing", styles: {} }],
+            children: [],
+          },
+          {
+            id: "21",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "We would love to have your help in making Skriuw better!", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "22",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "Here's how you can contribute:", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "23",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Report a bug", styles: {} },
+              { type: "text", text: " you found while using Skriuw", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "24",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Request a feature", styles: {} },
+              { type: "text", text: " that you think will be useful", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "25",
+            type: "bulletListItem",
+            props: {},
+            content: [
+              { type: "text", text: "Submit a pull request", styles: {} },
+              { type: "text", text: " if you want to contribute with new features or bug fixes", styles: {} },
+            ],
+            children: [],
+          },
+          {
+            id: "26",
+            type: "heading",
+            props: { level: 2 },
+            content: [{ type: "text", text: "License", styles: {} }],
+            children: [],
+          },
+          {
+            id: "27",
+            type: "paragraph",
+            props: {},
+            content: [
+              { type: "text", text: "Skriuw is licensed under the ", styles: {} },
+              { type: "text", text: "GNU Affero General Public License Version 3 (AGPLv3)", styles: {} },
+              { type: "text", text: ".", styles: {} },
+            ],
+            children: [],
+          },
+        ] as Block[],
         createdAt: Date.now(),
         updatedAt: Date.now(),
       },
@@ -69,7 +295,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       },
-    ];
+    ]) as Item[];
   }
 
   async initialize(): Promise<void> {

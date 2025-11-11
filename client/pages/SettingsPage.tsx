@@ -1,4 +1,4 @@
-import { AppLayout } from "@/layout/AppLayout";
+import { AppLayout } from "@/layout/layout";
 import { SettingsPanel } from "@/shared/ui/settings";
 import { useSettings } from "@/shared/data/settings";
 

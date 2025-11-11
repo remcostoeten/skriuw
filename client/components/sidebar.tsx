@@ -1,6 +1,3 @@
-import { Folder, FileText, ChevronRight, Search, Plus, FolderPlus, FilePlus, Edit, FolderOpen, Trash2 } from "lucide-react";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useNotes } from "@/features/notes/hooks/useNotes";
 import { Item } from "@/features/notes/services/noteStorage";
 import {
@@ -10,10 +7,14 @@ import {
   ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuSub,
-  ContextMenuSubTrigger,
   ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@ui";
+import { ChevronRight, Edit, FilePlus, Folder, FolderOpen, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ActionBar } from "./action-bar";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
 
@@ -82,6 +83,35 @@ function FileTreeItem({
     onToggleFolder(item.id);
   };
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (isRenaming) {
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (isFolder) {
+          onToggleFolder(item.id);
+        } else {
+          onNavigateNote(item.id);
+        }
+      }
+
+      if (isFolder) {
+        if (e.key === "ArrowRight" && !isExpanded) {
+          e.preventDefault();
+          onToggleFolder(item.id);
+        }
+        if (e.key === "ArrowLeft" && isExpanded) {
+          e.preventDefault();
+          onToggleFolder(item.id);
+        }
+      }
+    },
+    [isRenaming, isFolder, onToggleFolder, item.id, onNavigateNote, isExpanded],
+  );
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -93,6 +123,10 @@ function FileTreeItem({
           onDragStart={(e) => onDragStart(item, e)}
           onDragOver={onDragOver}
           onDrop={(e) => onDrop(item.id, e)}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="treeitem"
+          aria-expanded={isFolder ? isExpanded : undefined}
         >
           <div className="flex items-center gap-0.5 flex-1 min-w-0 px-2">
             {isFolder ? (
@@ -244,6 +278,8 @@ export function Sidebar({ activeNoteId }: props) {
   } = useNotes();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const draggedItemRef = useRef<Item | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Load expanded folders from localStorage
   useEffect(() => {
@@ -321,40 +357,74 @@ export function Sidebar({ activeNoteId }: props) {
     return false;
   };
 
+  // Helper function to collect all folder IDs recursively
+  const collectAllFolderIds = useCallback((items: Item[]): string[] => {
+    const folderIds: string[] = [];
+    const traverse = (item: Item) => {
+      if (item.type === "folder") {
+        folderIds.push(item.id);
+        item.children.forEach(traverse);
+      }
+    };
+    items.forEach(traverse);
+    return folderIds;
+  }, []);
+
+  // Check if all folders are expanded
+  const areAllFoldersExpanded = useMemo(() => {
+    const allFolderIds = collectAllFolderIds(items);
+    return allFolderIds.length > 0 && allFolderIds.every((id) => expandedFolders.has(id));
+  }, [items, expandedFolders, collectAllFolderIds]);
+
+  const handleExpandCollapseAll = useCallback(() => {
+    const allFolderIds = collectAllFolderIds(items);
+    if (areAllFoldersExpanded) {
+      // Collapse all
+      setExpandedFolders(new Set());
+    } else {
+      // Expand all
+      setExpandedFolders(new Set(allFolderIds));
+    }
+  }, [items, areAllFoldersExpanded, collectAllFolderIds]);
+
+  const handleSearchToggle = useCallback(() => {
+    setIsSearchOpen((prev) => !prev);
+  }, []);
+
+  const handleSearchClose = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  }, []);
+
+  // Filter items based on search query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return items;
+    }
+    // TODO: Implement proper search filtering
+    return items;
+  }, [items, searchQuery]);
+
   return (
     <div className="w-[210px] h-full bg-Skriuw-darker flex flex-col border-r border-Skriuw-border">
-      <div className="h-10 border-b border-Skriuw-border flex items-center justify-center gap-2 px-3.5">
-        <button
-          onClick={() => handleCreateNote()}
-          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-Skriuw-border/50 transition-colors"
-          title="Create new note"
-        >
-          <Plus className="w-[18px] h-[18px] text-Skriuw-icon" />
-        </button>
-        <button
-          onClick={() => handleCreateFolder()}
-          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-Skriuw-border/50 transition-colors"
-          title="Create new folder"
-        >
-          <FolderPlus className="w-[18px] h-[18px] text-Skriuw-icon" />
-        </button>
-      </div>
-
-      <div className="relative py-2">
-        <div className="px-2 mb-2">
-          <div className="flex items-center gap-0.5 px-2 h-[39px] border border-Skriuw-border rounded-md bg-Skriuw-darker">
-            <input
-              type="text"
-              className="flex-1 bg-transparent text-xs text-Skriuw-text placeholder:text-Skriuw-icon outline-hidden h-[30px]"
-              placeholder="Search..."
-            />
-          </div>
-        </div>
-      </div>
-
+      <ActionBar
+        onCreateNote={() => handleCreateNote()}
+        onCreateFolder={() => handleCreateFolder()}
+        searchConfig={{
+          query: searchQuery,
+          setQuery: setSearchQuery,
+          close: handleSearchClose,
+          toggle: handleSearchToggle,
+          isOpen: isSearchOpen,
+        }}
+        expandConfig={{
+          isExpanded: areAllFoldersExpanded,
+          onToggle: handleExpandCollapseAll,
+        }}
+      />
       <div className="flex-1 overflow-y-auto px-1 pb-4">
-        <div className="flex flex-col gap-0.5">
-          {items.map((item) => (
+        <div className="flex flex-col gap-0.5" role="tree" aria-label="Notes">
+          {filteredItems.map((item) => (
             <FileTreeItem
               key={item.id}
               item={item}
