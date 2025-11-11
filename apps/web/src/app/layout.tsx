@@ -4,6 +4,7 @@ import { Providers } from '@/components/providers'
 import { metadata, viewport } from '@/core/config/metadata'
 import { geistSans, geistMono } from '@/core/config/fonts'
 import './globals.css'
+import { Footer } from '@/components/layouts/footer'
 
 export { metadata, viewport }
 
@@ -95,6 +96,7 @@ export default function RootLayout({
 				<div className="sm:pl-12 pt-8 pb-16 sm:pb-0 bg-background min-h-screen">
 					<Providers>{children}</Providers>
 				</div>
+				<Footer />
 			</body>
 		</html>
 	);

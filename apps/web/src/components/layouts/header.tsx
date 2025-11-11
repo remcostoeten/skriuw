@@ -6,7 +6,7 @@ import { WindowManager } from '@/utils/native-utils';
 import { useIsTauri } from '@/utils/native-utils';
 import { Minus, Maximize2, X } from 'lucide-react';
 
-type HeaderProps = {
+type props = {
   hasActions?: boolean;
   className?: string;
   controlsAlign?: 'left' | 'right';
@@ -16,7 +16,7 @@ export function Header({
   hasActions = true,
   className = '',
   controlsAlign = 'right'
-}: HeaderProps) {
+}: props) {
   const isDesktop = useIsTauri();
   const controlsOnLeft = controlsAlign === 'left';
 

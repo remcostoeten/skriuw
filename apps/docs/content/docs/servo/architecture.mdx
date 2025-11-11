@@ -32,81 +32,130 @@ Minimal dependencies for fast builds and small binary size.
 
 ```
 tools/servo/
-├── main.go          # Entry point, program initialization
-├── model.go         # State machine, model definition
-├── view.go          # UI rendering, view functions
-├── menu.go          # Menu building, menu items
-├── server.go        # Server process management
-├── build.go         # Build process management
-├── commands.go      # Command execution utilities
-├── config.go        # Configuration loading
-├── detector.go      # Project structure detection
-├── kill.go          # Process killing utilities
-├── styles.go        # UI styling definitions
-├── go.mod           # Go module definition
-└── build.sh         # Build script
+├── cmd/
+│   └── servo/
+│       └── main.go          # Entry point, program initialization
+├── internal/
+│   ├── app/
+│   │   ├── model.go         # State machine, model definition
+│   │   ├── view.go          # UI rendering, view functions
+│   │   ├── styles.go        # UI styling definitions
+│   │   ├── terminal_ai.go    # Terminal and AI mode handlers
+│   │   ├── terminal_ai_views.go  # Terminal and AI view rendering
+│   │   ├── config_views.go   # Configuration view/edit handlers
+│   │   ├── dashboard_view.go # Process dashboard view
+│   │   ├── dirpicker.go     # Directory picker component
+│   │   ├── help_view.go     # Help screen rendering
+│   │   ├── settings_view.go # Settings screen rendering
+│   │   └── tool_view.go     # Tool running view
+│   ├── menu/
+│   │   └── menu.go          # Menu building, menu items
+│   ├── process/
+│   │   ├── server.go        # Server process management
+│   │   └── build.go         # Build process management
+│   ├── commands/
+│   │   └── commands.go      # Command execution utilities
+│   ├── config/
+│   │   ├── config.go        # Configuration loading
+│   │   ├── preferences.go   # User preferences management
+│   │   └── user_config.go   # User configuration file handling
+│   ├── detector/
+│   │   └── detector.go      # Project structure detection
+│   ├── kill/
+│   │   └── kill.go          # Process killing utilities
+│   └── theme/
+│       └── theme.go         # Theme definitions
+├── go.mod                    # Go module definition
+├── build.sh                  # Build script
+└── install.sh                # Installation script
 ```
 
 ### Component Overview
 
-#### `main.go`
+#### `cmd/servo/main.go`
 - Program entry point
+- Command-line argument parsing
 - Loads configuration
 - Initializes Bubble Tea program
-- Handles errors
+- Handles errors and delegates to app module
 
-#### `model.go`
-- State machine definition
-- Menu navigation logic
+#### `internal/app/model.go`
+- State machine definition (15+ states)
+- Menu navigation logic with stack
 - State transitions
-- Message handling
+- Message handling and routing
+- Process orchestration (server, build, deploy, tools)
+- Form handling (config add form)
+- Terminal and AI mode state management
 
-#### `view.go`
-- UI rendering functions
+#### `internal/app/view.go`
+- Main UI rendering functions
 - Status display
 - Output formatting
-- Help text
+- View routing based on state
 
-#### `menu.go`
+#### `internal/app/terminal_ai.go`
+- Terminal mode input handling
+- AI mode selection and Claude CLI integration
+- Background process launching
+- State transitions between terminal/AI modes
+
+#### `internal/menu/menu.go`
 - Menu structure building
+- Dynamic menu item generation from config
 - Menu item definitions
 - Action handling
 - Icon selection
+- Nested submenu logic
 
-#### `server.go`
+#### `internal/process/server.go`
 - Server process execution
-- Output streaming
-- Port detection
-- Process lifecycle
+- Background goroutines for output streaming
+- Port detection from output
+- Process lifecycle management
+- Clean shutdown handling
 
-#### `build.go`
+#### `internal/process/build.go`
 - Build process execution
 - Output capture
 - Completion detection
-- Error handling
+- Error state tracking
+- Auto-cleanup
 
-#### `detector.go`
+#### `internal/detector/detector.go`
 - Project structure detection
 - Package manager detection
 - App discovery
 - Workspace scanning
+- Monorepo detection
 
-#### `config.go`
+#### `internal/config/config.go`
 - Configuration loading
 - Root directory resolution
 - GitHub repo detection
-- App configuration
+- App configuration management
 
-#### `kill.go`
+#### `internal/config/user_config.go`
+- User configuration file handling
+- Config file CRUD operations
+- Backup and reset functionality
+
+#### `internal/kill/kill.go`
 - Process killing utilities
 - Port management
 - Pattern matching
 - Error handling
 
-#### `styles.go`
+#### `internal/app/styles.go`
 - Color definitions
 - Style objects
-- Theme configuration
+- Theme integration
+- UI component styling
+
+#### `internal/theme/theme.go`
+- Theme definitions
+- Theme selection
+- Theme persistence
 
 ## Architecture Patterns
 
@@ -207,19 +256,19 @@ func (m model) View() string {
 ### Startup Flow
 
 ```
-main()
+cmd/servo/main.go:main()
   ↓
-LoadServoConfig()
+config.LoadServoConfig()
   ↓
-detectProjectStructure()
+detector.DetectProjectStructure()
   ↓
-buildMainMenu()
+menu.BuildMainMenu()
   ↓
-initialModel()
+app.InitialModel()
   ↓
 tea.NewProgram()
   ↓
-Update() loop
+Update() loop (routed by state)
 ```
 
 ### Menu Selection Flow
@@ -321,7 +370,7 @@ patterns := []string{
 
 ### Adding New Menu Items
 
-**In `menu.go`:**
+**In `internal/menu/menu.go`:**
 ```go
 items = append(items, MenuItem{
     Name: "New Action",
@@ -381,7 +430,7 @@ case stateNewState:
 
 ### Custom Styling
 
-**In `styles.go`:**
+**In `internal/app/styles.go`:**
 ```go
 var myNewStyle = lipgloss.NewStyle().
     Foreground(textPrimary).
@@ -480,7 +529,11 @@ var myNewStyle = lipgloss.NewStyle().
 ### Building
 
 ```bash
-go build -o servo .
+# From tools/servo directory
+go build -o servo ./cmd/servo
+
+# Or use the build script
+./build.sh
 ```
 
 ### Binary Size
