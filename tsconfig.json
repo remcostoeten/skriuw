@@ -29,7 +29,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./client/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@ui": ["./client/shared/ui/index.ts"],
+      "@ui/*": ["./client/shared/ui/*"]
     }
   },
   "include": [

@@ -2,11 +2,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { BlockNoteEditor } from "@blocknote/core";
 import { useNotes } from "@/hooks/useNotes";
-import EditorWrapper from "@/components/EditorWrapper";
-import Sidebar from "@/components/Sidebar";
-import LeftToolbar from "@/components/LeftToolbar";
-import TopToolbar from "@/components/TopToolbar";
-import Footer from "@/components/Footer";
+import { EditorWrapper } from "@/components/editor-wrapper";
+import { Sidebar } from "@/components/sidebar";
+import { LeftToolbar } from "@/components/left-toolbar";
+import { TopToolbar } from "@/components/layout/top-toolbar";
+import { Footer } from "@/components/layout/footer";
 
 export default function NoteEditor() {
   const { id } = useParams<{ id: string }>();
@@ -71,12 +71,12 @@ export default function NoteEditor() {
 
   if (!id || !note) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-haptic-dark">
+      <div className="h-screen w-screen flex items-center justify-center bg-Skriuw-dark">
         <div className="text-center">
-          <p className="text-haptic-text-muted mb-4">Note not found</p>
+          <p className="text-Skriuw-text-muted mb-4">Note not found</p>
           <button
             onClick={() => navigate("/")}
-            className="px-4 py-2 bg-haptic-border text-haptic-text rounded-md hover:bg-haptic-border/80 transition-colors"
+            className="px-4 py-2 bg-Skriuw-border text-Skriuw-text rounded-md hover:bg-Skriuw-border/80 transition-colors"
           >
             Back to Notes
           </button>
@@ -86,7 +86,7 @@ export default function NoteEditor() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-haptic-dark overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-Skriuw-dark overflow-hidden">
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile overlay */}
         {isSidebarOpen && (
@@ -117,9 +117,9 @@ export default function NoteEditor() {
           <TopToolbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
           {/* BlockNote Editor */}
-          <div className="flex-1 bg-haptic-dark overflow-hidden flex flex-col">
-            <div className="px-4 sm:px-8 pt-4 pb-2 border-b border-haptic-border">
-              <h1 className="text-2xl sm:text-3xl text-haptic-text font-normal">
+          <div className="flex-1 bg-Skriuw-dark overflow-hidden flex flex-col">
+            <div className="px-4 sm:px-8 pt-4 pb-2 border-b border-Skriuw-border">
+              <h1 className="text-2xl sm:text-3xl text-Skriuw-text font-normal">
                 {noteName}
               </h1>
             </div>
@@ -128,7 +128,7 @@ export default function NoteEditor() {
               <EditorWrapper editor={editor} />
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <p className="text-haptic-text-muted">
+                <p className="text-Skriuw-text-muted">
                   {isLoading ? "Loading editor..." : "No editor"}
                 </p>
               </div>

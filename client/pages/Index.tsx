@@ -1,19 +1,18 @@
-import Sidebar from "@/components/Sidebar";
-import LeftToolbar from "@/components/LeftToolbar";
-import TopToolbar from "@/components/TopToolbar";
-import MainContent from "@/components/MainContent";
-import Footer from "@/components/Footer";
+import { Sidebar } from "@/components/sidebar";
+import { TopToolbar } from "@/components/layout/top-toolbar";
+import { MainContent } from "@/components/main-content";
+import { Footer } from "@/components/layout/footer";
 import { useState } from "react";
 
 export default function Index() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-haptic-dark overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-Skriuw-dark overflow-hidden">
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile overlay */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-20 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />

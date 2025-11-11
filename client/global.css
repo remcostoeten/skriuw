@@ -6,8 +6,9 @@
 @tailwind utilities;
 
 @layer base {
+
   /**
-   * Haptic Dark Theme
+   * Skriuw Dark Theme
    */
   :root {
     --background: 210 17% 9%;
@@ -57,7 +58,7 @@
   }
 
   body {
-    @apply bg-haptic-dark text-haptic-text font-sans;
+    @apply bg-Skriuw-dark text-Skriuw-text font-sans;
     font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
   }
 

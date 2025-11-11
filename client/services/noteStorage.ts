@@ -20,7 +20,7 @@ export interface Folder {
 
 export type Item = Note | Folder;
 
-const STORAGE_KEY = "haptic_notes";
+const STORAGE_KEY = "Skriuw_notes";
 
 const DEFAULT_ITEMS: Item[] = [
   {
@@ -50,7 +50,7 @@ const DEFAULT_ITEMS: Item[] = [
         content: [
           {
             type: "text",
-            text: "Haptic is a new local-first & privacy-focused, open-source home for your markdown notes. It's minimal, lightweight, efficient, and aims to have ",
+            text: "Skriuw is a new local-first & privacy-focused, open-source home for your markdown notes. It's minimal, lightweight, efficient, and aims to have ",
             styles: {},
           },
           {
@@ -73,8 +73,8 @@ const DEFAULT_ITEMS: Item[] = [
     updatedAt: Date.now(),
   },
   {
-    id: "why-haptic",
-    name: "Why Haptic.md",
+    id: "why-Skriuw",
+    name: "Why Skriuw.md",
     type: 'note',
     content: [
       {
@@ -86,7 +86,7 @@ const DEFAULT_ITEMS: Item[] = [
         content: [
           {
             type: "text",
-            text: "Why Haptic",
+            text: "Why Skriuw",
             styles: {},
           },
         ],
@@ -99,7 +99,7 @@ const DEFAULT_ITEMS: Item[] = [
         content: [
           {
             type: "text",
-            text: "Start editing this note to explore Haptic's capabilities.",
+            text: "Start editing this note to explore Skriuw's capabilities.",
             styles: {},
           },
         ],

@@ -57,17 +57,17 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        haptic: {
-          'dark': '#171717',
-          'darker': '#121212',
-          'border': '#2E2E2E',
-          'text': 'rgba(230, 230, 230, 1)',
-          'text-muted': 'rgba(230, 230, 230, 0.9)',
-          'text-subtle': 'rgba(217, 217, 217, 0.8)',
-          'text-faint': 'rgba(230, 230, 230, 0.4)',
-          'link': 'rgba(249, 250, 251, 1)',
-          'icon': '#8C8C8C',
-        },
+        Skriuw: {
+          dark: 'oklch(0.21 0.002 270)',          // deep near-black gray
+          darker: 'oklch(0.16 0.002 270)',        // even deeper black
+          border: 'oklch(0.28 0.002 270)',        // mid-dark border tone
+          text: 'oklch(0.94 0.01 270 / 1)',       // bright neutral white
+          'text-muted': 'oklch(0.94 0.01 270 / 0.9)',
+          'text-subtle': 'oklch(0.89 0.01 270 / 0.8)',
+          'text-faint': 'oklch(0.94 0.01 270 / 0.4)',
+          link: 'oklch(0.98 0.02 270 / 1)',       // crisp light link tone
+          icon: 'oklch(0.65 0.02 270)',           // mid-gray for icons
+        }
       },
       fontFamily: {
         sans: ['Ubuntu Sans', 'system-ui', '-apple-system', 'sans-serif'],
