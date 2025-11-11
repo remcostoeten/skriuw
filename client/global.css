@@ -1,0 +1,74 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Haptic Dark Theme
+   */
+  :root {
+    --background: 210 17% 9%;
+    --foreground: 0 0% 90%;
+
+    --card: 210 17% 9%;
+    --card-foreground: 0 0% 90%;
+
+    --popover: 210 17% 9%;
+    --popover-foreground: 0 0% 90%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 210 17% 9%;
+
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 90%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 90%;
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 0% 90%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 0% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-haptic-dark text-haptic-text font-sans;
+    font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+}
