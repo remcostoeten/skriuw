@@ -70,7 +70,7 @@ export function MainContent() {
             <div className="space-y-2 mb-8 sm:mb-12">
               <div className="flex items-start gap-2 pl-1.5">
                 <div className="flex items-center justify-center mt-1">
-                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border flex-shrink-0"></div>
+                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border shrink-0"></div>
                 </div>
                 <div className="flex-1 py-0.5">
                   <p className="text-sm sm:text-base text-Skriuw-text-muted leading-5">Skriuw Sync</p>
@@ -78,7 +78,7 @@ export function MainContent() {
               </div>
               <div className="flex items-start gap-2 pl-1.5">
                 <div className="flex items-center justify-center mt-1">
-                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border flex-shrink-0"></div>
+                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border shrink-0"></div>
                 </div>
                 <div className="flex-1 py-0.5">
                   <p className="text-sm sm:text-base text-Skriuw-text-muted leading-5">
@@ -88,7 +88,7 @@ export function MainContent() {
               </div>
               <div className="flex items-start gap-2 pl-1.5">
                 <div className="flex items-center justify-center mt-1">
-                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border flex-shrink-0"></div>
+                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border shrink-0"></div>
                 </div>
                 <div className="flex-1 py-0.5">
                   <p className="text-sm sm:text-base text-Skriuw-text-muted leading-5">Native mobile apps for iOS & Android</p>
@@ -96,7 +96,7 @@ export function MainContent() {
               </div>
               <div className="flex items-start gap-2 pl-1.5">
                 <div className="flex items-center justify-center mt-1">
-                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border flex-shrink-0"></div>
+                  <div className="w-[19px] h-[19px] rounded-md border border-Skriuw-border shrink-0"></div>
                 </div>
                 <div className="flex-1 py-0.5">
                   <p className="text-sm sm:text-base text-Skriuw-text-muted leading-5">Windows & Linux support for the desktop app</p>

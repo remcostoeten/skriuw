@@ -98,19 +98,19 @@ function FileTreeItem({
             {isFolder ? (
               <>
                 <ChevronRight
-                  className={`w-4 h-4 text-Skriuw-icon flex-shrink-0 transition-transform cursor-pointer ${isExpanded ? "rotate-90" : ""
+                  className={`w-4 h-4 text-Skriuw-icon shrink-0 transition-transform cursor-pointer ${isExpanded ? "rotate-90" : ""
                     }`}
                   onClick={handleFolderToggle}
                 />
                 <Folder
-                  className="w-4 h-4 text-Skriuw-icon flex-shrink-0 cursor-pointer"
+                  className="w-4 h-4 text-Skriuw-icon shrink-0 cursor-pointer"
                   onClick={handleFolderToggle}
                 />
               </>
             ) : (
-              <div className="w-4 h-4 flex-shrink-0" />
+              <div className="w-4 h-4 shrink-0" />
             )}
-            {isFolder && <div className="w-4 flex-shrink-0" />}
+            {isFolder && <div className="w-4 shrink-0" />}
 
             {isRenaming ? (
               <input
@@ -126,7 +126,7 @@ function FileTreeItem({
                     setIsRenaming(false);
                   }
                 }}
-                className="flex-1 min-w-0 bg-Skriuw-border text-Skriuw-text text-xs px-1 py-0.5 rounded outline-none"
+                className="flex-1 min-w-0 bg-Skriuw-border text-Skriuw-text text-xs px-1 py-0.5 rounded outline-hidden"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
@@ -143,7 +143,7 @@ function FileTreeItem({
           </div>
 
           {isFolder && (
-            <span className="text-xs text-Skriuw-faint px-2 flex-shrink-0">
+            <span className="text-xs text-Skriuw-faint px-2 shrink-0">
               {item.type === "folder" ? item.children.length : 0}
             </span>
           )}
@@ -345,7 +345,7 @@ export function Sidebar({ activeNoteId }: props) {
           <div className="flex items-center gap-0.5 px-2 h-[39px] border border-Skriuw-border rounded-md bg-Skriuw-darker">
             <input
               type="text"
-              className="flex-1 bg-transparent text-xs text-Skriuw-text placeholder:text-Skriuw-icon outline-none h-[30px]"
+              className="flex-1 bg-transparent text-xs text-Skriuw-text placeholder:text-Skriuw-icon outline-hidden h-[30px]"
               placeholder="Search..."
             />
           </div>
