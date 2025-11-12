@@ -494,11 +494,15 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async moveItem(itemId: string, targetFolderId: string | null): Promise<boolean> {
     const items = await this.getItems();
-    const item = await this.findItemById(itemId);
-
+    
+    // First, find and store a reference to the item before removing it
+    const item = this.findItemRecursive(itemId, items);
     if (!item) {
       return false;
     }
+
+    // Create a deep copy of the item to ensure we don't lose the reference
+    const itemCopy = JSON.parse(JSON.stringify(item)) as Item;
 
     // Remove from current location
     const removeFromRecursive = (itemList: Item[]): boolean => {
@@ -522,18 +526,20 @@ export class LocalStorageAdapter implements StorageAdapter {
 
     // Add to new location
     if (targetFolderId) {
-      const targetFolder = await this.findItemById(targetFolderId) as Folder | undefined;
+      // Find target folder in the current items array (not from localStorage)
+      const targetFolder = this.findItemRecursive(targetFolderId, items) as Folder | undefined;
       if (targetFolder && targetFolder.type === 'folder') {
-        targetFolder.children.push(item);
+        targetFolder.children.push(itemCopy);
       } else {
-        items.push(item);
+        // If target folder not found, add to root
+        items.push(itemCopy);
       }
     } else {
-      items.push(item);
+      items.push(itemCopy);
     }
 
     await this.saveItems(items);
-    this.emit({ type: 'moved', itemType: item.type, itemId: itemId });
+    this.emit({ type: 'moved', itemType: itemCopy.type, itemId: itemId });
     return true;
   }
 

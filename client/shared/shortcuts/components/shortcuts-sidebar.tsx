@@ -130,7 +130,7 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
                                 {shortcut.isCustomized && (
                                     <button
                                         onClick={() => handleResetShortcut(shortcut.id)}
-                                        className="p-1.5 rounded-md hover:bg-Skriuw-dark/50 focus:bg-Skriuw-dark/50 active:bg-Skriuw-dark/50 transition-colors shrink-0"
+                                        className="p-1.5 rounded-md hov er:bg-Skriuw-border/50 transition-colors shrink-0"
                                         aria-label="Reset to default"
                                         title="Reset to default"
                                     >

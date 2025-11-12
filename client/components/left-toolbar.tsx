@@ -1,6 +1,7 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
-import { Archive, Calendar, CheckSquare, Settings } from "lucide-react";
+import { Archive, Calendar, CheckSquare, Settings, FileText } from "lucide-react";
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 function IconButton({
   icon,
@@ -35,10 +36,26 @@ function IconButton({
 
 export function LeftToolbar() {
   const [activeItem, setActiveItem] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Check if we're on a note view (either /note/:id or / with readme note)
+  const isOnNoteView = location.pathname.startsWith("/note/") || location.pathname === "/";
 
   return (
     <div className="w-12 h-full bg-Skriuw-darker border-r border-Skriuw-border flex flex-col justify-between items-center py-12 px-1.5">
       <div className="flex flex-col items-center gap-2">
+        <IconButton
+          icon={<FileText className="w-[18px] h-[18px]" />}
+          tooltip="Notes"
+          active={isOnNoteView}
+          onClick={() => {
+            // Navigate to home/notes view if not already there
+            if (!isOnNoteView) {
+              navigate("/");
+            }
+          }}
+        />
         <IconButton
           icon={<Archive className="w-[18px] h-[18px]" />}
           tooltip="Archive"

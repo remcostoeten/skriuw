@@ -28,6 +28,7 @@ function FileTreeItem({
   level = 0,
   activeNoteId,
   expandedFolders,
+  selectedFolderId,
   onToggleFolder,
   onNavigateNote,
   onRename,
@@ -37,11 +38,13 @@ function FileTreeItem({
   onDragStart,
   onDragOver,
   onDrop,
+  onSelectFolder,
 }: {
   item: Item;
   level?: number;
   activeNoteId?: string;
   expandedFolders: Set<string>;
+  selectedFolderId: string | null;
   onToggleFolder: (id: string) => void;
   onNavigateNote: (id: string) => void;
   onRename: (id: string, newName: string) => void;
@@ -51,13 +54,16 @@ function FileTreeItem({
   onDragStart: (item: Item, e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (targetId: string, e: React.DragEvent) => void;
+  onSelectFolder: (id: string | null) => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(item.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
   const isActive = !isFolder && activeNoteId === item.id;
+  const isSelected = isFolder && selectedFolderId === item.id;
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -66,8 +72,42 @@ function FileTreeItem({
     }
   }, [isRenaming]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleDoubleClick = () => {
+    // Clear any pending single click
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
     setIsRenaming(true);
+  };
+
+  const handleNameClick = () => {
+    if (isRenaming) return;
+
+    // Use a small delay to distinguish between single and double click
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+
+    clickTimeoutRef.current = setTimeout(() => {
+      if (isFolder) {
+        onToggleFolder(item.id);
+        onSelectFolder(item.id);
+      } else {
+        onNavigateNote(item.id);
+        onSelectFolder(null); // Clear folder selection when clicking a note
+      }
+      clickTimeoutRef.current = null;
+    }, 200);
   };
 
   const handleRenameComplete = () => {
@@ -117,7 +157,11 @@ function FileTreeItem({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className={`relative flex items-center justify-between h-7 rounded-md transition-colors group ${isActive ? "bg-Skriuw-border" : "hover:bg-Skriuw-border/30"
+          className={`relative flex items-center justify-between h-7 rounded-md transition-colors group ${isActive
+              ? "bg-Skriuw-border"
+              : isSelected
+                ? "bg-Skriuw-border/50"
+                : "hover:bg-Skriuw-border/30"
             }`}
           style={{ marginLeft: `${level * 12}px` }}
           draggable
@@ -166,7 +210,7 @@ function FileTreeItem({
               />
             ) : (
               <span
-                onClick={() => !isFolder && onNavigateNote(item.id)}
+                onClick={handleNameClick}
                 onDoubleClick={handleDoubleClick}
                 className={`text-xs truncate cursor-pointer flex-1 ${isActive ? "text-Skriuw-text font-medium" : "text-Skriuw-subtle"
                   }`}
@@ -250,6 +294,7 @@ function FileTreeItem({
                 level={level + 1}
                 activeNoteId={activeNoteId}
                 expandedFolders={expandedFolders}
+                selectedFolderId={selectedFolderId}
                 onToggleFolder={onToggleFolder}
                 onNavigateNote={onNavigateNote}
                 onRename={onRename}
@@ -259,6 +304,7 @@ function FileTreeItem({
                 onDragStart={onDragStart}
                 onDragOver={onDragOver}
                 onDrop={onDrop}
+                onSelectFolder={onSelectFolder}
               />
             ))}
         </div>
@@ -278,6 +324,7 @@ export function Sidebar({ activeNoteId }: props) {
     moveItem,
   } = useNotes();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const draggedItemRef = useRef<Item | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -315,16 +362,48 @@ export function Sidebar({ activeNoteId }: props) {
     });
   }, []);
 
+  const handleSelectFolder = useCallback((folderId: string | null) => {
+    setSelectedFolderId(folderId);
+  }, []);
+
+  // Clear selection if the selected folder is deleted
+  useEffect(() => {
+    if (selectedFolderId) {
+      const findActualItem = (itemList: Item[], id: string): Item | undefined => {
+        for (const item of itemList) {
+          if (item.id === id) return item;
+          if (item.type === "folder") {
+            const found = findActualItem(item.children, id);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+
+      const folderExists = findActualItem(items, selectedFolderId);
+      if (!folderExists) {
+        setSelectedFolderId(null);
+      }
+    }
+  }, [items, selectedFolderId]);
+
   const handleCreateNote = useCallback(async (parentId?: string) => {
-    const newNote = await createNote("Untitled", parentId);
+    // Use parentId if provided (from context menu), otherwise use selectedFolderId
+    const targetFolderId = parentId !== undefined ? parentId : selectedFolderId;
+    const newNote = await createNote("Untitled", targetFolderId || undefined);
     // Keep expanded state
     navigate(`/note/${newNote.id}`);
-  }, [createNote, navigate]);
+    // Clear selection after creating
+    setSelectedFolderId(null);
+  }, [createNote, navigate, selectedFolderId]);
 
   const handleCreateFolder = useCallback(async (parentId?: string) => {
-    await createFolder("New Folder", parentId);
+    // Use parentId if provided (from context menu), otherwise use selectedFolderId
+    const targetFolderId = parentId !== undefined ? parentId : selectedFolderId;
+    await createFolder("New Folder", targetFolderId || undefined);
     // Keep expanded state - it's automatically persisted
-  }, [createFolder]);
+    // Keep the folder selected after creating a subfolder
+  }, [createFolder, selectedFolderId]);
 
   const handleDragStart = useCallback((item: Item, e: React.DragEvent) => {
     draggedItemRef.current = item;
@@ -342,10 +421,19 @@ export function Sidebar({ activeNoteId }: props) {
         return;
       }
 
-      // Find target item
-      const targetItem = items.find((item) =>
-        findItemInTree(item, targetId)
-      );
+      // Find the actual target item by recursively searching through the tree
+      const findActualItem = (itemList: Item[], id: string): Item | undefined => {
+        for (const item of itemList) {
+          if (item.id === id) return item;
+          if (item.type === "folder") {
+            const found = findActualItem(item.children, id);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+
+      const targetItem = findActualItem(items, targetId);
       if (!targetItem || targetItem.type !== "folder") {
         draggedItemRef.current = null;
         return;
@@ -353,7 +441,7 @@ export function Sidebar({ activeNoteId }: props) {
 
       // Prevent moving folder into itself or its descendants
       const isDescendant = (parentId: string, childId: string): boolean => {
-        const parent = items.find((item) => findItemInTree(item, parentId));
+        const parent = findActualItem(items, parentId);
         if (!parent || parent.type !== "folder") return false;
 
         const checkChildren = (folder: FolderType): boolean => {
@@ -390,8 +478,14 @@ export function Sidebar({ activeNoteId }: props) {
       });
 
       // Perform the move
-      await moveItem(draggedItem.id, targetId);
+      const success = await moveItem(draggedItem.id, targetId);
       draggedItemRef.current = null;
+
+      // Note: moveItem already updates items state in useNotes hook,
+      // which will trigger a re-render with updated data
+      if (!success) {
+        console.error('Failed to move item');
+      }
     },
     [items, moveItem]
   );
@@ -443,14 +537,40 @@ export function Sidebar({ activeNoteId }: props) {
     setSearchQuery("");
   }, []);
 
-  // Filter items based on search query
+  // Helper function to sort items: folders first, then notes (recursively)
+  const sortItems = useCallback((items: Item[]): Item[] => {
+    // Create a deep copy to ensure new object references
+    const sorted = [...items].sort((a, b) => {
+      // Folders come first
+      if (a.type === 'folder' && b.type === 'note') return -1;
+      if (a.type === 'note' && b.type === 'folder') return 1;
+      // If same type, maintain original order (or sort by name)
+      return 0;
+    }).map(item => {
+      // Recursively sort children if it's a folder
+      if (item.type === 'folder') {
+        return {
+          ...item,
+          children: [...sortItems(item.children)] // Ensure new array reference
+        };
+      }
+      return { ...item }; // Create new object reference for notes too
+    });
+    return sorted;
+  }, []);
+
+  // Filter and sort items based on search query
   const filteredItems = useMemo(() => {
+    let result = items;
     if (!searchQuery.trim()) {
-      return items;
+      result = items;
+    } else {
+      // TODO: Implement proper search filtering
+      result = items;
     }
-    // TODO: Implement proper search filtering
-    return items;
-  }, [items, searchQuery]);
+    // Sort items: folders first, then notes
+    return sortItems(result);
+  }, [items, searchQuery, sortItems]);
 
   return (
     <div className="w-[210px] h-full bg-Skriuw-darker flex flex-col border-r border-Skriuw-border">
@@ -469,14 +589,33 @@ export function Sidebar({ activeNoteId }: props) {
           onToggle: handleExpandCollapseAll,
         }}
       />
-      <div className="flex-1 overflow-y-auto px-1 pb-4">
-        <div className="flex flex-col gap-0.5" role="tree" aria-label="Notes">
+      <div
+        className="flex-1 overflow-y-auto px-1 pb-4"
+        onClick={(e) => {
+          // Clear selection when clicking empty space (not on items)
+          if (e.target === e.currentTarget) {
+            setSelectedFolderId(null);
+          }
+        }}
+      >
+        <div
+          className="flex flex-col gap-0.5"
+          role="tree"
+          aria-label="Notes"
+          onClick={(e) => {
+            // Also clear when clicking the tree container's empty space
+            if (e.target === e.currentTarget) {
+              setSelectedFolderId(null);
+            }
+          }}
+        >
           {filteredItems.map((item) => (
             <FileTreeItem
               key={item.id}
               item={item}
               activeNoteId={activeNoteId}
               expandedFolders={expandedFolders}
+              selectedFolderId={selectedFolderId}
               onToggleFolder={handleToggleFolder}
               onNavigateNote={(id) => navigate(`/note/${id}`)}
               onRename={renameItem}
@@ -486,6 +625,7 @@ export function Sidebar({ activeNoteId }: props) {
               onDragStart={handleDragStart}
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
+              onSelectFolder={handleSelectFolder}
             />
           ))}
         </div>
