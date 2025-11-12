@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { LeftToolbar } from "@/components/left-toolbar";
 import { ShortcutsSidebar } from "@/shared/shortcuts/components";
 import { useShortcut } from "@/shared/shortcuts/use-shortcut";
+import { SidebarMenu } from "@/components/sidebar-menu";
 
 type props = {
   children: ReactNode;
@@ -20,6 +21,7 @@ export function AppLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [isShortcutsSidebarOpen, setIsShortcutsSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Register keyboard shortcut to toggle shortcuts panel
   useShortcut('toggle-shortcuts', (e) => {
@@ -39,7 +41,7 @@ export function AppLayout({
 
         <div className={`hidden lg:block transition-all duration-200 ${isDesktopSidebarOpen ? "w-auto" : "w-0"
           }`}>
-          <LeftToolbar />
+          <LeftToolbar onSettingsClick={() => setIsSettingsOpen(true)} />
         </div>
 
         {showSidebar && (
@@ -74,6 +76,13 @@ export function AppLayout({
       <ShortcutsSidebar
         isOpen={isShortcutsSidebarOpen}
         onClose={() => setIsShortcutsSidebarOpen(false)}
+      />
+
+      {/* Settings Modal */}
+      <SidebarMenu
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        title="Settings"
       />
     </div>
   );

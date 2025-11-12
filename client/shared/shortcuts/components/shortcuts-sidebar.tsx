@@ -80,37 +80,34 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
         }
     };
 
-    if (!isOpen) return null;
-
     return (
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+                className={`fixed inset-0 bg-black/50 z-40 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                    }`}
                 onClick={onClose}
             />
 
             {/* Sidebar */}
-            <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-Skriuw-dark border-l border-Skriuw-border z-50 flex flex-col shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-Skriuw-border">
-                    <div className="flex items-center gap-2">
-                        <Keyboard className="w-5 h-5 text-Skriuw-icon" />
-                        <h2 className="text-lg font-semibold text-Skriuw-text">
-                            Keyboard Shortcuts
-                        </h2>
-                    </div>
+            <div
+                className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-Skriuw-darker border-l border-Skriuw-border z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+                    }`}
+            >
+                <div className="flex items-center justify-between p-4 px-6 border-Skriuw-border">
+                    <h2 className="text-lg font-semibold text-Skriuw-text">
+                        Keyboard Shortcuts
+                    </h2>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-md hover:bg-Skriuw-border/50 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-Skriuw-dark/50 transition-colors"
                         aria-label="Close shortcuts panel"
                     >
                         <X className="w-5 h-5 text-Skriuw-icon" />
                     </button>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto px-6 space-y-4">
                     <p className="text-sm text-Skriuw-text/70">
                         Click on a shortcut to record a new key combination. You can use
                         single keys or modifier combinations (Ctrl, Meta, Shift, Alt).
@@ -133,7 +130,7 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
                                 {shortcut.isCustomized && (
                                     <button
                                         onClick={() => handleResetShortcut(shortcut.id)}
-                                        className="p-1.5 rounded-md hover:bg-Skriuw-border/50 transition-colors shrink-0"
+                                        className="p-1.5 rounded-md hover:bg-Skriuw-dark/50 focus:bg-Skriuw-dark/50 active:bg-Skriuw-dark/50 transition-colors shrink-0"
                                         aria-label="Reset to default"
                                         title="Reset to default"
                                     >

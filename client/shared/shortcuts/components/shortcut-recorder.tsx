@@ -24,11 +24,13 @@ export function ShortcutRecorder({
   onStopRecording,
 }: ShortcutRecorderProps) {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const pressedKeysRef = useRef<Set<string>>(new Set());
   const inputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isRecording) {
       setPressedKeys(new Set());
+      pressedKeysRef.current = new Set();
       return;
     }
 
@@ -50,6 +52,7 @@ export function ShortcutRecorder({
         keys.add(key);
       }
 
+      pressedKeysRef.current = keys;
       setPressedKeys(keys);
     };
 
@@ -57,9 +60,10 @@ export function ShortcutRecorder({
       e.preventDefault();
       e.stopPropagation();
 
-      if (pressedKeys.size > 0) {
+      const currentKeys = pressedKeysRef.current;
+      if (currentKeys.size > 0) {
         // Convert Set to array and save
-        const keysArray = Array.from(pressedKeys);
+        const keysArray = Array.from(currentKeys);
         onChange([keysArray]);
         onStopRecording();
       }
@@ -72,7 +76,7 @@ export function ShortcutRecorder({
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('keyup', handleKeyUp, true);
     };
-  }, [isRecording, pressedKeys, onChange, onStopRecording]);
+  }, [isRecording, onChange, onStopRecording]);
 
   const formatKeyCombo = (combo: KeyCombo): string => {
     return combo.join(' + ');

@@ -64,7 +64,7 @@ export function Providers({ children }: props) {
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
         <ShortcutProvider>
-          <TooltipProvider>
+          <TooltipProvider delayDuration={0}>
             <Toaster />
             <Sonner />
             <StorageInitializer>

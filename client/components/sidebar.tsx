@@ -1,4 +1,5 @@
 import { useNotes } from "@/features/notes/hooks/useNotes";
+import type { Folder as FolderType } from "@/features/notes/services/noteStorage";
 import { Item } from "@/features/notes/services/noteStorage";
 import {
   ContextMenu,
@@ -331,20 +332,66 @@ export function Sidebar({ activeNoteId }: props) {
   }, []);
 
   const handleDrop = useCallback(
-    (targetId: string, e: React.DragEvent) => {
+    async (targetId: string, e: React.DragEvent) => {
       e.preventDefault();
       if (!draggedItemRef.current) return;
 
       const draggedItem = draggedItemRef.current;
-      if (draggedItem.id === targetId) return;
+      if (draggedItem.id === targetId) {
+        draggedItemRef.current = null;
+        return;
+      }
 
+      // Find target item
       const targetItem = items.find((item) =>
         findItemInTree(item, targetId)
       );
-      if (!targetItem || targetItem.type !== "folder") return;
+      if (!targetItem || targetItem.type !== "folder") {
+        draggedItemRef.current = null;
+        return;
+      }
 
-      moveItem(draggedItem.id, targetId);
-      // Keep expanded state - it's automatically persisted
+      // Prevent moving folder into itself or its descendants
+      const isDescendant = (parentId: string, childId: string): boolean => {
+        const parent = items.find((item) => findItemInTree(item, parentId));
+        if (!parent || parent.type !== "folder") return false;
+
+        const checkChildren = (folder: FolderType): boolean => {
+          return folder.children.some((child) => {
+            if (child.id === childId) return true;
+            if (child.type === "folder") {
+              return checkChildren(child as FolderType);
+            }
+            return false;
+          });
+        };
+
+        return checkChildren(parent as FolderType);
+      };
+
+      if (draggedItem.type === "folder" && isDescendant(draggedItem.id, targetId)) {
+        draggedItemRef.current = null;
+        return; // Can't move folder into itself or its descendants
+      }
+
+      // Check if item is already in the target folder
+      const isAlreadyInTarget = targetItem.type === "folder" &&
+        targetItem.children.some((child) => child.id === draggedItem.id);
+      if (isAlreadyInTarget) {
+        draggedItemRef.current = null;
+        return;
+      }
+
+      // Expand target folder so user can see the moved item
+      setExpandedFolders((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(targetId);
+        return newSet;
+      });
+
+      // Perform the move
+      await moveItem(draggedItem.id, targetId);
+      draggedItemRef.current = null;
     },
     [items, moveItem]
   );

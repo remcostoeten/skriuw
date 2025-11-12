@@ -177,5 +177,99 @@ layer(base);
   code {
     overflow-x: auto;
     white-space: pre;
-  }
+  } 
 }
+
+/* start scrollbar stylin */
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: hsl(var(--muted-foreground) / 0.2);
+	border-radius: 3px;
+	transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: hsl(var(--muted-foreground) / 0.3);
+}
+
+::-webkit-scrollbar-thumb:active {
+	background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Firefox scrollbar styles */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+}
+
+/* Dark mode specific scrollbar adjustments */
+@media (prefers-color-scheme: dark) {
+	::-webkit-scrollbar-thumb {
+		background: hsl(var(--border) / 0.5);
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: hsl(var(--border) / 0.7);
+	}
+
+	::-webkit-scrollbar-thumb:active {
+		background: hsl(var(--border) / 0.9);
+	}
+
+	* {
+		scrollbar-color: hsl(var(--border) / 0.5) transparent;
+	}
+}
+
+/* Light mode scrollbar adjustments (if light mode is ever added) */
+@media (prefers-color-scheme: light) {
+	::-webkit-scrollbar-thumb {
+		background: hsl(var(--muted-foreground) / 0.15);
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: hsl(var(--muted-foreground) / 0.25);
+	}
+
+	::-webkit-scrollbar-thumb:active {
+		background: hsl(var(--muted-foreground) / 0.35);
+	}
+
+	* {
+		scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent;
+	}
+}
+
+/* Hide scrollbar when not hovering (optional minimal behavior) */
+.minimal-scrollbar::-webkit-scrollbar {
+	width: 4px;
+	height: 4px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+	background: hsl(var(--muted-foreground) / 0.1);
+}
+
+.minimal-scrollbar:hover::-webkit-scrollbar-thumb {
+	background: hsl(var(--muted-foreground) / 0.3);
+}
+
+/* Completely hidden scrollbars for elements where scrollbars should be invisible */
+.hide-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+/* end scrollbars tyling */
