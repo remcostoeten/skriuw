@@ -13,7 +13,7 @@ export default defineConfig({
     outDir: "dist/server",
     target: "node22",
     ssr: true,
-    rollupOptions: {
+    rolldownOptions: {
       external: [
         // Node.js built-ins
         "fs",
@@ -49,5 +49,10 @@ export default defineConfig({
   },
   define: {
     "process.env.NODE_ENV": '"production"',
+  },
+  experimental: {
+    rolldown: {
+      experimentalUseAdvancedChunking: true,
+    },
   },
 });

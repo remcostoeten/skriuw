@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => ({
       "@ui/": path.resolve(__dirname, "./client/shared/ui"),
     },
   },
+  experimental: {
+    rolldown: {
+      experimentalUseAdvancedChunking: true,
+    },
+  },
 }));
 
 function expressPlugin(): Plugin {
