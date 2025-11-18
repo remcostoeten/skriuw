@@ -100,7 +100,10 @@ function FileTreeItem({
 
     clickTimeoutRef.current = setTimeout(() => {
       if (isFolder) {
-        onToggleFolder(item.id);
+        // Only toggle folder if it has children
+        if (item.children.length > 0) {
+          onToggleFolder(item.id);
+        }
         onSelectFolder(item.id);
       } else {
         onNavigateNote(item.id);
@@ -119,11 +122,7 @@ function FileTreeItem({
     setIsRenaming(false);
   };
 
-  const handleFolderToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleFolder(item.id);
-  };
-
+  
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (isRenaming) {
@@ -133,13 +132,16 @@ function FileTreeItem({
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         if (isFolder) {
-          onToggleFolder(item.id);
+          // Only toggle folder if it has children
+          if (item.children.length > 0) {
+            onToggleFolder(item.id);
+          }
         } else {
           onNavigateNote(item.id);
         }
       }
 
-      if (isFolder) {
+      if (isFolder && item.children.length > 0) {
         if (e.key === "ArrowRight" && !isExpanded) {
           e.preventDefault();
           onToggleFolder(item.id);
@@ -150,20 +152,32 @@ function FileTreeItem({
         }
       }
     },
-    [isRenaming, isFolder, onToggleFolder, item.id, onNavigateNote, isExpanded],
+    // Remove usage of optional chaining and fallback (?.length ?? 0) as TypeScript
+    // already warns us that not all items have 'children'.
+    [
+      isRenaming,
+      isFolder,
+      onToggleFolder,
+      item.id,
+      onNavigateNote,
+      isExpanded,
+      // Use item.children for folders, otherwise 0 for notes
+      // to keep dependencies up to date without lint error
+      ...(isFolder ? [item.children.length] : []),
+    ],
   );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className={`relative flex items-center justify-between h-7 rounded-md transition-colors group ${isActive
+          className={`relative flex items-center h-7 rounded-md transition-colors group ${isActive
               ? "bg-Skriuw-border"
               : isSelected
                 ? "bg-Skriuw-border/50"
                 : "hover:bg-Skriuw-border/30"
             }`}
-          style={{ marginLeft: `${level * 12}px` }}
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
           draggable
           onDragStart={(e) => onDragStart(item, e)}
           onDragOver={onDragOver}
@@ -173,23 +187,15 @@ function FileTreeItem({
           role="treeitem"
           aria-expanded={isFolder ? isExpanded : undefined}
         >
-          <div className="flex items-center gap-0.5 flex-1 min-w-0 px-2">
+          <div className="flex items-center gap-1 flex-1 min-w-0 pr-2">
             {isFolder ? (
-              <>
-                <ChevronRight
-                  className={`w-4 h-4 text-Skriuw-icon shrink-0 transition-transform cursor-pointer ${isExpanded ? "rotate-90" : ""
-                    }`}
-                  onClick={handleFolderToggle}
-                />
-                <Folder
-                  className="w-4 h-4 text-Skriuw-icon shrink-0 cursor-pointer"
-                  onClick={handleFolderToggle}
-                />
-              </>
+              <Folder
+                className={`w-3.5 h-3.5 text-Skriuw-icon shrink-0 ${item.children.length > 0 ? "cursor-pointer hover:text-Skriuw-text" : "cursor-default"}`}
+                onClick={item.children.length > 0 ? () => onToggleFolder(item.id) : undefined as unknown as React.MouseEventHandler<SVGSVGElement>}
+              />
             ) : (
-              <div className="w-4 h-4 shrink-0" />
+              <div className="w-3.5 h-3.5 shrink-0" />
             )}
-            {isFolder && <div className="w-4 shrink-0" />}
 
             {isRenaming ? (
               <input
@@ -222,8 +228,8 @@ function FileTreeItem({
           </div>
 
           {isFolder && (
-            <span className="text-xs text-Skriuw-faint px-2 shrink-0">
-              {item.type === "folder" ? item.children.length : 0}
+            <span className="text-xs text-Skriuw-subtle bg-Skriuw-border/50 px-1.5 py-0.5 rounded-sm shrink-0 min-w-[1.25rem] text-center font-normal tabular-nums mr-2">
+              {item.children.length}
             </span>
           )}
         </div>

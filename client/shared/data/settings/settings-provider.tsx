@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS = {
   autoBackup: false,
   backupInterval: 3600000, // 1 hour
   maxBackupFiles: 10,
+  disableResponsive: false, // Dev tool to disable responsive behavior
 } as const;
 
 const DEFAULT_FEATURE_FLAGS = {

@@ -99,6 +99,13 @@ export function useUserPreferences() {
         description: "Automatically backup notes",
         category: 'backup',
       },
+      disableResponsive: {
+        value: settings.disableResponsive || false,
+        defaultValue: false,
+        type: 'boolean',
+        description: "Disable responsive behavior (development only)",
+        category: 'advanced',
+      },
     };
 
     Object.entries(commonPreferences).forEach(([key, pref]) => {
@@ -121,6 +128,7 @@ export function useUserPreferences() {
   const hasFocusMode = isEnabled('focusMode');
   const hasDarkMode = isEnabled('darkMode');
   const hasAutoBackup = isEnabled('autoBackup');
+  const hasDisableResponsive = isEnabled('disableResponsive');
 
   return {
     // Raw access
@@ -144,6 +152,7 @@ export function useUserPreferences() {
     hasFocusMode,
     hasDarkMode,
     hasAutoBackup,
+    hasDisableResponsive,
   };
 }
 

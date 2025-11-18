@@ -3,11 +3,10 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { createServer } from "./server";
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   server: {
     host: "::",
-    port: 8080,
+    port: 42069,
     fs: {
       allow: ["./", "./client", "./shared"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
@@ -26,11 +25,10 @@ export default defineConfig(({ mode }) => ({
     },
   },
   experimental: {
-    rolldown: {
-      experimentalUseAdvancedChunking: true,
-    },
+    // Remove 'rolldown' property and put only supported fields for experimental, or remove experimental completely
+    // The following line is a placeholder, as 'rolldown' is not a documented option as of Vite 5
   },
-}));
+});
 
 function expressPlugin(): Plugin {
   return {

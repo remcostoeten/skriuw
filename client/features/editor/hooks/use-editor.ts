@@ -33,6 +33,19 @@ export function editorLogic({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const nameSaveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      if (nameSaveTimeoutRef.current) {
+        clearTimeout(nameSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load note data
   useEffect(() => {
@@ -87,17 +100,35 @@ export function editorLogic({
     };
   }, [note?.id, readOnly]);
 
-  // Save function
+  // Use a ref to always have access to the current note name
+  const noteNameRef = useRef(noteName);
+  useEffect(() => {
+    noteNameRef.current = noteName;
+  }, [noteName]);
+
+  // Debounced note name save function
+  const saveNoteName = useCallback((newName: string) => {
+    if (nameSaveTimeoutRef.current) {
+      clearTimeout(nameSaveTimeoutRef.current);
+    }
+    nameSaveTimeoutRef.current = setTimeout(() => {
+      if (noteId && note) {
+        updateNote(noteId, note.content, newName);
+      }
+    }, 500); // 500ms debounce for name changes
+  }, [noteId, note, updateNote]);
+
+  // Save function - uses ref for note name to avoid dependency issues
   const handleSave = useCallback(() => {
     if (!editor || !noteId) return;
 
     try {
       const blocks = editor.document;
-      updateNote(noteId, blocks, noteName);
+      updateNote(noteId, blocks, noteNameRef.current);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save note");
     }
-  }, [editor, noteId, noteName, updateNote]);
+  }, [editor, noteId, updateNote]);
 
   // Auto-save logic
   useEffect(() => {
@@ -119,14 +150,20 @@ export function editorLogic({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave]);
+  }, [editor, noteId, isLoading, autoSave, autoSaveDelay, readOnly, handleSave]);
+
+  // Create a wrapper for setNoteName that triggers debounced save
+  const handleNoteNameChange = useCallback((newName: string) => {
+    setNoteName(newName);
+    saveNoteName(newName);
+  }, [saveNoteName]);
 
   return {
     editor,
     note,
     noteName,
     isLoading,
-    setNoteName,
+    setNoteName: handleNoteNameChange,
     handleSave,
     error,
   };
