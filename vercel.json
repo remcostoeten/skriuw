@@ -1,0 +1,16 @@
+{
+  "buildCommand": "bun run build:client",
+  "outputDirectory": "dist/spa",
+  "installCommand": "bun install",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+
