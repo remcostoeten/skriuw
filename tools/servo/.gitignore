@@ -1,8 +1,0 @@
-# Servo binaries
-tools/servo/bin/
-tools/servo/servo
-tools/servo/servo.exe
-
-# But keep the source
-!tools/servo/*.go
-

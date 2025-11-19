@@ -1,7 +1,0 @@
-[install]
-# Use workspaces for monorepo support
-workspace = true
-
-[install.scopes]
-# Configure scoped packages if needed
-
