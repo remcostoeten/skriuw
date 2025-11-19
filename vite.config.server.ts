@@ -30,8 +30,8 @@ export default defineConfig({
         "querystring",
         "child_process",
         // External dependencies that should not be bundled
-        "express",
-        "cors",
+        "hono",
+        "@hono/node-server",
       ],
       output: {
         format: "es",
