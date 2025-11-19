@@ -1,37 +1,45 @@
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import * as schema from './schema';
+import { DATABASE_CONFIG } from '../../config/database';
 
 let db: ReturnType<typeof drizzle> | null = null;
+let client: ReturnType<typeof createClient> | null = null;
 
-/**
- * Initialize the database connection
- * Turso handles sync automatically - just connect!
- */
-export async function initDatabase(): Promise<void> {
+type InitOptions = {
+  url?: string;
+  authToken?: string;
+  localDbPath?: string;
+};
+
+export async function initDatabase(options?: InitOptions): Promise<void> {
   if (db) {
     return;
   }
 
-  const url = import.meta.env?.VITE_TURSO_URL || 'libsql://resolved-justice-remcostoeten.aws-eu-west-1.turso.io';
-  const authToken = import.meta.env?.VITE_TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NjI5ODcyNzksImlkIjoiZTlkNmU3NzctMjQ2ZS00MGZiLWE5MzAtZjI0NTQwOWU2MDkyIiwicmlkIjoiODBiNGIxMGYtZTYyNi00NWNkLTlkYzQtMmIyYjViNzY4NWM3In0.oLtKZBNYWJ7t4qK25FroXSAZZzxrq_8HTEpoCQIdDpqvVEKWBtEkRnWHBypj3x4GQk8V-D5dQyrXbpX26krGDg';
+  const url = options?.url || DATABASE_CONFIG.url;
+  const authToken = options?.authToken || DATABASE_CONFIG.authToken;
 
-  const client = createClient({
+  const clientConfig: Parameters<typeof createClient>[0] = {
     url,
-    authToken,
-  });
+  };
 
+  if (authToken) {
+    clientConfig.authToken = authToken;
+  }
+
+  if (options?.localDbPath) {
+    clientConfig.url = `file:${options.localDbPath}`;
+  }
+
+  client = createClient(clientConfig);
   db = drizzle(client, { schema });
 
-  // Ensure tables exist
   await ensureTablesExist();
 
   console.log('Database initialized!');
 }
 
-/**
- * Get the database instance
- */
 export function getDb() {
   if (!db) {
     throw new Error('Database not initialized. Call initDatabase() first.');
@@ -39,17 +47,24 @@ export function getDb() {
   return db;
 }
 
-/**
- * Ensure database tables exist, create them if they don't
- */
+export function getDatabase() {
+  return getDb();
+}
+
+export async function closeDatabase(): Promise<void> {
+  if (client) {
+    await client.close();
+    client = null;
+  }
+  db = null;
+}
+
 async function ensureTablesExist(): Promise<void> {
   if (!db) return;
 
   try {
-    // Try to query the notes table to see if it exists
-    await db.execute(`SELECT 1 FROM notes LIMIT 1`);
+    await db.$client.execute(`SELECT 1 FROM notes LIMIT 1`);
   } catch (error: any) {
-    // Table doesn't exist, create it
     if (error?.message?.includes('no such table') || error?.message?.includes('does not exist')) {
       console.log('Creating database tables...');
       await createTables();
@@ -59,14 +74,10 @@ async function ensureTablesExist(): Promise<void> {
   }
 }
 
-/**
- * Create database tables
- */
 async function createTables(): Promise<void> {
   if (!db) return;
 
-  // Create folders table first (no dependencies)
-  await db.execute(`
+  await db.$client.execute(`
     CREATE TABLE IF NOT EXISTS folders (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -76,11 +87,10 @@ async function createTables(): Promise<void> {
     )
   `);
 
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id)`);
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_folders_updated_at ON folders(updated_at DESC)`);
+  await db.$client.execute(`CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id)`);
+  await db.$client.execute(`CREATE INDEX IF NOT EXISTS idx_folders_updated_at ON folders(updated_at DESC)`);
 
-  // Create notes table (depends on folders)
-  await db.execute(`
+  await db.$client.execute(`
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -91,9 +101,8 @@ async function createTables(): Promise<void> {
     )
   `);
 
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id)`);
-  await db.execute(`CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC)`);
+  await db.$client.execute(`CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id)`);
+  await db.$client.execute(`CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC)`);
 
   console.log('Database tables created successfully');
 }
-

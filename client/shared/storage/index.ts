@@ -18,7 +18,5 @@ export {
   createStorageAdapter,
   initializeStorage,
   getStorage,
-  destroyStorage,
-  registerStorageAdapter,
-  getAvailableAdapters
+  destroyStorage
 } from "./StorageFactory";

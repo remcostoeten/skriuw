@@ -1,8 +1,8 @@
 import { eq, isNull } from 'drizzle-orm';
-import { getDb } from './db';
+import { getDb } from './index';
 import { notes, folders } from './schema';
-import { mapNote, mapFolder } from '../../../../shared/db/mappers';
-import type { Item } from '../../../../shared/db/types';
+import { mapNote, mapFolder } from '../../shared/db/mappers';
+import type { Item } from '../../shared/db/types';
 
 export async function getItems(): Promise<Item[]> {
   const db = getDb();

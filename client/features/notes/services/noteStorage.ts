@@ -1,5 +1,5 @@
-import type { Note, Folder, Item, CreateNoteData, UpdateNoteData, CreateFolderData } from "@/features/notes/types";
-
+                                                                               import type { Note, Folder, Item, CreateNoteData, UpdateNoteData, CreateFolderData } from "@/features/notes/types";
+                           
 class StorageError extends Error {
   constructor(message: string, cause?: unknown) {
     super(message);
@@ -8,7 +8,6 @@ class StorageError extends Error {
   }
 }
 
-// Export types and storage utilities
 export { StorageError };
 export type { Note, Folder, Item, CreateNoteData, UpdateNoteData, CreateFolderData } from "@/features/notes/types";
 export {

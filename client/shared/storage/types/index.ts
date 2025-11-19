@@ -68,7 +68,7 @@ export interface StorageOperationResult {
 }
 
 export interface StorageConfig {
-  adapter: 'localStorage' | 'instantdb' | 'drizzle-turso' | 'pglite';
+  adapter: 'drizzle-turso' | 'localStorage';
   options?: Record<string, unknown>;
 }
 
