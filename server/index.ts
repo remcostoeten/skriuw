@@ -1,23 +1,25 @@
 import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import { handleDemo } from "./routes/demo";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { initDatabase } from "./db";
+import notesRouter from "./routes/notes";
 
-export function createServer() {
-  const app = express();
+/**
+ * @name createServer
+ * @description Inits a Hono server with middleware and routes
+ */
 
-  // Middleware
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+export async function createServer() {
+  const app = new Hono();
 
-  // Example API routes
-  app.get("/api/ping", (_req, res) => {
-    const ping = process.env.PING_MESSAGE ?? "ping";
-    res.json({ message: ping });
+  await initDatabase();
+
+  /**
+   * @module middleware
+   * @description Adds middleware to the Hono server
+   */
+  app.use("*", cors());
+  app.use("*", async (c, next) => {
+    await next();
   });
-
-  app.get("/api/demo", handleDemo);
-
-  return app;
 }
