@@ -4,101 +4,275 @@ priority: highest
 scope: .
 ---
 
-# Rule: Use CRUD layer pattern for all storage operations
+# Core API Pattern Architecture
 
-## Architecture
+## Overview
 
-- **CRUD Layer**: `api/storage/crud/` - Standardized create, read, update, destroy functions
-  - Abstracts storage implementation (localStorage keys, database tables)
-  - Handles error handling, validation
-  - Pure functions, no React dependencies
-  
-- **Feature Queries**: `features/<feature>/api/queries/*.ts`
-  - Business logic for reading data
-  - Uses `read()` from CRUD layer
-  - Example: `get-notes.ts`, `get-note.ts`, `get-items.ts`
+This codebase uses a **storage-agnostic CRUD layer** that abstracts all data operations. The architecture ensures maximum separation of concerns, enabling easy migration between storage backends (localStorage → database) without changing feature code.
 
-- **Feature Mutations**: `features/<feature>/api/mutations/*.ts`
-  - Business logic for modifying data
-  - Uses `create()`, `update()`, `destroy()` from CRUD layer
-  - Example: `create-note.ts`, `update-note.ts`, `delete-item.ts`
+## Architecture Layers
 
-## Pattern
+### 1. Storage Adapter Layer (`api/storage/adapters/`)
 
-### Queries
+**Purpose**: Concrete implementations of storage backends
+
+- **Generic Adapter** (`generic-local-storage.ts`): Works with any entity type
+  - Handles flat entity structures
+  - Used by all new features (shortcuts, settings, etc.)
+  - Implements `GenericStorageAdapter` interface
+
+- **Domain-Specific Adapter** (`local-storage.ts`): Legacy adapter for Notes/Folders
+  - Handles nested folder structures
+  - Maintained for backward compatibility
+  - Will be migrated to generic adapter when nested structures are fully supported
+
+**Key Principle**: Adapters are pure implementations - no business logic, no React dependencies.
+
+### 2. CRUD Layer (`api/storage/crud/`)
+
+**Purpose**: Unified API for all storage operations
+
+**Functions**:
+- `create<T>(storageKey, data, options?)` - Create new entity
+- `read<T>(storageKey, options?)` - Read entities (single or list)
+- `update<T>(storageKey, id, data)` - Update entity
+- `destroy(storageKey, id)` - Delete entity
+- `move(storageKey, entityId, targetParentId)` - Move entity (for nested structures)
+
+**Smart Routing**: Automatically routes to appropriate adapter based on `storageKey`:
+- `"Skriuw_notes"` → Domain-specific adapter (backward compatibility)
+- All other keys → Generic adapter
+
+**Key Principle**: CRUD layer is storage-agnostic - features don't know or care about the underlying storage.
+
+### 3. Feature API Layer (`features/<feature>/api/`)
+
+**Purpose**: Business logic and feature-specific operations
+
+**Structure**:
+```
+features/<feature>/api/
+├── queries/          # Read operations
+│   ├── get-<plural>.ts      # Get all items
+│   ├── get-<singular>.ts    # Get single item by ID
+│   └── ...
+├── mutations/        # Write operations
+│   ├── create-<singular>.ts  # Create new item
+│   ├── update-<singular>.ts  # Update existing item
+│   ├── delete-<singular>.ts  # Delete item
+│   └── ...
+└── types.ts          # Feature-specific types
+```
+
+**Key Principle**: Feature APIs wrap CRUD functions with business logic, filtering, transformation, and error context.
+
+## Pattern Examples
+
+### Query Pattern
 
 ```typescript
 // features/notes/api/queries/get-notes.ts
 import { read } from "@/api/storage/crud/read";
+import type { Note } from "../../types";
 
 const STORAGE_KEY = "Skriuw_notes";
 
-export async function getNotes(options?: GetNotesOptions) {
-  const readFn = read;
-  try {
-    return await readFn(STORAGE_KEY, { 
-      getAll: true,
-      filter: (item) => item.type === 'note'
-    });
-  } catch (error) {
-    throw new Error(`Failed to get notes: ${error}`);
-  }
+export interface GetNotesOptions {
+	parentFolderId?: string;
+}
+
+export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
+	const readFn = read;
+	try {
+		const result = await readFn(STORAGE_KEY, {
+			getAll: true,
+			filter: (item) => {
+				if (item.type !== 'note') return false;
+				if (options?.parentFolderId) {
+					return (item as any).parentFolderId === options.parentFolderId;
+				}
+				return true;
+			},
+		});
+		return Array.isArray(result) ? result.filter((item): item is Note => item.type === 'note') : [];
+	} catch (error) {
+		throw new Error(`Failed to get notes: ${error instanceof Error ? error.message : String(error)}`);
+	}
 }
 ```
 
-### Mutations
+### Mutation Pattern
 
 ```typescript
 // features/notes/api/mutations/create-note.ts
 import { create } from "@/api/storage/crud/create";
+import type { Note, CreateNoteData } from "../../types";
 
 const STORAGE_KEY = "Skriuw_notes";
 
-export async function createNote(data: CreateNoteData) {
-  const createFn = create;
-  try {
-    return await createFn(STORAGE_KEY, {
-      type: 'note',
-      name: data.name,
-      content: data.content,
-    });
-  } catch (error) {
-    throw new Error(`Failed to create note: ${error}`);
-  }
+export async function createNote(data: CreateNoteData): Promise<Note> {
+	const createFn = create;
+	try {
+		const result = await createFn(STORAGE_KEY, {
+			type: 'note',
+			name: data.name,
+			content: data.content || [],
+			parentFolderId: data.parentFolderId,
+		} as any);
+		return result as Note;
+	} catch (error) {
+		throw new Error(`Failed to create note: ${error instanceof Error ? error.message : String(error)}`);
+	}
 }
 ```
 
-## File Structure
+### Generic Feature Pattern (New Features)
 
+```typescript
+// features/shortcuts/api/queries/get-shortcuts.ts
+import { read } from "@/api/storage/crud";
+import type { CustomShortcut } from "../types";
+
+const STORAGE_KEY = "quantum-works:shortcuts:custom";
+
+export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
+	try {
+		const shortcuts = await read<CustomShortcut>(STORAGE_KEY);
+		const result: Record<ShortcutId, KeyCombo[]> = {};
+
+		if (Array.isArray(shortcuts)) {
+			for (const shortcut of shortcuts) {
+				result[shortcut.id as ShortcutId] = shortcut.keys;
+			}
+		}
+
+		return result;
+	} catch (error) {
+		throw new Error(`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
 ```
-features/<feature>/api/
-├── queries/
-│   ├── get-<plural>.ts      # Get all items
-│   ├── get-<singular>.ts    # Get single item by ID
-│   └── ...
-└── mutations/
-    ├── create-<singular>.ts  # Create new item
-    ├── update-<singular>.ts  # Update existing item
-    ├── delete-<singular>.ts  # Delete item
-    └── ...
+
+## Type System
+
+### BaseEntity Interface
+
+All entities must extend `BaseEntity`:
+
+```typescript
+export interface BaseEntity {
+	id: string
+	createdAt: number
+	updatedAt: number
+}
 ```
 
-## Key Principles
+### Feature Types
 
-1. **CRUD layer abstracts storage** - Handles localStorage keys now, will handle database tables later
-2. **Feature queries/mutations** - Business logic, use CRUD layer functions
-3. **Standardized error handling** - All in CRUD layer, queries/mutations wrap with context
-4. **Easy migration** - Change CRUD layer implementation, features stay the same
-5. **No React dependencies** - CRUD layer and queries/mutations are pure functions
+```typescript
+// features/<feature>/api/types.ts
+import type { BaseEntity } from "@/api/storage/generic-types";
 
-## Storage Key Pattern
+export interface MyEntity extends BaseEntity {
+	id: string;
+	// your feature-specific fields
+}
+```
 
-- Use `STORAGE_KEY` constant in each query/mutation file
-- For localStorage: `"Skriuw_notes"`
-- For future database: table/schema name
+## Storage Key Convention
+
+- Use descriptive, namespaced keys: `"quantum-works:shortcuts:custom"`
+- Legacy keys maintained: `"Skriuw_notes"`
+- Store as `STORAGE_KEY` constant in each query/mutation file
+- Future: Storage keys map to database tables/schemas
 
 ## Error Handling
 
-- CRUD layer throws standardized errors
-- Queries/mutations catch and wrap with context-specific messages
-- Always use try/catch in queries/mutations
+1. **CRUD Layer**: Throws standardized errors with storage context
+2. **Feature APIs**: Catch and wrap with feature-specific context
+3. **Always use try/catch** in queries/mutations
+4. **Error messages**: Include operation context (`Failed to create note: ...`)
+
+## Key Architectural Principles
+
+### 1. Storage Agnostic
+- Features never directly access storage (no `localStorage.getItem()`)
+- All operations go through CRUD layer
+- Easy to swap storage backends (localStorage → Turso → PostgreSQL)
+
+### 2. Maximum Separation of Concerns
+- **Adapters**: Pure storage implementations
+- **CRUD Layer**: Unified storage API
+- **Feature APIs**: Business logic only
+- **Components**: UI only, call feature APIs
+
+### 3. Type Safety
+- Generic TypeScript types throughout
+- `BaseEntity` ensures consistency
+- Feature types extend base types
+
+### 4. No React Dependencies
+- CRUD layer: Pure functions, no React
+- Feature APIs: Pure functions, no React
+- Only components/hooks have React dependencies
+
+### 5. DRY (Don't Repeat Yourself)
+- Single CRUD implementation
+- No duplicate storage code across features
+- Shared error handling patterns
+
+### 6. Easy Migration Path
+- Change CRUD layer implementation → all features benefit
+- Add new adapter → register in factory
+- Migrate feature → update queries/mutations only
+
+## Storage Factory Pattern
+
+The storage factory (`generic-storage-factory.ts`) manages adapter lifecycle:
+
+- `createGenericStorageAdapter(config)` - Create adapter instance
+- `initializeGenericStorage(config)` - Initialize with config
+- `getGenericStorage()` - Get current adapter (auto-initializes if needed)
+- `registerGenericStorageAdapter(name, factory)` - Register new adapter type
+
+**Configuration** (`app/storage/config.ts`):
+```typescript
+export const DEFAULT_STORAGE_CONFIG: StorageConfig = {
+  adapter: 'localStorage',
+  options: {}
+};
+```
+
+## Migration Guide
+
+### Adding a New Feature
+
+1. **Define entity type** extending `BaseEntity`
+2. **Create queries** using `read()` from CRUD layer
+3. **Create mutations** using `create()`, `update()`, `destroy()`
+4. **Never access storage directly** - always use CRUD layer
+
+### Migrating Existing Feature
+
+1. Replace direct storage access with CRUD functions
+2. Define entity type extending `BaseEntity`
+3. Wrap CRUD calls with business logic in queries/mutations
+4. Remove duplicate helper functions
+
+## Future Enhancements
+
+- Database adapters (Turso, PostgreSQL, etc.)
+- Sync capabilities
+- Offline support with conflict resolution
+- Real-time updates
+- Migration of Notes feature to generic adapter
+
+## Mandatory Rules
+
+1. ✅ **Always use CRUD layer** - Never access storage directly
+2. ✅ **Extend BaseEntity** - All entities must extend `BaseEntity`
+3. ✅ **Feature APIs wrap CRUD** - Business logic in feature APIs, not CRUD layer
+4. ✅ **Try/catch in feature APIs** - Wrap CRUD calls with error context
+5. ✅ **Use STORAGE_KEY constant** - Store storage key as constant in each file
+6. ✅ **No React in CRUD/APIs** - Keep storage layer pure
+7. ✅ **Type safety** - Use TypeScript generics throughout
