@@ -1,17 +1,17 @@
-import "./global.css";
+import '@/styles/global.css'
 
-import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 
-import { Providers } from "./app/providers";
-import { AppRoutes } from "./app/routing";
+import { Providers } from './app/providers'
+import { AppRoutes } from './app/routing'
 
 const App = () => (
-  <Providers>
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
-  </Providers>
-);
+    <Providers>
+        <BrowserRouter>
+            <AppRoutes />
+        </BrowserRouter>
+    </Providers>
+)
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById('root')!).render(<App />)

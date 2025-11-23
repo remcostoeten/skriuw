@@ -1,7 +1,11 @@
 import { createContext, useEffect, useRef, useState } from 'react'
 
 import { getShortcuts } from './api/queries/get-shortcuts'
-import { KeyCombo, ShortcutId, shortcutDefinitions } from './shortcut-definitions'
+import {
+    KeyCombo,
+    ShortcutId,
+    shortcutDefinitions
+} from './shortcut-definitions'
 
 type ShortcutHandler = (event: KeyboardEvent) => void
 type ShortcutRegistry = Map<ShortcutId, ShortcutHandler>
@@ -19,11 +23,20 @@ function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
         if (k === 'Ctrl') return event.ctrlKey
         if (k === 'Meta') return event.metaKey
         if (k === 'Shift') return event.shiftKey
+        if (k === 'Alt') return event.altKey
+        // Handle comma key specially - check both event.key and event.code
+        // k is "," (string) from definition, event.key is "," when comma is pressed
+        if (k === ',') {
+            return event.key === ',' || event.code === 'Comma'
+        }
         return event.key.toLowerCase() === k.toLowerCase()
     })
 }
 
-function matchesAnyCombination(event: KeyboardEvent, combos: KeyCombo[]): boolean {
+function matchesAnyCombination(
+    event: KeyboardEvent,
+    combos: KeyCombo[]
+): boolean {
     return combos.some((combo) => matchesKeyCombination(event, combo))
 }
 
@@ -56,16 +69,21 @@ function createKeyDownHandler(
             const definition = shortcutDefinitions[id]
             if (!definition) continue
 
+            // Skip disabled shortcuts
+            if (definition.enabled === false) continue
+
             const keyCombos = customShortcuts[id] || definition.keys
 
             if (matchesAnyCombination(event, keyCombos)) {
                 // If in input/editor, only trigger shortcuts with modifiers
                 if (inInput) {
-                    const hasModifier = event.ctrlKey || event.metaKey || event.altKey
+                    const hasModifier =
+                        event.ctrlKey || event.metaKey || event.altKey
                     if (!hasModifier) continue
                 }
 
                 handler(event)
+                return // Only trigger the first matching shortcut
             }
         }
     }
@@ -73,21 +91,37 @@ function createKeyDownHandler(
 
 export const ShortcutContext = createContext<ShortcutContextValue | null>(null)
 
-export const ShortcutProvider = ({ children }: { children: React.ReactNode }) => {
+export const ShortcutProvider = ({
+    children
+}: {
+    children: React.ReactNode
+}) => {
     const shortcuts = useRef<ShortcutRegistry>(new Map())
-    const [customShortcuts, setCustomShortcuts] = useState<Partial<Record<ShortcutId, KeyCombo[]>>>({})
+    const [customShortcuts, setCustomShortcuts] = useState<
+        Partial<Record<ShortcutId, KeyCombo[]>>
+    >({})
 
     const registryManager = useRef<ShortcutContextValue>({
         register: (id: ShortcutId, handler: ShortcutHandler) => {
-            if (!shortcutDefinitions[id]) {
-                console.warn(`Shortcut "${id}" is not declared in shortcut-definitions.ts`)
+            const definition = shortcutDefinitions[id]
+            if (!definition) {
+                console.warn(
+                    `Shortcut "${id}" is not declared in shortcut-definitions.ts`
+                )
+                return
+            }
+            // Don't register disabled shortcuts
+            if (definition.enabled === false) {
+                console.warn(
+                    `Shortcut "${id}" is disabled and cannot be registered`
+                )
                 return
             }
             shortcuts.current.set(id, handler)
         },
         unregister: (id: ShortcutId) => {
             shortcuts.current.delete(id)
-        },
+        }
     })
 
     // Load custom shortcuts on mount
@@ -107,11 +141,18 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         window.addEventListener('shortcuts-updated', handleShortcutsUpdated)
-        return () => window.removeEventListener('shortcuts-updated', handleShortcutsUpdated)
+        return () =>
+            window.removeEventListener(
+                'shortcuts-updated',
+                handleShortcutsUpdated
+            )
     }, [])
 
     useEffect(() => {
-        const handleKeyDown = createKeyDownHandler(shortcuts.current, customShortcuts)
+        const handleKeyDown = createKeyDownHandler(
+            shortcuts.current,
+            customShortcuts
+        )
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [customShortcuts])

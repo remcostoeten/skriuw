@@ -1,10 +1,7 @@
-import { Settings, Moon, Pencil, Hand } from "lucide-react";
+import { Settings, Moon, Pencil, Hand, X } from "lucide-react";
 import { useState } from "react";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogClose,
   DialogAside,
   DialogContentArea,
   DialogNavGroup,
@@ -12,6 +9,7 @@ import {
   DialogSeparator,
 } from "@/shared/ui/dialog-drawer";
 import { SettingsGroup } from "@/shared/ui/settings";
+import { cn } from "@/shared/utilities";
 
 import { useSettings } from "@/features/settings";
 import { EDITOR_SETTINGS_GROUPS } from "@/features/settings/editor-settings";
@@ -136,34 +134,46 @@ export function SidebarMenu({ open, onOpenChange, title }: props) {
   const content = getContent();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogClose />
+    <div
+      className={cn(
+        "fixed inset-y-0 right-0 z-40 w-[400px] bg-popover border-l border-border flex flex-col transition-transform duration-300 ease-in-out",
+        open ? "translate-x-0" : "translate-x-full"
+      )}
+    >
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <h2 className="text-lg font-semibold text-foreground">Settings</h2>
+        <button
+          onClick={() => onOpenChange(false)}
+          className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="Close settings"
+        >
+          <X className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </div>
 
-        <div className="flex flex-row flex-1 overflow-hidden gap-4">
-          <DialogAside>
-            <DialogSection label="App">
-              <DialogNavGroup items={appItems} />
-            </DialogSection>
+      <div className="flex flex-row flex-1 overflow-hidden gap-4 p-4">
+        <DialogAside>
+          <DialogSection label="App">
+            <DialogNavGroup items={appItems} />
+          </DialogSection>
 
-            <DialogSeparator />
+          <DialogSeparator />
 
-            <DialogSection label="Synchronization">
-              <DialogNavGroup items={syncItems} />
-            </DialogSection>
-          </DialogAside>
+          <DialogSection label="Synchronization">
+            <DialogNavGroup items={syncItems} />
+          </DialogSection>
+        </DialogAside>
 
-          <DialogContentArea>
-            <h2 className="text-2xl font-bold text-foreground mb-6">
-              {content.title}
-            </h2>
-            <div className="overflow-y-auto">
-              {renderSettingsContent()}
-            </div>
-          </DialogContentArea>
-        </div>
-      </DialogContent>
-    </Dialog>
+        <DialogContentArea>
+          <h2 className="text-2xl font-bold text-foreground mb-6">
+            {content.title}
+          </h2>
+          <div className="overflow-y-auto">
+            {renderSettingsContent()}
+          </div>
+        </DialogContentArea>
+      </div>
+    </div>
   );
 }
 

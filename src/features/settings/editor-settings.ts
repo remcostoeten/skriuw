@@ -12,6 +12,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable word wrapping in the editor',
     category: 'editor',
+    implemented: true, // Only wordWrap is currently implemented
   },
   {
     key: 'autoSave',
@@ -20,6 +21,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Automatically save notes while typing',
     category: 'behavior',
+    implemented: false,
   },
   {
     key: 'autoSaveInterval',
@@ -29,6 +31,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Auto-save interval in milliseconds',
     category: 'behavior',
     validation: (value: number) => value >= 5000 || 'Auto-save interval must be at least 5 seconds',
+    implemented: false,
   },
   {
     key: 'spellCheck',
@@ -37,6 +40,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable spell checking',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'showLineNumbers',
@@ -45,6 +49,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Show line numbers in the editor',
     category: 'editor',
+    implemented: false,
   },
 
   // Editor Appearance
@@ -56,6 +61,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Editor font size',
     category: 'appearance',
     options: ['small', 'medium', 'large', 'x-large'],
+    implemented: false,
   },
   {
     key: 'fontFamily',
@@ -65,6 +71,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Editor font family',
     category: 'appearance',
     options: ['inter', 'mono', 'serif', 'sans-serif'],
+    implemented: false,
   },
   {
     key: 'lineHeight',
@@ -74,6 +81,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Line height for the editor',
     category: 'appearance',
     validation: (value: number) => (value >= 1.0 && value <= 3.0) || 'Line height must be between 1.0 and 3.0',
+    implemented: false,
   },
   {
     key: 'maxWidth',
@@ -83,6 +91,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Maximum width of the editor',
     category: 'appearance',
     options: ['narrow', 'medium', 'wide', 'full'],
+    implemented: false,
   },
 
   // Editor Features
@@ -93,6 +102,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable markdown keyboard shortcuts',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'autoComplete',
@@ -101,6 +111,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable auto-complete for markdown',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'autoFormat',
@@ -109,6 +120,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Automatically format markdown on paste',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'previewPanel',
@@ -117,6 +129,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Show preview panel for markdown',
     category: 'appearance',
+    implemented: false,
   },
   {
     key: 'focusMode',
@@ -125,6 +138,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable focus mode (distraction-free writing)',
     category: 'editor',
+    implemented: false,
   },
 
   // Tabs and Indentation
@@ -136,6 +150,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     description: 'Number of spaces per tab',
     category: 'editor',
     options: [2, 4, 8],
+    implemented: false,
   },
   {
     key: 'useTabs',
@@ -144,6 +159,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Use tabs instead of spaces',
     category: 'editor',
+    implemented: false,
   },
 
   // Cursor and Selection
@@ -154,6 +170,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Enable cursor blinking',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'highlightCurrentLine',
@@ -162,6 +179,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Highlight the current line',
     category: 'editor',
+    implemented: false,
   },
   {
     key: 'matchBrackets',
@@ -170,6 +188,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Highlight matching brackets',
     category: 'editor',
+    implemented: false,
   },
 ];
 

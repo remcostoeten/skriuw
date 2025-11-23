@@ -1,6 +1,7 @@
 import { BlockNoteEditor } from "@blocknote/core";
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import "@blocknote/core/style.css";
+import { useUserPreferences } from "@/features/settings";
 
 type props = {
   editor: BlockNoteEditor | null;
@@ -13,6 +14,7 @@ export type EditorWrapperHandle = {
 export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
   ({ editor }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const { hasWordWrap } = useUserPreferences();
 
     useImperativeHandle(ref, () => ({
       focusEditor: () => editor?.domElement?.focus(),
@@ -30,6 +32,42 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
       };
     }, [editor]);
+
+    // Apply word wrap styles when editor or setting changes
+    useEffect(() => {
+      if (!editor) return;
+
+      const editorElement = editor.domElement;
+      if (!editorElement) return;
+
+      // Apply styles to the main editor element
+      if (hasWordWrap) {
+        editorElement.style.whiteSpace = 'pre-wrap';
+        editorElement.style.overflowWrap = 'break-word';
+        editorElement.style.wordBreak = 'break-word';
+        editorElement.style.overflowX = 'hidden';
+      } else {
+        editorElement.style.whiteSpace = 'pre';
+        editorElement.style.overflowWrap = 'normal';
+        editorElement.style.wordBreak = 'normal';
+        editorElement.style.overflowX = 'auto';
+      }
+
+      // Also apply to contenteditable elements within the editor
+      const contentEditableElements = editorElement.querySelectorAll('[contenteditable="true"]');
+      contentEditableElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        if (hasWordWrap) {
+          htmlEl.style.whiteSpace = 'pre-wrap';
+          htmlEl.style.overflowWrap = 'break-word';
+          htmlEl.style.wordBreak = 'break-word';
+        } else {
+          htmlEl.style.whiteSpace = 'pre';
+          htmlEl.style.overflowWrap = 'normal';
+          htmlEl.style.wordBreak = 'normal';
+        }
+      });
+    }, [editor, hasWordWrap]);
 
     return (
       <div
@@ -82,9 +120,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         .editor-container a:hover {
           text-decoration: none;
-        }
-        .editor-container [contenteditable] {
-          color: rgba(230, 230, 230, 0.9);
         }
         .editor-container [data-placeholder] {
           color: rgba(140, 140, 140, 0.6);

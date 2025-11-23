@@ -12,6 +12,7 @@ import { TopToolbar } from "@/components/layout/top-toolbar";
 import { LeftToolbar } from "@/components/left-toolbar";
 import { Sidebar } from "@/components/sidebar";
 import { SidebarMenu } from "@/components/sidebar-menu";
+import { cn } from "@/shared/utilities";
 
 
 type props = {
@@ -70,6 +71,11 @@ export function AppLayout({
     setIsDesktopSidebarOpen((prev) => !prev);
   });
 
+  useShortcut('open-settings', (e) => {
+    e.preventDefault();
+    setIsSettingsOpen((prev) => !prev);
+  });
+
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
       <div className="flex flex-1 overflow-hidden relative">
@@ -95,7 +101,12 @@ export function AppLayout({
           </div>
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div 
+          className={cn(
+            "flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out",
+            isSettingsOpen && "pr-[400px]"
+          )}
+        >
           <TopToolbar
             noteName={sidebarActiveNoteId || "Untitled"}
             onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
@@ -114,18 +125,18 @@ export function AppLayout({
           {children}
           <Footer />
         </div>
+
+        {/* Settings Sidebar */}
+        <SidebarMenu
+          open={isSettingsOpen}
+          onOpenChange={setIsSettingsOpen}
+          title="Settings"
+        />
       </div>
 
       <ShortcutsSidebar
         isOpen={isShortcutsSidebarOpen}
         onClose={() => setIsShortcutsSidebarOpen(false)}
-      />
-
-      {/* Settings Modal */}
-      <SidebarMenu
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-        title="Settings"
       />
 
       {/* Storage Status Widget */}

@@ -35,39 +35,68 @@ export function ShortcutRecorder({
       return;
     }
 
+    const saveCurrentCombo = () => {
+      const currentKeys = pressedKeysRef.current;
+      if (currentKeys.size > 0) {
+        // Sort keys: modifiers first (in consistent order), then the actual key
+        const keysArray = Array.from(currentKeys);
+        const modifierOrder = ['Ctrl', 'Meta', 'Shift', 'Alt'];
+        const modifiers = keysArray.filter(k => modifierOrder.includes(k));
+        const nonModifiers = keysArray.filter(k => !modifierOrder.includes(k));
+        
+        // Sort modifiers according to the standard order
+        const sortedModifiers = modifierOrder.filter(m => modifiers.includes(m));
+        const sortedKeys = [...sortedModifiers, ...nonModifiers];
+        
+        onChange([sortedKeys]);
+        onStopRecording();
+      }
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
+      // Build the complete key combination from the current event state
       const keys = new Set<string>();
 
-      // Add modifiers
+      // Add modifiers based on current keyboard state
+      // These flags are always accurate for the current event
       if (e.ctrlKey) keys.add('Ctrl');
       if (e.metaKey) keys.add('Meta');
       if (e.shiftKey) keys.add('Shift');
       if (e.altKey) keys.add('Alt');
 
-      // Add the actual key (if it's not a modifier itself)
+      // Add the actual key (if it's not a modifier key itself)
       const key = e.key;
-      if (!['Control', 'Meta', 'Shift', 'Alt', 'CapsLock'].includes(key)) {
+      const modifierKeys = ['Control', 'Meta', 'Shift', 'Alt', 'CapsLock'];
+      
+      if (!modifierKeys.includes(key)) {
+        // Add the key as-is (matching logic handles case-insensitive comparison)
         keys.add(key);
       }
 
+      // Update the ref and state with the complete combination
       pressedKeysRef.current = keys;
       setPressedKeys(keys);
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // Only save when a non-modifier key is released
+      // This ensures we capture the complete combination
+      const isModifierKey = ['Control', 'Meta', 'Shift', 'Alt'].includes(e.key);
+      
+      if (isModifierKey) {
+        // Modifier keys can be released first, don't save yet
+        // We'll save when the actual key is released
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
 
-      const currentKeys = pressedKeysRef.current;
-      if (currentKeys.size > 0) {
-        // Convert Set to array and save
-        const keysArray = Array.from(currentKeys);
-        onChange([keysArray]);
-        onStopRecording();
-      }
+      // Save the current combination when a non-modifier key is released
+      saveCurrentCombo();
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
@@ -95,18 +124,31 @@ export function ShortcutRecorder({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Only handle Enter key when not recording and focused
+    if (!isRecording && e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      onStartRecording();
+      inputRef.current?.focus();
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       <div
         ref={inputRef}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         tabIndex={0}
+        role="button"
+        aria-label={isRecording ? 'Recording shortcut' : 'Click or press Enter to record shortcut'}
         className={`
           flex-1 px-3 py-2 rounded-md border text-sm
           transition-all duration-200 cursor-pointer
           ${isRecording
             ? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/20'
-            : 'border-border bg-background hover:bg-accent/30'
+            : 'border-border bg-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-brand-500/50'
           }
         `}
       >

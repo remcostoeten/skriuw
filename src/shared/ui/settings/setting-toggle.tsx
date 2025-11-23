@@ -37,6 +37,11 @@ export function SettingToggle({
         <p className="text-sm text-muted-foreground">
           {setting.description}
         </p>
+        {setting.implemented === false && (
+          <p className="text-xs text-muted-foreground italic">
+            Not yet implemented
+          </p>
+        )}
         {setting.requiresRestart && (
           <p className="text-xs text-orange-600">
             Requires restart to take effect

@@ -1,5 +1,7 @@
 import { X, RotateCcw } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+import { createFocusTrap } from '@/shared/utilities/focus-trap';
 
 import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts';
 import { resetShortcut } from '../api/mutations/reset-shortcut';
@@ -29,17 +31,53 @@ type ShortcutState = {
 export function ShortcutsSidebar({ isOpen, onClose }: props) {
     const [shortcuts, setShortcuts] = useState<ShortcutState[]>([]);
     const [recordingId, setRecordingId] = useState<ShortcutId | null>(null);
+    const sidebarRef = useRef<HTMLDivElement>(null);
 
     // Load shortcuts on mount
     useEffect(() => {
         loadShortcuts();
     }, []);
 
+    // Focus trap: trap focus inside the sidebar when open
+    useEffect(() => {
+        if (!isOpen || !sidebarRef.current) return;
+
+        const trap = createFocusTrap(sidebarRef.current);
+        trap.activate();
+
+        return () => {
+            trap.deactivate();
+        };
+    }, [isOpen]);
+
+    // Handle 'x' and Escape keys to close drawer (except when recording)
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't close if we're recording a shortcut
+            if (recordingId !== null) return;
+
+            // Close on 'x' key press or Escape key
+            if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, recordingId, onClose]);
+
     const loadShortcuts = async () => {
         const customShortcuts = await getShortcuts();
 
-        const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions).map(
-            ([id, definition]) => {
+        const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
+            .filter(([, definition]) => definition.enabled !== false) // Filter out disabled shortcuts
+            .map(([id, definition]) => {
                 const shortcutId = id as ShortcutId;
                 const customKeys = customShortcuts[shortcutId];
 
@@ -50,8 +88,7 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
                     description: definition.description || id,
                     isCustomized: !!customKeys,
                 };
-            }
-        );
+            });
 
         setShortcuts(shortcutStates);
     };
@@ -94,8 +131,10 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 
             {/* Sidebar */}
             <div
+                ref={sidebarRef}
                 className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-popover border-l border-border z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
                     }`}
+                tabIndex={-1}
             >
                 <div className="flex items-center justify-between p-4 px-6 border-border">
                     <h2 className="text-lg font-semibold text-foreground">

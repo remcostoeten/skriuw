@@ -43,39 +43,47 @@ export function ThemeToggle({
 	return (
 		<>
 			<style>{`
-				@keyframes loopIn {
+				@keyframes sunRotateIn {
 					0% {
 						transform: rotate(50deg) translateZ(0);
+						opacity: 0;
 					}
 					100% {
 						transform: rotate(0) translateZ(0);
+						opacity: 1;
 					}
 				}
 
-				@keyframes loopOut {
+				@keyframes sunRotateOut {
 					0% {
 						transform: rotate(0deg) translateZ(0);
+						opacity: 1;
 					}
 					100% {
 						transform: rotate(-80deg) translateZ(0);
+						opacity: 0;
 					}
 				}
 
-				@keyframes loopOutMoon {
+				@keyframes moonRotateOut {
 					0% {
 						transform: rotate(0deg) translateZ(0);
+						opacity: 0;
 					}
 					100% {
 						transform: rotate(80deg) translateZ(0);
+						opacity: 0;
 					}
 				}
 
-				@keyframes loopInMoon {
+				@keyframes moonRotateIn {
 					0% {
-						transform: rotate(0deg) translateZ(0);
+						transform: rotate(-80deg) translateZ(0);
+						opacity: 0;
 					}
 					100% {
 						transform: rotate(0deg) translateZ(0);
+						opacity: 1;
 					}
 				}
 			`}</style>
@@ -89,17 +97,17 @@ export function ThemeToggle({
 				}}
 				aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}
 			>
+				{/* Background circle - subtle gradient using theme colors */}
 				<div
-					className="absolute inset-0 rounded-full transition-all duration-1000"
+					className="absolute inset-0 rounded-full transition-all duration-700"
 					style={{
 						background: isDark
-							? 'linear-gradient(hsl(var(--muted)), hsl(var(--muted-foreground) / 0.3), hsl(var(--muted)))'
-							: 'linear-gradient(hsl(var(--muted-foreground) / 0.4), hsl(var(--muted-foreground) / 0.6), hsl(var(--muted)))',
-						backgroundSize: '100% 500%',
-						backgroundPosition: isDark ? 'left 85%' : 'top left',
+							? 'hsl(var(--muted))'
+							: 'linear-gradient(135deg, hsl(var(--muted)), hsl(var(--muted-foreground) / 0.3))',
 					}}
 				/>
 
+				{/* Sun - visible in light mode */}
 				<div
 					className="absolute rounded-full"
 					style={{
@@ -107,12 +115,13 @@ export function ThemeToggle({
 						top: '25%',
 						width: '13.5%',
 						height: '13.5%',
-						backgroundColor: 'hsl(var(--muted-foreground))',
+						backgroundColor: 'hsl(var(--foreground))',
 						transformOrigin: '-200% 421%',
-						animation: isDark ? 'loopOut 0.65s both linear' : 'loopIn 0.6s both ease-out',
+						animation: isDark ? 'sunRotateOut 0.6s both ease-out' : 'sunRotateIn 0.6s both ease-out',
 					}}
 				/>
 
+				{/* Moon - visible in dark mode */}
 				<div
 					className="absolute rounded-full"
 					style={{
@@ -123,31 +132,31 @@ export function ThemeToggle({
 						marginLeft: `calc(${containerSize * 0.057}px * -1)`,
 						marginTop: `calc(${containerSize * 0.017}px * -1)`,
 						transformOrigin: '-200% 421%',
-						animation: isDark ? 'loopIn 0.6s both ease-out' : 'loopOut 0.65s both linear',
+						animation: isDark ? 'moonRotateIn 0.6s both ease-out' : 'moonRotateOut 0.6s both ease-out',
 					}}
 				>
 					<div
 						className="absolute inset-0 rounded-full"
 						style={{
-							boxShadow: `${containerSize * 0.057}px ${containerSize * 0.017}px 0 0 hsl(var(--muted-foreground))`,
-							animation: isDark ? 'loopInMoon 0.6s both ease-out' : 'loopOutMoon 0.65s both linear',
+							boxShadow: `${containerSize * 0.057}px ${containerSize * 0.017}px 0 0 hsl(var(--foreground))`,
 						}}
 					/>
 				</div>
 
+				{/* Sun rays - light mode */}
 				<div
-					className="absolute inset-0 transition-transform duration-400"
+					className="absolute inset-0 transition-all duration-500"
 					style={{
-						transform: isDark ? 'translateX(3%) translateZ(0)' : 'translateX(0) translateZ(0)',
+						opacity: isDark ? 0 : 1,
+						transform: isDark ? 'scale(0.8) translateZ(0)' : 'scale(1) translateZ(0)',
 					}}
 				>
 					<div
-						className="absolute rounded-[10%]"
+						className="absolute rounded-sm"
 						style={{
 							width: '60%',
 							height: '60%',
-							backgroundColor: 'hsl(var(--muted-foreground))',
-							opacity: 0.8,
+							backgroundColor: 'hsl(var(--muted-foreground) / 0.4)',
 							bottom: '-21%',
 							right: '5%',
 							transform: 'scaleX(0.95) rotate(45deg) translateZ(0)',
@@ -155,31 +164,31 @@ export function ThemeToggle({
 					/>
 				</div>
 
+				{/* Moon craters - dark mode */}
 				<div
-					className="absolute inset-0 transition-transform duration-400"
+					className="absolute inset-0 transition-all duration-500"
 					style={{
-						transform: isDark
-							? 'scale(1.4) translateX(2%) translateZ(0)'
-							: 'scale(1) translateX(0) translateZ(0)',
+						opacity: isDark ? 1 : 0,
+						transform: isDark ? 'scale(1) translateZ(0)' : 'scale(0.8) translateZ(0)',
 					}}
 				>
 					<div
-						className="absolute rounded-[10%]"
+						className="absolute rounded-sm"
 						style={{
 							width: '60%',
 							height: '60%',
-							backgroundColor: 'hsl(var(--muted-foreground))',
+							backgroundColor: 'hsl(var(--muted-foreground) / 0.3)',
 							bottom: '-12%',
 							left: '10%',
 							transform: 'scaleX(0.85) rotate(45deg) translateZ(0)',
 						}}
 					/>
 					<div
-						className="absolute rounded-[10%]"
+						className="absolute rounded-sm"
 						style={{
 							width: '60%',
 							height: '60%',
-							backgroundColor: 'hsl(var(--muted-foreground))',
+							backgroundColor: 'hsl(var(--muted-foreground) / 0.3)',
 							bottom: '-30%',
 							left: '25.5%',
 							transform: 'scaleX(0.85) rotate(45deg) translateZ(0)',
@@ -187,10 +196,11 @@ export function ThemeToggle({
 					/>
 				</div>
 
+				{/* Border - using theme border color */}
 				<div
-					className="absolute inset-0 rounded-full transition-all duration-1000 pointer-events-none"
+					className="absolute inset-0 rounded-full transition-all duration-700 pointer-events-none"
 					style={{
-						border: `${borderWidth}px solid hsl(var(--border) / 0.2)`,
+						border: `${borderWidth}px solid hsl(var(--border) / ${isDark ? 0.4 : 0.3})`,
 					}}
 				/>
 			</button>

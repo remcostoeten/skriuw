@@ -1,6 +1,7 @@
 import { Menu, PanelLeftClose, Search, Keyboard, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { IconButton } from "@/shared/ui/icons";
+import { createShortcut } from "@/features/shortcuts/builder";
 
 type props = {
   noteName: string;
@@ -80,6 +81,12 @@ export function TopToolbar({
         <IconButton
           icon={<Keyboard className="w-4 h-4 text-muted-foreground" />}
           tooltip="Keyboard shortcuts"
+          shortcut={{
+            sequences: [
+              [{ modifiers: ['Ctrl'], key: '/' }],
+              [{ modifiers: ['Meta'], key: '/' }],
+            ],
+          }}
           variant="toolbar"
           onClick={onToggleShortcuts}
         />

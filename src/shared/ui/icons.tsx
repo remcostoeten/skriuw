@@ -1,4 +1,6 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
+import { Kbd } from "@/shared/ui/kbd";
+import type { KeyboardShortcut } from "@/features/shortcuts/types";
 
 import { cn } from "@/shared/utilities";
 
@@ -17,6 +19,7 @@ export type IconButtonProps = {
   icon: ReactNode;
   hoverIcon?: ReactNode;
   tooltip?: string;
+  shortcut?: KeyboardShortcut;
   active?: boolean;
   variant?: "sidebar" | "action-bar" | "toolbar";
   className?: string;
@@ -26,6 +29,7 @@ export function IconButton({
   icon,
   hoverIcon,
   tooltip,
+  shortcut,
   active = false,
   variant = "sidebar",
   className,
@@ -91,7 +95,10 @@ export function IconButton({
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side={tooltipSide} align="center">
-          <p>{tooltip}</p>
+          <div className="flex items-center gap-2">
+            <span>{tooltip}</span>
+            {shortcut && <Kbd shortcut={shortcut} />}
+          </div>
         </TooltipContent>
       </Tooltip>
     );
@@ -180,6 +187,27 @@ export function TodoIcon(props: IconProps) {
   );
 }
 
+export function UIPlaygroundIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M4.5 3C3.67157 3 3 3.67157 3 4.5V15.5C3 16.3284 3.67157 17 4.5 17H15.5C16.3284 17 17 16.3284 17 15.5V4.5C17 3.67157 16.3284 3 15.5 3H4.5ZM4.5 2C3.11929 2 2 3.11929 2 4.5V15.5C2 16.8807 3.11929 18 4.5 18H15.5C16.8807 18 18 16.8807 18 15.5V4.5C18 3.11929 16.8807 2 15.5 2H4.5Z"
+      />
+      <rect x="5" y="5" width="3" height="3" rx="0.5" />
+      <rect x="5" y="9.5" width="3" height="3" rx="0.5" />
+      <rect x="5" y="14" width="3" height="3" rx="0.5" />
+      <rect x="9.5" y="5" width="3" height="3" rx="0.5" />
+      <rect x="9.5" y="9.5" width="3" height="3" rx="0.5" />
+      <rect x="9.5" y="14" width="3" height="3" rx="0.5" />
+      <rect x="14" y="5" width="3" height="3" rx="0.5" />
+      <rect x="14" y="9.5" width="3" height="3" rx="0.5" />
+      <rect x="14" y="14" width="3" height="3" rx="0.5" />
+    </Icon>
+  );
+}
+
 export function GearIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -191,7 +219,7 @@ export function GearIcon(props: IconProps) {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M10.0018 7.92367C8.85503 7.92367 7.92535 8.85349 7.92535 10.0005C7.92535 11.1475 8.85503 12.0773 10.0018 12.0773C11.1487 12.0773 12.0783 11.1475 12.0783 10.0005C12.0783 8.85349 11.1487 7.92367 10.0018 7.92367ZM6.54102 10.0005C6.54102 8.08883 8.09048 6.53912 10.0018 6.53912C11.9132 6.53912 13.4627 8.08883 13.4627 10.0005C13.4627 11.9121 11.9132 13.4619 10.0018 13.4619C8.09048 13.4619 6.54102 11.9121 6.54102 10.0005Z"
+        d="M10.0018 7.92367C8.85503 7.92367 7.92535 8.85349 7.92535 10.0005C7.92535 11.1475 8.85503 12.0773 10.0018 12.0773C11.1487 12.0773 12.0783 11.1475 12.0783 10.0005C12.0783 8.85349 11.1487 7.92367 10.0018 7.92367ZM6.54102 10.0005C6.54102 8.08883 8.09048 6.53912 10.0018 6.53912C11.9132 6.53912 13.4627 8.08883 13.4627 10.0005C13.4627 11.9121 11.9132 13.4619 10.0018 13.4619C8.09048 13.4619 6.54102 11.9121 6.5412 10.0005Z"
       />
     </Icon>
   );
