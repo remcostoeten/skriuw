@@ -1,12 +1,13 @@
+import { X, RotateCcw } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { X, RotateCcw, Keyboard } from 'lucide-react';
-import { ShortcutId, shortcutDefinitions } from '../shortcut-definitions';
-import { ShortcutRecorder } from './shortcut-recorder';
-import { getShortcuts } from '../api/queries/get-shortcuts';
-import { saveShortcut } from '../api/mutations/save-shortcut';
-import { resetShortcut } from '../api/mutations/reset-shortcut';
+
 import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts';
-import { KeyCombo } from '../shortcut-definitions';
+import { resetShortcut } from '../api/mutations/reset-shortcut';
+import { saveShortcut } from '../api/mutations/save-shortcut';
+import { getShortcuts } from '../api/queries/get-shortcuts';
+import { ShortcutId, shortcutDefinitions , KeyCombo } from '../shortcut-definitions';
+
+import { ShortcutRecorder } from './shortcut-recorder';
 
 type props = {
     isOpen: boolean;

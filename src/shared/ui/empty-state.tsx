@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Kbd } from '@/shared/ui/kbd';
+
 import type { KeyboardShortcut } from '@/features/shortcuts';
 
 export type EmptyStateAction = {

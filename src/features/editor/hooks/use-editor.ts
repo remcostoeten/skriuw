@@ -1,6 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from "react";
 import { BlockNoteEditor, Block } from "@blocknote/core";
+import { useEffect, useState, useRef, useCallback } from "react";
+
 import { useNotes } from "@/features/notes";
+
 import type { Note } from "@/features/notes";
 
 type options = {

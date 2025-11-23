@@ -1,11 +1,17 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Sonner, Toaster, TooltipProvider } from "ui";
-import { initializeAppStorage } from "../storage";
-import { SettingsProvider } from "@/features/settings";
-import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider";
-import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context";
-import { EmptyState } from "@/shared/ui/empty-state";
 import { AlertCircle } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
+
+import { EmptyState } from "@/shared/ui/empty-state";
+
+import { SettingsProvider } from "@/features/settings";
+import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context";
+import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider";
+
+import { Sonner, Toaster, TooltipProvider } from "ui";
+
+import { initializeAppStorage } from "../storage";
+
+
 
 type props = {
   children: ReactNode;

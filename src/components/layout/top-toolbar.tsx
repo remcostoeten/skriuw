@@ -1,4 +1,5 @@
 import { Menu, PanelLeftClose, Search, Keyboard, ChevronLeft, ChevronRight } from "lucide-react";
+
 import { IconButton } from "@/shared/ui/icons";
 
 type props = {

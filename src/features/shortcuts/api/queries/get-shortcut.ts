@@ -1,4 +1,5 @@
 import { read } from "@/api/storage/crud";
+
 import type { ShortcutId } from "../../shortcut-definitions";
 import type { CustomShortcut } from "../types";
 

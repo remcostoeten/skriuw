@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ShortcutId, KeyCombo } from '../shortcut-definitions';
-import { getShortcuts } from '../api/queries/get-shortcuts';
-import { saveShortcut } from '../api/mutations/save-shortcut';
-import { resetShortcut } from '../api/mutations/reset-shortcut';
+
 import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts';
+import { resetShortcut } from '../api/mutations/reset-shortcut';
+import { saveShortcut } from '../api/mutations/save-shortcut';
+import { getShortcuts } from '../api/queries/get-shortcuts';
+import { ShortcutId, KeyCombo } from '../shortcut-definitions';
 
 /**
  * Hook to manage shortcuts programmatically

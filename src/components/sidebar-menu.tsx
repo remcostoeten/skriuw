@@ -1,3 +1,6 @@
+import { Settings, Moon, Pencil, Hand } from "lucide-react";
+import { useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -8,9 +11,8 @@ import {
   DialogSection,
   DialogSeparator,
 } from "@/shared/ui/dialog-drawer";
-import { Settings, Moon, Pencil, Hand } from "lucide-react";
-import { useState } from "react";
 import { SettingsGroup } from "@/shared/ui/settings";
+
 import { useSettings } from "@/features/settings";
 import { EDITOR_SETTINGS_GROUPS } from "@/features/settings/editor-settings";
 

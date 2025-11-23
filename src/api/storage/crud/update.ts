@@ -1,4 +1,5 @@
 import { getGenericStorage } from "../generic-storage-factory";
+
 import type { BaseEntity } from "../generic-types";
 
 export interface UpdateOptions {

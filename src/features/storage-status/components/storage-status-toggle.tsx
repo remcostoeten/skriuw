@@ -1,5 +1,6 @@
-import { Button } from "@/shared/ui/button";
 import { Database } from "lucide-react";
+
+import { Button } from "@/shared/ui/button";
 
 interface StorageStatusToggleProps {
 	onClick: () => void

@@ -11,9 +11,10 @@ import {
   type TouchEvent as ReactTouchEvent,
   type CSSProperties,
 } from "react";
+
+import { createFocusTrap } from "../utilities/focus-trap";
 import { Portal } from "../utilities/portal";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../utilities/use-media-query";
-import { createFocusTrap } from "../utilities/focus-trap";
 
 type DialogContextValue = {
   open: boolean;

@@ -1,6 +1,9 @@
 import React from "react";
-import { Label, Switch } from "ui";
+
 import { cn } from "@/shared/utilities";
+
+import { Label, Switch } from "ui";
+
 import type { UserSetting } from "@/shared/data/types";
 
 interface SettingToggleProps {

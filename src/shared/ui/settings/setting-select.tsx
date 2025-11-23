@@ -1,4 +1,7 @@
 import React from "react";
+
+import { cn } from "@/shared/utilities";
+
 import {
   Label,
   Select,
@@ -7,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "ui";
-import { cn } from "@/shared/utilities";
+
 import type { UserSetting } from "@/shared/data/types";
 
 interface SettingSelectProps {

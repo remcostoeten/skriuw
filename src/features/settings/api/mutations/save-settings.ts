@@ -1,4 +1,5 @@
 import { create, update, read } from "@/api/storage/crud";
+
 import type { SettingsEntity } from "../types";
 
 const STORAGE_KEY = "app:settings";

@@ -1,8 +1,11 @@
 import { CloudOff, Globe, Zap, Upload } from "lucide-react";
 import { useState, useMemo } from "react";
-import { SidebarMenu } from "../sidebar-menu";
+
 import { ThemeToggle } from "@/shared/ui/theme-toggle";
+
 import { useSettingsContext } from "@/features/settings/settings-provider";
+
+import { SidebarMenu } from "../sidebar-menu";
 
 export function Footer() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);

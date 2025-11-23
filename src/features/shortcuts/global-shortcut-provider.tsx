@@ -1,6 +1,7 @@
 import { createContext, useEffect, useRef, useState } from 'react'
-import { KeyCombo, ShortcutId, shortcutDefinitions } from './shortcut-definitions'
+
 import { getShortcuts } from './api/queries/get-shortcuts'
+import { KeyCombo, ShortcutId, shortcutDefinitions } from './shortcut-definitions'
 
 type ShortcutHandler = (event: KeyboardEvent) => void
 type ShortcutRegistry = Map<ShortcutId, ShortcutHandler>

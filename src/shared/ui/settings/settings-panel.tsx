@@ -1,8 +1,11 @@
 import React, { useState } from "react";
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "ui";
-import { SettingsGroup } from "./settings-group";
+
 import { EDITOR_SETTINGS_GROUPS } from "@/features/settings/editor-settings";
-import type { UserSetting } from "@/shared/data/types";
+
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "ui";
+
+import { SettingsGroup } from "./settings-group";
+
 
 interface SettingsPanelProps {
   settings: Record<string, any>;

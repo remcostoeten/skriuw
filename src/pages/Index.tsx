@@ -1,10 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { NoteEditor } from "@/features/editor/components/NoteEditor";
-import { AppLayout } from "@/components/layout/app-layout";
+import { toast } from "sonner";
+
 import { EmptyState } from "@/shared/ui/empty-state";
+
+import { NoteEditor } from "@/features/editor/components/NoteEditor";
 import { useNotes } from "@/features/notes/hooks/useNotes";
 import { useShortcut, shortcut } from "@/features/shortcuts";
-import { toast } from "sonner";
+
+import { AppLayout } from "@/components/layout/app-layout";
+
 
 export default function Index() {
   const location = useLocation();

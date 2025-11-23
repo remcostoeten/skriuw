@@ -1,4 +1,5 @@
 import { update } from "@/api/storage/crud/update";
+
 import type { Note, UpdateNoteData } from "../../types";
 
 const STORAGE_KEY = "Skriuw_notes";

@@ -1,5 +1,13 @@
+import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { FolderIcon } from "@/shared/ui/icons";
+
 import { useNotes } from "@/features/notes/hooks/useNotes";
-import type { Folder as FolderType, Item } from "@/features/notes/types";
+import { useShortcut } from "@/features/shortcuts";
+import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
+
 import {
   ContextMenu,
   ContextMenuContent,
@@ -11,13 +19,10 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "ui";
-import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
-import { FolderIcon } from "@/shared/ui/icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
 import { ActionBar } from "./action-bar";
-import { useShortcut } from "@/features/shortcuts";
-import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
+
+import type { Folder as FolderType, Item } from "@/features/notes/types";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
 

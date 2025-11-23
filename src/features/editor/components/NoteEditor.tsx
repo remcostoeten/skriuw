@@ -1,10 +1,14 @@
-import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
-import { editorLogic } from "../hooks/use-editor";
-import { useShortcut } from "@/features/shortcuts/use-shortcut";
-import { useRef, useEffect } from "react";
-import { EmptyState } from "@/shared/ui/empty-state";
 import { AlertCircle } from "lucide-react";
+import { useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+
+import { EmptyState } from "@/shared/ui/empty-state";
+
+import { useShortcut } from "@/features/shortcuts/use-shortcut";
+
+import { editorLogic } from "../hooks/use-editor";
+
+import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
 
 type props = {
   noteId: string;

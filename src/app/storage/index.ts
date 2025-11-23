@@ -1,4 +1,5 @@
 import { initializeGenericStorage } from "@/api/storage/generic-storage-factory";
+
 import { getStorageConfig } from "./config";
 
 let initializationPromise: Promise<void> | null = null;

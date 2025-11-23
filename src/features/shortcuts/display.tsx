@@ -4,6 +4,9 @@
  */
 
 import React from 'react';
+
+import { MODIFIER_ICONS, KEY_ICONS } from './types';
+
 import type {
 	KeyboardShortcut,
 	DisplayKeyCombo,
@@ -11,7 +14,6 @@ import type {
 	RegularKey,
 	DisplayFormat,
 } from './types';
-import { MODIFIER_ICONS, KEY_ICONS } from './types';
 
 /**
  * Detects if the user is on macOS

@@ -1,11 +1,13 @@
 import React from "react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "ui";
-import { SettingToggle } from "./setting-toggle";
+
+import { SettingInput } from "./setting-input";
 import { SettingSelect } from "./setting-select";
 import { SettingSlider } from "./setting-slider";
-import { SettingInput } from "./setting-input";
-import type { SettingsGroup } from "@/shared/data/types";
-import type { UserSetting } from "@/shared/data/types";
+import { SettingToggle } from "./setting-toggle";
+
+import type { SettingsGroup , UserSetting } from "@/shared/data/types";
 
 interface SettingsGroupProps {
   group: SettingsGroup;

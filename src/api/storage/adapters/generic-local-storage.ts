@@ -3,7 +3,6 @@ import type {
 	BaseEntity,
 	ReadOptions,
 	StorageInfo,
-	StorageCapabilities,
 	StorageAdapterType,
 	StorageEvent,
 	StorageEventListener,

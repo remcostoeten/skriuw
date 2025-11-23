@@ -1,7 +1,9 @@
-import type { SettingsConfig } from "@/shared/data/types";
 import { useCallback } from "react";
+
 import { EDITOR_SETTINGS, validateEditorSetting } from "./editor-settings";
 import { useSettingsContext } from "./settings-provider";
+
+import type { SettingsConfig } from "@/shared/data/types";
 
 /**
  * Hook for accessing and managing user settings

@@ -1,5 +1,7 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+
 import { NoteEditor as NoteEditorComponent } from "@/features/editor/components/NoteEditor";
+
 import { AppLayout } from "@/components/layout/app-layout";
 
 export default function NoteEditor() {

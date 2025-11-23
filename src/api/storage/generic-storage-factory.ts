@@ -1,5 +1,6 @@
-import type { GenericStorageAdapter, StorageConfig } from "./generic-types";
 import { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
+
+import type { GenericStorageAdapter, StorageConfig } from "./generic-types";
 
 type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter;
 

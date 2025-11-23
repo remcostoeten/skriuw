@@ -1,7 +1,8 @@
 import React from "react";
+
+import { useEditorSetting , useUserPreferences } from "@/features/settings";
+
 import { Button, Label, Switch } from "ui";
-import { useEditorSetting } from "@/features/settings";
-import { useUserPreferences } from "@/features/settings";
 
 /**
  * Example component showing how to use the word wrap setting

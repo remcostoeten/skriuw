@@ -1,4 +1,5 @@
 import { read } from "@/api/storage/crud/read";
+
 import type { Note } from "../../types";
 
 const STORAGE_KEY = "Skriuw_notes";

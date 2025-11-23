@@ -1,6 +1,7 @@
-import React from "react";
-import { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
+
 import { useSettingsContext } from "./settings-provider";
+
 import type { UserSetting } from "@/shared/data/types";
 
 /**

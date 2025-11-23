@@ -7,8 +7,10 @@ import {
     useRef,
     useState,
 } from "react";
-import { cn } from "@/shared/utilities";
+
 import { IconButton } from "@/shared/ui/icons";
+
+import { cn } from "@/shared/utilities";
 
 type ActionButton = {
     icon: ReactNode;

@@ -1,14 +1,18 @@
-import { useState, useCallback, useEffect } from "react";
 import { Block } from "@blocknote/core";
-import { getItems } from "../api/queries/get-items";
-import { getNote as getNoteQuery } from "../api/queries/get-note";
-import { createNote as createNoteMutation } from "../api/mutations/create-note";
+import { useState, useCallback, useEffect } from "react";
+
+import { read } from "@/api/storage/crud";
+
 import { createFolder as createFolderMutation } from "../api/mutations/create-folder";
-import { updateNote as updateNoteMutation } from "../api/mutations/update-note";
-import { renameItem as renameItemMutation } from "../api/mutations/rename-item";
+import { createNote as createNoteMutation } from "../api/mutations/create-note";
 import { deleteItem as deleteItemMutation } from "../api/mutations/delete-item";
 import { moveItem as moveItemMutation } from "../api/mutations/move-item";
-import { read } from "@/api/storage/crud";
+import { renameItem as renameItemMutation } from "../api/mutations/rename-item";
+import { updateNote as updateNoteMutation } from "../api/mutations/update-note";
+import { getItems } from "../api/queries/get-items";
+import { getNote as getNoteQuery } from "../api/queries/get-note";
+
+
 import type { Note, Folder, Item } from "../types";
 
 const STORAGE_KEY = "Skriuw_notes";

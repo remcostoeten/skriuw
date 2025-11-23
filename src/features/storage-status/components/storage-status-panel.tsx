@@ -1,13 +1,17 @@
+import { X, Database, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+
+import { cn } from "@/shared/utilities";
+
 import { getStorageInfo } from "../api/queries/get-storage-info";
 import { getStorageStats } from "../api/queries/get-storage-stats";
-import type { StorageInfo } from "@/api/storage/generic-types";
+
 import type { StorageKeyStats } from "../api/queries/get-storage-stats";
-import { X, Database, Wifi, WifiOff, RefreshCw } from "lucide-react";
-import { cn } from "@/shared/utilities";
+import type { StorageInfo } from "@/api/storage/generic-types";
 
 interface StorageStatusPanelProps {
 	isOpen: boolean

@@ -2,6 +2,7 @@ import "./global.css";
 
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+
 import { Providers } from "./app/providers";
 import { AppRoutes } from "./app/routing";
 

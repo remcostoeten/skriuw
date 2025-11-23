@@ -1,8 +1,9 @@
 import { Routes, Route } from "react-router-dom";
+
+import _UIPlayground from "@/pages/_ui-playground";
 import Index from "@/pages/Index";
 import NoteEditor from "@/pages/NoteEditor";
 import NotFound from "@/pages/NotFound";
-import _UIPlayground from "@/pages/_ui-playground";
 
 export function AppRoutes() {
   return (

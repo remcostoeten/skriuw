@@ -1,15 +1,18 @@
 import { ReactNode, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sidebar } from "@/components/sidebar";
-import { TopToolbar } from "@/components/layout/top-toolbar";
-import { Footer } from "@/components/layout/footer";
-import { LeftToolbar } from "@/components/left-toolbar";
-import { ShortcutsSidebar } from "@/features/shortcuts/components";
-import { useShortcut } from "@/features/shortcuts/use-shortcut";
-import { SidebarMenu } from "@/components/sidebar-menu";
-import { StorageStatusPanel, StorageStatusToggle } from "@/features/storage-status";
+
 import { useNotes } from "@/features/notes/hooks/useNotes";
 import { flattenNotes } from "@/features/notes/utils/flatten-notes";
+import { ShortcutsSidebar } from "@/features/shortcuts/components";
+import { useShortcut } from "@/features/shortcuts/use-shortcut";
+import { StorageStatusPanel, StorageStatusToggle } from "@/features/storage-status";
+
+import { Footer } from "@/components/layout/footer";
+import { TopToolbar } from "@/components/layout/top-toolbar";
+import { LeftToolbar } from "@/components/left-toolbar";
+import { Sidebar } from "@/components/sidebar";
+import { SidebarMenu } from "@/components/sidebar-menu";
+
 
 type props = {
   children: ReactNode;

@@ -1,5 +1,6 @@
 import {Label, Slider } from "@/shared/ui";
 import { cn } from "@/shared/utilities";
+
 import type { UserSetting } from "@/shared/data/types";
 
 type props = {

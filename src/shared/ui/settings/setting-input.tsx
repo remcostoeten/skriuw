@@ -1,6 +1,8 @@
 import React from "react";
+
 import { Label, Input } from"ui";
 import { cn } from "utilities";
+
 import type { UserSetting } from "@/shared/data/types";
 
 type props = {

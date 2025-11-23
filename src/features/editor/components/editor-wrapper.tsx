@@ -1,5 +1,5 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { BlockNoteEditor } from "@blocknote/core";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import "@blocknote/core/style.css";
 
 type props = {

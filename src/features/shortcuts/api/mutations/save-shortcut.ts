@@ -1,5 +1,6 @@
 import { create, update, read } from "@/api/storage/crud";
-import type { CustomShortcut, CreateCustomShortcutData } from "../types";
+
+import type { CustomShortcut } from "../types";
 
 const STORAGE_KEY = "quantum-works:shortcuts:custom";
 

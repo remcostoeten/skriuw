@@ -1,9 +1,8 @@
 'use client'
 
 import { motion, easeInOut } from 'framer-motion'
-
-import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const LogoIcon = () => {
 	const pathVariants = {

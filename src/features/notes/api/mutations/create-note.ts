@@ -1,4 +1,5 @@
 import { create } from "@/api/storage/crud/create";
+
 import type { Note, CreateNoteData } from "../../types";
 
 const STORAGE_KEY = "Skriuw_notes";

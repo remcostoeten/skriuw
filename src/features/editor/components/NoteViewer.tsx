@@ -1,8 +1,12 @@
-import { BlockNoteEditor, Block, type BlockSchema } from "@blocknote/core";
-import { EditorWrapper } from "./editor-wrapper";
-import { editorLogic } from "../hooks/use-editor";
-import { EmptyState } from "@/shared/ui/empty-state";
+import { BlockNoteEditor, Block } from "@blocknote/core";
 import { AlertCircle } from "lucide-react";
+
+import { EmptyState } from "@/shared/ui/empty-state";
+
+import { editorLogic } from "../hooks/use-editor";
+
+import { EditorWrapper } from "./editor-wrapper";
+
 
 type props = {
   noteId: string;

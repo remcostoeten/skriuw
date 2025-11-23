@@ -16,7 +16,7 @@ import type {
  */
 export function shortcut(): ShortcutBuilder {
 	let currentModifiers: Modifier[] = [];
-	let currentKey: RegularKey | null = null;
+	const currentKey: RegularKey | null = null;
 	let sequences: KeyboardShortcut['sequences'] = [];
 
 	const builder: ShortcutBuilder = {

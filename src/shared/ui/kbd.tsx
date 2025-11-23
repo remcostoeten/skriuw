@@ -1,5 +1,6 @@
-import type { KeyboardShortcut, DisplayFormat } from '@/features/shortcuts';
 import { ShortcutDisplay } from '@/features/shortcuts';
+
+import type { KeyboardShortcut, DisplayFormat } from '@/features/shortcuts';
 
 type props = {
 	/**

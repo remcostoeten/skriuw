@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+
 import { useSettings, useUserPreferences } from "@/features/settings";
 
 /**

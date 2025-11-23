@@ -1,5 +1,32 @@
 import { useState } from "react";
+
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuLabel,
+	ContextMenuSeparator,
+	ContextMenuCheckboxItem,
+	ContextMenuRadioGroup,
+	ContextMenuRadioItem,
+	ContextMenuShortcut,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
 import {
 	Dialog,
 	DialogContent,
@@ -18,49 +45,6 @@ import {
 	DialogFooter as DialogDrawerFooter,
 } from "@/shared/ui/dialog-drawer";
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/shared/ui/alert-dialog";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/shared/ui/popover";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuLabel,
-	ContextMenuSeparator,
-	ContextMenuCheckboxItem,
-	ContextMenuRadioGroup,
-	ContextMenuRadioItem,
-	ContextMenuShortcut,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
-	ContextMenuTrigger,
-} from "@/shared/ui/context-menu";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/shared/ui/select";
-import {
-	HoverCard,
-	HoverCardContent,
-	HoverCardTrigger,
-} from "@/shared/ui/hover-card";
-import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -75,6 +59,23 @@ import {
 	DropdownMenuSubTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "@/shared/ui/hover-card";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/shared/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/shared/ui/select";
+import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
@@ -82,6 +83,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/shared/ui/sheet";
+
 import {
 	WordWrapExample,
 	ConditionalWordWrapExample,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import {
   NotesIcon,
   CalendarIcon,
@@ -8,6 +9,7 @@ import {
   FolderIcon,
   IconButton,
 } from "@/shared/ui/icons";
+
 import { Logo } from "@/components/logo";
 
 export function LeftToolbar({ onSettingsClick }: { onSettingsClick?: () => void }) {

@@ -1,5 +1,7 @@
-import { cn } from "@/shared/utilities";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
+
+import { cn } from "@/shared/utilities";
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export type IconProps = {
