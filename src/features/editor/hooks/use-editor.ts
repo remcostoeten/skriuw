@@ -2,6 +2,7 @@ import { BlockNoteEditor, Block } from "@blocknote/core";
 import { useEffect, useState, useRef, useCallback } from "react";
 
 import { useNotes } from "@/features/notes";
+import { useEditorConfig } from "./useEditorConfig";
 
 import type { Note } from "@/features/notes";
 
@@ -29,6 +30,7 @@ export function editorLogic({
   readOnly = false,
 }: options): props {
   const { getNote, updateNote } = useNotes();
+  const { config: editorConfig } = useEditorConfig();
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
   const [note, setNote] = useState<Note | null>(null);
   const [noteName, setNoteName] = useState("");
@@ -65,9 +67,15 @@ export function editorLogic({
     loadNote();
   }, [noteId, getNote]);
 
+  // Track previous editor to preserve content when recreating
+  const previousEditorRef = useRef<BlockNoteEditor | null>(null);
+
   // Initialize editor
   useEffect(() => {
     if (!note || readOnly) return;
+
+    // Preserve current editor content if editor already exists and is being reconfigured
+    const currentContent = previousEditorRef.current?.document || null;
 
     // Ensure initialContent is a non-empty array
     const defaultContent: Block[] = [
@@ -80,21 +88,33 @@ export function editorLogic({
       } as Block,
     ];
 
-    const initialContent = note.content && note.content.length > 0 
-      ? note.content 
-      : defaultContent;
+    const initialContent = currentContent && currentContent.length > 0
+      ? currentContent
+      : (note.content && note.content.length > 0 
+        ? note.content 
+        : defaultContent);
 
+    // Cleanup existing editor before creating new one
+    if (previousEditorRef.current?._tiptapEditor) {
+      previousEditorRef.current._tiptapEditor.destroy();
+    }
+
+    // Create editor with configuration from settings
     const newEditor = BlockNoteEditor.create({
       initialContent,
+      ...editorConfig,
     });
 
+    previousEditorRef.current = newEditor;
     setEditor(newEditor);
 
     return () => {
       // Cleanup editor instance
-      setEditor(null);
+      if (newEditor._tiptapEditor) {
+        newEditor._tiptapEditor.destroy();
+      }
     };
-  }, [note?.id, readOnly]);
+  }, [note?.id, readOnly, editorConfig]);
 
   // Save function
   const handleSave = useCallback(() => {

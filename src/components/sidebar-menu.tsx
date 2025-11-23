@@ -1,193 +1,117 @@
-import { Settings, Moon, Pencil, Hand, X, Keyboard } from "lucide-react";
-import { useState } from "react";
+import { Pencil, Hand, Keyboard } from 'lucide-react'
+import { useState } from 'react'
 
 import {
-  DialogAside,
-  DialogContentArea,
-  DialogNavGroup,
-  DialogSection,
-  DialogSeparator,
-} from "@/shared/ui/dialog-drawer";
-import { SettingsGroup } from "@/shared/ui/settings";
-import { cn } from "@/shared/utilities";
+    Dialog,
+    DialogContent,
+    DialogAside,
+    DialogContentArea,
+    DialogNavGroup,
+    DialogSection,
+    DialogSeparator
+} from '@/shared/ui/dialog-drawer'
+import { SettingsGroup } from '@/shared/ui/settings'
 
-import { useSettings } from "@/features/settings";
-import { EDITOR_SETTINGS_GROUPS } from "@/features/settings/editor-settings";
-import { ShortcutsReference } from "@/features/shortcuts/components";
+import { useSettings } from '@/features/settings'
+import { EDITOR_SETTINGS_GROUPS } from '@/features/settings/editor-settings'
+import { ShortcutsReference } from '@/features/shortcuts/components'
 
 type props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-};
-
-export function SidebarMenu({ open, onOpenChange, title }: props) {
-  const [activeItem, setActiveItem] = useState<string>("appearance");
-  const { settings, updateMultipleSettings } = useSettings();
-
-  const appItems = [
-    {
-      id: "general",
-      label: "General",
-      icon: <Settings className="w-4 h-4" />,
-      active: activeItem === "general",
-      onClick: () => setActiveItem("general"),
-    },
-    {
-      id: "appearance",
-      label: "Appearance",
-      icon: <Moon className="w-4 h-4" />,
-      active: activeItem === "appearance",
-      onClick: () => setActiveItem("appearance"),
-    },
-    {
-      id: "editor",
-      label: "Editor",
-      icon: <Pencil className="w-4 h-4" />,
-      active: activeItem === "editor",
-      onClick: () => setActiveItem("editor"),
-    },
-    {
-      id: "shortcuts",
-      label: "Shortcuts",
-      icon: <Keyboard className="w-4 h-4" />,
-      active: activeItem === "shortcuts",
-      onClick: () => setActiveItem("shortcuts"),
-    },
-  ];
-
-  const syncItems = [
-    {
-      id: "Skriuw",
-      label: "Skriuw Sync",
-      icon: <Hand className="w-4 h-4" />,
-      active: activeItem === "Skriuw",
-      onClick: () => setActiveItem("Skriuw"),
-    },
-  ];
-
-  const handleSettingChange = (key: string, value: any) => {
-    updateMultipleSettings({ [key]: value });
-  };
-
-  const renderSettingsContent = () => {
-    const settingsGroup = EDITOR_SETTINGS_GROUPS.find(
-      (group) => group.category === activeItem
-    );
-
-    if (settingsGroup) {
-      return (
-        <SettingsGroup
-          group={settingsGroup}
-          values={settings}
-          onChange={handleSettingChange}
-        />
-      );
-    }
-
-    // Placeholder content for non-settings sections
-    switch (activeItem) {
-      case "general":
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">
-              General settings
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Configure general application settings.
-            </p>
-          </div>
-        );
-      case "shortcuts":
-        return <ShortcutsReference />;
-      case "Skriuw":
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">
-              Skriuw synchronization
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Configure Skriuw feedback synchronization settings.
-            </p>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const getContent = () => {
-    switch (activeItem) {
-      case "appearance":
-        return {
-          title: "Appearance",
-        };
-      case "general":
-        return {
-          title: "General",
-        };
-      case "editor":
-        return {
-          title: "Editor",
-        };
-      case "shortcuts":
-        return {
-          title: "Shortcuts",
-        };
-      case "Skriuw":
-        return {
-          title: "Skriuw Sync",
-        };
-      default:
-        return {
-          title: title,
-        };
-    }
-  };
-
-  const content = getContent();
-
-  return (
-    <div
-      className={cn(
-        "fixed inset-y-0 right-0 z-40 w-[400px] bg-popover border-l border-border flex flex-col transition-transform duration-300 ease-in-out",
-        open ? "translate-x-0" : "translate-x-full"
-      )}
-    >
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground">Settings</h2>
-        <button
-          onClick={() => onOpenChange(false)}
-          className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-label="Close settings"
-        >
-          <X className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </div>
-
-      <div className="flex flex-row flex-1 overflow-hidden gap-4 p-4">
-        <DialogAside>
-          <DialogSection label="App">
-            <DialogNavGroup items={appItems} />
-          </DialogSection>
-
-          <DialogSeparator />
-
-          <DialogSection label="Synchronization">
-            <DialogNavGroup items={syncItems} />
-          </DialogSection>
-        </DialogAside>
-
-        <DialogContentArea>
-          <h2 className="text-2xl font-bold text-foreground mb-6">
-            {content.title}
-          </h2>
-          <div className="overflow-y-auto">
-            {renderSettingsContent()}
-          </div>
-        </DialogContentArea>
-      </div>
-    </div>
-  );
+    open: boolean
+    onOpenChange: (open: boolean) => void
 }
 
+export function SidebarMenu({ open, onOpenChange }: props) {
+    const [activeItem, setActiveItem] = useState<string>('editor')
+    const { settings, updateMultipleSettings } = useSettings()
+
+    const appItems = [
+        {
+            id: 'editor',
+            label: 'Editor',
+            icon: <Pencil className="w-4 h-4" />,
+            active: activeItem === 'editor',
+            onClick: () => setActiveItem('editor')
+        },
+        {
+            id: 'shortcuts',
+            label: 'Shortcuts',
+            icon: <Keyboard className="w-4 h-4" />,
+            active: activeItem === 'shortcuts',
+            onClick: () => setActiveItem('shortcuts')
+        }
+    ]
+
+    const syncItems = [
+        {
+            id: 'Skriuw',
+            label: 'Skriuw Sync',
+            icon: <Hand className="w-4 h-4" />,
+            active: activeItem === 'Skriuw',
+            onClick: () => setActiveItem('Skriuw')
+        }
+    ]
+
+    const handleSettingChange = (key: string, value: unknown) => {
+        updateMultipleSettings({ [key]: value })
+    }
+
+    const renderSettingsContent = () => {
+        const settingsGroup = EDITOR_SETTINGS_GROUPS.find(
+            (group) => group.category === activeItem
+        )
+
+        if (settingsGroup) {
+            return (
+                <SettingsGroup
+                    group={settingsGroup}
+                    values={settings}
+                    onChange={handleSettingChange}
+                />
+            )
+        }
+
+        // Placeholder content for non-settings sections
+        switch (activeItem) {
+            case 'shortcuts':
+                return <ShortcutsReference />
+            case 'Skriuw':
+                return (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-foreground">
+                            Skriuw synchronization
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Configure Skriuw feedback synchronization settings.
+                        </p>
+                    </div>
+                )
+            default:
+                return null
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="flex flex-col p-0 overflow-hidden">
+                <div className="flex flex-row flex-1 min-h-0">
+                    <DialogAside className="min-w-[200px] max-w-[200px] border-r border-border p-6 overflow-y-auto h-full">
+                        <DialogSection label="App">
+                            <DialogNavGroup items={appItems} />
+                        </DialogSection>
+
+                        <DialogSeparator />
+
+                        <DialogSection label="Synchronization">
+                            <DialogNavGroup items={syncItems} />
+                        </DialogSection>
+                    </DialogAside>
+
+                    <DialogContentArea className="flex-1 min-w-0 p-6 overflow-y-auto h-full">
+                        {renderSettingsContent()}
+                    </DialogContentArea>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}

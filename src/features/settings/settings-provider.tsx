@@ -30,6 +30,12 @@ const DEFAULT_SETTINGS = {
     sidebarWidth: 280,
     showLineNumbers: false,
     wordWrap: true,
+    blockIndicator: false,
+    showToolbar: true,
+    showFormattingToolbar: true,
+    autoFocus: true,
+    placeholder: 'Start typing your note...',
+    centeredLayout: false,
     spellCheck: true,
     autoBackup: false,
     backupInterval: 3600000, // 1 hour

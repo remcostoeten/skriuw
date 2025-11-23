@@ -7,6 +7,7 @@ import {
   TodoIcon,
   GearIcon,
   FolderIcon,
+  UIPlaygroundIcon,
   IconButton,
 } from "@/shared/ui/icons";
 
@@ -18,6 +19,12 @@ export function LeftToolbar({ onSettingsClick }: { onSettingsClick?: () => void 
   const navigate = useNavigate();
 
   const isOnNoteView = location.pathname.startsWith("/note/") || location.pathname === "/";
+  const isOnUIPlayground = location.pathname === "/_ui-playground";
+
+  // Routes that don't exist yet - navigate to 404
+  const handleNonExistentRoute = (route: string) => {
+    navigate(`/${route}`, { replace: true });
+  };
 
   return (
     <div className="w-12 h-full bg-sidebar-background border-r border-sidebar-border flex flex-col justify-between items-center px-1.5">
@@ -40,23 +47,34 @@ export function LeftToolbar({ onSettingsClick }: { onSettingsClick?: () => void 
           icon={<FolderIcon closedVariant />}
           hoverIcon={<FolderIcon />}
           tooltip="Archive"
-          active={activeItem === "archive"}
+          active={false}
           variant="sidebar"
-          onClick={() => setActiveItem(activeItem === "archive" ? null : "archive")}
+          onClick={() => handleNonExistentRoute("archive")}
         />
         <IconButton
           icon={<CalendarIcon />}
           tooltip="Calendar"
-          active={activeItem === "calendar"}
+          active={false}
           variant="sidebar"
-          onClick={() => setActiveItem(activeItem === "calendar" ? null : "calendar")}
+          onClick={() => handleNonExistentRoute("calendar")}
         />
         <IconButton
           icon={<TodoIcon />}
           tooltip="Checklist"
-          active={activeItem === "checklist"}
+          active={false}
           variant="sidebar"
-          onClick={() => setActiveItem(activeItem === "checklist" ? null : "checklist")}
+          onClick={() => handleNonExistentRoute("checklist")}
+        />
+        <IconButton
+          icon={<UIPlaygroundIcon />}
+          tooltip="UI Playground"
+          active={isOnUIPlayground}
+          variant="sidebar"
+          onClick={() => {
+            if (!isOnUIPlayground) {
+              navigate("/_ui-playground");
+            }
+          }}
         />
       </div>
 

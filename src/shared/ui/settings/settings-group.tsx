@@ -108,7 +108,9 @@ export function SettingsGroup({
                 </p>
             </CardHeader>
             <CardContent className="space-y-4">
-                {group.settings.map(renderSetting)}
+                {group.settings
+                    .filter(setting => setting.implemented !== false)
+                    .map(renderSetting)}
             </CardContent>
         </Card>
     )

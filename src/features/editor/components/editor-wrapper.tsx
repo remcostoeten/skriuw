@@ -1,7 +1,7 @@
 import { BlockNoteEditor } from "@blocknote/core";
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import "@blocknote/core/style.css";
-import { useUserPreferences } from "@/features/settings";
+import { useUserPreferences, useSettings } from "@/features/settings";
 
 type props = {
   editor: BlockNoteEditor | null;
@@ -15,6 +15,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
   ({ editor }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const { hasWordWrap } = useUserPreferences();
+    const { centeredLayout } = useSettings();
 
     useImperativeHandle(ref, () => ({
       focusEditor: () => editor?.domElement?.focus(),
@@ -69,10 +70,21 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
       });
     }, [editor, hasWordWrap]);
 
+    // Apply centered layout class when setting changes
+    useEffect(() => {
+      if (!containerRef.current) return;
+      
+      if (centeredLayout) {
+        containerRef.current.classList.add('centered-layout');
+      } else {
+        containerRef.current.classList.remove('centered-layout');
+      }
+    }, [centeredLayout]);
+
     return (
       <div
         ref={containerRef}
-        className="editor-container w-full h-full overflow-y-auto"
+        className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
         style={{
           background: "transparent",
         }}
@@ -81,12 +93,49 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         .editor-container {
           background: transparent !important;
         }
+        .editor-container.centered-layout {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
         .editor-container .bn-editor {
           background: transparent !important;
           padding: 1.5rem;
           max-width: 100%;
           color: rgba(230, 230, 230, 0.9);
           font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
+        }
+        .editor-container.centered-layout .bn-editor {
+          width: 100%;
+          max-width: 655px;
+          margin-left: auto;
+          margin-right: auto;
+          padding-top: 0;
+          padding-bottom: 1.5rem;
+          padding-left: 0;
+          padding-right: 0;
+        }
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="1"],
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="2"] {
+          text-align: center;
+          font-weight: bold;
+          margin-bottom: 0.625rem;
+          padding-left: 2rem;
+          padding-right: 2rem;
+          display: block;
+          width: 100%;
+        }
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="1"] {
+          font-size: 2.25rem;
+          line-height: 1.2;
+        }
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="2"] {
+          font-size: 1.875rem;
+          line-height: 1.3;
+        }
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="1"] > *,
+        .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="2"] > * {
+          text-align: center;
         }
         .editor-container .bn-editor:focus {
           outline: none;

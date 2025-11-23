@@ -1,0 +1,5 @@
+export { Sidebar } from '../sidebar'
+export { TableOfContents } from './table-of-contents'
+export { useSidebarContentType } from './use-sidebar-content-type'
+export type { SidebarContentType, SidebarContentProps } from './types'
+export type { TableOfContentsItem } from './table-of-contents'

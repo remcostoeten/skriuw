@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+
+import { AppLayout } from '@/components/layout/app-layout'
+import { TableOfContents } from '@/components/sidebar/table-of-contents'
+import type { TableOfContentsItem } from '@/components/sidebar/table-of-contents'
 
 import {
     AlertDialog,
@@ -132,10 +136,26 @@ export default function _UIPlayground() {
         { name: 'sidebar-ring', var: 'var(--sidebar-ring)' }
     ]
 
+    // Generate table of contents from sections
+    const tableOfContents: TableOfContentsItem[] = useMemo(() => {
+        const items: TableOfContentsItem[] = [
+            { id: 'color-palette', label: 'Color Palette', level: 1 },
+            { id: 'component-demos', label: 'Component Demos', level: 1 },
+            { id: 'examples', label: 'Examples', level: 1 },
+            { id: 'focus-outline', label: 'Focus Outline Variants', level: 1 },
+        ]
+        return items
+    }, [])
+
     return (
-        <div className="min-h-screen bg-background text-foreground p-8 transition-colors duration-300">
-            <div className="max-w-6xl mx-auto space-y-12">
-                <header className="space-y-4">
+        <AppLayout 
+            showSidebar={true}
+            sidebarContentType="table-of-contents"
+            sidebarCustomContent={<TableOfContents items={tableOfContents} />}
+        >
+            <div className="flex-1 overflow-y-auto bg-background text-foreground p-8 transition-colors duration-300">
+                <div className="max-w-6xl mx-auto space-y-12">
+                <header className="space-y-4" id="header">
                     <h1 className="text-4xl font-bold">
                         UI Testing Playground
                     </h1>
@@ -146,7 +166,7 @@ export default function _UIPlayground() {
                 </header>
 
                 {/* Color Palette Section */}
-                <section className="space-y-4">
+                <section className="space-y-4" id="color-palette">
                     <h2 className="text-2xl font-semibold">Color Palette</h2>
                     <p className="text-sm text-muted-foreground">
                         Visualizing the application's color palette. Toggle your
@@ -262,7 +282,7 @@ export default function _UIPlayground() {
                 </section>
 
                 {/* Component Demos Section */}
-                <section className="space-y-8">
+                <section className="space-y-8" id="component-demos">
                     <div className="space-y-2">
                         <h2 className="text-2xl font-semibold">
                             Component Demos
@@ -720,7 +740,7 @@ export default function _UIPlayground() {
                 </section>
 
                 {/* Examples Section */}
-                <section className="space-y-8">
+                <section className="space-y-8" id="examples">
                     <div className="space-y-2">
                         <h2 className="text-2xl font-semibold">Examples</h2>
                         <p className="text-sm text-muted-foreground">
@@ -754,9 +774,12 @@ export default function _UIPlayground() {
                     </div>
                 </section>
 
-                <FocusOutlineShowcase />
+                <div id="focus-outline">
+                    <FocusOutlineShowcase />
+                </div>
+                </div>
             </div>
-        </div>
+        </AppLayout>
     )
 }
 

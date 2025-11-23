@@ -21,6 +21,9 @@ import {
 } from "ui";
 
 import { ActionBar } from "./action-bar";
+import { TableOfContents } from "./sidebar/table-of-contents";
+import { useSidebarContentType } from "./sidebar/use-sidebar-content-type";
+import type { SidebarContentType } from "./sidebar/types";
 
 import type { Folder as FolderType, Item } from "@/features/notes/types";
 
@@ -28,6 +31,8 @@ const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
 
 type props = {
   activeNoteId?: string;
+  contentType?: SidebarContentType;
+  customContent?: React.ReactNode;
 }
 
 function FileTreeItem({
@@ -369,8 +374,23 @@ function FileTreeItem({
   );
 }
 
-export function Sidebar({ activeNoteId }: props) {
+export function Sidebar({ activeNoteId, contentType, customContent }: props) {
   const navigate = useNavigate();
+  const detectedContentType = useSidebarContentType();
+  const finalContentType = contentType || detectedContentType;
+  
+  // If custom content is provided, render it
+  if (finalContentType === 'custom' && customContent) {
+    return <>{customContent}</>;
+  }
+
+  // For table of contents, we'll handle it separately
+  // The table of contents will be provided via customContent prop
+  if (finalContentType === 'table-of-contents') {
+    return customContent || null;
+  }
+
+  // Default: files and folders tree
   const {
     items,
     createNote,

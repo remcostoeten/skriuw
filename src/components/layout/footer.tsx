@@ -92,27 +92,22 @@ export function Footer() {
       <SidebarMenu
         open={activeMenu === "theme"}
         onOpenChange={(open) => !open && setActiveMenu(null)}
-        title="Theme Settings"
       />
       <SidebarMenu
         open={activeMenu === "offline"}
         onOpenChange={(open) => !open && setActiveMenu(null)}
-        title="Offline Mode"
       />
       <SidebarMenu
         open={activeMenu === "language"}
         onOpenChange={(open) => !open && setActiveMenu(null)}
-        title="Language Settings"
       />
       <SidebarMenu
         open={activeMenu === "performance"}
         onOpenChange={(open) => !open && setActiveMenu(null)}
-        title="Performance Settings"
       />
       <SidebarMenu
         open={activeMenu === "sync"}
         onOpenChange={(open) => !open && setActiveMenu(null)}
-        title="Sync Settings"
       />
     </>
   );

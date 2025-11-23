@@ -6,8 +6,14 @@ import { useSettings, useUserPreferences } from "@/features/settings";
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-  const { fontSize, fontFamily, lineHeight, maxWidth } = useSettings();
-  const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts, hasAutoComplete } = useUserPreferences();
+  const { blockIndicator, showToolbar, showFormattingToolbar, autoFocus, placeholder } = useSettings();
+  const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences();
+
+  // Provide default values for settings that aren't implemented yet
+  const fontSize = 'medium';
+  const fontFamily = 'inter';
+  const lineHeight = 1.6;
+  const maxWidth = 'full';
 
   const editorConfig = useMemo(() => {
     return {
@@ -27,29 +33,28 @@ export function useEditorConfig() {
       },
 
       // Editor behavior settings
-      autoFocus: true,
-      placeholder: 'Start typing your note...',
+      autoFocus: autoFocus ?? true,
+      placeholder: placeholder ?? 'Start typing your note...',
 
       // Feature toggles based on user preferences
       spellCheck: hasSpellCheck,
       enableInputRules: hasMarkdownShortcuts,
-      enablePasteRules: hasAutoComplete,
-      enableSlashCommands: hasAutoComplete,
+      enablePasteRules: hasMarkdownShortcuts, // Use same setting for paste
+      enableSlashCommands: hasMarkdownShortcuts, // Use same setting for slash commands
 
       // Toolbar configuration
       toolbar: {
-        shouldShow: true,
-        // You could add preferences for toolbar items here
+        shouldShow: showToolbar ?? true,
       },
 
-      // Side menu configuration
+      // Side menu configuration (controls block indicator/drag handle)
       sideMenu: {
-        shouldShow: true,
+        shouldShow: blockIndicator ?? false,
       },
 
       // Formatting options
       formattingToolbar: {
-        shouldShow: true,
+        shouldShow: showFormattingToolbar ?? true,
       },
     };
   }, [
@@ -57,10 +62,14 @@ export function useEditorConfig() {
     fontFamily,
     lineHeight,
     maxWidth,
+    blockIndicator,
+    showToolbar,
+    showFormattingToolbar,
+    autoFocus,
+    placeholder,
     hasWordWrap,
     hasSpellCheck,
     hasMarkdownShortcuts,
-    hasAutoComplete,
   ]);
 
   return {
@@ -68,7 +77,6 @@ export function useEditorConfig() {
     hasWordWrap,
     hasSpellCheck,
     hasMarkdownShortcuts,
-    hasAutoComplete,
   };
 }
 
