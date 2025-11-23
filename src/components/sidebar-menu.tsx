@@ -8,7 +8,10 @@ import {
     DialogContentArea,
     DialogNavGroup,
     DialogSection,
-    DialogSeparator
+    DialogSeparator,
+    DialogClose,
+    DialogHeader,
+    DialogTitle
 } from '@/shared/ui/dialog-drawer'
 import { SettingsGroup } from '@/shared/ui/settings'
 
@@ -93,9 +96,16 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex flex-col p-0 overflow-hidden">
+            <DialogContent className="flex flex-col p-0 overflow-hidden border border-border/50">
+                <DialogClose aria-label="Close settings" />
                 <div className="flex flex-row flex-1 min-h-0">
                     <DialogAside className="min-w-[200px] max-w-[200px] border-r border-border p-6 overflow-y-auto h-full">
+                        <DialogHeader className="w-full pb-4">
+                            <DialogTitle>Settings</DialogTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Configure the editor and shortcuts using the keyboard or mouse.
+                            </p>
+                        </DialogHeader>
                         <DialogSection label="App">
                             <DialogNavGroup items={appItems} />
                         </DialogSection>

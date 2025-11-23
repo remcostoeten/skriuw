@@ -10,6 +10,7 @@ import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
 import { Sonner, Toaster, TooltipProvider } from "ui";
 
 import { initializeAppStorage } from "../storage";
+import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading";
 
 
 
@@ -53,14 +54,7 @@ function StorageInitializer({ children }: props) {
   }
 
   if (!isInitialized) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-background">
-        <EmptyState
-          message="Initializing storage..."
-          submessage="Please wait while we set up your workspace"
-        />
-      </div>
-    );
+    return <AppLayoutLoadingSkeleton />;
   }
 
   return <>{children}</>;

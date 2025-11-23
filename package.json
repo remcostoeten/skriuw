@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@blocknote/core": "^0.42.0",
+    "@blocknote/mantine": "^0.42.3",
+    "@blocknote/react": "^0.42.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -17,8 +17,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
   },
   {
     key: 'blockIndicator',
-    value: false,
-    defaultValue: false,
+    value: true,
+    defaultValue: true,
     type: 'boolean',
     description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
     category: 'editor',
@@ -42,16 +42,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     category: 'editor',
     implemented: true,
   },
-  {
-    key: 'autoFocus',
-    value: true,
-    defaultValue: true,
-    type: 'boolean',
-    description: 'Automatically focus the editor when opening a note',
-    category: 'editor',
-    implemented: true,
-  },
-  {
+    {
     key: 'placeholder',
     value: 'Start typing your note...',
     defaultValue: 'Start typing your note...',

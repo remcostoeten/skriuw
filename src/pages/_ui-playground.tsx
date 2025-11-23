@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react'
 
-import { AppLayout } from '@/components/layout/app-layout'
-import { TableOfContents } from '@/components/sidebar/table-of-contents'
-import type { TableOfContentsItem } from '@/components/sidebar/table-of-contents'
-
 import {
     AlertDialog,
     AlertDialogAction,
@@ -84,12 +80,17 @@ import {
     SheetTrigger
 } from '@/shared/ui/sheet'
 
+import { AppLayoutContainer } from '@/components/layout/app-layout-container'
+import { TableOfContents } from '@/components/sidebar/table-of-contents'
+
 import {
     WordWrapExample,
     ConditionalWordWrapExample
 } from '../_examples/word-wrap-example'
 
-export default function _UIPlayground() {
+import type { TableOfContentsItem } from '@/components/sidebar/table-of-contents'
+
+export default function UIPlayground() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [dialogDrawerOpen, setDialogDrawerOpen] = useState(false)
     const [selectValue, setSelectValue] = useState('')
@@ -148,7 +149,7 @@ export default function _UIPlayground() {
     }, [])
 
     return (
-        <AppLayout 
+        <AppLayoutContainer
             showSidebar={true}
             sidebarContentType="table-of-contents"
             sidebarCustomContent={<TableOfContents items={tableOfContents} />}
@@ -779,7 +780,7 @@ export default function _UIPlayground() {
                 </div>
                 </div>
             </div>
-        </AppLayout>
+        </AppLayoutContainer>
     )
 }
 

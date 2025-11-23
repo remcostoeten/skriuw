@@ -178,12 +178,12 @@ export function ShortcutDisplay({
 									{formatToUse === 'icon' ? '' : ' '}
 								</span>
 							)}
-							<kbd className="pointer-events-none inline-flex h-[18px] pl-1.5 tracking-widest select-none items-center gap-1 rounded bg-secondary px-1 font-mono text-muted-foreground opacity-100">
+							<kbd className="pointer-events-none inline-flex h-6 min-w-[24px] tracking-wider select-none items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground shadow-sm">
 								{combo.map((part, partIndex) => (
 									<React.Fragment key={partIndex}>
 										<span>{part.value}</span>
 										{separator && partIndex < combo.length - 1 && formatToUse !== 'icon' && (
-											<span>+</span>
+											<span className="text-muted-foreground/60">+</span>
 										)}
 									</React.Fragment>
 								))}

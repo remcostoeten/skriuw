@@ -1,4 +1,5 @@
 import { BlockNoteEditor, Block } from "@blocknote/core";
+import { useCreateBlockNote } from "@blocknote/react";
 import { useEffect, useState, useRef, useCallback } from "react";
 
 import { useNotes } from "@/features/notes";
@@ -31,12 +32,12 @@ export function editorLogic({
 }: options): props {
   const { getNote, updateNote } = useNotes();
   const { config: editorConfig } = useEditorConfig();
-  const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
   const [note, setNote] = useState<Note | null>(null);
   const [noteName, setNoteName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const hasInitializedRef = useRef(false);
 
   // Load note data
   useEffect(() => {
@@ -67,54 +68,59 @@ export function editorLogic({
     loadNote();
   }, [noteId, getNote]);
 
-  // Track previous editor to preserve content when recreating
-  const previousEditorRef = useRef<BlockNoteEditor | null>(null);
+  // Ensure initialContent is a non-empty array
+  const getDefaultContent = (): Block[] => [
+    {
+      id: "1",
+      type: "paragraph",
+      props: {},
+      content: [],
+      children: [],
+    } as Block,
+  ];
 
-  // Initialize editor
-  useEffect(() => {
-    if (!note || readOnly) return;
-
-    // Preserve current editor content if editor already exists and is being reconfigured
-    const currentContent = previousEditorRef.current?.document || null;
-
-    // Ensure initialContent is a non-empty array
-    const defaultContent: Block[] = [
-      {
-        id: "1",
-        type: "paragraph",
-        props: {},
-        content: [],
-        children: [],
-      } as Block,
-    ];
-
-    const initialContent = currentContent && currentContent.length > 0
-      ? currentContent
-      : (note.content && note.content.length > 0 
-        ? note.content 
-        : defaultContent);
-
-    // Cleanup existing editor before creating new one
-    if (previousEditorRef.current?._tiptapEditor) {
-      previousEditorRef.current._tiptapEditor.destroy();
+  // Determine initial content based on current note
+  const getInitialContent = (): Block[] => {
+    if (note?.content && note.content.length > 0) {
+      return note.content;
     }
+    return getDefaultContent();
+  };
 
-    // Create editor with configuration from settings
-    const newEditor = BlockNoteEditor.create({
-      initialContent,
-      ...editorConfig,
-    });
+  // Create editor instance using the official React hook
+  // Key the editor creation to noteId to ensure fresh editor for each note
+  const editor = useCreateBlockNote({
+    initialContent: getInitialContent(),
+    ...editorConfig,
+  });
 
-    previousEditorRef.current = newEditor;
-    setEditor(newEditor);
+  // Update editor content when note changes (only if content differs)
+  useEffect(() => {
+    if (!editor || !note || readOnly || isLoading) return;
 
-    return () => {
-      // Cleanup editor instance
-      if (newEditor._tiptapEditor) {
-        newEditor._tiptapEditor.destroy();
+    // Only update if this is a new note (noteId changed)
+    // We use a ref to track if we've initialized to avoid overwriting user edits
+    if (!hasInitializedRef.current) {
+      const contentToLoad = note.content && note.content.length > 0 
+        ? note.content 
+        : getDefaultContent();
+      
+      // Only replace if content is actually different
+      const currentContent = editor.document;
+      const contentMatches = JSON.stringify(currentContent) === JSON.stringify(contentToLoad);
+      
+      if (!contentMatches) {
+        // Replace all blocks with the note content
+        editor.replaceBlocks(editor.document, contentToLoad);
       }
-    };
-  }, [note?.id, readOnly, editorConfig]);
+      hasInitializedRef.current = true;
+    }
+  }, [note?.id, editor, readOnly, isLoading]);
+
+  // Reset initialization flag when noteId changes
+  useEffect(() => {
+    hasInitializedRef.current = false;
+  }, [noteId]);
 
   // Save function
   const handleSave = useCallback(() => {
@@ -151,7 +157,7 @@ export function editorLogic({
   }, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave]);
 
   return {
-    editor,
+    editor: readOnly ? null : editor,
     note,
     noteName,
     isLoading,
