@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     host:   "::",
     port: 8080,
     fs: { 
-      allow: ["./", "./client", "./shared"],
+      allow: ["./", "./src", "./shared"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
     },
   },
@@ -21,12 +21,12 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(workspaceRoot, "./client"),
+      "@": path.resolve(workspaceRoot, "./src"),
       "@shared": path.resolve(workspaceRoot, "./shared"),
-      ui: path.resolve(workspaceRoot, "./client/shared/ui"),
+      ui: path.resolve(workspaceRoot, "./src/shared/ui"),
       utilities: path.resolve(
         workspaceRoot,
-        "./client/shared/utilities/index.ts",
+        "./src/shared/utilities/index.ts",
       ),
     },    
   },
