@@ -1,5 +1,5 @@
 import { X, Database, RefreshCw, ChevronRight, ChevronDown, Eye, Edit2, Trash2, Plus, Copy, Search, FileCode, MapPin } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useMemo, Suspense } from "react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -10,66 +10,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 
 import { cn } from "@/shared/utilities";
 
-import { read } from "@/api/storage/crud/read";
-import { getStorageKeys } from "../api/queries/get-storage-keys";
 import { getStorageKeyMetadata } from "../api/storage-metadata";
 import { update } from "@/api/storage/crud/update";
 import { destroy } from "@/api/storage/crud/destroy";
 import { create } from "@/api/storage/crud/create";
+import { useStorageData, categorizeStorageKeys } from "../hooks/useStorageData";
+import { StorageStatusSkeleton } from "./storage-status-skeleton";
 
 import type { BaseEntity } from "@/api/storage/generic-types";
+import type { StorageKeyData, CategorizedStorage } from "../hooks/useStorageData";
 
 interface StorageStatusPanelProps {
 	isOpen: boolean
 	onClose: () => void
-}
-
-interface StorageKeyData {
-	key: string
-	items: BaseEntity[]
-	isExpanded: boolean
-}
-
-interface CategorizedStorage {
-	category: string
-	keys: StorageKeyData[]
-	isExpanded: boolean
-}
-
-// Categorize storage keys based on patterns
-function categorizeStorageKeys(data: StorageKeyData[]): CategorizedStorage[] {
-	const categories: Record<string, StorageKeyData[]> = {
-		'Notes & Content': [],
-		'Settings': [],
-		'Shortcuts': [],
-		'Other': [],
-	};
-
-	data.forEach(item => {
-		if (item.key.toLowerCase().includes('note') || item.key.toLowerCase().includes('skriuw')) {
-			categories['Notes & Content'].push(item);
-		} else if (item.key.toLowerCase().includes('setting') || item.key.toLowerCase().includes('config')) {
-			categories['Settings'].push(item);
-		} else if (item.key.toLowerCase().includes('shortcut') || item.key.toLowerCase().includes('command')) {
-			categories['Shortcuts'].push(item);
-		} else {
-			categories['Other'].push(item);
-		}
-	});
-
-	const result: CategorizedStorage[] = [];
-
-	Object.entries(categories).forEach(([category, keys]) => {
-		if (keys.length > 0) {
-			result.push({
-				category,
-				keys,
-				isExpanded: true,
-			});
-		}
-	});
-
-	return result;
 }
 
 // Get a preview of the item's actual data (not just metadata)
@@ -98,10 +51,8 @@ function getDataPreview(item: BaseEntity): string {
 }
 
 export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps) {
-	const [storageData, setStorageData] = useState<StorageKeyData[]>([]);
+	const { storageData, isLoading, error, reload } = useStorageData(isOpen);
 	const [categorizedData, setCategorizedData] = useState<CategorizedStorage[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [editingItem, setEditingItem] = useState<{ key: string; item: BaseEntity } | null>(null);
 	const [editedValue, setEditedValue] = useState("");
@@ -109,39 +60,15 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 	const [addingToKey, setAddingToKey] = useState<string | null>(null);
 	const [newItemValue, setNewItemValue] = useState("");
 
-	const loadStorageData = async () => {
-		setIsLoading(true);
-		setError(null);
-		try {
-			const keys = await getStorageKeys();
-			const dataPromises = keys.map(async (key) => {
-				try {
-					const items = await read<BaseEntity>(key);
-					return {
-						key,
-						items: Array.isArray(items) ? items : items ? [items] : [],
-						isExpanded: false,
-					};
-				} catch {
-					return { key, items: [], isExpanded: false };
-				}
-			});
-			
-			const data = await Promise.all(dataPromises);
-			setStorageData(data);
-			setCategorizedData(categorizeStorageKeys(data));
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to load storage data');
-		} finally {
-			setIsLoading(false);
+	// Update categorized data when storage data changes (non-blocking)
+	const categorized = useMemo(() => categorizeStorageKeys(storageData), [storageData]);
+	
+	// Update local state for expand/collapse functionality
+	useMemo(() => {
+		if (categorized.length > 0 && categorizedData.length === 0) {
+			setCategorizedData(categorized);
 		}
-	};
-
-	useEffect(() => {
-		if (isOpen) {
-			loadStorageData();
-		}
-	}, [isOpen]);
+	}, [categorized, categorizedData.length]);
 
 	const toggleCategory = (categoryIndex: number) => {
 		setCategorizedData(prev => 
@@ -170,9 +97,9 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 		
 		try {
 			await destroy(storageKey, itemId);
-			await loadStorageData();
+			await reload();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to delete item');
+			console.error(err instanceof Error ? err.message : 'Failed to delete item');
 		}
 	};
 
@@ -189,9 +116,9 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 			await update(editingItem.key, editingItem.item.id, updatedData);
 			setEditingItem(null);
 			setEditedValue("");
-			await loadStorageData();
+			await reload();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to save changes');
+			console.error(err instanceof Error ? err.message : 'Failed to save changes');
 		}
 	};
 
@@ -218,9 +145,9 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 			await create(addingToKey, newData);
 			setAddingToKey(null);
 			setNewItemValue("");
-			await loadStorageData();
+			await reload();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to create item');
+			console.error(err instanceof Error ? err.message : 'Failed to create item');
 		}
 	};
 
@@ -239,8 +166,14 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 
 	if (!isOpen) return null;
 
+	// Show skeleton during initial load
+	if (isLoading && categorizedData.length === 0) {
+		return <StorageStatusSkeleton isOpen={isOpen} onClose={onClose} />;
+	}
+
 	return (
-		<div className="fixed right-4 top-4 z-50 w-[600px] max-h-[calc(100vh-2rem)] overflow-hidden pointer-events-auto">
+		<Suspense fallback={<StorageStatusSkeleton isOpen={isOpen} onClose={onClose} />}>
+			<div className="fixed right-4 top-4 z-50 w-[600px] max-h-[calc(100vh-2rem)] overflow-hidden pointer-events-auto">
 			<Card className="shadow-lg border-2 bg-background h-full flex flex-col">
 				<CardHeader className="pb-3">
 					<div className="flex items-center justify-between">
@@ -252,7 +185,7 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 							<Button
 								variant="ghost"
 								size="icon"
-								onClick={loadStorageData}
+								onClick={reload}
 								disabled={isLoading}
 								className="h-8 w-8"
 							>
@@ -543,6 +476,7 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 				</CardContent>
 			</Card>
 		</div>
+		</Suspense>
 	);
 }
 

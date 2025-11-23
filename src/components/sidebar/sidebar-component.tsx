@@ -20,10 +20,10 @@ import {
   ContextMenuTrigger,
 } from "ui";
 
-import { ActionBar } from "./action-bar";
-import { TableOfContents } from "./sidebar/table-of-contents";
-import { useSidebarContentType } from "./sidebar/use-sidebar-content-type";
-import type { SidebarContentType } from "./sidebar/types";
+import { ActionBar } from "../action-bar";
+import { TableOfContents } from "./table-of-contents";
+import { useSidebarContentType } from "./use-sidebar-content-type";
+import type { SidebarContentType } from "./types";
 
 import type { Folder as FolderType, Item } from "@/features/notes/types";
 
