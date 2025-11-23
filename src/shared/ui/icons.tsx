@@ -1,9 +1,9 @@
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { Kbd } from "@/shared/ui/kbd";
-import type { KeyboardShortcut } from "@/features/shortcuts/types";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 
 import { cn } from "@/shared/utilities";
 
+import type { KeyboardShortcut } from "@/features/shortcuts/types";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export type IconProps = {

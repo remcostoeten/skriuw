@@ -7,12 +7,10 @@ import { useSettings, useUserPreferences } from '@/features/settings'
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-    const { blockIndicator, showToolbar, showFormattingToolbar, placeholder } =
-        useSettings()
+    const { blockIndicator, showFormattingToolbar, placeholder } = useSettings()
     const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } =
         useUserPreferences()
 
-    // Provide default values for settings that aren't implemented yet
     const fontSize = 'medium'
     const fontFamily = 'inter'
     const lineHeight = 1.6
@@ -64,12 +62,6 @@ export function useEditorConfig() {
             config.formattingToolbar = false
         }
 
-        // Control link toolbar and file panel (part of the main toolbar)
-        if (!showToolbar) {
-            config.linkToolbar = false
-            config.filePanel = false
-        }
-
         // Enable suggestion menus (slash commands) by default
         config.suggestionMenus = true
 
@@ -84,8 +76,7 @@ export function useEditorConfig() {
         lineHeight,
         maxWidth,
         placeholder,
-        showFormattingToolbar,
-        showToolbar
+        showFormattingToolbar
     ])
 
     return {

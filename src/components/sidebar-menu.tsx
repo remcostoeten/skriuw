@@ -13,9 +13,8 @@ import {
     DialogHeader,
     DialogTitle
 } from '@/shared/ui/dialog-drawer'
-import { SettingsGroup } from '@/shared/ui/settings'
 
-import { useSettings } from '@/features/settings'
+import { useSettings, SettingsGroup } from '@/features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '@/features/settings/editor-settings'
 import { ShortcutsReference } from '@/features/shortcuts/components'
 
@@ -102,9 +101,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
                     <DialogAside className="min-w-[200px] max-w-[200px] border-r border-border p-6 overflow-y-auto h-full">
                         <DialogHeader className="w-full pb-4">
                             <DialogTitle>Settings</DialogTitle>
-                            <p className="text-sm text-muted-foreground">
-                                Configure the editor and shortcuts using the keyboard or mouse.
-                            </p>
                         </DialogHeader>
                         <DialogSection label="App">
                             <DialogNavGroup items={appItems} />

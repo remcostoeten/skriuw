@@ -1,4 +1,3 @@
-import { Skeleton } from '@/shared/ui/skeleton'
 import { Database, RefreshCw, X } from 'lucide-react'
 
 import { Button } from '@/shared/ui/button'
@@ -9,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle
 } from '@/shared/ui/card'
+import { Skeleton } from '@/shared/ui/skeleton'
 
 interface StorageStatusSkeletonProps {
 	isOpen: boolean

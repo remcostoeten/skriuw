@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { useMemo } from 'react';
 
 import {
 	Table,
@@ -11,6 +11,7 @@ import {
 } from '@/shared/ui/table';
 
 import { ShortcutId, KeyCombo } from '../shortcut-definitions';
+
 import { ShortcutRecorder } from './shortcut-recorder';
 
 export type ShortcutState = {

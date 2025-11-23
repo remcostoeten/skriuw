@@ -21,10 +21,10 @@ import {
 } from "ui";
 
 import { ActionBar } from "../action-bar";
-import { TableOfContents } from "./table-of-contents";
-import { useSidebarContentType } from "./use-sidebar-content-type";
-import type { SidebarContentType } from "./types";
 
+import { useSidebarContentType } from "./use-sidebar-content-type";
+
+import type { SidebarContentType } from "./types";
 import type { Folder as FolderType, Item } from "@/features/notes/types";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";

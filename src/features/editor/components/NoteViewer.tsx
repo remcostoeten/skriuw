@@ -3,7 +3,7 @@ import { AlertCircle } from "lucide-react";
 
 import { EmptyState } from "@/shared/ui/empty-state";
 
-import { editorLogic } from "../hooks/use-editor";
+import { useEditor } from "../hooks/use-editor";
 
 import { EditorWrapper } from "./editor-wrapper";
 
@@ -26,7 +26,7 @@ export function NoteViewer({
     noteName,
     isLoading,
     error,
-  } = editorLogic({
+  } = useEditor({
     noteId,
     readOnly: true,
     autoSave: false,

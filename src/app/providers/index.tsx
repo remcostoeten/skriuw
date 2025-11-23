@@ -7,10 +7,11 @@ import { SettingsProvider } from "@/features/settings";
 import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context";
 import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider";
 
+import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading";
+
 import { Sonner, Toaster, TooltipProvider } from "ui";
 
 import { initializeAppStorage } from "../storage";
-import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading";
 
 
 

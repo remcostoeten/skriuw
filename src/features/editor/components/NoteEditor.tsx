@@ -6,7 +6,7 @@ import { EmptyState } from "@/shared/ui/empty-state";
 
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
 
-import { editorLogic } from "../hooks/use-editor";
+import { useEditor } from "../hooks/use-editor";
 
 import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
 
@@ -30,7 +30,7 @@ export function NoteEditor({
     note,
     isLoading,
     error,
-  } = editorLogic({
+  } = useEditor({
     noteId,
     autoSave,
     autoSaveDelay,

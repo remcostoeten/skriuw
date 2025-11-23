@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
+import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings } from '@/features/settings'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
@@ -69,14 +70,39 @@ export function AppLayoutContainer({
     const [isShortcutsSidebarOpen, setIsShortcutsSidebarOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isStorageStatusOpen, setIsStorageStatusOpen] = useState(false)
-    const { showToolbar: shouldShowToolbar = true } = useSettings()
+    const { titleDisplayMode = 'filename' } = useSettings()
 
     const notesInOrder = useMemo(() => flattenNotes(items), [items])
+
+    const currentNote = useMemo(() => {
+        if (!sidebarActiveNoteId) return null
+        return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
+    }, [sidebarActiveNoteId, notesInOrder])
 
     const currentNoteIndex = useMemo(() => {
         if (!sidebarActiveNoteId) return -1
         return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
     }, [sidebarActiveNoteId, notesInOrder])
+
+    // Compute title based on titleDisplayMode setting
+    const computedTitle = useMemo(() => {
+        if (!currentNote) {
+            return 'Untitled'
+        }
+
+        switch (titleDisplayMode) {
+            case 'firstHeading': {
+                const heading = extractFirstHeading(currentNote.content || [])
+                return heading || currentNote.name || 'Untitled'
+            }
+            case 'aiGenerated':
+                // Coming soon - for now, fall back to filename
+                return currentNote.name || 'Untitled'
+            case 'filename':
+            default:
+                return currentNote.name || 'Untitled'
+        }
+    }, [currentNote, titleDisplayMode])
 
     const handleNavigatePrevious = useCallback(() => {
         if (currentNoteIndex > 0) {
@@ -135,27 +161,25 @@ export function AppLayoutContainer({
                 ) : null
             }
             topToolbar={
-                shouldShowToolbar ? (
-                    <TopToolbar
-                        noteName={sidebarActiveNoteId || 'Untitled'}
-                        onToggleSidebar={() =>
-                            setIsSidebarOpen((prev) => !prev)
-                        }
-                        onToggleDesktopSidebar={() =>
-                            setIsDesktopSidebarOpen((prev) => !prev)
-                        }
-                        onSearch={(query) => {
-                            // TODO: Implement search
-                        }}
-                        onToggleShortcuts={() =>
-                            setIsShortcutsSidebarOpen((prev) => !prev)
-                        }
-                        onNavigatePrevious={handleNavigatePrevious}
-                        onNavigateNext={handleNavigateNext}
-                        canNavigatePrevious={canNavigatePrevious}
-                        canNavigateNext={canNavigateNext}
-                    />
-                ) : null
+                <TopToolbar
+                    noteName={computedTitle}
+                    onToggleSidebar={() =>
+                        setIsSidebarOpen((prev) => !prev)
+                    }
+                    onToggleDesktopSidebar={() =>
+                        setIsDesktopSidebarOpen((prev) => !prev)
+                    }
+                    onSearch={(query) => {
+                        // TODO: Implement search
+                    }}
+                    onToggleShortcuts={() =>
+                        setIsShortcutsSidebarOpen((prev) => !prev)
+                    }
+                    onNavigatePrevious={handleNavigatePrevious}
+                    onNavigateNext={handleNavigateNext}
+                    canNavigatePrevious={canNavigatePrevious}
+                    canNavigateNext={canNavigateNext}
+                />
             }
             mainContent={children}
             footer={<Footer />}

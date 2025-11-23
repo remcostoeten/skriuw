@@ -31,7 +31,6 @@ const DEFAULT_SETTINGS = {
     showLineNumbers: false,
     wordWrap: true,
     blockIndicator: true,
-    showToolbar: true,
     showFormattingToolbar: true,
     placeholder: 'Start typing your note...',
     centeredLayout: false,

@@ -24,16 +24,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     category: 'editor',
     implemented: true,
   },
-  {
-    key: 'showToolbar',
-    value: true,
-    defaultValue: true,
-    type: 'boolean',
-    description: 'Show the main toolbar',
-    category: 'editor',
-    implemented: true,
-  },
-  {
+    {
     key: 'showFormattingToolbar',
     value: true,
     defaultValue: true,
@@ -58,6 +49,16 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     type: 'boolean',
     description: 'Center the editor content with a max-width container',
     category: 'appearance',
+    implemented: true,
+  },
+  {
+    key: 'titleDisplayMode',
+    value: 'filename',
+    defaultValue: 'filename',
+    type: 'enum',
+    description: 'How the title in the top bar should be displayed',
+    category: 'appearance',
+    options: ['filename', 'firstHeading', 'aiGenerated'],
     implemented: true,
   },
 ];

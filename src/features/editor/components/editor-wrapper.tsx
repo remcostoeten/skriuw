@@ -1,71 +1,74 @@
-import { BlockNoteEditor } from "@blocknote/core";
-import { BlockNoteView } from "@blocknote/mantine";
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/mantine/style.css";
-import { useUserPreferences, useSettings } from "@/features/settings";
+import { BlockNoteEditor } from '@blocknote/core'
+import { BlockNoteView } from '@blocknote/mantine'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+
+import '@blocknote/core/fonts/inter.css'
+import '@blocknote/mantine/style.css'
+import { useUserPreferences, useSettings } from '@/features/settings'
 
 type props = {
-  editor: BlockNoteEditor | null;
+    editor: BlockNoteEditor | null
 }
 
 export type EditorWrapperHandle = {
-  focusEditor: () => void;
+    focusEditor: () => void
 }
 
 export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
-  ({ editor }, ref) => {
-    const editorRef = useRef<HTMLDivElement>(null);
-    const { hasWordWrap } = useUserPreferences();
-    const { centeredLayout } = useSettings();
+    ({ editor }, ref) => {
+        const editorRef = useRef<HTMLDivElement>(null)
+        const { hasWordWrap } = useUserPreferences()
+        const { centeredLayout } = useSettings()
 
-    useImperativeHandle(ref, () => ({
-      focusEditor: () => {
-        // Focus the editor by finding the contenteditable element
-        const contentEditable = editorRef.current?.querySelector('[contenteditable="true"]') as HTMLElement;
-        contentEditable?.focus();
-      },
-    }))
+        useImperativeHandle(ref, () => ({
+            focusEditor: () => {
+                // Focus the editor by finding the contenteditable element
+                const contentEditable = editorRef.current?.querySelector(
+                    '[contenteditable="true"]'
+                ) as HTMLElement
+                contentEditable?.focus()
+            }
+        }))
 
-    // Apply word wrap styles when setting changes
-    useEffect(() => {
-      if (!editorRef.current) return;
+        // Apply word wrap styles when setting changes
+        useEffect(() => {
+            if (!editorRef.current) return
 
-      // Apply a data attribute to the container for CSS targeting
-      if (hasWordWrap) {
-        editorRef.current.setAttribute('data-word-wrap', 'enabled');
-        editorRef.current.style.overflowX = 'hidden';
-      } else {
-        editorRef.current.setAttribute('data-word-wrap', 'disabled');
-        editorRef.current.style.overflowX = 'auto';
-      }
-    }, [hasWordWrap]);
+            // Apply a data attribute to the container for CSS targeting
+            if (hasWordWrap) {
+                editorRef.current.setAttribute('data-word-wrap', 'enabled')
+                editorRef.current.style.overflowX = 'hidden'
+            } else {
+                editorRef.current.setAttribute('data-word-wrap', 'disabled')
+                editorRef.current.style.overflowX = 'auto'
+            }
+        }, [hasWordWrap])
 
-    // Apply centered layout class when setting changes
-    useEffect(() => {
-      if (!editorRef.current) return;
-      
-      if (centeredLayout) {
-        editorRef.current.classList.add('centered-layout');
-      } else {
-        editorRef.current.classList.remove('centered-layout');
-      }
-    }, [centeredLayout]);
+        // Apply centered layout class when setting changes
+        useEffect(() => {
+            if (!editorRef.current) return
 
-    if (!editor) {
-      return null;
-    }
+            if (centeredLayout) {
+                editorRef.current.classList.add('centered-layout')
+            } else {
+                editorRef.current.classList.remove('centered-layout')
+            }
+        }, [centeredLayout])
 
-    return (
-      <div
-        ref={editorRef}
-        className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
-        style={{
-          background: "transparent",
-        }}
-      >
-        <BlockNoteView editor={editor} />
-        <style>{`
+        if (!editor) {
+            return null
+        }
+
+        return (
+            <div
+                ref={editorRef}
+                className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
+                style={{
+                    background: 'transparent'
+                }}
+            >
+                <BlockNoteView editor={editor} />
+                <style>{`
         .editor-container {
           background: transparent !important;
         }
@@ -137,7 +140,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           overflow-wrap: normal !important;
           word-break: normal !important;
         }
-        .editor-container.centered-layout .bn-editor {
+        .editor-container.centered-layout .bn-editor {>
           width: 100%;
           max-width: 655px;
           margin-left: auto;
@@ -220,8 +223,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           color: rgba(230, 230, 230, 1);
         }
       `}</style>
-      </div>
-    );
-  });
+            </div>
+        )
+    }
+)
 
-EditorWrapper.displayName = 'EditorWrapper';
+EditorWrapper.displayName = 'EditorWrapper'

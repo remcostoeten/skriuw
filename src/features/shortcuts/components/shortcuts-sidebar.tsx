@@ -1,14 +1,16 @@
-import { X, RotateCcw, Search } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
-import { Input } from '@/shared/ui/input';
 import { createFocusTrap } from '@/shared/utilities/focus-trap';
+
+import { Input } from '@/shared/ui/input';
 
 import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts';
 import { resetShortcut } from '../api/mutations/reset-shortcut';
 import { saveShortcut } from '../api/mutations/save-shortcut';
 import { getShortcuts } from '../api/queries/get-shortcuts';
 import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions';
+
 import { ShortcutsList, ShortcutState } from './shortcuts-list';
 
 type props = {

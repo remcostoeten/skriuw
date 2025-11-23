@@ -41,7 +41,7 @@ export const STORAGE_KEY_METADATA: Record<string, StorageKeyMetadata> = {
         description: 'Application settings and preferences',
         usedIn: [
             'src/features/settings/api/queries/get-settings.ts',
-            'src/shared/ui/settings/settings-panel.tsx'
+            'src/features/settings/components/SettingsGroup.tsx'
         ],
         route: '/settings'
     }

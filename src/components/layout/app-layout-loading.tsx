@@ -1,5 +1,6 @@
-import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 import { Skeleton } from '@/shared/ui/skeleton'
+
+import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 
 import { AppLayoutShell } from './app-layout-shell'
 

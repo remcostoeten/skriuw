@@ -1,8 +1,8 @@
 import { Search, Keyboard } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
-import { Input } from '@/shared/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import { Input } from '@/shared/ui/input';
 
 import { getShortcuts } from '../api/queries/get-shortcuts';
 import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions';

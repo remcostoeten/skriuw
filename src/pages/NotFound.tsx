@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { EmptyState } from '@/shared/ui/empty-state'
+
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 const NotFound = () => {

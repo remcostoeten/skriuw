@@ -10,15 +10,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 
 import { cn } from "@/shared/utilities";
 
-import { getStorageKeyMetadata } from "../api/storage-metadata";
-import { update } from "@/api/storage/crud/update";
-import { destroy } from "@/api/storage/crud/destroy";
 import { create } from "@/api/storage/crud/create";
+import { destroy } from "@/api/storage/crud/destroy";
+import { update } from "@/api/storage/crud/update";
+
+import { getStorageKeyMetadata } from "../api/storage-metadata";
 import { useStorageData, categorizeStorageKeys } from "../hooks/useStorageData";
+
 import { StorageStatusSkeleton } from "./storage-status-skeleton";
 
+import type { CategorizedStorage } from "../hooks/useStorageData";
 import type { BaseEntity } from "@/api/storage/generic-types";
-import type { StorageKeyData, CategorizedStorage } from "../hooks/useStorageData";
 
 interface StorageStatusPanelProps {
 	isOpen: boolean
