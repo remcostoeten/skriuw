@@ -1,4 +1,4 @@
-import { Settings, Moon, Pencil, Hand, X } from "lucide-react";
+import { Settings, Moon, Pencil, Hand, X, Keyboard } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -13,6 +13,7 @@ import { cn } from "@/shared/utilities";
 
 import { useSettings } from "@/features/settings";
 import { EDITOR_SETTINGS_GROUPS } from "@/features/settings/editor-settings";
+import { ShortcutsReference } from "@/features/shortcuts/components";
 
 type props = {
   open: boolean;
@@ -45,6 +46,13 @@ export function SidebarMenu({ open, onOpenChange, title }: props) {
       icon: <Pencil className="w-4 h-4" />,
       active: activeItem === "editor",
       onClick: () => setActiveItem("editor"),
+    },
+    {
+      id: "shortcuts",
+      label: "Shortcuts",
+      icon: <Keyboard className="w-4 h-4" />,
+      active: activeItem === "shortcuts",
+      onClick: () => setActiveItem("shortcuts"),
     },
   ];
 
@@ -90,6 +98,8 @@ export function SidebarMenu({ open, onOpenChange, title }: props) {
             </p>
           </div>
         );
+      case "shortcuts":
+        return <ShortcutsReference />;
       case "Skriuw":
         return (
           <div className="space-y-4">
@@ -119,6 +129,10 @@ export function SidebarMenu({ open, onOpenChange, title }: props) {
       case "editor":
         return {
           title: "Editor",
+        };
+      case "shortcuts":
+        return {
+          title: "Shortcuts",
         };
       case "Skriuw":
         return {

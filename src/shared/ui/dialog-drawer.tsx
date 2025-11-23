@@ -423,12 +423,13 @@ export function DialogNavGroup({
     className
 }: DialogNavGroupProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+    const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
     const [indicatorStyle, setIndicatorStyle] = useState<CSSProperties>({})
 
     const activeIndex = items.findIndex((item) => item.active)
-    const currentIndex = hoveredIndex !== null ? hoveredIndex : activeIndex
+    const currentIndex = hoveredIndex !== null ? hoveredIndex : (focusedIndex !== null ? focusedIndex : activeIndex)
 
     useEffect(() => {
         if (currentIndex === -1 || !containerRef.current) return
@@ -446,6 +447,38 @@ export function DialogNavGroup({
             height: `${height}px`
         })
     }, [currentIndex, items])
+
+    // Handle arrow key navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+
+            // Only handle if focus is within this nav group
+            const focusedElement = document.activeElement
+            const isInGroup = itemRefs.current.some(ref => ref === focusedElement)
+            if (!isInGroup) return
+
+            e.preventDefault()
+
+            const currentFocusIndex = itemRefs.current.findIndex(ref => ref === focusedElement)
+            if (currentFocusIndex === -1) return
+
+            let newIndex = currentFocusIndex
+            if (e.key === 'ArrowDown') {
+                newIndex = currentFocusIndex < items.length - 1 ? currentFocusIndex + 1 : 0
+            } else {
+                newIndex = currentFocusIndex > 0 ? currentFocusIndex - 1 : items.length - 1
+            }
+
+            setFocusedIndex(newIndex)
+            itemRefs.current[newIndex]?.focus()
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [items.length])
 
     return (
         <div
@@ -473,7 +506,18 @@ export function DialogNavGroup({
                     onClick={item.onClick}
                     onMouseEnter={() => setHoveredIndex(index)}
                     onMouseLeave={() => setHoveredIndex(null)}
-                    className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full ${
+                    onFocus={() => setFocusedIndex(index)}
+                    onBlur={() => {
+                        // Only clear focused index if focus is moving outside the group
+                        setTimeout(() => {
+                            const activeElement = document.activeElement
+                            const isStillInGroup = itemRefs.current.some(ref => ref === activeElement)
+                            if (!isStillInGroup) {
+                                setFocusedIndex(null)
+                            }
+                        }, 0)
+                    }}
+                    className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full focus:outline-none focus:ring-2 focus:ring-ring ${
                         item.active
                             ? 'text-accent-foreground bg-accent'
                             : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'

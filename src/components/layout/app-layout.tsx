@@ -101,10 +101,11 @@ export function AppLayout({
           </div>
         )}
 
-        <div 
+        <div
           className={cn(
             "flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out",
-            isSettingsOpen && "pr-[400px]"
+            isSettingsOpen && "pr-[400px]",
+            isShortcutsSidebarOpen && "pr-[420px]"
           )}
         >
           <TopToolbar
