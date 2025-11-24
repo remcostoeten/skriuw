@@ -52,14 +52,10 @@ export async function initializeGenericStorage(config: StorageConfig): Promise<G
 }
 
 export function getGenericStorage(): GenericStorageAdapter {
-	if (!currentGenericStorage) {
-		// Auto-initialize with localStorage if not initialized
-		currentGenericStorage = createGenericStorageAdapter({ adapter: 'localStorage' });
-		currentGenericStorage.initialize().catch(err => {
-			console.error('Failed to auto-initialize generic storage:', err);
-		});
-	}
-	return currentGenericStorage;
+        if (!currentGenericStorage) {
+                throw new Error('Generic storage not initialized. Call initializeGenericStorage first.');
+        }
+        return currentGenericStorage;
 }
 
 export async function destroyGenericStorage(): Promise<void> {

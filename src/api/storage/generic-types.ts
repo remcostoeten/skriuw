@@ -112,6 +112,16 @@ export interface LibsqlHttpOptions {
 export interface TauriSqliteOptions {
         databasePath?: string
 }
+        options?: Record<string, unknown>
+}
+
+export type StorageAdapterName =
+        | 'localStorage'
+        /**
+         * Drizzle-backed adapters
+         */
+        | 'drizzleLibsql'
+        | 'drizzleLocalSqlite'
 
 export interface StorageEvent {
 	type: 'created' | 'updated' | 'deleted'
