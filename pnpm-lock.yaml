@@ -20,6 +20,9 @@ importers:
       '@libsql/client':
         specifier: ^0.14.0
         version: 0.14.0
+      '@tauri-apps/plugin-sql':
+        specifier: ^2.2.0
+        version: 2.3.1
       drizzle-orm:
         specifier: ^0.38.4
         version: 0.38.4(@libsql/client@0.14.0)(@types/react@18.3.27)(react@18.3.1)
@@ -1983,6 +1986,12 @@ packages:
     resolution: {integrity: sha512-w31dd8HOx3k9vPtcQh5QHP9GwKcgbMp87j58qi6xgiBnFFtKEAgCWnDw4qUT8aHwkCp8bKvb/KGKWWHedP0AAg==}
     peerDependencies:
       tailwindcss: '>=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1'
+
+  '@tauri-apps/api@2.9.0':
+    resolution: {integrity: sha512-qD5tMjh7utwBk9/5PrTA/aGr3i5QaJ/Mlt7p8NilQ45WgbifUNPyKWsA63iQ8YfQq6R8ajMapU+/Q8nMcPRLNw==}
+
+  '@tauri-apps/plugin-sql@2.3.1':
+    resolution: {integrity: sha512-iNgHnFIR+jRkx9INKVKepzMlxXtNkJUaWuhagFjT4dOttPaNyRnVHgwTjpqZhyVjiklDh2UdEPAJkQKiCPAekw==}
 
   '@tiptap/core@3.11.0':
     resolution: {integrity: sha512-kmS7ZVpHm1EMnW1Wmft9H5ZLM7E0G0NGBx+aGEHGDcNxZBXD2ZUa76CuWjIhOGpwsPbELp684ZdpF2JWoNi4Dg==}
@@ -6556,6 +6565,12 @@ snapshots:
     dependencies:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.1.17
+
+  '@tauri-apps/api@2.9.0': {}
+
+  '@tauri-apps/plugin-sql@2.3.1':
+    dependencies:
+      '@tauri-apps/api': 2.9.0
 
   '@tiptap/core@3.11.0(@tiptap/pm@3.11.0)':
     dependencies:
