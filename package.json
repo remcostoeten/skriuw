@@ -17,7 +17,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "drizzle:generate:web": "DRIZZLE_TARGET=web drizzle-kit generate:sqlite --config drizzle.config.ts",
+    "drizzle:migrate:web": "DRIZZLE_TARGET=web drizzle-kit migrate --config drizzle.config.ts",
+    "drizzle:generate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit generate:sqlite --config drizzle.config.ts",
+    "drizzle:migrate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit migrate --config drizzle.config.ts"
   },
   "dependencies": {
     "@blocknote/core": "^0.42.0",
@@ -71,6 +75,9 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "drizzle-kit": "^0.31.7",
+    "drizzle-orm": "^0.38.3",
+    "dotenv": "^16.4.5",
     "embla-carousel-react": "^8.6.0",
     "eslint": "^9.39.1",
     "eslint-import-resolver-typescript": "^4.4.4",
