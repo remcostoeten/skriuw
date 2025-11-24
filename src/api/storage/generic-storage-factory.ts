@@ -1,3 +1,5 @@
+import { createGenericDrizzleLibsqlHttpAdapter } from "./adapters/generic-drizzle-libsql-http";
+import { createGenericDrizzleTauriSqliteAdapter } from "./adapters/generic-drizzle-tauri-sqlite";
 import { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
 
 import type { GenericStorageAdapter, StorageConfig } from "./generic-types";
@@ -7,6 +9,13 @@ type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapt
 const adapters = new Map<StorageConfig['adapter'], AdapterFactory>();
 
 adapters.set('localStorage', () => createGenericLocalStorageAdapter());
+adapters.set('drizzleLibsqlHttp', options => {
+        if (!options || typeof options !== 'object' || !('url' in options)) {
+                throw new Error('Missing libsql connection details for drizzleLibsqlHttp adapter');
+        }
+        return createGenericDrizzleLibsqlHttpAdapter(options as any);
+});
+adapters.set('drizzleTauriSqlite', options => createGenericDrizzleTauriSqliteAdapter(options as any));
 
 export function createGenericStorageAdapter(config: StorageConfig): GenericStorageAdapter {
 	const factory = adapters.get(config.adapter);

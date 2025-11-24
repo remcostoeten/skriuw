@@ -10,14 +10,24 @@ export interface BaseEntity {
 }
 
 export interface GenericStorageAdapter {
-	readonly name: string
-	readonly type: StorageAdapterType
+        readonly name: string
+        readonly type: StorageAdapterType
 
-	initialize(): Promise<void>
-	destroy(): Promise<void>
+        initialize(): Promise<void>
+        destroy(): Promise<void>
 
-	isHealthy(): Promise<boolean>
-	getStorageInfo(): Promise<StorageInfo>
+        /**
+         * Subscribe to storage events for real-time updates
+         */
+        addEventListener(listener: StorageEventListener): void
+
+        /**
+         * Remove a storage event listener
+         */
+        removeEventListener(listener: StorageEventListener): void
+
+        isHealthy(): Promise<boolean>
+        getStorageInfo(): Promise<StorageInfo>
 
 	/**
 	 * Generic CRUD operations
@@ -83,11 +93,25 @@ export interface StorageCapabilities {
 }
 
 export interface StorageConfig {
-	adapter: StorageAdapterName
-	options?: Record<string, unknown>
+        adapter: StorageAdapterName
+        options?: StorageAdapterOptions
 }
 
-export type StorageAdapterName = 'localStorage'
+export type StorageAdapterName = 'localStorage' | 'drizzleLibsqlHttp' | 'drizzleTauriSqlite'
+
+export type StorageAdapterOptions =
+        | LibsqlHttpOptions
+        | TauriSqliteOptions
+        | Record<string, unknown>
+
+export interface LibsqlHttpOptions {
+        url: string
+        authToken?: string
+}
+
+export interface TauriSqliteOptions {
+        databasePath?: string
+}
 
 export interface StorageEvent {
 	type: 'created' | 'updated' | 'deleted'

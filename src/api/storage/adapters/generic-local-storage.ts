@@ -82,14 +82,25 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 		return undefined
 	}
 
-	const adapter: GenericStorageAdapter = {
-		name: adapterName,
-		type: adapterType,
+        const adapter: GenericStorageAdapter = {
+                name: adapterName,
+                type: adapterType,
 
-		async initialize(): Promise<void> {
-			if (typeof localStorage === 'undefined') {
-				throw new Error('localStorage is not available')
-			}
+                addEventListener(listener: StorageEventListener): void {
+                        listeners.push(listener)
+                },
+
+                removeEventListener(listener: StorageEventListener): void {
+                        const index = listeners.indexOf(listener)
+                        if (index !== -1) {
+                                listeners.splice(index, 1)
+                        }
+                },
+
+                async initialize(): Promise<void> {
+                        if (typeof localStorage === 'undefined') {
+                                throw new Error('localStorage is not available')
+                        }
 		},
 
 		async destroy(): Promise<void> {
