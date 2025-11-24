@@ -1,3 +1,5 @@
+import { createFolderRecord, createNoteRecord, NOTE_STORAGE_KEY } from "@/data/drizzle/data-access";
+
 import { getGenericStorage } from "../generic-storage-factory";
 
 import type { BaseEntity } from "../generic-types";
@@ -11,12 +13,29 @@ export interface CreateOptions {
  * Uses the generic storage adapter for agnostic storage
  */
 export async function create<T extends BaseEntity>(
-	storageKey: string,
-	data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
-	options?: CreateOptions
+        storageKey: string,
+        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+        options?: CreateOptions
 ): Promise<T> {
-	try {
-		const storage = getGenericStorage();
+        try {
+                if (storageKey === NOTE_STORAGE_KEY) {
+                        const payload = data as any;
+
+                        if (payload.type === 'folder') {
+                                return await createFolderRecord({
+                                        name: payload.name,
+                                        parentFolderId: payload.parentFolderId
+                                }) as T;
+                        }
+
+                        return await createNoteRecord({
+                                name: payload.name,
+                                content: payload.content,
+                                parentFolderId: payload.parentFolderId
+                        }) as T;
+                }
+
+                const storage = getGenericStorage();
 		
 		// Generate ID if not provided
 		if (!data.id && options?.generateId) {

@@ -1,3 +1,10 @@
+import {
+        getItemById,
+        NOTE_STORAGE_KEY,
+        renameItemRecord,
+        updateNoteRecord
+} from "@/data/drizzle/data-access";
+
 import { getGenericStorage } from "../generic-storage-factory";
 
 import type { BaseEntity } from "../generic-types";
@@ -16,8 +23,27 @@ export async function update<T extends BaseEntity>(
 	data: Partial<T>,
 	options?: UpdateOptions
 ): Promise<T | undefined> {
-	try {
-		const storage = getGenericStorage();
+        try {
+                if (storageKey === NOTE_STORAGE_KEY) {
+                        const existing = await getItemById(id);
+                        if (!existing) return undefined;
+
+                        if (existing.type === 'note') {
+                                return (await updateNoteRecord(id, {
+                                        name: (data as any).name,
+                                        content: (data as any).content,
+                                        parentFolderId: (data as any).parentFolderId ?? existing.parentFolderId ?? null
+                                })) as T | undefined;
+                        }
+
+                        if ((data as any).name) {
+                                return (await renameItemRecord(id, (data as any).name)) as T | undefined;
+                        }
+
+                        return existing as T;
+                }
+
+                const storage = getGenericStorage();
 		
 		const result = await storage.update<T>(storageKey, id, data);
 		return result;

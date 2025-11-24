@@ -66,9 +66,10 @@ export interface GenericStorageAdapter {
 }
 
 export interface ReadOptions {
-	getById?: string
-	filter?: <T>(item: T) => boolean
-	sort?: <T>(a: T, b: T) => number
+        getById?: string
+        filter?: <T>(item: T) => boolean
+        sort?: <T>(a: T, b: T) => number
+        getAll?: boolean
 }
 
 export type StorageAdapterType = 'local' | 'remote' | 'hybrid'
