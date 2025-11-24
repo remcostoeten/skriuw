@@ -83,11 +83,17 @@ export interface StorageCapabilities {
 }
 
 export interface StorageConfig {
-	adapter: StorageAdapterName
-	options?: Record<string, unknown>
+        adapter: StorageAdapterName
+        options?: Record<string, unknown>
 }
 
-export type StorageAdapterName = 'localStorage'
+export type StorageAdapterName =
+        | 'localStorage'
+        /**
+         * Drizzle-backed adapters
+         */
+        | 'drizzleLibsql'
+        | 'drizzleLocalSqlite'
 
 export interface StorageEvent {
 	type: 'created' | 'updated' | 'deleted'
