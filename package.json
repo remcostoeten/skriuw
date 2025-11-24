@@ -23,6 +23,9 @@
     "@blocknote/core": "^0.42.0",
     "@blocknote/mantine": "^0.42.3",
     "@blocknote/react": "^0.42.3",
+    "@libsql/client": "^0.14.0",
+    "@tauri-apps/plugin-sql": "^2.2.0",
+    "drizzle-orm": "^0.38.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
