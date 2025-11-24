@@ -1,21 +1,50 @@
 import type {
 	GenericStorageAdapter,
-	BaseEntity,
-	ReadOptions,
-	StorageInfo,
-	StorageAdapterType,
-	StorageEvent,
-	StorageEventListener,
+        BaseEntity,
+        ReadOptions,
+        StorageInfo,
+        StorageAdapterType,
+        StorageCapabilities,
+        StorageConfig,
+        StorageEvent,
+        StorageEventListener,
 } from "../generic-types"
 
 /**
  * Generic localStorage adapter that works with any entity type
  * Stores data as JSON in localStorage with a storage key
  */
-export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
-	const listeners: StorageEventListener[] = []
-	const adapterName = "localStorage"
-	const adapterType: StorageAdapterType = 'local'
+export interface GenericLocalStorageAdapterOptions {
+        /**
+         * Optional namespace prefix for all storage keys. This keeps different
+         * adapters (e.g., libsql replica vs. browser-only) isolated while
+         * sharing the same localStorage backend.
+         */
+        namespace?: string
+        adapterName?: StorageConfig['adapter']
+        adapterType?: StorageAdapterType
+        capabilitiesOverride?: Partial<StorageCapabilities>
+}
+
+export function createGenericLocalStorageAdapter(
+        options: GenericLocalStorageAdapterOptions = {}
+): GenericStorageAdapter {
+        const listeners: StorageEventListener[] = []
+        const adapterName = options.adapterName ?? 'localStorage'
+        const adapterType: StorageAdapterType = options.adapterType ?? 'local'
+        const namespace = options.namespace ? `${options.namespace}:` : ''
+
+        const capabilities: StorageCapabilities = {
+                realtime: false,
+                offline: true,
+                sync: false,
+                backup: false,
+                versioning: false,
+                collaboration: false,
+                ...options.capabilitiesOverride
+        }
+
+        const getNamespacedKey = (storageKey: string): string => `${namespace}${storageKey}`
 
 	const emit = (event: StorageEvent): void => {
 		listeners.forEach(listener => {
@@ -32,7 +61,7 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 	 */
 	function getEntities<T extends BaseEntity>(storageKey: string): T[] {
 		try {
-			const stored = localStorage.getItem(storageKey)
+                        const stored = localStorage.getItem(getNamespacedKey(storageKey))
 			if (stored) {
 				const parsed = JSON.parse(stored)
 				if (Array.isArray(parsed)) {
@@ -47,16 +76,16 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 		}
 	}
 
-	/**
-	 * Save entities for a storage key
-	 */
-	function saveEntities<T extends BaseEntity>(storageKey: string, entities: T[]): void {
-		try {
-			localStorage.setItem(storageKey, JSON.stringify(entities))
-		} catch (error) {
-			throw new Error(`Failed to save entities to ${storageKey}: ${error}`)
-		}
-	}
+        /**
+         * Save entities for a storage key
+         */
+        function saveEntities<T extends BaseEntity>(storageKey: string, entities: T[]): void {
+                try {
+                        localStorage.setItem(getNamespacedKey(storageKey), JSON.stringify(entities))
+                } catch (error) {
+                        throw new Error(`Failed to save entities to ${storageKey}: ${error}`)
+                }
+        }
 
 	/**
 	 * Find entity by ID recursively (handles nested structures)
@@ -82,14 +111,25 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 		return undefined
 	}
 
-	const adapter: GenericStorageAdapter = {
-		name: adapterName,
-		type: adapterType,
+        const adapter: GenericStorageAdapter = {
+                name: adapterName,
+                type: adapterType,
 
-		async initialize(): Promise<void> {
-			if (typeof localStorage === 'undefined') {
-				throw new Error('localStorage is not available')
-			}
+                addEventListener(listener: StorageEventListener): void {
+                        listeners.push(listener)
+                },
+
+                removeEventListener(listener: StorageEventListener): void {
+                        const index = listeners.indexOf(listener)
+                        if (index !== -1) {
+                                listeners.splice(index, 1)
+                        }
+                },
+
+                async initialize(): Promise<void> {
+                        if (typeof localStorage === 'undefined') {
+                                throw new Error('localStorage is not available')
+                        }
 		},
 
 		async destroy(): Promise<void> {
@@ -107,12 +147,16 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 		},
 
 		async getStorageInfo(): Promise<StorageInfo> {
-			const allKeys = Object.keys(localStorage)
+                        const allKeys = Object.keys(localStorage)
 			let totalItems = 0
 			let totalSize = 0
 
 			for (const key of allKeys) {
-				const item = localStorage.getItem(key)
+                                if (!key.startsWith(namespace)) {
+                                        continue
+                                }
+
+                                const item = localStorage.getItem(key)
 				if (item) {
 					totalSize += item.length * 2 // UTF-16 encoding
 					try {
@@ -127,21 +171,14 @@ export function createGenericLocalStorageAdapter(): GenericStorageAdapter {
 			}
 
 			return {
-				adapter: adapterName,
-				type: adapterType,
-				totalItems,
-				sizeBytes: totalSize,
-				isOnline: navigator.onLine,
-				capabilities: {
-					realtime: false,
-					offline: true,
-					sync: false,
-					backup: false,
-					versioning: false,
-					collaboration: false,
-				},
-			}
-		},
+                                adapter: adapterName,
+                                type: adapterType,
+                                totalItems,
+                                sizeBytes: totalSize,
+                                isOnline: navigator.onLine,
+                                capabilities,
+                        }
+                },
 
 		async create<T extends BaseEntity>(
 			storageKey: string,

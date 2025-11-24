@@ -22,11 +22,16 @@
     "drizzle:migrate:web": "DRIZZLE_TARGET=web drizzle-kit migrate --config drizzle.config.ts",
     "drizzle:generate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit generate:sqlite --config drizzle.config.ts",
     "drizzle:migrate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit migrate --config drizzle.config.ts"
+    "drizzle:generate:libsql": "drizzle-kit generate --config drizzle.config.libsql.ts",
+    "drizzle:generate:sqlite": "drizzle-kit generate --config drizzle.config.sqlite.ts"
   },
   "dependencies": {
     "@blocknote/core": "^0.42.0",
     "@blocknote/mantine": "^0.42.3",
     "@blocknote/react": "^0.42.3",
+    "@libsql/client": "^0.14.0",
+    "@tauri-apps/plugin-sql": "^2.2.0",
+    "drizzle-orm": "^0.38.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -110,7 +115,8 @@
     "typescript-eslint": "^8.47.0",
     "vaul": "^1.1.2",
     "vite": "^7.1.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "drizzle-kit": "^0.31.7"
   },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }
