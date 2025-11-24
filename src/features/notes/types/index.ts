@@ -4,6 +4,7 @@ export interface Note {
   id: string;
   name: string;
   content: Block[];
+  parentFolderId?: string;
   createdAt: number;
   updatedAt: number;
   type: 'note';
@@ -14,6 +15,7 @@ export interface Folder {
   name: string;
   type: 'folder';
   children: (Note | Folder)[];
+  parentFolderId?: string;
   createdAt: number;
   updatedAt: number;
 }
