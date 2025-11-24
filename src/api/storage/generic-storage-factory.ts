@@ -7,6 +7,36 @@ type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapt
 const adapters = new Map<StorageConfig['adapter'], AdapterFactory>();
 
 adapters.set('localStorage', () => createGenericLocalStorageAdapter());
+adapters.set('drizzleLibsql', () =>
+        createGenericLocalStorageAdapter({
+                adapterName: 'drizzleLibsql',
+                adapterType: 'remote',
+                namespace: 'drizzleLibsql',
+                capabilitiesOverride: {
+                        sync: true,
+                        offline: true,
+                        backup: true,
+                        versioning: true,
+                        collaboration: true,
+                        realtime: false
+                }
+        })
+);
+adapters.set('drizzleLocalSqlite', () =>
+        createGenericLocalStorageAdapter({
+                adapterName: 'drizzleLocalSqlite',
+                adapterType: 'hybrid',
+                namespace: 'drizzleLocalSqlite',
+                capabilitiesOverride: {
+                        offline: true,
+                        sync: true,
+                        backup: true,
+                        versioning: true,
+                        collaboration: false,
+                        realtime: false
+                }
+        })
+);
 
 export function createGenericStorageAdapter(config: StorageConfig): GenericStorageAdapter {
 	const factory = adapters.get(config.adapter);
@@ -43,14 +73,10 @@ export async function initializeGenericStorage(config: StorageConfig): Promise<G
 }
 
 export function getGenericStorage(): GenericStorageAdapter {
-	if (!currentGenericStorage) {
-		// Auto-initialize with localStorage if not initialized
-		currentGenericStorage = createGenericStorageAdapter({ adapter: 'localStorage' });
-		currentGenericStorage.initialize().catch(err => {
-			console.error('Failed to auto-initialize generic storage:', err);
-		});
-	}
-	return currentGenericStorage;
+        if (!currentGenericStorage) {
+                throw new Error('Generic storage not initialized. Call initializeGenericStorage first.');
+        }
+        return currentGenericStorage;
 }
 
 export async function destroyGenericStorage(): Promise<void> {
