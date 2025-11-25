@@ -4,7 +4,8 @@ import {
     useMemo,
     useCallback,
     Suspense,
-    lazy
+    lazy,
+    useEffect
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -12,6 +13,7 @@ import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspens
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings } from '@/features/settings'
+import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
 
 import { Footer } from '@/components/layout/footer'
@@ -19,6 +21,7 @@ import { TopToolbar } from '@/components/layout/top-toolbar'
 import { LeftToolbar } from '@/components/left-toolbar'
 import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 import { SidebarMenu } from '@/components/sidebar-menu'
+import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
 
 import { AppLayoutShell } from './app-layout-shell'
 
@@ -44,7 +47,7 @@ const StorageStatusPanel = lazy(() =>
     }))
 )
 
-interface AppLayoutContainerProps {
+type AppLayoutContainerProps = {
     children: ReactNode
     showSidebar?: boolean
     sidebarActiveNoteId?: string
@@ -70,7 +73,16 @@ export function AppLayoutContainer({
     const [isShortcutsSidebarOpen, setIsShortcutsSidebarOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isStorageStatusOpen, setIsStorageStatusOpen] = useState(false)
-    const { titleDisplayMode = 'filename' } = useSettings()
+    const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
+    const {
+        tabs,
+        activeNoteId,
+        openTab,
+        closeTab,
+        setActiveTab,
+        clearTabs,
+        pruneTabs
+    } = useEditorTabs()
 
     const notesInOrder = useMemo(() => flattenNotes(items), [items])
 
@@ -78,6 +90,7 @@ export function AppLayoutContainer({
         if (!sidebarActiveNoteId) return null
         return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
     }, [sidebarActiveNoteId, notesInOrder])
+    const currentNoteId = currentNote?.id ?? null
 
     const currentNoteIndex = useMemo(() => {
         if (!sidebarActiveNoteId) return -1
@@ -124,6 +137,56 @@ export function AppLayoutContainer({
     const canNavigatePrevious = currentNoteIndex > 0
     const canNavigateNext =
         currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1
+
+    useEffect(() => {
+        if (!multiNoteTabs) {
+            clearTabs()
+        }
+    }, [multiNoteTabs, clearTabs])
+
+    useEffect(() => {
+        if (!multiNoteTabs || !currentNoteId) return
+        openTab({ noteId: currentNoteId, title: computedTitle })
+        setActiveTab(currentNoteId)
+    }, [multiNoteTabs, currentNoteId, computedTitle, openTab, setActiveTab])
+
+    useEffect(() => {
+        if (!multiNoteTabs || !tabs.length) return
+        if (!notesInOrder.length) {
+            if (!isInitialLoading) {
+                clearTabs()
+            }
+            return
+        }
+        const validIds = new Set(notesInOrder.map((note) => note.id))
+        pruneTabs(validIds)
+    }, [multiNoteTabs, tabs, notesInOrder, pruneTabs, isInitialLoading, clearTabs])
+
+    const handleSelectTab = useCallback(
+        (noteId: string) => {
+            if (!multiNoteTabs) return
+            setActiveTab(noteId)
+            if (noteId !== sidebarActiveNoteId) {
+                navigate(`/note/${noteId}`)
+            }
+        },
+        [multiNoteTabs, navigate, setActiveTab, sidebarActiveNoteId]
+    )
+
+    const handleCloseTab = useCallback(
+        (noteId: string) => {
+            if (!multiNoteTabs) return
+            const fallbackId = closeTab(noteId)
+            if (sidebarActiveNoteId === noteId) {
+                if (fallbackId) {
+                    navigate(`/note/${fallbackId}`)
+                } else {
+                    navigate('/')
+                }
+            }
+        },
+        [closeTab, multiNoteTabs, navigate, sidebarActiveNoteId]
+    )
 
     useShortcut('toggle-shortcuts', (e) => {
         e.preventDefault()
@@ -181,7 +244,19 @@ export function AppLayoutContainer({
                     canNavigateNext={canNavigateNext}
                 />
             }
-            mainContent={children}
+            mainContent={
+                <div className="flex h-full flex-col">
+                    {multiNoteTabs && tabs.length > 0 && (
+                        <EditorTabsBar
+                            tabs={tabs}
+                            activeNoteId={activeNoteId}
+                            onSelect={handleSelectTab}
+                            onClose={handleCloseTab}
+                        />
+                    )}
+                    <div className="flex-1 overflow-hidden">{children}</div>
+                </div>
+            }
             footer={<Footer />}
             rightPanel={
                 <Suspense fallback={null}>

@@ -24,6 +24,15 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     category: 'editor',
     implemented: true,
   },
+  {
+    key: 'multiNoteTabs',
+    value: false,
+    defaultValue: false,
+    type: 'boolean',
+    description: 'Enable multi-note tabs to keep several notes open at once',
+    category: 'editor',
+    implemented: true,
+  },
     {
     key: 'showFormattingToolbar',
     value: true,
