@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { FolderIcon } from "@/shared/ui/icons";
 
 import { useNotes } from "@/features/notes/hooks/useNotes";
+import { blocksToText } from "@/features/notes/utils/blocks-to-text";
+import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
+import { useSeedDiscovery } from "@/features/seed-importer/hooks/use-seed-discovery";
+import { useSettings } from "@/features/settings";
 import { useShortcut } from "@/features/shortcuts";
 import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
 
@@ -26,6 +30,7 @@ import { useSidebarContentType } from "./use-sidebar-content-type";
 
 import type { SidebarContentType } from "./types";
 import type { Folder as FolderType, Item } from "@/features/notes/types";
+import type { Block } from "@blocknote/core";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
 
@@ -81,8 +86,21 @@ function FileTreeItem({
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+      // Small delay to ensure the input is fully rendered and visible
+      const focusTimeout = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+          // Ensure the input is scrolled into view
+          inputRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
+      }, 10);
+
+      return () => clearTimeout(focusTimeout);
     }
   }, [isRenaming]);
 
@@ -247,7 +265,16 @@ function FileTreeItem({
 
             {isRenaming ? (
               <input
-                ref={inputRef}
+                ref={(el) => {
+                  inputRef.current = el;
+                  if (el) {
+                    // Immediate focus attempt using setTimeout as fallback
+                    setTimeout(() => {
+                      el.focus();
+                      el.select();
+                    }, 0);
+                  }
+                }}
                 type="text"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
@@ -261,6 +288,7 @@ function FileTreeItem({
                 }}
                 className="flex-1 min-w-0 bg-sidebar-accent text-sidebar-foreground text-xs px-1 py-0.5 rounded outline-hidden"
                 onClick={(e) => e.stopPropagation()}
+                autoFocus
               />
             ) : (
               <span
@@ -379,18 +407,7 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
   const detectedContentType = useSidebarContentType();
   const finalContentType = contentType || detectedContentType;
   
-  // If custom content is provided, render it
-  if (finalContentType === 'custom' && customContent) {
-    return <>{customContent}</>;
-  }
-
-  // For table of contents, we'll handle it separately
-  // The table of contents will be provided via customContent prop
-  if (finalContentType === 'table-of-contents') {
-    return customContent || null;
-  }
-
-  // Default: files and folders tree
+  // All hooks must be called before any conditional returns
   const {
     items,
     createNote,
@@ -405,6 +422,10 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { contextMenuState, setContextMenuState } = useContextMenuState();
+  const { getSetting } = useSettings();
+  const searchInContent = getSetting('searchInContent') ?? false;
+  const [showSeedImport, setShowSeedImport] = useState(false);
+  const { seeds } = useSeedDiscovery();
 
   // Load expanded folders from localStorage
   useEffect(() => {
@@ -541,7 +562,7 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
 
   const handleCreateFolder = useCallback(async (parentId?: string) => {
     const targetFolderId = parentId !== undefined ? parentId : selectedFolderId;
-    
+
     if (targetFolderId) {
       setExpandedFolders((prev) => {
         const newSet = new Set(prev);
@@ -549,9 +570,18 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
         return newSet;
       });
     }
-    
+
     await createFolder("New Folder", targetFolderId || undefined);
   }, [createFolder, selectedFolderId]);
+
+  const handleImportSeeds = useCallback(() => {
+    setShowSeedImport(true);
+  }, [setShowSeedImport]);
+
+  const handleSeedImportComplete = useCallback(() => {
+    setShowSeedImport(false);
+    // The useNotes hook should automatically refresh when items change
+  }, [setShowSeedImport]);
 
   const handleDragStart = useCallback((item: Item, e: React.DragEvent) => {
     draggedItemRef.current = item;
@@ -632,13 +662,6 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
     [items, moveItem]
   );
 
-  const findItemInTree = (item: Item, targetId: string): boolean => {
-    if (item.id === targetId) return true;
-    if (item.type === "folder") {
-      return item.children.some((child) => findItemInTree(child, targetId));
-    }
-    return false;
-  };
 
   const collectAllFolderIds = useCallback((items: Item[]): string[] => {
     const folderIds: string[] = [];
@@ -720,23 +743,83 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
     return sorted;
   }, []);
 
-  // Filter and sort items based on search query
+  // Fi                                                                       lter and sort items based on search query
   const filteredItems = useMemo(() => {
-    let result = items;
     if (!searchQuery.trim()) {
-      result = items;
-    } else {
-      // TODO: Implement proper search filtering
-      result = items;
+      return sortItems(items);
     }
-    return sortItems(result);
-  }, [items, searchQuery, sortItems]);
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Recursive function to filter items
+    const filterItems = (itemList: Item[]): Item[] => {
+      const filtered: Item[] = [];
+      
+      for (const item of itemList) {
+        // Check if item name matches
+        const nameMatches = item.name.toLowerCase().includes(query);
+        
+        // Check if content matches (only for notes and if searchInContent is enabled)
+        let contentMatches = false;
+        if (searchInContent && item.type === 'note' && 'content' in item) {
+          const note = item as { content?: Block[] };
+          if (note.content && Array.isArray(note.content)) {
+            try {
+              const contentText = blocksToText(note.content);
+              contentMatches = contentText.toLowerCase().includes(query);
+            } catch (error) {
+              // If content extraction fails, just search by name
+              console.warn('Failed to extract text from note content:', error);
+            }
+          }
+        }
+        
+        // If this item matches, include it
+        if (nameMatches || contentMatches) {
+          // If it's a folder, recursively filter its children
+          if (item.type === 'folder') {
+            const filteredChildren = filterItems(item.children);
+            filtered.push({
+              ...item,
+              children: filteredChildren,
+            } as Item);
+          } else {
+            filtered.push(item);
+          }
+        } else if (item.type === 'folder') {
+          // If folder doesn't match, check if any children match
+          const filteredChildren = filterItems(item.children);
+          if (filteredChildren.length > 0) {
+            // Include folder if it has matching children
+            filtered.push({
+              ...item,
+              children: filteredChildren,
+            } as Item);
+          }
+        }
+      }
+      
+      return filtered;
+    };
+    
+    return sortItems(filterItems(items));
+  }, [items, searchQuery, sortItems, searchInContent]);
+
+  // Early returns after all hooks
+  if (finalContentType === 'custom' && customContent) {
+    return <>{customContent}</>;
+  }
+
+  if (finalContentType === 'table-of-contents') {
+    return customContent || null;
+  }
 
   return (
-    <div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
+    <div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background">
       <ActionBar
         onCreateNote={() => handleCreateNote()}
         onCreateFolder={() => handleCreateFolder()}
+        onImportSeeds={handleImportSeeds}
         searchConfig={{
           query: searchQuery,
           setQuery: setSearchQuery,
@@ -789,6 +872,14 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
           ))}
         </div>
       </div>
+
+      {/* Seed Import Dialog */}
+      <SeedImportDialog
+        open={showSeedImport}
+        onOpenChange={setShowSeedImport}
+        seeds={seeds}
+        onImport={handleSeedImportComplete}
+      />
     </div>
   );
 }

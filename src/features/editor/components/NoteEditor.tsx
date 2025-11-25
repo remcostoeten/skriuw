@@ -71,7 +71,6 @@ export function NoteEditor({
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center">
         <EmptyState
           message="Failed to load note"
           submessage={error}
@@ -82,19 +81,18 @@ export function NoteEditor({
               onClick: () => window.location.reload(),
             },
           ]}
+          isFull
         />
-      </div>
     );
   }
 
   if (!note) {
     return (
-      <div className="flex-1 flex items-center justify-center">
         <EmptyState
           message="Note not found"
           submessage="The note you're looking for doesn't exist or may have been deleted"
+          isFull
         />
-      </div>
     );
   }
 
@@ -102,21 +100,18 @@ export function NoteEditor({
     <div className={`flex-1 bg-background overflow-hidden flex flex-col ${className}`}>
       <div className="flex-1">
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
             <EmptyState
               message="Loading editor..."
               submessage="Please wait while we prepare your editor"
             />
-          </div>
         ) : editor ? (
           <EditorWrapper ref={editorRef} editor={editor} />
         ) : (
-          <div className="flex-1 flex items-center justify-center">
             <EmptyState
               message="No editor available"
               submessage="Unable to initialize the editor"
+              isFull
             />
-          </div>
         )}
       </div>
     </div>

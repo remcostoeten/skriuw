@@ -69,11 +69,55 @@ export function ShortcutRecorder({
 
       // Add the actual key (if it's not a modifier key itself)
       const key = e.key;
+      const code = e.code; // e.code gives us physical key position
       const modifierKeys = ['Control', 'Meta', 'Shift', 'Alt', 'CapsLock'];
-      
+
       if (!modifierKeys.includes(key)) {
-        // Add the key as-is (matching logic handles case-insensitive comparison)
-        keys.add(key);
+        // Map special key names to their expected format
+        const keyMap: Record<string, string> = {
+          'Backquote': '`',
+          'Backslash': '\\',
+          'BracketLeft': '[',
+          'BracketRight': ']',
+          'Comma': ',',
+          'Period': '.',
+          'Slash': '/',
+          'Semicolon': ';',
+          'Quote': "'",
+          'Minus': '-',
+          'Equal': '=',
+          '`': '`', // Direct backquote support
+          '~': '~', // Tilde support (Shift + backquote)
+        };
+
+        // Special handling for backquote key - prioritize e.code for physical key detection
+        let normalizedKey = key;
+        if (code === 'Backquote' || key === 'Backquote') {
+          normalizedKey = '`';
+          console.log('Backquote key detected via code/key:', { key, code, keyCode: e.keyCode });
+        } else {
+          // Use mapped key if available, otherwise use the key as-is
+          normalizedKey = keyMap[key] || key;
+        }
+
+        // Debug logging for backquote key
+        if (normalizedKey === '`') {
+          console.log('Final backquote normalization:', {
+            originalKey: key,
+            code,
+            normalizedKey,
+            keyCode: e.keyCode
+          });
+        }
+
+        // Additional fallback for unusual key representations
+        if (!normalizedKey || normalizedKey === 'undefined' || normalizedKey === 'null') {
+          console.warn('Unrecognized key detected:', { key, code, keyCode: e.keyCode });
+          // Try to get a meaningful representation
+          normalizedKey = code || key || 'Unknown';
+        }
+
+        keys.add(normalizedKey);
       }
 
       // Update the ref and state with the complete combination
@@ -109,6 +153,10 @@ export function ShortcutRecorder({
   }, [isRecording, onChange, onStopRecording]);
 
   const formatKeyCombo = (combo: KeyCombo): string => {
+    // Debug for backquote combos
+    if (combo.some(key => key === '`' || key === 'Backquote')) {
+      console.log('Formatting backquote combo:', combo);
+    }
     return combo.join(' + ');
   };
 

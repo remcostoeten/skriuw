@@ -1,5 +1,6 @@
 import { Database, RefreshCw, X } from 'lucide-react'
 
+import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
 	Card,
@@ -9,12 +10,34 @@ import {
 	CardTitle
 } from '@/shared/ui/card'
 import { Skeleton } from '@/shared/ui/skeleton'
+import { getGenericStorage } from '@/api/storage/generic-storage-factory'
 
 interface StorageStatusSkeletonProps {
 	isOpen: boolean
 	onClose: () => void
 	categoryCount?: number
 	itemsPerCategory?: number
+}
+
+/**
+ * Get display name for storage adapter
+ */
+function getStorageAdapterDisplayName(): string {
+	try {
+		const storage = getGenericStorage();
+		const adapterName = storage.name;
+		
+		// Format adapter names for display
+		const displayNames: Record<string, string> = {
+			'localStorage': 'Local Storage',
+			'drizzleLibsqlHttp': 'LibSQL (HTTP)',
+			'drizzleTauriSqlite': 'SQLite (Tauri)',
+		};
+		
+		return displayNames[adapterName] || adapterName;
+	} catch {
+		return 'Unknown';
+	}
 }
 
 /**
@@ -28,6 +51,8 @@ export function StorageStatusSkeleton({
 	itemsPerCategory = 2
 }: StorageStatusSkeletonProps) {
 	if (!isOpen) return null
+	
+	const storageAdapterName = getStorageAdapterDisplayName();
 
 	return (
 		<div className="fixed right-4 top-4 z-50 w-[600px] max-h-[calc(100vh-2rem)] overflow-hidden pointer-events-auto">
@@ -57,7 +82,12 @@ export function StorageStatusSkeleton({
 							</Button>
 						</div>
 					</div>
-					<CardDescription>Loading storage data...</CardDescription>
+					<div className="flex items-center gap-2 mt-1">
+						<CardDescription>Loading storage data...</CardDescription>
+						<Badge variant="outline" className="ml-auto text-xs">
+							{storageAdapterName}
+						</Badge>
+					</div>
 
 					<div className="relative mt-2">
 						<Skeleton className="h-10 w-full" />
