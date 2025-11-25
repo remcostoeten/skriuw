@@ -191,8 +191,7 @@ export default [
 			'coverage/**',
 			'*.config.js',
 			'*.config.ts',
-			'tools/**',
-		],
+			],
 	},
 ]
 

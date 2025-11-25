@@ -1,5 +1,5 @@
 {
-  "name": "fusion-starter",
+  "name": "Skriuw",
   "private": true,
   "type": "module",
   "pkg": {
@@ -14,8 +14,8 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest --run",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint ./**/*.{ts,tsx}",
+    "lint:fix": "eslint ./**/*.{ts,tsx} --fix",
     "format.fix": "prettier --write .",
     "typecheck": "tsc",
     "drizzle:generate:web": "DRIZZLE_TARGET=web drizzle-kit generate:sqlite --config drizzle.config.ts",
@@ -28,7 +28,7 @@
   "dependencies": {
     "@blocknote/core": "^0.42.0",
     "@blocknote/mantine": "^0.42.3",
-    "@blocknote/react": "^0.42.3",
+    "@blocknote/react": "^0.42.3",  
     "@libsql/client": "^0.14.0",
     "@tauri-apps/plugin-sql": "^2.2.0",
     "drizzle-orm": "^0.38.4",

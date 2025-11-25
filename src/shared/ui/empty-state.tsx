@@ -20,13 +20,14 @@ type props = {
 	actions?: EmptyStateAction[];
 	icon?: React.ReactNode;
 	variant?: 'default' | 'destructive';
+	isFull?: boolean;
 };
 
-export function EmptyState({ message, submessage, actions = [], icon, variant = 'default' }: props) {
+export function EmptyState({ message, submessage, actions = [], icon, variant = 'default', isFull = false }: props) {
 	const isDestructive = variant === 'destructive';
 
 	return (
-		<div className="flex flex-col items-center gap-3 max-w-sm">
+		<div className={isFull ? "flex flex-col items-center justify-center gap-3 w-full h-full" : "flex flex-col items-center gap-3 max-w-sm"}>
 			{icon && (
 				<div className={`${isDestructive ? 'text-destructive/60' : 'text-muted-foreground'}`}>
 					{icon}

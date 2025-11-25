@@ -11,6 +11,21 @@ import { getStorageKeys } from "./queries/get-storage-keys";
 import type { BaseEntity } from "@/api/storage/generic-types";
 
 /**
+ * Raw localStorage keys that should be preserved (not deleted)
+ */
+const PRESERVED_KEYS = [
+	'storage.preference',
+	'storage.schemaVersion',
+] as const;
+
+/**
+ * Check if a key should be preserved during reset
+ */
+function shouldPreserveKey(key: string): boolean {
+	return PRESERVED_KEYS.includes(key as typeof PRESERVED_KEYS[number]);
+}
+
+/**
  * Remove all data from storage
  * This clears all storage keys but keeps the storage adapter configuration
  */
@@ -20,7 +35,27 @@ export async function removeAllStorage(): Promise<void> {
 		
 		// Delete all items from all storage keys
 		for (const storageKey of keys) {
+			// Skip preserved keys
+			if (shouldPreserveKey(storageKey)) {
+				continue;
+			}
+
 			try {
+				// For raw localStorage keys, clear them directly
+				if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+					// Check if it's a raw localStorage key (not managed by generic storage)
+					const rawKeys = [
+						'skriuw_editor_tabs_state',
+						'Skriuw_expanded_folders',
+					];
+					
+					if (rawKeys.includes(storageKey)) {
+						localStorage.removeItem(storageKey);
+						continue;
+					}
+				}
+
+				// For generic storage keys, delete all items
 				const items = await read<BaseEntity>(storageKey);
 				const itemsArray = Array.isArray(items) ? items : items ? [items] : [];
 				

@@ -26,3 +26,7 @@ dist-ssr
 .config/
 !.env
 .env
+
+_test-app
+tmp/
+tmp/*

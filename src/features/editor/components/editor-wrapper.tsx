@@ -38,10 +38,8 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
             // Apply a data attribute to the container for CSS targeting
             if (hasWordWrap) {
                 editorRef.current.setAttribute('data-word-wrap', 'enabled')
-                editorRef.current.style.overflowX = 'hidden'
             } else {
                 editorRef.current.setAttribute('data-word-wrap', 'disabled')
-                editorRef.current.style.overflowX = 'auto'
             }
         }, [hasWordWrap])
 
@@ -74,6 +72,14 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                 <style>{`
         .editor-container {
           background: transparent !important;
+          overflow-y: auto;
+          min-height: 100%;
+        }
+        .editor-container[data-word-wrap="enabled"] {
+          overflow-x: hidden;
+        }
+        .editor-container[data-word-wrap="disabled"] {
+          overflow-x: auto;
         }
         .editor-container.centered-layout {
           display: flex;
@@ -92,7 +98,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           white-space: pre-wrap !important;
           overflow-wrap: break-word !important;
           word-break: break-word !important;
-          overflow-x: hidden !important;
         }
         .editor-container[data-word-wrap="enabled"] [contenteditable="true"],
         .editor-container[data-word-wrap="enabled"] .bn-block,
@@ -112,9 +117,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         /* Word wrap styles - disabled */
         /* Ensure container allows horizontal overflow when word wrap is disabled */
-        .editor-container[data-word-wrap="disabled"] {
-          overflow-x: auto !important;
-        }
         .editor-container[data-word-wrap="disabled"] .bn-editor {
           white-space: pre !important;
           overflow-wrap: normal !important;
@@ -175,11 +177,17 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="2"] > * {
           text-align: center;
         }
-        .editor-container .bn-editor:focus {
-          outline: none;
+        .editor-container .bn-editor {
+          outline: none !important;
+          box-shadow: none !important;
         }
+        .editor-container .bn-editor:focus,
         .editor-container .bn-editor:focus-visible {
-          outline: none;
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        .editor-container:focus-visible {
+          outline: none !important;
         }
         .editor-container .bn-block {
           color: rgba(230, 230, 230, 0.9);

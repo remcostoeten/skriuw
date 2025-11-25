@@ -38,12 +38,35 @@ export const STORAGE_KEY_METADATA: Record<string, StorageKeyMetadata> = {
     },
     'app:settings': {
         feature: 'Settings',
-        description: 'Application settings and preferences',
+        description: 'Application settings and preferences (including editor settings)',
         usedIn: [
             'src/features/settings/api/queries/get-settings.ts',
+            'src/features/settings/api/mutations/save-settings.ts',
             'src/features/settings/components/SettingsGroup.tsx'
         ],
         route: '/settings'
+    },
+    'storage.preference': {
+        feature: 'Storage',
+        description: 'Preferred storage adapter configuration',
+        usedIn: [
+            'src/app/storage/preferences.ts',
+            'src/app/storage/config.ts'
+        ]
+    },
+    'skriuw_editor_tabs_state': {
+        feature: 'Editor',
+        description: 'Editor tabs state (open tabs and active note)',
+        usedIn: [
+            'src/features/editor/tabs/editor-tabs-provider.tsx'
+        ]
+    },
+    'Skriuw_expanded_folders': {
+        feature: 'Sidebar',
+        description: 'Expanded folder state in sidebar',
+        usedIn: [
+            'src/components/sidebar/sidebar-component.tsx'
+        ]
     }
 }
 

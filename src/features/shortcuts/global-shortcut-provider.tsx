@@ -29,6 +29,10 @@ function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
         if (k === ',') {
             return event.key === ',' || event.code === 'Comma'
         }
+        // Handle backtick key - event.code is "Backquote", event.key is "`"
+        if (k === '`') {
+            return event.key === '`' || event.code === 'Backquote'
+        }
         return event.key.toLowerCase() === k.toLowerCase()
     })
 }

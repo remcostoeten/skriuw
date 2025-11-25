@@ -1,4 +1,4 @@
-import { Plus, FolderPlus, Search, X, Minimize2, Maximize2 } from "lucide-react";
+import { Plus, FolderPlus, Search, X, Minimize2, Maximize2, Download } from "lucide-react";
 import {
     ReactNode,
     useCallback,
@@ -39,6 +39,7 @@ type ExpandConfig = {
 type props = {
     onCreateNote: () => void;
     onCreateFolder: () => void;
+    onImportSeeds?: () => void;
     searchConfig?: SearchConfig;
     expandConfig?: ExpandConfig;
 };
@@ -63,7 +64,7 @@ function TopSectionWrapper({
     );
 }
 
-export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandConfig }: props) {
+export function ActionBar({ onCreateNote, onCreateFolder, onImportSeeds, searchConfig, expandConfig }: props) {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +117,7 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
     const searchIcon = useMemo(() => <Search className="w-[18px] h-[18px] text-muted-foreground" />, []);
     const plusIcon = useMemo(() => <Plus className="w-[18px] h-[18px] text-muted-foreground" />, []);
     const folderPlusIcon = useMemo(() => <FolderPlus className="w-[18px] h-[18px] text-muted-foreground" />, []);
+    const downloadIcon = useMemo(() => <Download className="w-[18px] h-[18px] text-muted-foreground" />, []);
     const xIcon = useMemo(() => <X className="w-[18px] h-[18px] text-muted-foreground" />, []);
     const minimizeIcon = useMemo(() => <Minimize2 className="w-[18px] h-[18px] text-muted-foreground" />, []);
     const maximizeIcon = useMemo(() => <Maximize2 className="w-[18px] h-[18px] text-muted-foreground" />, []);
@@ -133,6 +135,14 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
                 onClick: onCreateFolder,
             },
         ];
+
+        if (onImportSeeds) {
+            result.push({
+                icon: downloadIcon,
+                tooltip: "Import seeds",
+                onClick: onImportSeeds,
+            });
+        }
 
         if (expandConfig && expandConfig.onToggle) {
             result.push({

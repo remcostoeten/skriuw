@@ -60,7 +60,7 @@ type AppLayoutContainerProps = {
  * Wraps the pure AppLayoutShell with data and logic
  */
 export function AppLayoutContainer({
-    children,
+		children,
     showSidebar = true,
     sidebarActiveNoteId,
     sidebarContentType,
@@ -72,7 +72,10 @@ export function AppLayoutContainer({
     const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true)
     const [isShortcutsSidebarOpen, setIsShortcutsSidebarOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [isStorageStatusOpen, setIsStorageStatusOpen] = useState(false)
+    const [isStorageStatusOpen, setIsStorageStatusOpen] = useState(() => {
+        if (typeof window === 'undefined') return false
+        return window.localStorage.getItem('storageStatus.panelOpen') === 'true'
+    })
     const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
     const {
         tabs,
@@ -203,6 +206,11 @@ export function AppLayoutContainer({
         setIsSettingsOpen((prev) => !prev)
     })
 
+    useShortcut('toggle-data-browser', (e) => {
+        e.preventDefault()
+        setIsStorageStatusOpen((prev) => !prev)
+    })
+
     return (
         <AppLayoutShell
             leftToolbar={
@@ -254,7 +262,9 @@ export function AppLayoutContainer({
                             onClose={handleCloseTab}
                         />
                     )}
-                    <div className="flex-1 overflow-hidden">{children}</div>
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                        {children}
+                    </div>
                 </div>
             }
             footer={<Footer />}
@@ -290,4 +300,11 @@ export function AppLayoutContainer({
             isDesktopSidebarOpen={isDesktopSidebarOpen}
         />
     )
+		useEffect(() => {
+			if (typeof window === 'undefined') return
+			window.localStorage.setItem(
+				'storageStatus.panelOpen',
+				isStorageStatusOpen ? 'true' : 'false'
+			)
+		}, [isStorageStatusOpen])
 }

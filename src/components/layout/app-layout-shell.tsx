@@ -71,7 +71,9 @@ export function AppLayoutShell({
                     )}
                 >
                     {topToolbar}
-                    <div className="flex-1 overflow-hidden">{mainContent}</div>
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                        {mainContent}
+                    </div>
                     {footer}
                 </div>
 

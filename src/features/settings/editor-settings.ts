@@ -70,6 +70,15 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     options: ['filename', 'firstHeading', 'aiGenerated'],
     implemented: true,
   },
+  {
+    key: 'searchInContent',
+    value: false,
+    defaultValue: false,
+    type: 'boolean',
+    description: 'Search through note content in addition to file names',
+    category: 'advanced',
+    implemented: true,
+  },
 ];
 
 /**
@@ -223,6 +232,13 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
     title: 'Behavior',
     description: 'Editor behavior and automation settings',
     settings: EDITOR_SETTINGS.filter(s => s.category === 'behavior' && s.implemented !== false),
+  }] : []),
+  // Only include advanced group if there are implemented settings
+  ...(EDITOR_SETTINGS.some(s => s.category === 'advanced' && s.implemented !== false) ? [{
+    category: 'advanced' as const,
+    title: 'Advanced',
+    description: 'Advanced settings and features',
+    settings: EDITOR_SETTINGS.filter(s => s.category === 'advanced' && s.implemented !== false),
   }] : []),
 ];
 

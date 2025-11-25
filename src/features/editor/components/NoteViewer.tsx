@@ -53,7 +53,6 @@ export function NoteViewer({
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center">
         <EmptyState
           message="Failed to load note"
           submessage={error}
@@ -64,8 +63,8 @@ export function NoteViewer({
               onClick: () => window.location.reload(),
             },
           ]}
+          isFull
         />
-      </div>
     );
   }
 
@@ -75,6 +74,7 @@ export function NoteViewer({
         <EmptyState
           message="Note not found"
           submessage="The note you're looking for doesn't exist or may have been deleted"
+          isFull
         />
       </div>
     );

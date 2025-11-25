@@ -27,7 +27,8 @@ export function useEditorConfig() {
                         fontFamily: getFontFamily(fontFamily),
                         lineHeight: lineHeight.toString(),
                         maxWidth: getMaxWidthPx(maxWidth),
-                        wordWrap: hasWordWrap ? 'break-word' : 'normal'
+                        wordWrap: hasWordWrap ? 'break-word' : 'normal',
+                        whiteSpace: hasWordWrap ? 'pre-wrap' : 'pre'
                     },
                     spellcheck: hasSpellCheck ? 'true' : 'false'
                 }

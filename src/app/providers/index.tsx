@@ -54,7 +54,7 @@ function StorageInitializer({ children }: props) {
 
         if (error) {
                 return (
-                        <div className="flex-1 flex items-center justify-center min-h-screen bg-background">
+                                <div className="flex-1 flex items-center justify-center min-h-screen bg-background">
                                 <EmptyState
                                         message="Storage initialization failed"
                                         submessage={error.message}
