@@ -3,12 +3,12 @@ import React, {
     useContext,
     useEffect,
     useState,
-    ReactNode
+    type ReactNode
 } from 'react'
 
 import { getSettings, saveSettings } from './api'
 
-interface SettingsContextValue {
+type SettingsContextValue = {
     settings: Record<string, any>
     updateSetting: (key: string, value: any) => void
     resetSettings: () => void
@@ -17,7 +17,7 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
 
-interface SettingsProviderProps {
+type SettingsProviderProps = {
     children: ReactNode
     defaultSettings?: Record<string, any>
 }
@@ -37,7 +37,8 @@ const DEFAULT_SETTINGS = {
     spellCheck: true,
     autoBackup: false,
     backupInterval: 3600000, // 1 hour
-    maxBackupFiles: 10
+    maxBackupFiles: 10,
+    multiNoteTabs: false
 } as const
 
 export function SettingsProvider({

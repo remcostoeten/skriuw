@@ -429,14 +429,74 @@ export function Sidebar({ activeNoteId, contentType, customContent }: props) {
   const handleToggleFolder = useCallback((id: string) => {
     setExpandedFolders((prev) => {
       const newSet = new Set(prev);
+
       if (newSet.has(id)) {
+        // If folder is already expanded, collapse it
         newSet.delete(id);
       } else {
-        newSet.add(id);
+        // If folder is collapsed, expand it smartly to show first file
+        const findFirstNotePath = (items: Item[], targetId: string): string[] | null => {
+          // Find the target folder first
+          const findFolder = (itemList: Item[], folderId: string): Item | null => {
+            for (const item of itemList) {
+              if (item.id === folderId && item.type === 'folder') {
+                return item;
+              }
+              if (item.type === 'folder') {
+                const found = findFolder(item.children, folderId);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+
+          const targetFolder = findFolder(items, targetId);
+          if (!targetFolder) return null;
+
+          // Find the first note in this folder's hierarchy
+          const findFirstNoteInHierarchy = (folder: Item): string[] | null => {
+            if (folder.type !== 'folder') return null;
+
+            // Check direct children for notes first
+            for (const child of folder.children) {
+              if (child.type === 'note') {
+                return [folder.id]; // Path stops here - we found a note
+              }
+            }
+
+            // If no direct notes, check subfolders recursively
+            for (const child of folder.children) {
+              if (child.type === 'folder') {
+                const subPath = findFirstNoteInHierarchy(child);
+                if (subPath) {
+                  return [folder.id, ...subPath];
+                }
+              }
+            }
+
+            return null; // No notes found in this folder
+          };
+
+          return findFirstNoteInHierarchy(targetFolder);
+        };
+
+        // Find the path to the first note
+        const firstNotePath = findFirstNotePath(items, id);
+
+        if (firstNotePath) {
+          // Expand all folders in the path to the first note
+          firstNotePath.forEach(folderId => {
+            newSet.add(folderId);
+          });
+        } else {
+          // If no notes found, just expand this folder
+          newSet.add(id);
+        }
       }
+
       return newSet;
     });
-  }, []);
+  }, [items]);
 
   const handleSelectFolder = useCallback((folderId: string | null) => {
     setSelectedFolderId(folderId);

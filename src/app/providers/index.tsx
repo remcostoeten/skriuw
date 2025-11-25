@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react"
 import { EmptyState } from "@/shared/ui/empty-state"
 
 import { SettingsProvider } from "@/features/settings"
+import { EditorTabsProvider } from "@/features/editor/tabs"
 import { StorageOnboarding } from "@/features/storage-onboarding"
 import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context"
 import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
@@ -92,7 +93,9 @@ export function Providers({ children }: props) {
                                         <TooltipProvider delayDuration={0}>
                                                 <Toaster />
                                                 <Sonner />
-                                                <StorageInitializer>{children}</StorageInitializer>
+                                                <StorageInitializer>
+                                                        <EditorTabsProvider>{children}</EditorTabsProvider>
+                                                </StorageInitializer>
                                         </TooltipProvider>
                                 </ContextMenuProvider>
                         </ShortcutProvider>

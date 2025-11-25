@@ -5,6 +5,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import '@blocknote/core/fonts/inter.css'
 import '@blocknote/mantine/style.css'
 import { useUserPreferences, useSettings } from '@/features/settings'
+import { NoteMentionSuggestionMenu } from './NoteMentionSuggestionMenu'
 
 type props = {
     editor: BlockNoteEditor | null
@@ -67,7 +68,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                     background: 'transparent'
                 }}
             >
-                <BlockNoteView editor={editor} />
+                <BlockNoteView editor={editor}>
+                    <NoteMentionSuggestionMenu />
+                </BlockNoteView>
                 <style>{`
         .editor-container {
           background: transparent !important;
@@ -210,6 +213,73 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         .editor-container [contenteditable]:focus {
           outline: none;
+        }
+        .skriuw-mention-menu {
+          display: flex;
+          flex-direction: column;
+          min-width: 260px;
+          max-width: 360px;
+          background: rgba(18, 18, 20, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 0.5rem;
+          padding: 0.3rem;
+          box-shadow: 0px 16px 48px rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(10px);
+        }
+        .skriuw-mention-menu.empty {
+          padding: 0.75rem 1rem;
+        }
+        .skriuw-mention-menu__item {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          gap: 0.75rem;
+          padding: 0.5rem 0.6rem;
+          border-radius: 0.45rem;
+          background: transparent;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          border: none;
+        }
+        .skriuw-mention-menu__item.is-selected {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .skriuw-mention-menu__item:focus-visible {
+          outline: 2px solid rgba(255, 255, 255, 0.35);
+        }
+        .skriuw-mention-menu__icon {
+          width: 1.75rem;
+          height: 1.75rem;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.07);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(255, 255, 255, 0.85);
+        }
+        .skriuw-mention-menu__content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+        .skriuw-mention-menu__title {
+          font-size: 0.95rem;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.95);
+        }
+        .skriuw-mention-menu__title mark {
+          background: transparent;
+          color: rgba(233, 191, 255, 1);
+          font-weight: 600;
+        }
+        .skriuw-mention-menu__path {
+          font-size: 0.72rem;
+          color: rgba(255, 255, 255, 0.55);
+        }
+        .skriuw-mention-menu__empty {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.65);
         }
         .editor-container .bn-toolbar {
           background: rgba(18, 18, 18, 0.95) !important;

@@ -15,6 +15,7 @@ import {
 } from "./base-entities";
 
 export const NOTE_STORAGE_KEY = "Skriuw_notes";
+export const APP_SETTINGS_KEY = "app:settings";
 
 export type NoteDatabase =
         | LibSQLDatabase<typeof schema>
