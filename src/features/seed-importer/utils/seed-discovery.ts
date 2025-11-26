@@ -1,5 +1,6 @@
-import type { ParsedSeed, SeedSource } from '../api/types'
 import { parseSeedModule, validateParsedSeed } from './seed-parser'
+
+import type { ParsedSeed, SeedSource } from '../api/types'
 
 /**
  * Discover all seed files using Vite's import.meta.glob

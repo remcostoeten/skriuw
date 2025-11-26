@@ -23,6 +23,7 @@
     "drizzle:generate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit generate:sqlite --config drizzle.config.ts",
     "drizzle:migrate:desktop": "DRIZZLE_TARGET=desktop drizzle-kit migrate --config drizzle.config.ts",
     "drizzle:generate:libsql": "drizzle-kit generate --config drizzle.config.libsql.ts",
+    "drizzle:migrate:libsql": "drizzle-kit migrate --config drizzle.config.libsql.ts",
     "drizzle:generate:sqlite": "drizzle-kit generate --config drizzle.config.sqlite.ts"
   },
   "dependencies": {

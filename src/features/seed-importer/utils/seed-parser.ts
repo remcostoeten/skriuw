@@ -1,6 +1,7 @@
+import { z } from 'zod'
+
 import type { ParsedSeed, SeedMetadata, SeedSource } from '../api/types'
 import type { DefaultNote, DefaultFolder } from '@/features/notes/utils/initialize-defaults'
-import { z } from 'zod'
 
 // Zod schema for validating seed structure
 const DefaultNoteSchema = z.object({

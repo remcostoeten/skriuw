@@ -1,0 +1,16 @@
+{
+  "buildCommand": "build build",
+  "outputDirectory": "dist/spa",
+  "devCommand": "build dev",
+  "installCommand": "build install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_STORAGE_ADAPTER": "drizzleLibsqlHttp"
+  }
+}

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+
 import { getCachedSeeds, refreshSeedCache, searchSeeds, filterSeedsBySource } from '../utils/seed-discovery'
+
 import type { ParsedSeed, SeedSource } from '../api/types'
 
 export function useSeedDiscovery() {

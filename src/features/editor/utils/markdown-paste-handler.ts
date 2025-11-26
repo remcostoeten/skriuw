@@ -19,24 +19,31 @@ type PasteHandler = (context: {
  */
 export function createPasteHandler(): PasteHandler {
   return ({ event, editor, defaultPasteHandler }) => {
+    console.log('Paste handler called')
     const clipboardData = event.clipboardData
     if (!clipboardData) {
+      console.log('No clipboard data, using default handler')
       return defaultPasteHandler()
     }
 
     const text = clipboardData.getData('text/plain')
+    console.log('Clipboard text:', text?.substring(0, 200) + '...')
+
     if (!text.trim()) {
+      console.log('Empty clipboard, using default handler')
       return defaultPasteHandler()
     }
 
     // Check if this looks like MDX content (JSX + markdown)
     if (isMDXContent(text)) {
+      console.log('Detected MDX content, processing...')
       try {
         // Preprocess MDX to convert it to markdown-compatible format
         const processedMarkdown = preprocessMDX(text)
-        
+
         // Use BlockNote's built-in pasteMarkdown method
         editor.pasteMarkdown(processedMarkdown)
+        console.log('MDX content pasted successfully')
         return true // We handled the paste event
       } catch (error) {
         console.warn('Failed to parse MDX on paste:', error)
@@ -47,9 +54,11 @@ export function createPasteHandler(): PasteHandler {
 
     // Check if the pasted content looks like markdown
     if (isMarkdownContent(text)) {
+      console.log('Detected markdown content, pasting...')
       try {
         // Use BlockNote's built-in pasteMarkdown method
         editor.pasteMarkdown(text)
+        console.log('Markdown content pasted successfully')
         return true // We handled the paste event
       } catch (error) {
         console.warn('Failed to parse markdown on paste:', error)
@@ -58,6 +67,7 @@ export function createPasteHandler(): PasteHandler {
       }
     }
 
+    console.log('No markdown detected, using default handler')
     // Let BlockNote handle the paste with default behavior
     return defaultPasteHandler()
   }
@@ -82,16 +92,28 @@ function isMarkdownContent(text: string): boolean {
     /\[.*?\]\(.*?\)/,           // Links
     /^>\s+/,                    // Blockquotes
     /^\|\s.*\s\|/,              // Tables
-    /^---+$/,                   // Horizontal rules
+    /^---+$/,                   // Horizontal rules at start
+    /---+/,                     // Horizontal rules anywhere
   ]
 
   // Check if content contains multiple markdown patterns
   let patternCount = 0
+  const foundPatterns: string[] = []
   for (const pattern of markdownPatterns) {
     if (pattern.test(trimmedText)) {
       patternCount++
+      foundPatterns.push(pattern.source)
     }
   }
+
+  // Debug logging
+  console.log('Markdown detection for content:', {
+    length: trimmedText.length,
+    preview: trimmedText.substring(0, 100) + '...',
+    patternCount,
+    foundPatterns,
+    isMarkdown: patternCount >= 1 || /^#\s+/.test(trimmedText)
+  })
 
   // Consider it markdown if it has 1+ patterns OR contains headers specifically
   return patternCount >= 1 || /^#\s+/.test(trimmedText)

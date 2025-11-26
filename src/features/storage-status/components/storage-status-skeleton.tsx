@@ -10,6 +10,7 @@ import {
 	CardTitle
 } from '@/shared/ui/card'
 import { Skeleton } from '@/shared/ui/skeleton'
+
 import { getGenericStorage } from '@/api/storage/generic-storage-factory'
 
 interface StorageStatusSkeletonProps {

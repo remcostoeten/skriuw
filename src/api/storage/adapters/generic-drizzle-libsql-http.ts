@@ -1,13 +1,11 @@
 import { createClient } from "@libsql/client/web";
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
-import type { Item } from "@/features/notes/types";
 import * as schema from "@/data/drizzle/base-entities";
+import { asUUID } from "@/shared/types/semantic";
 import {
         NOTE_STORAGE_KEY,
-        APP_SETTINGS_KEY,
         createFolderRecordDb,
         createNoteRecordDb,
         deleteItemRecordDb,
@@ -28,19 +26,7 @@ import type {
         StorageEventListener,
         StorageInfo
 } from "../generic-types";
-
-const storageRecords = sqliteTable("generic_storage_records", {
-        storageKey: text("storage_key").primaryKey(),
-        payload: text("payload").notNull(),
-        updatedAt: integer("updated_at", { mode: "number" }).notNull()
-});
-
-const appSettings = sqliteTable("app_settings", {
-    key: text("key").primaryKey(),
-    value: text("value"),
-    createdAt: integer("created_at", { mode: "number" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "number" }).notNull(),
-});
+import type { Item } from "@/features/notes/types";
 
 function createListenerRegistry() {
         const listeners: StorageEventListener[] = [];
@@ -81,11 +67,13 @@ async function getGenericEntities<T extends BaseEntity>(
         db: LibSQLDatabase<typeof schema>,
         storageKey: string
 ): Promise<T[]> {
-        const rows = await db.select().from(storageRecords).where(eq(storageRecords.storageKey, storageKey));
+        // Use ui_state table for generic storage
+        const rows = await db.select().from(schema.uiState).where(eq(schema.uiState.key, storageKey));
         if (!rows.length) return [];
 
+        const payload = rows[0].value;
         try {
-                const parsed = JSON.parse(rows[0].payload);
+                const parsed = JSON.parse(payload);
                 return Array.isArray(parsed) ? parsed : [];
         } catch (error) {
                 console.error(`Error parsing entities for ${storageKey}:`, error);
@@ -99,13 +87,20 @@ async function saveGenericEntities<T extends BaseEntity>(
         entities: T[]
 ): Promise<void> {
         const payload = JSON.stringify(entities);
-        const timestamp = getNow();
+        const timestamp = getNow() as any; // Cast to any for Time type
+
         await db
-                .insert(storageRecords)
-                .values({ storageKey, payload, updatedAt: timestamp })
+                .insert(schema.uiState)
+                .values({
+                        id: asUUID(`${storageKey}-${timestamp}`),
+                        key: storageKey,
+                        value: payload,
+                        createdAt: timestamp,
+                        updatedAt: timestamp
+                })
                 .onConflictDoUpdate({
-                        target: storageRecords.storageKey,
-                        set: { payload, updatedAt: timestamp }
+                        target: schema.uiState.key,
+                        set: { value: payload, updatedAt: timestamp }
                 });
 }
 
@@ -122,24 +117,6 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
         const db = drizzle(client, { schema });
         const listeners = createListenerRegistry();
 
-        async function ensureTables(): Promise<void> {
-                await client.execute(`
-                        CREATE TABLE IF NOT EXISTS generic_storage_records (
-                                storage_key TEXT PRIMARY KEY,
-                                payload TEXT NOT NULL,
-                                updated_at INTEGER NOT NULL
-                        )
-                `);
-                await client.execute(`
-                        CREATE TABLE IF NOT EXISTS app_settings (
-                                key TEXT PRIMARY KEY,
-                                value TEXT,
-                                created_at INTEGER NOT NULL,
-                                updated_at INTEGER NOT NULL
-                        )
-                `);
-        }
-
         const adapter: GenericStorageAdapter = {
                 name: adapterName,
                 type: adapterType,
@@ -153,7 +130,8 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                 },
 
                 async initialize(): Promise<void> {
-                        await ensureTables();
+                        // Tables are now created via Drizzle migrations
+                        // No need for manual table creation
                 },
 
                 async destroy(): Promise<void> {
@@ -217,38 +195,37 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                                 const payload = data as unknown as Item;
 
                                 if (payload.type === "folder") {
-                                        const folder = await createFolderRecordDb(db, {
-                                                name: payload.name,
-                                                parentFolderId: (payload as any).parentFolderId
-                                        });
+                                        const folder = await createFolderRecordDb(db, data as any);
                                         listeners.emit({ type: "created", storageKey, entityId: folder.id, data: folder });
-                                        return folder as T;
+                                        return folder as unknown as T;
                                 }
 
-                                const note = await createNoteRecordDb(db, {
-                                        name: payload.name,
-                                        content: (payload as any).content,
-                                        parentFolderId: (payload as any).parentFolderId
-                                });
+                                const note = await createNoteRecordDb(db, data as any);
                                 listeners.emit({ type: "created", storageKey, entityId: note.id, data: note });
-                                return note as T;
+                                return note as unknown as T;
                         }
 
                         if (storageKey === APP_SETTINGS_KEY) {
                                 const settingsToCreate = (data as any).settings as Record<string, any>;
                                 if (!settingsToCreate) {
-                                    throw new Error("Cannot create settings without a settings object.");
+                                        throw new Error("Cannot create settings without a settings object.");
                                 }
-                        
+
                                 const now = getNow();
                                 const createPromises = Object.entries(settingsToCreate).map(([key, value]) => {
-                                    const stringifiedValue = JSON.stringify(value);
-                                    return db.insert(appSettings)
-                                        .values({ key, value: stringifiedValue, createdAt: now, updatedAt: now });
+                                        const stringifiedValue = JSON.stringify(value);
+                                        return db.insert(schema.appSettings)
+                                                .values({
+                                                        id: asUUID(`setting-${key}-${now}`),
+                                                        key,
+                                                        value: stringifiedValue,
+                                                        createdAt: now as any,
+                                                        updatedAt: now as any
+                                                });
                                 });
-                        
+
                                 await Promise.all(createPromises);
-                        
+
                                 const id = (data as any).id ?? 'app-settings';
                                 const newEntity = {
                                         ...data,
@@ -256,7 +233,7 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                                         createdAt: now,
                                         updatedAt: now,
                                 } as T;
-                        
+
                                 listeners.emit({ type: "created", storageKey, entityId: id, data: newEntity });
                                 return newEntity;
                         }
@@ -281,11 +258,11 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                         options?: ReadOptions
                 ): Promise<T[] | T | undefined> {
                         if (storageKey === NOTE_STORAGE_KEY) {
-                                return readNoteEntitiesDb(db, toNoteReadOptions(options)) as Promise<T[] | T | undefined>;
+                                return readNoteEntitiesDb(db, toNoteReadOptions(options)) as unknown as Promise<T[] | T | undefined>;
                         }
 
                         if (storageKey === APP_SETTINGS_KEY) {
-                                const allSettingsRows = await db.select().from(appSettings).all();
+                                const allSettingsRows = await db.select().from(schema.appSettings);
                                 const settingsObject = allSettingsRows.reduce((acc, row) => {
                                         try {
                                                 acc[row.key] = row.value ? JSON.parse(row.value) : row.value;
@@ -294,7 +271,7 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                                         }
                                         return acc;
                                 }, {} as Record<string, any>);
-                        
+
                                 return { id: 'app-settings', settings: settingsObject } as unknown as T;
                         }
 
@@ -343,34 +320,40 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
 
                         if (storageKey === APP_SETTINGS_KEY) {
                                 if (id !== 'app-settings' || !(data as any).settings) {
-                                    return undefined;
+                                        return undefined;
                                 }
-                        
+
                                 const settingsToUpdate = (data as any).settings as Record<string, any>;
                                 const timestamp = getNow();
-                        
+
                                 const updatePromises = Object.entries(settingsToUpdate).map(([key, value]) => {
-                                    const stringifiedValue = JSON.stringify(value);
-                                    return db.insert(appSettings)
-                                        .values({ key, value: stringifiedValue, createdAt: timestamp, updatedAt: timestamp })
-                                        .onConflictDoUpdate({
-                                            target: appSettings.key,
-                                            set: { value: stringifiedValue, updatedAt: timestamp }
-                                        });
+                                        const stringifiedValue = JSON.stringify(value);
+                                        return db.insert(schema.appSettings)
+                                                .values({
+                                                        id: asUUID(`setting-${key}-${timestamp}`),
+                                                        key,
+                                                        value: stringifiedValue,
+                                                        createdAt: timestamp as any,
+                                                        updatedAt: timestamp as any
+                                                })
+                                                .onConflictDoUpdate({
+                                                        target: schema.appSettings.key,
+                                                        set: { value: stringifiedValue, updatedAt: timestamp as any }
+                                                });
                                 });
-                        
+
                                 await Promise.all(updatePromises);
-                        
-                                const allSettingsRows = await db.select().from(appSettings).all();
+
+                                const allSettingsRows = await db.select().from(schema.appSettings);
                                 const settingsObject = allSettingsRows.reduce((acc, row) => {
-                                    try {
-                                        acc[row.key] = row.value ? JSON.parse(row.value) : row.value;
-                                    } catch (e) {
-                                        acc[row.key] = row.value;
-                                    }
-                                    return acc;
+                                        try {
+                                                acc[row.key] = row.value ? JSON.parse(row.value) : row.value;
+                                        } catch (e) {
+                                                acc[row.key] = row.value;
+                                        }
+                                        return acc;
                                 }, {} as Record<string, any>);
-                        
+
                                 const updatedEntity = { id: 'app-settings', settings: settingsObject } as unknown as T;
                                 listeners.emit({ type: "updated", storageKey, entityId: id, data: updatedEntity });
                                 return updatedEntity;
@@ -403,21 +386,21 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
 
                         if (storageKey === APP_SETTINGS_KEY) {
                                 if (id === 'app-settings') {
-                                    // Delete all settings
-                                    const result = await db.delete(appSettings);
-                                    const success = (result as any).rowsAffected > 0;
-                                    if (success) {
-                                        listeners.emit({ type: "deleted", storageKey, entityId: id });
-                                    }
-                                    return success;
+                                        // Delete all settings
+                                        const result = await db.delete(schema.appSettings);
+                                        const success = (result as any).rowsAffected > 0;
+                                        if (success) {
+                                                listeners.emit({ type: "deleted", storageKey, entityId: id });
+                                        }
+                                        return success;
                                 } else {
-                                    // Delete a single setting by key
-                                    const result = await db.delete(appSettings).where(eq(appSettings.key, id));
-                                    const success = (result as any).rowsAffected > 0;
-                                    if (success) {
-                                        listeners.emit({ type: "deleted", storageKey, entityId: id });
-                                    }
-                                    return success;
+                                        // Delete a single setting by key
+                                        const result = await db.delete(schema.appSettings).where(eq(schema.appSettings.key, id));
+                                        const success = (result as any).rowsAffected > 0;
+                                        if (success) {
+                                                listeners.emit({ type: "deleted", storageKey, entityId: id });
+                                        }
+                                        return success;
                                 }
                         }
 
@@ -433,7 +416,7 @@ export function createGenericDrizzleLibsqlHttpAdapter(options: LibsqlHttpOptions
                 async list<T extends BaseEntity>(storageKey: string): Promise<T[]> {
                         if (storageKey === NOTE_STORAGE_KEY) {
                                 const result = await readNoteEntitiesDb(db);
-                                return Array.isArray(result) ? (result as T[]) : result ? [result as T] : [];
+                                return Array.isArray(result) ? (result as unknown as T[]) : result ? [result as unknown as T] : [];
                         }
                         return getGenericEntities<T>(db, storageKey);
                 },

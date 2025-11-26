@@ -8,20 +8,22 @@ import {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
+import { useEditorTabs } from '@/features/editor/tabs'
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings } from '@/features/settings'
-import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
-import { useUIStore } from '@/stores/ui-store'
 
 import { Footer } from '@/components/layout/footer'
 import { TopToolbar } from '@/components/layout/top-toolbar'
 import { LeftToolbar } from '@/components/left-toolbar'
 import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 import { SidebarMenu } from '@/components/sidebar-menu'
-import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
+
+import { useUIStore } from '@/stores/ui-store'
+
 
 import { AppLayoutShell } from './app-layout-shell'
 

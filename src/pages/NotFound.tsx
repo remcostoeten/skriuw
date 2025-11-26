@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import { EmptyState } from '@/shared/ui/empty-state'
 
-import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 import { logStorageEvent } from '@/features/storage-status/utils/storage-event-log'
+
+import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 const NotFound = () => {
     const location = useLocation()

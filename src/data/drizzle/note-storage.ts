@@ -1,5 +1,10 @@
 import { eq } from "drizzle-orm";
 
+
+
+import { asUUID } from "@/shared/types/semantic";
+
+
 import * as schema from "./base-entities";
 import {
         folders,
@@ -10,6 +15,7 @@ import {
 } from "./base-entities";
 
 import type { Item, Folder, Note } from "@/features/notes/types";
+import type { UUID, Time } from "@/shared/types/semantic";
 import type { Block } from "@blocknote/core";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
@@ -21,8 +27,8 @@ export type NoteDatabase =
         | LibSQLDatabase<typeof schema>
         | SqliteRemoteDatabase<typeof schema>;
 
-function now(): number {
-        return Date.now();
+function now(): Time {
+        return Date.now() as Time;
 }
 
 function toJsonString(content: Block[] | undefined): string {
@@ -42,11 +48,11 @@ function parseContent(serialized: string | null): Block[] {
         }
 }
 
-function createId(prefix: string): string {
+function createId(prefix: string): UUID {
         if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-                return `${prefix}_${crypto.randomUUID()}`;
+                return `${prefix}_${crypto.randomUUID()}` as UUID;
         }
-        return `${prefix}_${Math.random().toString(36).slice(2)}`;
+        return `${prefix}_${Math.random().toString(36).slice(2)}` as UUID;
 }
 
 function mapFolder(row: FolderRow): Folder & { parentFolderId?: string } {
@@ -88,10 +94,10 @@ export async function getItemByIdDb(
         db: NoteDatabase,
         id: string
 ): Promise<Item | undefined> {
-        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, id) });
+        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, asUUID(id)) });
         if (noteRow) return mapNote(noteRow);
 
-        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, id) });
+        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, asUUID(id)) });
         if (folderRow) return mapFolder(folderRow);
 
         return undefined;
@@ -172,20 +178,20 @@ export async function createNoteRecordDb(
                 id,
                 name: data.name,
                 content: serializedContent,
-                folderId: data.parentFolderId,
+                folderId: data.parentFolderId ? asUUID(data.parentFolderId) : null,
                 createdAt: timestamp,
                 updatedAt: timestamp
-        });
+        } as any);
 
         return mapNote({
-                id,
+                id: id as UUID,
                 name: data.name,
                 content: serializedContent,
-                folderId: data.parentFolderId ?? null,
+                folderId: data.parentFolderId ? (asUUID(data.parentFolderId) as any) : null,
                 createdAt: timestamp,
                 updatedAt: timestamp,
                 profileId: null
-        });
+        } as NoteRow);
 }
 
 export async function updateNoteRecordDb(
@@ -193,13 +199,13 @@ export async function updateNoteRecordDb(
         id: string,
         data: Partial<{ name: string; content: Block[]; parentFolderId: string | null }>
 ): Promise<Note | undefined> {
-        const existing = await db.query.notes.findFirst({ where: eq(notes.id, id) });
+        const existing = await db.query.notes.findFirst({ where: eq(notes.id, asUUID(id)) });
         if (!existing) return undefined;
 
         if (data.content) {
                         await db.insert(revisions).values({
                                 id: createId("rev"),
-                                noteId: id,
+                                noteId: asUUID(id),
                                 label: "auto",
                                 snapshot: existing.content,
                                 createdAt: now()
@@ -209,23 +215,29 @@ export async function updateNoteRecordDb(
         const serializedContent = data.content ? toJsonString(data.content) : existing.content;
         const updatedAt = now();
 
+        const updateData: any = {
+                name: data.name ?? existing.name,
+                content: serializedContent,
+                updatedAt
+        };
+        if (data.parentFolderId !== undefined) {
+                updateData.folderId = data.parentFolderId ? asUUID(data.parentFolderId) : null;
+        }
+
         await db
                 .update(notes)
-                .set({
-                        name: data.name ?? existing.name,
-                        content: serializedContent,
-                        folderId: data.parentFolderId ?? existing.folderId,
-                        updatedAt
-                })
-                .where(eq(notes.id, id));
+                .set(updateData as any)
+                .where(eq(notes.id, asUUID(id)));
 
         return mapNote({
                 ...existing,
                 name: data.name ?? existing.name,
                 content: serializedContent,
-                folderId: data.parentFolderId ?? existing.folderId,
+                folderId: (data.parentFolderId !== undefined 
+                        ? (data.parentFolderId ? asUUID(data.parentFolderId) : null)
+                        : existing.folderId) as any,
                 updatedAt
-        });
+        } as NoteRow);
 }
 
 export async function renameItemRecordDb(
@@ -233,17 +245,17 @@ export async function renameItemRecordDb(
         id: string,
         newName: string
 ): Promise<Item | undefined> {
-        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, id) });
+        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, asUUID(id)) });
         if (noteRow) {
                 const updatedAt = now();
-                await db.update(notes).set({ name: newName, updatedAt }).where(eq(notes.id, id));
+                await db.update(notes).set({ name: newName, updatedAt }).where(eq(notes.id, asUUID(id)));
                 return mapNote({ ...noteRow, name: newName, updatedAt });
         }
 
-        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, id) });
+        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, asUUID(id)) });
         if (folderRow) {
                 const updatedAt = now();
-                await db.update(folders).set({ name: newName, updatedAt }).where(eq(folders.id, id));
+                await db.update(folders).set({ name: newName, updatedAt }).where(eq(folders.id, asUUID(id)));
                 return mapFolder({ ...folderRow, name: newName, updatedAt });
         }
 
@@ -255,21 +267,21 @@ export async function moveItemRecordDb(
         id: string,
         targetFolderId: string | null
 ): Promise<boolean> {
-        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, id) });
+        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, asUUID(id)) });
         if (noteRow) {
                 await db
                         .update(notes)
-                        .set({ folderId: targetFolderId, updatedAt: now() })
-                        .where(eq(notes.id, id));
+                        .set({ folderId: targetFolderId ? asUUID(targetFolderId) : null, updatedAt: now() } as any)
+                        .where(eq(notes.id, asUUID(id)));
                 return true;
         }
 
-        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, id) });
+        const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, asUUID(id)) });
         if (folderRow) {
                 await db
                         .update(folders)
-                        .set({ parentFolderId: targetFolderId, updatedAt: now() })
-                        .where(eq(folders.id, id));
+                        .set({ parentFolderId: targetFolderId ? asUUID(targetFolderId) : null, updatedAt: now() })
+                        .where(eq(folders.id, asUUID(id)));
                 return true;
         }
 
@@ -277,12 +289,12 @@ export async function moveItemRecordDb(
 }
 
 export async function deleteItemRecordDb(db: NoteDatabase, id: string): Promise<boolean> {
-        const noteResult = await db.delete(notes).where(eq(notes.id, id));
+        const noteResult = await db.delete(notes).where(eq(notes.id, asUUID(id)));
         if ("rowsAffected" in noteResult && (noteResult as any).rowsAffected > 0) {
                 return true;
         }
 
-        const folderResult = await db.delete(folders).where(eq(folders.id, id));
+        const folderResult = await db.delete(folders).where(eq(folders.id, asUUID(id)));
         if ("rowsAffected" in folderResult && (folderResult as any).rowsAffected > 0) {
                 return true;
         }
@@ -322,12 +334,12 @@ export async function getNotesByFolderDb(
         parentFolderId?: string
 ): Promise<Note[]> {
         const noteRows = parentFolderId
-                ? await db.query.notes.findMany({ where: eq(notes.folderId, parentFolderId) })
+                ? await db.query.notes.findMany({ where: eq(notes.folderId, asUUID(parentFolderId)) })
                 : await db.query.notes.findMany();
-        return noteRows.map(mapNote);
+        return noteRows.map((row) => mapNote(row as NoteRow));
 }
 
 export async function getNoteByIdDb(db: NoteDatabase, id: string): Promise<Note | undefined> {
-        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, id) });
+        const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, asUUID(id)) });
         return noteRow ? mapNote(noteRow) : undefined;
 }

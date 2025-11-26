@@ -1,0 +1,19 @@
+# Tauri-specific files (not needed for Vercel deployment)
+src-tauri/
+tools/
+tmp/
+drizzle/sqlite/
+drizzle/libsql/
+*.db
+*.sqlite
+*.sqlite3
+
+# Development files
+.vscode/
+.idea/
+*.log
+
+# Build artifacts (Vercel will build fresh)
+dist/
+node_modules/
+

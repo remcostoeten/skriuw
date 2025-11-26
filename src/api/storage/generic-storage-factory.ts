@@ -1,6 +1,16 @@
 import { createGenericDrizzleLibsqlHttpAdapter } from "./adapters/generic-drizzle-libsql-http";
-import { createGenericDrizzleTauriSqliteAdapter } from "./adapters/generic-drizzle-tauri-sqlite";
 import { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
+
+// Dynamic import for Tauri adapter to avoid bundling it in web builds
+async function loadTauriAdapter() {
+        try {
+                const { createGenericDrizzleTauriSqliteAdapter } = await import("./adapters/generic-drizzle-tauri-sqlite");
+                return createGenericDrizzleTauriSqliteAdapter;
+        } catch (error) {
+                // Tauri adapter not available (e.g., in web builds)
+                throw new Error("Tauri adapter is not available in this environment. Use 'drizzleLibsqlHttp' or 'localStorage' instead.");
+        }
+}
 
 import type {
         GenericStorageAdapter,
@@ -10,7 +20,7 @@ import type {
         TauriSqliteOptions
 } from "./generic-types";
 
-type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter;
+type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter | Promise<GenericStorageAdapter>;
 
 const adapters = new Map<StorageConfig['adapter'], AdapterFactory>();
 
@@ -63,19 +73,22 @@ adapters.set("drizzleLibsqlHttp", options => {
         const resolved = resolveLibsqlOptions(options);
         return createGenericDrizzleLibsqlHttpAdapter(resolved);
 });
-adapters.set("drizzleTauriSqlite", options => {
+adapters.set("drizzleTauriSqlite", async options => {
         const resolved = resolveTauriOptions(options);
-        return createGenericDrizzleTauriSqliteAdapter(resolved);
+        const createAdapter = await loadTauriAdapter();
+        return createAdapter(resolved);
 });
 
-export function createGenericStorageAdapter(config: StorageConfig): GenericStorageAdapter {
+export async function createGenericStorageAdapter(config: StorageConfig): Promise<GenericStorageAdapter> {
 	const factory = adapters.get(config.adapter);
 	
 	if (!factory) {
 		throw new Error(`Storage adapter '${config.adapter}' not found. Available: ${Array.from(adapters.keys()).join(', ')}`);
 	}
 
-	return factory(config.options);
+	const result = factory(config.options);
+	// Handle both sync and async factories (Tauri adapter is async)
+	return result instanceof Promise ? result : Promise.resolve(result);
 }
 
 export function registerGenericStorageAdapter(
@@ -96,7 +109,7 @@ export async function initializeGenericStorage(config: StorageConfig): Promise<G
 		await currentGenericStorage.destroy();
 	}
 
-	currentGenericStorage = createGenericStorageAdapter(config);
+	currentGenericStorage = await createGenericStorageAdapter(config);
 	await currentGenericStorage.initialize();
 
 	return currentGenericStorage;

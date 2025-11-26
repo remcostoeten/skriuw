@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react'
+
 import { importSeed, importSeeds } from '../api/mutations/import-seed'
+
 import type {
   ParsedSeed,
   SeedImportState,
   ImportProgress,
-  ImportResult,
   SeedImportOptions,
   ImportError,
 } from '../api/types'

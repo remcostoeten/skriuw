@@ -1,9 +1,11 @@
 import { initializeDefaultNotesAndFolders } from '@/features/notes/utils/initialize-defaults'
 
 import { initializeGenericStorage } from '@/api/storage/generic-storage-factory'
-import type { StorageConfig } from '@/api/storage/generic-types'
 
 import { DEFAULT_STORAGE_CONFIG, getStorageConfig } from './config'
+
+import type { StorageConfig } from '@/api/storage/generic-types'
+
 
 let initializationPromise: Promise<void> | null = null
 let currentConfig: StorageConfig | null = null

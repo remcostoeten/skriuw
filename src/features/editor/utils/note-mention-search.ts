@@ -1,4 +1,4 @@
-import type { Item, Note, Folder } from '@/features/notes'
+import type { Item } from '@/features/notes'
 
 export type NoteMentionCandidate = {
   id: string

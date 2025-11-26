@@ -14,6 +14,17 @@ function getDatabaseUrl(): string {
                 return process.env.VITE_LIBSQL_URL;
         }
 
+        // In production (e.g., Vercel), require explicit LibSQL URL
+        // File-based SQLite doesn't work in serverless environments
+        if (import.meta.env.PROD) {
+                throw new Error(
+                        "VITE_LIBSQL_URL is required in production. " +
+                        "File-based SQLite is not supported in serverless environments. " +
+                        "Please configure a LibSQL (Turso) database URL."
+                );
+        }
+
+        // Only allow file: fallback in development
         return "file:local.db";
 }
 

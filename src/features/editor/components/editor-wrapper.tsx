@@ -5,6 +5,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import '@blocknote/core/fonts/inter.css'
 import '@blocknote/mantine/style.css'
 import { useUserPreferences, useSettings } from '@/features/settings'
+
 import { NoteMentionSuggestionMenu } from './NoteMentionSuggestionMenu'
 
 type props = {

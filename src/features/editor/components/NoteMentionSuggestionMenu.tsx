@@ -1,10 +1,10 @@
-import { useCallback } from 'react'
-import { Link2 } from 'lucide-react'
 import {
   SuggestionMenuController,
   type SuggestionMenuProps,
   useBlockNoteEditor
 } from '@blocknote/react'
+import { Link2 } from 'lucide-react'
+import { useCallback } from 'react'
 
 import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
 import {

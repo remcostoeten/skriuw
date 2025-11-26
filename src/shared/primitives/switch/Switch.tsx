@@ -1,8 +1,10 @@
+import { Loader2 } from 'lucide-react';
 import React, { useId, useRef, useState, useEffect } from 'react';
+
 import { cn } from '@/shared/utilities';
+
 import { SwitchProps, SwitchState } from './types';
 import { switchAnimations, switchSizes } from './variants';
-import { Loader2 } from 'lucide-react';
 
 /**
  * Enterprise-grade Switch Component

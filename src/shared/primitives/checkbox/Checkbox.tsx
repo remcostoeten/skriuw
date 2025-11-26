@@ -1,8 +1,10 @@
+import { Loader2, Check, Minus } from 'lucide-react';
 import React, { useId, useRef, useState, useEffect } from 'react';
+
 import { cn } from '@/shared/utilities';
+
 import { CheckboxProps, CheckboxState } from './types';
 import { checkboxStyles, checkboxAnimations, checkboxSizes, focusRingStyles } from './variants';
-import { Loader2, Check, Minus } from 'lucide-react';
 
 /**
  * Enterprise-grade Checkbox Component

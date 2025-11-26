@@ -1,10 +1,12 @@
 import { Cloud, Database, HardDrive } from "lucide-react"
 import { useMemo, type JSX } from "react"
 
-import type { StorageAdapterName, StorageConfig } from "@/api/storage/generic-types"
 
 import { cn } from "@/shared/utilities/cn"
+
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "ui"
+
+import type { StorageAdapterName, StorageConfig } from "@/api/storage/generic-types"
 
 type StorageOnboardingProps = {
         onSelect: (config: StorageConfig) => void
