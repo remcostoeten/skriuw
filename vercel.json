@@ -1,0 +1,16 @@
+{
+  "buildCommand": "bun run build",
+  "outputDirectory": "dist/spa",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_STORAGE_ADAPTER": "drizzleLibsqlHttp"
+  }
+}
