@@ -1,9 +1,8 @@
 import Database from "@tauri-apps/plugin-sql";
-import { drizzle, type SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import { eq } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { drizzle, type SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
-import type { Item } from "@/features/notes/types";
 import * as schema from "@/data/drizzle/base-entities";
 import {
         NOTE_STORAGE_KEY,
@@ -27,6 +26,7 @@ import type {
         StorageInfo,
         TauriSqliteOptions
 } from "../generic-types";
+import type { Item } from "@/features/notes/types";
 
 const storageRecords = sqliteTable("generic_storage_records", {
         storageKey: text("storage_key").primaryKey(),

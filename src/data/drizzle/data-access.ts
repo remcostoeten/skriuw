@@ -1,10 +1,7 @@
-import type { Block } from "@blocknote/core";
 
-import type { Item, Note } from "@/features/notes/types";
 
 import { getDb } from "./client";
 import {
-        NOTE_STORAGE_KEY,
         createFolderRecordDb,
         createNoteRecordDb,
         deleteItemRecordDb,
@@ -17,6 +14,9 @@ import {
         renameItemRecordDb,
         updateNoteRecordDb
 } from "./note-storage";
+
+import type { Item, Note } from "@/features/notes/types";
+import type { Block } from "@blocknote/core";
 
 export { NOTE_STORAGE_KEY } from "./note-storage";
 

@@ -1,16 +1,16 @@
-import { createNote } from '@/features/notes/api/mutations/create-note'
 import { createFolder } from '@/features/notes/api/mutations/create-folder'
+import { createNote } from '@/features/notes/api/mutations/create-note'
 import { getItems } from '@/features/notes/api/queries/get-items'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
-import type { Note, Folder, Item } from '@/features/notes/types'
-import type { DefaultNote, DefaultFolder } from '@/features/notes/utils/initialize-defaults'
+
 import type {
   ParsedSeed,
   ImportResult,
   ImportProgress,
-  ImportError,
   SeedImportOptions,
 } from '../types'
+import type { Note, Folder, Item } from '@/features/notes/types'
+import type { DefaultNote, DefaultFolder } from '@/features/notes/utils/initialize-defaults'
 
 /**
  * Find a folder by name in the item tree (copied from initialize-defaults)

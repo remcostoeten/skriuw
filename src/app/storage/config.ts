@@ -1,11 +1,12 @@
-import type { LibsqlHttpOptions, StorageConfig, TauriSqliteOptions } from "@/api/storage/generic-types"
-
+import { normalizeAdapterName } from "./adapter-utils"
 import {
         clearStoredStorageConfig,
         getStoredStorageConfig,
         setStoredStorageConfig
 } from "./preferences"
-import { normalizeAdapterName } from "./adapter-utils"
+
+import type { LibsqlHttpOptions, StorageConfig, TauriSqliteOptions } from "@/api/storage/generic-types"
+
 
 export const DEFAULT_STORAGE_CONFIG: StorageConfig = {
         adapter: "drizzleLibsqlHttp",

@@ -1,54 +1,62 @@
 import { relations } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+import { baseEntitySchema } from "./schema-helpers";
+
+import type { UUID, Time } from "@/shared/types/semantic";
+
 export const profiles = sqliteTable("profiles", {
-        id: text("id").primaryKey(),
+        ...baseEntitySchema(),
         displayName: text("display_name").notNull(),
         email: text("email"),
-        avatarUrl: text("avatar_url"),
-        createdAt: integer("created_at", { mode: "number" }).notNull(),
-        updatedAt: integer("updated_at", { mode: "number" }).notNull()
+        avatarUrl: text("avatar_url")
 });
 
 export const devices = sqliteTable("devices", {
-        id: text("id").primaryKey(),
+        ...baseEntitySchema(),
         profileId: text("profile_id")
                 .notNull()
+                .$type<UUID>()
                 .references(() => profiles.id, { onDelete: "cascade" }),
         label: text("label").notNull(),
-        lastSeenAt: integer("last_seen_at", { mode: "number" }).notNull(),
-        createdAt: integer("created_at", { mode: "number" }).notNull(),
-        updatedAt: integer("updated_at", { mode: "number" }).notNull()
+        lastSeenAt: integer("last_seen_at", { mode: "number" })
+                .notNull()
+                .$type<Time>()
 });
 
 export const folders = sqliteTable("folders", {
-        id: text("id").primaryKey(),
+        ...baseEntitySchema(),
         name: text("name").notNull(),
-        parentFolderId: text("parent_folder_id").references(() => folders.id, {
-                onDelete: "cascade"
-        }),
-        createdAt: integer("created_at", { mode: "number" }).notNull(),
-        updatedAt: integer("updated_at", { mode: "number" }).notNull()
+        parentFolderId: text("parent_folder_id")
+                .$type<UUID>()
+                .references(() => folders.id, {
+                        onDelete: "cascade"
+                })
 });
 
 export const notes = sqliteTable("notes", {
-        id: text("id").primaryKey(),
+        ...baseEntitySchema(),
         name: text("name").notNull(),
         content: text("content").notNull(),
-        folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
-        profileId: text("profile_id").references(() => profiles.id, { onDelete: "set null" }),
-        createdAt: integer("created_at", { mode: "number" }).notNull(),
-        updatedAt: integer("updated_at", { mode: "number" }).notNull()
+        folderId: text("folder_id")
+                .$type<UUID>()
+                .references(() => folders.id, { onDelete: "set null" }),
+        profileId: text("profile_id")
+                .$type<UUID>()
+                .references(() => profiles.id, { onDelete: "set null" })
 });
 
 export const revisions = sqliteTable("note_revisions", {
-        id: text("id").primaryKey(),
+        id: text("id").primaryKey().$type<UUID>(),
         noteId: text("note_id")
                 .notNull()
+                .$type<UUID>()
                 .references(() => notes.id, { onDelete: "cascade" }),
         label: text("label").notNull(),
         snapshot: text("snapshot").notNull(),
-        createdAt: integer("created_at", { mode: "number" }).notNull()
+        createdAt: integer("created_at", { mode: "number" })
+                .notNull()
+                .$type<Time>()
 });
 
 export const folderRelations = relations(folders, ({ many, one }) => ({
@@ -92,11 +100,61 @@ export const revisionRelations = relations(revisions, ({ one }) => ({
         })
 }));
 
+// UI State Tables
+export const uiState = sqliteTable("ui_state", {
+        ...baseEntitySchema(),
+        key: text("key").notNull().unique(), // e.g., 'expanded_folders', 'editor_tabs_state'
+        value: text("value").notNull(), // JSON string
+        profileId: text("profile_id")
+                .$type<UUID>()
+                .references(() => profiles.id, { onDelete: "cascade" })
+});
+
+export const appSettings = sqliteTable("app_settings", {
+        ...baseEntitySchema(),
+        key: text("key").notNull().unique(), // e.g., 'theme', 'fontSize', 'language'
+        value: text("value").notNull(), // JSON string
+        profileId: text("profile_id")
+                .$type<UUID>()
+                .references(() => profiles.id, { onDelete: "cascade" })
+});
+
+export const shortcuts = sqliteTable("shortcuts", {
+        ...baseEntitySchema(),
+        shortcutId: text("shortcut_id").notNull().unique(), // e.g., 'save', 'copy', 'paste'
+        keyCombos: text("key_combos").notNull(), // JSON array of key combos
+        profileId: text("profile_id")
+                .$type<UUID>()
+                .references(() => profiles.id, { onDelete: "cascade" })
+});
+
+// System/Metadata Tables
+export const systemConfig = sqliteTable("system_config", {
+        ...baseEntitySchema(),
+        key: text("key").notNull().unique(), // e.g., 'storage_preference', 'schema_version'
+        value: text("value").notNull(), // JSON string
+        environment: text("environment").notNull().default("user") // 'system' | 'user'
+});
+
+export const eventLogs = sqliteTable("event_logs", {
+        ...baseEntitySchema(),
+        category: text("category").notNull(), // e.g., 'storage', 'user', 'system'
+        level: text("level").notNull().default("info"), // 'debug' | 'info' | 'warn' | 'error'
+        message: text("message").notNull(),
+        metadata: text("metadata"), // JSON string with additional context
+        timestamp: integer("timestamp", { mode: "number" }).notNull().$type<Time>()
+});
+
 export type ProfileRow = typeof profiles.$inferSelect;
 export type DeviceRow = typeof devices.$inferSelect;
 export type FolderRow = typeof folders.$inferSelect;
 export type NoteRow = typeof notes.$inferSelect;
 export type RevisionRow = typeof revisions.$inferSelect;
+export type UiStateRow = typeof uiState.$inferSelect;
+export type AppSettingsRow = typeof appSettings.$inferSelect;
+export type ShortcutRow = typeof shortcuts.$inferSelect;
+export type SystemConfigRow = typeof systemConfig.$inferSelect;
+export type EventLogRow = typeof eventLogs.$inferSelect;
 /**
  * Base entity schema definitions for the Drizzle-backed storage layer.
  *
@@ -209,6 +267,55 @@ const storageSyncColumns: ColumnDefinition[] = [
         { name: 'status', type: 'text', notNull: true, default: 'pending' }
 ]
 
+const uiStateColumns: ColumnDefinition[] = [
+        ...baseColumns,
+        { name: 'key', type: 'text', notNull: true, unique: true },
+        { name: 'value', type: 'json', notNull: true },
+        {
+                name: 'profileId',
+                type: 'text',
+                references: { table: 'profiles', column: 'id', onDelete: 'cascade' }
+        }
+]
+
+const appSettingsColumns: ColumnDefinition[] = [
+        ...baseColumns,
+        { name: 'key', type: 'text', notNull: true, unique: true },
+        { name: 'value', type: 'json', notNull: true },
+        {
+                name: 'profileId',
+                type: 'text',
+                references: { table: 'profiles', column: 'id', onDelete: 'cascade' }
+        }
+]
+
+const shortcutsColumns: ColumnDefinition[] = [
+        ...baseColumns,
+        { name: 'shortcutId', type: 'text', notNull: true, unique: true },
+        { name: 'keyCombos', type: 'json', notNull: true },
+        {
+                name: 'profileId',
+                type: 'text',
+                references: { table: 'profiles', column: 'id', onDelete: 'cascade' }
+        }
+]
+
+const systemConfigColumns: ColumnDefinition[] = [
+        ...baseColumns,
+        { name: 'key', type: 'text', notNull: true, unique: true },
+        { name: 'value', type: 'json', notNull: true },
+        { name: 'environment', type: 'text', notNull: true, default: 'user' }
+]
+
+const eventLogsColumns: ColumnDefinition[] = [
+        ...baseColumns,
+        { name: 'category', type: 'text', notNull: true },
+        { name: 'level', type: 'text', notNull: true, default: 'info' },
+        { name: 'message', type: 'text', notNull: true },
+        { name: 'metadata', type: 'json' },
+        { name: 'timestamp', type: 'integer', notNull: true }
+]
+
 export const baseEntitySchemas: TableDefinition[] = [
         {
                 name: 'notes',
@@ -239,6 +346,53 @@ export const baseEntitySchemas: TableDefinition[] = [
                 dialects: ['libsql'],
                 columns: profileColumns,
                 description: 'User profile metadata used for attribution and collaboration states.'
+        },
+        {
+                name: 'ui_state',
+                dialects: ['sqlite', 'libsql'],
+                columns: uiStateColumns,
+                indexes: [
+                        { name: 'ui_state_key_idx', columns: ['key'] },
+                        { name: 'ui_state_profile_idx', columns: ['profileId'] }
+                ],
+                description: 'UI state persistence for expanded folders, editor tabs, panel positions, etc.'
+        },
+        {
+                name: 'app_settings',
+                dialects: ['sqlite', 'libsql'],
+                columns: appSettingsColumns,
+                indexes: [
+                        { name: 'app_settings_key_idx', columns: ['key'] },
+                        { name: 'app_settings_profile_idx', columns: ['profileId'] }
+                ],
+                description: 'Application preferences and settings like theme, font size, language, etc.'
+        },
+        {
+                name: 'shortcuts',
+                dialects: ['sqlite', 'libsql'],
+                columns: shortcutsColumns,
+                indexes: [
+                        { name: 'shortcuts_shortcut_idx', columns: ['shortcutId'] },
+                        { name: 'shortcuts_profile_idx', columns: ['profileId'] }
+                ],
+                description: 'Custom keyboard shortcuts and key combinations for user actions.'
+        },
+        {
+                name: 'system_config',
+                dialects: ['sqlite', 'libsql'],
+                columns: systemConfigColumns,
+                indexes: [{ name: 'system_config_key_idx', columns: ['key'] }],
+                description: 'System-level configuration like storage preferences, schema versions, etc.'
+        },
+        {
+                name: 'event_logs',
+                dialects: ['sqlite', 'libsql'],
+                columns: eventLogsColumns,
+                indexes: [
+                        { name: 'event_logs_category_idx', columns: ['category'] },
+                        { name: 'event_logs_timestamp_idx', columns: ['timestamp'] }
+                ],
+                description: 'Application event logging for debugging, analytics, and audit trails.'
         },
         {
                 name: 'device_replicas',

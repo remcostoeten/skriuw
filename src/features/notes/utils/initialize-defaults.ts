@@ -1,13 +1,11 @@
 import { createFolder } from '../api/mutations/create-folder'
 import { createNote } from '../api/mutations/create-note'
 import { getItems } from '../api/queries/get-items'
-
 import {
   welcomeSeed,
   examplesFolderSeed,
   toDoFolderSeed,
   servoFolderSeed,
-  releasesFolderSeed,
   installNoteSeed,
   localUsageNoteSeed,
   releaseNote20251125Seed

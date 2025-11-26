@@ -3,19 +3,20 @@ import { ReactNode, useEffect, useState } from "react"
 
 import { EmptyState } from "@/shared/ui/empty-state"
 
-import { SettingsProvider } from "@/features/settings"
 import { EditorTabsProvider } from "@/features/editor/tabs"
-import { StorageOnboarding } from "@/features/storage-onboarding"
+import { SettingsProvider } from "@/features/settings"
 import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context"
 import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
+import { StorageOnboarding } from "@/features/storage-onboarding"
 
 import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading"
 
 import { Sonner, Toaster, TooltipProvider } from "ui"
 
 import { initializeAppStorage } from "../storage"
-import type { StorageConfig } from "../storage/config"
 import { getStorageConfig, persistStorageConfig, resetStorageConfig } from "../storage/config"
+
+import type { StorageConfig } from "../storage/config"
 
 type props = {
         children: ReactNode

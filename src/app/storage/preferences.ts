@@ -1,5 +1,6 @@
-import type { StorageConfig } from "@/api/storage/generic-types"
 import { normalizeAdapterName } from "./adapter-utils"
+
+import type { StorageConfig } from "@/api/storage/generic-types"
 
 const STORAGE_CONFIG_KEY = 'storage.preference'
 const STORAGE_SCHEMA_VERSION_KEY = 'storage.schemaVersion'

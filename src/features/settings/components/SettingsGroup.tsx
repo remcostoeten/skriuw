@@ -1,11 +1,11 @@
 import React from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Label } from '@/shared/ui/label'
 import { Input } from '@/shared/ui/input'
-import { Switch } from '@/shared/ui/switch'
-import { Slider } from '@/shared/ui/slider'
+import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { Slider } from '@/shared/ui/slider'
+import { Switch } from '@/shared/ui/switch'
 
 import type { SettingsGroup, UserSetting } from '@/shared/data/types'
 

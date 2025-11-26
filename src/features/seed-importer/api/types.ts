@@ -1,5 +1,5 @@
+import type { Note, Folder } from '@/features/notes/types'
 import type { DefaultNote, DefaultFolder } from '@/features/notes/utils/initialize-defaults'
-import type { Note, Folder, Item } from '@/features/notes/types'
 
 export type SeedSource = 'defaults' | 'generated'
 

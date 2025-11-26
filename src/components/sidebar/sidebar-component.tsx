@@ -31,6 +31,8 @@ import type { Folder as FolderType, Item } from "@/features/notes/types";
 import type { Block } from "@blocknote/core";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
+const BASE_INDENT_REM = 0.75;
+const INDENT_STEP_REM = 0.75;
 
 // Folder closed SVG
 const FolderClosedIcon = () => (
@@ -59,6 +61,9 @@ type props = {
   customContent?: React.ReactNode;
   ruler?: RulerProps;
 }
+
+const getIndentPosition = (depthIndex: number) =>
+  `calc(${BASE_INDENT_REM + depthIndex * INDENT_STEP_REM}rem - 0.5px)`;
 
 function FileTreeItem({
   item,
@@ -256,6 +261,7 @@ function FileTreeItem({
   }, [item.id, onDelete, onContextMenuOpenChange]);
 
   const childCount = isFolder && item.type === "folder" ? item.children.length : 0;
+  const indentPadding = BASE_INDENT_REM + level * INDENT_STEP_REM;
 
   return (
     <ContextMenu onOpenChange={handleContextMenuOpenChange}>
@@ -269,12 +275,12 @@ function FileTreeItem({
                 e.stopPropagation();
                 handleDoubleClick();
               }}
-              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between ${
+              className={`relative overflow-visible font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between ${
                 isActive
                   ? "bg-accent text-foreground"
                   : "text-secondary-foreground/80 hover:text-foreground"
               }`}
-              style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+              style={{ paddingLeft: `${indentPadding}rem` }}
               draggable
               onDragStart={(e) => onDragStart(item, e)}
               onDragOver={onDragOver}
@@ -284,7 +290,24 @@ function FileTreeItem({
               role="treeitem"
               aria-expanded={isFolder ? isExpanded : undefined}
             >
-              <div className="flex items-center w-[calc(100%-20px)] gap-2">
+              {ruler?.enabled && level > 0 && (
+                <span className="pointer-events-none absolute inset-y-[-4px] left-0 right-0 z-0">
+                  {Array.from({ length: level }).map((_, guideIndex) => (
+                    <span
+                      key={`${item.id}-guide-${guideIndex}`}
+                      className="absolute top-0 bottom-0"
+                      style={{
+                        left: getIndentPosition(guideIndex),
+                        borderLeft: `1px ${ruler.style === "dashed" ? "dashed" : "solid"}`,
+                        borderColor: ruler.color || "currentColor",
+                        opacity: ruler.opacity ?? 0.25,
+                      }}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </span>
+              )}
+              <div className="relative z-[1] flex items-center w-[calc(100%-20px)] gap-2">
                 {isFolder ? (
                   <>
                     <div
@@ -337,7 +360,7 @@ function FileTreeItem({
               </div>
 
               {isFolder && (
-                <span className="text-xs text-foreground/40">{childCount}</span>
+                <span className="relative z-[1] text-xs text-foreground/40">{childCount}</span>
               )}
             </button>
           </div>
@@ -411,7 +434,7 @@ function FileTreeItem({
             <div
               className="absolute top-0 bottom-0"
               style={{
-                left: `calc(${(0.75 + level * 0.75)}rem + 9px - 0.5px)`,
+                left: getIndentPosition(level + 1),
                 borderLeft: `1px ${ruler.style === "dashed" ? "dashed" : "solid"}`,
                 borderColor: ruler.color || "currentColor",
                 opacity: ruler.opacity || 0.25,
@@ -469,8 +492,17 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
   const { contextMenuState, setContextMenuState } = useContextMenuState();
   const { getSetting } = useSettings();
   const searchInContent = getSetting('searchInContent') ?? false;
+  const showIndentGuides = getSetting('showFileTreeIndentGuides') ?? false;
   const [showSeedImport, setShowSeedImport] = useState(false);
   const { seeds } = useSeedDiscovery();
+  const resolvedRuler: RulerProps | undefined = showIndentGuides
+    ? ruler ?? {
+      enabled: true,
+      style: "solid",
+      color: "hsl(var(--muted-foreground))",
+      opacity: 0.25,
+    }
+    : undefined;
 
   // Load expanded folders from localStorage
   useEffect(() => {
@@ -913,7 +945,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
               onDrop={handleDrop}
               onSelectFolder={handleSelectFolder}
               onContextMenuOpenChange={handleContextMenuOpenChange}
-              ruler={ruler}
+              ruler={resolvedRuler}
             />
           ))}
         </div>

@@ -1,18 +1,3 @@
-import React, { useState } from 'react'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/shared/ui/command'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
-import { Button } from '@/shared/ui/button'
-import { Badge } from '@/shared/ui/badge'
-import { Progress } from '@/shared/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { ScrollArea } from '@/shared/ui/scroll-area'
 import {
   FileText,
   Folder,
@@ -20,11 +5,28 @@ import {
   Search,
   RefreshCw,
   CheckCircle,
-  XCircle,
-  AlertCircle
+  XCircle
 } from 'lucide-react'
-import type { ParsedSeed, SeedSource } from '../api/types'
+import React, { useState } from 'react'
+
+import { Badge } from '@/shared/ui/badge'
+import { Button } from '@/shared/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/shared/ui/command'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
+import { Progress } from '@/shared/ui/progress'
+import { ScrollArea } from '@/shared/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+
 import { useSeedImporter } from '../hooks/use-seed-importer'
+
+import type { ParsedSeed, SeedSource } from '../api/types'
+
 
 interface SeedImportDialogProps {
   open: boolean
