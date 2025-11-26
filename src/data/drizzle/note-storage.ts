@@ -1,9 +1,4 @@
 import { eq } from "drizzle-orm";
-import type { Block } from "@blocknote/core";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
-
-import type { Item, Folder, Note } from "@/features/notes/types";
 
 import * as schema from "./base-entities";
 import {
@@ -13,6 +8,11 @@ import {
         type FolderRow,
         type NoteRow
 } from "./base-entities";
+
+import type { Item, Folder, Note } from "@/features/notes/types";
+import type { Block } from "@blocknote/core";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 export const NOTE_STORAGE_KEY = "Skriuw_notes";
 export const APP_SETTINGS_KEY = "app:settings";

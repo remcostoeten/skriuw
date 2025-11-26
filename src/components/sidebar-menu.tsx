@@ -1,4 +1,4 @@
-import { Pencil, Hand, Keyboard, Settings } from 'lucide-react'
+import { Pencil, Hand, Keyboard, Settings, Palette } from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -34,6 +34,13 @@ export function SidebarMenu({ open, onOpenChange }: props) {
             icon: <Pencil className="w-4 h-4" />,
             active: activeItem === 'editor',
             onClick: () => setActiveItem('editor')
+        },
+        {
+            id: 'appearance',
+            label: 'Appearance',
+            icon: <Palette className="w-4 h-4" />,
+            active: activeItem === 'appearance',
+            onClick: () => setActiveItem('appearance')
         },
         {
             id: 'advanced',

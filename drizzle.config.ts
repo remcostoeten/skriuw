@@ -3,7 +3,7 @@ import { defineConfig } from "drizzle-kit";
 
 type DrizzleTarget = "desktop" | "web";
 
-const schema = "./src/db/schema.ts";
+const schema = "./src/data/drizzle/base-entities.ts";
 const out = "./drizzle";
 
 const target = (process.env.DRIZZLE_TARGET as DrizzleTarget | undefined) ?? "desktop";

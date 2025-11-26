@@ -34,12 +34,10 @@ export function AppLayoutShell({
     return (
         <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
-                {/* Mobile Overlay */}
                 {isSidebarOpen && (
                     <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" />
                 )}
 
-                {/* Left Toolbar */}
                 {leftToolbar && (
                     <div
                         className={`hidden lg:block transition-all duration-200 ${
@@ -63,7 +61,6 @@ export function AppLayoutShell({
                     </div>
                 )}
 
-                {/* Main Content Area */}
                 <div
                     className={cn(
                         'flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out',

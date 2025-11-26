@@ -35,9 +35,9 @@ export function SettingsGroup({
             case 'boolean':
                 return (
                     <div key={setting.key} className="flex items-center justify-between space-y-0">
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 -2">
                             <Label>{setting.key}</Label>
-                            <p className="text-sm text-muted-foreground">{setting.description}</p>
+                            <p className="text-sm text-balance text-muted-foreground">{setting.description}</p>
                         </div>
                         <Switch
                             checked={currentValue}
@@ -51,7 +51,8 @@ export function SettingsGroup({
                 return (
                     <div key={setting.key} className="space-y-2">
                         <Label>{setting.key}</Label>
-                        <p className="text-sm text-muted-foreground">{setting.description}</p>
+                        <p className="text-sm text-balance-muted-foreground">{setting.description}</p>
+
                         <Select
                             value={currentValue?.toString()}
                             onValueChange={handleChange}
@@ -77,7 +78,7 @@ export function SettingsGroup({
                     return (
                         <div key={setting.key} className="space-y-2">
                             <Label>{setting.key}</Label>
-                            <p className="text-sm text-muted-foreground">{setting.description}</p>
+                            <p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
                             <Slider
                                 value={[currentValue]}
                                 onValueChange={([value]) => handleChange(value)}
@@ -93,7 +94,7 @@ export function SettingsGroup({
                 return (
                     <div key={setting.key} className="space-y-2">
                         <Label>{setting.key}</Label>
-                        <p className="text-sm text-muted-foreground">{setting.description}</p>
+                        <p className="text-sm  text-balance text-muted-foreground">{setting.description}</p>
                         <Input
                             type="number"
                             value={currentValue?.toString() || ''}
@@ -107,7 +108,7 @@ export function SettingsGroup({
                 return (
                     <div key={setting.key} className="space-y-2">
                         <Label>{setting.key}</Label>
-                        <p className="text-sm text-muted-foreground">{setting.description}</p>
+                        <p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
                         <Input
                             value={currentValue?.toString() || ''}
                             onChange={(e) => handleChange(e.target.value)}
@@ -129,7 +130,7 @@ export function SettingsGroup({
         <Card>
             <CardHeader>
                 <CardTitle className="text-lg">{group.title}</CardTitle>
-                <p className="text-sm text-muted-foreground">{group.description}</p>
+                <p className="text-sm text-muted-foreground text-balance">{group.description}</p>
             </CardHeader>
             <CardContent className="space-y-6">
                 {group.settings

@@ -145,15 +145,55 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           overflow-wrap: normal !important;
           word-break: normal !important;
         }
-        .editor-container.centered-layout .bn-editor {>
+        .editor-container.centered-layout .bn-editor {
           width: 100%;
           max-width: 655px;
           margin-left: auto;
           margin-right: auto;
           padding-top: 0;
           padding-bottom: 1.5rem;
-          padding-left: 0;
-          padding-right: 0;
+          padding-left: 1.5rem;
+          padding-right: 1.5rem;
+          position: relative;
+        }
+
+        /* Ensure block indicators (drag handles) stay within bounds in centered layout */
+        .editor-container.centered-layout .bn-side-menu,
+        .editor-container.centered-layout [class*="bn-side"],
+        .editor-container.centered-layout [class*="bn-drag"] {
+          position: absolute !important;
+          left: 0 !important;
+          transform: translateX(0) !important;
+        }
+
+        /* Adjust side menu positioning to prevent overflow */
+        .editor-container .bn-side-menu,
+        .editor-container [class*="bn-side"],
+        .editor-container [class*="bn-drag"] {
+          margin-left: -8px;
+          z-index: 1;
+        }
+
+        /* In centered layout, ensure side menu doesn't overflow the max-width container */
+        .editor-container.centered-layout .bn-side-menu,
+        .editor-container.centered-layout [class*="bn-side"],
+        .editor-container.centered-layout [class*="bn-drag"] {
+          margin-left: 0;
+          position: relative !important;
+        }
+
+        /* Alternative approach: use data attributes that BlockNote commonly uses */
+        .editor-container.centered-layout [data-side-menu],
+        .editor-container.centered-layout [data-drag-handle] {
+          position: relative !important;
+          left: auto !important;
+          transform: none !important;
+        }
+
+        /* Ensure block handles don't extend beyond the editor bounds in centered layout */
+        .editor-container.centered-layout .bn-editor > div > div {
+          overflow: visible;
+          position: relative;
         }
         .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="1"],
         .editor-container.centered-layout .bn-editor > div:first-child [data-content-type="heading"][data-level="2"] {

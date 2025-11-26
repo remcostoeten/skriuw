@@ -1,6 +1,5 @@
 import {
     ReactNode,
-    useState,
     useMemo,
     useCallback,
     Suspense,
@@ -15,6 +14,7 @@ import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings } from '@/features/settings'
 import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { useUIStore } from '@/stores/ui-store'
 
 import { Footer } from '@/components/layout/footer'
 import { TopToolbar } from '@/components/layout/top-toolbar'
@@ -68,14 +68,21 @@ export function AppLayoutContainer({
 }: AppLayoutContainerProps) {
     const navigate = useNavigate()
     const { items, isInitialLoading } = useNotesWithSuspense()
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-    const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true)
-    const [isShortcutsSidebarOpen, setIsShortcutsSidebarOpen] = useState(false)
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [isStorageStatusOpen, setIsStorageStatusOpen] = useState(() => {
-        if (typeof window === 'undefined') return false
-        return window.localStorage.getItem('storageStatus.panelOpen') === 'true'
-    })
+    const {
+        isMobileSidebarOpen,
+        toggleMobileSidebar,
+        isDesktopSidebarOpen,
+        toggleDesktopSidebar,
+        isShortcutsSidebarOpen,
+        toggleShortcutsSidebar,
+        setShortcutsSidebarOpen,
+        isSettingsOpen,
+        toggleSettings,
+        setSettingsOpen,
+        isStorageStatusOpen,
+        toggleStorageStatus,
+        setStorageStatusOpen
+    } = useUIStore()
     const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
     const {
         tabs,
@@ -193,28 +200,28 @@ export function AppLayoutContainer({
 
     useShortcut('toggle-shortcuts', (e) => {
         e.preventDefault()
-        setIsShortcutsSidebarOpen((prev) => !prev)
+        toggleShortcutsSidebar()
     })
 
     useShortcut('toggle-sidebar', (e) => {
         e.preventDefault()
-        setIsDesktopSidebarOpen((prev) => !prev)
+        toggleDesktopSidebar()
     })
 
     useShortcut('open-settings', (e) => {
         e.preventDefault()
-        setIsSettingsOpen((prev) => !prev)
+        toggleSettings()
     })
 
     useShortcut('toggle-data-browser', (e) => {
         e.preventDefault()
-        setIsStorageStatusOpen((prev) => !prev)
+        toggleStorageStatus()
     })
 
     return (
         <AppLayoutShell
             leftToolbar={
-                <LeftToolbar onSettingsClick={() => setIsSettingsOpen(true)} />
+                <LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />
             }
             sidebar={
                 showSidebar ? (
@@ -226,6 +233,12 @@ export function AppLayoutContainer({
                                 activeNoteId={sidebarActiveNoteId}
                                 contentType={sidebarContentType}
                                 customContent={sidebarCustomContent}
+                                ruler={{
+                                    enabled: true,
+                                    style: "solid",
+                                    color: "hsl(var(--muted-foreground))",
+                                    opacity: 0.25,
+                                }}
                             />
                         )}
                     </Suspense>
@@ -234,18 +247,12 @@ export function AppLayoutContainer({
             topToolbar={
                 <TopToolbar
                     noteName={computedTitle}
-                    onToggleSidebar={() =>
-                        setIsSidebarOpen((prev) => !prev)
-                    }
-                    onToggleDesktopSidebar={() =>
-                        setIsDesktopSidebarOpen((prev) => !prev)
-                    }
-                    onSearch={(query) => {
+                    onToggleSidebar={toggleMobileSidebar}
+                    onToggleDesktopSidebar={toggleDesktopSidebar}
+                    onSearch={() => {
                         // TODO: Implement search
                     }}
-                    onToggleShortcuts={() =>
-                        setIsShortcutsSidebarOpen((prev) => !prev)
-                    }
+                    onToggleShortcuts={toggleShortcutsSidebar}
                     onNavigatePrevious={handleNavigatePrevious}
                     onNavigateNext={handleNavigateNext}
                     canNavigatePrevious={canNavigatePrevious}
@@ -272,7 +279,7 @@ export function AppLayoutContainer({
                 <Suspense fallback={null}>
                     <ShortcutsSidebar
                         isOpen={isShortcutsSidebarOpen}
-                        onClose={() => setIsShortcutsSidebarOpen(false)}
+                        onClose={() => toggleShortcutsSidebar()}
                     />
                 </Suspense>
             }
@@ -280,31 +287,22 @@ export function AppLayoutContainer({
                 <>
                     <SidebarMenu
                         open={isSettingsOpen}
-                        onOpenChange={setIsSettingsOpen}
+                        onOpenChange={setSettingsOpen}
                     />
                     <Suspense fallback={null}>
                         <StorageStatusToggle
-                            onClick={() =>
-                                setIsStorageStatusOpen((prev) => !prev)
-                            }
+                            onClick={toggleStorageStatus}
                         />
                         <StorageStatusPanel
                             isOpen={isStorageStatusOpen}
-                            onClose={() => setIsStorageStatusOpen(false)}
+                            onClose={() => setStorageStatusOpen(false)}
                         />
                     </Suspense>
                 </>
             }
             isRightPanelOpen={isShortcutsSidebarOpen}
-            isSidebarOpen={isSidebarOpen}
+            isSidebarOpen={isMobileSidebarOpen}
             isDesktopSidebarOpen={isDesktopSidebarOpen}
         />
     )
-		useEffect(() => {
-			if (typeof window === 'undefined') return
-			window.localStorage.setItem(
-				'storageStatus.panelOpen',
-				isStorageStatusOpen ? 'true' : 'false'
-			)
-		}, [isStorageStatusOpen])
 }
