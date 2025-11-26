@@ -71,6 +71,15 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     implemented: true,
   },
   {
+    key: 'showFileTreeIndentGuides',
+    value: false,
+    defaultValue: false,
+    type: 'boolean',
+    description: 'Show indent guide lines in the file tree',
+    category: 'appearance',
+    implemented: true,
+  },
+  {
     key: 'searchInContent',
     value: false,
     defaultValue: false,

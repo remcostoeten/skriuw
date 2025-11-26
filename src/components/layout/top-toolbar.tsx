@@ -47,7 +47,7 @@ export function TopToolbar({
                     icon={
                         <PanelLeftClose className="w-4 h-4 text-muted-foreground" />
                     }
-                    tooltip="Toggle desktop sidebar"
+                    tooltip="Togglefile tree"
                     variant="toolbar"
                     onClick={onToggleDesktopSidebar}
                     className="hidden lg:flex"
