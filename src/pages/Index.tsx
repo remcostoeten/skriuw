@@ -1,10 +1,11 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { EmptyState } from '@/shared/ui/empty-state'
 
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useShortcut, shortcut } from '@/features/shortcuts'
 import { SeedImportDialog } from '@/features/seed-importer/components/seed-import-dialog'
 import { useSeedDiscovery } from '@/features/seed-importer/hooks/use-seed-discovery'
@@ -22,17 +23,23 @@ import { IndexSkeleton } from './components/index-skeleton'
 export default function Index() {
     const location = useLocation()
     const navigate = useNavigate()
-    const { createNote, isInitialLoading } = useNotesWithSuspense()
+    const { items, createNote, isInitialLoading } = useNotesWithSuspense()
     const [showSeedImport, setShowSeedImport] = useState(false)
     const { seeds } = useSeedDiscovery()
+    const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 
     const isNoteRoute = location.pathname.startsWith('/note/')
-    const noteId = isNoteRoute ? location.pathname.split('/note/')[1] : null
+    const slugOrId = isNoteRoute ? location.pathname.split('/note/')[1]?.split('?')[0] : null
+    const noteId = useMemo(() => {
+        if (!slugOrId) return null
+        return resolveNoteId(slugOrId)
+    }, [slugOrId, resolveNoteId])
 
     async function handleCreateNote() {
         const newNote = await createNote('Untitled')
         if (newNote) {
-            navigate(`/note/${newNote.id}?focus=true`)
+            const url = getNoteUrl(newNote.id)
+            navigate(`${url}?focus=true`)
             toast.success('Note created')
         }
     }
@@ -64,7 +71,22 @@ export default function Index() {
                         {isInitialLoading ? (
                             <IndexSkeleton />
                         ) : (
-                            <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto px-6">
+                            <div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
+                                <div className="flex flex-col items-center gap-6 mb-8">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <h1 className="text-4xl font-bold text-foreground" style={{ fontFamily: 'Georgia, "Playfair Display", "Times New Roman", serif' }}>Skriuw</h1>
+                                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                            <p className="text-sm italic">
+                                                <span className="font-mono">/skrɪu̯/</span> — <span className="font-medium">Frisian, "to write."</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="max-w-lg text-center">
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            A local-first desktop application for writing and organizing thoughts. Built with Tauri 2.0 and React, <strong className="text-foreground">Skriuw</strong> blends note-taking and task management into a fast, private workspace with Markdown editing and offline access.
+                                        </p>
+                                    </div>
+                                </div>
                                 <EmptyState
                                     message="Select a note to start editing"
                                     submessage="Get started by opening a collection or creating a new note"

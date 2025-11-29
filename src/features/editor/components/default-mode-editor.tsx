@@ -5,6 +5,7 @@ import { useUserPreferences } from '@/features/settings/use-feature-flags'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
+import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
 import { cn } from '@/shared/utilities'
 
 interface DualModeEditorProps {
@@ -201,12 +202,15 @@ export function DualModeEditor({
           className={cn('relative overflow-hidden border-r border-border', isConverting && 'opacity-50')}
           style={{ width: `${splitRatio}%` }}
         >
-          <BlockNoteView
-            editor={editor}
-            sideMenu={blockIndicator}
-            formattingToolbar={showFormattingToolbar}
-            data-theme-css-variables={false}
-          />
+          <>
+            <BlockNoteView
+              editor={editor}
+              sideMenu={blockIndicator}
+              formattingToolbar={showFormattingToolbar}
+              data-theme-css-variables={false}
+            />
+            <NoteMentionSuggestionMenu editor={editor} />
+          </>
         </div>
 
         {/* Resizable Splitter */}
