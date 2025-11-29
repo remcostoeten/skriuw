@@ -17,8 +17,7 @@ import type {
 export interface GenericLocalStorageAdapterOptions {
         /**
          * Optional namespace prefix for all storage keys. This keeps different
-         * adapters (e.g., libsql replica vs. browser-only) isolated while
-         * sharing the same localStorage backend.
+         * storage instances isolated while sharing the same localStorage backend.
          */
         namespace?: string
         adapterName?: StorageConfig['adapter']

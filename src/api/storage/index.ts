@@ -22,5 +22,3 @@ export {
 } from "./generic-storage-factory";
 
 export { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
-export { createGenericDrizzleLibsqlHttpAdapter } from "./adapters/generic-drizzle-libsql-http";
-export { createGenericDrizzleTauriSqliteAdapter } from "./adapters/generic-drizzle-tauri-sqlite";
