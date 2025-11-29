@@ -5,8 +5,8 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/core/style.css'
 import '@blocknote/react/style.css'
 import { useUserPreferences, useSettings } from '@/features/settings'
-import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
 import { DualModeEditor } from './default-mode-editor'
+import { highlightCodeBlocks } from '@/features/editor/utils/code-highlight'
 
 type props = {
     editor: BlockNoteEditor | null
@@ -31,7 +31,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                     const textarea = editorRef.current?.querySelector('textarea') as HTMLTextAreaElement
                     textarea?.focus()
                 } else {
-                    // Focus the BlockNote editor
                     const contentEditable = editorRef.current?.querySelector(
                         '[contenteditable="true"]'
                     ) as HTMLElement
@@ -40,23 +39,50 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
             }
         }))
 
-        // Sync editor content when editor changes
         useEffect(() => {
             if (editor) {
                 setEditorContent(editor.document)
 
-                // Listen for content changes
                 const handleContentChange = () => {
                     setEditorContent(editor.document)
+                    
+                    if (editorRef.current) {
+                        setTimeout(() => {
+                            highlightCodeBlocks(editorRef.current!, editor)
+                        }, 0)
+                    }
                 }
 
                 editor.onEditorContentChange(handleContentChange)
-
-                return () => {
-                    // Cleanup listener if needed
-                }
             }
         }, [editor])
+
+        // Highlight code blocks on mount and when content changes
+        useEffect(() => {
+            if (!editorRef.current || hasRawMDXMode || !editor) return
+
+            const highlight = () => {
+                highlightCodeBlocks(editorRef.current!, editor)
+            }
+
+            // Initial highlight
+            const timeoutId = setTimeout(highlight, 200)
+
+            // Watch for DOM changes (BlockNote renders blocks dynamically)
+            const observer = new MutationObserver(() => {
+                highlight()
+            })
+
+            observer.observe(editorRef.current, {
+                childList: true,
+                subtree: true
+            })
+
+            return () => {
+                clearTimeout(timeoutId)
+                observer.disconnect()
+            }
+        }, [editorContent, hasRawMDXMode, editor])
 
         // Apply word wrap styles when setting changes
         useEffect(() => {
@@ -85,16 +111,15 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
             return null
         }
 
-        const handleContentChange = (newContent: any[]) => {
-            setEditorContent(newContent)
-            // Update the editor's document
+      function handleContentChange(newContent: any[]) {
+        setEditorContent(newContent)
             editor.replaceBlocks(editor.document, newContent)
-        }
+    }
 
         return (
             <div
                 ref={editorRef}
-                className={`editor-container bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
+                className={`editor-container !bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
             >
                 <DualModeEditor
                     editor={editor}
@@ -130,8 +155,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           background: transparent !important;
           padding: 1.5rem 2.5rem;
           max-width: 100%;
-          color: rgba(230, 230, 230, 0.9);
-          font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
+          // color: rgba(230, 230, 230, 0.9);
+        color: var(--foreground);
+          font-family: var(--font-sans);
         }
         /* Word wrap styles - enabled */
         .editor-container[data-word-wrap="enabled"] .bn-editor {
@@ -297,6 +323,33 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
           border-radius: 3px;
           font-family: monospace;
         }
+        /* Syntax highlighted code blocks */
+        .editor-container pre code,
+        .editor-container .bn-code-block code,
+        .editor-container [data-content-type="codeBlock"] code {
+          background: transparent;
+          padding: 0;
+          border-radius: 0;
+          color: inherit;
+          font-size: 0.9em;
+          line-height: 1.5;
+        }
+        .editor-container pre {
+          background: rgba(30, 30, 30, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 1rem;
+          overflow-x: auto;
+          margin: 0.75rem 0;
+        }
+        .editor-container .bn-code-block pre,
+        .editor-container [data-content-type="codeBlock"] pre {
+          margin: 0;
+          background: rgba(30, 30, 30, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 1rem;
+        }
         .editor-container a {
           color: rgba(249, 250, 251, 1);
           text-decoration: underline;
@@ -313,69 +366,90 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         .skriuw-mention-menu {
           display: flex;
           flex-direction: column;
-          min-width: 260px;
-          max-width: 360px;
-          background: rgba(18, 18, 20, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 0.5rem;
-          padding: 0.3rem;
-          box-shadow: 0px 16px 48px rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(10px);
+          min-width: 300px;
+          max-width: 400px;
+          background: hsl(var(--background) / 0.98);
+          border: 1px solid hsl(var(--border) / 0.5);
+          border-radius: 0.75rem;
+          padding: 0.5rem;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.05);
+          backdrop-filter: blur(16px);
+          animation: fadeIn 0.2s ease-out, slideUp 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(4px); }
+          to { transform: translateY(0); }
         }
         .skriuw-mention-menu.empty {
-          padding: 0.75rem 1rem;
+          padding: 1rem 1.25rem;
         }
         .skriuw-mention-menu__item {
           display: flex;
           align-items: center;
           width: 100%;
-          gap: 0.75rem;
-          padding: 0.5rem 0.6rem;
-          border-radius: 0.45rem;
+          gap: 0.875rem;
+          padding: 0.75rem;
+          border-radius: 0.5rem;
           background: transparent;
           color: inherit;
           text-align: left;
           cursor: pointer;
           border: none;
+          transition: all 0.15s ease;
+        }
+        .skriuw-mention-menu__item:hover {
+          background: hsl(var(--accent) / 0.8);
         }
         .skriuw-mention-menu__item.is-selected {
-          background: rgba(255, 255, 255, 0.08);
+          background: hsl(var(--accent));
+          color: hsl(var(--accent-foreground));
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         .skriuw-mention-menu__item:focus-visible {
-          outline: 2px solid rgba(255, 255, 255, 0.35);
+          outline: 2px solid hsl(var(--ring));
+          outline-offset: 2px;
         }
         .skriuw-mention-menu__icon {
-          width: 1.75rem;
-          height: 1.75rem;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.07);
+          width: 2rem;
+          height: 2rem;
+          border-radius: 0.5rem;
+          background: hsl(var(--muted) / 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: rgba(255, 255, 255, 0.85);
+          color: hsl(var(--foreground) / 0.9);
+          flex-shrink: 0;
         }
         .skriuw-mention-menu__content {
           display: flex;
           flex-direction: column;
-          gap: 0.1rem;
+          gap: 0.25rem;
+          min-width: 0;
+          flex: 1;
         }
         .skriuw-mention-menu__title {
-          font-size: 0.95rem;
+          font-size: 0.9375rem;
           font-weight: 500;
-          color: rgba(255, 255, 255, 0.95);
+          color: hsl(var(--foreground));
+          line-height: 1.3;
         }
         .skriuw-mention-menu__title mark {
           background: transparent;
-          color: rgba(233, 191, 255, 1);
+          color: hsl(var(--primary));
           font-weight: 600;
         }
         .skriuw-mention-menu__path {
-          font-size: 0.72rem;
-          color: rgba(255, 255, 255, 0.55);
+          font-size: 0.75rem;
+          color: hsl(var(--muted-foreground));
+          line-height: 1.4;
         }
         .skriuw-mention-menu__empty {
-          font-size: 0.85rem;
-          color: rgba(255, 255, 255, 0.65);
+          font-size: 0.875rem;
+          color: hsl(var(--muted-foreground));
         }
         .editor-container .bn-toolbar {
           background: rgba(18, 18, 18, 0.95) !important;
