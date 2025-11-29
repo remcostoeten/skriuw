@@ -21,6 +21,7 @@ export * from './dropdown-menu';
 export * from './empty-state';
 export * from './form';
 export * from './hover-card';
+export * from './icons';
 export * from './input-otp';
 export * from './input';
 export * from './kbd';

@@ -1,11 +1,12 @@
 import { BlockNoteEditor } from '@blocknote/core'
-import { BlockNoteView } from '@blocknote/mantine'
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react'
 
 import '@blocknote/core/fonts/inter.css'
-import '@blocknote/mantine/style.css'
+import '@blocknote/core/style.css'
+import '@blocknote/react/style.css'
 import { useUserPreferences, useSettings } from '@/features/settings'
 import { NoteMentionSuggestionMenu } from './NoteMentionSuggestionMenu'
+import { DualModeEditor } from './DualModeEditor'
 
 type props = {
     editor: BlockNoteEditor | null
@@ -18,18 +19,44 @@ export type EditorWrapperHandle = {
 export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
     ({ editor }, ref) => {
         const editorRef = useRef<HTMLDivElement>(null)
-        const { hasWordWrap } = useUserPreferences()
-        const { centeredLayout } = useSettings()
+        const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
+        const { centeredLayout, placeholder, blockIndicator, showFormattingToolbar } =
+            useSettings()
+        const [editorContent, setEditorContent] = useState<any[]>([])
 
         useImperativeHandle(ref, () => ({
             focusEditor: () => {
-                // Focus the editor by finding the contenteditable element
-                const contentEditable = editorRef.current?.querySelector(
-                    '[contenteditable="true"]'
-                ) as HTMLElement
-                contentEditable?.focus()
+                if (hasRawMDXMode) {
+                    // Focus the MDX textarea
+                    const textarea = editorRef.current?.querySelector('textarea') as HTMLTextAreaElement
+                    textarea?.focus()
+                } else {
+                    // Focus the BlockNote editor
+                    const contentEditable = editorRef.current?.querySelector(
+                        '[contenteditable="true"]'
+                    ) as HTMLElement
+                    contentEditable?.focus()
+                }
             }
         }))
+
+        // Sync editor content when editor changes
+        useEffect(() => {
+            if (editor) {
+                setEditorContent(editor.document)
+
+                // Listen for content changes
+                const handleContentChange = () => {
+                    setEditorContent(editor.document)
+                }
+
+                editor.onEditorContentChange(handleContentChange)
+
+                return () => {
+                    // Cleanup listener if needed
+                }
+            }
+        }, [editor])
 
         // Apply word wrap styles when setting changes
         useEffect(() => {
@@ -58,6 +85,12 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
             return null
         }
 
+        const handleContentChange = (newContent: any[]) => {
+            setEditorContent(newContent)
+            // Update the editor's document
+            editor.replaceBlocks(editor.document, newContent)
+        }
+
         return (
             <div
                 ref={editorRef}
@@ -66,9 +99,19 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                     background: 'transparent'
                 }}
             >
-                <BlockNoteView editor={editor}>
-                    <NoteMentionSuggestionMenu />
-                </BlockNoteView>
+                <DualModeEditor
+                    editor={editor}
+                    value={editorContent}
+                    onChange={handleContentChange}
+                    placeholder={placeholder}
+                    fontSize="16px"
+                    fontFamily='"Inter", system-ui, sans-serif'
+                    lineHeight={1.6}
+                    wordWrap={hasWordWrap}
+                    blockIndicator={blockIndicator}
+                    showFormattingToolbar={showFormattingToolbar}
+                    className="w-full h-full"
+                />
                 <style>{`
         .editor-container {
           background: transparent !important;
@@ -88,7 +131,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         .editor-container .bn-editor {
           background: transparent !important;
-          padding: 1.5rem;
+          padding: 3em;
           max-width: 100%;
           color: rgba(230, 230, 230, 0.9);
           font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
@@ -170,8 +213,16 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         .editor-container .bn-side-menu,
         .editor-container [class*="bn-side"],
         .editor-container [class*="bn-drag"] {
-          margin-left: -8px;
+          margin-left: -12px;
           z-index: 1;
+        }
+        .editor-container .bn-side-menu {
+          display: flex;
+          flex-direction: column !important;
+          gap: 0.25rem;
+          align-items: center;
+          justify-content: center;
+          transform: translateX(-4px);
         }
 
         /* In centered layout, ensure side menu doesn't overflow the max-width container */

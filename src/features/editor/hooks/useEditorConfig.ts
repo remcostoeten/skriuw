@@ -7,7 +7,7 @@ import { useSettings, useUserPreferences } from '@/features/settings'
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-    const { blockIndicator, showFormattingToolbar, placeholder } = useSettings()
+    const { placeholder } = useSettings()
     const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } =
         useUserPreferences()
 
@@ -47,28 +47,11 @@ export function useEditorConfig() {
             pasteHandler: createPasteHandler()
         }
 
-        // Control sideMenu (block indicator) based on blockIndicator setting
-        // The sideMenu shows the drag handle/indicator on the left side of blocks
-        // When blockIndicator is true, enable sideMenu (default behavior)
-        // When blockIndicator is false, explicitly disable it
-        if (!blockIndicator) {
-            // Explicitly disable the sideMenu when blockIndicator is false
-            config.sideMenu = false
-        }
-        // Note: When blockIndicator is true, we don't need to set sideMenu = true
-        // because BlockNote enables it by default
-
-        // Control formatting toolbar
-        if (!showFormattingToolbar) {
-            config.formattingToolbar = false
-        }
-
         // Enable suggestion menus (slash commands) by default
         config.suggestionMenus = true
 
         return config
     }, [
-        blockIndicator,
         fontFamily,
         fontSize,
         hasMarkdownShortcuts,
@@ -76,8 +59,7 @@ export function useEditorConfig() {
         hasWordWrap,
         lineHeight,
         maxWidth,
-        placeholder,
-        showFormattingToolbar
+        placeholder
     ])
 
     return {
