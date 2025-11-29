@@ -23,6 +23,7 @@ export function useUserPreferences() {
         darkMode: (value) => value !== false, // default true
         autoBackup: (value) => Boolean(value), // default false
         rawMDXMode: (value) => Boolean(value), // default false (start with rich editor)
+        sideBySideMode: (value) => Boolean(value), // default false
     }
 
     const isEnabled = useCallback(
@@ -140,6 +141,13 @@ export function useUserPreferences() {
                 type: 'boolean',
                 description: 'Use raw MDX editor instead of rich editor',
                 category: 'editor'
+            },
+            sideBySideMode: {
+                value: settings.sideBySideMode || false,
+                defaultValue: false,
+                type: 'boolean',
+                description: 'Show rich editor and MDX editor side by side',
+                category: 'editor'
             }
         }
 
@@ -164,6 +172,7 @@ export function useUserPreferences() {
     const hasDarkMode = isEnabled('darkMode')
     const hasAutoBackup = isEnabled('autoBackup')
     const hasRawMDXMode = isEnabled('rawMDXMode')
+    const hasSideBySideMode = isEnabled('sideBySideMode')
 
     return {
         // Raw access
@@ -187,7 +196,8 @@ export function useUserPreferences() {
         hasFocusMode,
         hasDarkMode,
         hasAutoBackup,
-        hasRawMDXMode
+        hasRawMDXMode,
+        hasSideBySideMode
     }
 }
 
