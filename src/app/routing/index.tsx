@@ -2,8 +2,8 @@ import { Routes, Route } from "react-router-dom";
 
 import _UIPlayground from "@/pages/_ui-playground";
 import Index from "@/pages/Index";
-import NoteEditor from "@/pages/NoteEditor";
-import NotFound from "@/pages/NotFound";
+import NoteEditor from "@/pages/notes-editor";
+import NotFound from "@/pages/not-found";
 import { RouteEventTracker } from "./RouteEventTracker";
 
 export function AppRoutes() {

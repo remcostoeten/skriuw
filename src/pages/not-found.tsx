@@ -6,7 +6,8 @@ import { EmptyState } from '@/shared/ui/empty-state'
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 import { logStorageEvent } from '@/features/storage-status/utils/storage-event-log'
 
-const NotFound = () => {
+
+export default function NotFound() {
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -26,19 +27,17 @@ const NotFound = () => {
 
     return (
         <AppLayoutContainer>
-                <EmptyState
-                    message="404 - Page Not Found" 
-                    isFull
-                    submessage={`The route "${location.pathname}" does not exist.`}
-                    actions={[
-                        {
-                            label: 'Return to Home',
-                            onClick: () => navigate('/')
-                        }
-                    ]}
-                />
+            <EmptyState
+                message="404 - Page Not Found"
+                isFull
+                submessage={`The route "${location.pathname}" does not exist.`}
+                actions={[
+                    {
+                        label: 'Return to Home',
+                        onClick: () => navigate('/')
+                    }
+                ]}
+            />
         </AppLayoutContainer>
     )
 }
-
-export default NotFound

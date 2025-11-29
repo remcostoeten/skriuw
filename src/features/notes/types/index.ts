@@ -5,6 +5,9 @@ export interface Note {
   name: string;
   content: Block[];
   parentFolderId?: string;
+  pinned?: boolean;
+  pinnedAt?: number;
+  favorite?: boolean;
   createdAt: number;
   updatedAt: number;
   type: 'note';
@@ -16,6 +19,8 @@ export interface Folder {
   type: 'folder';
   children: (Note | Folder)[];
   parentFolderId?: string;
+  pinned?: boolean;
+  pinnedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

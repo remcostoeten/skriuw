@@ -33,4 +33,4 @@ x.env
 _test-app
 tmp/
 tmp/*
-docs/AGENT_PROMPTS.md
+docs/*
