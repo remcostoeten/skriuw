@@ -4,7 +4,8 @@ import {
     useCallback,
     Suspense,
     lazy,
-    useEffect
+    useEffect,
+    useState
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +17,7 @@ import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
 import { useUIStore } from '@/stores/ui-store'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
+import { GlobalSearchDialog } from '@/features/search'
 
 import { Footer } from '@/components/layout/footer'
 import { TopToolbar } from '@/components/layout/top-toolbar'
@@ -70,6 +72,7 @@ export function AppLayoutContainer({
     const navigate = useNavigate()
     const { items, isInitialLoading } = useNotesWithSuspense()
     const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
+    const [isSearchOpen, setIsSearchOpen] = useState(false)
     const {
         isMobileSidebarOpen,
         toggleMobileSidebar,
@@ -257,7 +260,7 @@ export function AppLayoutContainer({
                     onToggleSidebar={toggleMobileSidebar}
                     onToggleDesktopSidebar={toggleDesktopSidebar}
                     onSearch={() => {
-                        // TODO: Implement search
+                        setIsSearchOpen(true)
                     }}
                     onToggleShortcuts={toggleShortcutsSidebar}
                     onNavigatePrevious={handleNavigatePrevious}
@@ -297,6 +300,10 @@ export function AppLayoutContainer({
                     <SidebarMenu
                         open={isSettingsOpen}
                         onOpenChange={setSettingsOpen}
+                    />
+                    <GlobalSearchDialog
+                        open={isSearchOpen}
+                        onOpenChange={setIsSearchOpen}
                     />
                     {!isMobile && (
                         <Suspense fallback={null}>
