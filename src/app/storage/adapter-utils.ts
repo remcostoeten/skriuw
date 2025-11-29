@@ -3,10 +3,11 @@ import type { StorageAdapterName } from "@/api/storage/generic-types"
 const VALID_ADAPTERS: StorageAdapterName[] = ['localStorage', 'drizzleLibsqlHttp', 'drizzleTauriSqlite']
 
 const ADAPTER_ALIASES: Record<string, StorageAdapterName> = {
-        localstorage: 'localStorage',
-        drizzlelibsqlhttp: 'drizzleLibsqlHttp',
-        drizzlelibsql: 'drizzleLibsqlHttp',
-        drizzletaurisqlite: 'drizzleTauriSqlite'
+	localstorage: 'localStorage',
+	drizzlelibsqlhttp: 'drizzleLibsqlHttp',
+	drizzlelibsql: 'drizzleLibsqlHttp',
+	drizzle: 'drizzleLibsqlHttp',
+	drizzletaurisqlite: 'drizzleTauriSqlite'
 }
 
 const VALID_ADAPTER_SET = new Set<StorageAdapterName>(VALID_ADAPTERS)

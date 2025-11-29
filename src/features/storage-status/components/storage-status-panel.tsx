@@ -1,9 +1,12 @@
 import { X, Database, RefreshCw, ChevronRight, ChevronDown, Eye, Edit2, Trash2, Plus, Copy, Search, FileCode, MapPin, GripVertical, Sliders } from "lucide-react";
 import { useState, useMemo, Suspense, useEffect, useCallback, useRef } from "react";
 
+import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/shared/ui/dialog-drawer";
+
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { CardDescription } from "@/shared/ui/card";
 import { useConfirmDialog } from "@/shared/ui/confirm-dialog";
 import { Input } from "@/shared/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -80,6 +83,7 @@ function getStorageAdapterDisplayName(): string {
 }
 
 export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps) {
+	const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
 	const { storageData, isLoading, error, reload, recentActivity, markKeyAsRead, eventLog, clearEventLog } = useStorageData(isOpen);
 	const { toast } = useToast();
 	const { confirm, ConfirmDialog } = useConfirmDialog();
@@ -107,8 +111,10 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 	const PANEL_STORAGE_KEY = 'data-browser-panel-position';
 	const OPACITY_STORAGE_KEY = 'data-browser-panel-opacity';
 
-	// Load panel position and opacity from localStorage
+	// Load panel position and opacity from localStorage (desktop only)
 	useEffect(() => {
+		if (isMobile) return;
+
 		try {
 			const savedPosition = localStorage.getItem(PANEL_STORAGE_KEY);
 			const savedOpacity = localStorage.getItem(OPACITY_STORAGE_KEY);
@@ -131,27 +137,30 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 		} catch (error) {
 			console.warn('Failed to load panel settings:', error);
 		}
-	}, []);
+	}, [isMobile]);
 
-	// Save panel position and opacity to localStorage
+	// Save panel position and opacity to localStorage (desktop only)
 	useEffect(() => {
+		if (isMobile) return;
 		try {
 			localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panelPosition));
 		} catch (error) {
 			console.warn('Failed to save panel position:', error);
 		}
-	}, [panelPosition]);
+	}, [panelPosition, isMobile]);
 
 	useEffect(() => {
+		if (isMobile) return;
 		try {
 			localStorage.setItem(OPACITY_STORAGE_KEY, panelOpacity.toString());
 		} catch (error) {
 			console.warn('Failed to save panel opacity:', error);
 		}
-	}, [panelOpacity]);
+	}, [panelOpacity, isMobile]);
 
-	// Drag handlers
+	// Drag handlers (desktop only)
 	const handleMouseDown = (e: React.MouseEvent) => {
+		if (isMobile) return;
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -437,165 +446,218 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 		return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 	};
 
-	if (!isOpen) return null;
-
-	// Show skeleton during initial load
-	if (isLoading && categorizedData.length === 0) {
-		return <StorageStatusSkeleton isOpen={isOpen} onClose={onClose} />;
-	}
-
 	return (
 		<>
 			<ConfirmDialog />
-			<Suspense fallback={<StorageStatusSkeleton isOpen={isOpen} onClose={onClose} />}>
-				<div
-				className="fixed z-50 w-[600px] max-h-[calc(100vh-2rem)] overflow-hidden pointer-events-auto"
-				style={{
-					left: `${panelPosition.x}px`,
-					top: `${panelPosition.y}px`,
-					opacity: panelOpacity,
-					cursor: isDragging ? 'grabbing' : 'default'
-				}}
-			>
-			<Card className="shadow-lg border-2 bg-background h-full flex flex-col backdrop-blur-sm">
-				<CardHeader className="pb-3">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							{/* Drag handle */}
-							<div
-								onMouseDown={handleMouseDown}
-								className="p-1 rounded-md hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
-								title="Drag to move panel"
-							>
-								<GripVertical className="h-4 w-4 text-muted-foreground" />
-							</div>
-							<Database className="h-5 w-5" />
-							<CardTitle className="text-lg">Data Browser</CardTitle>
-						</div>
-						<div className="flex items-center gap-2">
-							<Popover open={resetPopoverOpen} onOpenChange={setResetPopoverOpen}>
-								<PopoverTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={isResetting || isLoading}
-										className="h-8 px-3 text-xs font-medium flex items-center gap-2"
-									>
-										<RefreshCw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
-										<span>Reset storage</span>
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-64 p-3" align="end">
-									<div className="space-y-3">
-										<div className="space-y-1">
-											<p className="text-sm font-medium">Reset storage?</p>
-											<p className="text-xs text-muted-foreground">
-												This will remove all stored data and restore the default seed content. This action cannot be undone.
-											</p>
-										</div>
-										<div className="flex gap-2 justify-end">
+			<Dialog open={isOpen} onOpenChange={onClose}>
+				<Suspense fallback={<StorageStatusSkeleton isOpen={isOpen} onClose={onClose} />}>
+					<DialogContent className={cn(
+						// Desktop: floating panel with draggable positioning
+						!isMobile && "w-[600px] max-h-[calc(100vh-2rem)] border-2 shadow-lg backdrop-blur-sm",
+						// Mobile: full-height bottom sheet
+						isMobile && "h-[85vh] max-h-[85vh] rounded-t-2xl"
+					)}
+					style={!isMobile ? {
+						left: `${panelPosition.x}px`,
+						top: `${panelPosition.y}px`,
+						opacity: panelOpacity,
+						cursor: isDragging ? 'grabbing' : 'default'
+					} : undefined}
+					>
+						{!isMobile && (
+							<div className="flex items-center gap-2 p-4 pb-0">
+								<div
+									onMouseDown={handleMouseDown}
+									className="p-1 rounded-md hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
+									title="Drag to move panel"
+								>
+									<GripVertical className="h-4 w-4 text-muted-foreground" />
+								</div>
+								<Database className="h-5 w-5" />
+								<DialogHeader className="flex-1">
+									<DialogTitle className="text-lg">Data Browser</DialogTitle>
+								</DialogHeader>
+								<div className="flex items-center gap-2">
+									<Popover open={resetPopoverOpen} onOpenChange={setResetPopoverOpen}>
+										<PopoverTrigger asChild>
 											<Button
 												variant="outline"
 												size="sm"
-												onClick={() => setResetPopoverOpen(false)}
-												className="h-7 px-3 text-xs"
+												disabled={isResetting || isLoading}
+												className="h-8 px-3 text-xs font-medium flex items-center gap-2"
 											>
-												Cancel
+												<RefreshCw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+												<span>Reset storage</span>
 											</Button>
-											<Button
-												variant="destructive"
-												size="sm"
-												onClick={handleResetStorage}
-												disabled={isResetting}
-												className="h-7 px-3 text-xs text-white"
-											>
-												Reset
-											</Button>
-										</div>
-									</div>
-								</PopoverContent>
-							</Popover>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={reload}
-								disabled={isLoading}
-								className="h-8 w-8"
-							>
-								<RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-							</Button>
-							{/* Opacity control */}
-							<Popover open={showOpacityControl} onOpenChange={setShowOpacityControl}>
-								<PopoverTrigger asChild>
+										</PopoverTrigger>
+										<PopoverContent className="w-64 p-3" align="end">
+											<div className="space-y-3">
+												<div className="space-y-1">
+													<p className="text-sm font-medium">Reset storage?</p>
+													<p className="text-xs text-muted-foreground">
+														This will remove all stored data and restore the default seed content. This action cannot be undone.
+													</p>
+												</div>
+												<div className="flex gap-2 justify-end">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setResetPopoverOpen(false)}
+														className="h-7 px-3 text-xs"
+													>
+														Cancel
+													</Button>
+													<Button
+														variant="destructive"
+														size="sm"
+														onClick={handleResetStorage}
+														disabled={isResetting}
+														className="h-7 px-3 text-xs text-white"
+													>
+														Reset
+													</Button>
+												</div>
+											</div>
+										</PopoverContent>
+									</Popover>
 									<Button
 										variant="ghost"
 										size="icon"
+										onClick={reload}
+										disabled={isLoading}
 										className="h-8 w-8"
-										title="Adjust opacity"
 									>
-										<Sliders className="h-4 w-4" />
+										<RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
 									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-48 p-3" align="end">
-									<div className="space-y-3">
-										<div className="space-y-1">
-											<div className="flex items-center justify-between">
-												<label className="text-sm font-medium">Opacity</label>
-												<span className="text-xs text-muted-foreground">
-													{Math.round(panelOpacity * 100)}%
-												</span>
-											</div>
-											<Slider
-												value={[panelOpacity]}
-												onValueChange={(value) => setPanelOpacity(value[0])}
-												min={0.1}
-												max={1.0}
-												step={0.05}
-												className="w-full"
-											/>
-										</div>
-										<div className="flex gap-2 justify-end">
+									{/* Opacity control */}
+									<Popover open={showOpacityControl} onOpenChange={setShowOpacityControl}>
+										<PopoverTrigger asChild>
 											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => setPanelOpacity(0.95)}
-												className="h-7 px-2 text-xs"
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+												title="Adjust opacity"
 											>
-												Reset
+												<Sliders className="h-4 w-4" />
 											</Button>
-										</div>
-									</div>
-								</PopoverContent>
-							</Popover>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onClose}
-								className="h-8 w-8"
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-					<div className="flex items-center gap-2 mt-1">
-						<CardDescription>View and manage all your stored data</CardDescription>
-						<Badge variant="outline" className="ml-auto text-xs">
-							{storageAdapterName}
-						</Badge>
-					</div>
-					
-					<div className="relative mt-2">
-						<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-						<Input
-							placeholder="Search keys or data..."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-8"
-						/>
-					</div>
-				</CardHeader>
+										</PopoverTrigger>
+										<PopoverContent className="w-48 p-3" align="end">
+											<div className="space-y-3">
+												<div className="space-y-1">
+													<div className="flex items-center justify-between">
+														<label className="text-sm font-medium">Opacity</label>
+														<span className="text-xs text-muted-foreground">
+															{Math.round(panelOpacity * 100)}%
+														</span>
+													</div>
+													<Slider
+														value={[panelOpacity]}
+														onValueChange={(value) => setPanelOpacity(value[0])}
+														min={0.1}
+														max={1.0}
+														step={0.05}
+														className="w-full"
+													/>
+												</div>
+												<div className="flex gap-2 justify-end">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setPanelOpacity(0.95)}
+														className="h-7 px-2 text-xs"
+													>
+														Reset
+													</Button>
+												</div>
+											</div>
+										</PopoverContent>
+									</Popover>
+								</div>
+							</div>
+						)}
 
-				<CardContent className="flex-1 overflow-hidden p-0 flex flex-col relative">
+						{isMobile && (
+							<>
+								<div className="flex items-center justify-center pt-2 pb-4">
+									<div className="h-1 w-12 bg-border rounded-full" />
+								</div>
+								<DialogHeader className="px-4 pb-2">
+									<div className="flex items-center justify-between gap-2">
+										<div className="flex items-center gap-2">
+											<Database className="h-5 w-5" />
+											<DialogTitle className="text-lg">Data Browser</DialogTitle>
+										</div>
+										<Popover open={resetPopoverOpen} onOpenChange={setResetPopoverOpen}>
+											<PopoverTrigger asChild>
+												<Button
+													variant="outline"
+													size="sm"
+													disabled={isResetting || isLoading}
+													className="h-8 px-3 text-xs font-medium flex items-center gap-2"
+												>
+													<RefreshCw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+													<span>Reset</span>
+												</Button>
+											</PopoverTrigger>
+											<PopoverContent className="w-64 p-3" side="bottom" align="end">
+												<div className="space-y-3">
+													<div className="space-y-1">
+														<p className="text-sm font-medium">Reset storage?</p>
+														<p className="text-xs text-muted-foreground">
+															This will remove all stored data and restore the default seed content. This action cannot be undone.
+														</p>
+													</div>
+													<div className="flex gap-2 justify-end">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => setResetPopoverOpen(false)}
+															className="h-7 px-3 text-xs"
+														>
+															Cancel
+														</Button>
+														<Button
+															variant="destructive"
+															size="sm"
+															onClick={handleResetStorage}
+															disabled={isResetting}
+															className="h-7 px-3 text-xs text-white"
+														>
+															Reset
+														</Button>
+													</div>
+												</div>
+											</PopoverContent>
+										</Popover>
+									</div>
+								</DialogHeader>
+							</>
+						)}
+
+						{!isMobile && (
+							<div className="px-4 pb-2">
+								<div className="flex items-center gap-2 mt-1">
+									<CardDescription>View and manage all your stored data</CardDescription>
+									<Badge variant="outline" className="ml-auto text-xs">
+										{storageAdapterName}
+									</Badge>
+								</div>
+							</div>
+						)}
+
+						<div className={cn("px-4 pb-3", isMobile && "px-4")}>
+							<div className="relative">
+								<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+								<Input
+									placeholder="Search keys or data..."
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									className="pl-8"
+								/>
+							</div>
+						</div>
+
+				<div className="flex-1 overflow-hidden flex flex-col relative">
 					{error && (
 						<div className="mx-4 mb-3 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
 							{error}
@@ -623,7 +685,10 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 						</TabsList>
 
 						<TabsContent value="data" className="flex-1 focus-visible:outline-none focus-visible:ring-0">
-							<ScrollArea className="h-[calc(100vh-16rem)] px-4">
+							<ScrollArea className={cn(
+								"h-[calc(100vh-16rem)] px-4",
+								isMobile && "h-[calc(85vh-12rem)] px-3"
+							)}>
 								{isLoading && categorizedData.length === 0 ? (
 									<div className="flex items-center justify-center py-8">
 										<RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -889,7 +954,10 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 									</div>
 								</div>
 							</div>
-							<ScrollArea className="h-[calc(100vh-19rem)] px-4">
+							<ScrollArea className={cn(
+								"h-[calc(100vh-19rem)] px-4",
+								isMobile && "h-[calc(85vh-15rem)] px-3"
+							)}>
 								{filteredEvents.length === 0 ? (
 									<div className="text-center py-8 text-muted-foreground text-sm">
 										{eventLog.length === 0 ? 'Live events will appear here as changes flow in.' : 'No events match the selected filters.'}
@@ -928,7 +996,7 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 
 					{/* View/Edit/Add Modal */}
 					{(viewingItem || editingItem || addingToKey) && (
-						<div className="absolute inset-0 bg-background/95 z-10 p-4 flex flex-col">
+						<div className={cn("absolute inset-0 bg-background/95 z-10 p-4 flex flex-col", isMobile && "p-3")}>
 							<div className="flex items-center justify-between mb-3">
 								<h3 className="text-sm font-medium">
 									{editingItem ? 'Edit Item' : addingToKey ? `Add New Item to ${addingToKey}` : 'View Item'}
@@ -954,11 +1022,15 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 									<textarea
 										value={addingToKey ? newItemValue : editedValue}
 										onChange={(e) => addingToKey ? setNewItemValue(e.target.value) : setEditedValue(e.target.value)}
-										className="w-full h-full min-h-[300px] p-3 font-mono text-xs bg-muted rounded-md"
+										className={cn("w-full h-full p-3 font-mono text-xs bg-muted rounded-md",
+											isMobile ? "min-h-[200px] p-2" : "min-h-[300px] p-3"
+										)}
 										placeholder={addingToKey ? 'Enter JSON data for new item...' : ''}
 									/>
 								) : (
-									<pre className="p-3 font-mono text-xs bg-muted rounded-md overflow-x-auto">
+									<pre className={cn("font-mono text-xs bg-muted rounded-md overflow-x-auto",
+										isMobile ? "p-2" : "p-3"
+									)}>
 										{JSON.stringify(viewingItem?.item, null, 2)}
 									</pre>
 								)}
@@ -989,10 +1061,10 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 							)}
 						</div>
 					)}
-				</CardContent>
-			</Card>
-		</div>
-		</Suspense>
+				</div>
+					</DialogContent>
+				</Suspense>
+			</Dialog>
 		</>
 	);
 }

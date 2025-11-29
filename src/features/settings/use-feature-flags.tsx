@@ -21,7 +21,8 @@ export function useUserPreferences() {
         previewPanel: (value) => value !== false, // default true
         focusMode: (value) => Boolean(value), // default false
         darkMode: (value) => value !== false, // default true
-        autoBackup: (value) => Boolean(value) // default false
+        autoBackup: (value) => Boolean(value), // default false
+        rawMDXMode: (value) => Boolean(value), // default false (start with rich editor)
     }
 
     const isEnabled = useCallback(
@@ -132,6 +133,13 @@ export function useUserPreferences() {
                 type: 'boolean',
                 description: 'Automatically backup notes',
                 category: 'backup'
+            },
+            rawMDXMode: {
+                value: settings.rawMDXMode || false,
+                defaultValue: false,
+                type: 'boolean',
+                description: 'Use raw MDX editor instead of rich editor',
+                category: 'editor'
             }
         }
 
@@ -155,6 +163,7 @@ export function useUserPreferences() {
     const hasFocusMode = isEnabled('focusMode')
     const hasDarkMode = isEnabled('darkMode')
     const hasAutoBackup = isEnabled('autoBackup')
+    const hasRawMDXMode = isEnabled('rawMDXMode')
 
     return {
         // Raw access
@@ -177,7 +186,8 @@ export function useUserPreferences() {
         hasPreviewPanel,
         hasFocusMode,
         hasDarkMode,
-        hasAutoBackup
+        hasAutoBackup,
+        hasRawMDXMode
     }
 }
 

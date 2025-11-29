@@ -33,6 +33,15 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     category: 'editor',
     implemented: true,
   },
+  {
+    key: 'rawMDXMode',
+    value: false,
+    defaultValue: false,
+    type: 'boolean',
+    description: 'Use raw MDX editor instead of rich editor (Ctrl+M to toggle)',
+    category: 'editor',
+    implemented: true,
+  },
     {
     key: 'showFormattingToolbar',
     value: true,

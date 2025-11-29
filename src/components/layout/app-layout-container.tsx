@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { useSettings } from '@/features/settings'
+import { useSettings, useUserPreferences } from '@/features/settings'
 import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
 import { useUIStore } from '@/stores/ui-store'
@@ -84,6 +84,7 @@ export function AppLayoutContainer({
         setStorageStatusOpen
     } = useUIStore()
     const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
+    const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
     const {
         tabs,
         activeNoteId,
@@ -147,6 +148,10 @@ export function AppLayoutContainer({
     const canNavigatePrevious = currentNoteIndex > 0
     const canNavigateNext =
         currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1
+
+    const handleToggleEditorMode = useCallback(() => {
+        togglePreference('rawMDXMode')
+    }, [togglePreference])
 
     useEffect(() => {
         if (!multiNoteTabs) {
@@ -257,6 +262,8 @@ export function AppLayoutContainer({
                     onNavigateNext={handleNavigateNext}
                     canNavigatePrevious={canNavigatePrevious}
                     canNavigateNext={canNavigateNext}
+                    isRawMDXMode={hasRawMDXMode}
+                    onToggleEditorMode={handleToggleEditorMode}
                 />
             }
             mainContent={

@@ -2,6 +2,8 @@ import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
+
 import { useNotes } from "@/features/notes/hooks/useNotes";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
@@ -9,6 +11,7 @@ import { useSeedDiscovery } from "@/features/seed-importer/hooks/use-seed-discov
 import { useSettings } from "@/features/settings";
 import { useShortcut } from "@/features/shortcuts";
 import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
+import { useUIStore } from "@/stores/ui-store";
 
 import {
   ContextMenu,
@@ -20,11 +23,14 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
+  IconButton,
 } from "ui";
 
 import { ActionBar } from "../action-bar";
+import { cn } from "@/shared/utilities";
 
 import { useSidebarContentType } from "./use-sidebar-content-type";
+import { NotesIcon } from "@/shared/ui/icons";
 
 import type { SidebarContentType } from "./types";
 import type { Folder as FolderType, Item } from "@/features/notes/types";
@@ -269,7 +275,7 @@ function FileTreeItem({
                 e.stopPropagation();
                 handleDoubleClick();
               }}
-              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between ${
+              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation ${
                 isActive
                   ? "bg-accent text-foreground"
                   : "text-secondary-foreground/80 hover:text-foreground"
@@ -284,7 +290,7 @@ function FileTreeItem({
               role="treeitem"
               aria-expanded={isFolder ? isExpanded : undefined}
             >
-              <div className="flex items-center w-[calc(100%-20px)] gap-2">
+              <div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
                 {isFolder ? (
                   <>
                     <div
@@ -344,15 +350,15 @@ function FileTreeItem({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-44">
+      <ContextMenuContent className="w-44 max-w-[90vw]">
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
             onCreateNote(isFolder ? item.id : undefined);
           }}
-          className="h-7 text-xs font-base"
+          className="h-8 text-xs font-base min-h-[44px]"
         >
-          <FilePlus className="w-3.5 h-3.5 mr-2" />
+          <FilePlus className="w-4 h-4 mr-3 flex-shrink-0" />
           New note
           <ContextMenuShortcut>N</ContextMenuShortcut>
         </ContextMenuItem>
@@ -362,9 +368,9 @@ function FileTreeItem({
               e.stopPropagation();
               onCreateFolder(item.id);
             }}
-            className="h-7 text-xs font-base"
+            className="h-8 text-xs font-base min-h-[44px]"
           >
-            <FolderOpen className="w-3.5 h-3.5 mr-2" />
+            <FolderOpen className="w-4 h-4 mr-3 flex-shrink-0" />
             New folder
             <ContextMenuShortcut>F</ContextMenuShortcut>
           </ContextMenuItem>
@@ -374,9 +380,9 @@ function FileTreeItem({
           onClick={() => {
             setIsRenaming(true);
           }}
-          className="h-7 text-xs font-base"
+          className="h-8 text-xs font-base min-h-[44px]"
         >
-          <Edit className="w-3.5 h-3.5 mr-2" />
+          <Edit className="w-4 h-4 mr-3 flex-shrink-0" />
           Rename
           <ContextMenuShortcut>R</ContextMenuShortcut>
         </ContextMenuItem>
@@ -397,9 +403,9 @@ function FileTreeItem({
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => onDelete(item.id)}
-          className="h-7 text-xs font-base text-destructive focus:text-destructive"
+          className="h-8 text-xs font-base text-destructive focus:text-destructive min-h-[44px]"
         >
-          <Trash2 className="w-3.5 h-3.5 mr-2" />
+          <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
           Delete
           <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>
         </ContextMenuItem>
@@ -451,7 +457,11 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
   const navigate = useNavigate();
   const detectedContentType = useSidebarContentType();
   const finalContentType = contentType || detectedContentType;
-  
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
+
+  // Access sidebar state
+  const isDesktopSidebarOpen = useUIStore((state) => state.isDesktopSidebarOpen);
+
   // All hooks must be called before any conditional returns
   const {
     items,
@@ -859,8 +869,33 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     return customContent || null;
   }
 
+  // Check if we're in collapsed state (should show icons instead of full sidebar)
+  const isCollapsed = !isDesktopSidebarOpen;
+
+  // If collapsed, render a minimal icon-only sidebar
+  if (isCollapsed) {
+    return (
+      <div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
+        <div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
+          {/* Notes icon - always visible */}
+          <IconButton
+            icon={<NotesIcon />}
+            tooltip="Notes"
+            active={true}
+            variant="sidebar"
+            onClick={() => navigate("/")}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background">
+    <div className={cn(
+      "h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background",
+      // Responsive width for sidebar
+      isMobile ? "w-[280px] max-w-[85vw]" : "w-[210px]"
+    )}>
       <ActionBar
         onCreateNote={() => handleCreateNote()}
         onCreateFolder={() => handleCreateFolder()}
@@ -886,7 +921,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
         }}
       >
         <div
-          className="flex flex-col items-start gap-1 w-full" 
+          className="flex flex-col items-start gap-1 w-full"
           role="tree"
           aria-label="Notes"
           onClick={(e) => {

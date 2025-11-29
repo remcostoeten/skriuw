@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 
 import { cn } from '@/shared/utilities'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
 
 type props = {
     leftToolbar?: ReactNode
@@ -31,31 +32,50 @@ export function AppLayoutShell({
     isSidebarOpen = false,
     isDesktopSidebarOpen = true
 }: props) {
+    const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
     return (
         <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
-                {isSidebarOpen && (
-                    <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" />
+                {/* Enhanced backdrop for mobile - better z-index and handling */}
+                {isSidebarOpen && isMobile && (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                        onClick={() => {
+                            // Close sidebar when clicking backdrop on mobile
+                            // This will be handled by parent component
+                        }}
+                    />
                 )}
 
                 {leftToolbar && (
-                    <div
-                        className={`hidden lg:block transition-all duration-200 ${
-                            isDesktopSidebarOpen ? 'w-auto' : 'w-0'
-                        }`}
-                    >
+                    <div className="hidden lg:block">
                         {leftToolbar}
                     </div>
                 )}
 
-                {/* Sidebar */}
+                {/* Enhanced Sidebar with improved mobile behavior */}
                 {sidebar && (
                     <div
-                        className={`
-							fixed lg:static inset-y-0 left-0 z-30 lg:z-0
-							transform transition-transform duration-200 ease-in-out
-							${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-						`}
+                        className={cn(
+                            // Base positioning
+                            'fixed lg:static inset-y-0 left-0',
+                            // Improved z-index handling
+                            'z-50 lg:z-0',
+                            // Responsive width
+                            isMobile ? 'w-[280px] max-w-[80vw]' : 'w-auto',
+                            // Smooth transitions
+                            'transform transition-all duration-300 ease-in-out',
+                            // Mobile slide behavior
+                            isMobile && (isSidebarOpen ? 'translate-x-0' : '-translate-x-full'),
+                            // Desktop toggle behavior
+                            !isMobile && (isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'),
+                            // Hide on desktop when closed
+                            !isMobile && !isDesktopSidebarOpen && 'lg:-translate-x-full'
+                        )}
+                        style={{
+                            // Add shadow for mobile
+                            boxShadow: isMobile && isSidebarOpen ? '2px 0 8px rgba(0,0,0,0.15)' : 'none'
+                        }}
                     >
                         {sidebar}
                     </div>

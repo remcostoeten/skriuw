@@ -13,7 +13,6 @@ const configByTarget: Record<DrizzleTarget, ReturnType<typeof defineConfig>> = {
     schema,
     out,
     dialect: "sqlite",
-    driver: "turso",
     dbCredentials: {
       url: process.env.LIBSQL_DATABASE_URL ?? "",
       authToken: process.env.LIBSQL_AUTH_TOKEN,

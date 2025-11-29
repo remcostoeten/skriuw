@@ -4,7 +4,9 @@ import {
     Search,
     Keyboard,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Code,
+    Type
 } from 'lucide-react'
 
 import { IconButton } from '@/shared/ui/icons'
@@ -19,6 +21,8 @@ type props = {
     onNavigateNext?: () => void
     canNavigatePrevious?: boolean
     canNavigateNext?: boolean
+    isRawMDXMode?: boolean
+    onToggleEditorMode?: () => void
 }
 
 export function TopToolbar({
@@ -30,7 +34,9 @@ export function TopToolbar({
     onNavigatePrevious,
     onNavigateNext,
     canNavigatePrevious = false,
-    canNavigateNext = false
+    canNavigateNext = false,
+    isRawMDXMode = false,
+    onToggleEditorMode
 }: props) {
     return (
         <div className="h-10 bg-background border-b border-border flex items-center justify-between px-1.5">
@@ -89,6 +95,22 @@ export function TopToolbar({
                     tooltip="Search notes"
                     variant="toolbar"
                     onClick={() => onSearch?.('')}
+                />
+                <IconButton
+                    icon={
+                        isRawMDXMode ?
+                        <Type className="w-4 h-4 text-muted-foreground" /> :
+                        <Code className="w-4 h-4 text-muted-foreground" />
+                    }
+                    tooltip={isRawMDXMode ? "Switch to rich editor" : "Switch to MDX mode"}
+                    variant="toolbar"
+                    shortcut={{
+                        sequences: [
+                            [{ modifiers: ['Ctrl'], key: 'm' }],
+                            [{ modifiers: ['Meta'], key: 'm' }]
+                        ]
+                    }}
+                    onClick={onToggleEditorMode}
                 />
                 <IconButton
                     icon={
