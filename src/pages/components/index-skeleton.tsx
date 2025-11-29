@@ -4,7 +4,18 @@
  */
 export function IndexSkeleton() {
     return (
-        <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto px-6">
+        <div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
+            <div className="flex flex-col items-center gap-6 mb-8">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="h-10 w-32 bg-muted/50 rounded animate-pulse" />
+                    <div className="h-4 w-64 bg-muted/50 rounded animate-pulse" />
+                </div>
+                <div className="max-w-lg space-y-2">
+                    <div className="h-4 w-full bg-muted/50 rounded animate-pulse" />
+                    <div className="h-4 w-full bg-muted/50 rounded animate-pulse" />
+                    <div className="h-4 w-3/4 bg-muted/50 rounded animate-pulse" />
+                </div>
+            </div>
             <div className="flex flex-col items-center gap-3 max-w-sm">
                 <div className="flex flex-col items-center gap-2 text-center">
                     <p className="text-lg font-medium text-secondary-foreground">Select a note to start editing</p>

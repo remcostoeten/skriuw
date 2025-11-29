@@ -24,7 +24,7 @@ const ToolbarRoot = forwardRef<HTMLDivElement, BlockNoteComponentProps['Formatti
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
                 className={cn(
-                    'bn-toolbar flex items-center gap-0.5 rounded-md border border-border bg-background/90 px-1 py-0.5 shadow-md backdrop-blur',
+                    'bn-toolbar flex items-center gap-0.5 rounded-md border border-border bg-background/90 px-0.5 py-0 shadow-md backdrop-blur',
                     className
                 )}
             >
@@ -49,7 +49,7 @@ const ToolbarButton = ({
         <button
             type="button"
             className={cn(
-                'bn-toolbar-button inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-1.5 text-[10px] font-medium text-foreground/90 transition hover:bg-muted',
+                'bn-toolbar-button inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-1 text-[10px] font-medium text-foreground/90 transition hover:bg-muted',
                 isSelected && 'bg-primary/20 text-primary border-primary/40',
                 isDisabled && 'cursor-not-allowed opacity-40',
                 className
@@ -80,7 +80,7 @@ const ToolbarSelect = ({
                 <button
                     type="button"
                     className={cn(
-                        'bn-toolbar-select inline-flex h-7 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-1.5 text-[10px] font-medium text-foreground/90',
+                        'bn-toolbar-select inline-flex h-6 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-1 text-[10px] font-medium text-foreground/90',
                         isDisabled && 'cursor-not-allowed opacity-40',
                         className
                     )}
@@ -156,7 +156,12 @@ const SuggestionMenuRoot = ({
     <div
         id={id}
         className={cn(
-            'bn-suggestion-menu min-w-[260px] rounded-lg border border-border bg-background/95 p-2 text-sm shadow-xl backdrop-blur',
+            'bn-suggestion-menu min-w-[300px] max-w-[400px]',
+            'rounded-none border border-border/50 bg-background/98',
+            'p-2 text-sm shadow-2xl backdrop-blur-xl',
+            'ring-1 ring-black/5 dark:ring-white/10',
+            'animate-in fade-in-0 zoom-in-95 duration-200',
+            'overflow-hidden',
             className
         )}
     >
@@ -174,16 +179,22 @@ const SuggestionMenuItem = ({
         type="button"
         onClick={onClick}
         className={cn(
-            'bn-suggestion-item flex w-full items-start gap-2 rounded-md px-2 py-1 text-left text-sm transition hover:bg-muted',
-            isSelected && 'bg-muted text-primary',
+            'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2.5',
+            'text-left text-sm transition-all duration-150',
+            'hover:bg-accent/90 hover:shadow-sm',
+            'active:scale-[0.98] active:bg-accent',
+            isSelected && 'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20',
+            !isSelected && 'text-foreground',
             className
         )}
     >
-        <div className="text-base">{item.icon ?? '*'}</div>
-        <div className="flex-1">
-            <div className="font-medium leading-none">{item.label}</div>
-            {item.description && (
-                <div className="text-xs text-muted-foreground">{item.description}</div>
+        <div className="mt-0.5 shrink-0 text-lg opacity-80">{(item as any).icon ?? '•'}</div>
+        <div className="flex-1 min-w-0">
+            <div className="font-semibold leading-tight">{(item as any).title || (item as any).label || String(item)}</div>
+            {(item as any).description && (
+                <div className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                    {(item as any).description}
+                </div>
             )}
         </div>
     </button>
@@ -211,13 +222,16 @@ const GridSuggestionMenuRoot = ({ id, className, columns, children }: BlockNoteC
     <div
         id={id}
         className={cn(
-            'bn-grid-suggestion-menu rounded-lg border border-border bg-background/95 p-3 shadow-xl backdrop-blur',
+            'bn-grid-suggestion-menu rounded-xl border border-border/50 bg-background/98',
+            'p-3 shadow-2xl backdrop-blur-xl',
+            'ring-1 ring-black/5 dark:ring-white/10',
+            'animate-in fade-in-0 zoom-in-95 duration-200',
             className
         )}
         style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gap: '0.35rem'
+            gap: '0.5rem'
         }}
     >
         {children}
@@ -234,13 +248,17 @@ const GridSuggestionMenuItem = ({
         type="button"
         onClick={onClick}
         className={cn(
-            'bn-grid-suggestion-item flex flex-col items-center rounded-md border border-transparent bg-muted/40 p-2 text-xs text-muted-foreground transition hover:border-border hover:bg-muted/70',
-            isSelected && 'border-primary text-primary',
+            'bn-grid-suggestion-item flex flex-col items-center justify-center',
+            'rounded-lg border border-transparent bg-muted/50',
+            'p-3.5 text-xs transition-all duration-150',
+            'hover:border-border hover:bg-muted/80 hover:shadow-md',
+            'active:scale-[0.96]',
+            isSelected && 'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
             className
         )}
     >
-        <div className="text-xl">{item.icon}</div>
-        <span className="mt-1 truncate">{item.label}</span>
+        <div className="text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110">{(item as any).icon}</div>
+        <span className="font-semibold truncate w-full text-center leading-tight">{(item as any).title || (item as any).label || String(item)}</span>
     </button>
 )
 
@@ -295,9 +313,11 @@ const TableExtendButton = ({
     </button>
 )
 
-const FilePanelRoot = ({ className, children }: BlockNoteComponentProps['FilePanel']['Root']) => (
+const FilePanelRoot = ({ className, ...props }: BlockNoteComponentProps['FilePanel']['Root']) => (
     <div className={cn('bn-file-panel rounded-xl border border-border bg-background p-4 shadow', className)}>
-        {children}
+        {'tabs' in props && props.tabs.map((tab: any) => (
+            <div key={tab.name}>{tab.tabPanel}</div>
+        ))}
     </div>
 )
 
@@ -477,8 +497,10 @@ const CommentsExpandPrompt = ({ className, children }: BlockNoteComponentProps['
     <div className={cn('bn-comments-expand text-xs text-muted-foreground', className)}>{children}</div>
 )
 
-const CommentsEditor = ({ className, children }: BlockNoteComponentProps['Comments']['Editor']) => (
-    <div className={cn('bn-comments-editor', className)}>{children}</div>
+const CommentsEditor = ({ className, ...props }: BlockNoteComponentProps['Comments']['Editor']) => (
+    <div className={cn('bn-comments-editor', className)}>
+        {/* Editor content is handled by BlockNote internally */}
+    </div>
 )
 
 const CommentsComment = ({ className, children }: BlockNoteComponentProps['Comments']['Comment']) => (

@@ -209,7 +209,7 @@ export const checkboxSizes: Record<CheckboxSize, {
       height: 'h-4',
     },
     label: 'text-sm',
-    description: 'text-xs',
+    labelDescription: 'text-xs',
     icon: {
       width: 'w-2.5',
       height: 'h-2.5',
@@ -227,7 +227,7 @@ export const checkboxSizes: Record<CheckboxSize, {
       height: 'h-5',
     },
     label: 'text-base',
-    description: 'text-sm',
+    labelDescription: 'text-sm',
     icon: {
       width: 'w-3',
       height: 'h-3',
@@ -245,7 +245,7 @@ export const checkboxSizes: Record<CheckboxSize, {
       height: 'h-6',
     },
     label: 'text-lg',
-    description: 'text-base',
+    labelDescription: 'text-base',
     icon: {
       width: 'w-4',
       height: 'h-4',
