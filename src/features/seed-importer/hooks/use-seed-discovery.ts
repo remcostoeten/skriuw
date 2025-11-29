@@ -1,15 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getCachedSeeds, refreshSeedCache, searchSeeds, filterSeedsBySource } from '../utils/seed-discovery'
+import { getCachedSeeds, refreshSeedCache, searchSeeds, filterSeedsBySource, clearSeedCache } from '../utils/seed-discovery'
 import type { ParsedSeed, SeedSource } from '../api/types'
 
-export function useSeedDiscovery() {
+interface UseSeedDiscoveryOptions {
+  enabled?: boolean
+}
+
+export function useSeedDiscovery(options: UseSeedDiscoveryOptions = {}) {
+  const { enabled = true } = options
   const [seeds, setSeeds] = useState<ParsedSeed[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSource, setSelectedSource] = useState<SeedSource | 'all'>('all')
 
   const loadSeeds = useCallback(async (refresh = false) => {
+    if (!enabled) return
+    
     try {
       setLoading(true)
       setError(null)
@@ -24,7 +31,7 @@ export function useSeedDiscovery() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [enabled])
 
   const filteredSeeds = useCallback(() => {
     let filtered = seeds
@@ -43,8 +50,29 @@ export function useSeedDiscovery() {
   }, [seeds, selectedSource, searchQuery])
 
   useEffect(() => {
-    loadSeeds()
-  }, [loadSeeds])
+    if (!enabled) return
+    
+    let cancelled = false
+    
+    loadSeeds().catch((err) => {
+      if (!cancelled) {
+        setError(err instanceof Error ? err.message : 'Failed to discover seeds')
+        setLoading(false)
+      }
+    })
+    
+    return () => {
+      cancelled = true
+    }
+  }, [loadSeeds, enabled])
+
+  // Clear cache on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Clear cache when component unmounts to free memory
+      clearSeedCache()
+    }
+  }, [])
 
   return {
     seeds,

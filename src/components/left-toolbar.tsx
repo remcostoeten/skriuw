@@ -20,11 +20,7 @@ export function LeftToolbar({ onSettingsClick }: { onSettingsClick?: () => void 
 
   const isOnNoteView = location.pathname.startsWith("/note/") || location.pathname === "/";
   const isOnUIPlayground = location.pathname === "/_ui-playground";
-
-  // Routes that don't exist yet - navigate to 404
-  const handleNonExistentRoute = (route: string) => {
-    navigate(`/${route}`, { replace: true });
-  };
+  const isOnArchive = location.pathname === "/archive";
 
   return (
     <div className="w-12 h-full bg-sidebar-background border-r border-sidebar-border flex flex-col justify-between items-center px-1.5">
@@ -47,9 +43,13 @@ export function LeftToolbar({ onSettingsClick }: { onSettingsClick?: () => void 
           icon={<FolderIcon closedVariant />}
           hoverIcon={<FolderIcon />}
           tooltip="Archive"
-          active={false}
+          active={isOnArchive}
           variant="sidebar"
-          onClick={() => handleNonExistentRoute("archive")}
+          onClick={() => {
+            if (!isOnArchive) {
+              navigate("/archive");
+            }
+          }}
         />
         <IconButton
           icon={<CalendarIcon />}

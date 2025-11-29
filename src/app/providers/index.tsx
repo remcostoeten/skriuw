@@ -10,9 +10,9 @@ import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
 
 import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading"
 
-import { Sonner, Toaster, TooltipProvider } from "ui"
-
+import { TooltipProvider } from "ui"
 import { initializeAppStorage } from "../storage"
+import { Toaster as SonnerToaster } from "sonner"
 
 type props = {
         children: ReactNode
@@ -66,8 +66,7 @@ export function Providers({ children }: props) {
                         <ShortcutProvider>
                                 <ContextMenuProvider>
                                         <TooltipProvider delayDuration={0}>
-                                                <Toaster />
-                                                <Sonner />
+                                                <SonnerToaster />
                                                 <StorageInitializer>
                                                         <EditorTabsProvider>{children}</EditorTabsProvider>
                                                 </StorageInitializer>
