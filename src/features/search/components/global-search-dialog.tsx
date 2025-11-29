@@ -1,117 +1,96 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { FileText } from 'lucide-react'
+import { useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Folder } from "lucide-react";
+import { Dialog, DialogContent } from "@/shared/ui/dialog";
+import { DataCommand, type CommandDataItem } from "./data-command";
+import { fetchNotes, fetchFolders, fetchOneNote, fetchOneFolder } from "../api/fetch-notes";
+import { useNotes } from "@/features/notes";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import type { Note, Folder as FolderType } from "@/features/notes/types";
 
-import {
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from '@/shared/ui/command'
-
-import { useNotes } from '@/features/notes/hooks/use-notes'
-import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { blocksToText } from '@/features/notes/utils/blocks-to-text'
-import { useSettings } from '@/features/settings'
-
-import type { Note } from '@/features/notes/types'
-
-type props ={  
-open: boolean
-  onOpenChange: (open: boolean) => void
-}
+type props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function GlobalSearchDialog({ open, onOpenChange }: props) {
-  const navigate = useNavigate()
-  const { items } = useNotes()
-  const { getSetting } = useSettings()
-  const [searchQuery, setSearchQuery] = useState('')
-  const searchInContent = getSetting('searchInContent') ?? false
+  const navigate = useNavigate();
+  const { items } = useNotes();
+  const { getNoteUrl } = useNoteSlug(items);
 
-  // Get all notes from the tree
-  const allNotes = useMemo(() => flattenNotes(items), [items])
+  const parseNote = useCallback((note: Note): CommandDataItem => ({
+    label: note.name,
+    value: note.id,
+    icon: <FileText className="h-4 w-4 text-muted-foreground" />,
+    onSelect: () => {
+      navigate(getNoteUrl(note.id));
+    },
+  }), [navigate, getNoteUrl]);
 
-  // Filter notes based on search query
-  const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return allNotes.slice(0, 50) // Show first 50 notes when no query
-    }
+  const parseFolder = useCallback((folder: FolderType): CommandDataItem => ({
+    label: folder.name,
+    value: folder.id,
+    icon: <Folder className="h-4 w-4 text-muted-foreground" />,
+    loadItems: async ({ search }) => {
+      const [notes, subFolders] = await Promise.all([
+        fetchNotes({ parentFolderId: folder.id, search }),
+        fetchFolders({ parentFolderId: folder.id, search }),
+      ]);
 
-    const query = searchQuery.toLowerCase().trim()
-    const matches: Array<{ note: Note; score: number }> = []
-
-    for (const note of allNotes) {
-      let score = 0
-
-      // Check if name matches
-      const nameMatches = note.name.toLowerCase().includes(query)
-      if (nameMatches) {
-        score += 2 // Name matches are weighted higher
+      return [
+        ...subFolders.map((f) => parseFolder(f)),
+        ...notes.map((n) => parseNote(n)),
+      ];
+    },
+    loadOneItem: async (itemId: string) => {
+      // Try to fetch as folder first, then as note
+      const fetchedFolder = await fetchOneFolder(itemId);
+      if (fetchedFolder) {
+        return parseFolder(fetchedFolder);
       }
-
-      // Check if content matches (if enabled)
-      let contentMatches = false
-      if (searchInContent && note.content && Array.isArray(note.content)) {
-        try {
-          const contentText = blocksToText(note.content)
-          contentMatches = contentText.toLowerCase().includes(query)
-          if (contentMatches) {
-            score += 1
-          }
-        } catch (error) {
-          console.warn('Failed to extract text from note content:', error)
-        }
+      const note = await fetchOneNote(itemId);
+      if (note) {
+        return parseNote(note);
       }
+      throw new Error("Item not found");
+    },
+    onSelect: () => {
+      // Could navigate to folder view if implemented
+      navigate("/");
+    },
+  }), [navigate, parseNote]);
 
-      if (nameMatches || contentMatches) {
-        matches.push({ note, score })
-      }
-    }
+  const rootItems = useMemo<CommandDataItem[]>(
+    () => [
+      {
+        icon: <Folder className="h-4 w-4 text-muted-foreground" />,
+        label: "All Notes",
+        value: "all-notes",
+        searchPlaceholder: "Search all notes...",
+        loadItems: async ({ search }) => {
+          const [notes, folders] = await Promise.all([
+            fetchNotes({ search }),
+            fetchFolders({ search }),
+          ]);
 
-    // Sort by score (highest first), then by name
-    return matches
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score
-        return a.note.name.localeCompare(b.note.name)
-      })
-      .slice(0, 50)
-      .map(({ note }) => note)
-  }, [allNotes, searchQuery, searchInContent])
-
-  const handleSelectNote = useCallback((noteId: string) => {
-    navigate(`/note/${noteId}`)
-    onOpenChange(false)
-    setSearchQuery('')
-  }, [navigate, onOpenChange])
+          return [
+            ...folders.map((f) => parseFolder(f)),
+            ...notes.map((n) => parseNote(n)),
+          ];
+        },
+        onSelect: () => {
+          navigate("/");
+        },
+      },
+    ],
+    [navigate, parseNote, parseFolder]
+  );
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput
-        placeholder="Search notes..."
-        value={searchQuery}
-        onValueChange={setSearchQuery}
-      />
-      <CommandList>
-        <CommandEmpty>No notes found.</CommandEmpty>
-        {filteredNotes.length > 0 && (
-          <CommandGroup heading="Notes">
-            {filteredNotes.map((note) => (
-              <CommandItem
-                key={note.id}
-                value={`${note.name} ${note.id}`}
-                onSelect={() => handleSelectNote(note.id)}
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="flex-1 truncate">{note.name}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-      </CommandList>
-    </CommandDialog>
-  )
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="overflow-hidden p-0 max-w-2xl">
+        <DataCommand items={rootItems} onClose={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
 }
-

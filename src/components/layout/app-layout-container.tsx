@@ -10,6 +10,8 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
+import { useNotes } from '@/features/notes/hooks/use-notes'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings, useUserPreferences } from '@/features/settings'
@@ -70,7 +72,9 @@ export function AppLayoutContainer({
     sidebarCustomContent
 }: AppLayoutContainerProps) {
     const navigate = useNavigate()
-    const { items, isInitialLoading } = useNotesWithSuspense()
+    const { items, isInitialLoading, createNote, renameItem, deleteItem } = useNotesWithSuspense()
+    const { pinItem, favoriteNote } = useNotes()
+    const { getNoteUrl } = useNoteSlug(items)
     const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
     const [isSearchOpen, setIsSearchOpen] = useState(false)
     const {
@@ -97,7 +101,13 @@ export function AppLayoutContainer({
         closeTab,
         setActiveTab,
         clearTabs,
-        pruneTabs
+        pruneTabs,
+        reorderTabs,
+        closeOtherTabs,
+        closeTabsToRight,
+        closeTabsToLeft,
+        moveTabLeft,
+        moveTabRight
     } = useEditorTabs()
 
     const notesInOrder = useMemo(() => flattenNotes(items), [items])
@@ -136,9 +146,9 @@ export function AppLayoutContainer({
     const handleNavigatePrevious = useCallback(() => {
         if (currentNoteIndex > 0) {
             const previousNote = notesInOrder[currentNoteIndex - 1]
-            navigate(`/note/${previousNote.id}`)
+            navigate(getNoteUrl(previousNote.id))
         }
-    }, [currentNoteIndex, notesInOrder, navigate])
+    }, [currentNoteIndex, notesInOrder, navigate, getNoteUrl])
 
     const handleNavigateNext = useCallback(() => {
         if (
@@ -146,9 +156,9 @@ export function AppLayoutContainer({
             currentNoteIndex < notesInOrder.length - 1
         ) {
             const nextNote = notesInOrder[currentNoteIndex + 1]
-            navigate(`/note/${nextNote.id}`)
+            navigate(getNoteUrl(nextNote.id))
         }
-    }, [currentNoteIndex, notesInOrder, navigate])
+    }, [currentNoteIndex, notesInOrder, navigate, getNoteUrl])
 
     const canNavigatePrevious = currentNoteIndex > 0
     const canNavigateNext =
@@ -187,10 +197,10 @@ export function AppLayoutContainer({
             if (!multiNoteTabs) return
             setActiveTab(noteId)
             if (noteId !== sidebarActiveNoteId) {
-                navigate(`/note/${noteId}`)
+                navigate(getNoteUrl(noteId))
             }
         },
-        [multiNoteTabs, navigate, setActiveTab, sidebarActiveNoteId]
+        [multiNoteTabs, navigate, setActiveTab, sidebarActiveNoteId, getNoteUrl]
     )
 
     const handleCloseTab = useCallback(
@@ -199,14 +209,67 @@ export function AppLayoutContainer({
             const fallbackId = closeTab(noteId)
             if (sidebarActiveNoteId === noteId) {
                 if (fallbackId) {
-                    navigate(`/note/${fallbackId}`)
+                    navigate(getNoteUrl(fallbackId))
                 } else {
                     navigate('/')
                 }
             }
         },
-        [closeTab, multiNoteTabs, navigate, sidebarActiveNoteId]
+        [closeTab, multiNoteTabs, navigate, sidebarActiveNoteId, getNoteUrl]
     )
+
+    const handleCreateNote = useCallback(async () => {
+        if (!multiNoteTabs) return
+        const newNote = await createNote('Untitled')
+        if (newNote) {
+            const url = getNoteUrl(newNote.id)
+            navigate(`${url}?focus=true`)
+        }
+    }, [createNote, navigate, multiNoteTabs, getNoteUrl])
+
+    const handleDuplicateTab = useCallback((noteId: string) => {
+        if (!multiNoteTabs) return
+        // Just open the same note again (it will create a new tab if needed)
+        openTab({ noteId }, { activate: true })
+        setActiveTab(noteId)
+        navigate(getNoteUrl(noteId))
+    }, [multiNoteTabs, openTab, setActiveTab, navigate, getNoteUrl])
+
+    const handleRenameNote = useCallback(async (noteId: string) => {
+        const note = notesInOrder.find(n => n.id === noteId)
+        if (!note) return
+        
+        const newName = prompt('Enter new name:', note.name)
+        if (newName && newName.trim() && newName !== note.name) {
+            await renameItem(noteId, newName.trim())
+        }
+    }, [notesInOrder, renameItem])
+
+    const handleDeleteNote = useCallback(async (noteId: string) => {
+        const note = notesInOrder.find(n => n.id === noteId)
+        if (!note) return
+        
+        if (confirm(`Are you sure you want to delete "${note.name}"?`)) {
+            await deleteItem(noteId)
+        }
+    }, [notesInOrder, deleteItem])
+
+    const handlePinNote = useCallback(async (noteId: string, pinned: boolean) => {
+        await pinItem(noteId, 'note', pinned)
+    }, [pinItem])
+
+    const handleFavoriteNote = useCallback(async (noteId: string, favorite: boolean) => {
+        await favoriteNote(noteId, favorite)
+    }, [favoriteNote])
+
+    const getNoteData = useCallback((noteId: string) => {
+        const note = notesInOrder.find(n => n.id === noteId)
+        if (!note) return null
+        return {
+            pinned: note.pinned ?? false,
+            favorite: note.favorite ?? false
+        }
+    }, [notesInOrder])
 
     useShortcut('toggle-shortcuts', (e) => {
         e.preventDefault()
@@ -228,6 +291,11 @@ export function AppLayoutContainer({
         toggleStorageStatus()
     })
 
+    useShortcut('search-notes', (e) => {
+        e.preventDefault()
+        setIsSearchOpen(true)
+    })
+
     return (
         <AppLayoutShell
             leftToolbar={
@@ -243,6 +311,7 @@ export function AppLayoutContainer({
                                 activeNoteId={sidebarActiveNoteId}
                                 contentType={sidebarContentType}
                                 customContent={sidebarCustomContent}
+                                openTabIds={multiNoteTabs ? new Set(tabs.map(t => t.noteId)) : undefined}
                                 ruler={{
                                     enabled: false,
                                     style: "solid",
@@ -273,12 +342,26 @@ export function AppLayoutContainer({
             }
             mainContent={
                 <div className="flex h-full flex-col">
-                    {multiNoteTabs && tabs.length > 0 && (
+                    {multiNoteTabs && (
                         <EditorTabsBar
                             tabs={tabs}
                             activeNoteId={activeNoteId}
                             onSelect={handleSelectTab}
                             onClose={handleCloseTab}
+                            onReorder={reorderTabs}
+                            onCreateNote={handleCreateNote}
+                            onCloseOtherTabs={closeOtherTabs}
+                            onCloseTabsToRight={closeTabsToRight}
+                            onCloseTabsToLeft={closeTabsToLeft}
+                            onCloseAllTabs={clearTabs}
+                            onDuplicateTab={handleDuplicateTab}
+                            onMoveTabLeft={moveTabLeft}
+                            onMoveTabRight={moveTabRight}
+                            onRenameNote={handleRenameNote}
+                            onDeleteNote={handleDeleteNote}
+                            onPinNote={handlePinNote}
+                            onFavoriteNote={handleFavoriteNote}
+                            getNoteData={getNoteData}
                         />
                     )}
                     <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary">

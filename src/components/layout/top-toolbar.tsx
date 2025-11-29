@@ -10,6 +10,9 @@ import {
 } from 'lucide-react'
 
 import { IconButton } from '@/shared/ui/icons'
+import { WindowControls } from './window-controls'
+import { isTauriAvailable } from '@/shared/utilities/tauri-check'
+import { cn } from '@/shared/utilities'
 
 type props = {
     noteName: string
@@ -38,9 +41,20 @@ export function TopToolbar({
     isRawMDXMode = false,
     onToggleEditorMode
 }: props) {
+    const isTauri = isTauriAvailable()
+
     return (
-        <div className="h-10 bg-background border-b border-border flex items-center justify-between px-1.5">
-            <div className="flex items-center gap-1.5">
+        <div 
+            className={cn(
+                "h-10 bg-background border-b border-border flex items-center justify-between px-1.5 relative",
+                isTauri && "select-none"
+            )}
+            data-tauri-drag-region={isTauri ? true : undefined}
+        >
+            <div 
+                className="flex items-center gap-1.5"
+                data-tauri-drag-region={isTauri ? "false" : undefined}
+            >
                 <IconButton
                     icon={<Menu className="w-4 h-4 text-muted-foreground" />}
                     tooltip="Toggle sidebar"
@@ -83,13 +97,19 @@ export function TopToolbar({
                 )}
             </div>
 
-            <div className="flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5">
+            <div 
+                className="flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5 cursor-default"
+                data-tauri-drag-region={isTauri ? true : undefined}
+            >
                 <span className="text-[13px] text-foreground truncate max-w-[200px] sm:max-w-none">
                     {noteName}
                 </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div 
+                className="flex items-center gap-1.5"
+                data-tauri-drag-region={isTauri ? "false" : undefined}
+            >
                 <IconButton
                     icon={<Search className="w-4 h-4 text-muted-foreground" />}
                     tooltip="Search notes"
@@ -126,6 +146,10 @@ export function TopToolbar({
                     variant="toolbar"
                     onClick={onToggleShortcuts}
                 />
+                {isTauri && (
+                    <div className="ml-2 border-l border-border h-6" />
+                )}
+                {isTauri && <WindowControls />}
             </div>
         </div>
     )
