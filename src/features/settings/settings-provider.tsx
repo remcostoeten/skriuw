@@ -38,7 +38,8 @@ const DEFAULT_SETTINGS = {
     autoBackup: false,
     backupInterval: 3600000, // 1 hour
     maxBackupFiles: 10,
-    multiNoteTabs: false
+    multiNoteTabs: false,
+    defaultNoteTemplate: 'empty' // 'empty' | 'h1' | 'h2'
 } as const
 
 export function SettingsProvider({

@@ -7,7 +7,6 @@ import { useEditor } from "../hooks/use-editor";
 
 import { EditorWrapper } from "./editor-wrapper";
 
-
 type props = {
   noteId: string;
   className?: string;
@@ -32,8 +31,6 @@ export function NoteViewer({
     autoSave: false,
   });
 
-  // Create read-only editor for viewing
-  // Ensure initialContent is a non-empty array
   const defaultContent: Block[] = [
     {
       id: "1",

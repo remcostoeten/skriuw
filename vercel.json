@@ -11,6 +11,6 @@
     }
   ],
   "env": {
-    "VITE_STORAGE_ADAPTER": "drizzleLibsqlHttp"
+    "VITE_STORAGE_ADAPTER": "localStorage"
   }
 }

@@ -3,7 +3,7 @@ import { getGenericStorage } from "../generic-storage-factory";
 import type { BaseEntity } from "../generic-types";
 
 export interface CreateOptions {
-	generateId?: () => string;
+	merge?: boolean;
 }
 
 /**
@@ -11,18 +11,11 @@ export interface CreateOptions {
  * Uses the generic storage adapter for agnostic storage
  */
 export async function create<T extends BaseEntity>(
-        storageKey: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
-        options?: CreateOptions
+	storageKey: string,
+	data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
 ): Promise<T> {
         try {
                 const storage = getGenericStorage();
-		
-		// Generate ID if not provided
-		if (!data.id && options?.generateId) {
-			data.id = options.generateId();
-		}
-
 		const result = await storage.create<T>(storageKey, data);
 		return result;
 	} catch (error) {

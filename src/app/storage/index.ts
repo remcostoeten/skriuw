@@ -1,33 +1,27 @@
 import { initializeDefaultNotesAndFolders } from '@/features/notes/utils/initialize-defaults'
 
 import { initializeGenericStorage } from '@/api/storage/generic-storage-factory'
-import type { StorageConfig } from '@/api/storage/generic-types'
-
-import { DEFAULT_STORAGE_CONFIG, getStorageConfig } from './config'
+import { DEFAULT_STORAGE_CONFIG } from './config'
 
 let initializationPromise: Promise<void> | null = null
-let currentConfig: StorageConfig | null = null
 
 /**
- * Initialize the storage system with the generic adapter
+ * Initialize the storage system with localStorage
  */
-export async function initializeAppStorage(config?: StorageConfig): Promise<void> {
-        const resolvedConfig = config ?? getStorageConfig() ?? DEFAULT_STORAGE_CONFIG
-
-        if (initializationPromise && currentConfig?.adapter === resolvedConfig.adapter) {
+export async function initializeAppStorage(): Promise<void> {
+        if (initializationPromise) {
                 return initializationPromise
         }
 
-        currentConfig = resolvedConfig
-        initializationPromise = performInitialization(resolvedConfig)
+        initializationPromise = performInitialization()
         return initializationPromise
 }
 
-async function performInitialization(config: StorageConfig): Promise<void> {
+async function performInitialization(): Promise<void> {
         try {
-                console.info(`Initializing storage with adapter: ${config.adapter}`)
+                console.info('Initializing storage with localStorage')
 
-                const storage = await initializeGenericStorage(config)
+                const storage = await initializeGenericStorage(DEFAULT_STORAGE_CONFIG)
                 const info = await storage.getStorageInfo()
 
                 console.info('Storage initialized successfully:', {
@@ -51,6 +45,5 @@ async function performInitialization(config: StorageConfig): Promise<void> {
  */
 export async function _resetStorage(): Promise<void> {
         initializationPromise = null
-        currentConfig = null
         return initializeAppStorage()
 }
