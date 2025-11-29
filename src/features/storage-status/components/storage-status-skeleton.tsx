@@ -30,8 +30,6 @@ function getStorageAdapterDisplayName(): string {
 		// Format adapter names for display
 		const displayNames: Record<string, string> = {
 			'localStorage': 'Local Storage',
-			'drizzleLibsqlHttp': 'LibSQL (HTTP)',
-			'drizzleTauriSqlite': 'SQLite (Tauri)',
 		};
 		
 		return displayNames[adapterName] || adapterName;

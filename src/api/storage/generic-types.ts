@@ -98,21 +98,9 @@ export interface StorageConfig {
         options?: StorageAdapterOptions
 }
 
-export type StorageAdapterName = 'localStorage' | 'drizzleLibsqlHttp' | 'drizzleTauriSqlite'
+export type StorageAdapterName = 'localStorage'
 
-export type StorageAdapterOptions =
-        | LibsqlHttpOptions
-        | TauriSqliteOptions
-        | Record<string, unknown>
-
-export interface LibsqlHttpOptions {
-        url: string
-        authToken?: string
-}
-
-export interface TauriSqliteOptions {
-        databasePath?: string
-}
+export type StorageAdapterOptions = Record<string, unknown>
 
 export interface StorageEvent {
 	type: 'created' | 'updated' | 'deleted'
