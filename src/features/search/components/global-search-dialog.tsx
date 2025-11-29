@@ -11,19 +11,19 @@ import {
   CommandItem,
 } from '@/shared/ui/command'
 
-import { useNotes } from '@/features/notes/hooks/useNotes'
+import { useNotes } from '@/features/notes/hooks/use-notes'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { blocksToText } from '@/features/notes/utils/blocks-to-text'
 import { useSettings } from '@/features/settings'
 
 import type { Note } from '@/features/notes/types'
 
-interface GlobalSearchDialogProps {
-  open: boolean
+type props ={  
+open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+export function GlobalSearchDialog({ open, onOpenChange }: props) {
   const navigate = useNavigate()
   const { items } = useNotes()
   const { getSetting } = useSettings()
