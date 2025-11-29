@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react'
+import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 import { SeedImportDialog } from '@/features/seed-importer/components/seed-import-dialog'
@@ -7,8 +7,9 @@ import { Download, Archive, Upload } from 'lucide-react'
 
 export default function Archive() {
   const [showSeedImport, setShowSeedImport] = useState(false)
-  const { seeds } = useSeedDiscovery()
   const [activeTab, setActiveTab] = useState('import')
+  // Only load seeds when import tab is active to save memory
+  const { seeds = [], loading = false, error = null } = useSeedDiscovery({ enabled: activeTab === 'import' })
 
   function handleSeedImportComplete() {
     setShowSeedImport(false)
@@ -55,29 +56,35 @@ export default function Archive() {
                       Import pre-made collections of notes and folders from seed files
                     </p>
                   </div>
-                  <Suspense fallback={<div className="text-muted-foreground">Loading collections...</div>}>
-                    {seeds.length > 0 ? (
-                      <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          Found {seeds.length} collection{seeds.length !== 1 ? 's' : ''} available for import
-                        </p>
-                        <button
-                          onClick={() => setShowSeedImport(true)}
-                          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                        >
-                          Open Import Dialog
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 border border-dashed border-border rounded-lg">
-                        <Download className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground mb-4">No collections found</p>
-                        <p className="text-sm text-muted-foreground">
-                          Place seed files in the seeds directory to import them
-                        </p>
-                      </div>
-                    )}
-                  </Suspense>
+                  {loading ? (
+                    <div className="text-muted-foreground">Loading collections...</div>
+                  ) : error ? (
+                    <div className="text-center py-12 border border-dashed border-border rounded-lg">
+                      <Download className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-4">Error loading collections</p>
+                      <p className="text-sm text-muted-foreground">{error}</p>
+                    </div>
+                  ) : seeds.length > 0 ? (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Found {seeds.length} collection{seeds.length !== 1 ? 's' : ''} available for import
+                      </p>
+                      <button
+                        onClick={() => setShowSeedImport(true)}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                      >
+                        Open Import Dialog
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 border border-dashed border-border rounded-lg">
+                      <Download className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-4">No collections found</p>
+                      <p className="text-sm text-muted-foreground">
+                        Place seed files in the seeds directory to import them
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 

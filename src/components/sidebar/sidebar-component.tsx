@@ -47,14 +47,19 @@ function MoveFolderMenu({
   allItems,
   onMoveItem,
   isMobile,
+  selectedIds,
+  onClearSelection,
 }: {
   currentFolderId: string;
   allItems: Item[];
   onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>;
   isMobile: boolean;
+  selectedIds?: string[];
+  onClearSelection?: () => void;
 }) {
-  // Helper to check if a folder is a descendant of the current folder
-  const isDescendant = useCallback((folderId: string, ancestorId: string, items: Item[]): boolean => {
+  const isBulkMove = selectedIds && selectedIds.length > 1;
+  
+  const isDescendant = useCallback((folderId: string, ancestorIds: string[], items: Item[]): boolean => {
     const findFolder = (itemList: Item[], id: string): FolderType | null => {
       for (const item of itemList) {
         if (item.id === id && item.type === 'folder') {
@@ -68,29 +73,49 @@ function MoveFolderMenu({
       return null;
     };
 
-    const ancestor = findFolder(items, ancestorId);
-    if (!ancestor) return false;
+    for (const ancestorId of ancestorIds) {
+      const ancestor = findFolder(items, ancestorId);
+      if (!ancestor) continue;
 
-    const checkChildren = (folder: FolderType): boolean => {
-      return folder.children.some((child) => {
-        if (child.id === folderId) return true;
-        if (child.type === 'folder') {
-          return checkChildren(child as FolderType);
-        }
-        return false;
-      });
-    };
+      const checkChildren = (folder: FolderType): boolean => {
+        return folder.children.some((child) => {
+          if (child.id === folderId) return true;
+          if (child.type === 'folder') {
+            return checkChildren(child as FolderType);
+          }
+          return false;
+        });
+      };
 
-    return checkChildren(ancestor);
+      if (checkChildren(ancestor)) return true;
+    }
+
+    return false;
   }, []);
 
-  // Get available folders (excluding current folder and its descendants)
+  // Get available folders (excluding folders being moved and their descendants)
   const availableFolders = useMemo(() => {
     const folders: Item[] = [];
+    const idsToExclude = isBulkMove ? selectedIds! : [currentFolderId];
+    // Only check descendants for folders, since notes can't have descendants
+    const folderIdsToExclude = idsToExclude.filter(id => {
+      const findItem = (itemList: Item[]): Item | undefined => {
+        for (const item of itemList) {
+          if (item.id === id) return item;
+          if (item.type === 'folder') {
+            const found = findItem(item.children);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      const item = findItem(allItems);
+      return item?.type === 'folder';
+    });
     
     const collectFolders = (itemList: Item[]) => {
       for (const item of itemList) {
-        if (item.type === 'folder' && item.id !== currentFolderId && !isDescendant(item.id, currentFolderId, allItems)) {
+        if (item.type === 'folder' && !idsToExclude.includes(item.id) && !isDescendant(item.id, folderIdsToExclude, allItems)) {
           folders.push(item);
           collectFolders(item.children);
         }
@@ -99,15 +124,27 @@ function MoveFolderMenu({
     
     collectFolders(allItems);
     return folders;
-  }, [allItems, currentFolderId, isDescendant]);
+  }, [allItems, currentFolderId, isDescendant, isBulkMove, selectedIds]);
 
   const handleMoveToRoot = useCallback(async () => {
-    await onMoveItem(currentFolderId, null);
-  }, [currentFolderId, onMoveItem]);
+    const idsToMove = isBulkMove ? selectedIds! : [currentFolderId];
+    for (const id of idsToMove) {
+      await onMoveItem(id, null);
+    }
+    if (isBulkMove && onClearSelection) {
+      onClearSelection();
+    }
+  }, [currentFolderId, onMoveItem, isBulkMove, selectedIds, onClearSelection]);
 
   const handleMoveToFolder = useCallback(async (targetFolderId: string) => {
-    await onMoveItem(currentFolderId, targetFolderId);
-  }, [currentFolderId, onMoveItem]);
+    const idsToMove = isBulkMove ? selectedIds! : [currentFolderId];
+    for (const id of idsToMove) {
+      await onMoveItem(id, targetFolderId);
+    }
+    if (isBulkMove && onClearSelection) {
+      onClearSelection();
+    }
+  }, [currentFolderId, onMoveItem, isBulkMove, selectedIds, onClearSelection]);
 
   return (
     <>
@@ -190,6 +227,7 @@ function FileTreeItem({
   allItems,
   ruler,
   openTabIds,
+  allVisibleItemIds,
 }: {
   item: Item;
   level?: number;
@@ -213,6 +251,7 @@ function FileTreeItem({
   allItems: Item[];
   ruler?: RulerProps;
   openTabIds?: Set<string>;
+  allVisibleItemIds?: string[];
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(item.name);
@@ -231,7 +270,7 @@ function FileTreeItem({
   const hasOpenTab = !isFolder && openTabIds?.has(item.id);
 
   // Selection store
-  const { isSelected, toggleSelection, selectItem, clearSelection, getSelectedCount } = useSelectionStore();
+  const { isSelected, toggleSelection, selectItem, clearSelection, getSelectedCount, getSelectedIds, setAnchor, selectRange, anchorId, lastSelectedId } = useSelectionStore();
   const isItemSelected = isSelected(item.id);
 
   useEffect(() => {
@@ -282,10 +321,28 @@ function FileTreeItem({
     // Stop propagation so clicking name doesn't trigger folder toggle
     e.stopPropagation();
 
+    // Handle Shift+Click for range selection (before Ctrl/Cmd)
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey && allVisibleItemIds && allVisibleItemIds.length > 0) {
+      e.preventDefault();
+      const effectiveAnchor = anchorId || lastSelectedId;
+      if (effectiveAnchor && effectiveAnchor !== item.id) {
+        // Select range from anchor/lastSelected to this item
+        selectRange(effectiveAnchor, item.id, allVisibleItemIds);
+      } else {
+        // Set this as anchor if no anchor exists
+        setAnchor(item.id);
+      }
+      return;
+    }
+
     // Handle Ctrl/Cmd+Click for multi-selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       toggleSelection(item.id);
+      // Set anchor if this is first selection
+      if (!anchorId && !isItemSelected) {
+        setAnchor(item.id);
+      }
       return;
     }
 
@@ -295,11 +352,6 @@ function FileTreeItem({
     }
 
     clickTimeoutRef.current = setTimeout(() => {
-      // Clear selection if clicking on a non-selected item and not in multi-select mode
-      if (!isItemSelected && getSelectedCount() > 0) {
-        clearSelection();
-      }
-
       if (isFolder) {
         // Don't toggle folder when clicking name - only select
         onSelectFolder(item.id);
@@ -307,6 +359,8 @@ function FileTreeItem({
         onNavigateNote(item.id);
         onSelectFolder(null); // Clear folder selection when clicking a note
       }
+      // Set anchor on regular click (this clears previous selection and selects only this item)
+      setAnchor(item.id);
       clickTimeoutRef.current = null;
     }, 200);
   };
@@ -329,11 +383,30 @@ function FileTreeItem({
       return;
     }
 
+    // Handle Shift+Click for range selection (before Ctrl/Cmd)
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey && allVisibleItemIds && allVisibleItemIds.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      const effectiveAnchor = anchorId || lastSelectedId;
+      if (effectiveAnchor && effectiveAnchor !== item.id) {
+        // Select range from anchor/lastSelected to this item
+        selectRange(effectiveAnchor, item.id, allVisibleItemIds);
+      } else {
+        // Set this as anchor if no anchor exists
+        setAnchor(item.id);
+      }
+      return;
+    }
+
     // Handle Ctrl/Cmd+Click for multi-selection (except on input fields)
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       e.stopPropagation();
       toggleSelection(item.id);
+      // Set anchor if this is first selection
+      if (!anchorId && !isItemSelected) {
+        setAnchor(item.id);
+      }
       return;
     }
 
@@ -361,14 +434,18 @@ function FileTreeItem({
     }
 
     if (isFolder) {
-      // Toggle folder when clicking on the button
-      onToggleFolder(item.id);
+      // Toggle folder when clicking on the button, but only if it has children
+      if (hasChildren) {
+        onToggleFolder(item.id);
+      }
       onSelectFolder(item.id);
     } else {
       // Navigate to note
       onNavigateNote(item.id);
       onSelectFolder(null);
     }
+    // Set anchor on regular click
+    setAnchor(item.id);
   };
 
   const handleRenameComplete = () => {
@@ -382,6 +459,7 @@ function FileTreeItem({
 
   const handleFolderToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!hasChildren) return;
     onToggleFolder(item.id);
     onSelectFolder(item.id);
   };
@@ -400,18 +478,20 @@ function FileTreeItem({
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         if (isFolder) {
-          onToggleFolder(item.id);
+          if (hasChildren) {
+            onToggleFolder(item.id);
+          }
         } else {
           onNavigateNote(item.id);
         }
       }
 
       if (isFolder) {
-        if (e.key === "ArrowRight" && !isExpanded) {
+        if (e.key === "ArrowRight" && !isExpanded && hasChildren) {
           e.preventDefault();
           onToggleFolder(item.id);
         }
-        if (e.key === "ArrowLeft" && isExpanded) {
+        if (e.key === "ArrowLeft" && isExpanded && hasChildren) {
           e.preventDefault();
           onToggleFolder(item.id);
         }
@@ -509,6 +589,7 @@ function FileTreeItem({
   }, []);
 
   const childCount = isFolder && item.type === "folder" ? item.children.length : 0;
+  const hasChildren = childCount > 0;
 
   return (
     <ContextMenu onOpenChange={handleContextMenuOpenChange}>
@@ -533,11 +614,11 @@ function FileTreeItem({
               }}
               className={cn(
                 "font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative",
-                isActive
+                isActive && !isItemSelected
                   ? "bg-accent text-foreground"
                   : "text-secondary-foreground/80 hover:text-foreground",
-                isItemSelected
-                  ? "bg-primary/20 ring-1 ring-primary text-primary-foreground"
+                isItemSelected && !isActive
+                  ? "bg-accent/50 text-foreground"
                   : "",
                 hasOpenTab && !isActive && !isItemSelected && "bg-accent"
               )}
@@ -560,18 +641,16 @@ function FileTreeItem({
               role="treeitem"
               aria-expanded={isFolder ? isExpanded : undefined}
             >
-              {/* Selection indicator */}
-              {isItemSelected && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-md" />
-              )}
-
               <div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
                 {isFolder ? (
                   <>
                     <div
                       data-folder-icon
                       onClick={handleFolderToggle}
-                      className="shrink-0 cursor-pointer"
+                      className={cn(
+                        "shrink-0",
+                        hasChildren ? "cursor-pointer" : "cursor-default"
+                      )}
                     >
                       {isExpanded ? <FolderOpenIcon /> : <FolderClosedIcon />}
                     </div>
@@ -772,14 +851,14 @@ function FileTreeItem({
             )}
           </ContextMenuItem>
         )}
-        {isFolder && (
+        {(isFolder || getSelectedCount() > 1) && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className={cn(
               "h-7 text-xs font-base min-h-[36px]",
               isMobile && "h-12 text-sm px-4"
             )}>
               <FolderOpen className={cn("w-3.5 h-3.5 mr-2", isMobile && "w-5 h-5")} />
-              Move folder to...
+              {getSelectedCount() > 1 ? `Move ${getSelectedCount()} items to...` : 'Move folder to...'}
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className={cn(
               isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
@@ -789,20 +868,35 @@ function FileTreeItem({
                 allItems={allItems}
                 onMoveItem={onMoveItem}
                 isMobile={isMobile}
+                selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
+                onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
               />
             </ContextMenuSubContent>
           </ContextMenuSub>
         )}
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => onDelete(item.id)}
+          onClick={async () => {
+            const selectedCount = getSelectedCount();
+            if (selectedCount > 1) {
+              const selectedIds = getSelectedIds();
+              if (confirm(`Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+                for (const id of selectedIds) {
+                  await onDelete(id);
+                }
+                clearSelection();
+              }
+            } else {
+              onDelete(item.id);
+            }
+          }}
           className={cn(
             "h-8 text-xs font-base text-destructive focus:text-destructive min-h-[36px]",
             isMobile && "h-12 text-sm px-4"
           )}
         >
           <Trash2 className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
-          Delete
+          {getSelectedCount() > 1 ? `Delete ${getSelectedCount()} items` : 'Delete'}
           {!isMobile && <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>}
         </ContextMenuItem>
       </ContextMenuContent>
@@ -845,6 +939,7 @@ function FileTreeItem({
               onMoveItem={onMoveItem}
               allItems={allItems}
               ruler={ruler}
+              allVisibleItemIds={allVisibleItemIds}
             />
           ))}
         </div>
@@ -1444,6 +1539,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
               allItems={items}
               ruler={ruler}
               openTabIds={openTabIds}
+              allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
             />
           ))}
         </div>

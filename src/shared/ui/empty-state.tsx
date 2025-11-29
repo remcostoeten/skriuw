@@ -15,7 +15,7 @@ export type EmptyStateAction = {
 };
 
 type props = {
-	message: string;
+	message?: string;
 	submessage?: string;
 	actions?: EmptyStateAction[];
 	icon?: React.ReactNode;

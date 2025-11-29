@@ -7,8 +7,6 @@ import { EmptyState } from '@/shared/ui/empty-state'
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useShortcut, shortcut } from '@/features/shortcuts'
-import { SeedImportDialog } from '@/features/seed-importer/components/seed-import-dialog'
-import { useSeedDiscovery } from '@/features/seed-importer/hooks/use-seed-discovery'
 
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
@@ -24,8 +22,6 @@ export default function Index() {
     const location = useLocation()
     const navigate = useNavigate()
     const { items, createNote, isInitialLoading } = useNotesWithSuspense()
-    const [showSeedImport, setShowSeedImport] = useState(false)
-    const { seeds } = useSeedDiscovery()
     const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 
     const isNoteRoute = location.pathname.startsWith('/note/')
@@ -44,13 +40,8 @@ export default function Index() {
         }
     }
 
-    async function handleOpenCollection() {
-        setShowSeedImport(true)
-    }
-
-    function handleSeedImportComplete() {
-        setShowSeedImport(false)
-        toast.success('Collection imported successfully')
+    function handleOpenCollection() {
+        navigate('/archive')
     }
 
     useShortcut('create-note', (e) => {
@@ -67,14 +58,14 @@ export default function Index() {
         <>
             {!noteId ? (
                 <AppLayoutContainer>
-                    <div className="flex-1 flex items-center justify-center bg-background h-full">
+                    <div className="flex-1 flex items-center justify-center translate-y-[30%]">
                         {isInitialLoading ? (
                             <IndexSkeleton />
                         ) : (
                             <div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
                                 <div className="flex flex-col items-center gap-6 mb-8">
                                     <div className="flex flex-col items-center gap-3">
-                                        <h1 className="text-4xl font-bold text-foreground" style={{ fontFamily: 'Georgia, "Playfair Display", "Times New Roman", serif' }}>Skriuw</h1>
+                                        <h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
                                         <div className="flex flex-col items-center gap-1 text-muted-foreground">
                                             <p className="text-sm italic">
                                                 <span className="font-mono">/skrɪu̯/</span> — <span className="font-medium">Frisian, "to write."</span>
@@ -83,13 +74,11 @@ export default function Index() {
                                     </div>
                                     <div className="max-w-lg text-center">
                                         <p className="text-sm text-muted-foreground leading-relaxed">
-                                            A local-first desktop application for writing and organizing thoughts. Built with Tauri 2.0 and React, <strong className="text-foreground">Skriuw</strong> blends note-taking and task management into a fast, private workspace with Markdown editing and offline access.
+                                            A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding a opt-in system for all features (yes, ai is included) rather than the usual opt-out system. The tools are here, you just need to opt-in.
                                         </p>
                                     </div>
                                 </div>
                                 <EmptyState
-                                    message="Select a note to start editing"
-                                    submessage="Get started by opening a collection or creating a new note"
                                     actions={[
                                         {
                                             label: 'Open Collection',
@@ -128,12 +117,6 @@ export default function Index() {
                     </Suspense>
                 </AppLayoutContainer>
             )}
-            <SeedImportDialog
-                open={showSeedImport}
-                onOpenChange={setShowSeedImport}
-                seeds={seeds}
-                onImport={handleSeedImportComplete}
-            />
         </>
     )
 }
