@@ -36,11 +36,8 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
         return findInItems(items)
     }, [items])
 
-    const count = getSelectedCount()
-
-    if (count === 0) return null
-
     const handleBulkDelete = useCallback(async () => {
+        const count = getSelectedCount()
         if (confirm(`Delete ${count} item${count !== 1 ? 's' : ''}? This action cannot be undone.`)) {
             const ids = getSelectedIds()
             for (const id of ids) {
@@ -52,7 +49,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
             }
             clearSelection()
         }
-    }, [count, getSelectedIds, deleteItem, clearSelection])
+    }, [getSelectedCount, getSelectedIds, deleteItem, clearSelection])
 
     const handleBulkMove = useCallback(async () => {
         // This would open a move dialog, for now just show an alert
@@ -126,6 +123,10 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
         }
         clearSelection()
     }, [getSelectedIds, favoriteNote, clearSelection, findItemById])
+
+    const count = getSelectedCount()
+    
+    if (count === 0) return null
 
     return (
         <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 ${className}`}>

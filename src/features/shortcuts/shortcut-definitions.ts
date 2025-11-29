@@ -24,8 +24,8 @@ export const shortcutDefinitions = {
     },
     "open-collection": {
         keys: [["Ctrl", "o"], ["Meta", "o"]],
-        description: "Open a collection",
-        enabled: false, // Not implemented yet
+        description: "Open Archive & Collections page",
+        enabled: true,
     },
     "toggle-sidebar": {
         keys: [["Ctrl", "b"], ["Meta", "b"]],

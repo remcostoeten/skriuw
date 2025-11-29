@@ -278,6 +278,10 @@ layer(base);
             overflow-x: auto;
             white-space: pre;
         }
+
+        .font-brand {
+            font-family: Georgia, 'Playfair Display', 'Times New Roman', serif;
+        }
     }
 
     /* start scrollbar stylin */

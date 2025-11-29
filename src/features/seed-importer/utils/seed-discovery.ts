@@ -3,32 +3,55 @@ import { parseSeedModule, validateParsedSeed } from './seed-parser'
 
 /**
  * Discover all seed files using Vite's import.meta.glob
+ * Loads seeds in batches to prevent memory issues
  */
 export async function discoverSeeds(): Promise<ParsedSeed[]> {
   const seeds: ParsedSeed[] = []
 
   try {
     // Discover all TypeScript and JavaScript files in the seeds directory
+    // Use lazy loading to prevent browser crashes
     const seedModules = import.meta.glob('../../../features/notes/seeds/**/*.{ts,js}', {
-      eager: true,
-      query: { raw: true },
+      eager: false,
     })
+    
+    const moduleEntries = Object.entries(seedModules)
+    const BATCH_SIZE = 5 // Load 5 seeds at a time to prevent memory issues
+    
+    // Load modules in batches instead of all at once
+    for (let i = 0; i < moduleEntries.length; i += BATCH_SIZE) {
+      const batch = moduleEntries.slice(i, i + BATCH_SIZE)
+      
+      const batchResults = await Promise.all(
+        batch.map(async ([filePath, moduleLoader]) => {
+          try {
+            const module = await (moduleLoader as () => Promise<any>)()
+            return [filePath, module] as const
+          } catch (err) {
+            console.error(`Failed to load seed module ${filePath}:`, err)
+            return null
+          }
+        })
+      )
+      
+      const validBatchModules = batchResults.filter(Boolean) as [string, any][]
 
-    for (const [filePath, module] of Object.entries(seedModules)) {
-      try {
-        const source = filePath.includes('/defaults/') ? 'defaults' : 'generated'
-        const parsedSeed = parseSeedModule(module, filePath, source)
+      for (const [filePath, module] of validBatchModules) {
+        try {
+          const source = filePath.includes('/defaults/') ? 'defaults' : 'generated'
+          const parsedSeed = parseSeedModule(module, filePath, source)
 
-        // Validate the parsed seed
-        const validation = validateParsedSeed(parsedSeed)
-        if (!validation.valid) {
-          console.warn(`Invalid seed ${filePath}:`, validation.errors)
-          continue
+          // Validate the parsed seed
+          const validation = validateParsedSeed(parsedSeed)
+          if (!validation.valid) {
+            console.warn(`Invalid seed ${filePath}:`, validation.errors)
+            continue
+          }
+
+          seeds.push(parsedSeed)
+        } catch (error) {
+          console.error(`Failed to parse seed module ${filePath}:`, error)
         }
-
-        seeds.push(parsedSeed)
-      } catch (error) {
-        console.error(`Failed to parse seed module ${filePath}:`, error)
       }
     }
   } catch (error) {
@@ -64,6 +87,14 @@ export async function getCachedSeeds(): Promise<ParsedSeed[]> {
 export async function refreshSeedCache(): Promise<ParsedSeed[]> {
   cachedSeeds = null
   return getCachedSeeds()
+}
+
+/**
+ * Clear the seed cache to free memory
+ */
+export function clearSeedCache(): void {
+  cachedSeeds = null
+  cacheTimestamp = 0
 }
 
 /**
