@@ -8,8 +8,6 @@ export * from './breadcrumb';
 export * from './button';
 export * from './calendar';
 export * from './card';
-export * from './carousel';
-export * from './chart';
 export * from './checkbox';
 export * from './collapsible';
 export * from './command';

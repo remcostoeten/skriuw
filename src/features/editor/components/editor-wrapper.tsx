@@ -5,8 +5,8 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/core/style.css'
 import '@blocknote/react/style.css'
 import { useUserPreferences, useSettings } from '@/features/settings'
-import { NoteMentionSuggestionMenu } from './NoteMentionSuggestionMenu'
-import { DualModeEditor } from './DualModeEditor'
+import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
+import { DualModeEditor } from './default-mode-editor'
 
 type props = {
     editor: BlockNoteEditor | null
@@ -94,10 +94,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         return (
             <div
                 ref={editorRef}
-                className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
-                style={{
-                    background: 'transparent'
-                }}
+                className={`editor-container bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
             >
                 <DualModeEditor
                     editor={editor}
@@ -131,7 +128,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         .editor-container .bn-editor {
           background: transparent !important;
-          padding: 3em;
+          padding: 1.5rem 2.5rem;
           max-width: 100%;
           color: rgba(230, 230, 230, 0.9);
           font-family: 'Ubuntu Sans', -apple-system, system-ui, sans-serif;
@@ -390,6 +387,28 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         .editor-container .bn-toolbar button:hover {
           background: rgba(46, 46, 46, 0.5) !important;
           color: rgba(230, 230, 230, 1);
+        }
+        /* Mobile: Hide text labels and arrows in toolbar */
+        @media (max-width: 767px) {
+          .editor-container .bn-toolbar {
+            padding: 0.125rem 0.25rem !important;
+            gap: 0.125rem !important;
+          }
+          .editor-container .bn-toolbar-button {
+            height: 1.5rem !important;
+            min-width: 1.5rem !important;
+            padding: 0.25rem !important;
+            font-size: 0.625rem !important;
+          }
+          .editor-container .bn-toolbar-select {
+            height: 1.5rem !important;
+            padding: 0.25rem !important;
+            font-size: 0.625rem !important;
+          }
+          .editor-container .bn-toolbar-select-text,
+          .editor-container .bn-toolbar-select-arrow {
+            display: none !important;
+          }
         }
       `}</style>
             </div>

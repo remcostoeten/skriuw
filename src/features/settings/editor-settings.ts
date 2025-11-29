@@ -5,7 +5,6 @@ import type { UserSetting, SettingsGroup } from "@/shared/data/types";
  * Only include settings that are actually implemented and functional
  */
 export const EDITOR_SETTINGS: UserSetting[] = [
-  // Editor Behavior - Implemented Settings
   {
     key: 'wordWrap',
     value: true,
@@ -80,20 +79,11 @@ export const EDITOR_SETTINGS: UserSetting[] = [
     implemented: true,
   },
   {
-    key: 'showFileTreeIndentGuides',
-    value: false,
-    defaultValue: false,
-    type: 'boolean',
-    description: 'Show indent guide lines in the file tree',
-    category: 'appearance',
-    implemented: true,
-  },
-  {
     key: 'searchInContent',
     value: false,
     defaultValue: false,
     type: 'boolean',
-    description: 'Search through note content in addition to file names',
+    description: 'When this is toggled on, the search will search through all contents of the notes in addition to file names',
     category: 'advanced',
     implemented: true,
   },
