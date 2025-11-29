@@ -10,6 +10,11 @@ import {
   installNoteSeed,
   localUsageNoteSeed,
   taskInEditorNoteSeed,
+  vimKeybindingsNoteSeed,
+  fontSettingsNoteSeed,
+  pinAndFavoriteItemsNoteSeed,
+  multiSelectBulkOperationsNoteSeed,
+  shiftClickRangeSelectionNoteSeed,
   releaseNote20251125Seed
 } from '../seeds/defaults'
 
@@ -95,7 +100,7 @@ function findNoteByName(
         }
     }
     return null
-}localUsageNoteSeed
+}
 
 /**
  * Ensure the "To Do" folder structure exists
@@ -178,6 +183,96 @@ async function ensureToDoFolderStructure(): Promise<void> {
             })
             console.info('Created "Task in editor" note in "servo" folder')
         }
+
+        // Find or create "Vim Keybinding Controls" note
+        const itemsAfterTaskInEditor = await getItems()
+        const vimKeybindingsNote = findNoteByName(
+            itemsAfterTaskInEditor,
+            vimKeybindingsNoteSeed.name,
+            servoFolder.id
+        )
+        if (!vimKeybindingsNote) {
+            const vimKeybindingsContent = await markdownToBlocks(vimKeybindingsNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: vimKeybindingsNoteSeed.name,
+                content: vimKeybindingsContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Vim Keybinding Controls" note in "servo" folder')
+        }
+
+        // Find or create "Font Size, Family, and Line Height Settings" note
+        const itemsAfterVimKeybindings = await getItems()
+        const fontSettingsNote = findNoteByName(
+            itemsAfterVimKeybindings,
+            fontSettingsNoteSeed.name,
+            servoFolder.id
+        )
+        if (!fontSettingsNote) {
+            const fontSettingsContent = await markdownToBlocks(fontSettingsNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: fontSettingsNoteSeed.name,
+                content: fontSettingsContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Font Size, Family, and Line Height Settings" note in "servo" folder')
+        }
+
+        // Find or create "Pin Items to Top & Favorite Notes" note
+        const itemsAfterFontSettings = await getItems()
+        const pinAndFavoriteItemsNote = findNoteByName(
+            itemsAfterFontSettings,
+            pinAndFavoriteItemsNoteSeed.name,
+            servoFolder.id
+        )
+        if (!pinAndFavoriteItemsNote) {
+            const pinAndFavoriteItemsContent = await markdownToBlocks(pinAndFavoriteItemsNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: pinAndFavoriteItemsNoteSeed.name,
+                content: pinAndFavoriteItemsContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Pin Items to Top & Favorite Notes" note in "servo" folder')
+        }
+
+        // Find or create "Multi-Select & Bulk Operations" note
+        const itemsAfterPinAndFavorite = await getItems()
+        const multiSelectBulkOperationsNote = findNoteByName(
+            itemsAfterPinAndFavorite,
+            multiSelectBulkOperationsNoteSeed.name,
+            servoFolder.id
+        )
+        if (!multiSelectBulkOperationsNote) {
+            const multiSelectBulkOperationsContent = await markdownToBlocks(multiSelectBulkOperationsNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: multiSelectBulkOperationsNoteSeed.name,
+                content: multiSelectBulkOperationsContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Multi-Select & Bulk Operations" note in "servo" folder')
+        }
+
+        // Find or create "Shift+Click Range Selection" note
+        const itemsAfterMultiSelect = await getItems()
+        const shiftClickRangeSelectionNote = findNoteByName(
+            itemsAfterMultiSelect,
+            shiftClickRangeSelectionNoteSeed.name,
+            servoFolder.id
+        )
+        if (!shiftClickRangeSelectionNote) {
+            const shiftClickRangeSelectionContent = await markdownToBlocks(shiftClickRangeSelectionNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: shiftClickRangeSelectionNoteSeed.name,
+                content: shiftClickRangeSelectionContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Shift+Click Range Selection" note in "servo" folder')
+        }
     } catch (error) {
         console.error('Failed to ensure "To Do" folder structure:', error)
         // Don't throw - allow app to continue even if this fails
@@ -228,9 +323,12 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
             // Create folders first (they might be parents for notes)
             const folderMap = new Map<string, string>() // name -> id
 
-            for (const folder of [toDoFolderSeed, servoFolderSeed, releasesFolderSeed]) {
+            const folderSeeds: DefaultFolder[] = [toDoFolderSeed, servoFolderSeed, releasesFolderSeed]
+            for (const folder of folderSeeds) {
                 // Resolve parent folder ID if parentFolderName is specified
-                const parentFolderId = folderMap.get(toDoFolderSeed.name)
+                const parentFolderId = folder.parentFolderName
+                    ? folderMap.get(folder.parentFolderName)
+                    : undefined
 
                 const createdFolder = await createFolder({
                     name: folder.name,

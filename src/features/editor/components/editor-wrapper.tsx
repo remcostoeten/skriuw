@@ -94,7 +94,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         return (
             <div
                 ref={editorRef}
-                className={`editor-container !bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
+                className={`editor-container bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
             >
                 <DualModeEditor
                     editor={editor}

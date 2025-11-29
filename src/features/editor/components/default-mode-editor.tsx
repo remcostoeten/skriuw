@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Block } from '@blocknote/core'
-import { RawMDXEditor } from './RawMDXEditor'
+import { RawMDXEditor } from './raw-mdx-editor'
 import { useUserPreferences } from '@/features/settings/use-feature-flags'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
