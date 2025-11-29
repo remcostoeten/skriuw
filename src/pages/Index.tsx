@@ -13,8 +13,7 @@ import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 import { IndexSkeleton } from './components/index-skeleton'
 
-// Lazy load the editor for better performance
-const NoteEditor = lazy(() =>
+ const NoteEditor = lazy(() =>
     import('@/features/editor/components/note-editor').then((mod) => ({
         default: mod.NoteEditor
     }))
