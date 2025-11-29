@@ -1,5 +1,4 @@
 import { initializeAppStorage } from "@/app/storage";
-import { getStorageConfig } from "@/app/storage/config";
 
 import { initializeDefaultNotesAndFolders } from "@/features/notes/utils/initialize-defaults";
 
@@ -13,10 +12,7 @@ import type { BaseEntity } from "@/api/storage/generic-types";
 /**
  * Raw localStorage keys that should be preserved (not deleted)
  */
-const PRESERVED_KEYS = [
-	'storage.preference',
-	'storage.schemaVersion',
-] as const;
+const PRESERVED_KEYS = [] as const;
 
 /**
  * Check if a key should be preserved during reset
@@ -84,17 +80,9 @@ export async function restartStorage(): Promise<void> {
         // First, remove all existing data
         await removeAllStorage();
 
-        // Get current storage config
-        const config = getStorageConfig();
-
         // Re-initialize storage with defaults
-        if (config) {
-            await initializeAppStorage(config);
-            // initializeDefaultNotesAndFolders is called by initializeAppStorage
-		} else {
-			// If no config, just initialize defaults on current storage
-			await initializeDefaultNotesAndFolders();
-		}
+        // initializeDefaultNotesAndFolders is called by initializeAppStorage
+        await initializeAppStorage();
 	} catch (error) {
         throw new Error(
             `Failed to restart storage: ${error instanceof Error ? error.message : String(error)}`

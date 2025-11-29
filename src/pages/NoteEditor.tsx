@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom'
 
-import { NoteEditor as NoteEditorComponent } from '@/features/editor/components/NoteEditor'
+import { NoteEditor as NoteEditorComponent } from '@/features/editor/components/note-editor'
 
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 

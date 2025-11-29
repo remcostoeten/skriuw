@@ -4,12 +4,12 @@ import { getItems } from '../api/queries/get-items'
 
 import {
   welcomeSeed,
-  examplesFolderSeed,
   toDoFolderSeed,
   servoFolderSeed,
   releasesFolderSeed,
   installNoteSeed,
   localUsageNoteSeed,
+  taskInEditorNoteSeed,
   releaseNote20251125Seed
 } from '../seeds/defaults'
 
@@ -41,11 +41,6 @@ export type DefaultFolder = {
 const DEFAULT_NOTES: DefaultNote[] = [
     welcomeSeed,
     // Add more default notes here
-]
-
-const DEFAULT_FOLDERS: DefaultFolder[] = [
-    examplesFolderSeed,
-    // Add more default folders here
 ]
 
 const RELEASES_FOLDER_NAME = 'Releases'
@@ -100,7 +95,7 @@ function findNoteByName(
         }
     }
     return null
-}
+}localUsageNoteSeed
 
 /**
  * Ensure the "To Do" folder structure exists
@@ -117,7 +112,6 @@ async function ensureToDoFolderStructure(): Promise<void> {
             console.info('Created "To Do" folder')
         }
 
-        // Find or create "servo" folder inside "To Do"
         const itemsAfterToDo = await getItems()
         let servoFolder = findFolderByName(
             itemsAfterToDo,
@@ -132,7 +126,6 @@ async function ensureToDoFolderStructure(): Promise<void> {
             console.info('Created "servo" folder inside "To Do"')
         }
 
-        // Find or create "Install" note
         const itemsAfterServo = await getItems()
         const installNote = findNoteByName(
             itemsAfterServo,
@@ -166,6 +159,24 @@ async function ensureToDoFolderStructure(): Promise<void> {
                 parentFolderId: servoFolder.id
             })
             console.info('Created "Local usage" note in "servo" folder')
+        }
+
+        // Find or create "Task in editor" note
+        const itemsAfterLocalUsage = await getItems()
+        const taskInEditorNote = findNoteByName(
+            itemsAfterLocalUsage,
+            taskInEditorNoteSeed.name,
+            servoFolder.id
+        )
+        if (!taskInEditorNote) {
+            const taskInEditorContent = await markdownToBlocks(taskInEditorNoteSeed.contentMarkdown || '')
+
+            await createNote({
+                name: taskInEditorNoteSeed.name,
+                content: taskInEditorContent,
+                parentFolderId: servoFolder.id
+            })
+            console.info('Created "Task in editor" note in "servo" folder')
         }
     } catch (error) {
         console.error('Failed to ensure "To Do" folder structure:', error)
@@ -217,11 +228,9 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
             // Create folders first (they might be parents for notes)
             const folderMap = new Map<string, string>() // name -> id
 
-            for (const folder of DEFAULT_FOLDERS) {
+            for (const folder of [toDoFolderSeed, servoFolderSeed, releasesFolderSeed]) {
                 // Resolve parent folder ID if parentFolderName is specified
-                const parentFolderId = folder.parentFolderName
-                    ? folderMap.get(folder.parentFolderName)
-                    : undefined
+                const parentFolderId = folderMap.get(toDoFolderSeed.name)
 
                 const createdFolder = await createFolder({
                     name: folder.name,
@@ -250,7 +259,7 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
             }
 
             console.info(
-                `Initialized ${DEFAULT_FOLDERS.length} folders and ${DEFAULT_NOTES.length} notes`
+                `Initialized ${[toDoFolderSeed, servoFolderSeed, releasesFolderSeed].length} folders and ${DEFAULT_NOTES.length} notes`
             )
         } else {
             console.info(

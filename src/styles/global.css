@@ -11,6 +11,7 @@ layer(base);
 
 @theme {
     --color-background: hsl(var(--background));
+    --color-background-secondary: hsl(var(--background-secondary));
     --color-foreground: hsl(var(--foreground));
     --color-border: hsl(var(--border));
     --color-input: var(--input);
@@ -59,6 +60,7 @@ layer(base);
     --color-ring: hsl(var(--ring));
     --color-background: hsl(var(--background));
     --color-foreground: hsl(var(--foreground));
+    --color-background-secondary: hsl(var(--background-secondary));
 
     --color-primary: hsl(var(--primary));
     --color-primary-foreground: hsl(var(--primary-foreground));
@@ -148,6 +150,8 @@ layer(base);
     :root {
         --background: 0 0% 100%;
         /* White */
+        --background-secondary: 0 0% 96%;
+        /* Light gray for light mode */
         --foreground: 0 0% 20%;
         /* rgb(51, 51, 51) */
 
@@ -202,6 +206,8 @@ layer(base);
     .dark {
         --background: 0 0% 7%;
         /* rgb(18, 18, 18) */
+        --background-secondary: 0 0% 8.6%;
+        /* rgb(22, 22, 22) - #161616 */
         --foreground: 0 0% 85%;
         /* rgb(217, 217, 217) */
 

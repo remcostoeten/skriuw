@@ -51,12 +51,21 @@ export function NoteEditor({
     hasFocusedRef.current = false;
   }, [noteId]);
 
-  // Focus editor when note is newly created (empty content) or when navigating with ?focus=true
+  // Focus editor when note is newly created (empty content or heading template) or when navigating with ?focus=true
   useEffect(() => {
     if (editor && note && !hasFocusedRef.current) {
-      const isNewNote = !note.content || note.content.length === 0 || 
-                       (note.content.length === 1 && note.content[0].type === "paragraph" && 
-                        (!note.content[0].content || note.content[0].content.length === 0));
+      // Check if note is empty or has a single empty paragraph
+      const isEmptyParagraph = note.content.length === 1 && 
+                               note.content[0].type === "paragraph" && 
+                               (!note.content[0].content || note.content[0].content.length === 0);
+      
+      // Check if note starts with an empty heading (h1 or h2 template)
+      const isEmptyHeading = note.content.length === 1 && 
+                             note.content[0].type === "heading" && 
+                             (note.content[0].props?.level === 1 || note.content[0].props?.level === 2) &&
+                             (!note.content[0].content || note.content[0].content.length === 0);
+      
+      const isNewNote = !note.content || note.content.length === 0 || isEmptyParagraph || isEmptyHeading;
       const shouldFocus = isNewNote || new URLSearchParams(location.search).get('focus') === 'true';
       
       if (shouldFocus) {

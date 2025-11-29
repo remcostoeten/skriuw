@@ -15,6 +15,7 @@ import { useSettings, useUserPreferences } from '@/features/settings'
 import { useEditorTabs } from '@/features/editor/tabs'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
 import { useUIStore } from '@/stores/ui-store'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
 
 import { Footer } from '@/components/layout/footer'
 import { TopToolbar } from '@/components/layout/top-toolbar'
@@ -68,6 +69,7 @@ export function AppLayoutContainer({
 }: AppLayoutContainerProps) {
     const navigate = useNavigate()
     const { items, isInitialLoading } = useNotesWithSuspense()
+    const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
     const {
         isMobileSidebarOpen,
         toggleMobileSidebar,
@@ -239,7 +241,7 @@ export function AppLayoutContainer({
                                 contentType={sidebarContentType}
                                 customContent={sidebarCustomContent}
                                 ruler={{
-                                    enabled: true,
+                                    enabled: false,
                                     style: "solid",
                                     color: "hsl(var(--muted-foreground))",
                                     opacity: 0.25,
@@ -276,7 +278,7 @@ export function AppLayoutContainer({
                             onClose={handleCloseTab}
                         />
                     )}
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary">
                         {children}
                     </div>
                 </div>
@@ -296,20 +298,23 @@ export function AppLayoutContainer({
                         open={isSettingsOpen}
                         onOpenChange={setSettingsOpen}
                     />
-                    <Suspense fallback={null}>
-                        <StorageStatusToggle
-                            onClick={toggleStorageStatus}
-                        />
-                        <StorageStatusPanel
-                            isOpen={isStorageStatusOpen}
-                            onClose={() => setStorageStatusOpen(false)}
-                        />
-                    </Suspense>
+                    {!isMobile && (
+                        <Suspense fallback={null}>
+                            <StorageStatusToggle
+                                onClick={toggleStorageStatus}
+                            />
+                            <StorageStatusPanel
+                                isOpen={isStorageStatusOpen}
+                                onClose={() => setStorageStatusOpen(false)}
+                            />
+                        </Suspense>
+                    )}
                 </>
             }
             isRightPanelOpen={isShortcutsSidebarOpen}
             isSidebarOpen={isMobileSidebarOpen}
             isDesktopSidebarOpen={isDesktopSidebarOpen}
+            onSidebarClose={isMobile ? toggleMobileSidebar : undefined}
         />
     )
 }
