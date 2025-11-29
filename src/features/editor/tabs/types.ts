@@ -15,7 +15,12 @@ export type EditorTabsContextValue = {
   openTab: (tab: EditorTabInput, options?: { activate?: boolean }) => void
   closeTab: (noteId: string) => string | null
   closeOtherTabs: (noteId: string) => void
+  closeTabsToRight: (noteId: string) => void
+  closeTabsToLeft: (noteId: string) => void
   setActiveTab: (noteId: string | null) => void
   clearTabs: () => void
   pruneTabs: (validIds: Set<string>) => void
+  reorderTabs: (fromIndex: number, toIndex: number) => void
+  moveTabLeft: (noteId: string) => void
+  moveTabRight: (noteId: string) => void
 }
