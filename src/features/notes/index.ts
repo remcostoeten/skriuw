@@ -1,5 +1,5 @@
 export * from "./types";
-export * from "./hooks/useNotes";
+export * from "./hooks/use-notes";
 export * from "./api/queries/get-items";
 export * from "./api/queries/get-note";
 export * from "./api/queries/get-notes";

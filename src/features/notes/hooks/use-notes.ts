@@ -6,7 +6,9 @@ import { read } from "@/api/storage/crud";
 import { createFolder as createFolderMutation } from "../api/mutations/create-folder";
 import { createNote as createNoteMutation } from "../api/mutations/create-note";
 import { deleteItem as deleteItemMutation } from "../api/mutations/delete-item";
+import { favoriteNote as favoriteNoteMutation } from "../api/mutations/favorite-note";
 import { moveItem as moveItemMutation } from "../api/mutations/move-item";
+import { pinItem as pinItemMutation } from "../api/mutations/pin-item";
 import { renameItem as renameItemMutation } from "../api/mutations/rename-item";
 import { updateNote as updateNoteMutation } from "../api/mutations/update-note";
 import { getItems } from "../api/queries/get-items";
@@ -88,6 +90,18 @@ export function useNotes() {
 		return 0;
 	}, []);
 
+	const pinItem = useCallback(async (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => {
+		await pinItemMutation(itemId, itemType, pinned);
+		const updatedItems = await getItems();
+		setItems(updatedItems);
+	}, []);
+
+	const favoriteNote = useCallback(async (noteId: string, favorite: boolean) => {
+		await favoriteNoteMutation(noteId, favorite);
+		const updatedItems = await getItems();
+		setItems(updatedItems);
+	}, []);
+
 	return {
 		items,
 		getNote,
@@ -99,5 +113,7 @@ export function useNotes() {
 		deleteItem,
 		moveItem,
 		countChildren,
+		pinItem,
+		favoriteNote,
 	};
 }

@@ -1,10 +1,10 @@
-import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
+import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
 
-import { useNotes } from "@/features/notes/hooks/useNotes";
+import { useNotes } from "@/features/notes/hooks/use-notes";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
 import { useSeedDiscovery } from "@/features/seed-importer/hooks/use-seed-discovery";
@@ -12,6 +12,7 @@ import { useSettings } from "@/features/settings";
 import { useShortcut } from "@/features/shortcuts";
 import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
 import { useUIStore } from "@/stores/ui-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 import {
   ContextMenu,
@@ -27,6 +28,7 @@ import {
 } from "ui";
 
 import { ActionBar } from "../action-bar";
+import { BulkOperationsBar } from "./bulk-operations-bar";
 import { cn } from "@/shared/utilities";
 
 import { useSidebarContentType } from "./use-sidebar-content-type";
@@ -37,6 +39,103 @@ import type { Folder as FolderType, Item } from "@/features/notes/types";
 import type { Block } from "@blocknote/core";
 
 const EXPANDED_FOLDERS_KEY = "Skriuw_expanded_folders";
+
+// Component to render folder options for moving
+function MoveFolderMenu({
+  currentFolderId,
+  allItems,
+  onMoveItem,
+  isMobile,
+}: {
+  currentFolderId: string;
+  allItems: Item[];
+  onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>;
+  isMobile: boolean;
+}) {
+  // Helper to check if a folder is a descendant of the current folder
+  const isDescendant = useCallback((folderId: string, ancestorId: string, items: Item[]): boolean => {
+    const findFolder = (itemList: Item[], id: string): FolderType | null => {
+      for (const item of itemList) {
+        if (item.id === id && item.type === 'folder') {
+          return item as FolderType;
+        }
+        if (item.type === 'folder') {
+          const found = findFolder(item.children, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const ancestor = findFolder(items, ancestorId);
+    if (!ancestor) return false;
+
+    const checkChildren = (folder: FolderType): boolean => {
+      return folder.children.some((child) => {
+        if (child.id === folderId) return true;
+        if (child.type === 'folder') {
+          return checkChildren(child as FolderType);
+        }
+        return false;
+      });
+    };
+
+    return checkChildren(ancestor);
+  }, []);
+
+  // Get available folders (excluding current folder and its descendants)
+  const availableFolders = useMemo(() => {
+    const folders: Item[] = [];
+    
+    const collectFolders = (itemList: Item[]) => {
+      for (const item of itemList) {
+        if (item.type === 'folder' && item.id !== currentFolderId && !isDescendant(item.id, currentFolderId, allItems)) {
+          folders.push(item);
+          collectFolders(item.children);
+        }
+      }
+    };
+    
+    collectFolders(allItems);
+    return folders;
+  }, [allItems, currentFolderId, isDescendant]);
+
+  const handleMoveToRoot = useCallback(async () => {
+    await onMoveItem(currentFolderId, null);
+  }, [currentFolderId, onMoveItem]);
+
+  const handleMoveToFolder = useCallback(async (targetFolderId: string) => {
+    await onMoveItem(currentFolderId, targetFolderId);
+  }, [currentFolderId, onMoveItem]);
+
+  return (
+    <>
+      <ContextMenuItem
+        onClick={handleMoveToRoot}
+        className={cn(
+          "text-xs min-h-[36px]",
+          isMobile && "text-sm h-12 px-4"
+        )}
+      >
+        Root folder
+      </ContextMenuItem>
+      {availableFolders.length > 0 && <ContextMenuSeparator />}
+      {availableFolders.map((folder) => (
+        <ContextMenuItem
+          key={folder.id}
+          onClick={() => handleMoveToFolder(folder.id)}
+          className={cn(
+            "text-xs min-h-[36px]",
+            isMobile && "text-sm h-12 px-4"
+          )}
+        >
+          <FolderOpen className={cn("w-3.5 h-3.5 mr-2", isMobile && "w-5 h-5")} />
+          {folder.name}
+        </ContextMenuItem>
+      ))}
+    </>
+  );
+}
 
 // Folder closed SVG
 const FolderClosedIcon = () => (
@@ -83,6 +182,10 @@ function FileTreeItem({
   onDrop,
   onSelectFolder,
   onContextMenuOpenChange,
+  onPinItem,
+  onFavoriteNote,
+  onMoveItem,
+  allItems,
   ruler,
 }: {
   item: Item;
@@ -101,6 +204,10 @@ function FileTreeItem({
   onDrop: (targetId: string, e: React.DragEvent) => void;
   onSelectFolder: (id: string | null) => void;
   onContextMenuOpenChange?: (open: boolean, itemId: string, onDelete: (id: string) => void) => void;
+  onPinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => void;
+  onFavoriteNote: (noteId: string, favorite: boolean) => void;
+  onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>;
+  allItems: Item[];
   ruler?: RulerProps;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -113,7 +220,11 @@ function FileTreeItem({
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
   const isActive = !isFolder && activeNoteId === item.id;
-  const isSelected = isFolder && selectedFolderId === item.id;
+  const isFolderSelected = isFolder && selectedFolderId === item.id;
+
+  // Selection store
+  const { isSelected, toggleSelection, selectItem, clearSelection, getSelectedCount } = useSelectionStore();
+  const isItemSelected = isSelected(item.id);
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -158,9 +269,16 @@ function FileTreeItem({
 
   const handleNameClick = (e: React.MouseEvent) => {
     if (isRenaming) return;
-    
+
     // Stop propagation so clicking name doesn't trigger folder toggle
     e.stopPropagation();
+
+    // Handle Ctrl/Cmd+Click for multi-selection
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggleSelection(item.id);
+      return;
+    }
 
     // Use a small delay to distinguish between single and double click
     if (clickTimeoutRef.current) {
@@ -168,6 +286,11 @@ function FileTreeItem({
     }
 
     clickTimeoutRef.current = setTimeout(() => {
+      // Clear selection if clicking on a non-selected item and not in multi-select mode
+      if (!isItemSelected && getSelectedCount() > 0) {
+        clearSelection();
+      }
+
       if (isFolder) {
         // Don't toggle folder when clicking name - only select
         onSelectFolder(item.id);
@@ -182,25 +305,33 @@ function FileTreeItem({
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't handle if renaming
     if (isRenaming) return;
-    
+
+    // Handle Ctrl/Cmd+Click for multi-selection (except on input fields)
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSelection(item.id);
+      return;
+    }
+
     // Clear any pending single click timeout to prevent it from firing
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
     }
-    
+
     const clickedElement = e.target as HTMLElement;
-    
+
     // Don't toggle if clicking on the rename input
     if (clickedElement.tagName === 'INPUT') {
       return;
     }
-    
+
     // Don't handle if clicking on the name span (it has its own handler with double-click detection)
     if (clickedElement.closest('[data-item-name]')) {
       return;
     }
-    
+
     // Don't toggle if clicking on the icon (it has its own handler)
     if (clickedElement.closest('[data-folder-icon]') || clickedElement.closest('svg[data-folder-icon]')) {
       return;
@@ -238,6 +369,11 @@ function FileTreeItem({
         return;
       }
 
+      // Handle Ctrl/Cmd+Click for multi-selection
+      if (e.ctrlKey || e.metaKey) {
+        return; // Let the click handlers handle this
+      }
+
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         if (isFolder) {
@@ -266,6 +402,10 @@ function FileTreeItem({
       onContextMenuOpenChange(open, item.id, onDelete);
     }
   }, [item.id, onDelete, onContextMenuOpenChange]);
+
+  // Check if multiple items are selected for context menu
+  const hasMultipleSelections = getSelectedCount() > 1;
+  const isInCurrentSelection = isItemSelected || hasMultipleSelections;
 
   // Long-press handler for mobile
   const handleTouchStart = useCallback((e: TouchEvent<HTMLButtonElement>) => {
@@ -341,10 +481,14 @@ function FileTreeItem({
                   e.preventDefault();
                 }
               }}
-              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation ${
+              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative ${
                 isActive
                   ? "bg-accent text-foreground"
                   : "text-secondary-foreground/80 hover:text-foreground"
+              } ${
+                isItemSelected
+                  ? "bg-primary/20 ring-1 ring-primary text-primary-foreground"
+                  : ""
               }`}
               style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
               draggable={!isMobile}
@@ -356,6 +500,11 @@ function FileTreeItem({
               role="treeitem"
               aria-expanded={isFolder ? isExpanded : undefined}
             >
+              {/* Selection indicator */}
+              {isItemSelected && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-md" />
+              )}
+
               <div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
                 {isFolder ? (
                   <>
@@ -399,11 +548,17 @@ function FileTreeItem({
                 ) : (
                   <span
                     onClick={handleNameClick}
-                    className="text-xs truncate outline-none cursor-pointer"
+                    className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
                     title={item.name}
                     data-item-name
                   >
-                    {item.name}
+                    {item.pinned && (
+                      <Pin className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                    )}
+                    {!isFolder && item.favorite && (
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
+                    )}
+                    <span className="truncate">{item.name}</span>
                   </span>
                 )}
               </div>
@@ -466,6 +621,53 @@ function FileTreeItem({
           Rename
           {!isMobile && <ContextMenuShortcut>R</ContextMenuShortcut>}
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onPinItem(item.id, item.type, !item.pinned);
+          }}
+          className={cn(
+            "h-8 text-xs font-base min-h-[36px]",
+            isMobile && "h-12 text-sm px-4"
+          )}
+        >
+          {item.pinned ? (
+            <>
+              <Pin className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
+              Unpin from top
+            </>
+          ) : (
+            <>
+              <Pin className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
+              Pin to top
+            </>
+          )}
+        </ContextMenuItem>
+        {!isFolder && (
+          <ContextMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavoriteNote(item.id, !item.favorite);
+            }}
+            className={cn(
+              "h-8 text-xs font-base min-h-[36px]",
+              isMobile && "h-12 text-sm px-4"
+            )}
+          >
+            {item.favorite ? (
+              <>
+                <Star className={cn("w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400", isMobile && "w-5 h-5")} />
+                Remove from favorites
+              </>
+            ) : (
+              <>
+                <Star className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
+                Add to favorites
+              </>
+            )}
+          </ContextMenuItem>
+        )}
         {isFolder && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className={cn(
@@ -478,13 +680,12 @@ function FileTreeItem({
             <ContextMenuSubContent className={cn(
               isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
             )}>
-              {/* This would be populated with available folders */}
-              <ContextMenuItem disabled className={cn(
-                "text-xs min-h-[36px]",
-                isMobile && "text-sm h-12 px-4"
-              )}>
-                Root folder
-              </ContextMenuItem>
+              <MoveFolderMenu
+                currentFolderId={item.id}
+                allItems={allItems}
+                onMoveItem={onMoveItem}
+                isMobile={isMobile}
+              />
             </ContextMenuSubContent>
           </ContextMenuSub>
         )}
@@ -535,6 +736,10 @@ function FileTreeItem({
               onDrop={onDrop}
               onSelectFolder={onSelectFolder}
               onContextMenuOpenChange={onContextMenuOpenChange}
+              onPinItem={onPinItem}
+              onFavoriteNote={onFavoriteNote}
+              onMoveItem={onMoveItem}
+              allItems={allItems}
               ruler={ruler}
             />
           ))}
@@ -561,6 +766,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     renameItem,
     deleteItem,
     moveItem,
+    pinItem,
+    favoriteNote,
   } = useNotes();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -572,6 +779,14 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
   const searchInContent = getSetting('searchInContent') ?? false;
   const [showSeedImport, setShowSeedImport] = useState(false);
   const { seeds } = useSeedDiscovery();
+
+  // Selection store
+  const {
+    selectAll,
+    clearSelection,
+    getSelectedCount,
+    getSelectedIds
+  } = useSelectionStore();
 
   // Load expanded folders from localStorage
   useEffect(() => {
@@ -859,6 +1074,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
   }, [setContextMenuState]);
 
   useShortcut("delete-item", useCallback((e: KeyboardEvent) => {
+    // Don't handle if items are selected (bulk delete takes precedence)
+    if (getSelectedCount() > 0) {
+      return;
+    }
     e.preventDefault();
     if (contextMenuState.itemId && contextMenuState.onDelete) {
       contextMenuState.onDelete(contextMenuState.itemId);
@@ -868,14 +1087,54 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
         onDelete: null,
       });
     }
-  }, [contextMenuState, setContextMenuState]));
-    
+  }, [contextMenuState, setContextMenuState, getSelectedCount]));
+
+  // Helper function to get all visible item IDs for select all
+  const getAllVisibleItemIds = useCallback((items: Item[]): string[] => {
+    const ids: string[] = [];
+    const traverse = (itemList: Item[]) => {
+      for (const item of itemList) {
+        ids.push(item.id);
+        if (item.type === 'folder' && expandedFolders.has(item.id)) {
+          traverse(item.children);
+        }
+      }
+    };
+    traverse(items);
+    return ids;
+  }, [expandedFolders]);
+
   const sortItems = useCallback((items: Item[]): Item[] => {
     const sorted = [...items].sort((a, b) => {
-      if (a.type === 'folder' && b.type === 'note') return -1;
-      if (a.type === 'note' && b.type === 'folder') return 1;
-      // If same type, maintain original order (or sort by name)
-      return 0;
+      // Pinned items first
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      
+      // If both pinned, sort by pinnedAt (most recent first) or creation date
+      if (a.pinned && b.pinned) {
+        const aPinnedAt = a.pinnedAt || a.createdAt;
+        const bPinnedAt = b.pinnedAt || b.createdAt;
+        if (aPinnedAt !== bPinnedAt) {
+          return bPinnedAt - aPinnedAt; // Most recent first
+        }
+      }
+      
+      // Then favorites (notes only)
+      if (!a.pinned && !b.pinned) {
+        const aFavorite = a.type === 'note' && a.favorite;
+        const bFavorite = b.type === 'note' && b.favorite;
+        if (aFavorite && !bFavorite) return -1;
+        if (!aFavorite && bFavorite) return 1;
+      }
+      
+      // Then folders before notes (if not pinned)
+      if (!a.pinned && !b.pinned) {
+        if (a.type === 'folder' && b.type === 'note') return -1;
+        if (a.type === 'note' && b.type === 'folder') return 1;
+      }
+      
+      // Finally, sort alphabetically by name
+      return a.name.localeCompare(b.name);
     }).map(item => {
       // Recursively sort children if it's a folder
       if (item.type === 'folder') {
@@ -889,7 +1148,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     return sorted;
   }, []);
 
-  // Fi                                                                       lter and sort items based on search query
+  // Filter and sort items based on search query
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) {
       return sortItems(items);
@@ -951,7 +1210,43 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     return sortItems(filterItems(items));
   }, [items, searchQuery, sortItems, searchInContent]);
 
-  // Early returns after all hooks
+  // Keyboard shortcuts for selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to clear selection
+      if (e.key === 'Escape' && getSelectedCount() > 0) {
+        clearSelection();
+        return;
+      }
+
+      // Ctrl/Cmd+A to select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        const allIds = getAllVisibleItemIds(filteredItems);
+        selectAll(allIds);
+        return;
+      }
+
+      // Delete key for bulk delete
+      if (e.key === 'Delete' && getSelectedCount() > 0) {
+        e.preventDefault();
+        const ids = getSelectedIds();
+        if (confirm(`Delete ${getSelectedCount()} item${getSelectedCount() !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+          for (const id of ids) {
+            deleteItem(id).catch(error => {
+              console.error(`Failed to delete item ${id}:`, error);
+            });
+          }
+          clearSelection();
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [getSelectedCount, clearSelection, selectAll, getSelectedIds, deleteItem, getAllVisibleItemIds, filteredItems]);
+
   if (finalContentType === 'custom' && customContent) {
     return <>{customContent}</>;
   }
@@ -960,15 +1255,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     return customContent || null;
   }
 
-  // Check if we're in collapsed state (should show icons instead of full sidebar)
   const isCollapsed = !isDesktopSidebarOpen;
 
-  // If collapsed, render a minimal icon-only sidebar
   if (isCollapsed) {
     return (
       <div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
         <div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
-          {/* Notes icon - always visible */}
           <IconButton
             icon={<NotesIcon />}
             tooltip="Notes"
@@ -984,7 +1276,6 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
   return (
     <div className={cn(
       "h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background",
-      // Responsive width for sidebar
       isMobile ? "w-[280px] max-w-[85vw]" : "w-[210px]"
     )}>
       <ActionBar
@@ -1008,6 +1299,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             setSelectedFolderId(null);
+            clearSelection();
           }
         }}
       >
@@ -1018,6 +1310,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setSelectedFolderId(null);
+              clearSelection();
             }
           }}
         >
@@ -1039,19 +1332,24 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
               onDrop={handleDrop}
               onSelectFolder={handleSelectFolder}
               onContextMenuOpenChange={handleContextMenuOpenChange}
+              onPinItem={pinItem}
+              onFavoriteNote={favoriteNote}
+              onMoveItem={moveItem}
+              allItems={items}
               ruler={ruler}
             />
           ))}
         </div>
       </div>
 
-      {/* Seed Import Dialog */}
       <SeedImportDialog
         open={showSeedImport}
         onOpenChange={setShowSeedImport}
         seeds={seeds}
         onImport={handleSeedImportComplete}
       />
+
+      <BulkOperationsBar items={items} />
     </div>
   );
 }
