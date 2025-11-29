@@ -34,3 +34,6 @@ _test-app
 tmp/
 tmp/*
 docs/*
+
+# Tauri
+src-tauri/target/

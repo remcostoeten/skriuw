@@ -7,9 +7,11 @@ const workspaceRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  clearScreen: false,
   server: {
-    host:   "::",
-    port: 8080,
+    host: "::",
+    port: 42069,
+    strictPort: true,
     fs: { 
       allow: ["./", "./src", "./shared"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],

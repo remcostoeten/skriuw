@@ -40,7 +40,7 @@ export const shortcutDefinitions = {
     "search-notes": {
         keys: [["Ctrl", "k"], ["Meta", "k"]],
         description: "Search notes",
-        enabled: false, // Not implemented yet
+        enabled: true,
     },
     "delete-item": {
         keys: [["Delete"], ["Ctrl", "Backspace"], ["Meta", "Backspace"]],

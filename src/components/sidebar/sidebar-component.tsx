@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
 
 import { useNotes } from "@/features/notes/hooks/use-notes";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
 import { useSeedDiscovery } from "@/features/seed-importer/hooks/use-seed-discovery";
@@ -163,6 +164,7 @@ type props = {
   contentType?: SidebarContentType;
   customContent?: React.ReactNode;
   ruler?: RulerProps;
+  openTabIds?: Set<string>;
 }
 
 function FileTreeItem({
@@ -187,6 +189,7 @@ function FileTreeItem({
   onMoveItem,
   allItems,
   ruler,
+  openTabIds,
 }: {
   item: Item;
   level?: number;
@@ -209,6 +212,7 @@ function FileTreeItem({
   onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>;
   allItems: Item[];
   ruler?: RulerProps;
+  openTabIds?: Set<string>;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(item.name);
@@ -216,11 +220,15 @@ function FileTreeItem({
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragTargetRef = useRef<string | null>(null);
+  const touchDragStartTimeRef = useRef<number | null>(null);
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
   const isActive = !isFolder && activeNoteId === item.id;
   const isFolderSelected = isFolder && selectedFolderId === item.id;
+  const hasOpenTab = !isFolder && openTabIds?.has(item.id);
 
   // Selection store
   const { isSelected, toggleSelection, selectItem, clearSelection, getSelectedCount } = useSelectionStore();
@@ -228,21 +236,22 @@ function FileTreeItem({
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
-      // Small delay to ensure the input is fully rendered and visible
-      const focusTimeout = setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.select();
-          // Ensure the input is scrolled into view
-          inputRef.current.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-            inline: 'nearest'
-          });
-        }
-      }, 10);
-
-      return () => clearTimeout(focusTimeout);
+      // Use requestAnimationFrame for better focus handling
+      // Double RAF ensures the input is fully rendered and context menu is closed
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+            // Ensure the input is scrolled into view
+            inputRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest',
+              inline: 'nearest'
+            });
+          }
+        });
+      });
     }
   }, [isRenaming]);
 
@@ -305,6 +314,20 @@ function FileTreeItem({
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't handle if renaming
     if (isRenaming) return;
+
+    // Don't handle if clicking on the rename input
+    if ((e.target as HTMLElement).tagName === 'INPUT') {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Don't handle if we just finished a drag operation on mobile
+    if (isMobile && isDraggingRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
 
     // Handle Ctrl/Cmd+Click for multi-selection (except on input fields)
     if (e.ctrlKey || e.metaKey) {
@@ -413,6 +436,9 @@ function FileTreeItem({
 
     const touch = e.touches[0];
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    touchDragStartTimeRef.current = Date.now();
+    isDraggingRef.current = false;
+    dragTargetRef.current = null;
 
     // Start long-press timer (500ms)
     longPressTimerRef.current = setTimeout(() => {
@@ -435,7 +461,7 @@ function FileTreeItem({
   }, [isMobile]);
 
   const handleTouchMove = useCallback((e: TouchEvent<HTMLButtonElement>) => {
-    if (!isMobile || !touchStartPosRef.current || !longPressTimerRef.current) return;
+    if (!isMobile || !touchStartPosRef.current) return;
 
     const touch = e.touches[0];
     const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
@@ -447,16 +473,39 @@ function FileTreeItem({
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
       }
-      touchStartPosRef.current = null;
+
+      // If moved vertically more than horizontally and moved enough, mark as dragging
+      // This prevents click navigation from firing
+      if (deltaY > 15) {
+        isDraggingRef.current = true;
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        touchStartPosRef.current = null;
+      }
     }
   }, [isMobile]);
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = useCallback((e: TouchEvent<HTMLButtonElement>) => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+
+    // If we detected dragging, prevent click from firing
+    if (isDraggingRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      // Clear the click timeout to prevent navigation
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      isDraggingRef.current = false;
+    }
+
     touchStartPosRef.current = null;
+    touchDragStartTimeRef.current = null;
   }, []);
 
   const childCount = isFolder && item.type === "folder" ? item.children.length : 0;
@@ -476,23 +525,34 @@ function FileTreeItem({
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
               onContextMenu={(e) => {
                 if (isMobile) {
                   e.preventDefault();
                 }
               }}
-              className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative ${
+              className={cn(
+                "font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative",
                 isActive
                   ? "bg-accent text-foreground"
-                  : "text-secondary-foreground/80 hover:text-foreground"
-              } ${
+                  : "text-secondary-foreground/80 hover:text-foreground",
                 isItemSelected
                   ? "bg-primary/20 ring-1 ring-primary text-primary-foreground"
-                  : ""
-              }`}
+                  : "",
+                hasOpenTab && !isActive && !isItemSelected && "bg-accent"
+              )}
               style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
-              draggable={!isMobile}
-              onDragStart={(e) => !isMobile && onDragStart(item, e)}
+              draggable={true}
+              onDragStart={(e) => {
+                if (isMobile) {
+                  // On mobile, only allow drag if we've been holding for a bit
+                  if (!touchDragStartTimeRef.current || Date.now() - touchDragStartTimeRef.current < 200) {
+                    e.preventDefault();
+                    return;
+                  }
+                }
+                onDragStart(item, e);
+              }}
               onDragOver={onDragOver}
               onDrop={(e) => onDrop(item.id, e)}
               onKeyDown={handleKeyDown}
@@ -523,26 +583,61 @@ function FileTreeItem({
                     ref={(el) => {
                       inputRef.current = el;
                       if (el) {
-                        setTimeout(() => {
-                          el.focus();
-                          el.select();
-                        }, 0);
+                        // Use requestAnimationFrame for better focus handling
+                        requestAnimationFrame(() => {
+                          requestAnimationFrame(() => {
+                            if (el) {
+                              el.focus();
+                              el.select();
+                            }
+                          });
+                        });
                       }
                     }}
                     type="text"
                     value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={handleRenameComplete}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRenameComplete();
-                      if (e.key === "Escape") {
-                        setRenameValue(item.name);
-                        setIsRenaming(false);
-                      }
+                    onChange={(e) => {
+                      setRenameValue(e.target.value);
                       e.stopPropagation();
                     }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none"
+                    onBlur={(e) => {
+                      // Delay blur handling to prevent premature completion
+                      // when context menu closes or other UI interactions occur
+                      setTimeout(() => {
+                        if (inputRef.current && document.activeElement !== inputRef.current) {
+                          handleRenameComplete();
+                        }
+                      }, 200);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRenameComplete();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setRenameValue(item.name);
+                        setIsRenaming(false);
+                      } else {
+                        // For all other keys, stop propagation but allow typing
+                        e.stopPropagation();
+                      }
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      // Select all text when focused
+                      e.currentTarget.select();
+                    }}
+                    className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
                     autoFocus
                   />
                 ) : (
@@ -609,8 +704,17 @@ function FileTreeItem({
         )}
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => {
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             setIsRenaming(true);
+            // Close context menu after a small delay to allow state update
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.focus();
+                inputRef.current.select();
+              }
+            }, 50);
           }}
           className={cn(
             " text-xs font-base min-h-[36px]",
@@ -749,7 +853,7 @@ function FileTreeItem({
   );
 }
 
-export function Sidebar({ activeNoteId, contentType, customContent, ruler }: props) {
+export function Sidebar({ activeNoteId, contentType, customContent, ruler, openTabIds }: props) {
   const navigate = useNavigate();
   const detectedContentType = useSidebarContentType();
   const finalContentType = contentType || detectedContentType;
@@ -769,6 +873,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     pinItem,
     favoriteNote,
   } = useNotes();
+  const { getNoteUrl } = useNoteSlug(items);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const draggedItemRef = useRef<Item | null>(null);
@@ -917,9 +1022,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
     }
     
     const newNote = await createNote("Untitled", targetFolderId || undefined);
-    navigate(`/note/${newNote.id}?focus=true`);
+    const url = getNoteUrl(newNote.id);
+    navigate(`${url}?focus=true`);
     setSelectedFolderId(null);
-  }, [createNote, navigate, selectedFolderId]);
+  }, [createNote, navigate, selectedFolderId, getNoteUrl]);
 
   const handleCreateFolder = useCallback(async (parentId?: string) => {
     const targetFolderId = parentId !== undefined ? parentId : selectedFolderId;
@@ -1322,7 +1428,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
               expandedFolders={expandedFolders}
               selectedFolderId={selectedFolderId}
               onToggleFolder={handleToggleFolder}
-              onNavigateNote={(id) => navigate(`/note/${id}`)}
+              onNavigateNote={(id) => navigate(getNoteUrl(id))}
               onRename={renameItem}
               onDelete={deleteItem}
               onCreateNote={handleCreateNote}
@@ -1337,6 +1443,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler }: pro
               onMoveItem={moveItem}
               allItems={items}
               ruler={ruler}
+              openTabIds={openTabIds}
             />
           ))}
         </div>

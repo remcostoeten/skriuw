@@ -125,6 +125,44 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
     setActiveTab(noteId)
   }, [setActiveTab])
 
+  const closeTabsToRight = useCallback((noteId: string) => {
+    setTabs(prev => {
+      const index = prev.findIndex(tab => tab.noteId === noteId)
+      if (index === -1) return prev
+      return prev.slice(0, index + 1)
+    })
+  }, [])
+
+  const closeTabsToLeft = useCallback((noteId: string) => {
+    setTabs(prev => {
+      const index = prev.findIndex(tab => tab.noteId === noteId)
+      if (index === -1) return prev
+      return prev.slice(index)
+    })
+  }, [])
+
+  const moveTabLeft = useCallback((noteId: string) => {
+    setTabs(prev => {
+      const index = prev.findIndex(tab => tab.noteId === noteId)
+      if (index <= 0) return prev
+      const newTabs = [...prev]
+      const [moved] = newTabs.splice(index, 1)
+      newTabs.splice(index - 1, 0, moved)
+      return newTabs
+    })
+  }, [])
+
+  const moveTabRight = useCallback((noteId: string) => {
+    setTabs(prev => {
+      const index = prev.findIndex(tab => tab.noteId === noteId)
+      if (index === -1 || index >= prev.length - 1) return prev
+      const newTabs = [...prev]
+      const [moved] = newTabs.splice(index, 1)
+      newTabs.splice(index + 1, 0, moved)
+      return newTabs
+    })
+  }, [])
+
   const clearTabs = useCallback(() => {
     setTabs([])
     setActiveNoteId(null)
@@ -147,6 +185,18 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
     })
   }, [activeNoteId])
 
+  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
+    setTabs(prev => {
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) {
+        return prev
+      }
+      const newTabs = [...prev]
+      const [moved] = newTabs.splice(fromIndex, 1)
+      newTabs.splice(toIndex, 0, moved)
+      return newTabs
+    })
+  }, [])
+
   const value = useMemo<EditorTabsContextValue>(
     () => ({
       tabs,
@@ -154,11 +204,16 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
       openTab,
       closeTab,
       closeOtherTabs,
+      closeTabsToRight,
+      closeTabsToLeft,
       setActiveTab,
       clearTabs,
-      pruneTabs
+      pruneTabs,
+      reorderTabs,
+      moveTabLeft,
+      moveTabRight
     }),
-    [tabs, activeNoteId, openTab, closeTab, closeOtherTabs, setActiveTab, clearTabs, pruneTabs]
+    [tabs, activeNoteId, openTab, closeTab, closeOtherTabs, closeTabsToRight, closeTabsToLeft, setActiveTab, clearTabs, pruneTabs, reorderTabs, moveTabLeft, moveTabRight]
   )
 
   return <EditorTabsContext.Provider value={value}>{children}</EditorTabsContext.Provider>
