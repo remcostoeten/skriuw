@@ -1,5 +1,5 @@
 import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
@@ -107,6 +107,9 @@ function FileTreeItem({
   const [renameValue, setRenameValue] = useState(item.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
   const isActive = !isFolder && activeNoteId === item.id;
@@ -132,11 +135,14 @@ function FileTreeItem({
     }
   }, [isRenaming]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (clickTimeoutRef.current) {
         clearTimeout(clickTimeoutRef.current);
+      }
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
       }
     };
   }, []);
@@ -227,7 +233,7 @@ function FileTreeItem({
   };
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (isRenaming) {
         return;
       }
@@ -261,6 +267,58 @@ function FileTreeItem({
     }
   }, [item.id, onDelete, onContextMenuOpenChange]);
 
+  // Long-press handler for mobile
+  const handleTouchStart = useCallback((e: TouchEvent<HTMLButtonElement>) => {
+    if (!isMobile) return;
+
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+    // Start long-press timer (500ms)
+    longPressTimerRef.current = setTimeout(() => {
+      // Prevent default context menu
+      e.preventDefault();
+      // Open context menu by dispatching a contextmenu event
+      const button = e.currentTarget;
+      const contextMenuEvent = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+      button.dispatchEvent(contextMenuEvent);
+      // Haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  }, [isMobile]);
+
+  const handleTouchMove = useCallback((e: TouchEvent<HTMLButtonElement>) => {
+    if (!isMobile || !touchStartPosRef.current || !longPressTimerRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
+
+    // Cancel long-press if user moved more than 10px (scrolling/dragging)
+    if (deltaX > 10 || deltaY > 10) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      touchStartPosRef.current = null;
+    }
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartPosRef.current = null;
+  }, []);
+
   const childCount = isFolder && item.type === "folder" ? item.children.length : 0;
 
   return (
@@ -275,14 +333,22 @@ function FileTreeItem({
                 e.stopPropagation();
                 handleDoubleClick();
               }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onContextMenu={(e) => {
+                if (isMobile) {
+                  e.preventDefault();
+                }
+              }}
               className={`font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation ${
                 isActive
                   ? "bg-accent text-foreground"
                   : "text-secondary-foreground/80 hover:text-foreground"
               }`}
               style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
-              draggable
-              onDragStart={(e) => onDragStart(item, e)}
+              draggable={!isMobile}
+              onDragStart={(e) => !isMobile && onDragStart(item, e)}
               onDragOver={onDragOver}
               onDrop={(e) => onDrop(item.id, e)}
               onKeyDown={handleKeyDown}
@@ -350,17 +416,25 @@ function FileTreeItem({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-44 max-w-[90vw]">
+      <ContextMenuContent 
+        className={cn(
+          "w-44 max-w-[90vw]",
+          isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
+        )}
+      >
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
             onCreateNote(isFolder ? item.id : undefined);
           }}
-          className="h-8 text-xs font-base min-h-[44px]"
+          className={cn(
+            "h-8 text-xs font-base min-h-[36px]",
+            isMobile && "h-12 text-sm px-4"
+          )}
         >
-          <FilePlus className="w-4 h-4 mr-3 flex-shrink-0" />
+          <FilePlus className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
           New note
-          <ContextMenuShortcut>N</ContextMenuShortcut>
+          {!isMobile && <ContextMenuShortcut>N</ContextMenuShortcut>}
         </ContextMenuItem>
         {isFolder && (
           <ContextMenuItem
@@ -368,11 +442,14 @@ function FileTreeItem({
               e.stopPropagation();
               onCreateFolder(item.id);
             }}
-            className="h-8 text-xs font-base min-h-[44px]"
+            className={cn(
+                "h-8 text-xs font-base min-h-[36px]",
+              isMobile && "h-12 text-sm px-4"
+            )}
           >
-            <FolderOpen className="w-4 h-4 mr-3 flex-shrink-0" />
+            <FolderOpen className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
             New folder
-            <ContextMenuShortcut>F</ContextMenuShortcut>
+            {!isMobile && <ContextMenuShortcut>F</ContextMenuShortcut>}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -380,21 +457,32 @@ function FileTreeItem({
           onClick={() => {
             setIsRenaming(true);
           }}
-          className="h-8 text-xs font-base min-h-[44px]"
+          className={cn(
+            " text-xs font-base min-h-[36px]",
+            isMobile && "h-12 text-sm px-4"
+          )}
         >
-          <Edit className="w-4 h-4 mr-3 flex-shrink-0" />
+          <Edit className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
           Rename
-          <ContextMenuShortcut>R</ContextMenuShortcut>
+          {!isMobile && <ContextMenuShortcut>R</ContextMenuShortcut>}
         </ContextMenuItem>
         {isFolder && (
           <ContextMenuSub>
-            <ContextMenuSubTrigger className="h-7 text-xs font-base">
-              <FolderOpen className="w-3.5 h-3.5 mr-2" />
+            <ContextMenuSubTrigger className={cn(
+              "h-7 text-xs font-base min-h-[36px]",
+              isMobile && "h-12 text-sm px-4"
+            )}>
+              <FolderOpen className={cn("w-3.5 h-3.5 mr-2", isMobile && "w-5 h-5")} />
               Move folder to...
             </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
+            <ContextMenuSubContent className={cn(
+              isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
+            )}>
               {/* This would be populated with available folders */}
-              <ContextMenuItem disabled className="text-xs">
+              <ContextMenuItem disabled className={cn(
+                "text-xs min-h-[36px]",
+                isMobile && "text-sm h-12 px-4"
+              )}>
                 Root folder
               </ContextMenuItem>
             </ContextMenuSubContent>
@@ -403,16 +491,19 @@ function FileTreeItem({
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => onDelete(item.id)}
-          className="h-8 text-xs font-base text-destructive focus:text-destructive min-h-[44px]"
+          className={cn(
+            "h-8 text-xs font-base text-destructive focus:text-destructive min-h-[36px]",
+            isMobile && "h-12 text-sm px-4"
+          )}
         >
-          <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
+          <Trash2 className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
           Delete
-          <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>
+          {!isMobile && <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>}
         </ContextMenuItem>
       </ContextMenuContent>
 
       {isFolder && isExpanded && item.type === "folder" && (
-        <div className="space-y-1.5 pt-1.5 relative">
+        <div className="space-y-1.5 pt-1.5 relative w-full">
           {ruler?.enabled && (
             <div
               className="absolute top-0 bottom-0"

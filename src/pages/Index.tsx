@@ -13,7 +13,7 @@ import { IndexSkeleton } from './components/index-skeleton'
 
 // Lazy load the editor for better performance
 const NoteEditor = lazy(() =>
-    import('@/features/editor/components/NoteEditor').then((mod) => ({
+    import('@/features/editor/components/note-editor').then((mod) => ({
         default: mod.NoteEditor
     }))
 )

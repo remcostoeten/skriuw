@@ -16,20 +16,22 @@ import { cn } from '@/shared/utilities'
 import React, { forwardRef } from 'react'
 
 const ToolbarRoot = forwardRef<HTMLDivElement, BlockNoteComponentProps['FormattingToolbar']['Root']>(
-    ({ className, children, onMouseEnter, onMouseLeave }, ref) => (
-        <div
-            ref={ref}
-            role="toolbar"
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-            className={cn(
-                'bn-toolbar flex items-center gap-1 rounded-md border border-border bg-background/90 px-2 py-1 shadow-md backdrop-blur',
-                className
-            )}
-        >
-            {children}
-        </div>
-    )
+    ({ className, children, onMouseEnter, onMouseLeave }, ref) => {
+        return (
+            <div
+                ref={ref}
+                role="toolbar"
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
+                className={cn(
+                    'bn-toolbar flex items-center gap-0.5 rounded-md border border-border bg-background/90 px-1 py-0.5 shadow-md backdrop-blur',
+                    className
+                )}
+            >
+                {children}
+            </div>
+        )
+    }
 )
 
 const ToolbarButton = ({
@@ -42,26 +44,28 @@ const ToolbarButton = ({
     isDisabled,
     mainTooltip,
     secondaryTooltip
-}: BlockNoteComponentProps['FormattingToolbar']['Button']) => (
-    <button
-        type="button"
-        className={cn(
-            'bn-toolbar-button inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90 transition hover:bg-muted',
-            isSelected && 'bg-primary/20 text-primary border-primary/40',
-            isDisabled && 'cursor-not-allowed opacity-40',
-            className
-        )}
-        disabled={isDisabled}
-        title={secondaryTooltip || mainTooltip || label}
-        onClick={(event) => {
-            if (isDisabled) return
-            onClick?.(event as any)
-        }}
-    >
-        {icon}
-        {label && !children ? <span className="ml-1">{label}</span> : children}
-    </button>
-)
+}: BlockNoteComponentProps['FormattingToolbar']['Button']) => {
+    return (
+        <button
+            type="button"
+            className={cn(
+                'bn-toolbar-button inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-1.5 text-[10px] font-medium text-foreground/90 transition hover:bg-muted',
+                isSelected && 'bg-primary/20 text-primary border-primary/40',
+                isDisabled && 'cursor-not-allowed opacity-40',
+                className
+            )}
+            disabled={isDisabled}
+            title={secondaryTooltip || mainTooltip || label}
+            onClick={(event) => {
+                if (isDisabled) return
+                onClick?.(event as any)
+            }}
+        >
+            {icon}
+            {label && !children ? <span className="ml-0.5">{label}</span> : children}
+        </button>
+    )
+}
 
 const ToolbarSelect = ({
     className,
@@ -76,17 +80,17 @@ const ToolbarSelect = ({
                 <button
                     type="button"
                     className={cn(
-                        'bn-toolbar-select inline-flex h-8 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90',
+                        'bn-toolbar-select inline-flex h-7 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-1.5 text-[10px] font-medium text-foreground/90',
                         isDisabled && 'cursor-not-allowed opacity-40',
                         className
                     )}
                     disabled={isDisabled}
                 >
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-0.5">
                         {selected?.icon}
-                        {selected?.text}
+                        <span className="bn-toolbar-select-text">{selected?.text}</span>
                     </span>
-                    <span className="text-muted-foreground">v</span>
+                    <span className="bn-toolbar-select-arrow text-muted-foreground">v</span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="bn-toolbar-select-menu">
@@ -134,7 +138,7 @@ const SideMenuButton = ({
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         className={cn(
-            'bn-side-menu-button flex h-7 w-7 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition hover:bg-muted',
+            'bn-side-menu-button flex h-5 w-5 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition hover:bg-muted',
             className
         )}
         onClick={onClick}
