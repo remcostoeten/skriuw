@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Block } from '@blocknote/core'
-import { RawMDXEditor } from './RawMDXEditor'
+import { RawMDXEditor } from './raw-mdx-editor'
 import { useUserPreferences } from '@/features/settings/use-feature-flags'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
+import { cn } from '@/shared/utilities'
 
 interface DualModeEditorProps {
   editor: any // BlockNoteEditor instance
@@ -39,9 +40,13 @@ export function DualModeEditor({
   showFormattingToolbar = true,
   className
 }: DualModeEditorProps) {
-  const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
+  const { hasRawMDXMode, hasSideBySideMode, toggle: togglePreference } = useUserPreferences()
   const [rawMDXContent, setRawMDXContent] = useState('')
   const [isConverting, setIsConverting] = useState(false)
+  const [splitRatio, setSplitRatio] = useState(50) // Percentage for left panel (0-100)
+  const splitterRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
 
   // Convert BlockNote blocks to raw markdown when switching to MDX mode
   const convertBlocksToMDX = useCallback(async (blocks: Block[]) => {
@@ -83,7 +88,7 @@ export function DualModeEditor({
           styles: {}
         }],
         children: []
-      }
+      } as Block
       onChange([fallbackBlock])
       return [fallbackBlock]
     } finally {
@@ -91,48 +96,82 @@ export function DualModeEditor({
     }
   }, [onChange])
 
-  // Handle mode toggle
   const handleToggleMode = useCallback(() => {
     togglePreference('rawMDXMode')
   }, [togglePreference])
 
-  // Initialize MDX content when switching to MDX mode
+  // Initialize MDX content when switching to MDX mode or side-by-side mode
   useEffect(() => {
-    if (hasRawMDXMode && value && value.length > 0) {
+    if ((hasRawMDXMode || hasSideBySideMode) && value && value.length > 0) {
       convertBlocksToMDX(value)
     }
-  }, [hasRawMDXMode, value, convertBlocksToMDX])
+  }, [hasRawMDXMode, hasSideBySideMode, value, convertBlocksToMDX])
 
   // Handle MDX content changes
   const handleMDXChange = useCallback(async (newMDXContent: string) => {
     setRawMDXContent(newMDXContent)
 
-    // If not in MDX mode, convert the content to blocks
-    if (!hasRawMDXMode) {
+    // If in side-by-side mode or MDX-only mode, convert the content to blocks
+    if (hasSideBySideMode || hasRawMDXMode) {
       await convertMDXToBlocks(newMDXContent)
     }
-  }, [hasRawMDXMode, convertMDXToBlocks])
+  }, [hasRawMDXMode, hasSideBySideMode, convertMDXToBlocks])
 
-  // Auto-save MDX content to blocks when in MDX mode
+  // Auto-save MDX content to blocks when in MDX mode or side-by-side mode
   useEffect(() => {
-    if (hasRawMDXMode && rawMDXContent) {
+    if ((hasRawMDXMode || hasSideBySideMode) && rawMDXContent) {
       const saveTimeout = setTimeout(async () => {
         await convertMDXToBlocks(rawMDXContent)
       }, 1000) // 1 second debounce
 
       return () => clearTimeout(saveTimeout)
     }
-  }, [hasRawMDXMode, rawMDXContent, convertMDXToBlocks])
+  }, [hasRawMDXMode, hasSideBySideMode, rawMDXContent, convertMDXToBlocks])
 
-  // Sync blocks to MDX content when blocks change in rich mode
+  // Sync blocks to MDX content when blocks change in rich mode (or side-by-side mode)
   useEffect(() => {
-    if (!hasRawMDXMode && value && value.length > 0) {
+    if ((!hasRawMDXMode || hasSideBySideMode) && value && value.length > 0) {
       const newMarkdown = blocksToMarkdown(value)
       if (newMarkdown !== rawMDXContent) {
         setRawMDXContent(newMarkdown)
       }
     }
-  }, [hasRawMDXMode, value, rawMDXContent])
+  }, [hasRawMDXMode, hasSideBySideMode, value, rawMDXContent])
+
+  // Handle splitter drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return
+
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const newRatio = ((e.clientX - containerRect.left) / containerRect.width) * 100
+      const clampedRatio = Math.max(20, Math.min(80, newRatio)) // Limit between 20% and 80%
+      setSplitRatio(clampedRatio)
+    }
+
+    const handleMouseUp = () => {
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    // Always attach listeners, but only act when dragging
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -147,6 +186,59 @@ export function DualModeEditor({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [handleToggleMode])
+
+  // Side-by-side mode
+  if (hasSideBySideMode) {
+    return (
+      <div ref={containerRef} className={cn('relative flex h-full', className)}>
+        {isConverting && (
+          <div className="absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-20 flex items-center justify-center p-2 text-sm text-muted-foreground">
+            Converting content...
+          </div>
+        )}
+        {/* Rich Editor Panel */}
+        <div
+          className={cn('relative overflow-hidden border-r border-border', isConverting && 'opacity-50')}
+          style={{ width: `${splitRatio}%` }}
+        >
+          <BlockNoteView
+            editor={editor}
+            sideMenu={blockIndicator}
+            formattingToolbar={showFormattingToolbar}
+            data-theme-css-variables={false}
+          />
+        </div>
+
+        {/* Resizable Splitter */}
+        <div
+          ref={splitterRef}
+          onMouseDown={handleMouseDown}
+          className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors relative group"
+          role="separator"
+          aria-label="Resize panels"
+        >
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-2 transition-all" />
+        </div>
+
+        {/* MDX Editor Panel */}
+        <div
+          className="relative overflow-hidden"
+          style={{ width: `${100 - splitRatio}%` }}
+        >
+          <RawMDXEditor
+            value={rawMDXContent}
+            onChange={handleMDXChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            wordWrap={wordWrap}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+            lineHeight={lineHeight}
+          />
+        </div>
+      </div>
+    )
+  }
 
   if (hasRawMDXMode) {
     // Raw MDX Editor Mode
@@ -173,7 +265,7 @@ export function DualModeEditor({
 
   // Rich BlockNote Editor Mode
   return (
-    <div className={className}>
+    <div className={cn(className, isConverting && 'opacity-50')}>
       {isConverting && (
         <div className="absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-10 flex items-center justify-center p-2 text-sm text-muted-foreground">
           Converting content...
@@ -181,7 +273,6 @@ export function DualModeEditor({
       )}
       <BlockNoteView
         editor={editor}
-        className={`${isConverting ? 'opacity-50' : ''}`}
         sideMenu={blockIndicator}
         formattingToolbar={showFormattingToolbar}
         data-theme-css-variables={false}
