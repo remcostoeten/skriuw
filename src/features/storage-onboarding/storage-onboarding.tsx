@@ -1,9 +1,11 @@
+import { cn } from "@/shared/utilities"
 import { Cloud, Database, HardDrive } from "lucide-react"
 import { useMemo, type JSX } from "react"
 
-import type { StorageAdapterName, StorageConfig } from "@/api/storage/generic-types"
+// Storage adapter types (legacy - kept for onboarding component)
+type StorageAdapterName = 'drizzleLibsqlHttp' | 'drizzleTauriSqlite' | 'localStorage'
+type StorageConfig = { adapter: StorageAdapterName }
 
-import { cn } from "@/shared/utilities/cn"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "ui"
 
 type StorageOnboardingProps = {

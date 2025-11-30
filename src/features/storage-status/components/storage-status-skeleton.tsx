@@ -10,8 +10,6 @@ import {
 	CardTitle
 } from '@/shared/ui/card'
 import { Skeleton } from '@/shared/ui/skeleton'
-import { getGenericStorage } from '@/api/storage/generic-storage-factory'
-
 interface StorageStatusSkeletonProps {
 	isOpen: boolean
 	onClose: () => void
@@ -23,21 +21,9 @@ interface StorageStatusSkeletonProps {
  * Get display name for storage adapter
  */
 function getStorageAdapterDisplayName(): string {
-	try {
-		const storage = getGenericStorage();
-		const adapterName = storage.name;
-		
-		// Format adapter names for display
-		const displayNames: Record<string, string> = {
-			'localStorage': 'Local Storage',
-			'drizzleLibsqlHttp': 'LibSQL (HTTP)',
-			'drizzleTauriSqlite': 'SQLite (Tauri)',
-		};
-		
-		return displayNames[adapterName] || adapterName;
-	} catch {
-		return 'Unknown';
-	}
+	// Simplified: always show "Database" since we're using simple-storage
+	// which uses Postgres/Neon in browser and localStorage fallback
+	return 'Database';
 }
 
 /**

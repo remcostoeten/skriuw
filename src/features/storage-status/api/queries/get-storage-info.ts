@@ -1,16 +1,23 @@
-import { getGenericStorage } from "@/api/storage/generic-storage-factory";
-
-import type { StorageInfo } from "@/api/storage/generic-types";
+/**
+ * Storage information interface
+ */
+export interface StorageInfo {
+	name: string;
+	type: string;
+	version?: string;
+}
 
 /**
- * Get storage information from the generic storage adapter
- * Works with any storage backend (localStorage, database, etc.)
+ * Get storage information
+ * Works with simple-storage (Postgres/Neon with localStorage fallback)
  */
 export async function getStorageInfo(): Promise<StorageInfo> {
 	try {
-		const storage = getGenericStorage();
-		const info = await storage.getStorageInfo();
-		return info;
+		// Return basic info about the storage system
+		return {
+			name: 'Database',
+			type: 'Postgres/Neon with localStorage fallback',
+		};
 	} catch (error) {
 		throw new Error(`Failed to get storage info: ${error instanceof Error ? error.message : String(error)}`);
 	}

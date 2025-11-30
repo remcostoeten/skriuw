@@ -4,14 +4,13 @@ import { toast } from 'sonner'
 
 import { EmptyState } from '@/shared/ui/empty-state'
 
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
+import { useNotes } from '@/features/notes'
 import { useShortcut, shortcut } from '@/features/shortcuts'
 
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 import { IndexSkeleton } from './components/index-skeleton'
 
-// Lazy load the editor for better performance
 const NoteEditor = lazy(() =>
     import('@/features/editor/components/NoteEditor').then((mod) => ({
         default: mod.NoteEditor
@@ -21,7 +20,7 @@ const NoteEditor = lazy(() =>
 export default function Index() {
     const location = useLocation()
     const navigate = useNavigate()
-    const { createNote, isInitialLoading } = useNotesWithSuspense()
+    const { createNote, isInitialLoading } = useNotes()
 
     const isNoteRoute = location.pathname.startsWith('/note/')
     const noteId = isNoteRoute ? location.pathname.split('/note/')[1] : null

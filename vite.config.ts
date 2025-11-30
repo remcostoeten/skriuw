@@ -28,7 +28,18 @@ export default defineConfig(({ mode }) => ({
         workspaceRoot,
         "./src/shared/utilities/index.ts",
       ),
+      buffer: "buffer",
     },    
+  },
+  define: {
+    "global": "globalThis",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+      },
+    },
   },
   experimental: {
     rolldown: {

@@ -1,23 +1,13 @@
-import { read, destroy } from "@/api/storage/crud";
-
-import type { CustomShortcut } from "../types";
+import { setStorageValue } from "@/api/storage/simple-storage";
 
 const STORAGE_KEY = "quantum-works:shortcuts:custom";
 
 /**
  * Reset all custom shortcuts (delete all)
- * Uses the generic CRUD layer for agnostic storage
  */
 export async function resetAllShortcuts(): Promise<boolean> {
 	try {
-		const shortcuts = await read<CustomShortcut>(STORAGE_KEY);
-		
-		if (Array.isArray(shortcuts)) {
-			// Delete all shortcuts
-			await Promise.all(shortcuts.map(shortcut => destroy(STORAGE_KEY, shortcut.id)));
-			return true;
-		}
-		
+		await setStorageValue(STORAGE_KEY, {});
 		return true;
 	} catch (error) {
 		throw new Error(`Failed to reset all shortcuts: ${error instanceof Error ? error.message : String(error)}`);

@@ -9,11 +9,11 @@ type props = {
     topToolbar: ReactNode
     mainContent: ReactNode
     footer: ReactNode
-    rightPanel: ReactNode
-    floatingWidgets: ReactNode
-    isRightPanelOpen: boolean
-    isSidebarOpen: boolean
-    isDesktopSidebarOpen: boolean
+    rightPanel?: ReactNode
+    floatingWidgets?: ReactNode
+    isRightPanelOpen?: boolean
+    isSidebarOpen?: boolean
+    isDesktopSidebarOpen?: boolean
 }
 
 /**

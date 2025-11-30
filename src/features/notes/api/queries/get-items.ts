@@ -1,14 +1,12 @@
-import { read } from "@/api/storage/crud/read";
+import { getDb } from "@/data/drizzle/client";
+import { getNoteTreeDb } from "@/data/drizzle/note-storage";
 
 import type { Item } from "../../types";
 
-const STORAGE_KEY = "Skriuw_notes";
-
 export async function getItems(): Promise<Item[]> {
-	const readFn = read;
 	try {
-		const result = await readFn(STORAGE_KEY, { getAll: true });
-		return Array.isArray(result) ? result : [];
+		const db = await getDb();
+		return await getNoteTreeDb(db);
 	} catch (error) {
 		throw new Error(`Failed to get items: ${error instanceof Error ? error.message : String(error)}`);
 	}

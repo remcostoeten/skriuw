@@ -1,18 +1,11 @@
-import { read } from "@/api/storage/crud";
-
-import type { SettingsEntity } from "../types";
+import { getStorageValue } from "@/api/storage/simple-storage";
 
 const STORAGE_KEY = "app:settings";
 
 export async function getSettings(): Promise<Record<string, any> | null> {
 	try {
-		const result = await read<SettingsEntity>(STORAGE_KEY, { getById: "app-settings" });
-		
-		if (result && typeof result === 'object' && 'settings' in result) {
-			return (result as any).settings;
-		}
-		
-		return null;
+		const data = await getStorageValue<{ settings: Record<string, any> }>(STORAGE_KEY);
+		return data?.settings ?? null;
 	} catch (error) {
 		console.error('Failed to get settings:', error);
 		return null;

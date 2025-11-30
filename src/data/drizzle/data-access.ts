@@ -21,38 +21,38 @@ import {
 export { NOTE_STORAGE_KEY } from "./note-storage";
 
 export async function getItemById(id: string) {
-        return getItemByIdDb(getDb(), id);
+        return getItemByIdDb(await getDb(), id);
 }
 
 export async function getNoteTree() {
-        return getNoteTreeDb(getDb());
+        return getNoteTreeDb(await getDb());
 }
 
 export async function createFolderRecord(data: { name: string; parentFolderId?: string }) {
-        return createFolderRecordDb(getDb(), data);
+        return createFolderRecordDb(await getDb(), data);
 }
 
 export async function createNoteRecord(data: { name: string; content?: Block[]; parentFolderId?: string }) {
-        return createNoteRecordDb(getDb(), data);
+        return createNoteRecordDb(await getDb(), data);
 }
 
 export async function updateNoteRecord(
         id: string,
         data: Partial<{ name: string; content: Block[]; parentFolderId: string | null }>
 ) {
-        return updateNoteRecordDb(getDb(), id, data);
+        return updateNoteRecordDb(await getDb(), id, data);
 }
 
 export async function renameItemRecord(id: string, newName: string) {
-        return renameItemRecordDb(getDb(), id, newName);
+        return renameItemRecordDb(await getDb(), id, newName);
 }
 
 export async function moveItemRecord(id: string, targetFolderId: string | null) {
-        return moveItemRecordDb(getDb(), id, targetFolderId);
+        return moveItemRecordDb(await getDb(), id, targetFolderId);
 }
 
 export async function deleteItemRecord(id: string) {
-        return deleteItemRecordDb(getDb(), id);
+        return deleteItemRecordDb(await getDb(), id);
 }
 
 export async function readNoteEntities(options?: {
@@ -60,13 +60,13 @@ export async function readNoteEntities(options?: {
         filter?: (item: Item) => boolean;
         sort?: (a: Item, b: Item) => number;
 }) {
-        return readNoteEntitiesDb(getDb(), options);
+        return readNoteEntitiesDb(await getDb(), options);
 }
 
 export async function getNotesByFolder(parentFolderId?: string): Promise<Note[]> {
-        return getNotesByFolderDb(getDb(), parentFolderId);
+        return getNotesByFolderDb(await getDb(), parentFolderId);
 }
 
 export async function getNoteById(id: string): Promise<Note | undefined> {
-        return getNoteByIdDb(getDb(), id);
+        return getNoteByIdDb(await getDb(), id);
 }

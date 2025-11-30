@@ -177,7 +177,7 @@ const SuggestionMenuItem = ({
     >
         <div className="text-base">{item.icon ?? '*'}</div>
         <div className="flex-1">
-            <div className="font-medium leading-none">{item.label}</div>
+            <div className="font-medium leading-none">{item.title || 'Unknown'}</div>
             {item.description && (
                 <div className="text-xs text-muted-foreground">{item.description}</div>
             )}
@@ -236,7 +236,7 @@ const GridSuggestionMenuItem = ({
         )}
     >
         <div className="text-xl">{item.icon}</div>
-        <span className="mt-1 truncate">{item.label}</span>
+        <span className="mt-1 truncate">{item.title || 'Unknown'}</span>
     </button>
 )
 

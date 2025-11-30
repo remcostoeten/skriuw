@@ -1,4 +1,4 @@
-import { getGenericStorage } from "@/api/storage/generic-storage-factory";
+import { getAllStorageKeys } from "@/api/storage/simple-storage";
 
 /**
  * Known project storage keys - used to filter localStorage
@@ -33,15 +33,31 @@ function isProjectStorageKey(key: string): boolean {
 
 /**
  * Get all storage keys currently in use
- * This is adapter-specific, so we'll need to implement it per adapter
- * For now, we'll return known storage keys
+ * Uses simple-storage which works with Postgres/Neon and localStorage fallback
  */
 export async function getStorageKeys(): Promise<string[]> {
 	try {
-		const storage = getGenericStorage();
+		// Get keys from simple-storage (tries Postgres first, falls back to localStorage)
+		const dbKeys = await getAllStorageKeys();
 		
-		// Known storage keys from features
-		const knownKeys = [
+		// Also check localStorage for raw keys that might not be in the database
+		const localStorageKeys: string[] = [];
+		if (typeof localStorage !== 'undefined') {
+			for (let i = 0; i < localStorage.length; i++) {
+				const key = localStorage.key(i);
+				if (key && isProjectStorageKey(key)) {
+					localStorageKeys.push(key);
+				}
+			}
+		}
+		
+		// Combine and deduplicate
+		const allKeys = new Set([...dbKeys, ...localStorageKeys]);
+		return Array.from(allKeys);
+	} catch (error) {
+		console.error('Failed to get storage keys:', error);
+		// Fallback to known keys
+		return [
 			"Skriuw_notes",
 			"quantum-works:shortcuts:custom",
 			"app:settings",
@@ -49,24 +65,6 @@ export async function getStorageKeys(): Promise<string[]> {
 			"skriuw_editor_tabs_state",
 			"Skriuw_expanded_folders",
 		];
-		
-		// Try to get actual keys if adapter supports it
-		// For localStorage, we can check localStorage directly but filter to project keys only
-		if (storage.name === 'localStorage' && typeof localStorage !== 'undefined') {
-			const projectKeys: string[] = [];
-			for (let i = 0; i < localStorage.length; i++) {
-				const key = localStorage.key(i);
-				if (key && isProjectStorageKey(key)) {
-					projectKeys.push(key);
-				}
-			}
-			return projectKeys;
-		}
-		
-		return knownKeys;
-	} catch (error) {
-		console.error('Failed to get storage keys:', error);
-		return [];
 	}
 }
 

@@ -1,3 +1,7 @@
+// Import polyfills FIRST before any other code
+import '@/utils/process-polyfill'
+import '@/utils/buffer-polyfill'
+
 import '@/styles/global.css'
 
 import { createRoot } from 'react-dom/client'
@@ -14,4 +18,9 @@ const App = () => (
     </Providers>
 )
 
-createRoot(document.getElementById('root')!).render(<App />)
+const rootElement = document.getElementById('root')
+if (rootElement) {
+        createRoot(rootElement).render(<App />)
+} else {
+        throw new Error('Root element not found')
+}

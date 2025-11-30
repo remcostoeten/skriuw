@@ -2,8 +2,6 @@ import { Edit, FilePlus, FolderOpen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
-
 import { useNotes } from "@/features/notes/hooks/useNotes";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
@@ -12,6 +10,10 @@ import { useSettings } from "@/features/settings";
 import { useShortcut } from "@/features/shortcuts";
 import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
 import { useUIStore } from "@/stores/ui-store";
+
+import { NotesIcon } from "@/shared/ui/icons";
+import { cn } from "@/shared/utilities";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
 
 import {
   ContextMenu,
@@ -27,10 +29,7 @@ import {
 } from "ui";
 
 import { ActionBar } from "../action-bar";
-import { cn } from "@/shared/utilities";
-
 import { useSidebarContentType } from "./use-sidebar-content-type";
-import { NotesIcon } from "@/shared/ui/icons";
 
 import type { SidebarContentType } from "./types";
 import type { Folder as FolderType, Item } from "@/features/notes/types";
@@ -110,7 +109,6 @@ function FileTreeItem({
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
   const isActive = !isFolder && activeNoteId === item.id;
-  const isSelected = isFolder && selectedFolderId === item.id;
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -227,7 +225,7 @@ function FileTreeItem({
   };
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (isRenaming) {
         return;
       }
@@ -358,7 +356,7 @@ function FileTreeItem({
           }}
           className="h-8 text-xs font-base min-h-[44px]"
         >
-          <FilePlus className="w-4 h-4 mr-3 flex-shrink-0" />
+          <FilePlus className="w-4 h-4 mr-3 shrink-0" />
           New note
           <ContextMenuShortcut>N</ContextMenuShortcut>
         </ContextMenuItem>
@@ -370,7 +368,7 @@ function FileTreeItem({
             }}
             className="h-8 text-xs font-base min-h-[44px]"
           >
-            <FolderOpen className="w-4 h-4 mr-3 flex-shrink-0" />
+            <FolderOpen className="w-4 h-4 mr-3 shrink-0" />
             New folder
             <ContextMenuShortcut>F</ContextMenuShortcut>
           </ContextMenuItem>
@@ -382,7 +380,7 @@ function FileTreeItem({
           }}
           className="h-8 text-xs font-base min-h-[44px]"
         >
-          <Edit className="w-4 h-4 mr-3 flex-shrink-0" />
+          <Edit className="w-4 h-4 mr-3 shrink-0" />
           Rename
           <ContextMenuShortcut>R</ContextMenuShortcut>
         </ContextMenuItem>
@@ -405,7 +403,7 @@ function FileTreeItem({
           onClick={() => onDelete(item.id)}
           className="h-8 text-xs font-base text-destructive focus:text-destructive min-h-[44px]"
         >
-          <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
+          <Trash2 className="w-4 h-4 mr-3 shrink-0" />
           Delete
           <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>
         </ContextMenuItem>

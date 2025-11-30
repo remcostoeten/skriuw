@@ -1,4 +1,4 @@
-import type { BaseEntity } from "@/api/storage/generic-types";
+import type { BaseEntity } from "@/shared/types/base-entity";
 
 /**
  * Settings entity stored in storage

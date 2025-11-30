@@ -1,7 +1,8 @@
-import { AdapterStorageEvent } from '@/api/storage/generic-types'
+// Storage event types from adapter (created, updated, deleted)
+type AdapterStorageEventType = 'created' | 'updated' | 'deleted'
 
 export type StorageEventType =
-    | AdapterStorageEvent['type']
+    | AdapterStorageEventType
     | 'changed'
     | 'route'
     | 'route-error'

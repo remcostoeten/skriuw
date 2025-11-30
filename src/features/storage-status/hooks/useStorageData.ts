@@ -7,8 +7,7 @@ import {
 	useRef
 } from 'react'
 
-import { read } from '@/api/storage/crud/read'
-import { getGenericStorage } from '@/api/storage/generic-storage-factory'
+import { getStorageValue } from '@/api/storage/simple-storage'
 
 import { getStorageKeys } from '../api/queries/get-storage-keys'
 import {
@@ -22,7 +21,20 @@ import {
 	type StorageEventType
 } from '../utils/storage-event-log'
 
-import type { BaseEntity, StorageEventListener, StorageEvent as AdapterStorageEvent } from '@/api/storage/generic-types'
+import type { BaseEntity } from '@/shared/types/base-entity'
+
+// Storage event types (kept here as they're specific to storage status feature)
+export type StorageEventListener = (event: StorageEvent) => void
+export type StorageEvent = {
+	storageKey: string
+	eventType: 'created' | 'updated' | 'deleted' | 'changed' | 'route' | 'route-error'
+	entityId?: string
+	description?: string
+	timestamp: number
+}
+
+// Adapter storage event type (for compatibility)
+type AdapterStorageEventType = 'created' | 'updated' | 'deleted'
 
 export interface StorageKeyData {
 	key: string
@@ -39,7 +51,7 @@ export interface CategorizedStorage {
 export interface StorageKeyActivity {
 	count: number
 	lastEventAt: number
-	lastEventType: AdapterStorageEvent['type'] | 'changed'
+	lastEventType: AdapterStorageEventType | 'changed'
 	source: 'adapter' | 'raw' | 'manual'
 }
 
@@ -62,9 +74,16 @@ function isRawLocalStorageKey(key: string): boolean {
 }
 
 /**
- * Read a raw localStorage value and convert it to a BaseEntity-like structure
+ * Interface for storage data items that extends BaseEntity
  */
-function readRawLocalStorageValue(key: string): BaseEntity[] {
+interface StorageDataItem extends BaseEntity {
+	value: unknown
+}
+
+/**
+ * Read a raw localStorage value and convert it to a storage data structure
+ */
+function readRawLocalStorageValue(key: string): StorageDataItem[] {
 	if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
 		return []
 	}
@@ -248,8 +267,8 @@ export function useStorageData(isOpen: boolean) {
 					if (isRawLocalStorageKey(key)) {
 						itemsArray = readRawLocalStorageValue(key)
 					} else {
-						// Use generic storage adapter for other keys
-						const items = await read<BaseEntity>(key)
+						// Use simple storage for other keys
+						const items = await getStorageValue<BaseEntity | BaseEntity[]>(key)
 						itemsArray = Array.isArray(items)
 							? items
 							: items
@@ -286,8 +305,8 @@ export function useStorageData(isOpen: boolean) {
 			if (isRawLocalStorageKey(key)) {
 				itemsArray = readRawLocalStorageValue(key)
 			} else {
-				// Use generic storage adapter for other keys
-				const items = await read<BaseEntity>(key)
+				// Use simple storage for other keys
+				const items = await getStorageValue<BaseEntity | BaseEntity[]>(key)
 				itemsArray = Array.isArray(items)
 					? items
 					: items
@@ -309,27 +328,8 @@ export function useStorageData(isOpen: boolean) {
 	useEffect(() => {
 		if (!isOpen) return
 
-		// Listen to generic storage adapter events
-		let storageListener: StorageEventListener | null = null
-		
-		try {
-			const storage = getGenericStorage()
-			storageListener = (event) => {
-				// Reload the affected storage key
-				reloadStorageKey(event.storageKey, {
-					trackActivity: true,
-					eventMetadata: {
-						type: event.type,
-						entityId: event.entityId,
-						source: 'adapter',
-						description: 'Storage adapter event'
-					}
-				})
-			}
-			storage.addEventListener(storageListener)
-		} catch (error) {
-			console.warn('Failed to set up storage event listener:', error)
-		}
+		// Note: Storage event listeners are not available with simple-storage
+		// We rely on polling and localStorage events for updates
 
 		// Listen to browser localStorage events for raw keys
 		const handleStorageChange = (e: StorageEvent) => {
@@ -368,14 +368,6 @@ export function useStorageData(isOpen: boolean) {
 
 		// Cleanup
 		return () => {
-			if (storageListener) {
-				try {
-					const storage = getGenericStorage()
-					storage.removeEventListener(storageListener)
-				} catch (error) {
-					// Storage might not be available
-				}
-			}
 			window.removeEventListener('storage', handleStorageChange)
 			clearInterval(pollInterval)
 		}

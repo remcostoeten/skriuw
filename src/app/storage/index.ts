@@ -1,41 +1,29 @@
 import { initializeDefaultNotesAndFolders } from '@/features/notes/utils/initialize-defaults'
-
-import { initializeGenericStorage } from '@/api/storage/generic-storage-factory'
-import type { StorageConfig } from '@/api/storage/generic-types'
-
-import { DEFAULT_STORAGE_CONFIG, getStorageConfig } from './config'
+import { getDb } from '@/data/drizzle/client'
 
 let initializationPromise: Promise<void> | null = null
-let currentConfig: StorageConfig | null = null
 
 /**
- * Initialize the storage system with the generic adapter
+ * Initialize the storage system (Postgres connection)
  */
-export async function initializeAppStorage(config?: StorageConfig): Promise<void> {
-        const resolvedConfig = config ?? getStorageConfig() ?? DEFAULT_STORAGE_CONFIG
-
-        if (initializationPromise && currentConfig?.adapter === resolvedConfig.adapter) {
+export async function initializeAppStorage(): Promise<void> {
+        if (initializationPromise) {
                 return initializationPromise
         }
 
-        currentConfig = resolvedConfig
-        initializationPromise = performInitialization(resolvedConfig)
+        initializationPromise = performInitialization()
         return initializationPromise
 }
 
-async function performInitialization(config: StorageConfig): Promise<void> {
+async function performInitialization(): Promise<void> {
         try {
-                console.info(`Initializing storage with adapter: ${config.adapter}`)
+                console.info('Initializing database connection (using Neon in browser, postgres-js on server)')
 
-                const storage = await initializeGenericStorage(config)
-                const info = await storage.getStorageInfo()
-
-                console.info('Storage initialized successfully:', {
-                        adapter: info.adapter,
-                        type: info.type,
-                        totalItems: info.totalItems,
-                        capabilities: info.capabilities
-                })
+                // Test connection by getting the db instance
+                // In browser, this uses Neon serverless (HTTP/WebSocket)
+                // On server, this uses postgres-js (TCP)
+                const db = await getDb()
+                console.info('Database connection initialized successfully')
 
                 // Initialize default notes and folders for new visitors
                 await initializeDefaultNotesAndFolders()
@@ -51,6 +39,5 @@ async function performInitialization(config: StorageConfig): Promise<void> {
  */
 export async function _resetStorage(): Promise<void> {
         initializationPromise = null
-        currentConfig = null
         return initializeAppStorage()
 }

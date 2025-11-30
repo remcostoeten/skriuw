@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 
 import * as schema from "./base-entities";
 import {
@@ -11,35 +13,38 @@ import {
 
 import type { Item, Folder, Note } from "@/features/notes/types";
 import type { Block } from "@blocknote/core";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 export const NOTE_STORAGE_KEY = "Skriuw_notes";
 export const APP_SETTINGS_KEY = "app:settings";
 
-export type NoteDatabase =
-        | LibSQLDatabase<typeof schema>
-        | SqliteRemoteDatabase<typeof schema>;
+// Support both Neon (browser) and postgres-js (server) database types
+export type NoteDatabase = PostgresJsDatabase<typeof schema> | NeonHttpDatabase<typeof schema>;
 
-function now(): number {
-        return Date.now();
+function now(): Date {
+        return new Date();
 }
 
-function toJsonString(content: Block[] | undefined): string {
-        try {
-                return JSON.stringify(content ?? []);
-        } catch {
-                return "[]";
-        }
+function dateToTimestamp(date: Date | null | undefined): number {
+        if (!date) return Date.now();
+        return date instanceof Date ? date.getTime() : Date.now();
 }
 
-function parseContent(serialized: string | null): Block[] {
-        if (!serialized) return [];
-        try {
-                return JSON.parse(serialized) as Block[];
-        } catch {
-                return [];
+function parseContent(content: unknown): Block[] {
+        if (!content) return [];
+        if (Array.isArray(content)) {
+                // Type guard to ensure it's actually a Block array
+                return content as Block[];
         }
+        // If it's a JSON string, try to parse it
+        if (typeof content === 'string') {
+                try {
+                        const parsed = JSON.parse(content);
+                        return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                        return [];
+                }
+        }
+        return [];
 }
 
 function createId(prefix: string): string {
@@ -56,8 +61,8 @@ function mapFolder(row: FolderRow): Folder & { parentFolderId?: string } {
                 type: "folder",
                 children: [],
                 parentFolderId: row.parentFolderId ?? undefined,
-                createdAt: row.createdAt,
-                updatedAt: row.updatedAt
+                createdAt: dateToTimestamp(row.createdAt),
+                updatedAt: dateToTimestamp(row.updatedAt)
         };
 }
 
@@ -68,8 +73,8 @@ function mapNote(row: NoteRow): Note {
                 type: "note",
                 content: parseContent(row.content),
                 parentFolderId: row.folderId ?? undefined,
-                createdAt: row.createdAt,
-                updatedAt: row.updatedAt
+                createdAt: dateToTimestamp(row.createdAt),
+                updatedAt: dateToTimestamp(row.updatedAt)
         };
 }
 
@@ -153,7 +158,7 @@ export async function createFolderRecordDb(
                 parentFolderId: data.parentFolderId ?? null,
                 createdAt: timestamp,
                 updatedAt: timestamp
-        });
+        } as FolderRow);
 }
 
 export async function createNoteRecordDb(
@@ -166,12 +171,11 @@ export async function createNoteRecordDb(
 ): Promise<Note> {
         const timestamp = now();
         const id = createId("note");
-        const serializedContent = toJsonString(data.content);
 
         await db.insert(notes).values({
                 id,
                 name: data.name,
-                content: serializedContent,
+                content: data.content ?? [],
                 folderId: data.parentFolderId,
                 createdAt: timestamp,
                 updatedAt: timestamp
@@ -180,12 +184,12 @@ export async function createNoteRecordDb(
         return mapNote({
                 id,
                 name: data.name,
-                content: serializedContent,
+                content: data.content ?? [],
                 folderId: data.parentFolderId ?? null,
                 createdAt: timestamp,
                 updatedAt: timestamp,
                 profileId: null
-        });
+        } as NoteRow);
 }
 
 export async function updateNoteRecordDb(
@@ -201,19 +205,19 @@ export async function updateNoteRecordDb(
                                 id: createId("rev"),
                                 noteId: id,
                                 label: "auto",
-                                snapshot: existing.content,
+                                snapshot: existing.content as Block[],
                                 createdAt: now()
                         });
         }
 
-        const serializedContent = data.content ? toJsonString(data.content) : existing.content;
+        const content = data.content ?? (existing.content as Block[]);
         const updatedAt = now();
 
         await db
                 .update(notes)
                 .set({
                         name: data.name ?? existing.name,
-                        content: serializedContent,
+                        content: content,
                         folderId: data.parentFolderId ?? existing.folderId,
                         updatedAt
                 })
@@ -222,7 +226,7 @@ export async function updateNoteRecordDb(
         return mapNote({
                 ...existing,
                 name: data.name ?? existing.name,
-                content: serializedContent,
+                content: content,
                 folderId: data.parentFolderId ?? existing.folderId,
                 updatedAt
         });
@@ -278,12 +282,12 @@ export async function moveItemRecordDb(
 
 export async function deleteItemRecordDb(db: NoteDatabase, id: string): Promise<boolean> {
         const noteResult = await db.delete(notes).where(eq(notes.id, id));
-        if ("rowsAffected" in noteResult && (noteResult as any).rowsAffected > 0) {
+        if (noteResult && (noteResult as any).rowCount > 0) {
                 return true;
         }
 
         const folderResult = await db.delete(folders).where(eq(folders.id, id));
-        if ("rowsAffected" in folderResult && (folderResult as any).rowsAffected > 0) {
+        if (folderResult && (folderResult as any).rowCount > 0) {
                 return true;
         }
 

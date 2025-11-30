@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
+import { useNotes } from '@/features/notes'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { useSettings, useUserPreferences } from '@/features/settings'
@@ -67,7 +67,7 @@ export function AppLayoutContainer({
     sidebarCustomContent
 }: AppLayoutContainerProps) {
     const navigate = useNavigate()
-    const { items, isInitialLoading } = useNotesWithSuspense()
+    const { items, isInitialLoading } = useNotes()
     const {
         isMobileSidebarOpen,
         toggleMobileSidebar,

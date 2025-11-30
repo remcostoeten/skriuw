@@ -32,7 +32,9 @@ export function useShortcutsManager() {
 
   const saveShortcutHandler = useCallback(async (id: ShortcutId, keys: KeyCombo[]) => {
     try {
-      await saveShortcut(id, keys);
+      // Convert KeyCombo[] to string[] by joining each combo with '+'
+      const stringKeys = keys.map(combo => combo.join('+'));
+      await saveShortcut(id, stringKeys);
       await loadShortcuts();
       window.dispatchEvent(new CustomEvent('shortcuts-updated'));
     } catch (error) {

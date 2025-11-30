@@ -1,9 +1,8 @@
-import { read } from "@/api/storage/crud";
-import { getGenericStorage } from "@/api/storage/generic-storage-factory";
+import { getStorageValue } from "@/api/storage/simple-storage";
 
 import { getStorageKeys } from "./get-storage-keys";
 
-import type { BaseEntity } from "@/api/storage/generic-types";
+import type { BaseEntity } from "@/shared/types/base-entity";
 
 
 export interface StorageKeyStats {
@@ -17,19 +16,18 @@ export interface StorageKeyStats {
  */
 export async function getStorageStats(): Promise<StorageKeyStats[]> {
 	try {
-		const storage = getGenericStorage();
 		const keys = await getStorageKeys();
 		
 		const stats: StorageKeyStats[] = [];
 		
 		for (const key of keys) {
 			try {
-				const items = await read<BaseEntity>(key);
+				const items = await getStorageValue<BaseEntity | BaseEntity[]>(key);
 				const itemCount = Array.isArray(items) ? items.length : items ? 1 : 0;
 				
 				// Calculate size if localStorage
 				let sizeBytes: number | undefined;
-				if (storage.name === 'localStorage' && typeof localStorage !== 'undefined') {
+				if (typeof localStorage !== 'undefined') {
 					const data = localStorage.getItem(key);
 					if (data) {
 						sizeBytes = new Blob([data]).size;

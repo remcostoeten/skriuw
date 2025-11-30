@@ -1,5 +1,5 @@
 import type { ShortcutId, KeyCombo } from "../../shortcut-definitions";
-import type { BaseEntity } from "@/api/storage/generic-types";
+import type { BaseEntity } from "@/shared/types/base-entity";
 
 /**
  * Custom shortcut entity that extends BaseEntity for CRUD operations

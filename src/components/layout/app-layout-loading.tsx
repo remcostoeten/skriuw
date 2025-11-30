@@ -109,8 +109,11 @@ export function AppLayoutLoadingSkeleton() {
 			topToolbar={<TopToolbarSkeleton />}
 			mainContent={<EditorPaneSkeleton />}
 			footer={<FooterSkeleton />}
+			rightPanel={null}
+			floatingWidgets={null}
 			isSidebarOpen
 			isDesktopSidebarOpen
+			isRightPanelOpen={false}
 		/>
 	)
 }

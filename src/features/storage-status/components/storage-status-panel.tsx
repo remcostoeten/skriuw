@@ -457,13 +457,7 @@ export function StorageStatusPanel({ isOpen, onClose }: StorageStatusPanelProps)
 						// Mobile: full-height bottom sheet
 						isMobile && "h-[85vh] max-h-[85vh] rounded-t-2xl"
 					)}
-					style={!isMobile ? {
-						left: `${panelPosition.x}px`,
-						top: `${panelPosition.y}px`,
-						opacity: panelOpacity,
-						cursor: isDragging ? 'grabbing' : 'default'
-					} : undefined}
-					>
+						>
 						{!isMobile && (
 							<div className="flex items-center gap-2 p-4 pb-0">
 								<div

@@ -104,7 +104,7 @@ export function shortcutToString(
 ): string {
 	const formatToUse = shortcut.displayFormat || format;
 	const sequences = shortcut.sequences.map((seq) => {
-		const combos = seq.filter(isKeyCombo);
+		const combos = seq.filter(isKeyCombo) as DisplayKeyCombo[];
 		return combos.map((combo) => comboToString(combo, formatToUse)).join(' ');
 	});
 
@@ -121,7 +121,7 @@ export function shortcutToParts(
 	const formatToUse = shortcut.displayFormat || format;
 
 	return shortcut.sequences.map((seq) => {
-		const combos = seq.filter(isKeyCombo);
+		const combos = seq.filter(isKeyCombo) as DisplayKeyCombo[];
 		return combos.map((combo) => {
 			const parts: Array<{ type: 'modifier' | 'key'; value: string }> = [];
 

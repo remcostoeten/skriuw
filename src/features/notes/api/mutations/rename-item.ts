@@ -1,14 +1,12 @@
-import { update } from "@/api/storage/crud/update";
+import { getDb } from "@/data/drizzle/client";
+import { renameItemRecordDb } from "@/data/drizzle/note-storage";
 
 import type { Item } from "../../types";
 
-const STORAGE_KEY = "Skriuw_notes";
-
 export async function renameItem(id: string, newName: string): Promise<Item | undefined> {
-	const updateFn = update;
 	try {
-		const result = await updateFn(STORAGE_KEY, id, { name: newName });
-		return result;
+		const db = await getDb();
+		return await renameItemRecordDb(db, id, newName);
 	} catch (error) {
 		throw new Error(`Failed to rename item: ${error instanceof Error ? error.message : String(error)}`);
 	}

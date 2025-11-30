@@ -76,7 +76,11 @@ export function DualModeEditor({
       const fallbackBlock = {
         id: 'fallback-' + Date.now(),
         type: 'paragraph' as const,
-        props: {},
+        props: {
+          backgroundColor: 'default' as const,
+          textColor: 'default' as const,
+          textAlignment: 'left' as const
+        },
         content: [{
           type: 'text' as const,
           text: markdown,

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quantum-work-postgres
+    environment:
+      POSTGRES_USER: quantum
+      POSTGRES_PASSWORD: quantum123
+      POSTGRES_DB: quantum_work
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantum"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # App service - uncomment if you have a server build
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: quantum-work-app
+  #   environment:
+  #     DATABASE_URL: postgresql://quantum:quantum123@postgres:5432/quantum_work
+  #     NODE_ENV: production
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./drizzle:/app/drizzle
+
+volumes:
+  postgres_data:
+

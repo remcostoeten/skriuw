@@ -1,17 +1,16 @@
-import { update } from "@/api/storage/crud/update";
+import { getDb } from "@/data/drizzle/client";
+import { updateNoteRecordDb } from "@/data/drizzle/note-storage";
 
 import type { Note, UpdateNoteData } from "../../types";
 
-const STORAGE_KEY = "Skriuw_notes";
-
 export async function updateNote(id: string, data: UpdateNoteData): Promise<Note | undefined> {
-	const updateFn = update;
 	try {
-		const result = await updateFn(STORAGE_KEY, id, {
+		const db = await getDb();
+		return await updateNoteRecordDb(db, id, {
 			name: data.name,
 			content: data.content,
-		} as any);
-		return result as Note | undefined;
+			parentFolderId: data.parentFolderId,
+		});
 	} catch (error) {
 		throw new Error(`Failed to update note: ${error instanceof Error ? error.message : String(error)}`);
 	}

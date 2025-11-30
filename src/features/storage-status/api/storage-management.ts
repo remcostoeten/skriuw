@@ -1,71 +1,31 @@
 import { initializeAppStorage } from "@/app/storage";
-import { getStorageConfig } from "@/app/storage/config";
+import { getDb } from "@/data/drizzle/client";
+import { notes, folders } from "@/data/drizzle/base-entities";
 
-import { initializeDefaultNotesAndFolders } from "@/features/notes/utils/initialize-defaults";
-
-import { destroy } from "@/api/storage/crud/destroy";
-import { read } from "@/api/storage/crud/read";
-
-import { getStorageKeys } from "./queries/get-storage-keys";
-
-import type { BaseEntity } from "@/api/storage/generic-types";
-
-/**
- * Raw localStorage keys that should be preserved (not deleted)
- */
-const PRESERVED_KEYS = [
-	'storage.preference',
-	'storage.schemaVersion',
-] as const;
-
-/**
- * Check if a key should be preserved during reset
- */
-function shouldPreserveKey(key: string): boolean {
-	return PRESERVED_KEYS.includes(key as typeof PRESERVED_KEYS[number]);
-}
 
 /**
  * Remove all data from storage
- * This clears all storage keys but keeps the storage adapter configuration
+ * This clears all notes and folders from the database
  */
 export async function removeAllStorage(): Promise<void> {
 	try {
-		const keys = await getStorageKeys();
+		const db = await getDb();
 		
-		// Delete all items from all storage keys
-		for (const storageKey of keys) {
-			// Skip preserved keys
-			if (shouldPreserveKey(storageKey)) {
-				continue;
-			}
-
-			try {
-				// For raw localStorage keys, clear them directly
-				if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-					// Check if it's a raw localStorage key (not managed by generic storage)
-					const rawKeys = [
-						'skriuw_editor_tabs_state',
-						'Skriuw_expanded_folders',
-					];
-					
-					if (rawKeys.includes(storageKey)) {
-						localStorage.removeItem(storageKey);
-						continue;
-					}
-				}
-
-				// For generic storage keys, delete all items
-				const items = await read<BaseEntity>(storageKey);
-				const itemsArray = Array.isArray(items) ? items : items ? [items] : [];
-				
-				// Delete each item
-				await Promise.all(
-					itemsArray.map(item => destroy(storageKey, item.id))
-				);
-			} catch (error) {
-				console.warn(`Failed to clear storage key ${storageKey}:`, error);
-				// Continue with other keys even if one fails
+		// Delete all notes
+		await db.delete(notes);
+		
+		// Delete all folders
+		await db.delete(folders);
+		
+		// Clear localStorage keys if in browser
+		if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+			const rawKeys = [
+				'skriuw_editor_tabs_state',
+				'Skriuw_expanded_folders',
+			];
+			
+			for (const key of rawKeys) {
+				localStorage.removeItem(key);
 			}
 		}
 	} catch (error) {
@@ -84,17 +44,9 @@ export async function restartStorage(): Promise<void> {
         // First, remove all existing data
         await removeAllStorage();
 
-        // Get current storage config
-        const config = getStorageConfig();
-
         // Re-initialize storage with defaults
-        if (config) {
-            await initializeAppStorage(config);
-            // initializeDefaultNotesAndFolders is called by initializeAppStorage
-		} else {
-			// If no config, just initialize defaults on current storage
-			await initializeDefaultNotesAndFolders();
-		}
+        await initializeAppStorage();
+        // initializeDefaultNotesAndFolders is called by initializeAppStorage
 	} catch (error) {
         throw new Error(
             `Failed to restart storage: ${error instanceof Error ? error.message : String(error)}`
