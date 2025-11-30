@@ -23,12 +23,15 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@blocknote/code-block": "^0.42.3",
     "@blocknote/core": "^0.42.3",
     "@blocknote/mantine": "^0.42.3",
     "@blocknote/react": "^0.42.3",
     "@mantine/core": "^8.3.9",
     "@mantine/hooks": "^8.3.9",
     "@radix-ui/react-context-menu": "^2.2.16",
+    "drizzle-orm": "^0.44.7",
+    "postgres": "^3.4.7",
     "prismjs": "^1.30.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.8"
@@ -83,6 +86,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
+    "drizzle-kit": "^0.31.7",
     "embla-carousel-react": "^8.6.0",
     "eslint": "^9.39.1",
     "eslint-import-resolver-typescript": "^4.4.4",

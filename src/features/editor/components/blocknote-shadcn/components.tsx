@@ -122,7 +122,7 @@ const SideMenuRoot = ({ className, children }: BlockNoteComponentProps['SideMenu
     </div>
 )
 
-const SideMenuButton = ({
+const SideMenuButton = forwardRef<HTMLButtonElement, BlockNoteComponentProps['SideMenu']['Button']>(({
     className,
     icon,
     label,
@@ -131,8 +131,9 @@ const SideMenuButton = ({
     onDragEnd,
     onDragStart,
     children
-}: BlockNoteComponentProps['SideMenu']['Button']) => (
+}, ref) => (
     <button
+        ref={ref}
         type="button"
         draggable={draggable}
         onDragStart={onDragStart}
@@ -146,7 +147,8 @@ const SideMenuButton = ({
     >
         {icon || children}
     </button>
-)
+))
+SideMenuButton.displayName = 'SideMenuButton'
 
 const SuggestionMenuRoot = ({
     id,

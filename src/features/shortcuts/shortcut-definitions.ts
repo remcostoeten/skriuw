@@ -57,11 +57,6 @@ export const shortcutDefinitions = {
         description: "Toggle theme",
         enabled: true,
     },
-    "toggle-data-browser": {
-        keys: [["Ctrl", "`"], ["Meta", "`"]],
-        description: "Toggle data browser",
-        enabled: true,
-    },
 } satisfies Record<string, ShortcutDefinition>;
 
 export type ShortcutId = keyof typeof shortcutDefinitions;

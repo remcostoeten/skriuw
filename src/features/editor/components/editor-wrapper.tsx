@@ -48,7 +48,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                     
                     if (editorRef.current) {
                         setTimeout(() => {
-                            highlightCodeBlocks(editorRef.current!, editor)
+                            highlightCodeBlocks(editorRef.current!, editor).catch((error) => {
+                                console.warn('Failed to highlight code blocks:', error)
+                            })
                         }, 0)
                     }
                 }
@@ -62,7 +64,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
             if (!editorRef.current || hasRawMDXMode || !editor) return
 
             const highlight = () => {
-                highlightCodeBlocks(editorRef.current!, editor)
+                highlightCodeBlocks(editorRef.current!, editor).catch((error) => {
+                    console.warn('Failed to highlight code blocks:', error)
+                })
             }
 
             // Initial highlight

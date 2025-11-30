@@ -1,15 +1,6 @@
 import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/shared/ui/command";
-import { Command as CommandPrimitive } from "cmdk";
-import {
   ChevronRight,
   Loader2,
-  Search,
 } from "lucide-react";
 import {
   ComponentRef,
@@ -22,6 +13,8 @@ import {
   useCallback,
   memo,
 } from "react";
+
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/shared/ui";
 
 export type FetchCommandDataSubItems = (_props: {
   search: string;

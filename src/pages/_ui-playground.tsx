@@ -80,6 +80,9 @@ import {
     SheetTrigger
 } from '@/shared/ui/sheet'
 
+import { Checkbox } from '@/shared/primitives/checkbox'
+import { Switch } from '@/shared/primitives/switch'
+
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 import { TableOfContents } from '@/components/sidebar/table-of-contents'
 
@@ -94,6 +97,8 @@ export default function UIPlayground() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [dialogDrawerOpen, setDialogDrawerOpen] = useState(false)
     const [selectValue, setSelectValue] = useState('')
+    const [checkboxChecked, setCheckboxChecked] = useState(false)
+    const [switchChecked, setSwitchChecked] = useState(false)
 
     const colors = [
         { name: 'background', var: 'var(--background)' },
@@ -736,6 +741,410 @@ export default function UIPlayground() {
                                     </div>
                                 </SheetContent>
                             </Sheet>
+                        </div>
+                    </div>
+
+                    {/* Checkbox */}
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-semibold">Checkbox</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Enterprise-grade checkbox component with multiple
+                            variants, sizes, and states.
+                        </p>
+                        <div className="space-y-6">
+                            {/* Basic States */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Basic States
+                                </h4>
+                                <div className="flex flex-wrap gap-6">
+                                    <Checkbox defaultChecked={false} />
+                                    <Checkbox defaultChecked={true} />
+                                    <Checkbox indeterminate={true} />
+                                </div>
+                            </div>
+
+                            {/* With Labels */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    With Labels
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Checkbox
+                                        label="Accept terms and conditions"
+                                        defaultChecked={false}
+                                    />
+                                    <Checkbox
+                                        label="Subscribe to newsletter"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        label="Some items selected"
+                                        indeterminate={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sizes */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">Sizes</h4>
+                                <div className="flex flex-wrap items-center gap-6">
+                                    <Checkbox
+                                        size="sm"
+                                        label="Small"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        size="md"
+                                        label="Medium"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        size="lg"
+                                        label="Large"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Variants */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Style Variants
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Checkbox
+                                        variant="default"
+                                        label="Default variant"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        variant="outline"
+                                        label="Outline variant"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        variant="filled"
+                                        label="Filled variant"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        variant="minimal"
+                                        label="Minimal variant"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Disabled & Loading */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Disabled & Loading States
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Checkbox
+                                        label="Disabled unchecked"
+                                        disabled={true}
+                                        defaultChecked={false}
+                                    />
+                                    <Checkbox
+                                        label="Disabled checked"
+                                        disabled={true}
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        label="Loading state"
+                                        loading={true}
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* With Description */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    With Description
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Checkbox
+                                        label="Enable notifications"
+                                        description="Receive email notifications about important updates"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        label="Public profile"
+                                        description="Your profile will be visible to everyone"
+                                        defaultChecked={false}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* With Error */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Error State
+                                </h4>
+                                <Checkbox
+                                    label="Required field"
+                                    error="You must accept the terms to continue"
+                                    required={true}
+                                    defaultChecked={false}
+                                />
+                            </div>
+
+                            {/* Controlled */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Controlled Component
+                                </h4>
+                                <Checkbox
+                                    label="Controlled checkbox"
+                                    checked={checkboxChecked}
+                                    onChange={(checked) =>
+                                        setCheckboxChecked(checked)
+                                    }
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Current state: {checkboxChecked ? 'checked' : 'unchecked'}
+                                </p>
+                            </div>
+
+                            {/* Label Position */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Label Position
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Checkbox
+                                        label="Label on right (default)"
+                                        labelPosition="right"
+                                        defaultChecked={true}
+                                    />
+                                    <Checkbox
+                                        label="Label on left"
+                                        labelPosition="left"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Ripple Effect */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Ripple Effect
+                                </h4>
+                                <Checkbox
+                                    label="Click to see ripple effect"
+                                    ripple={true}
+                                    defaultChecked={false}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Switch */}
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-semibold">Switch</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Enterprise-grade switch component with multiple
+                            variants, sizes, and states.
+                        </p>
+                        <div className="space-y-6">
+                            {/* Basic States */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Basic States
+                                </h4>
+                                <div className="flex flex-wrap gap-6">
+                                    <Switch defaultChecked={false} />
+                                    <Switch defaultChecked={true} />
+                                    <Switch indeterminate={true} />
+                                </div>
+                            </div>
+
+                            {/* With Labels */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    With Labels
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        label="Enable dark mode"
+                                        defaultChecked={false}
+                                    />
+                                    <Switch
+                                        label="Enable notifications"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        label="Some items selected"
+                                        indeterminate={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sizes */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">Sizes</h4>
+                                <div className="flex flex-wrap items-center gap-6">
+                                    <Switch
+                                        size="sm"
+                                        label="Small"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        size="md"
+                                        label="Medium"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        size="lg"
+                                        label="Large"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Animation Variants */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Animation Variants
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        variant="slide"
+                                        label="Slide (default)"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        variant="slide-snappy"
+                                        label="Slide Snappy"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        variant="slide-gentle"
+                                        label="Slide Gentle"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        variant="slide-elastic"
+                                        label="Slide Elastic"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        variant="slide-linear"
+                                        label="Slide Linear"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Disabled & Loading */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Disabled & Loading States
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        label="Disabled off"
+                                        disabled={true}
+                                        defaultChecked={false}
+                                    />
+                                    <Switch
+                                        label="Disabled on"
+                                        disabled={true}
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        label="Loading state"
+                                        loading={true}
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* With Description */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    With Description
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        label="Enable notifications"
+                                        description="Receive email notifications about important updates"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        label="Public profile"
+                                        description="Your profile will be visible to everyone"
+                                        defaultChecked={false}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* With Error */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Error State
+                                </h4>
+                                <Switch
+                                    label="Required setting"
+                                    error="This setting must be enabled"
+                                    required={true}
+                                    defaultChecked={false}
+                                />
+                            </div>
+
+                            {/* Controlled */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Controlled Component
+                                </h4>
+                                <Switch
+                                    label="Controlled switch"
+                                    checked={switchChecked}
+                                    onChange={(checked) =>
+                                        setSwitchChecked(checked)
+                                    }
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Current state: {switchChecked ? 'on' : 'off'}
+                                </p>
+                            </div>
+
+                            {/* Label Position */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    Label Position
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        label="Label on right (default)"
+                                        labelPosition="right"
+                                        defaultChecked={true}
+                                    />
+                                    <Switch
+                                        label="Label on left"
+                                        labelPosition="left"
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* With Icons */}
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-medium">
+                                    With Icons
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <Switch
+                                        label="With icons"
+                                        iconOn={<span>✓</span>}
+                                        iconOff={<span>✕</span>}
+                                        defaultChecked={true}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>

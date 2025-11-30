@@ -1,73 +1,92 @@
 import Prism from 'prismjs'
-import 'prismjs/themes/prism-tomorrow.css'
 
-// Import common language syntaxes
-import 'prismjs/components/prism-javascript'
-import 'prismjs/components/prism-typescript'
-import 'prismjs/components/prism-jsx'
-import 'prismjs/components/prism-tsx'
-import 'prismjs/components/prism-python'
-import 'prismjs/components/prism-java'
-import 'prismjs/components/prism-c'
-import 'prismjs/components/prism-cpp'
-import 'prismjs/components/prism-csharp'
-import 'prismjs/components/prism-ruby'
-import 'prismjs/components/prism-go'
-import 'prismjs/components/prism-rust'
-import 'prismjs/components/prism-swift'
-import 'prismjs/components/prism-kotlin'
-import 'prismjs/components/prism-php'
-import 'prismjs/components/prism-bash'
-import 'prismjs/components/prism-shell-session'
-import 'prismjs/components/prism-sql'
-import 'prismjs/components/prism-json'
-import 'prismjs/components/prism-yaml'
-import 'prismjs/components/prism-markdown'
-import 'prismjs/components/prism-markup'
-import 'prismjs/components/prism-css'
-import 'prismjs/components/prism-scss'
-import 'prismjs/components/prism-sass'
+/**
+ * Language component import map for dynamic loading
+ * Maps normalized language names to their Prism component paths
+ */
+const languageImports: Record<string, () => Promise<void>> = {
+  // Markup (HTML/XML) - must be loaded first as it's a dependency
+  markup: () => import('prismjs/components/prism-markup'),
+  // CSS
+  css: () => import('prismjs/components/prism-css'),
+  // JavaScript/TypeScript
+  javascript: () => import('prismjs/components/prism-javascript'),
+  typescript: () => import('prismjs/components/prism-typescript'),
+  // Python
+  python: () => import('prismjs/components/prism-python'),
+  // Go
+  go: () => import('prismjs/components/prism-go'),
+  // Shell/Bash
+  bash: () => import('prismjs/components/prism-bash'),
+  'shell-session': () => import('prismjs/components/prism-shell-session'),
+  // JSON
+  json: () => import('prismjs/components/prism-json'),
+  // Markdown
+  markdown: () => import('prismjs/components/prism-markdown'),
+}
+
+/**
+ * Cache of loaded languages to avoid re-importing
+ */
+const loadedLanguages = new Set<string>()
+
+/**
+ * Dynamically loads a Prism language component if not already loaded
+ */
+async function loadLanguage(lang: string): Promise<void> {
+  const normalizedLang = normalizeLanguage(lang)
+  if (!normalizedLang) return
+
+  // Skip if already loaded
+  if (loadedLanguages.has(normalizedLang)) return
+
+  // Check if language is already available in Prism
+  if (Prism.languages[normalizedLang]) {
+    loadedLanguages.add(normalizedLang)
+    return
+  }
+
+  // Load the language component dynamically
+  const loader = languageImports[normalizedLang]
+  if (loader) {
+    try {
+      await loader()
+      loadedLanguages.add(normalizedLang)
+    } catch (error) {
+      console.warn(`Failed to load Prism language "${normalizedLang}":`, error)
+    }
+  }
+}
 
 /**
  * Maps BlockNote language identifiers to Prism language names
  */
 const languageMap: Record<string, string> = {
+  // JavaScript/TypeScript
   javascript: 'javascript',
   js: 'javascript',
   typescript: 'typescript',
   ts: 'typescript',
-  jsx: 'jsx',
-  tsx: 'tsx',
+  // Python
   python: 'python',
   py: 'python',
-  java: 'java',
-  c: 'c',
-  cpp: 'cpp',
-  'c++': 'cpp',
-  csharp: 'csharp',
-  cs: 'csharp',
-  ruby: 'ruby',
-  rb: 'ruby',
+  // Go
   go: 'go',
-  rust: 'rust',
-  rs: 'rust',
-  swift: 'swift',
-  kotlin: 'kotlin',
-  php: 'php',
+  golang: 'go',
+  // Shell
   bash: 'bash',
   sh: 'bash',
   shell: 'bash',
-  sql: 'sql',
+  fish: 'bash', // Fish uses bash highlighting
+  // JSON
   json: 'json',
-  yaml: 'yaml',
-  yml: 'yaml',
+  // Markdown
   markdown: 'markdown',
   md: 'markdown',
+  // HTML/CSS
   html: 'markup',
   xml: 'markup',
-  css: 'css',
-  scss: 'scss',
-  sass: 'sass'
+  css: 'css'
 }
 
 /**
@@ -80,10 +99,27 @@ function normalizeLanguage(lang: string | undefined): string | undefined {
 }
 
 /**
- * Highlights code using Prism.js
+ * Highlights code using Prism.js with dynamic language loading
+ * @param code - The code to highlight
+ * @param language - Optional language identifier
+ * @returns HTML string with syntax highlighting
  */
-export function highlightCode(code: string, language?: string): string {
+export async function highlightCode(code: string, language?: string): Promise<string> {
+  // Check if Prism is available (should be, but safe guard in case of module loading issues)
+  if (typeof Prism === 'undefined' || !Prism) {
+    console.warn('Prism.js is not available, skipping highlighting')
+    // Return HTML-escaped code as fallback
+    const div = document.createElement('div')
+    div.textContent = code
+    return div.innerHTML
+  }
+
   const normalizedLang = normalizeLanguage(language)
+  
+  // Load language component if needed
+  if (normalizedLang) {
+    await loadLanguage(normalizedLang)
+  }
   
   if (normalizedLang && Prism.languages[normalizedLang]) {
     try {
@@ -94,14 +130,133 @@ export function highlightCode(code: string, language?: string): string {
   }
   
   // Fallback: escape HTML if no language or language not supported
-  return Prism.highlight(code, Prism.languages.plaintext || {}, 'plaintext')
+  const div = document.createElement('div')
+  div.textContent = code
+  return div.innerHTML
 }
 
 /**
- * Highlights all code blocks in a container element
+ * Synchronous version for backwards compatibility
+ * Note: This will not load languages dynamically - use highlightCode for that
+ */
+export function highlightCodeSync(code: string, language?: string): string {
+  if (typeof Prism === 'undefined' || !Prism) {
+    const div = document.createElement('div')
+    div.textContent = code
+    return div.innerHTML
+  }
+
+  const normalizedLang = normalizeLanguage(language)
+  
+  if (normalizedLang && Prism.languages[normalizedLang]) {
+    try {
+      return Prism.highlight(code, Prism.languages[normalizedLang], normalizedLang)
+    } catch (error) {
+      console.warn(`Failed to highlight code with language "${normalizedLang}":`, error)
+    }
+  }
+  
+  const div = document.createElement('div')
+  div.textContent = code
+  return div.innerHTML
+}
+
+/**
+ * BlockNote block structure (minimal type for language extraction)
+ */
+interface BlockNoteBlock {
+  id: string
+  type: string
+  props?: {
+    lang?: string
+  }
+  children?: BlockNoteBlock[]
+}
+
+/**
+ * BlockNote editor interface (minimal type for language extraction)
+ */
+interface BlockNoteEditorLike {
+  document?: BlockNoteBlock[]
+}
+
+/**
+ * Extracts language identifier from a code element
+ */
+function extractLanguage(
+  codeElement: Element,
+  preElement: Element | null,
+  editor?: BlockNoteEditorLike
+): string | undefined {
+  // Method 1: Try to get language from BlockNote editor instance
+  if (editor) {
+    try {
+      const codeBlockElement = preElement?.closest('[data-content-type="codeBlock"]') ||
+                              preElement?.closest('[data-node-type="codeBlock"]')
+      
+      if (codeBlockElement && editor.document) {
+        // Find the block ID from the DOM element
+        const blockId = codeBlockElement.getAttribute('data-id') ||
+                       codeBlockElement.getAttribute('id')?.replace('block-', '')
+        
+        if (blockId) {
+          // Find the block in the editor document
+          const findBlock = (blocks: BlockNoteBlock[]): BlockNoteBlock | null => {
+            for (const block of blocks) {
+              if (block.id === blockId && block.type === 'codeBlock') {
+                return block
+              }
+              if (block.children && block.children.length > 0) {
+                const found = findBlock(block.children)
+                if (found) return found
+              }
+            }
+            return null
+          }
+          
+          const block = findBlock(editor.document)
+          if (block && block.props?.lang) {
+            return block.props.lang
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to get language from editor:', error)
+    }
+  }
+  
+  // Method 2: Try to get language from class name (e.g., language-javascript)
+  const classMatch = Array.from(codeElement.classList).find(cls => cls.startsWith('language-'))
+  if (classMatch) {
+    return classMatch.replace('language-', '')
+  }
+  
+  // Method 3: Try to get language from data attributes
+  if (preElement) {
+    const codeBlockElement = preElement.closest('[data-content-type="codeBlock"], [data-node-type="codeBlock"]')
+    if (codeBlockElement) {
+      const lang = codeBlockElement.getAttribute('data-language') ||
+                   codeBlockElement.getAttribute('data-lang') ||
+                   preElement.getAttribute('data-language') ||
+                   preElement.getAttribute('data-lang') ||
+                   codeElement.getAttribute('data-language') ||
+                   codeElement.getAttribute('data-lang')
+      if (lang) return lang
+    }
+  }
+  
+  // Method 4: Try to get from lang attribute
+  return preElement?.getAttribute('lang') || codeElement.getAttribute('lang') || undefined
+}
+
+/**
+ * Highlights all code blocks in a container element with dynamic language loading
  * Works with BlockNote's code block structure
  */
-export function highlightCodeBlocks(container: HTMLElement, editor?: any) {
+export async function highlightCodeBlocks(
+  container: HTMLElement,
+  editor?: BlockNoteEditorLike
+): Promise<void> {
   // Find all code block containers
   const codeBlockSelectors = [
     'pre code',
@@ -110,88 +265,31 @@ export function highlightCodeBlocks(container: HTMLElement, editor?: any) {
     '[data-node-type="codeBlock"] code'
   ]
   
-  const codeBlocks = container.querySelectorAll(codeBlockSelectors.join(', '))
+  const codeBlocks = Array.from(container.querySelectorAll(codeBlockSelectors.join(', ')))
   
-  codeBlocks.forEach((codeElement) => {
-    // Skip if already highlighted
-    if (codeElement.querySelector('.token')) {
-      return
-    }
-    
-    const codeText = codeElement.textContent || ''
-    if (!codeText.trim()) {
-      return
-    }
-    
-    const preElement = codeElement.parentElement
-    let language: string | undefined
-    
-    // Method 1: Try to get language from BlockNote editor instance
-    if (editor) {
-      try {
-        const codeBlockElement = preElement?.closest('[data-content-type="codeBlock"]') ||
-                                preElement?.closest('[data-node-type="codeBlock"]')
-        
-        if (codeBlockElement && editor.document) {
-          // Find the block ID from the DOM element
-          const blockId = codeBlockElement.getAttribute('data-id') ||
-                         codeBlockElement.getAttribute('id')?.replace('block-', '')
-          
-          if (blockId) {
-            // Find the block in the editor document
-            const findBlock = (blocks: any[]): any => {
-              for (const block of blocks) {
-                if (block.id === blockId && block.type === 'codeBlock') {
-                  return block
-                }
-                if (block.children && block.children.length > 0) {
-                  const found = findBlock(block.children)
-                  if (found) return found
-                }
-              }
-              return null
-            }
-            
-            const block = findBlock(editor.document)
-            if (block && block.props?.lang) {
-              language = block.props.lang
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to get language from editor:', error)
+  // Process all code blocks in parallel for better performance
+  await Promise.all(
+    codeBlocks.map(async (codeElement) => {
+      // Skip if already highlighted by Prism, Shiki, or BlockNote
+      if (
+        codeElement.querySelector('.token') ||
+        codeElement.closest('.shiki') ||
+        codeElement.classList.contains('shiki') ||
+        codeElement.innerHTML !== codeElement.textContent
+      ) {
+        return
       }
-    }
-    
-    // Method 2: Try to get language from class name (e.g., language-javascript)
-    if (!language) {
-      const classMatch = Array.from(codeElement.classList).find(cls => cls.startsWith('language-'))
-      if (classMatch) {
-        language = classMatch.replace('language-', '')
+      
+      const codeText = codeElement.textContent || ''
+      if (!codeText.trim()) {
+        return
       }
-    }
-    
-    // Method 3: Try to get language from data attributes
-    if (!language && preElement) {
-      const codeBlockElement = preElement.closest('[data-content-type="codeBlock"], [data-node-type="codeBlock"]')
-      if (codeBlockElement) {
-        language = codeBlockElement.getAttribute('data-language') ||
-                   codeBlockElement.getAttribute('data-lang') ||
-                   preElement.getAttribute('data-language') ||
-                   preElement.getAttribute('data-lang') ||
-                   codeElement.getAttribute('data-language') ||
-                   codeElement.getAttribute('data-lang')
-      }
-    }
-    
-    // Method 4: Try to get from lang attribute
-    if (!language) {
-      language = preElement?.getAttribute('lang') || codeElement.getAttribute('lang')
-    }
-    
-    // Only highlight if we have text content
-    if (codeText) {
-      const highlighted = highlightCode(codeText, language)
+      
+      const preElement = codeElement.parentElement
+      const language = extractLanguage(codeElement, preElement, editor)
+      
+      // Load language and highlight
+      const highlighted = await highlightCode(codeText, language)
       
       // Only update if we got actual highlighting (not just escaped HTML)
       if (highlighted !== codeText) {
@@ -199,7 +297,10 @@ export function highlightCodeBlocks(container: HTMLElement, editor?: any) {
         
         // Add language class for styling
         if (language) {
-          codeElement.classList.add(`language-${normalizeLanguage(language)}`)
+          const normalized = normalizeLanguage(language)
+          if (normalized) {
+            codeElement.classList.add(`language-${normalized}`)
+          }
         }
         
         // Ensure parent pre element has proper class
@@ -207,7 +308,7 @@ export function highlightCodeBlocks(container: HTMLElement, editor?: any) {
           preElement.classList.add('bn-code-block-highlighted')
         }
       }
-    }
-  })
+    })
+  )
 }
 

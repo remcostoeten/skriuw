@@ -5,7 +5,7 @@
   "identifier": "com.skriuw.app",
   "build": {
     "frontendDist": "../dist/spa",
-    "devUrl": "http://localhost:8080",
+    "devUrl": "http://localhost:42069",
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build"
   },
