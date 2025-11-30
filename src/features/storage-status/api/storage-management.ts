@@ -1,6 +1,6 @@
 import { initializeAppStorage } from "@/app/storage";
-import { getDb } from "@/data/drizzle/client";
-import { notes, folders } from "@/data/drizzle/base-entities";
+import { getDb } from "@/api/db/db";
+import { notes, folders } from "@/api/db/schema";
 
 
 /**

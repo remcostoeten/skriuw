@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { bigint, pgTable, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, jsonb, timestamp } from "drizzle-orm/pg-core";
 
 export const profiles = pgTable("profiles", {
         id: text("id").primaryKey(),

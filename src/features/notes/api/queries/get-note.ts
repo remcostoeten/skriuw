@@ -1,12 +1,12 @@
-import { getDb } from "@/data/drizzle/client";
-import { getNoteByIdDb } from "@/data/drizzle/note-storage";
+import { getDb } from "@/api/db/db";
+import { getNoteById } from "@/api/db/note-storage";
 
 import type { Note } from "../../types";
 
 export async function getNote(id: string): Promise<Note | undefined> {
 	try {
 		const db = await getDb();
-		return await getNoteByIdDb(db, id);
+		return await getNoteById(db, id);
 	} catch (error) {
 		throw new Error(`Failed to get note: ${error instanceof Error ? error.message : String(error)}`);
 	}

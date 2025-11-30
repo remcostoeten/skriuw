@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 
-const schema = "./src/data/drizzle/base-entities.ts";
+const schema = "./src/api/db/schema.ts";
 const out = "./drizzle";
 
 if (!process.env.DATABASE_URL) {

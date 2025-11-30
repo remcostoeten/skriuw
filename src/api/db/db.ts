@@ -2,7 +2,7 @@
 import "../../utils/process-polyfill";
 import "../../utils/buffer-polyfill";
 
-import * as schema from "./base-entities";
+import * as schema from "./schema";
 
 import type { NoteDatabase } from "./note-storage";
 

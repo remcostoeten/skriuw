@@ -1,5 +1,6 @@
 import { initializeDefaultNotesAndFolders } from '@/features/notes/utils/initialize-defaults'
-import { getDb } from '@/data/drizzle/client'
+
+import { getDb } from '@/api/db/db'
 
 let initializationPromise: Promise<void> | null = null
 

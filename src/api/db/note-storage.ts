@@ -1,23 +1,23 @@
 import { eq } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 
-import * as schema from "./base-entities";
+
+import * as schema from "./schema";
 import {
         folders,
         notes,
-        revisions,
+revisions,
         type FolderRow,
         type NoteRow
-} from "./base-entities";
+} from "./schema";
 
 import type { Item, Folder, Note } from "@/features/notes/types";
 import type { Block } from "@blocknote/core";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export const NOTE_STORAGE_KEY = "Skriuw_notes";
 export const APP_SETTINGS_KEY = "app:settings";
 
-// Support both Neon (browser) and postgres-js (server) database types
 export type NoteDatabase = PostgresJsDatabase<typeof schema> | NeonHttpDatabase<typeof schema>;
 
 function now(): Date {
@@ -32,10 +32,8 @@ function dateToTimestamp(date: Date | null | undefined): number {
 function parseContent(content: unknown): Block[] {
         if (!content) return [];
         if (Array.isArray(content)) {
-                // Type guard to ensure it's actually a Block array
                 return content as Block[];
         }
-        // If it's a JSON string, try to parse it
         if (typeof content === 'string') {
                 try {
                         const parsed = JSON.parse(content);
@@ -48,8 +46,8 @@ function parseContent(content: unknown): Block[] {
 }
 
 function createId(prefix: string): string {
-        if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-                return `${prefix}_${crypto.randomUUID()}`;
+        if (typeof globalThis.crypto !== "undefined" && "randomUUID" in globalThis.crypto) {
+                return `${prefix}_${globalThis.crypto.randomUUID()}`;
         }
         return `${prefix}_${Math.random().toString(36).slice(2)}`;
 }
@@ -89,7 +87,7 @@ function flattenItems(items: Item[]): Item[] {
         return results;
 }
 
-export async function getItemByIdDb(
+export async function getItemById(
         db: NoteDatabase,
         id: string
 ): Promise<Item | undefined> {
@@ -97,12 +95,12 @@ export async function getItemByIdDb(
         if (noteRow) return mapNote(noteRow);
 
         const folderRow = await db.query.folders.findFirst({ where: eq(folders.id, id) });
-        if (folderRow) return mapFolder(folderRow);
+        if (folderRow) return mapFolder(folderRow as unknown as FolderRow);
 
         return undefined;
 }
 
-export async function getNoteTreeDb(db: NoteDatabase): Promise<Item[]> {
+export async function getNoteTree(db: NoteDatabase): Promise<Item[]> {
         const [folderRows, noteRows] = await Promise.all([
                 db.select().from(folders),
                 db.select().from(notes)
@@ -115,26 +113,30 @@ export async function getNoteTreeDb(db: NoteDatabase): Promise<Item[]> {
 
         folderMap.forEach(folder => {
                 if (folder.parentFolderId && folderMap.has(folder.parentFolderId)) {
-                        const parent = folderMap.get(folder.parentFolderId)!;
-                        parent.children.push(folder);
+                        const parent = folderMap.get(folder.parentFolderId);
+                        if (parent) {
+                                parent.children.push(folder);
+                        }
                 } else {
                         rootItems.push(folder);
                 }
         });
 
         noteRows.forEach(row => {
-                const note = mapNote(row);
+                const note = mapNote(row as unknown as NoteRow);
                 if (note.parentFolderId && folderMap.has(note.parentFolderId)) {
-                        folderMap.get(note.parentFolderId)!.children.push(note);
+                        const parent = folderMap.get(note.parentFolderId);
+                        if (parent) {
+                                (parent as Folder).children.push(note as unknown as Note);
+                        }
                 } else {
-                        rootItems.push(note);
+                        rootItems.push(note as unknown as Item);
                 }
         });
-
-        return rootItems;
+        return rootItems as Item[];
 }
 
-export async function createFolderRecordDb(
+export async function createFolderRecord(
         db: NoteDatabase,
         data: {
                 name: string;
@@ -158,10 +160,10 @@ export async function createFolderRecordDb(
                 parentFolderId: data.parentFolderId ?? null,
                 createdAt: timestamp,
                 updatedAt: timestamp
-        } as FolderRow);
+        } as unknown as FolderRow);
 }
 
-export async function createNoteRecordDb(
+export async function createNoteRecord(
         db: NoteDatabase,
         data: {
                 name: string;
@@ -192,7 +194,7 @@ export async function createNoteRecordDb(
         } as NoteRow);
 }
 
-export async function updateNoteRecordDb(
+export async function updateNoteRecord(
         db: NoteDatabase,
         id: string,
         data: Partial<{ name: string; content: Block[]; parentFolderId: string | null }>
@@ -232,7 +234,7 @@ export async function updateNoteRecordDb(
         });
 }
 
-export async function renameItemRecordDb(
+export async function renameItemRecord(
         db: NoteDatabase,
         id: string,
         newName: string
@@ -254,7 +256,7 @@ export async function renameItemRecordDb(
         return undefined;
 }
 
-export async function moveItemRecordDb(
+export async function moveItemRecord(
         db: NoteDatabase,
         id: string,
         targetFolderId: string | null
@@ -280,7 +282,7 @@ export async function moveItemRecordDb(
         return false;
 }
 
-export async function deleteItemRecordDb(db: NoteDatabase, id: string): Promise<boolean> {
+export async function deleteItemRecord(db: NoteDatabase, id: string): Promise<boolean> {
         const noteResult = await db.delete(notes).where(eq(notes.id, id));
         if (noteResult && (noteResult as any).rowCount > 0) {
                 return true;
@@ -294,7 +296,7 @@ export async function deleteItemRecordDb(db: NoteDatabase, id: string): Promise<
         return false;
 }
 
-export async function readNoteEntitiesDb(
+export async function readNoteEntities(
         db: NoteDatabase,
         options?: {
                 getById?: string;
@@ -303,10 +305,10 @@ export async function readNoteEntitiesDb(
         }
 ): Promise<Item[] | Item | undefined> {
         if (options?.getById) {
-                return getItemByIdDb(db, options.getById);
+                return getItemById(db, options.getById);
         }
 
-        const items = await getNoteTreeDb(db);
+        const items = await getNoteTree(db);
         if (options?.filter || options?.sort) {
                 const flatItems = flattenItems(items);
                 const filtered = options.filter ? flatItems.filter(options.filter) : flatItems;
@@ -321,17 +323,17 @@ export async function readNoteEntitiesDb(
         return items;
 }
 
-export async function getNotesByFolderDb(
+export async function getNotesByFolder(
         db: NoteDatabase,
         parentFolderId?: string
 ): Promise<Note[]> {
         const noteRows = parentFolderId
                 ? await db.query.notes.findMany({ where: eq(notes.folderId, parentFolderId) })
                 : await db.query.notes.findMany();
-        return noteRows.map(mapNote);
+        return noteRows.map(row => mapNote(row as NoteRow));
 }
 
-export async function getNoteByIdDb(db: NoteDatabase, id: string): Promise<Note | undefined> {
+export async function getNoteById(db: NoteDatabase, id: string): Promise<Note | undefined> {
         const noteRow = await db.query.notes.findFirst({ where: eq(notes.id, id) });
         return noteRow ? mapNote(noteRow) : undefined;
 }

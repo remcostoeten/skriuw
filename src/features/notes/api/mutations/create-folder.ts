@@ -1,12 +1,12 @@
-import { getDb } from "@/data/drizzle/client";
-import { createFolderRecordDb } from "@/data/drizzle/note-storage";
+import { getDb } from "@/api/db/db";
+import { createFolderRecord } from "@/api/db/note-storage";
 
 import type { Folder, CreateFolderData } from "../../types";
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
 	try {
 		const db = await getDb();
-		return await createFolderRecordDb(db, {
+		return await createFolderRecord(db, {
 			name: data.name,
 			parentFolderId: data.parentFolderId,
 		});

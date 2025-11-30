@@ -2,8 +2,8 @@
  * Simple storage functions for key-value pairs using Postgres (server) or localStorage (browser)
  * Replaces the old generic CRUD layer for simple storage needs
  */
-import { getDb } from "@/data/drizzle/client";
-import { genericStorage } from "@/data/drizzle/base-entities";
+import { getDb } from "@/api/db/db";
+import { genericStorage } from "@/api/db/schema";
 import { eq } from "drizzle-orm";
 
 const isBrowser = typeof window !== "undefined";

@@ -2,20 +2,20 @@ import type { Block } from "@blocknote/core";
 
 import type { Item, Note } from "@/features/notes/types";
 
-import { getDb } from "./client";
+import { getDb } from "./db";
 import {
         NOTE_STORAGE_KEY,
-        createFolderRecordDb,
-        createNoteRecordDb,
-        deleteItemRecordDb,
-        getItemByIdDb,
-        getNoteByIdDb,
-        getNoteTreeDb,
-        getNotesByFolderDb,
-        moveItemRecordDb,
-        readNoteEntitiesDb,
-        renameItemRecordDb,
-        updateNoteRecordDb
+        createFolderRecord as createFolderRecordDb,
+        createNoteRecord as createNoteRecordDb,
+        deleteItemRecord as deleteItemRecordDb,
+        getItemById as getItemByIdDb,
+        getNoteById as getNoteByIdDb,
+        getNoteTree as getNoteTreeDb,
+        getNotesByFolder as getNotesByFolderDb,
+        moveItemRecord as moveItemRecordDb,
+        readNoteEntities as readNoteEntitiesDb,
+        renameItemRecord as renameItemRecordDb,
+        updateNoteRecord as updateNoteRecordDb
 } from "./note-storage";
 
 export { NOTE_STORAGE_KEY } from "./note-storage";
