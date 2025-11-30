@@ -4,6 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { EmptyState } from "@/shared/ui/empty-state";
 
 import { useEditor } from "../hooks/use-editor";
+import { createEditorSchema } from "../hooks/useEditorConfig";
 
 import { EditorWrapper } from "./editor-wrapper";
 
@@ -42,6 +43,7 @@ export function NoteViewer({
   ];
 
   const viewer = note ? BlockNoteEditor.create({
+    schema: createEditorSchema(),
     initialContent: note.content && note.content.length > 0 
       ? note.content 
       : defaultContent as Block[],

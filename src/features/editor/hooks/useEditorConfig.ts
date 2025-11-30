@@ -1,7 +1,21 @@
+import { BlockNoteSchema, createCodeBlockSpec } from '@blocknote/core'
+import { codeBlockOptions } from '@blocknote/code-block'
 import { useMemo } from 'react'
 
 import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handler'
 import { useSettings, useUserPreferences } from '@/features/settings'
+
+/**
+ * Creates a BlockNote schema with syntax highlighting enabled for code blocks
+ */
+export function createEditorSchema() {
+    const codeBlock = createCodeBlockSpec(codeBlockOptions)
+    return BlockNoteSchema.create().extend({
+        blockSpecs: {
+            codeBlock
+        }
+    })
+}
 
 /**
  * Hook for configuring BlockNote editor based on user settings
@@ -17,7 +31,11 @@ export function useEditorConfig() {
     const maxWidth = 'full'
 
     const editorConfig = useMemo(() => {
+        // Create schema with syntax highlighting enabled for code blocks
+        const schema = createEditorSchema()
+
         const config: Record<string, any> = {
+            schema,
             theme: 'dark',
             editorProps: {
                 attributes: {

@@ -9,24 +9,29 @@ import {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
-import { useNotes } from '@/features/notes/hooks/use-notes'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
+
+import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
+import { useEditorTabs } from '@/features/editor/tabs'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { useNotes } from '@/features/notes/hooks/use-notes'
+import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { useSettings, useUserPreferences } from '@/features/settings'
-import { useEditorTabs } from '@/features/editor/tabs'
-import { useShortcut } from '@/features/shortcuts/use-shortcut'
-import { useUIStore } from '@/stores/ui-store'
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
 import { GlobalSearchDialog } from '@/features/search'
+import { useSettings, useUserPreferences } from '@/features/settings'
+import { useShortcut } from '@/features/shortcuts/use-shortcut'
 
+import { DevWidget } from '@/components/dev-widget'
 import { Footer } from '@/components/layout/footer'
 import { TopToolbar } from '@/components/layout/top-toolbar'
 import { LeftToolbar } from '@/components/left-toolbar'
 import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 import { SidebarMenu } from '@/components/sidebar-menu'
-import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
+
+import { useUIStore } from '@/stores/ui-store'
+
+
 
 import { AppLayoutShell } from './app-layout-shell'
 
@@ -39,16 +44,6 @@ const Sidebar = lazy(() =>
 const ShortcutsSidebar = lazy(() =>
     import('@/features/shortcuts/components').then((mod) => ({
         default: mod.ShortcutsSidebar
-    }))
-)
-const StorageStatusToggle = lazy(() =>
-    import('@/features/storage-status').then((mod) => ({
-        default: mod.StorageStatusToggle
-    }))
-)
-const StorageStatusPanel = lazy(() =>
-    import('@/features/storage-status').then((mod) => ({
-        default: mod.StorageStatusPanel
     }))
 )
 
@@ -87,10 +82,7 @@ export function AppLayoutContainer({
         setShortcutsSidebarOpen,
         isSettingsOpen,
         toggleSettings,
-        setSettingsOpen,
-        isStorageStatusOpen,
-        toggleStorageStatus,
-        setStorageStatusOpen
+        setSettingsOpen
     } = useUIStore()
     const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
     const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
@@ -286,10 +278,6 @@ export function AppLayoutContainer({
         toggleSettings()
     })
 
-    useShortcut('toggle-data-browser', (e) => {
-        e.preventDefault()
-        toggleStorageStatus()
-    })
 
     useShortcut('search-notes', (e) => {
         e.preventDefault()
@@ -388,17 +376,7 @@ export function AppLayoutContainer({
                         open={isSearchOpen}
                         onOpenChange={setIsSearchOpen}
                     />
-                    {!isMobile && (
-                        <Suspense fallback={null}>
-                            <StorageStatusToggle
-                                onClick={toggleStorageStatus}
-                            />
-                            <StorageStatusPanel
-                                isOpen={isStorageStatusOpen}
-                                onClose={() => setStorageStatusOpen(false)}
-                            />
-                        </Suspense>
-                    )}
+                    {import.meta.env.DEV && <DevWidget />}
                 </>
             }
             isRightPanelOpen={isShortcutsSidebarOpen}
