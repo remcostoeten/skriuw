@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 .config/
+
 !.env
 .env
 x.env
