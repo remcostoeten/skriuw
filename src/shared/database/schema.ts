@@ -30,3 +30,15 @@ export const settings = pgTable('settings', {
   value: text('value').notNull(),
   updatedAt: integer('updated_at').notNull()
 })
+
+export const tasks = pgTable('tasks', {
+  id: text('id').primaryKey(),
+  noteId: text('note_id').notNull(),
+  blockId: text('block_id').notNull(), // BlockNote block ID
+  content: text('content').notNull(), // Task text content
+  checked: integer('checked').default(0).notNull(), // 0 = false, 1 = true
+  parentTaskId: text('parent_task_id'), // For nested subtasks
+  position: integer('position').default(0).notNull(), // Order within note
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull()
+})

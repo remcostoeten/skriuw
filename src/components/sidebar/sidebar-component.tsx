@@ -4,17 +4,22 @@ import { useNavigate } from "react-router-dom";
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from "@/shared/utilities/use-media-query";
 
-import { useNotes } from "@/features/notes/hooks/use-notes";
+import { NotesIcon } from "@/shared/ui/icons";
+import { useConfirmationPopover } from "@/shared/ui/confirmation-popover";
+
+import { cn } from "@/shared/utilities";
+
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import { useNotes } from "@/features/notes/hooks/use-notes";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import { SeedImportDialog } from "@/features/seed-importer/components/seed-import-dialog";
 import { useSeedDiscovery } from "@/features/seed-importer/hooks/use-seed-discovery";
 import { useSettings } from "@/features/settings";
 import { useShortcut } from "@/features/shortcuts";
 import { useContextMenuState } from "@/features/shortcuts/context-menu-context";
-import { useUIStore } from "@/stores/ui-store";
-import { useSelectionStore } from "@/stores/selection-store";
 
+import { useSelectionStore } from "@/stores/selection-store";
+import { useUIStore } from "@/stores/ui-store";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -29,11 +34,9 @@ import {
 } from "ui";
 
 import { ActionBar } from "../action-bar";
-import { BulkOperationsBar } from "./bulk-operations-bar";
-import { cn } from "@/shared/utilities";
 
 import { useSidebarContentType } from "./use-sidebar-content-type";
-import { NotesIcon } from "@/shared/ui/icons";
+
 
 import type { SidebarContentType } from "./types";
 import type { Folder as FolderType, Item } from "@/features/notes/types";
@@ -273,6 +276,9 @@ function FileTreeItem({
   // Selection store
   const { isSelected, toggleSelection, selectItem, clearSelection, getSelectedCount, getSelectedIds, setAnchor, selectRange, anchorId, lastSelectedId } = useSelectionStore();
   const isItemSelected = isSelected(item.id);
+
+  // Confirmation popover for bulk delete
+  const { showConfirm, ConfirmationPopover } = useConfirmationPopover();
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -528,9 +534,79 @@ function FileTreeItem({
     }
   }, [item.id, onDelete, onContextMenuOpenChange]);
 
+  // Helper to find item by ID
+  const findItemById = useCallback((id: string): Item | undefined => {
+    const findInItems = (itemList: Item[]): Item | undefined => {
+      for (const item of itemList) {
+        if (item.id === id) return item;
+        if (item.type === 'folder') {
+          const found = findInItems(item.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    return findInItems(allItems);
+  }, [allItems]);
+
   // Check if multiple items are selected for context menu
   const hasMultipleSelections = getSelectedCount() > 1;
   const isInCurrentSelection = isItemSelected || hasMultipleSelections;
+
+  // Check if there are notes in the selected items (for bulk favorite operations)
+  const hasNotesInSelection = useMemo(() => {
+    if (!hasMultipleSelections) return false;
+    const selectedIds = getSelectedIds();
+    return selectedIds.some(id => {
+      const item = findItemById(id);
+      return item?.type === 'note';
+    });
+  }, [hasMultipleSelections, getSelectedIds, findItemById]);
+
+  // Bulk favorite handlers
+  const handleBulkFavorite = useCallback(async () => {
+    const selectedIds = getSelectedIds();
+    for (const id of selectedIds) {
+      try {
+        const item = findItemById(id);
+        // Only favorite notes, skip folders
+        if (!item || item.type !== 'note') {
+          continue;
+        }
+        await onFavoriteNote(id, true);
+      } catch (error) {
+        console.error(`Failed to favorite item ${id}:`, error);
+      }
+    }
+    clearSelection();
+  }, [getSelectedIds, findItemById, onFavoriteNote, clearSelection]);
+
+  const handleBulkUnfavorite = useCallback(async () => {
+    const selectedIds = getSelectedIds();
+    for (const id of selectedIds) {
+      try {
+        const item = findItemById(id);
+        // Only unfavorite notes, skip folders
+        if (!item || item.type !== 'note') {
+          continue;
+        }
+        await onFavoriteNote(id, false);
+      } catch (error) {
+        console.error(`Failed to unfavorite item ${id}:`, error);
+      }
+    }
+    clearSelection();
+  }, [getSelectedIds, findItemById, onFavoriteNote, clearSelection]);
+
+  // Check if there are notes in the selected items (for bulk favorite operations)
+  const hasNotesInSelection = useMemo(() => {
+    if (!hasMultipleSelections) return false;
+    const selectedIds = getSelectedIds();
+    return selectedIds.some(id => {
+      const item = findItemById(id);
+      return item?.type === 'note';
+    });
+  }, [hasMultipleSelections, getSelectedIds, findItemById]);
 
   // Long-press handler for mobile
   const handleTouchStart = useCallback((e: TouchEvent<HTMLButtonElement>) => {
@@ -763,7 +839,7 @@ function FileTreeItem({
                     data-item-name
                   >
                     {item.pinned && (
-                      <Pin className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                      <Pin className="w-3.5 h-3.5 text-muted-foreground/90 shrink-0" />
                     )}
                     {!isFolder && item.favorite && (
                       <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
@@ -863,7 +939,36 @@ function FileTreeItem({
             </>
           )}
         </ContextMenuItem>
-        {!isFolder && (
+        {hasMultipleSelections && hasNotesInSelection ? (
+          <>
+            <ContextMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBulkFavorite();
+              }}
+              className={cn(
+                "h-8 text-xs font-base min-h-[36px]",
+                isMobile && "h-12 text-sm px-4"
+              )}
+            >
+              <Star className={cn("w-4 h-4 mr-3 shrink-0", isMobile && "w-5 h-5")} />
+              Add to favorites
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBulkUnfavorite();
+              }}
+              className={cn(
+                "h-8 text-xs font-base min-h-[36px]",
+                isMobile && "h-12 text-sm px-4"
+              )}
+            >
+              <Star className={cn("w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400", isMobile && "w-5 h-5")} />
+              Remove from favorites
+            </ContextMenuItem>
+          </>
+        ) : !isFolder && (
           <ContextMenuItem
             onClick={(e) => {
               e.stopPropagation();
@@ -887,41 +992,55 @@ function FileTreeItem({
             )}
           </ContextMenuItem>
         )}
-        {(isFolder || getSelectedCount() > 1) && (
-          <ContextMenuSub>
-            <ContextMenuSubTrigger className={cn(
-              "h-7 text-xs font-base min-h-[36px]",
-              isMobile && "h-12 text-sm px-4"
-            )}>
-              <FolderOpen className={cn("w-3.5 h-3.5 mr-2", isMobile && "w-5 h-5")} />
-              {getSelectedCount() > 1 ? `Move ${getSelectedCount()} items to...` : 'Move folder to...'}
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent className={cn(
-              isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
-            )}>
-              <MoveFolderMenu
-                currentFolderId={item.id}
-                allItems={allItems}
-                onMoveItem={onMoveItem}
-                isMobile={isMobile}
-                selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
-                onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
-              />
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-        )}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className={cn(
+            "h-7 text-xs font-base min-h-[36px]",
+            isMobile && "h-12 text-sm px-4"
+          )}>
+            <FolderOpen className={cn("w-3.5 h-3.5 mr-2", isMobile && "w-5 h-5")} />
+            {getSelectedCount() > 1 
+              ? `Move ${getSelectedCount()} items to...`
+              : isFolder 
+                ? 'Move folder to...' 
+                : 'Move to...'}
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className={cn(
+            isMobile && "w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2"
+          )}>
+            <MoveFolderMenu
+              currentFolderId={item.id}
+              allItems={allItems}
+              onMoveItem={onMoveItem}
+              isMobile={isMobile}
+              selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
+              onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
+            />
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={async () => {
+          onClick={(e) => {
             const selectedCount = getSelectedCount();
             if (selectedCount > 1) {
               const selectedIds = getSelectedIds();
-              if (confirm(`Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-                for (const id of selectedIds) {
-                  await onDelete(id);
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              showConfirm({
+                title: `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}?`,
+                description: 'This action cannot be undone.',
+                variant: 'destructive',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                position: {
+                  x: rect.left + rect.width / 2,
+                  y: rect.top
+                },
+                onConfirm: async () => {
+                  for (const id of selectedIds) {
+                    await onDelete(id);
+                  }
+                  clearSelection();
                 }
-                clearSelection();
-              }
+              });
             } else {
               onDelete(item.id);
             }
@@ -980,6 +1099,7 @@ function FileTreeItem({
           ))}
         </div>
       )}
+      <ConfirmationPopover />
     </ContextMenu>
   );
 }
@@ -1023,6 +1143,9 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
     getSelectedCount,
     getSelectedIds
   } = useSelectionStore();
+
+  // Confirmation popover for keyboard-triggered bulk delete
+  const { showConfirm, ConfirmationPopover: SidebarConfirmationPopover } = useConfirmationPopover();
 
   // Load expanded folders from localStorage
   useEffect(() => {
@@ -1467,15 +1590,23 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
       // Delete key for bulk delete
       if (e.key === 'Delete' && getSelectedCount() > 0) {
         e.preventDefault();
+        const count = getSelectedCount();
         const ids = getSelectedIds();
-        if (confirm(`Delete ${getSelectedCount()} item${getSelectedCount() !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-          for (const id of ids) {
-            deleteItem(id).catch(error => {
-              console.error(`Failed to delete item ${id}:`, error);
-            });
+        showConfirm({
+          title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
+          description: 'This action cannot be undone.',
+          variant: 'destructive',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          onConfirm: async () => {
+            for (const id of ids) {
+              deleteItem(id).catch(error => {
+                console.error(`Failed to delete item ${id}:`, error);
+              });
+            }
+            clearSelection();
           }
-          clearSelection();
-        }
+        });
         return;
       }
     };
@@ -1587,8 +1718,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
         seeds={seeds}
         onImport={handleSeedImportComplete}
       />
-
-      <BulkOperationsBar items={items} />
+      <SidebarConfirmationPopover />
     </div>
   );
 }

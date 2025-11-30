@@ -1,18 +1,22 @@
-import { BlockNoteSchema, createCodeBlockSpec } from '@blocknote/core'
 import { codeBlockOptions } from '@blocknote/code-block'
+import { BlockNoteSchema, createCodeBlockSpec } from '@blocknote/core'
 import { useMemo } from 'react'
 
 import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handler'
 import { useSettings, useUserPreferences } from '@/features/settings'
 
+import { taskBlockSpec } from '../blocks/task-block'
+
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
+ * and custom task blocks
  */
 export function createEditorSchema() {
     const codeBlock = createCodeBlockSpec(codeBlockOptions)
     return BlockNoteSchema.create().extend({
         blockSpecs: {
-            codeBlock
+            codeBlock,
+            task: taskBlockSpec() // createReactBlockSpec returns a function that needs to be called
         }
     })
 }
@@ -36,7 +40,7 @@ export function useEditorConfig() {
 
         const config: Record<string, any> = {
             schema,
-            theme: 'dark',
+            theme: 'dark' as const,
             editorProps: {
                 attributes: {
                     class: 'prose prose-lg max-w-none focus:outline-none',
@@ -49,20 +53,19 @@ export function useEditorConfig() {
                         whiteSpace: hasWordWrap ? 'pre-wrap' : 'pre'
                     },
                     spellcheck: hasSpellCheck ? 'true' : 'false'
-                }
-            },
+                },
+                // Editor behavior settings
+                autoFocus: false,
+                placeholder: placeholder ?? 'Start typing your note...',
+                enableInputRules: hasMarkdownShortcuts,
+                enablePasteRules: hasMarkdownShortcuts,
+                enableSlashCommands: true, // Always enable slash commands regardless of markdown shortcuts
 
-            // Editor behavior settings
-            autoFocus: false,
-            placeholder: placeholder ?? 'Start typing your note...',
-            enableInputRules: hasMarkdownShortcuts,
-            enablePasteRules: hasMarkdownShortcuts,
-            enableSlashCommands: true, // Always enable slash commands regardless of markdown shortcuts
-
-            // Custom paste handler for markdown/MDX content
-            // Uses BlockNote's official pasteHandler API
-            // See: https://www.blocknotejs.org/docs/reference/editor/paste-handling
-            pasteHandler: createPasteHandler()
+                // Custom paste handler for markdown/MDX content
+                // Uses BlockNote's official pasteHandler API
+                // See: https://www.blocknotejs.org/docs/reference/editor/paste-handling
+                pasteHandler: createPasteHandler()
+            }
         }
 
         // Enable suggestion menus (slash commands) by default

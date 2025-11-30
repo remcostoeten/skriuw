@@ -4,9 +4,12 @@ import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 're
 import '@blocknote/core/fonts/inter.css'
 import '@blocknote/core/style.css'
 import '@blocknote/react/style.css'
-import { useUserPreferences, useSettings } from '@/features/settings'
-import { DualModeEditor } from './default-mode-editor'
+
 import { highlightCodeBlocks } from '@/features/editor/utils/code-highlight'
+import { useUserPreferences, useSettings } from '@/features/settings'
+
+import { DualModeEditor } from './default-mode-editor'
+import { TaskCheckboxReplacer } from './task-checkbox-replacer'
 
 type props = {
     editor: BlockNoteEditor | null
@@ -45,14 +48,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
 
                 const handleContentChange = () => {
                     setEditorContent(editor.document)
-                    
-                    if (editorRef.current) {
-                        setTimeout(() => {
-                            highlightCodeBlocks(editorRef.current!, editor).catch((error) => {
-                                console.warn('Failed to highlight code blocks:', error)
-                            })
-                        }, 0)
-                    }
+                    // Don't highlight here - let the MutationObserver handle it to avoid double processing
                 }
 
                 editor.onEditorContentChange(handleContentChange)
@@ -63,18 +59,72 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         useEffect(() => {
             if (!editorRef.current || hasRawMDXMode || !editor) return
 
-            const highlight = () => {
-                highlightCodeBlocks(editorRef.current!, editor).catch((error) => {
+            let isHighlighting = false
+            let debounceTimeout: NodeJS.Timeout | null = null
+
+            const highlight = async () => {
+                // Prevent recursive calls
+                if (isHighlighting) return
+                
+                isHighlighting = true
+                try {
+                    await highlightCodeBlocks(editorRef.current!, editor)
+                } catch (error) {
                     console.warn('Failed to highlight code blocks:', error)
-                })
+                } finally {
+                    isHighlighting = false
+                }
+            }
+
+            // Debounced highlight function
+            const debouncedHighlight = () => {
+                if (debounceTimeout) {
+                    clearTimeout(debounceTimeout)
+                }
+                debounceTimeout = setTimeout(highlight, 300)
             }
 
             // Initial highlight
             const timeoutId = setTimeout(highlight, 200)
 
             // Watch for DOM changes (BlockNote renders blocks dynamically)
-            const observer = new MutationObserver(() => {
-                highlight()
+            // Only watch for code blocks being added, not all changes
+            const observer = new MutationObserver((mutations) => {
+                // Check if any mutation involves code blocks
+                const hasCodeBlockChange = mutations.some((mutation) => {
+                    if (mutation.type === 'childList') {
+                        // Check added nodes
+                        for (const node of Array.from(mutation.addedNodes)) {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                const element = node as Element
+                                if (
+                                    element.querySelector?.('[data-content-type="codeBlock"]') ||
+                                    element.querySelector?.('.bn-code-block') ||
+                                    element.querySelector?.('pre code') ||
+                                    element.matches?.('[data-content-type="codeBlock"]') ||
+                                    element.matches?.('.bn-code-block')
+                                ) {
+                                    return true
+                                }
+                            }
+                        }
+                        // Check if mutation target is a code block
+                        if (mutation.target.nodeType === Node.ELEMENT_NODE) {
+                            const target = mutation.target as Element
+                            if (
+                                target.closest?.('[data-content-type="codeBlock"]') ||
+                                target.closest?.('.bn-code-block')
+                            ) {
+                                return true
+                            }
+                        }
+                    }
+                    return false
+                })
+
+                if (hasCodeBlockChange) {
+                    debouncedHighlight()
+                }
             })
 
             observer.observe(editorRef.current, {
@@ -84,6 +134,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
 
             return () => {
                 clearTimeout(timeoutId)
+                if (debounceTimeout) {
+                    clearTimeout(debounceTimeout)
+                }
                 observer.disconnect()
             }
         }, [editorContent, hasRawMDXMode, editor])
@@ -138,6 +191,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
                     showFormattingToolbar={showFormattingToolbar}
                     className="w-full h-full"
                 />
+                <TaskCheckboxReplacer editor={editor} editorContainerRef={editorRef} />
                 <style>{`
         .editor-container {
           background: transparent !important;
@@ -366,6 +420,18 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(
         }
         .editor-container [contenteditable]:focus {
           outline: none;
+        }
+        /* Custom Task Block Styles */
+        .editor-container .bn-task-block {
+          margin: 0.5rem 0;
+          padding: 0.25rem 0;
+        }
+        .editor-container .bn-task-block:hover {
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 0.25rem;
+        }
+        .editor-container .bn-task-block[data-content-type="task"] {
+          position: relative;
         }
         .skriuw-mention-menu {
           display: flex;

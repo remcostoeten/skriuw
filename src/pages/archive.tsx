@@ -1,13 +1,17 @@
+import { Download, Archive, Upload } from 'lucide-react'
 import { useState } from 'react'
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { AppLayoutContainer } from '@/components/layout/app-layout-container'
+
 import { SeedImportDialog } from '@/features/seed-importer/components/seed-import-dialog'
 import { useSeedDiscovery } from '@/features/seed-importer/hooks/use-seed-discovery'
-import { Download, Archive, Upload } from 'lucide-react'
+
+import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 export default function Archive() {
   const [showSeedImport, setShowSeedImport] = useState(false)
-  const [activeTab, setActiveTab] = useState('import')
+  // Start with 'archived' tab to avoid loading seeds on initial mount
+  const [activeTab, setActiveTab] = useState('archived')
   // Only load seeds when import tab is active to save memory
   const { seeds = [], loading = false, error = null } = useSeedDiscovery({ enabled: activeTab === 'import' })
 

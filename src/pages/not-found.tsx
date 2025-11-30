@@ -16,12 +16,15 @@ export default function NotFound() {
         )
     }, [location.pathname, location.search])
 
+
+    const ErrStr = () => <span className='text-destructive'>{location.pathname}</span>
+
     return (
         <AppLayoutContainer>
             <EmptyState
                 message="404 - Page Not Found"
                 isFull
-                submessage={`The route "${location.pathname}" does not exist.`}
+                submessage={`The route "${ErrStr()}" does not exist.`}
                 actions={[
                     {
                         label: 'Return to Home',

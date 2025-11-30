@@ -56,19 +56,25 @@ export function SettingsProvider({
 
     useEffect(() => {
         const root = window.document.documentElement
-        root.classList.remove('light', 'dark')
-
+        
+        // Determine the actual theme to apply
+        let themeToApply: string
         if (settings.theme === 'system') {
-            const systemTheme = window.matchMedia(
+            themeToApply = window.matchMedia(
                 '(prefers-color-scheme: dark)'
             ).matches
                 ? 'dark'
                 : 'light'
-            root.classList.add(systemTheme)
-            return
+        } else {
+            themeToApply = settings.theme
         }
 
-        root.classList.add(settings.theme)
+        // Only update if the theme class is not already applied
+        // This prevents unnecessary DOM manipulation and potential flash
+        if (!root.classList.contains(themeToApply)) {
+            root.classList.remove('light', 'dark')
+            root.classList.add(themeToApply)
+        }
     }, [settings.theme])
 
     const loadSettings = async () => {
