@@ -1,11 +1,11 @@
-import { Suspense, lazy, useState, useMemo } from 'react'
+import { Suspense, lazy, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { EmptyState } from '@/shared/ui/empty-state'
 
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { useShortcut, shortcut } from '@/features/shortcuts'
 
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
@@ -119,4 +119,4 @@ export default function Index() {
             )}
         </>
     )
-}
+} 

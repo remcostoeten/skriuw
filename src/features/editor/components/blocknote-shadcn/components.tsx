@@ -2,6 +2,8 @@ import {
     type ComponentProps as BlockNoteComponentProps,
     type Components
 } from '@blocknote/react'
+import React, { forwardRef } from 'react'
+
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -10,10 +12,10 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator
 } from '@/shared/ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
 import { Input } from '@/shared/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
+
 import { cn } from '@/shared/utilities'
-import React, { forwardRef } from 'react'
 
 const ToolbarRoot = forwardRef<HTMLDivElement, BlockNoteComponentProps['FormattingToolbar']['Root']>(
     ({ className, children, onMouseEnter, onMouseLeave }, ref) => {

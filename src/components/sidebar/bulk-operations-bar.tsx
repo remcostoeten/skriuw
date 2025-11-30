@@ -1,6 +1,11 @@
-import { useCallback } from 'react'
 import { FolderOpen, Pin, Star, Trash2, X } from 'lucide-react'
+import { useCallback, useRef } from 'react'
+
+import { useConfirmationPopover } from '@/shared/ui/confirmation-popover'
+import { useNotificationPopover } from '@/shared/ui/notification-popover'
+
 import { useNotes } from '@/features/notes/hooks/use-notes'
+
 import { useSelectionStore } from '@/stores/selection-store'
 import { Button } from 'ui'
 
@@ -16,10 +21,13 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 
     const {
         deleteItem,
-        moveItem,
         pinItem,
         favoriteNote
     } = useNotes()
+
+    const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
+    const { showNotification, NotificationPopover } = useNotificationPopover()
+    const deleteButtonRef = useRef<HTMLButtonElement>(null)
 
     // Helper to find item by ID and determine its type
     const findItemById = useCallback((id: string): Item | undefined => {
@@ -36,25 +44,43 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
         return findInItems(items)
     }, [items])
 
-    const handleBulkDelete = useCallback(async () => {
+    const handleBulkDelete = useCallback(() => {
         const count = getSelectedCount()
-        if (confirm(`Delete ${count} item${count !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-            const ids = getSelectedIds()
-            for (const id of ids) {
-                try {
-                    await deleteItem(id)
-                } catch (error) {
-                    console.error(`Failed to delete item ${id}:`, error)
-                }
-            }
-            clearSelection()
-        }
-    }, [getSelectedCount, getSelectedIds, deleteItem, clearSelection])
+        const buttonRect = deleteButtonRef.current?.getBoundingClientRect()
+        const position = buttonRect ? {
+            x: buttonRect.left + buttonRect.width / 2,
+            y: buttonRect.top
+        } : undefined
 
-    const handleBulkMove = useCallback(async () => {
-        // This would open a move dialog, for now just show an alert
-        alert('Bulk move feature coming soon! Please use drag and drop for now.')
-    }, [])
+        showConfirm({
+            title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
+            description: 'This action cannot be undone.',
+            variant: 'destructive',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            position,
+            onConfirm: async () => {
+                const ids = getSelectedIds()
+                for (const id of ids) {
+                    try {
+                        await deleteItem(id)
+                    } catch (error) {
+                        console.error(`Failed to delete item ${id}:`, error)
+                    }
+                }
+                clearSelection()
+            }
+        })
+    }, [getSelectedCount, getSelectedIds, deleteItem, clearSelection, showConfirm])
+
+    const handleBulkMove = useCallback(() => {
+        // This would open a move dialog, for now just show a notification
+        showNotification({
+            message: 'Bulk move feature coming soon! Please use drag and drop for now.',
+            variant: 'info',
+            duration: 4000
+        })
+    }, [showNotification])
 
     const handleBulkPin = useCallback(async () => {
         const ids = getSelectedIds()
@@ -137,6 +163,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 
                 <div className="flex items-center gap-2 flex-wrap">
                     <Button
+                        ref={deleteButtonRef}
                         variant="outline"
                         size="sm"
                         onClick={handleBulkDelete}
@@ -211,6 +238,8 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
                     </Button>
                 </div>
             </div>
+            <ConfirmationPopover />
+            <NotificationPopover />
         </div>
     )
 }

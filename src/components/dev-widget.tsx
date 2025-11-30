@@ -55,25 +55,43 @@ export function DevWidget() {
         setIsLoadingSchema(true)
         try {
             let connected = false
+            let dialect = 'Not configured'
+
+            // Check if DATABASE_URL is configured
+            const databaseUrl = import.meta.env.VITE_DATABASE_URL || process.env.DATABASE_URL
+            
+            if (!databaseUrl) {
+                // No database configured - app is using localStorage
+                setDatabaseInfo({
+                    dialect: 'localStorage (no database)',
+                    connected: false,
+                    tables: []
+                })
+                setIsLoadingSchema(false)
+                return
+            }
 
             try {
                 const db = await getDatabase()
                 // Test connection by trying to query
                 await db.select().from(notes).limit(1)
                 connected = true
-            } catch {
+                dialect = 'neon/postgresql'
+            } catch (err) {
                 connected = false
+                dialect = 'neon/postgresql (connection failed)'
+                console.warn('Database connection test failed:', err)
             }
 
             setDatabaseInfo({
-                dialect: 'neon/postgresql',
+                dialect,
                 connected,
                 tables: [] // Will be populated in loadDatabaseSchema
             })
         } catch (error) {
             console.error('Failed to get database info:', error)
             setDatabaseInfo({
-                dialect: 'neon/postgresql',
+                dialect: 'Not configured',
                 connected: false
             })
         } finally {
@@ -271,21 +289,27 @@ export function DevWidget() {
                         {/* Database Info */}
                         {databaseInfo && (
                             <div>
-                                <div className="font-semibold mb-2">Database Status</div>
+                                <div className="font-semibold mb-2">Storage Status</div>
                                 <div className="bg-muted p-3 rounded space-y-1">
                                     <div className="flex items-center justify-between">
-                                        <span>Dialect:</span>
-                                        <span className="font-mono">{databaseInfo.dialect}</span>
+                                        <span>Storage Type:</span>
+                                        <span className="font-mono text-xs">{databaseInfo.dialect}</span>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span>Connected:</span>
-                                        <span className={cn(
-                                            'font-mono',
-                                            databaseInfo.connected ? 'text-green-500' : 'text-red-500'
-                                        )}>
-                                            {databaseInfo.connected ? 'Yes' : 'No'}
-                                        </span>
-                                    </div>
+                                    {databaseInfo.dialect.includes('localStorage') ? (
+                                        <div className="mt-2 p-2 bg-background rounded text-xs text-muted-foreground">
+                                            App is using localStorage. Database connection is not required.
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between">
+                                            <span>Connected:</span>
+                                            <span className={cn(
+                                                'font-mono',
+                                                databaseInfo.connected ? 'text-green-500' : 'text-red-500'
+                                            )}>
+                                                {databaseInfo.connected ? 'Yes' : 'No'}
+                                            </span>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={refreshDatabaseInfo}
                                         className="mt-2 px-2 py-1 bg-primary text-primary-foreground rounded text-xs hover:opacity-80"
