@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
+
 import { Checkbox } from '@/shared/primitives/checkbox'
+
 import type { BlockNoteEditor } from '@blocknote/core'
 
 interface TaskCheckboxReplacerProps {
@@ -162,9 +164,59 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
         // Initial replacement
         replaceTaskCheckboxes()
 
+        let isReplacing = false
+        let debounceTimeout: NodeJS.Timeout | null = null
+
+        // Debounced replacement function to prevent infinite loops
+        const debouncedReplace = () => {
+            if (isReplacing) return
+            
+            if (debounceTimeout) {
+                clearTimeout(debounceTimeout)
+            }
+            
+            debounceTimeout = setTimeout(() => {
+                isReplacing = true
+                try {
+                    replaceTaskCheckboxes()
+                } finally {
+                    isReplacing = false
+                }
+            }, 100)
+        }
+
         // Watch for new task items being added
-        const observer = new MutationObserver(() => {
-            replaceTaskCheckboxes()
+        // Only watch for list items being added, not all changes
+        const observer = new MutationObserver((mutations) => {
+            // Check if any mutation involves list items
+            const hasListItemChange = mutations.some((mutation) => {
+                if (mutation.type === 'childList') {
+                    // Check added nodes
+                    for (const node of Array.from(mutation.addedNodes)) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            const element = node as Element
+                            if (
+                                element.matches?.('[data-content-type="bulletListItem"]') ||
+                                element.querySelector?.('[data-content-type="bulletListItem"]')
+                            ) {
+                                return true
+                            }
+                        }
+                    }
+                    // Check if mutation target is a list item
+                    if (mutation.target.nodeType === Node.ELEMENT_NODE) {
+                        const target = mutation.target as Element
+                        if (target.matches?.('[data-content-type="bulletListItem"]')) {
+                            return true
+                        }
+                    }
+                }
+                return false
+            })
+
+            if (hasListItemChange) {
+                debouncedReplace()
+            }
         })
 
         if (editorContainerRef.current) {
@@ -176,13 +228,16 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 
         // Also listen to editor changes to update checkbox states
         const unsubscribe = editor.onChange(() => {
-            // Small delay to ensure DOM is updated
-            setTimeout(replaceTaskCheckboxes, 10)
+            // Small delay to ensure DOM is updated, but use debounced version
+            debouncedReplace()
         })
 
         return () => {
             observer.disconnect()
             unsubscribe()
+            if (debounceTimeout) {
+                clearTimeout(debounceTimeout)
+            }
             // Cleanup: unmount all React roots
             replacedCheckboxesRef.current.forEach(({ root }) => {
                 try {
