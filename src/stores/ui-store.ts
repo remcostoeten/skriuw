@@ -21,11 +21,6 @@ interface UIState {
     isSettingsOpen: boolean
     toggleSettings: () => void
     setSettingsOpen: (open: boolean) => void
-
-    // Storage status panel
-    isStorageStatusOpen: boolean
-    toggleStorageStatus: () => void
-    setStorageStatusOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -62,20 +57,11 @@ export const useUIStore = create<UIState>()(
                     isSettingsOpen: !state.isSettingsOpen,
                 })),
             setSettingsOpen: (open) => set({ isSettingsOpen: open }),
-
-            // Storage status panel - default closed, read from localStorage
-            isStorageStatusOpen: false,
-            toggleStorageStatus: () =>
-                set((state) => ({
-                    isStorageStatusOpen: !state.isStorageStatusOpen,
-                })),
-            setStorageStatusOpen: (open) => set({ isStorageStatusOpen: open }),
         }),
         {
             name: 'ui-storage',
             partialize: (state) => ({
                 isDesktopSidebarOpen: state.isDesktopSidebarOpen,
-                isStorageStatusOpen: state.isStorageStatusOpen,
             }),
         }
     )

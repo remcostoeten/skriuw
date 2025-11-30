@@ -7,7 +7,7 @@ import { Switch } from '@/shared/ui/switch'
 import { Slider } from '@/shared/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 
-import type { SettingsGroup, UserSetting } from '@/shared/data/types'
+import type { SettingsGroup, UserSetting } from '../types'
 
 interface SettingsGroupProps {
     group: SettingsGroup

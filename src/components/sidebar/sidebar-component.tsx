@@ -262,6 +262,7 @@ function FileTreeItem({
   const isDraggingRef = useRef(false);
   const dragTargetRef = useRef<string | null>(null);
   const touchDragStartTimeRef = useRef<number | null>(null);
+  const isTogglingFolderRef = useRef(false);
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolders.has(item.id);
@@ -433,6 +434,18 @@ function FileTreeItem({
       return;
     }
 
+    // Don't select if clicking on the folder icon area (check if the click originated from the icon)
+    if (isFolder && (e.target as HTMLElement).closest('[data-folder-icon]')) {
+      return;
+    }
+
+    // Don't select if we just toggled the folder (prevents selection when clicking folder icon)
+    if (isTogglingFolderRef.current) {
+      // Reset the flag since we've checked it
+      isTogglingFolderRef.current = false;
+      return;
+    }
+
     if (isFolder) {
       // Toggle folder when clicking on the button, but only if it has children
       if (hasChildren) {
@@ -459,9 +472,18 @@ function FileTreeItem({
 
   const handleFolderToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     if (!hasChildren) return;
+    // Mark that we're toggling to prevent selection in handleRowClick
+    isTogglingFolderRef.current = true;
     onToggleFolder(item.id);
     onSelectFolder(item.id);
+    // Reset the flag in the next event loop cycle
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        isTogglingFolderRef.current = false;
+      });
+    });
   };
 
   const handleKeyDown = useCallback(
@@ -588,8 +610,22 @@ function FileTreeItem({
     touchDragStartTimeRef.current = null;
   }, []);
 
-  const childCount = isFolder && item.type === "folder" ? item.children.length : 0;
-  const hasChildren = childCount > 0;
+  // Recursively count all items in a folder (including nested folders and their children)
+  const countAllItems = (folder: FolderType): number => {
+    let count = 0;
+    for (const child of folder.children) {
+      count += 1; // Count the child itself
+      if (child.type === 'folder') {
+        count += countAllItems(child); // Recursively count nested items
+      }
+    }
+    return count;
+  };
+
+  const childCount = isFolder && item.type === "folder" 
+    ? (item.name === "To Do" ? countAllItems(item) : item.children.length)
+    : 0;
+  const hasChildren = isFolder && item.type === "folder" && item.children.length > 0;
 
   return (
     <ContextMenu onOpenChange={handleContextMenuOpenChange}>

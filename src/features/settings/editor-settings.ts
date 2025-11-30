@@ -1,4 +1,4 @@
-import type { UserSetting, SettingsGroup } from "@/shared/data/types";
+import type { UserSetting, SettingsGroup } from "./types";
 
 /**
  * Editor-specific user settings

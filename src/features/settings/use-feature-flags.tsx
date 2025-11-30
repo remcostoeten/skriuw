@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 
 import { useSettingsContext } from './settings-provider'
 
-import type { UserSetting } from '@/shared/data/types'
+import type { UserSetting } from './types'
 
 /**
  * Hook for accessing and managing user preferences
