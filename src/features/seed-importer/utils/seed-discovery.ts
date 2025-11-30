@@ -1,6 +1,25 @@
 import type { ParsedSeed, SeedSource } from '../api/types'
 import { parseSeedModule, validateParsedSeed } from './seed-parser'
 
+// Lazy glob - only initialize when actually needed
+let seedModulesCache: Record<string, () => Promise<any>> | null = null
+
+function getSeedModules(): Record<string, () => Promise<any>> {
+  if (seedModulesCache) {
+    return seedModulesCache
+  }
+  
+  try {
+    seedModulesCache = import.meta.glob('../../../features/notes/seeds/**/*.{ts,js}', {
+      eager: false,
+    }) as Record<string, () => Promise<any>>
+    return seedModulesCache
+  } catch (globError) {
+    console.warn('Failed to use import.meta.glob for seed discovery:', globError)
+    return {}
+  }
+}
+
 /**
  * Discover all seed files using Vite's import.meta.glob
  * Loads seeds in batches to prevent memory issues
@@ -9,18 +28,22 @@ export async function discoverSeeds(): Promise<ParsedSeed[]> {
   const seeds: ParsedSeed[] = []
 
   try {
-    // Discover all TypeScript and JavaScript files in the seeds directory
-    // Use lazy loading to prevent browser crashes
-    const seedModules = import.meta.glob('../../../features/notes/seeds/**/*.{ts,js}', {
-      eager: false,
-    })
-    
+    // Only get the glob when actually needed
+    const seedModules = getSeedModules()
     const moduleEntries = Object.entries(seedModules)
-    const BATCH_SIZE = 5 // Load 5 seeds at a time to prevent memory issues
+    
+    // Limit total number of seeds to prevent memory issues
+    const MAX_SEEDS = 50
+    if (moduleEntries.length > MAX_SEEDS) {
+      console.warn(`Too many seed files (${moduleEntries.length}), limiting to ${MAX_SEEDS}`)
+    }
+    
+    const BATCH_SIZE = 3 // Reduced batch size to prevent memory issues
+    const entriesToProcess = moduleEntries.slice(0, MAX_SEEDS)
     
     // Load modules in batches instead of all at once
-    for (let i = 0; i < moduleEntries.length; i += BATCH_SIZE) {
-      const batch = moduleEntries.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < entriesToProcess.length; i += BATCH_SIZE) {
+      const batch = entriesToProcess.slice(i, i + BATCH_SIZE)
       
       const batchResults = await Promise.all(
         batch.map(async ([filePath, moduleLoader]) => {
@@ -56,6 +79,7 @@ export async function discoverSeeds(): Promise<ParsedSeed[]> {
     }
   } catch (error) {
     console.error('Failed to discover seeds:', error)
+    // Return empty array instead of throwing to prevent app crashes
   }
 
   return seeds
@@ -95,6 +119,8 @@ export async function refreshSeedCache(): Promise<ParsedSeed[]> {
 export function clearSeedCache(): void {
   cachedSeeds = null
   cacheTimestamp = 0
+  // Also clear the glob cache to free memory
+  seedModulesCache = null
 }
 
 /**

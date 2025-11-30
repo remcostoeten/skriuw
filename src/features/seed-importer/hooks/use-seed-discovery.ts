@@ -25,9 +25,11 @@ export function useSeedDiscovery(options: UseSeedDiscoveryOptions = {}) {
         ? await refreshSeedCache()
         : await getCachedSeeds()
 
-      setSeeds(discoveredSeeds)
+      setSeeds(discoveredSeeds || [])
     } catch (err) {
+      console.error('Error loading seeds:', err)
       setError(err instanceof Error ? err.message : 'Failed to discover seeds')
+      setSeeds([]) // Set empty array on error to prevent crashes
     } finally {
       setLoading(false)
     }
@@ -50,19 +52,32 @@ export function useSeedDiscovery(options: UseSeedDiscoveryOptions = {}) {
   }, [seeds, selectedSource, searchQuery])
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setSeeds([])
+      setLoading(false)
+      setError(null)
+      return
+    }
     
     let cancelled = false
     
-    loadSeeds().catch((err) => {
-      if (!cancelled) {
-        setError(err instanceof Error ? err.message : 'Failed to discover seeds')
-        setLoading(false)
-      }
-    })
+    // Add a small delay to prevent blocking the initial render
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return
+      
+      loadSeeds().catch((err) => {
+        if (!cancelled) {
+          console.error('Error in seed discovery effect:', err)
+          setError(err instanceof Error ? err.message : 'Failed to discover seeds')
+          setSeeds([]) // Set empty array on error to prevent crashes
+          setLoading(false)
+        }
+      })
+    }, 100) // Small delay to let the UI render first
     
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [loadSeeds, enabled])
 
