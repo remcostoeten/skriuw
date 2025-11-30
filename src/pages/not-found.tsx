@@ -4,8 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState } from '@/shared/ui/empty-state'
 
 import { AppLayoutContainer } from '@/components/layout/app-layout-container'
-import { logStorageEvent } from '@/features/storage-status/utils/storage-event-log'
-
 
 export default function NotFound() {
     const location = useLocation()
@@ -16,13 +14,6 @@ export default function NotFound() {
             '404 Error: User attempted to access non-existent route:',
             location.pathname
         )
-
-        logStorageEvent({
-            storageKey: '__router__',
-            eventType: 'route-error',
-            source: 'router',
-            description: `Route not found: ${location.pathname}${location.search}`
-        })
     }, [location.pathname, location.search])
 
     return (

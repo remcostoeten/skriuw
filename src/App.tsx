@@ -1,4 +1,5 @@
 import '@/styles/global.css'
+import 'prismjs/themes/prism-tomorrow.css'
 
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -14,4 +15,4 @@ const App = () => (
     </Providers>
 )
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root') as HTMLElement).render(<App />)
