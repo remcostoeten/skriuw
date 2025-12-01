@@ -11,5 +11,10 @@ export default {
   dbCredentials: {
     url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres',
   },
+  // Use migrations instead of push for better control
+  // push: {
+  //   // Auto-resolve conflicts by creating new columns
+  //   autoCreate: true,
+  // },
 } satisfies Config;
 
