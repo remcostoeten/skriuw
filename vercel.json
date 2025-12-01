@@ -3,6 +3,7 @@
   "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install",
   "framework": null,
+  "devCommand": null,
   "rewrites": [
     {
       "source": "/((?!api/).*)",
