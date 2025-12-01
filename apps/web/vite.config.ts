@@ -43,7 +43,10 @@ export default defineConfig(({ mode }) => ({
         'url',
         'events',
         'buffer',
-        'child_process'
+        'child_process',
+        '@tauri-apps/api',
+        '@tauri-apps/api/window',
+        '@tauri-apps/api/tauri'
       ],
       output: {
         globals: {
