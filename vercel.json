@@ -6,7 +6,18 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/(?!api).*",
+      "source": "/:path*",
+      "destination": "/index.html",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": "(?!text/html).*"
+        }
+      ]
+    },
+    {
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
