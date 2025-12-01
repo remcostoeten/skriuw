@@ -24,9 +24,8 @@ export async function getTasksForNote(noteId: string): Promise<Task[]> {
 
 	try {
 		// Lazy load database dependencies
-		const { getDatabase } = await import('@/shared/database/client')
+		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq } = await import('drizzle-orm')
-		const { tasks } = await import('@/shared/database/schema')
 		const db = await getDatabase()
 		const result = await db
 			.select()
@@ -58,9 +57,8 @@ export async function getTaskByBlockId(
 
 	try {
 		// Lazy load database dependencies
-		const { getDatabase } = await import('@/shared/database/client')
+		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq, and } = await import('drizzle-orm')
-		const { tasks } = await import('@/shared/database/schema')
 		const db = await getDatabase()
 		const result = await db
 			.select()
