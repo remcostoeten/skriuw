@@ -22,14 +22,12 @@ type props = {
 function StorageInitializer({ children }: props) {
 	const [isInitialized, setIsInitialized] = useState(false)
 	const [showSplash, setShowSplash] = useState(true)
-	const [storageReady, setStorageReady] = useState(false)
-	const [animationComplete, setAnimationComplete] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
 
 	useEffect(() => {
 		initializeAppStorage()
 			.then(() => {
-				setStorageReady(true)
+				setIsInitialized(true)
 				setError(null)
 			})
 			.catch((err) => {
@@ -39,16 +37,10 @@ function StorageInitializer({ children }: props) {
 			})
 	}, [])
 
-	// Wait for both storage and animation to complete
-	useEffect(() => {
-		if (storageReady && animationComplete) {
-			setShowSplash(false)
-			// NOTE: Short delay to allow for exit animations
-			setTimeout(() => {
-				setIsInitialized(true)
-			}, 400)
-		}
-	}, [storageReady, animationComplete])
+	const handleAnimationComplete = () => {
+		// Fade out splash screen when animation completes
+		setShowSplash(false)
+	}
 
 	if (error) {
 		return (
@@ -70,12 +62,11 @@ function StorageInitializer({ children }: props) {
 
 	return (
 		<>
+			{isInitialized ? children : <AppLayoutLoadingSkeleton />}
 			<SplashScreen 
 				show={showSplash} 
-				onAnimationComplete={() => setAnimationComplete(true)}
+				onAnimationComplete={handleAnimationComplete}
 			/>
-			{!isInitialized && !showSplash ? <AppLayoutLoadingSkeleton /> : null}
-			{isInitialized ? children : null}
 		</>
 	)
 }
