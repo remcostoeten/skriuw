@@ -17,6 +17,7 @@ interface BlurTextAnimationProps {
   textColor?: string;
   textClassName?: string;
   animationDelay?: number;
+  loop?: boolean; // Control whether animation should loop
 }
 
 export default function BlurTextAnimation({
@@ -27,7 +28,8 @@ export default function BlurTextAnimation({
   fontFamily = "font-['Avenir_Next',_'Avenir',_system-ui,_sans-serif]",
   textColor = "text-white",
   textClassName = "",
-  animationDelay = 4000
+  animationDelay = 4000,
+  loop = true // Default to looping for backward compatibility
 }: BlurTextAnimationProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout>();
@@ -73,9 +75,12 @@ export default function BlurTextAnimation({
       animationTimeoutRef.current = setTimeout(() => {
         setIsAnimating(false);
         
-        resetTimeoutRef.current = setTimeout(() => {
-          startAnimation();
-        }, animationDelay);
+        // Only loop if loop prop is true
+        if (loop) {
+          resetTimeoutRef.current = setTimeout(() => {
+            startAnimation();
+          }, animationDelay);
+        }
       }, (maxTime + 1) * 1000);
     };
 
@@ -85,7 +90,7 @@ export default function BlurTextAnimation({
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
       if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
     };
-  }, [textWords, animationDelay]);
+  }, [textWords, animationDelay, loop]);
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
