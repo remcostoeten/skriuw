@@ -70,17 +70,17 @@ function StorageInitializer({ children }: props) {
 
 export function Providers({ children }: props) {
         return (
-                <SettingsProvider>
-                        <ShortcutProvider>
-                                <ContextMenuProvider>
-                                        <TooltipProvider delayDuration={0}>
-                                                <SonnerToaster />
-                                                <StorageInitializer>
+                <TooltipProvider delayDuration={0}>
+                        <SonnerToaster />
+                        <StorageInitializer>
+                                <SettingsProvider>
+                                        <ShortcutProvider>
+                                                <ContextMenuProvider>
                                                         <EditorTabsProvider>{children}</EditorTabsProvider>
-                                                </StorageInitializer>
-                                        </TooltipProvider>
-                                </ContextMenuProvider>
-                        </ShortcutProvider>
-                </SettingsProvider>
+                                                </ContextMenuProvider>
+                                        </ShortcutProvider>
+                                </SettingsProvider>
+                        </StorageInitializer>
+                </TooltipProvider>
         )
 }
