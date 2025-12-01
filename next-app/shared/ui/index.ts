@@ -1,6 +1,6 @@
 export * from './alert-dialog';
 export * from './button';
-export * from './calendar';
+// export * from './calendar';
 export * from './card';
 export * from './command';
 export * from './confirmation-popover';
@@ -16,7 +16,7 @@ export * from './notification-popover';
 export * from './popover';
 export * from './select';
 export * from './skeleton';
-export * from './slider';
+// export * from './slider';
 export * from './switch';
 export * from './table';
 export * from './tabs';
