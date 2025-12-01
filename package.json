@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cd apps/web && pnpm dev",
     "dev:api": "vercel dev --listen 3000",
+    "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev\" --names \"API,WEB\" --prefix-colors \"blue,green\"",
     "build": "pnpm -r --filter '@skriuw/*' build",
     "build:web": "cd apps/web && pnpm build",
     "build:db": "cd packages/db && pnpm build",
@@ -27,6 +28,7 @@
     "@types/node": "^24.2.1",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.47.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
