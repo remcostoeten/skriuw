@@ -1,0 +1,11 @@
+{
+  "name": "@skriuw/api-vercel",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@skriuw/db": "workspace:*",
+    "@neondatabase/serverless": "^0.10.0",
+    "@vercel/node": "^5.5.13",
+    "drizzle-orm": "^0.44.7"
+  }
+}
