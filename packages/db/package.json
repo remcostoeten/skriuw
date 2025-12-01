@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "seed": "pnpm build && node seed.js",
     "seed:force": "pnpm build && node seed.js --force",
-    "seed:clear": "pnpm build && node seed.js --clear"
+    "seed:clear": "pnpm build && node seed.js --clear",
+    "reset": "tsx reset-schema.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.7",
