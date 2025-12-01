@@ -35,6 +35,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(result)
   } catch (error) {
     console.error('Database error:', error)
-    res.status(500).json({ error: 'Failed to fetch tasks' })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      method: req.method,
+      url: req.url,
+      query: req.query
+    })
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch tasks',
+      message: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
+    })
   }
 }
