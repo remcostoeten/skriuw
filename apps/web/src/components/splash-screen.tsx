@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
 import BlurTextAnimation from './blur-text-animation'
 
