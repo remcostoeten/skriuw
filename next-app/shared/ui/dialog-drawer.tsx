@@ -43,14 +43,14 @@ type DialogProps = {
     closeOnOutsideClick?: boolean
 }
 
-export function Dialog({
+export function DrawerDialog({
     children,
     open,
     onOpenChange,
     mobileBreakpoint = MOBILE_BREAKPOINT,
     closeOnEscape = true,
     closeOnOutsideClick = true
-}: DialogProps) {
+}: DrawerDialogProps) {
     const isMobile = useMediaQuery(mobileBreakpoint)
 
     useEffect(() => {
@@ -77,17 +77,17 @@ export function Dialog({
 
     return (
         <DialogContext.Provider value={{ open, onOpenChange, isMobile }}>
-            <DialogOverlay closeOnOutsideClick={closeOnOutsideClick} />
+            <DrawerDialogOverlay closeOnOutsideClick={closeOnOutsideClick} />
             {children}
         </DialogContext.Provider>
     )
 }
 
-type DialogOverlayProps = {
+type DrawerDialogOverlayProps = {
     closeOnOutsideClick?: boolean
 }
 
-function DialogOverlay({ closeOnOutsideClick = true }: DialogOverlayProps) {
+function DrawerDialogOverlay({ closeOnOutsideClick = true }: DrawerDialogOverlayProps) {
     const { open, onOpenChange } = useDialogContext()
 
     if (!open) return null
@@ -120,19 +120,19 @@ function DialogOverlay({ closeOnOutsideClick = true }: DialogOverlayProps) {
     )
 }
 
-type DialogContentProps = {
+type DrawerContentProps = {
     children: ReactNode
     className?: string
     enableDragToClose?: boolean
     dragThreshold?: number
 }
 
-export function DialogContent({
+export function DrawerContent({
     children,
     className = '',
     enableDragToClose = true,
     dragThreshold = 100
-}: DialogContentProps) {
+}: DrawerContentProps) {
     const { open, onOpenChange, isMobile } = useDialogContext()
     const contentRef = useRef<HTMLDivElement>(null)
     const [dragOffset, setDragOffset] = useState(0)
@@ -256,12 +256,12 @@ export function DialogContent({
     )
 }
 
-type DialogHeaderProps = {
+type DrawerHeaderProps = {
     children: ReactNode
     className?: string
 }
 
-export function DialogHeader({ children, className = '' }: DialogHeaderProps) {
+export function DrawerHeader({ children, className = '' }: DrawerHeaderProps) {
     return (
         <div className={`flex flex-col gap-1.5 pb-4 ${className}`}>
             {children}
@@ -269,12 +269,12 @@ export function DialogHeader({ children, className = '' }: DialogHeaderProps) {
     )
 }
 
-type DialogTitleProps = {
+type DrawerTitleProps = {
     children: ReactNode
     className?: string
 }
 
-export function DialogTitle({ children, className = '' }: DialogTitleProps) {
+export function DrawerTitle({ children, className = '' }: DrawerTitleProps) {
     return (
         <h2 className={`text-lg font-semibold text-foreground ${className}`}>
             {children}
@@ -282,15 +282,15 @@ export function DialogTitle({ children, className = '' }: DialogTitleProps) {
     )
 }
 
-type DialogCloseProps = {
+type DrawerCloseProps = {
     className?: string
     'aria-label'?: string
 }
 
-export function DialogClose({
+export function DrawerClose({
     className = '',
     'aria-label': ariaLabel = 'Close dialog'
-}: DialogCloseProps) {
+}: DrawerCloseProps) {
     const { onOpenChange } = useDialogContext()
 
     return (
@@ -305,12 +305,12 @@ export function DialogClose({
     )
 }
 
-type DialogFooterProps = {
+type DrawerFooterProps = {
     children: ReactNode
     className?: string
 }
 
-export function DialogFooter({ children, className = '' }: DialogFooterProps) {
+export function DrawerFooter({ children, className = '' }: DrawerFooterProps) {
     return (
         <div
             className={`flex items-center justify-end gap-2 pt-4 border-t border-border ${className}`}
@@ -320,7 +320,16 @@ export function DialogFooter({ children, className = '' }: DialogFooterProps) {
     )
 }
 
-type DialogAsideProps = {
+export type DrawerDialogProps = {
+    children: ReactNode
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    mobileBreakpoint?: string
+    closeOnEscape?: boolean
+    closeOnOutsideClick?: boolean
+}
+
+export type DialogAsideProps = {
     children: ReactNode
     className?: string
 }
@@ -338,7 +347,7 @@ export function DialogAside({ children, className }: DialogAsideProps) {
     )
 }
 
-type DialogSectionProps = {
+export type DialogSectionProps = {
     label?: string
     children: ReactNode
     className?: string
@@ -368,7 +377,7 @@ export function DialogSection({
     )
 }
 
-type DialogSeparatorProps = {
+export type DialogSeparatorProps = {
     className?: string
 }
 
@@ -382,7 +391,7 @@ export function DialogSeparator({ className }: DialogSeparatorProps) {
     )
 }
 
-type DialogContentAreaProps = {
+export type DialogContentAreaProps = {
     children: ReactNode
     className?: string
 }
@@ -411,7 +420,7 @@ type NavItem = {
     onClick: () => void
 }
 
-type DialogNavGroupProps = {
+export type DialogNavGroupProps = {
     label?: string
     items: Array<NavItem>
     className?: string
