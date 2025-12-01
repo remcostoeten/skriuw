@@ -21,8 +21,8 @@ function getEnvValue(key: string): string | undefined {
 	if (typeof process !== 'undefined' && process.env?.[key]) {
 		return process.env[key]
 	}
-	if (typeof import.meta !== 'undefined' && import.meta.env?.[key]) {
-		return import.meta.env[key]
+	if (typeof import.meta !== 'undefined' && (import.meta as any).env?.[key]) {
+		return (import.meta as any).env[key]
 	}
 	return undefined
 }
@@ -43,9 +43,9 @@ function detectProvider(url: string, explicitProvider?: string): DatabaseProvide
 
 export async function getDatabase() {
 	// Check if we're in a browser environment without database support
-	if (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && !import.meta.env?.SSR) {
+	if (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && !(import.meta as any).env?.SSR) {
 		// Check if localStorage adapter is being used
-		const storageAdapter = import.meta.env?.VITE_STORAGE_ADAPTER || 'localStorage'
+		const storageAdapter = (import.meta as any).env?.VITE_STORAGE_ADAPTER || 'localStorage'
 		if (storageAdapter === 'localStorage') {
 			throw new Error('Database not available in localStorage mode')
 		}
