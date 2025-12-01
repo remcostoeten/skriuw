@@ -33,9 +33,8 @@ export async function syncTasksToDatabase(
 
 	try {
 		// Lazy load database dependencies
-		const { getDatabase } = await import('@/shared/database/client')
+		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq, and } = await import('drizzle-orm')
-		const { tasks } = await import('@/shared/database/schema')
 		const db = await getDatabase()
 
 		// Get all existing tasks for this note
@@ -131,9 +130,8 @@ export async function deleteTasksForNote(noteId: string): Promise<void> {
 
 	try {
 		// Lazy load database dependencies
-		const { getDatabase } = await import('@/shared/database/client')
+		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq } = await import('drizzle-orm')
-		const { tasks } = await import('@/shared/database/schema')
 		const db = await getDatabase()
 		await db.delete(tasks).where(eq(tasks.noteId, noteId))
 	} catch (error) {
