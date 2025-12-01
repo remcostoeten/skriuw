@@ -18,6 +18,7 @@ interface BlurTextAnimationProps {
   textClassName?: string;
   animationDelay?: number;
   loop?: boolean; // Control whether animation should loop
+  onComplete?: () => void; // Callback when animation completes (only called when loop is false)
 }
 
 export default function BlurTextAnimation({
@@ -29,7 +30,8 @@ export default function BlurTextAnimation({
   textColor = "text-white",
   textClassName = "",
   animationDelay = 4000,
-  loop = true // Default to looping for backward compatibility
+  loop = true, // Default to looping for backward compatibility
+  onComplete
 }: BlurTextAnimationProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout>();
@@ -80,6 +82,11 @@ export default function BlurTextAnimation({
           resetTimeoutRef.current = setTimeout(() => {
             startAnimation();
           }, animationDelay);
+        } else {
+          // Call onComplete callback when animation finishes and loop is false
+          if (onComplete) {
+            onComplete();
+          }
         }
       }, (maxTime + 1) * 1000);
     };
