@@ -5,8 +5,6 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { EmptyState } from '@/shared/ui/empty-state'
 
-import { AppLayoutContainer } from '@/components/layout/app-layout-container'
-
 export default function NotFound() {
 	const pathname = usePathname()
 	const router = useRouter()
@@ -19,18 +17,16 @@ export default function NotFound() {
 	}, [pathname])
 
 	return (
-		<AppLayoutContainer>
-			<EmptyState
-				message="404 - Page Not Found"
-				isFull
-				submessage={`The route "${pathname}" does not exist.`}
-				actions={[
-					{
-						label: 'Return to Home',
-						onClick: () => router.push('/')
-					}
-				]}
-			/>
-		</AppLayoutContainer>
+		<EmptyState
+			message="404 - Page Not Found"
+			isFull
+			submessage={`The route "${pathname}" does not exist.`}
+			actions={[
+				{
+					label: 'Return to Home',
+					onClick: () => router.push('/')
+				}
+			]}
+		/>
 	)
 }

@@ -281,7 +281,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           )}
 
           {ripple && rippleActive && (
-            <div className="absolute inset-0 bg-[hsl(var(--checkbox-hover,var(--primary/20)))] rounded animate-ping" />
+            <div className="absolute inset-0 bg-[hsl(var(--checkbox-hover,var(--primary-20)))] rounded animate-ping" />
           )}
         </div>
       </div>
