@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { eq } from 'drizzle-orm'
-import { getDatabase, tasks } from '@skriuw/db'
+import { getDatabase, tasks } from '../../packages/db/src/index.js'
 
 // Serverless function for getting tasks for a note
 export default async function handler(req: VercelRequest, res: VercelResponse) {
