@@ -1,0 +1,19 @@
+{
+  "name": "@skriuw/api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'API functions are deployed directly by Vercel'",
+    "dev": "echo 'Use vercel dev for local development'"
+  },
+  "dependencies": {
+    "@skriuw/db": "workspace:*",
+    "@vercel/node": "^5.5.13",
+    "drizzle-orm": "^0.44.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "typescript": "^5.9.2"
+  }
+}
+
