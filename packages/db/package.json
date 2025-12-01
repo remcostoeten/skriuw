@@ -9,11 +9,15 @@
     "dev": "tsc --watch",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed": "pnpm build && node seed.js",
+    "seed:force": "pnpm build && node seed.js --force",
+    "seed:clear": "pnpm build && node seed.js --clear"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.7",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "@neondatabase/serverless": "^0.10.0"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
