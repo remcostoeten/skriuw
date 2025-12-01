@@ -22,17 +22,15 @@ type props = {
 function StorageInitializer({ children }: props) {
 	const [isInitialized, setIsInitialized] = useState(false)
 	const [showSplash, setShowSplash] = useState(true)
+	const [storageReady, setStorageReady] = useState(false)
+	const [animationComplete, setAnimationComplete] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
 
 	useEffect(() => {
 		initializeAppStorage()
 			.then(() => {
-				setShowSplash(false)
+				setStorageReady(true)
 				setError(null)
-				// NOTE: Short delay to allow for exit animations
-				setTimeout(() => {
-					setIsInitialized(true)
-				}, 400)
 			})
 			.catch((err) => {
 				console.error("Failed to initialize storage:", err)
@@ -40,6 +38,17 @@ function StorageInitializer({ children }: props) {
 				setIsInitialized(false)
 			})
 	}, [])
+
+	// Wait for both storage and animation to complete
+	useEffect(() => {
+		if (storageReady && animationComplete) {
+			setShowSplash(false)
+			// NOTE: Short delay to allow for exit animations
+			setTimeout(() => {
+				setIsInitialized(true)
+			}, 400)
+		}
+	}, [storageReady, animationComplete])
 
 	if (error) {
 		return (
@@ -61,7 +70,10 @@ function StorageInitializer({ children }: props) {
 
 	return (
 		<>
-			<SplashScreen show={showSplash} />
+			<SplashScreen 
+				show={showSplash} 
+				onAnimationComplete={() => setAnimationComplete(true)}
+			/>
 			{!isInitialized && !showSplash ? <AppLayoutLoadingSkeleton /> : null}
 			{isInitialized ? children : null}
 		</>
