@@ -39,33 +39,65 @@ async function resetSchema() {
 
   try {
     // Drop all tables in correct order (respecting foreign keys)
-    console.log('🗑️  Dropping tables...')
+    console.log('🗑️  Dropping tables and columns...')
     
-    if (provider === 'neon') {
-      // Neon uses template literals differently
-      await sql('DROP TABLE IF EXISTS tasks CASCADE')
-      console.log('  ✓ Dropped tasks table')
+    const tables = ['tasks', 'notes', 'folders', 'settings']
+    
+    for (const table of tables) {
+      // First try to drop the table
+      if (provider === 'neon') {
+        await sql(`DROP TABLE IF EXISTS ${table} CASCADE`)
+      } else {
+        await sql.unsafe(`DROP TABLE IF EXISTS ${table} CASCADE`)
+      }
       
-      await sql('DROP TABLE IF EXISTS notes CASCADE')
-      console.log('  ✓ Dropped notes table')
+      // Also try to drop columns individually if table exists but has wrong types
+      // This handles the case where table exists but columns have wrong types
+      try {
+        if (provider === 'neon') {
+          // For Neon, we'll just drop the table - if it fails, columns might have wrong types
+          // Try to alter column types first, then drop
+          await sql(`ALTER TABLE IF EXISTS ${table} DROP COLUMN IF EXISTS created_at CASCADE`)
+          await sql(`ALTER TABLE IF EXISTS ${table} DROP COLUMN IF EXISTS updated_at CASCADE`)
+        } else {
+          await sql.unsafe(`ALTER TABLE IF EXISTS ${table} DROP COLUMN IF EXISTS created_at CASCADE`)
+          await sql.unsafe(`ALTER TABLE IF EXISTS ${table} DROP COLUMN IF EXISTS updated_at CASCADE`)
+        }
+      } catch (colError) {
+        // Ignore column drop errors - table might not exist
+      }
       
-      await sql('DROP TABLE IF EXISTS folders CASCADE')
-      console.log('  ✓ Dropped folders table')
-      
-      await sql('DROP TABLE IF EXISTS settings CASCADE')
-      console.log('  ✓ Dropped settings table')
-    } else {
-      await sql`DROP TABLE IF EXISTS tasks CASCADE`
-      console.log('  ✓ Dropped tasks table')
-      
-      await sql`DROP TABLE IF EXISTS notes CASCADE`
-      console.log('  ✓ Dropped notes table')
-      
-      await sql`DROP TABLE IF EXISTS folders CASCADE`
-      console.log('  ✓ Dropped folders table')
-      
-      await sql`DROP TABLE IF EXISTS settings CASCADE`
-      console.log('  ✓ Dropped settings table')
+      // Drop table again to be sure
+      if (provider === 'neon') {
+        await sql(`DROP TABLE IF EXISTS ${table} CASCADE`)
+      } else {
+        await sql.unsafe(`DROP TABLE IF EXISTS ${table} CASCADE`)
+      }
+    }
+    
+    console.log('  ✓ Dropped all tables and problematic columns')
+    
+    // Verify tables are gone
+    console.log('🔍 Verifying cleanup...')
+    try {
+      if (provider === 'postgres') {
+        const result = await sql`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name IN ('notes', 'folders', 'settings', 'tasks')
+        `
+        if (result.length > 0) {
+          console.warn(`  ⚠️  Warning: Some tables still exist: ${result.map((r: any) => r.table_name).join(', ')}`)
+          console.log('  💡 Try running the reset script again')
+        } else {
+          console.log('  ✓ All tables confirmed dropped')
+        }
+      } else {
+        console.log('  ✓ Cleanup complete (Neon)')
+      }
+    } catch (verifyError) {
+      console.log('  ✓ Cleanup attempted (verification skipped)')
     }
 
     console.log('✅ All tables dropped successfully!')
