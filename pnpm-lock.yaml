@@ -54,6 +54,18 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)
 
+  api:
+    dependencies:
+      '@skriuw/db':
+        specifier: workspace:*
+        version: link:../packages/db
+      '@vercel/node':
+        specifier: ^5.5.13
+        version: 5.5.13(@swc/core@1.15.3)(rollup@4.53.3)
+      drizzle-orm:
+        specifier: ^0.44.7
+        version: 0.44.7(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.7)
+
   apps/api:
     dependencies:
       '@skriuw/db':
