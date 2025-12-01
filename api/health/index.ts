@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let dbModuleAvailable = false
     let dbModuleError = null
     try {
-      await import('@skriuw/db')
+      await import('../../packages/db/src/index.js')
       dbModuleAvailable = true
     } catch (error) {
       dbModuleError = error instanceof Error ? error.message : String(error)
