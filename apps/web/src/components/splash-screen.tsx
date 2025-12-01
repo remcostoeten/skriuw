@@ -2,7 +2,34 @@ import { AnimatePresence, motion } from 'framer-motion'
 
 import BlurTextAnimation from './blur-text-animation'
 
-export function SplashScreen({ show }: { show: boolean }) {
+export function SplashScreen({ 
+    show, 
+    onAnimationComplete 
+}: { 
+    show: boolean
+    onAnimationComplete?: () => void 
+}) {
+    const [titleComplete, setTitleComplete] = useState(false)
+    const [subtitleComplete, setSubtitleComplete] = useState(false)
+    
+    const handleTitleComplete = () => {
+        setTitleComplete(true)
+    }
+    
+    const handleSubtitleComplete = () => {
+        setSubtitleComplete(true)
+        // Both animations complete, notify parent
+        if (titleComplete && onAnimationComplete) {
+            onAnimationComplete()
+        }
+    }
+    
+    // Check if both are complete when title finishes
+    useEffect(() => {
+        if (titleComplete && subtitleComplete && onAnimationComplete) {
+            onAnimationComplete()
+        }
+    }, [titleComplete, subtitleComplete, onAnimationComplete])
     return (
         <AnimatePresence>
             {show && (
@@ -32,6 +59,7 @@ export function SplashScreen({ show }: { show: boolean }) {
                                 textClassName="font-bold font-brand"
                                 animationDelay={4000}
                                 loop={false}
+                                onComplete={handleTitleComplete}
                             />
                         </motion.div>
                         <motion.div
@@ -49,6 +77,7 @@ export function SplashScreen({ show }: { show: boolean }) {
                                 textClassName="italic"
                                 animationDelay={4000}
                                 loop={false}
+                                onComplete={handleSubtitleComplete}
                             />
                         </motion.div>
                     </motion.div>
