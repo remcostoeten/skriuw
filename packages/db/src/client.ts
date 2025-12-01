@@ -1,10 +1,45 @@
 /**
- * Drizzle database client
+ * Database provider types
+ */
+export type DatabaseProvider = 'neon' | 'postgres' | 'auto'
+
+/**
+ * Drizzle database client with support for multiple providers
  * 
- * @description Drizzle database client
+ * @description Automatically detects provider or uses DATABASE_PROVIDER env var
+ * Supports:
+ * - Neon (cloud PostgreSQL) - uses @neondatabase/serverless
+ * - Local PostgreSQL (Docker/local) - uses postgres package
+ * 
+ * Auto-detection: If DATABASE_URL contains 'neon', uses Neon provider
+ * 
  * @returns {Promise<any>} The database client
  */
 let dbClient: any = null
+
+function getEnvValue(key: string): string | undefined {
+	if (typeof process !== 'undefined' && process.env?.[key]) {
+		return process.env[key]
+	}
+	if (typeof import.meta !== 'undefined' && import.meta.env?.[key]) {
+		return import.meta.env[key]
+	}
+	return undefined
+}
+
+function detectProvider(url: string, explicitProvider?: string): DatabaseProvider {
+	if (explicitProvider && (explicitProvider === 'neon' || explicitProvider === 'postgres')) {
+		return explicitProvider
+	}
+	
+	// Auto-detect based on URL
+	if (url.includes('neon.tech') || url.includes('neon')) {
+		return 'neon'
+	}
+	
+	// Default to postgres for local/standard PostgreSQL
+	return 'postgres'
+}
 
 export async function getDatabase() {
 	// Check if we're in a browser environment without database support
@@ -20,33 +55,66 @@ export async function getDatabase() {
 		return dbClient
 	}
 
-	// Dynamic import to avoid errors if packages aren't installed yet
 	try {
-		const postgres = await import('postgres')
-		const { drizzle } = await import('drizzle-orm/postgres-js')
-
-		// Support both Node.js (process.env) and Vite (import.meta.env) environments
-		const url = (typeof process !== 'undefined' && process.env?.DATABASE_URL) 
-			? process.env.DATABASE_URL
-			: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DATABASE_URL)
-			? import.meta.env.VITE_DATABASE_URL
-			: undefined
-
+		// Get database URL from environment
+		const url = getEnvValue('DATABASE_URL') || getEnvValue('VITE_DATABASE_URL')
+		
 		if (!url) {
-			throw new Error('DATABASE_URL environment variable is required')
+			throw new Error(
+				'DATABASE_URL environment variable is required.\n' +
+				'Set DATABASE_URL=postgresql://user:password@host:port/database\n' +
+				'Or use docker-compose up for local development.'
+			)
 		}
 
-		// Create postgres client
-		const queryClient = postgres.default(url)
+		// Get provider (explicit or auto-detect)
+		const explicitProvider = getEnvValue('DATABASE_PROVIDER') as DatabaseProvider | undefined
+		const provider = detectProvider(url, explicitProvider)
 
-		dbClient = drizzle(queryClient)
+		// Import schema once
+		const schemaModule = await import('./schema.js')
+		
+		if (provider === 'neon') {
+			// Use Neon serverless driver
+			const { neon } = await import('@neondatabase/serverless')
+			const { drizzle: drizzleNeon } = await import('drizzle-orm/neon-http')
+			
+			const sql = neon(url)
+			dbClient = drizzleNeon(sql, { schema: schemaModule })
+			
+			console.log('✅ Database: Connected via Neon')
+		} else {
+			// Use standard PostgreSQL driver (for Docker/local)
+			const postgres = await import('postgres')
+			const { drizzle: drizzlePostgres } = await import('drizzle-orm/postgres-js')
+			
+			const queryClient = postgres.default(url)
+			dbClient = drizzlePostgres(queryClient, { schema: schemaModule })
+			
+			console.log('✅ Database: Connected via PostgreSQL')
+		}
 
 		return dbClient
 	} catch (error) {
-		console.error('Failed to initialize database client:', error)
-		throw new Error(
-			'Database client not available. Please install drizzle-orm and postgres packages.'
-		)
+		console.error('❌ Failed to initialize database client:', error)
+		
+		if (error instanceof Error && error.message.includes('Cannot find module')) {
+			const provider = detectProvider(getEnvValue('DATABASE_URL') || '', getEnvValue('DATABASE_PROVIDER') as DatabaseProvider | undefined)
+			
+			if (provider === 'neon') {
+				throw new Error(
+					'Neon database provider requires @neondatabase/serverless package.\n' +
+					'Install it: pnpm add @neondatabase/serverless'
+				)
+			} else {
+				throw new Error(
+					'PostgreSQL database provider requires postgres package.\n' +
+					'Install it: pnpm add postgres'
+				)
+			}
+		}
+		
+		throw error
 	}
 }
 
