@@ -32,8 +32,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET':
         // Get all notes
-        const allNotes = await db.select().from(notes)
-        return res.status(200).json(allNotes)
+        try {
+          const allNotes = await db.select().from(notes)
+          return res.status(200).json(allNotes)
+        } catch (queryError) {
+          console.error('Query error:', queryError)
+          const errorMessage = queryError instanceof Error ? queryError.message : String(queryError)
+          // Check if it's a "table does not exist" error
+          if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
+            return res.status(500).json({ 
+              error: 'Database schema not initialized',
+              message: 'The database tables do not exist. Please run migrations: cd packages/db && pnpm db:push',
+              hint: 'The schema needs to be pushed to the database before queries can be executed.'
+            })
+          }
+          throw queryError // Re-throw to be caught by outer catch
+        }
 
       case 'POST':
         // Create new note
@@ -97,18 +111,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStack = error instanceof Error ? error.stack : undefined
     
-    console.error('Error details:', {
+    // Extract more details from the error
+    const errorDetails: any = {
       message: errorMessage,
-      stack: errorStack,
       method: req.method,
-      url: req.url,
-      body: req.body
-    })
+      url: req.url
+    }
+    
+    // Check for common database errors
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('table')) {
+      errorDetails.hint = 'Database schema not initialized. Run: cd packages/db && pnpm db:push'
+      errorDetails.type = 'schema_missing'
+    } else if (errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+      errorDetails.hint = 'Database connection failed. Check DATABASE_URL environment variable.'
+      errorDetails.type = 'connection_error'
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      errorDetails.stack = errorStack
+      errorDetails.body = req.body
+    }
+    
+    console.error('Error details:', errorDetails)
     
     res.status(500).json({ 
       error: 'Internal server error',
-      message: errorMessage,
-      ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
+      ...errorDetails
     })
   }
 }
