@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
         'postgres',
         'drizzle-orm',
         'drizzle-orm/pg-core',
+        '@skriuw/db',
         'perf_hooks',
         'fs',
         'net',
@@ -69,7 +70,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    exclude: ['postgres', 'drizzle-orm', 'drizzle-orm/pg-core'],
+    exclude: ['postgres', 'drizzle-orm', 'drizzle-orm/pg-core', '@skriuw/db'],
   },
   define: {
     global: 'globalThis',
@@ -79,6 +80,7 @@ export default defineConfig(({ mode }) => ({
       'postgres',
       'drizzle-orm',
       'drizzle-orm/pg-core',
+      '@skriuw/db',
       'perf_hooks',
       'fs',
       'net',
