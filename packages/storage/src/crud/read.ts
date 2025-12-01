@@ -32,7 +32,7 @@ export async function read<T extends BaseEntity>(
 		// Log to dev tracker (only for non-getAll queries to avoid spam)
 		if (typeof window !== 'undefined' && import.meta.env?.DEV && !options?.getAll) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				const resultCount = Array.isArray(result) ? result.length : result ? 1 : 0;
 				devEventTracker.log({
 					type: 'query',
@@ -53,7 +53,7 @@ export async function read<T extends BaseEntity>(
 		// Log error to dev tracker
 		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				devEventTracker.log({
 					type: 'query',
 					operation: 'read',

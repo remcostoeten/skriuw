@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cd apps/web && pnpm dev",
+    "dev": "cd next-app && pnpm dev",
     "dev:api": "VERCEL_PKG_MANAGER=pnpm vercel dev --listen 3000 --yes",
     "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev\" --names \"API,WEB\" --prefix-colors \"blue,green\"",
     "build": "pnpm -r --filter '@skriuw/*' build",
-    "build:web": "cd apps/web && pnpm build",
+    "build:web": "cd next-app && pnpm build",
     "build:db": "cd packages/db && pnpm build",
     "build:storage": "cd packages/storage && pnpm build",
     "tauri:dev": "cd apps/desktop && pnpm tauri:dev",

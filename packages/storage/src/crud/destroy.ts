@@ -16,7 +16,7 @@ export async function destroy(storageKey: string, id: string, options?: DestroyO
                 // Log to dev tracker
                 if (typeof window !== 'undefined' && import.meta.env?.DEV) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				devEventTracker.log({
 					type: 'mutation',
 					operation: 'delete',
@@ -33,7 +33,7 @@ export async function destroy(storageKey: string, id: string, options?: DestroyO
 		// Log error to dev tracker
 		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				devEventTracker.log({
 					type: 'mutation',
 					operation: 'delete',
