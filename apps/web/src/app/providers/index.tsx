@@ -27,17 +27,40 @@ function StorageInitializer({ children }: props) {
 	const [error, setError] = useState<Error | null>(null)
 
 	useEffect(() => {
-		initializeAppStorage()
-			.then(() => {
+		let isMounted = true
+		const timeoutId = setTimeout(() => {
+			if (isMounted && !storageReady) {
+				console.warn("Storage initialization taking too long, showing app anyway")
 				setStorageReady(true)
 				setIsInitialized(true)
-				setError(null)
+			}
+		}, 5000) // 5 second timeout
+
+		initializeAppStorage()
+			.then(() => {
+				if (isMounted) {
+					console.log("✅ Storage initialized successfully")
+					clearTimeout(timeoutId)
+					setStorageReady(true)
+					setIsInitialized(true)
+					setError(null)
+				}
 			})
 			.catch((err) => {
-				console.error("Failed to initialize storage:", err)
-				setError(err instanceof Error ? err : new Error(String(err)))
-				setIsInitialized(false)
+				if (isMounted) {
+					console.error("Failed to initialize storage:", err)
+					clearTimeout(timeoutId)
+					setError(err instanceof Error ? err : new Error(String(err)))
+					// Still show app even if storage fails
+					setStorageReady(true)
+					setIsInitialized(true)
+				}
 			})
+
+		return () => {
+			isMounted = false
+			clearTimeout(timeoutId)
+		}
 	}, [])
 
 	// Hide splash screen when both animation and storage are ready
