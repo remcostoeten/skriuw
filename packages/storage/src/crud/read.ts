@@ -30,31 +30,39 @@ export async function read<T extends BaseEntity>(
 		const result = await storage.read<T>(storageKey, genericOptions);
 		
 		// Log to dev tracker (only for non-getAll queries to avoid spam)
-		if (import.meta.env.DEV && !options?.getAll) {
-			const { devEventTracker } = await import('@/shared/dev/dev-event-tracker');
-			const resultCount = Array.isArray(result) ? result.length : result ? 1 : 0;
-			devEventTracker.log({
-				type: 'query',
-				operation: 'read',
-				storageKey,
-				data: { 
-					getById: options?.getById,
-					resultCount 
-				}
-			});
+		if (typeof window !== 'undefined' && import.meta.env?.DEV && !options?.getAll) {
+			try {
+				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const resultCount = Array.isArray(result) ? result.length : result ? 1 : 0;
+				devEventTracker.log({
+					type: 'query',
+					operation: 'read',
+					storageKey,
+					data: { 
+						getById: options?.getById,
+						resultCount 
+					}
+				});
+			} catch {
+				// Ignore if dev-event-tracker is not available
+			}
 		}
 		
 		return result;
 	} catch (error) {
 		// Log error to dev tracker
-		if (import.meta.env.DEV) {
-			const { devEventTracker } = await import('@/shared/dev/dev-event-tracker');
-			devEventTracker.log({
-				type: 'query',
-				operation: 'read',
-				storageKey,
-				error: error instanceof Error ? error.message : String(error)
-			});
+		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+			try {
+				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				devEventTracker.log({
+					type: 'query',
+					operation: 'read',
+					storageKey,
+					error: error instanceof Error ? error.message : String(error)
+				});
+			} catch {
+				// Ignore if dev-event-tracker is not available
+			}
 		}
 		
 		throw new Error(`Failed to read from ${storageKey}: ${error instanceof Error ? error.message : String(error)}`);

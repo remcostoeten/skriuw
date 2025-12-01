@@ -14,27 +14,35 @@ export async function destroy(storageKey: string, id: string, options?: DestroyO
                 const success = await storage.delete(storageKey, id);
                 
                 // Log to dev tracker
-                if (import.meta.env.DEV) {
-			const { devEventTracker } = await import('@/shared/dev/dev-event-tracker');
-			devEventTracker.log({
-				type: 'mutation',
-				operation: 'delete',
-				storageKey,
-				data: { id }
-			});
+                if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+			try {
+				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				devEventTracker.log({
+					type: 'mutation',
+					operation: 'delete',
+					storageKey,
+					data: { id }
+				});
+			} catch {
+				// Ignore if dev-event-tracker is not available
+			}
 		}
                 
                 return success;
 	} catch (error) {
 		// Log error to dev tracker
-		if (import.meta.env.DEV) {
-			const { devEventTracker } = await import('@/shared/dev/dev-event-tracker');
-			devEventTracker.log({
-				type: 'mutation',
-				operation: 'delete',
-				storageKey,
-				error: error instanceof Error ? error.message : String(error)
-			});
+		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+			try {
+				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				devEventTracker.log({
+					type: 'mutation',
+					operation: 'delete',
+					storageKey,
+					error: error instanceof Error ? error.message : String(error)
+				});
+			} catch {
+				// Ignore if dev-event-tracker is not available
+			}
 		}
 		
 		throw new Error(`Failed to delete entity ${id} from ${storageKey}: ${error instanceof Error ? error.message : String(error)}`);

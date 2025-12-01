@@ -14,7 +14,7 @@ const adapters = new Map<StorageConfig['adapter'], AdapterFactory>();
 adapters.set("localStorage", () => createGenericLocalStorageAdapter());
 
 // Serverless API adapter for database operations via Vercel functions
-adapters.set("serverless-api", (config) => createServerlessApiAdapter(config?.apiBaseUrl));
+adapters.set("serverless-api", (config) => createServerlessApiAdapter(config?.apiBaseUrl as string | undefined));
 
 // Dynamic adapter loading for database to avoid build issues
 adapters.set("database", async (config) => {
