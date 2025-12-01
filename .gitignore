@@ -38,3 +38,8 @@ docs/*
 
 # Tauri
 src-tauri/target/
+
+
+# Next.js
+next-app/.tmp/*
+.next/*
