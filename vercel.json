@@ -6,19 +6,10 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
-  "functions": {
-    "apps/api/**/*.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "env": {
     "VITE_STORAGE_ADAPTER": "serverless-api"
   }
