@@ -1,16 +1,16 @@
 {
-  "buildCommand": "bun run build",
+  "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd next-app && pnpm build",
   "outputDirectory": "dist/spa",
-  "devCommand": "bun run dev",
-  "installCommand": "bun install",
-  "framework": "vite",
+  "installCommand": "corepack enable && pnpm install",
+  "framework": null,
+  "devCommand": null,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
   "env": {
-    "VITE_STORAGE_ADAPTER": "localStorage"
+    "VITE_STORAGE_ADAPTER": "serverless-api"
   }
 }
