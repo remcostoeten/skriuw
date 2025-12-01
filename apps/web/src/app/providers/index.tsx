@@ -22,13 +22,19 @@ type props = {
 function StorageInitializer({ children }: props) {
 	const [isInitialized, setIsInitialized] = useState(false)
 	const [showSplash, setShowSplash] = useState(true)
+	const [storageReady, setStorageReady] = useState(false)
+	const [animationComplete, setAnimationComplete] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
 
 	useEffect(() => {
 		initializeAppStorage()
 			.then(() => {
-				setIsInitialized(true)
+				setStorageReady(true)
 				setError(null)
+				// Give data time to load before showing app
+				setTimeout(() => {
+					setIsInitialized(true)
+				}, 500)
 			})
 			.catch((err) => {
 				console.error("Failed to initialize storage:", err)
@@ -37,9 +43,18 @@ function StorageInitializer({ children }: props) {
 			})
 	}, [])
 
+	// Hide splash screen when both animation and storage are ready
+	useEffect(() => {
+		if (animationComplete && storageReady) {
+			// Small delay to ensure data is loaded
+			setTimeout(() => {
+				setShowSplash(false)
+			}, 300)
+		}
+	}, [animationComplete, storageReady])
+
 	const handleAnimationComplete = () => {
-		// Fade out splash screen when animation completes
-		setShowSplash(false)
+		setAnimationComplete(true)
 	}
 
 	if (error) {
