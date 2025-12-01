@@ -2,8 +2,7 @@ import { Database, Route as RouteIcon, Activity, X } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 
-import { getDatabase } from '@skriuw/db'
-import { notes, folders, settings } from '@skriuw/db'
+// Dynamic imports to avoid bundling server-only code
 import { devEventTracker } from '@/shared/dev/dev-event-tracker'
 import { cn } from '@/shared/utilities'
 
@@ -72,6 +71,7 @@ export function DevWidget() {
             }
 
             try {
+                const { getDatabase, notes } = await import('@skriuw/db')
                 const db = await getDatabase()
                 // Test connection by trying to query
                 await db.select().from(notes).limit(1)
@@ -103,6 +103,7 @@ export function DevWidget() {
     const loadDatabaseSchema = useCallback(async () => {
         setIsLoadingSchema(true)
         try {
+            const { getDatabase, notes, folders, settings } = await import('@skriuw/db')
             const db = await getDatabase()
             const tables: DatabaseTableInfo[] = []
 

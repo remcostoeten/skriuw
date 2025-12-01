@@ -1,4 +1,4 @@
-import { isDatabaseAvailable } from '@skriuw/db'
+// Dynamic imports to avoid bundling server-only code
 
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 
@@ -25,6 +25,9 @@ export async function syncTasksToDatabase(
 	noteId: string,
 	extractedTasks: ExtractedTask[]
 ): Promise<void> {
+	// Lazy load database dependencies
+	const { isDatabaseAvailable, getDatabase, tasks } = await import('@skriuw/db')
+	
 	// Check if database is available
 	if (!isDatabaseAvailable()) {
 		console.warn('Database not available, skipping task sync')
@@ -32,8 +35,6 @@ export async function syncTasksToDatabase(
 	}
 
 	try {
-		// Lazy load database dependencies
-		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq, and } = await import('drizzle-orm')
 		const db = await getDatabase()
 
@@ -122,6 +123,9 @@ export async function syncTasksToDatabase(
  * Deletes all tasks for a note
  */
 export async function deleteTasksForNote(noteId: string): Promise<void> {
+	// Lazy load database dependencies
+	const { isDatabaseAvailable, getDatabase, tasks } = await import('@skriuw/db')
+	
 	// Check if database is available
 	if (!isDatabaseAvailable()) {
 		console.warn('Database not available, skipping task deletion')
@@ -129,8 +133,6 @@ export async function deleteTasksForNote(noteId: string): Promise<void> {
 	}
 
 	try {
-		// Lazy load database dependencies
-		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq } = await import('drizzle-orm')
 		const db = await getDatabase()
 		await db.delete(tasks).where(eq(tasks.noteId, noteId))

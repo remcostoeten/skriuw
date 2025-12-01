@@ -1,4 +1,4 @@
-import { isDatabaseAvailable } from '@skriuw/db'
+// Dynamic imports to avoid bundling server-only code
 
 export interface Task {
 	id: string
@@ -16,6 +16,9 @@ export interface Task {
  * Gets all tasks for a specific note
  */
 export async function getTasksForNote(noteId: string): Promise<Task[]> {
+	// Lazy load database dependencies
+	const { isDatabaseAvailable, getDatabase, tasks } = await import('@skriuw/db')
+	
 	// Check if database is available
 	if (!isDatabaseAvailable()) {
 		console.warn('Database not available, returning empty tasks')
@@ -23,8 +26,6 @@ export async function getTasksForNote(noteId: string): Promise<Task[]> {
 	}
 
 	try {
-		// Lazy load database dependencies
-		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq } = await import('drizzle-orm')
 		const db = await getDatabase()
 		const result = await db
@@ -49,6 +50,9 @@ export async function getTaskByBlockId(
 	noteId: string,
 	blockId: string
 ): Promise<Task | undefined> {
+	// Lazy load database dependencies
+	const { isDatabaseAvailable, getDatabase, tasks } = await import('@skriuw/db')
+	
 	// Check if database is available
 	if (!isDatabaseAvailable()) {
 		console.warn('Database not available, returning undefined for task')
@@ -56,8 +60,6 @@ export async function getTaskByBlockId(
 	}
 
 	try {
-		// Lazy load database dependencies
-		const { getDatabase, tasks } = await import('@skriuw/db')
 		const { eq, and } = await import('drizzle-orm')
 		const db = await getDatabase()
 		const result = await db
