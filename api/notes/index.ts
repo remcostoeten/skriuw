@@ -134,9 +134,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     console.error('Error details:', errorDetails)
     
-    res.status(500).json({ 
+    // Always return a response, even if empty
+    const errorResponse = { 
       error: 'Internal server error',
       ...errorDetails
-    })
+    }
+    
+    // Ensure we have at least a message
+    if (!errorResponse.message) {
+      errorResponse.message = errorMessage || 'An unknown error occurred'
+    }
+    
+    res.status(500).json(errorResponse)
   }
 }

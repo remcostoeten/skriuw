@@ -62,7 +62,31 @@ export function createServerlessApiAdapter(
 			if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
 				throw new Error(`API endpoint '${endpoint}' returned non-JSON error response. The endpoint may not exist or may be misconfigured. Status: ${response.status}`)
 			}
-			throw new Error(`API error: ${response.status} - ${responseText.substring(0, 200)}`)
+			
+			// Try to parse error response as JSON for better error messages
+			let errorMessage = `API error: ${response.status}`
+			if (responseText) {
+				try {
+					const errorJson = JSON.parse(responseText)
+					if (errorJson.message) {
+						errorMessage = errorJson.message
+					} else if (errorJson.error) {
+						errorMessage = errorJson.error
+						if (errorJson.hint) {
+							errorMessage += `. ${errorJson.hint}`
+						}
+					} else {
+						errorMessage = `${response.status} - ${responseText.substring(0, 200)}`
+					}
+				} catch {
+					// Not JSON, use raw text
+					errorMessage = `${response.status} - ${responseText.substring(0, 200)}`
+				}
+			} else {
+				errorMessage = `${response.status} - Empty response body`
+			}
+			
+			throw new Error(`API error: ${errorMessage}`)
 		}
 		
 		// Check if response is actually JSON
