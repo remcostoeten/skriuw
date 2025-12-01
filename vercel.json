@@ -1,8 +1,8 @@
 {
-  "buildCommand": "bun run build",
+  "buildCommand": "cd apps/web && pnpm build",
   "outputDirectory": "dist/spa",
-  "devCommand": "bun run dev",
-  "installCommand": "bun install",
+  "devCommand": "cd apps/web && pnpm dev",
+  "installCommand": "pnpm install",
   "framework": "vite",
   "rewrites": [
     {
