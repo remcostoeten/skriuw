@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd apps/web && pnpm build",
-  "outputDirectory": "apps/web/dist",
-  "installCommand": "pnpm install",
+  "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd next-app && pnpm build",
+  "outputDirectory": "dist/spa",
+  "installCommand": "corepack enable && pnpm install",
   "framework": null,
   "devCommand": null,
   "rewrites": [

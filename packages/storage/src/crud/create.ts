@@ -20,7 +20,7 @@ export async function create<T extends BaseEntity>(
 		// Dev event tracking (only in browser environment)
 		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				devEventTracker.log({
 					type: 'mutation',
 					operation: 'create',
@@ -37,7 +37,7 @@ export async function create<T extends BaseEntity>(
 		// Dev event tracking (only in browser environment)
 		if (typeof window !== 'undefined' && import.meta.env?.DEV) {
 			try {
-				const { devEventTracker } = await import('../../../../apps/web/src/shared/dev/dev-event-tracker');
+				const { devEventTracker } = await import('../../../../next-app/shared/dev/dev-event-tracker');
 				devEventTracker.log({
 					type: 'mutation',
 					operation: 'create',
