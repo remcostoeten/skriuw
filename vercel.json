@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd apps/web && pnpm build",
   "outputDirectory": "dist/spa",
-  "devCommand": "cd apps/web && pnpm dev",
+  "devCommand": "echo 'API only - use pnpm dev:all to run both API and web app'",
   "installCommand": "pnpm install",
   "framework": "vite",
   "rewrites": [
