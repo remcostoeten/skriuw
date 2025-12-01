@@ -4,16 +4,17 @@ import { Pencil, Hand, Keyboard, Settings, Palette } from 'lucide-react'
 import { useState } from 'react'
 
 import {
-    Dialog,
-    DialogContent,
+    DrawerDialog,
+    DrawerContent,
+    DrawerClose,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerFooter,
     DialogAside,
     DialogContentArea,
     DialogNavGroup,
     DialogSection,
     DialogSeparator,
-    DialogClose,
-    DialogHeader,
-    DialogTitle
 } from '@/shared/ui/dialog-drawer'
 
 import { useSettings, SettingsGroup } from '@/features/settings'
@@ -110,14 +111,14 @@ export function SidebarMenu({ open, onOpenChange }: props) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex flex-col p-0 overflow-hidden border border-border/50">
-                <DialogClose aria-label="Close settings" />
+        <DrawerDialog open={open} onOpenChange={onOpenChange}>
+            <DrawerContent className="flex flex-col p-0 overflow-hidden border border-border/50">
+                <DrawerClose aria-label="Close settings" />
                 <div className="flex flex-row flex-1 min-h-0">
                     <DialogAside className="min-w-[200px] max-w-[200px] border-r border-border p-6 overflow-y-auto h-full">
-                        <DialogHeader className="w-full pb-4">
-                            <DialogTitle>Settings</DialogTitle>
-                        </DialogHeader>
+                        <DrawerHeader className="w-full pb-4">
+                            <DrawerTitle>Settings</DrawerTitle>
+                        </DrawerHeader>
                         <DialogSection label="App">
                             <DialogNavGroup items={appItems} />
                         </DialogSection>
@@ -133,7 +134,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
                         {renderSettingsContent()}
                     </DialogContentArea>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </DrawerContent>
+        </DrawerDialog>
     )
 }

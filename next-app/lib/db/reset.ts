@@ -13,13 +13,13 @@ async function dropAllTables() {
   const sql = postgres(databaseUrl, { max: 1 })
 
   try {
-    const tables = await sql<{ tablename: string }>`
+        const tables = await (sql<{ tablename: string }[]>`
       SELECT tablename
       FROM pg_tables
       WHERE schemaname = 'public'
         AND tablename NOT LIKE 'pg\\_%'
         AND tablename NOT LIKE 'sql\\_%'
-    `
+    ` as unknown as Promise<{ tablename: string }[]>)
 
     if (tables.length === 0) {
       console.log('ℹ️ No user tables found in public schema.')

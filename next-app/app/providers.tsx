@@ -12,6 +12,7 @@ import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
 
 import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading"
 
+import { AppLayoutManager } from "@/components/layout/app-layout-manager"
 import { TooltipProvider } from "@/shared/ui"
 import { initializeAppStorage } from "@/app/storage"
 import { Toaster as SonnerToaster } from "sonner"
@@ -116,7 +117,9 @@ export function Providers({ children }: props) {
 				<SettingsProvider>
 					<ShortcutProvider>
 						<ContextMenuProvider>
-							<EditorTabsProvider>{children}</EditorTabsProvider>
+							<EditorTabsProvider>
+								<AppLayoutManager>{children}</AppLayoutManager>
+							</EditorTabsProvider>
 						</ContextMenuProvider>
 					</ShortcutProvider>
 				</SettingsProvider>

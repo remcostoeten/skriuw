@@ -8,7 +8,7 @@ import {
     useState,
     useRef
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
 
@@ -48,10 +48,8 @@ const ShortcutsSidebar = lazy(() =>
     }))
 )
 
-type AppLayoutContainerProps = {
+type AppLayoutManagerProps = {
     children: ReactNode
-    showSidebar?: boolean
-    sidebarActiveNoteId?: string
     sidebarContentType?: SidebarContentType
     sidebarCustomContent?: ReactNode
 }
@@ -60,17 +58,25 @@ type AppLayoutContainerProps = {
  * Container component that handles data loading and state management
  * Wraps the pure AppLayoutShell with data and logic
  */
-export function AppLayoutContainer({
+export function AppLayoutManager({
 		children,
-    showSidebar = true,
-    sidebarActiveNoteId,
     sidebarContentType,
     sidebarCustomContent
-}: AppLayoutContainerProps) {
+}: AppLayoutManagerProps) {
     const router = useRouter()
+    const pathname = usePathname()
+    const showSidebar = !pathname.startsWith('/archive')
     const { items, isInitialLoading, createNote, renameItem, deleteItem } = useNotesWithSuspense()
     const { pinItem, favoriteNote } = useNotes()
-    const { getNoteUrl } = useNoteSlug(items)
+    
+    const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
+    const isNoteRoute = pathname.startsWith('/note/')
+	const slugOrId = isNoteRoute ? pathname.split('/note/')[1]?.split('?')[0] : null
+	const sidebarActiveNoteId = useMemo(() => {
+		if (!slugOrId) return null
+		return resolveNoteId(slugOrId)
+	}, [slugOrId, resolveNoteId])
+
     const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
     const [isSearchOpen, setIsSearchOpen] = useState(false)
     // Track if we've ever loaded to prevent showing skeleton during navigation
@@ -308,7 +314,7 @@ export function AppLayoutContainer({
                         <SidebarSkeleton />
                     ) : (
                         <Sidebar
-                            activeNoteId={sidebarActiveNoteId}
+                            activeNoteId={sidebarActiveNoteId || undefined}
                             contentType={sidebarContentType}
                             customContent={sidebarCustomContent}
                             openTabIds={multiNoteTabs ? new Set(tabs.map(t => t.noteId)) : undefined}

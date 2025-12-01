@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, lazy, useMemo } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { EmptyState } from '@/shared/ui/empty-state'
@@ -9,8 +9,6 @@ import { EmptyState } from '@/shared/ui/empty-state'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { useShortcut, shortcut } from '@/features/shortcuts'
-
-import { AppLayoutContainer } from '@/components/layout/app-layout-container'
 
 import { IndexSkeleton } from '@/components/pages/index-skeleton'
 
@@ -59,65 +57,61 @@ export default function Index() {
 	return (
 		<>
 			{!noteId ? (
-				<AppLayoutContainer>
-					<div className="flex-1 flex items-center justify-center translate-y-[30%]">
-						{isInitialLoading ? (
-							<IndexSkeleton />
-						) : (
-							<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
-								<div className="flex flex-col items-center gap-6 mb-8">
-									<div className="flex flex-col items-center gap-3">
-										<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
-										<div className="flex flex-col items-center gap-1 text-muted-foreground">
-											<p className="text-sm italic">
-												<span className="font-mono">/skrɪu̯/</span> — <span className="font-medium">Frisian, &quot;to write.&quot;</span>
-											</p>
-										</div>
-									</div>
-									<div className="max-w-lg text-center">
-										<p className="text-sm text-muted-foreground leading-relaxed">
-											A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding a opt-in system for all features (yes, ai is included) rather than the usual opt-out system. The tools are here, you just need to opt-in.
+				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
+					{isInitialLoading ? (
+						<IndexSkeleton />
+					) : (
+						<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
+							<div className="flex flex-col items-center gap-6 mb-8">
+								<div className="flex flex-col items-center gap-3">
+									<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
+									<div className="flex flex-col items-center gap-1 text-muted-foreground">
+										<p className="text-sm italic">
+											<span className="font-mono">/skrɪu̯/</span> — <span className="font-medium">Frisian, &quot;to write.&quot;</span>
 										</p>
 									</div>
 								</div>
-								<EmptyState
-									actions={[
-										{
-											label: 'Open Collection',
-											shortcut: shortcut()
-												.modifiers('Cmd')
-												.key('O'),
-											separator: true,
-											onClick: handleOpenCollection
-										},
-										{
-											label: 'Create Note',
-											shortcut: shortcut()
-												.modifiers('Cmd')
-												.key('N'),
-											separator: true,
-											onClick: handleCreateNote
-										}
-									]}
-								/>
-							</div>
-						)}
-					</div>
-				</AppLayoutContainer>
-			) : (
-				<AppLayoutContainer sidebarActiveNoteId={noteId}>
-					<Suspense
-						fallback={
-							<div className="flex-1 flex items-center justify-center">
-								<div className="text-muted-foreground">
-									Loading editor...
+								<div className="max-w-lg text-center">
+									<p className="text-sm text-muted-foreground leading-relaxed">
+										A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding a opt-in system for all features (yes, ai is included) rather than the usual opt-out system. The tools are here, you just need to opt-in.
+									</p>
 								</div>
 							</div>
-						}
-					>
-						<NoteEditor noteId={noteId} className="overflow-y-auto" />
-					</Suspense>
-				</AppLayoutContainer>
+							<EmptyState
+								actions={[
+									{
+										label: 'Open Collection',
+										shortcut: shortcut()
+											.modifiers('Cmd')
+											.key('O'),
+										separator: true,
+										onClick: handleOpenCollection
+									},
+									{
+										label: 'Create Note',
+										shortcut: shortcut()
+											.modifiers('Cmd')
+											.key('N'),
+										separator: true,
+										onClick: handleCreateNote
+									}
+								]}
+							/>
+						</div>
+					)}
+				</div>
+			) : (
+				<Suspense
+					fallback={
+						<div className="flex-1 flex items-center justify-center">
+							<div className="text-muted-foreground">
+								Loading editor...
+							</div>
+						</div>
+					}
+				>
+					<NoteEditor noteId={noteId} className="overflow-y-auto" />
+				</Suspense>
 			)}
 		</>
 	)
