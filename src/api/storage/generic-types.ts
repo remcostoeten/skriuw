@@ -98,7 +98,7 @@ export interface StorageConfig {
         options?: StorageAdapterOptions
 }
 
-export type StorageAdapterName = 'localStorage'
+export type StorageAdapterName = 'localStorage' | 'database'
 
 export type StorageAdapterOptions = Record<string, unknown>
 

@@ -1,17 +1,7 @@
 // Lazy imports for database functionality
-const getDatabaseClient = async () => {
-	const { getDatabase } = await import('@skriuw/db')
-	return getDatabase
-}
-
 const getDatabaseSchema = async () => {
-	const { notes, folders, settings } = await import('@skriuw/db')
+	const { notes, folders, settings } = await import('@/shared/database/schema')
 	return { notes, folders, settings }
-}
-
-const getDatabaseUtils = async () => {
-	const { isDatabaseAvailable } = await import('@skriuw/db')
-	return { isDatabaseAvailable }
 }
 
 const getDrizzleOperators = async () => {
@@ -41,25 +31,16 @@ export interface GenericDatabaseAdapterOptions {
 	capabilitiesOverride?: Partial<StorageCapabilities>
 }
 
-// Map storage keys to table names (tables will be resolved dynamically)
-const STORAGE_KEY_TO_TABLE_NAME = {
-	'Skriuw_notes': 'notes',
+// Map storage keys to database tables
+const STORAGE_KEY_TO_TABLE = {
+	'Skriuw_notes': { notes, folders },
 	// Add more mappings as needed
 } as const
 
-type StorageKey = keyof typeof STORAGE_KEY_TO_TABLE_NAME
+type StorageKey = keyof typeof STORAGE_KEY_TO_TABLE
 
 function isStorageKey(key: string): key is StorageKey {
-	return key in STORAGE_KEY_TO_TABLE_NAME
-}
-
-// Helper to get the appropriate table based on entity type
-async function getTableForStorageKey(storageKey: StorageKey, entityType: 'note' | 'folder') {
-	const schema = await getDatabaseSchema()
-	if (entityType === 'folder') {
-		return schema.folders
-	}
-	return schema.notes
+	return key in STORAGE_KEY_TO_TABLE
 }
 
 export function createGenericDatabaseAdapter(
@@ -116,7 +97,6 @@ export function createGenericDatabaseAdapter(
 
 		async initialize(): Promise<void> {
 			// Check if database is available
-			const { isDatabaseAvailable } = await getDatabaseUtils()
 			if (!isDatabaseAvailable()) {
 				throw new Error('Database not available in this environment')
 			}
@@ -124,7 +104,6 @@ export function createGenericDatabaseAdapter(
 			// Database is already initialized via getDatabase()
 			// Just verify connection
 			try {
-				const getDatabase = await getDatabaseClient()
 				const db = await getDatabase()
 				const { notes } = await getDatabaseSchema()
 				// Test query to verify connection
