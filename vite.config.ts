@@ -12,13 +12,44 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 42069,
     strictPort: true,
-    fs: { 
+    fs: {
       allow: ["./", "./src", "./shared"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
+    },
+    proxy: {
+      '/api': {
+        target: process.env.VERCEL_DEV_URL || 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
   build: {
     outDir: "dist/spa",
+    rollupOptions: {
+      external: [
+        'postgres',
+        'drizzle-orm',
+        'drizzle-orm/pg-core',
+        'perf_hooks',
+        'fs',
+        'net',
+        'tls',
+        'crypto',
+        'stream',
+        'os',
+        'path',
+        'util',
+        'url',
+        'events',
+        'buffer',
+        'child_process'
+      ],
+      output: {
+        globals: {
+          // Map external modules to globals when possible
+        }
+      }
+    }
   },
   plugins: [react()],
   resolve: {
@@ -30,7 +61,34 @@ export default defineConfig(({ mode }) => ({
         workspaceRoot,
         "./src/shared/utilities/index.ts",
       ),
-    },    
+    },
+  },
+  optimizeDeps: {
+    exclude: ['postgres', 'drizzle-orm', 'drizzle-orm/pg-core'],
+  },
+  define: {
+    global: 'globalThis',
+  },
+  ssr: {
+    external: [
+      'postgres',
+      'drizzle-orm',
+      'drizzle-orm/pg-core',
+      'perf_hooks',
+      'fs',
+      'net',
+      'tls',
+      'crypto',
+      'stream',
+      'os',
+      'path',
+      'util',
+      'url',
+      'events',
+      'buffer',
+      'child_process'
+    ],
+    noExternal: [],
   },
   experimental: {
     rolldown: {

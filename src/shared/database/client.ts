@@ -1,14 +1,21 @@
 /**
  * Drizzle database client
  * 
- * NOTE: Requires drizzle-orm and postgres packages to be installed:
- *   bun add drizzle-orm postgres
- *   bun add -d drizzle-kit
+ * @description Drizzle database client
+ * @returns {Promise<any>} The database client
  */
-
 let dbClient: any = null
 
 export async function getDatabase() {
+	// Check if we're in a browser environment without database support
+	if (typeof window !== 'undefined' && !import.meta.env.SSR) {
+		// Check if localStorage adapter is being used
+		const storageAdapter = import.meta.env.VITE_STORAGE_ADAPTER || 'localStorage'
+		if (storageAdapter === 'localStorage') {
+			throw new Error('Database not available in localStorage mode')
+		}
+	}
+
 	if (dbClient) {
 		return dbClient
 	}
@@ -17,8 +24,8 @@ export async function getDatabase() {
 	try {
 		const postgres = await import('postgres')
 		const { drizzle } = await import('drizzle-orm/postgres-js')
-		
-		const url = import.meta.env.VITE_DATABASE_URL || process.env.DATABASE_URL
+
+		const url = import.meta.env.VITE_DATABASE_URL
 
 		if (!url) {
 			throw new Error('DATABASE_URL environment variable is required')
@@ -26,7 +33,7 @@ export async function getDatabase() {
 
 		// Create postgres client
 		const queryClient = postgres.default(url)
-		
+
 		dbClient = drizzle(queryClient)
 
 		return dbClient

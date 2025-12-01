@@ -103,6 +103,15 @@ pnpm db:generate
 
 # Open Drizzle Studio (database GUI)
 pnpm db:studio
+
+# Seed database with initial data
+pnpm seed
+
+# Force seed (clears and re-seeds)
+pnpm seed:force
+
+# Clear database only
+pnpm seed:clear
 ```
 
 ## Development

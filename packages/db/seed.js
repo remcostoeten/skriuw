@@ -7,6 +7,8 @@
  *   pnpm seed          - Seed database (skips if data exists)
  *   pnpm seed --force  - Force seed (clears and re-seeds)
  *   pnpm seed --clear  - Clear database only
+ * 
+ * Note: This file is executed after build, importing from dist/
  */
 
 import { seedDatabase, clearDatabase } from './dist/seed.js'

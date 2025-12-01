@@ -1,5 +1,5 @@
 import '@/styles/global.css'
-import 'prismjs/themes/prism-tomorrow.css'
+	import 'prismjs/themes/prism-tomorrow.css'
 
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -9,7 +9,10 @@ import { AppRoutes } from './app/routing'
 
 const App = () => (
     <Providers>
-        <BrowserRouter>
+
+
+
+			<BrowserRouter>
             <AppRoutes />
         </BrowserRouter>
     </Providers>
