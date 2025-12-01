@@ -1,4 +1,5 @@
 import { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
+import { createServerlessApiAdapter } from "./adapters/serverless-api";
 
 import type {
         GenericStorageAdapter,
@@ -6,20 +7,29 @@ import type {
         StorageAdapterOptions
 } from "./generic-types";
 
-type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter;
+type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter | Promise<GenericStorageAdapter>;
 
 const adapters = new Map<StorageConfig['adapter'], AdapterFactory>();
 
 adapters.set("localStorage", () => createGenericLocalStorageAdapter());
 
-export function createGenericStorageAdapter(config: StorageConfig): GenericStorageAdapter {
+// Serverless API adapter for database operations via Vercel functions
+adapters.set("serverless-api", (config) => createServerlessApiAdapter(config?.apiBaseUrl));
+
+// Dynamic adapter loading for database to avoid build issues
+adapters.set("database", async (config) => {
+	const { createGenericDatabaseAdapter } = await import("./adapters/generic-database");
+	return createGenericDatabaseAdapter(config);
+});
+
+export async function createGenericStorageAdapter(config: StorageConfig): Promise<GenericStorageAdapter> {
 	const factory = adapters.get(config.adapter);
-	
+
 	if (!factory) {
 		throw new Error(`Storage adapter '${config.adapter}' not found. Available: ${Array.from(adapters.keys()).join(', ')}`);
 	}
 
-	return factory(config.options);
+	return await factory(config.options);
 }
 
 export function registerGenericStorageAdapter(
@@ -40,7 +50,7 @@ export async function initializeGenericStorage(config: StorageConfig): Promise<G
 		await currentGenericStorage.destroy();
 	}
 
-	currentGenericStorage = createGenericStorageAdapter(config);
+	currentGenericStorage = await createGenericStorageAdapter(config);
 	await currentGenericStorage.initialize();
 
 	return currentGenericStorage;

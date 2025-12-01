@@ -598,16 +598,6 @@ function FileTreeItem({
     clearSelection();
   }, [getSelectedIds, findItemById, onFavoriteNote, clearSelection]);
 
-  // Check if there are notes in the selected items (for bulk favorite operations)
-  const hasNotesInSelection = useMemo(() => {
-    if (!hasMultipleSelections) return false;
-    const selectedIds = getSelectedIds();
-    return selectedIds.some(id => {
-      const item = findItemById(id);
-      return item?.type === 'note';
-    });
-  }, [hasMultipleSelections, getSelectedIds, findItemById]);
-
   // Long-press handler for mobile
   const handleTouchStart = useCallback((e: TouchEvent<HTMLButtonElement>) => {
     if (!isMobile) return;

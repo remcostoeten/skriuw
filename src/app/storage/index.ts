@@ -7,7 +7,7 @@ import { DEFAULT_STORAGE_CONFIG } from './config'
 let initializationPromise: Promise<void> | null = null
 
 /**
- * Initialize the storage system with localStorage
+ * Initialize the storage system with database (PostgreSQL via Drizzle)
  */
 export async function initializeAppStorage(): Promise<void> {
         if (initializationPromise) {

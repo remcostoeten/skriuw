@@ -11,6 +11,6 @@
     }
   ],
   "env": {
-    "VITE_STORAGE_ADAPTER": "localStorage"
+    "VITE_STORAGE_ADAPTER": "serverless-api"
   }
 }
