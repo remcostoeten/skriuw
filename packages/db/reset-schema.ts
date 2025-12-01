@@ -3,8 +3,12 @@
  * Run with: pnpm reset
  */
 import { config } from 'dotenv'
+import { resolve } from 'path'
 
-config()
+// Load .env from root directory
+config({ path: resolve(import.meta.dirname, '../../.env') })
+// Also try loading from packages/db directory
+config({ path: resolve(import.meta.dirname, '.env') })
 
 function detectProvider(url: string): 'neon' | 'postgres' {
   if (url.includes('neon.tech') || url.includes('neon')) {
