@@ -1,0 +1,10 @@
+{
+  "name": "@skriuw/api-vercel",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@skriuw/db": "workspace:*",
+    "@vercel/node": "^5.5.13",
+    "drizzle-orm": "^0.44.7"
+  }
+}
