@@ -22,3 +22,6 @@ export {
 } from "./generic-storage-factory";
 
 export { createGenericLocalStorageAdapter } from "./adapters/generic-local-storage";
+
+// Export CRUD operations
+export * from "./crud";
