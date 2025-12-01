@@ -19,7 +19,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const db = await getDatabase()
+    // Try to get database connection with better error handling
+    let db
+    try {
+      db = await getDatabase()
+    } catch (dbError) {
+      console.error('Failed to get database connection:', dbError)
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError)
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+      })
+    }
+    
     const { noteId } = req.query
 
     if (typeof noteId !== 'string') {
