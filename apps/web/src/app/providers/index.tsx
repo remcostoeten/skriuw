@@ -30,11 +30,8 @@ function StorageInitializer({ children }: props) {
 		initializeAppStorage()
 			.then(() => {
 				setStorageReady(true)
+				setIsInitialized(true)
 				setError(null)
-				// Give data time to load before showing app
-				setTimeout(() => {
-					setIsInitialized(true)
-				}, 500)
 			})
 			.catch((err) => {
 				console.error("Failed to initialize storage:", err)
