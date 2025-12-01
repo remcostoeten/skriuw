@@ -1,11 +1,11 @@
 {
   "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd apps/web && pnpm build",
-  "outputDirectory": "dist/spa",
+  "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install",
   "framework": null,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
