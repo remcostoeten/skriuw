@@ -16,15 +16,15 @@
     "reset": "tsx reset-schema.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.0",
     "drizzle-orm": "^0.44.7",
-    "postgres": "^3.4.7",
-    "@neondatabase/serverless": "^0.10.0"
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
-    "typescript": "^5.9.2",
+    "dotenv": "^16.4.5",
     "drizzle-kit": "^0.31.7",
-    "dotenv": "^16.4.5"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2"
   }
 }
-
