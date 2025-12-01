@@ -31,6 +31,7 @@ export function SplashScreen({ show }: { show: boolean }) {
                                 textColor="text-foreground"
                                 textClassName="font-bold font-brand"
                                 animationDelay={4000}
+                                loop={false}
                             />
                         </motion.div>
                         <motion.div
@@ -47,6 +48,7 @@ export function SplashScreen({ show }: { show: boolean }) {
                                 textColor="text-muted-foreground"
                                 textClassName="italic"
                                 animationDelay={4000}
+                                loop={false}
                             />
                         </motion.div>
                     </motion.div>
