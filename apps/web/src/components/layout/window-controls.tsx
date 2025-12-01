@@ -1,6 +1,5 @@
 import { Minimize2, Maximize2, X, Square } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 
 import { isTauriAvailable } from '@/shared/utilities/tauri-check'
 import { cn } from '@/shared/utilities'
@@ -15,6 +14,7 @@ export function WindowControls() {
 
     const setup = async () => {
       try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
         const appWindow = getCurrentWindow()
         
         const maximized = await appWindow.isMaximized()
@@ -42,6 +42,7 @@ export function WindowControls() {
 
   const handleMinimize = async () => {
     try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
       const appWindow = getCurrentWindow()
       await appWindow.minimize()
     } catch (error) {
@@ -51,6 +52,7 @@ export function WindowControls() {
 
   const handleMaximize = async () => {
     try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
       const appWindow = getCurrentWindow()
       if (isMaximized) {
         await appWindow.unmaximize()
@@ -64,6 +66,7 @@ export function WindowControls() {
 
   const handleClose = async () => {
     try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
       const appWindow = getCurrentWindow()
       await appWindow.close()
     } catch (error) {
