@@ -141,7 +141,9 @@ export function createGenericDatabaseAdapter(
 
 		async isHealthy(): Promise<boolean> {
 			try {
+				const getDatabase = await getDatabaseClient()
 				const db = await getDatabase()
+				const { notes } = await getDatabaseSchema()
 				await db.select().from(notes).limit(1)
 				return true
 			} catch {
@@ -151,7 +153,9 @@ export function createGenericDatabaseAdapter(
 
 		async getStorageInfo(): Promise<StorageInfo> {
 			try {
+				const getDatabase = await getDatabaseClient()
 				const db = await getDatabase()
+				const { notes, folders } = await getDatabaseSchema()
 				const notesCount = (await db.select().from(notes)).length
 				const foldersCount = (await db.select().from(folders)).length
 				const totalItems = notesCount + foldersCount
@@ -182,7 +186,9 @@ export function createGenericDatabaseAdapter(
 				throw new Error(`Unsupported storage key: ${storageKey}`)
 			}
 
+			const getDatabase = await getDatabaseClient()
 			const db = await getDatabase()
+			const { notes, folders } = await getDatabaseSchema()
 			const now = Date.now()
 			const id = data.id || `${storageKey}-${now}-${Math.random().toString(36).substr(2, 9)}`
 
@@ -248,7 +254,10 @@ export function createGenericDatabaseAdapter(
 				throw new Error(`Unsupported storage key: ${storageKey}`)
 			}
 
+			const getDatabase = await getDatabaseClient()
 			const db = await getDatabase()
+			const { notes, folders } = await getDatabaseSchema()
+			const { eq, desc } = await getDrizzleOperators()
 
 			// If getById is specified, return single entity
 			if (options?.getById) {
@@ -391,7 +400,10 @@ export function createGenericDatabaseAdapter(
 				throw new Error(`Unsupported storage key: ${storageKey}`)
 			}
 
+			const getDatabase = await getDatabaseClient()
 			const db = await getDatabase()
+			const { notes, folders } = await getDatabaseSchema()
+			const { eq } = await getDrizzleOperators()
 			const now = Date.now()
 
 			// Try to find in notes first
@@ -487,7 +499,10 @@ export function createGenericDatabaseAdapter(
 				throw new Error(`Unsupported storage key: ${storageKey}`)
 			}
 
+			const getDatabase = await getDatabaseClient()
 			const db = await getDatabase()
+			const { notes, folders } = await getDatabaseSchema()
+			const { eq } = await getDrizzleOperators()
 
 			// Try notes first
 			const note = await db.select().from(notes).where(eq(notes.id, id)).limit(1)
@@ -529,7 +544,10 @@ export function createGenericDatabaseAdapter(
 				throw new Error(`Unsupported storage key: ${storageKey}`)
 			}
 
+			const getDatabase = await getDatabaseClient()
 			const db = await getDatabase()
+			const { notes, folders } = await getDatabaseSchema()
+			const { eq } = await getDrizzleOperators()
 			const now = Date.now()
 
 			// Try notes first
