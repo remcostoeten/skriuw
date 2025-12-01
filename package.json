@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cd apps/web && pnpm dev",
-    "dev:api": "vercel dev --listen 3000",
+    "dev:api": "vercel dev --listen 3000 --yes",
     "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev\" --names \"API,WEB\" --prefix-colors \"blue,green\"",
     "build": "pnpm -r --filter '@skriuw/*' build",
     "build:web": "cd apps/web && pnpm build",
