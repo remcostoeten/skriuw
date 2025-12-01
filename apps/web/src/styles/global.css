@@ -1,0 +1,381 @@
+@import './outlines-accessibility.css';
+
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;600;700&display=swap')
+layer(base);
+
+@import 'tailwindcss';
+
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --color-background: hsl(var(--background));
+    --color-background-secondary: hsl(var(--background-secondary));
+    --color-foreground: hsl(var(--foreground));
+    --color-border: hsl(var(--border));
+    --color-input: var(--input);
+    --color-ring: hsl(var(--ring));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-sidebar: hsl(var(--sidebar-background));
+    --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+    --color-sidebar-primary: hsl(var(--sidebar-primary));
+    --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+    --color-sidebar-accent: hsl(var(--sidebar-accent));
+    --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+    --color-sidebar-border: hsl(var(--sidebar-border));
+    --color-sidebar-ring: hsl(var(--sidebar-ring));
+    --color-brand-400: hsl(var(--brand-400));
+    --color-brand-500: hsl(var(--brand-500));
+}
+
+@utility container {
+    margin-inline: auto;
+    padding-inline: 2rem;
+
+    @media (width >=--theme(--breakpoint-sm)) {
+        max-width: none;
+    }
+
+    @media (width >=1400px) {
+        max-width: 1400px;
+    }
+}
+@layer base {
+    --color-border: hsl(var(--border));
+    --color-input: var(--input);
+    --color-ring: hsl(var(--ring));
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-background-secondary: hsl(var(--background-secondary));
+
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+
+    --color-sidebar: hsl(var(--sidebar-background));
+    --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+    --color-sidebar-primary: hsl(var(--sidebar-primary));
+    --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+    --color-sidebar-accent: hsl(var(--sidebar-accent));
+    --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+    --color-sidebar-border: hsl(var(--sidebar-border));
+    --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+    --color-brand-400: hsl(var(--brand-400));
+    --color-brand-500: hsl(var(--brand-500));
+
+    --font-sans: Ubuntu Sans, system-ui, -apple-system, sans-serif;
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+
+    @keyframes accordion-down {
+        from {
+            height: 0;
+        }
+
+        to {
+            height: var(--radix-accordion-content-height);
+        }
+    }
+
+    @keyframes accordion-up {
+        from {
+            height: var(--radix-accordion-content-height);
+        }
+
+        to {
+            height: 0;
+        }
+    }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+}
+
+@layer base {
+    /**
+   * Skriuw Dark Theme
+   */
+    :root {
+        --background: 0 0% 100%;
+        /* White */
+        --background-secondary: 0 0% 96%;
+        /* Light gray for light mode */
+        --foreground: 0 0% 20%;
+        /* rgb(51, 51, 51) */
+
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 20%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 20%;
+
+        --primary: 222 47% 11%;
+        /* Gray 950 */
+        --primary-foreground: 0 0% 98%;
+
+        --secondary: 220 14% 96%;
+        /* Gray 100 */
+        --secondary-foreground: 222 47% 11%;
+
+        --muted: 220 14% 96%;
+        /* Gray 100 */
+        --muted-foreground: 0 0% 46%;
+        /* Gray 500 - rgb(118, 118, 118) */
+
+        --accent: 220 14% 96%;
+        /* Gray 100 */
+        --accent-foreground: 222 47% 11%;
+        /* Gray 950 */
+
+        --destructive: 355.47deg 98.62% 75.48% / 70%;
+        --destructive-foreground: 355.47deg 98.62% 75.48% / 20%;
+
+        --border: 220 13% 91%;
+        /* Gray 200 - rgb(229, 231, 235) */
+        --input: 220 13% 91%;
+        --ring: 222 47% 11%;
+
+        --radius: 0.375rem;
+
+        --sidebar-background: 0 0% 100%;
+        --sidebar-foreground: 0 0% 20%;
+        --sidebar-primary: 222 47% 11%;
+        --sidebar-primary-foreground: 0 0% 98%;
+        --sidebar-accent: 220 14% 96%;
+        --sidebar-accent-foreground: 222 47% 11%;
+        --sidebar-border: 220 13% 91%;
+        --sidebar-ring: 222 47% 11%;
+
+        /* Brand color - default: hsl(167.8deg 53.25% 54.71%) */
+        --brand-400: 167.8 53.25% 65%;
+        --brand-500: 167.8 53.25% 54.71%;
+    }
+
+    .dark {
+        --background: 0 0% 7%;
+        /* rgb(18, 18, 18) */
+        --background-secondary: 0 0% 8.6%;
+        /* rgb(22, 22, 22) - #161616 */
+        --foreground: 0 0% 85%;
+        /* rgb(217, 217, 217) */
+
+        --card: 0 0% 7%;
+        --card-foreground: 0 0% 85%;
+
+        --popover: 0 0% 7%;
+        --popover-foreground: 0 0% 85%;
+
+        --primary: 0 0% 90%;
+        /* rgb(230, 230, 230) */
+        --primary-foreground: 0 0% 7%;
+
+        --secondary: 0 0% 18%;
+        /* rgb(46, 46, 46) */
+        --secondary-foreground: 0 0% 90%;
+
+        --muted: 0 0% 18%;
+        --muted-foreground: 0 0% 55%;
+        /* rgb(140, 140, 140) */
+
+        --accent: 0 0% 18%;
+        --accent-foreground: 0 0% 90%;
+
+        --destructive: 355.47deg 98.62% 75.48% / 70%;
+        --destructive-foreground: 355.47deg 98.62% 75.48% / 20%;
+
+        --border: 0 0% 18%;
+        /* rgb(46, 46, 46) */
+        --input: 0 0% 18%;
+        --ring: 0 0% 90%;
+
+        --sidebar-background: 0 0% 7%;
+        --sidebar-foreground: 0 0% 85%;
+        --sidebar-primary: 0 0% 90%;
+        --sidebar-primary-foreground: 0 0% 7%;
+        --sidebar-accent: 0 0% 18%;
+        --sidebar-accent-foreground: 0 0% 90%;
+        --sidebar-border: 0 0% 18%;
+        --sidebar-ring: 0 0% 90%;
+
+        /* Brand color - default: hsl(167.8deg 53.25% 54.71%) */
+        --brand-400: 167.8 53.25% 65%;
+        --brand-500: 167.8 53.25% 54.71%;
+    }
+
+    @layer base {
+        * {
+            border-color: var(--color-border);
+        }
+
+        body {
+            @apply bg-background text-foreground font-sans;
+            font-family:
+                'Ubuntu Sans',
+                -apple-system,
+                system-ui,
+                sans-serif;
+        }
+
+        :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        pre,
+        code {
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .font-brand {
+            font-family: Georgia, 'Playfair Display', 'Times New Roman', serif;
+        }
+    }
+
+    /* start scrollbar stylin */
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.2);
+        border-radius: 3px;
+        transition: background-color 0.2s ease;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--muted-foreground) / 0.3);
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+        background: hsl(var(--muted-foreground) / 0.4);
+    }
+
+    /* Firefox scrollbar styles */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+    }
+
+    /* Dark mode specific scrollbar adjustments */
+    @media (prefers-color-scheme: dark) {
+        ::-webkit-scrollbar-thumb {
+            background: hsl(var(--border) / 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--border) / 0.7);
+        }
+
+        ::-webkit-scrollbar-thumb:active {
+            background: hsl(var(--border) / 0.9);
+        }
+
+        * {
+            scrollbar-color: hsl(var(--border) / 0.5) transparent;
+        }
+    }
+
+    /* Light mode scrollbar adjustments (if light mode is ever added) */
+    @media (prefers-color-scheme: light) {
+        ::-webkit-scrollbar-thumb {
+            background: hsl(var(--muted-foreground) / 0.15);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--muted-foreground) / 0.25);
+        }
+
+        ::-webkit-scrollbar-thumb:active {
+            background: hsl(var(--muted-foreground) / 0.35);
+        }
+
+        * {
+            scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent;
+        }
+    }
+
+    /* Hide scrollbar when not hovering (optional minimal behavior) */
+    .minimal-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .minimal-scrollbar::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.1);
+    }
+
+    .minimal-scrollbar:hover::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.3);
+    }
+
+    /* Completely hidden scrollbars for elements where scrollbars should be invisible */
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* end scrollbars tyling */
+}
