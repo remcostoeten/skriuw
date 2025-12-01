@@ -6,8 +6,6 @@ import { NoteEditor as NoteEditorComponent } from '@/features/editor/components/
 import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 
-import { AppLayoutContainer } from '@/components/layout/app-layout-container'
-
 export default function NoteEditorPage({ params }: { params: Promise<{ slug: string[] }> }) {
 	const resolvedParams = use(params)
 	const slugOrId = resolvedParams.slug?.join('/') || null
@@ -19,9 +17,5 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 		return resolveNoteId(slugOrId)
 	}, [slugOrId, resolveNoteId])
 	
-	return (
-		<AppLayoutContainer sidebarActiveNoteId={noteId || undefined}>
-			{noteId && <NoteEditorComponent key={noteId} noteId={noteId} />}
-		</AppLayoutContainer>
-	)
+	return <>{noteId && <NoteEditorComponent key={noteId} noteId={noteId} />}</>
 }
