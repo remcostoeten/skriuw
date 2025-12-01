@@ -1,23 +1,12 @@
 {
-  "buildCommand": "cd apps/web && pnpm build",
+  "buildCommand": "pnpm -r --filter '@skriuw/db' build && cd apps/web && pnpm build",
   "outputDirectory": "dist/spa",
   "devCommand": "cd apps/web && pnpm dev",
   "installCommand": "pnpm install",
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/:path*",
-      "destination": "/index.html",
-      "has": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "(?!text/html).*"
-        }
-      ]
-    },
-    {
-      "source": "/:path*",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
