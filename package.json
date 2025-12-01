@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cd apps/web && pnpm dev",
+    "dev:api": "vercel dev --listen 3000",
     "build": "pnpm -r --filter '@skriuw/*' build",
     "build:web": "cd apps/web && pnpm build",
     "build:api": "cd apps/api && pnpm build",
