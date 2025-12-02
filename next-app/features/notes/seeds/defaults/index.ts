@@ -16,3 +16,13 @@ export { shiftClickRangeSelectionNoteSeed } from './todo/shift-click-range-selec
 
 // Release notes
 export { releaseNote20251125Seed } from './releases/2025-11-25-linked-mentions-tabs'
+
+// Folders
+export { developmentDocsFolderSeed } from './development-docs-folder'
+
+// Documentation
+export { architectureOverviewSeed } from './architecture-overview'
+export { crudLayerOverviewSeed } from './crud-layer-overview'
+export { genericStorageFactorySeed } from './generic-storage-factory'
+export { serverlessApiAdapterSeed } from './serverless-api-adapter'
+export { storageSystemOverviewSeed } from './storage-system-overview'

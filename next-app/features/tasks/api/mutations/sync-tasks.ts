@@ -13,12 +13,12 @@ export async function syncTasksToDatabase(
 		const response = await fetch('/api/tasks/sync', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json'
+				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
 				noteId,
-				tasks: extractedTasks
-			})
+				tasks: extractedTasks,
+			}),
 		})
 
 		if (!response.ok) {
@@ -27,9 +27,7 @@ export async function syncTasksToDatabase(
 		}
 	} catch (error) {
 		console.error('Failed to sync tasks to database:', error)
-		throw error instanceof Error
-			? error
-			: new Error(`Failed to sync tasks: ${String(error)}`)
+		throw error instanceof Error ? error : new Error(`Failed to sync tasks: ${String(error)}`)
 	}
 }
 
@@ -41,7 +39,7 @@ export async function deleteTasksForNote(noteId: string): Promise<void> {
 
 	try {
 		const response = await fetch(`/api/tasks/${encodeURIComponent(noteId)}`, {
-			method: 'DELETE'
+			method: 'DELETE',
 		})
 
 		if (!response.ok) {
@@ -50,8 +48,6 @@ export async function deleteTasksForNote(noteId: string): Promise<void> {
 		}
 	} catch (error) {
 		console.error('Failed to delete tasks for note:', error)
-		throw error instanceof Error
-			? error
-			: new Error(`Failed to delete tasks: ${String(error)}`)
+		throw error instanceof Error ? error : new Error(`Failed to delete tasks: ${String(error)}`)
 	}
 }

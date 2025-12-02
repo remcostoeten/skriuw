@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const installNoteSeed = {
-  name: 'Install',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Servo Universal Installer
+	name: 'Install',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Servo Universal Installer
 
 A one-command installer to add Servo to any Node.js project. Servo is a terminal-based development launcher that provides an interactive TUI for managing your development workflows.
 
@@ -281,5 +281,5 @@ echo '{"name":"test","scripts":{"dev":"echo dev"}}' > package.json
 
 ---
 
-**Enjoy using Servo! 🚀**`
+**Enjoy using Servo! 🚀**`,
 } satisfies DefaultNote

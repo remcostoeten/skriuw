@@ -16,8 +16,12 @@ export function IndexSkeleton() {
 			</div>
 			<div className="flex flex-col items-center gap-3 max-w-sm">
 				<div className="flex flex-col items-center gap-2 text-center">
-					<p className="text-lg font-medium text-secondary-foreground">Select a note to start editing</p>
-					<p className="text-sm text-muted-foreground">Get started by opening a collection or creating a new note</p>
+					<p className="text-lg font-medium text-secondary-foreground">
+						Select a note to start editing
+					</p>
+					<p className="text-sm text-muted-foreground">
+						Get started by opening a collection or creating a new note
+					</p>
 				</div>
 				<div className="flex flex-col sm:flex-row gap-3 mt-2">
 					<button className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg transition-colors min-w-[140px] text-muted-foreground hover:text-secondary-foreground hover:bg-accent">

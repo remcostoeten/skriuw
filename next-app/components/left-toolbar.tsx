@@ -3,7 +3,15 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { NotesIcon, CalendarIcon, TodoIcon, GearIcon, FolderIcon, UIPlaygroundIcon, IconButton } from '@/shared/ui/icons'
+import {
+	NotesIcon,
+	CalendarIcon,
+	TodoIcon,
+	GearIcon,
+	FolderIcon,
+	UIPlaygroundIcon,
+	IconButton,
+} from '@/shared/ui/icons'
 
 import { Logo } from '@/components/logo'
 
@@ -53,8 +61,20 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 					variant="sidebar"
 					onClick={() => navigate('/archive')}
 				/>
-				<IconButton icon={<CalendarIcon />} tooltip="Calendar" active={false} variant="sidebar" onClick={() => handleNonExistentRoute('calendar')} />
-				<IconButton icon={<TodoIcon />} tooltip="Checklist" active={false} variant="sidebar" onClick={() => handleNonExistentRoute('checklist')} />
+				<IconButton
+					icon={<CalendarIcon />}
+					tooltip="Calendar"
+					active={false}
+					variant="sidebar"
+					onClick={() => handleNonExistentRoute('calendar')}
+				/>
+				<IconButton
+					icon={<TodoIcon />}
+					tooltip="Checklist"
+					active={false}
+					variant="sidebar"
+					onClick={() => handleNonExistentRoute('checklist')}
+				/>
 				<IconButton
 					icon={<UIPlaygroundIcon />}
 					tooltip="UI Playground"

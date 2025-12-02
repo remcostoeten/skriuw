@@ -10,10 +10,7 @@ export default function NotFound() {
 	const router = useRouter()
 
 	useEffect(() => {
-		console.error(
-			'404 Error: User attempted to access non-existent route:',
-			pathname
-		)
+		console.error('404 Error: User attempted to access non-existent route:', pathname)
 	}, [pathname])
 
 	return (
@@ -24,8 +21,8 @@ export default function NotFound() {
 			actions={[
 				{
 					label: 'Return to Home',
-					onClick: () => router.push('/')
-				}
+					onClick: () => router.push('/'),
+				},
 			]}
 		/>
 	)

@@ -1,4 +1,4 @@
-import { getGenericStorage } from "../generic-storage-factory"
+import { getGenericStorage } from '../generic-storage-factory'
 
 export async function move(
 	storageKey: string,
@@ -9,6 +9,8 @@ export async function move(
 		const storage = getGenericStorage()
 		return await storage.move(storageKey, entityId, targetParentId)
 	} catch (error) {
-		throw new Error(`Failed to move entity ${entityId} in ${storageKey}: ${error instanceof Error ? error.message : String(error)}`)
+		throw new Error(
+			`Failed to move entity ${entityId} in ${storageKey}: ${error instanceof Error ? error.message : String(error)}`
+		)
 	}
 }

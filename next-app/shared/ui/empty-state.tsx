@@ -1,52 +1,63 @@
-import React from 'react';
+import React from 'react'
 
-import { Kbd } from '@/shared/ui/kbd';
+import { Kbd } from '@/shared/ui/kbd'
 
-import type { KeyboardShortcut } from '@/features/shortcuts';
+import type { KeyboardShortcut } from '@/features/shortcuts'
 
 export type EmptyStateAction = {
-	label: string;
+	label: string
 	/**
 	 * Keyboard shortcut to display (typed format only)
 	 */
-	shortcut?: KeyboardShortcut;
-	separator?: boolean;
-	onClick: () => void;
-};
+	shortcut?: KeyboardShortcut
+	separator?: boolean
+	onClick: () => void
+}
 
 type props = {
-	message?: string;
-	submessage?: string;
-	actions?: EmptyStateAction[];
-	icon?: React.ReactNode;
-	variant?: 'default' | 'destructive';
-	isFull?: boolean;
-};
+	message?: string
+	submessage?: string
+	actions?: EmptyStateAction[]
+	icon?: React.ReactNode
+	variant?: 'default' | 'destructive'
+	isFull?: boolean
+}
 
-export function EmptyState({ message, submessage, actions = [], icon, variant = 'default', isFull = false }: props) {
-	const isDestructive = variant === 'destructive';
+export function EmptyState({
+	message,
+	submessage,
+	actions = [],
+	icon,
+	variant = 'default',
+	isFull = false,
+}: props) {
+	const isDestructive = variant === 'destructive'
 
 	return (
-		<div className={isFull ? "flex flex-col items-center justify-center gap-3 w-full h-full" : "flex flex-col items-center gap-3 max-w-sm"}>
+		<div
+			className={
+				isFull
+					? 'flex flex-col items-center justify-center gap-3 w-full h-full'
+					: 'flex flex-col items-center gap-3 max-w-sm'
+			}
+		>
 			{icon && (
 				<div className={`${isDestructive ? 'text-destructive/60' : 'text-muted-foreground'}`}>
 					{icon}
 				</div>
 			)}
 			<div className="flex flex-col items-center gap-2 text-center">
-				<p className={`text-lg font-medium ${
-					isDestructive
-						? 'text-destructive/90'
-						: 'text-secondary-foreground'
-				}`}>
+				<p
+					className={`text-lg font-medium ${
+						isDestructive ? 'text-destructive/90' : 'text-secondary-foreground'
+					}`}
+				>
 					{message}
 				</p>
 				{submessage && (
-					<p className={`text-sm ${
-						isDestructive
-							? 'text-destructive/60'
-							: 'text-muted-foreground'
-					}`}>
+					<p
+						className={`text-sm ${isDestructive ? 'text-destructive/60' : 'text-muted-foreground'}`}
+					>
 						{submessage}
 					</p>
 				)}
@@ -63,15 +74,12 @@ export function EmptyState({ message, submessage, actions = [], icon, variant = 
 									: 'text-muted-foreground hover:text-secondary-foreground hover:bg-accent'
 							}`}
 						>
-							{action.shortcut && (
-								<Kbd shortcut={action.shortcut} separator={action.separator} />
-							)}
+							{action.shortcut && <Kbd shortcut={action.shortcut} separator={action.separator} />}
 							<span className="text-sm font-medium">{action.label}</span>
 						</button>
 					))}
 				</div>
 			)}
 		</div>
-	);
+	)
 }
-
