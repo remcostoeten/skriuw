@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Label } from '@/shared/ui/label'
 import { Input } from '@/shared/ui/input'
 import { Switch } from '@/shared/ui/switch'
-import { Slider } from '@/shared/ui/slider'
+// import { Slider } from '@/shared/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 
 import type { SettingsGroup, UserSetting } from '../types'
@@ -73,23 +73,23 @@ export function SettingsGroup({
                 )
 
             case 'number':
-                // Use slider for numeric settings that have reasonable ranges
-                if (['fontSize', 'lineHeight', 'autoSaveInterval', 'tabSize'].includes(setting.key)) {
-                    return (
-                        <div key={setting.key} className="space-y-2">
-                            <Label>{setting.key}</Label>
-                            <p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
-                            <Slider
-                                value={[currentValue]}
-                                onValueChange={([value]) => handleChange(value)}
-                                disabled={isSettingDisabled}
-                                min={setting.key === 'fontSize' ? 12 : setting.key === 'tabSize' ? 1 : 0}
-                                max={setting.key === 'fontSize' ? 24 : setting.key === 'tabSize' ? 8 : 100}
-                                step={1}
-                            />
-                        </div>
-                    )
-                }
+                // Temporarily removed Slider usage to fix Vercel build
+                // if (['fontSize', 'lineHeight', 'autoSaveInterval', 'tabSize'].includes(setting.key)) {
+                //     return (
+                //         <div key={setting.key} className="space-y-2">
+                //             <Label>{setting.key}</Label>
+                //             <p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
+                //             <Slider
+                //                 value={[currentValue]}
+                //                 onValueChange={([value]) => handleChange(value)}
+                //                 disabled={isSettingDisabled}
+                //                 min={setting.key === 'fontSize' ? 12 : setting.key === 'tabSize' ? 1 : 0}
+                //                 max={setting.key === 'fontSize' ? 24 : setting.key === 'tabSize' ? 8 : 100}
+                //                 step={1}
+                //             />
+                //         </div>
+                //     )
+                // }
                 // Fallthrough to string input for other numeric values
                 return (
                     <div key={setting.key} className="space-y-2">
