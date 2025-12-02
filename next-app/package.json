@@ -16,7 +16,7 @@
         "db:reset": "tsx lib/db/reset.ts"
     },
     "engines": {
-      "node": ">=18.0.0"
+        "node": ">=18.0.0"
     },
     "dependencies": {
         "@blocknote/code-block": "^0.42.3",
@@ -47,6 +47,7 @@
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
         "date-fns": "^4.1.0",
+        "dotenv": "^17.2.3",
         "drizzle-orm": "^0.44.7",
         "framer-motion": "^12.23.12",
         "lucide-react": "^0.539.0",
