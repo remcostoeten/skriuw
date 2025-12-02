@@ -43,3 +43,5 @@ src-tauri/target/
 # Next.js
 next-app/.tmp/*
 .next/*
+quantum-work-monorepo/apps/web/.next/*
+next-app/apps/web/.tmp/*
