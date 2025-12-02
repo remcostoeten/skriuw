@@ -1,12 +1,12 @@
 :root {
-  --outline-color: hsl(var(--primary));
+	--outline-color: hsl(var(--primary));
 }
 
 *:focus-visible {
-  outline: 2px solid var(--outline-color);
-  outline-offset: 2px;
+	outline: 2px solid var(--outline-color);
+	outline-offset: 2px;
 }
 
 [data-focus-visible-added]:focus:not(:focus-visible) {
-  outline: none;
+	outline: none;
 }

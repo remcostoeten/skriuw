@@ -106,8 +106,18 @@ const LogoIcon = () => {
 				}}
 			>
 				<path d="M16 2V30" className="stroke-primary/40" strokeWidth="0.75" strokeDasharray="2 2" />
-				<path d="M4 9L28 9" className="stroke-primary/40" strokeWidth="0.75" strokeDasharray="2 2" />
-				<path d="M4 23L28 23" className="stroke-primary/40" strokeWidth="0.75" strokeDasharray="2 2" />
+				<path
+					d="M4 9L28 9"
+					className="stroke-primary/40"
+					strokeWidth="0.75"
+					strokeDasharray="2 2"
+				/>
+				<path
+					d="M4 23L28 23"
+					className="stroke-primary/40"
+					strokeWidth="0.75"
+					strokeDasharray="2 2"
+				/>
 			</motion.g>
 
 			<motion.g
@@ -130,7 +140,13 @@ const LogoIcon = () => {
 					{ cx: 4, cy: 23 },
 					{ cx: 4, cy: 9 },
 				].map((circle) => (
-					<motion.circle key={`${circle.cx}-${circle.cy}`} {...circle} r="1.5" className="fill-primary" variants={circleVariants} />
+					<motion.circle
+						key={`${circle.cx}-${circle.cy}`}
+						{...circle}
+						r="1.5"
+						className="fill-primary"
+						variants={circleVariants}
+					/>
 				))}
 			</motion.g>
 		</motion.svg>

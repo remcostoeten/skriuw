@@ -3,6 +3,7 @@
 This directory contains React components specific to the notes feature.
 
 Examples:
+
 - NoteCard
 - NoteList
 - NoteForm

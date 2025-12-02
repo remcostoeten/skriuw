@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const pinAndFavoriteItemsNoteSeed: DefaultNote = {
-  name: 'Pin Items to Top & Favorite Notes',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Pin Items to Top & Favorite Notes Implementation Plan
+	name: 'Pin Items to Top & Favorite Notes',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Pin Items to Top & Favorite Notes Implementation Plan
 
 ## Overview
 
@@ -488,6 +488,5 @@ export function useFavoriteNote() {
 - Context menu component documentation
 - Database migration best practices
 - Accessibility guidelines for interactive elements
-`
+`,
 }
-

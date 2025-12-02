@@ -1,22 +1,22 @@
-import { ShortcutDisplay } from '@/features/shortcuts';
+import { ShortcutDisplay } from '@/features/shortcuts'
 
-import type { KeyboardShortcut, DisplayFormat } from '@/features/shortcuts';
+import type { KeyboardShortcut, DisplayFormat } from '@/features/shortcuts'
 
 type props = {
 	/**
 	 * Keyboard shortcut to display (typed format only)
 	 */
-	shortcut?: KeyboardShortcut;
-	separator?: boolean;
-	format?: DisplayFormat;
-	className?: string;
-};
+	shortcut?: KeyboardShortcut
+	separator?: boolean
+	format?: DisplayFormat
+	className?: string
+}
 
 /**
  * Keyboard shortcut display component
  */
 export function Kbd({ shortcut, separator = false, format = 'text', className = '' }: props) {
-	if (!shortcut) return null;
+	if (!shortcut) return null
 
 	return (
 		<ShortcutDisplay
@@ -25,5 +25,5 @@ export function Kbd({ shortcut, separator = false, format = 'text', className = 
 			separator={separator}
 			className={className}
 		/>
-	);
+	)
 }

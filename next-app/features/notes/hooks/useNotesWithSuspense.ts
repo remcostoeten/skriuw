@@ -1,11 +1,5 @@
 import { Block } from '@blocknote/core'
-import {
-    useState,
-    useCallback,
-    useEffect,
-    startTransition,
-    useDeferredValue
-} from 'react'
+import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
 import { read } from '@skriuw/storage/crud'
 
@@ -27,169 +21,160 @@ const STORAGE_KEY = 'Skriuw_notes'
  * Supports concurrent rendering and prevents layout shifts
  */
 export function useNotesWithSuspense() {
-    const [items, setItems] = useState<Item[]>([])
-    const [isInitialLoading, setIsInitialLoading] = useState(true)
-    const [isRefreshing, setIsRefreshing] = useState(false)
+	const [items, setItems] = useState<Item[]>([])
+	const [isInitialLoading, setIsInitialLoading] = useState(true)
+	const [isRefreshing, setIsRefreshing] = useState(false)
 
-    // Deferred valure for non-blocking updates
-    const deferredItems = useDeferredValue(items)
+	// Deferred valure for non-blocking updates
+	const deferredItems = useDeferredValue(items)
 
-    // Initial load
-    useEffect(() => {
-        let isCancelled = false
+	// Initial load
+	useEffect(() => {
+		let isCancelled = false
 
-        const loadInitialData = async () => {
-            try {
-                const data = await getItems()
-                if (!isCancelled) {
-                    setItems(data)
-                    setIsInitialLoading(false)
-                }
-            } catch (error) {
-                console.error('Failed to load notes:', error)
-                if (!isCancelled) {
-                    setIsInitialLoading(false)
-                }
-            }
-        }
+		const loadInitialData = async () => {
+			try {
+				const data = await getItems()
+				if (!isCancelled) {
+					setItems(data)
+					setIsInitialLoading(false)
+				}
+			} catch (error) {
+				console.error('Failed to load notes:', error)
+				if (!isCancelled) {
+					setIsInitialLoading(false)
+				}
+			}
+		}
 
-        loadInitialData()
+		loadInitialData()
 
-        return () => {
-            isCancelled = true
-        }
-    }, [])
+		return () => {
+			isCancelled = true
+		}
+	}, [])
 
-    const refreshItems = useCallback(async () => {
-        setIsRefreshing(true)
-        try {
-            invalidateItemsCache()
-            const updatedItems = await getItems({ forceRefresh: true })
-            // Use startTransition to make this update non-blocking
-            startTransition(() => {
-                setItems(updatedItems)
-                setIsRefreshing(false)
-            })
-        } catch (error) {
-            console.error('Failed to refresh items:', error)
-            setIsRefreshing(false)
-        }
-    }, [])
+	const refreshItems = useCallback(async () => {
+		setIsRefreshing(true)
+		try {
+			invalidateItemsCache()
+			const updatedItems = await getItems({ forceRefresh: true })
+			// Use startTransition to make this update non-blocking
+			startTransition(() => {
+				setItems(updatedItems)
+				setIsRefreshing(false)
+			})
+		} catch (error) {
+			console.error('Failed to refresh items:', error)
+			setIsRefreshing(false)
+		}
+	}, [])
 
-    const getNote = useCallback(
-        async (id: string): Promise<Note | undefined> => {
-            return await getNoteQuery(id)
-        },
-        []
-    )
+	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
+		return await getNoteQuery(id)
+	}, [])
 
-    const getItem = useCallback(
-        async (id: string): Promise<Item | undefined> => {
-            const result = await read<Item>(STORAGE_KEY, { getById: id })
-            if (result && typeof result === 'object' && 'id' in result) {
-                return result
-            }
-            return undefined
-        },
-        []
-    )
+	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
+		const result = await read<Item>(STORAGE_KEY, { getById: id })
+		if (result && typeof result === 'object' && 'id' in result) {
+			return result
+		}
+		return undefined
+	}, [])
 
-    const createNote = useCallback(
-        async (name: string = 'Untitled', parentFolderId?: string) => {
-            const newNote = await createNoteMutation({ name, parentFolderId })
-            // Non-blocking refresh
-            refreshItems()
-            return newNote
-        },
-        [refreshItems]
-    )
+	const createNote = useCallback(
+		async (name: string = 'Untitled', parentFolderId?: string) => {
+			const newNote = await createNoteMutation({ name, parentFolderId })
+			// Non-blocking refresh
+			refreshItems()
+			return newNote
+		},
+		[refreshItems]
+	)
 
-    const createFolder = useCallback(
-        async (name: string = 'New Folder', parentFolderId?: string) => {
-            const newFolder = await createFolderMutation({
-                name,
-                parentFolderId
-            })
-            // Non-blocking refresh
-            refreshItems()
-            return newFolder
-        },
-        [refreshItems]
-    )
+	const createFolder = useCallback(
+		async (name: string = 'New Folder', parentFolderId?: string) => {
+			const newFolder = await createFolderMutation({
+				name,
+				parentFolderId,
+			})
+			// Non-blocking refresh
+			refreshItems()
+			return newFolder
+		},
+		[refreshItems]
+	)
 
-    const updateNote = useCallback(
-        async (id: string, content: Block[], name?: string) => {
-            await updateNoteMutation(id, { content, name })
-            // Non-blocking refresh
-            refreshItems()
-        },
-        [refreshItems]
-    )
+	const updateNote = useCallback(
+		async (id: string, content: Block[], name?: string) => {
+			await updateNoteMutation(id, { content, name })
+			// Non-blocking refresh
+			refreshItems()
+		},
+		[refreshItems]
+	)
 
-    const renameItem = useCallback(
-        async (id: string, newName: string) => {
-            await renameItemMutation(id, newName)
-            // Non-blocking refresh
-            refreshItems()
-        },
-        [refreshItems]
-    )
+	const renameItem = useCallback(
+		async (id: string, newName: string) => {
+			await renameItemMutation(id, newName)
+			// Non-blocking refresh
+			refreshItems()
+		},
+		[refreshItems]
+	)
 
-    const deleteItem = useCallback(
-        async (id: string) => {
-            const success = await deleteItemMutation(id)
-            if (success) {
-                // Non-blocking refresh
-                refreshItems()
-            }
-            return success
-        },
-        [refreshItems]
-    )
+	const deleteItem = useCallback(
+		async (id: string) => {
+			const success = await deleteItemMutation(id)
+			if (success) {
+				// Non-blocking refresh
+				refreshItems()
+			}
+			return success
+		},
+		[refreshItems]
+	)
 
-    const moveItem = useCallback(
-        async (itemId: string, targetFolderId: string | null) => {
-            const success = await moveItemMutation(itemId, targetFolderId)
-            if (success) {
-                // Non-blocking refresh
-                refreshItems()
-            }
-            return success
-        },
-        [refreshItems]
-    )
+	const moveItem = useCallback(
+		async (itemId: string, targetFolderId: string | null) => {
+			const success = await moveItemMutation(itemId, targetFolderId)
+			if (success) {
+				// Non-blocking refresh
+				refreshItems()
+			}
+			return success
+		},
+		[refreshItems]
+	)
 
-    const countChildren = useCallback(
-        async (folderId: string): Promise<number> => {
-            const folder = await read<Folder>(STORAGE_KEY, {
-                getById: folderId
-            })
-            if (
-                folder &&
-                typeof folder === 'object' &&
-                'children' in folder &&
-                Array.isArray(folder.children)
-            ) {
-                return folder.children.length
-            }
-            return 0
-        },
-        []
-    )
+	const countChildren = useCallback(async (folderId: string): Promise<number> => {
+		const folder = await read<Folder>(STORAGE_KEY, {
+			getById: folderId,
+		})
+		if (
+			folder &&
+			typeof folder === 'object' &&
+			'children' in folder &&
+			Array.isArray(folder.children)
+		) {
+			return folder.children.length
+		}
+		return 0
+	}, [])
 
-    return {
-        items: deferredItems,
-        isInitialLoading,
-        isRefreshing,
-        getNote,
-        getItem,
-        createNote,
-        createFolder,
-        updateNote,
-        renameItem,
-        deleteItem,
-        moveItem,
-        countChildren,
-        refreshItems
-    }
+	return {
+		items: deferredItems,
+		isInitialLoading,
+		isRefreshing,
+		getNote,
+		getItem,
+		createNote,
+		createFolder,
+		updateNote,
+		renameItem,
+		deleteItem,
+		moveItem,
+		countChildren,
+		refreshItems,
+	}
 }

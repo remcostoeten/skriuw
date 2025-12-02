@@ -1,93 +1,94 @@
-import type { UserSetting, SettingsGroup } from "./types";
+import type { UserSetting, SettingsGroup } from './types'
 
 /**
  * Editor-specific user settings
  * Only include settings that are actually implemented and functional
  */
 export const EDITOR_SETTINGS: UserSetting[] = [
-  {
-    key: 'wordWrap',
-    value: true,
-    defaultValue: true,
-    type: 'boolean',
-    description: 'Enable word wrapping in the editor',
-    category: 'editor',
-    implemented: true,
-  },
-  {
-    key: 'blockIndicator',
-    value: true,
-    defaultValue: true,
-    type: 'boolean',
-    description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
-    category: 'editor',
-    implemented: true,
-  },
-  {
-    key: 'multiNoteTabs',
-    value: false,
-    defaultValue: false,
-    type: 'boolean',
-    description: 'Enable multi-note tabs to keep several notes open at once',
-    category: 'editor',
-    implemented: true,
-  },
-  {
-    key: 'rawMDXMode',
-    value: false,
-    defaultValue: false,
-    type: 'boolean',
-    description: 'Use raw MDX editor instead of rich editor (Ctrl+M to toggle)',
-    category: 'editor',
-    implemented: true,
-  },
-    {
-    key: 'showFormattingToolbar',
-    value: true,
-    defaultValue: true,
-    type: 'boolean',
-    description: 'Show the formatting toolbar',
-    category: 'editor',
-    implemented: true,
-  },
-    {
-    key: 'placeholder',
-    value: 'Start typing your note...',
-    defaultValue: 'Start typing your note...',
-    type: 'string',
-    description: 'Placeholder text shown in empty editor',
-    category: 'editor',
-    implemented: true,
-  },
-  {
-    key: 'centeredLayout',
-    value: false,
-    defaultValue: false,
-    type: 'boolean',
-    description: 'Center the editor content with a max-width container',
-    category: 'appearance',
-    implemented: true,
-  },
-  {
-    key: 'titleDisplayMode',
-    value: 'filename',
-    defaultValue: 'filename',
-    type: 'enum',
-    description: 'How the title in the top bar should be displayed',
-    category: 'appearance',
-    options: ['filename', 'firstHeading', 'aiGenerated'],
-    implemented: true,
-  },
-  {
-    key: 'searchInContent',
-    value: false,
-    defaultValue: false,
-    type: 'boolean',
-    description: 'When this is toggled on, the search will search through all contents of the notes in addition to file names',
-    category: 'advanced',
-    implemented: true,
-  },
-];
+	{
+		key: 'wordWrap',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Enable word wrapping in the editor',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'blockIndicator',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'multiNoteTabs',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Enable multi-note tabs to keep several notes open at once',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'rawMDXMode',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Use raw MDX editor instead of rich editor (Ctrl+M to toggle)',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'showFormattingToolbar',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Show the formatting toolbar',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'placeholder',
+		value: 'Start typing your note...',
+		defaultValue: 'Start typing your note...',
+		type: 'string',
+		description: 'Placeholder text shown in empty editor',
+		category: 'editor',
+		implemented: true,
+	},
+	{
+		key: 'centeredLayout',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Center the editor content with a max-width container',
+		category: 'appearance',
+		implemented: true,
+	},
+	{
+		key: 'titleDisplayMode',
+		value: 'filename',
+		defaultValue: 'filename',
+		type: 'enum',
+		description: 'How the title in the top bar should be displayed',
+		category: 'appearance',
+		options: ['filename', 'firstHeading', 'aiGenerated'],
+		implemented: true,
+	},
+	{
+		key: 'searchInContent',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description:
+			'When this is toggled on, the search will search through all contents of the notes in addition to file names',
+		category: 'advanced',
+		implemented: true,
+	},
+]
 
 /**
  * Commented out settings - Not yet implemented
@@ -221,78 +222,99 @@ export const EDITOR_SETTINGS: UserSetting[] = [
  * Only show categories that have implemented settings
  */
 export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
-  {
-    category: 'editor',
-    title: 'Editor',
-    description: 'Editor behavior and editing preferences',
-    settings: EDITOR_SETTINGS.filter(s => s.category === 'editor' && s.implemented !== false),
-  },
-  // Only include appearance group if there are implemented settings
-  ...(EDITOR_SETTINGS.some(s => s.category === 'appearance' && s.implemented !== false) ? [{
-    category: 'appearance' as const,
-    title: 'Appearance',
-    description: 'Editor appearance and display settings',
-    settings: EDITOR_SETTINGS.filter(s => s.category === 'appearance' && s.implemented !== false),
-  }] : []),
-  // Only include behavior group if there are implemented settings
-  ...(EDITOR_SETTINGS.some(s => s.category === 'behavior' && s.implemented !== false) ? [{
-    category: 'behavior' as const,
-    title: 'Behavior',
-    description: 'Editor behavior and automation settings',
-    settings: EDITOR_SETTINGS.filter(s => s.category === 'behavior' && s.implemented !== false),
-  }] : []),
-  // Only include advanced group if there are implemented settings
-  ...(EDITOR_SETTINGS.some(s => s.category === 'advanced' && s.implemented !== false) ? [{
-    category: 'advanced' as const,
-    title: 'Advanced',
-    description: 'Advanced settings and features',
-    settings: EDITOR_SETTINGS.filter(s => s.category === 'advanced' && s.implemented !== false),
-  }] : []),
-];
+	{
+		category: 'editor',
+		title: 'Editor',
+		description: 'Editor behavior and editing preferences',
+		settings: EDITOR_SETTINGS.filter((s) => s.category === 'editor' && s.implemented !== false),
+	},
+	// Only include appearance group if there are implemented settings
+	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)
+		? [
+				{
+					category: 'appearance' as const,
+					title: 'Appearance',
+					description: 'Editor appearance and display settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'appearance' && s.implemented !== false
+					),
+				},
+			]
+		: []),
+	// Only include behavior group if there are implemented settings
+	...(EDITOR_SETTINGS.some((s) => s.category === 'behavior' && s.implemented !== false)
+		? [
+				{
+					category: 'behavior' as const,
+					title: 'Behavior',
+					description: 'Editor behavior and automation settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'behavior' && s.implemented !== false
+					),
+				},
+			]
+		: []),
+	// Only include advanced group if there are implemented settings
+	...(EDITOR_SETTINGS.some((s) => s.category === 'advanced' && s.implemented !== false)
+		? [
+				{
+					category: 'advanced' as const,
+					title: 'Advanced',
+					description: 'Advanced settings and features',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'advanced' && s.implemented !== false
+					),
+				},
+			]
+		: []),
+]
 
 /**
  * Default editor settings values
  */
-export const DEFAULT_EDITOR_SETTINGS = EDITOR_SETTINGS.reduce((acc, setting) => {
-  acc[setting.key] = setting.defaultValue;
-  return acc;
-}, {} as Record<string, any>);
+export const DEFAULT_EDITOR_SETTINGS = EDITOR_SETTINGS.reduce(
+	(acc, setting) => {
+		acc[setting.key] = setting.defaultValue
+		return acc
+	},
+	{} as Record<string, any>
+)
 
 /**
  * Get editor settings as UserSetting objects
  */
 export function getEditorSettings(settings: Record<string, any>): UserSetting[] {
-  return EDITOR_SETTINGS.map(setting => ({
-    ...setting,
-    value: settings[setting.key] ?? setting.defaultValue,
-  }));
+	return EDITOR_SETTINGS.map((setting) => ({
+		...setting,
+		value: settings[setting.key] ?? setting.defaultValue,
+	}))
 }
 
 /**
  * Validate editor setting value
  */
 export function validateEditorSetting(key: string, value: any): boolean | string {
-  const setting = EDITOR_SETTINGS.find(s => s.key === key);
-  if (!setting) return 'Unknown setting';
+	const setting = EDITOR_SETTINGS.find((s) => s.key === key)
+	if (!setting) return 'Unknown setting'
 
-  // Type validation
-  if (setting.type === 'boolean' && typeof value !== 'boolean') {
-    return 'Value must be a boolean';
-  }
-  if (setting.type === 'number' && typeof value !== 'number') {
-    return 'Value must be a number';
-  }
-  if (setting.type === 'string' && typeof value !== 'string') {
-    return 'Value must be a string';
-  }
-  if (setting.type === 'enum' && !setting.options?.includes(value)) {
-    return `Value must be one of: ${setting.options?.join(', ')}`;
-  }
+	// Type validation
+	if (setting.type === 'boolean' && typeof value !== 'boolean') {
+		return 'Value must be a boolean'
+	}
+	if (setting.type === 'number' && typeof value !== 'number') {
+		return 'Value must be a number'
+	}
+	if (setting.type === 'string' && typeof value !== 'string') {
+		return 'Value must be a string'
+	}
+	if (setting.type === 'enum' && !setting.options?.includes(value)) {
+		return `Value must be one of: ${setting.options?.join(', ')}`
+	}
 
-  // Custom validation
-  if (setting.validation) {
-    return setting.validation(value);
-  }
+	// Custom validation
+	if (setting.validation) {
+		return setting.validation(value)
+	}
 
-  return true;
+	return true
 }
