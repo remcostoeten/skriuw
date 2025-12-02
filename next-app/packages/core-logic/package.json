@@ -1,0 +1,7 @@
+{
+    "name": "@quantum-work/core-logic",
+    "version": "0.0.0",
+    "private": true,
+    "main": "./index.ts",
+    "types": "./index.ts"
+}

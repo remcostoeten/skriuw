@@ -1,0 +1,27 @@
+{
+    "name": "@quantum-work/db",
+    "version": "0.0.0",
+    "private": true,
+    "main": "./index.ts",
+    "types": "./index.ts",
+    "exports": {
+        ".": "./index.ts"
+    },
+    "dependencies": {
+        "drizzle-orm": "^0.44.7",
+        "@neondatabase/serverless": "^0.10.0",
+        "postgres": "^3.4.5"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.30.6",
+        "tsx": "^4.20.3",
+        "dotenv": "^17.2.3"
+    },
+    "scripts": {
+        "db:push": "drizzle-kit push",
+        "db:generate": "drizzle-kit generate",
+        "db:studio": "drizzle-kit studio",
+        "db:seed": "tsx db/seed.ts",
+        "db:reset": "tsx db/reset.ts"
+    }
+}
