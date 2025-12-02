@@ -1,41 +1,38 @@
-import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks';
-import { syncTasksToDatabase } from '@/features/tasks';
+import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
+import { syncTasksToDatabase } from '@/features/tasks'
 
-import { update } from '@skriuw/storage/crud/update';
+import { update } from '@skriuw/storage/crud/update'
 
-import { invalidateItemsCache } from '../queries/get-items';
-import type { Note, UpdateNoteData } from '../../types';
+import { invalidateItemsCache } from '../queries/get-items'
+import type { Note, UpdateNoteData } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes';
+const STORAGE_KEY = 'Skriuw_notes'
 
-export async function updateNote(
-	id: string,
-	data: UpdateNoteData
-): Promise<Note | undefined> {
-	const updateFn = update;
+export async function updateNote(id: string, data: UpdateNoteData): Promise<Note | undefined> {
+	const updateFn = update
 	try {
 		const result = await updateFn(STORAGE_KEY, id, {
 			name: data.name,
 			content: data.content,
-		} as Partial<Note>);
+		} as Partial<Note>)
 
-		invalidateItemsCache();
+		invalidateItemsCache()
 
 		// Sync tasks to database if content was updated
 		if (data.content && Array.isArray(data.content)) {
 			try {
-				const extractedTasks = extractTasksFromBlocks(data.content, id);
-				await syncTasksToDatabase(id, extractedTasks);
+				const extractedTasks = extractTasksFromBlocks(data.content, id)
+				await syncTasksToDatabase(id, extractedTasks)
 			} catch (taskError) {
 				// Log error but don't fail the note update
-				console.error('Failed to sync tasks to database:', taskError);
+				console.error('Failed to sync tasks to database:', taskError)
 			}
 		}
 
-		return result as Note | undefined;
+		return result as Note | undefined
 	} catch (error) {
 		throw new Error(
 			`Failed to update note: ${error instanceof Error ? error.message : String(error)}`
-		);
+		)
 	}
 }

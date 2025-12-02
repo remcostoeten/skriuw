@@ -6,22 +6,86 @@
 /**
  * Modifier keys
  */
-export type Modifier = 'Ctrl' | 'Cmd' | 'Alt' | 'Shift' | 'Meta';
+export type Modifier = 'Ctrl' | 'Cmd' | 'Alt' | 'Shift' | 'Meta'
 
 /**
  * Regular keys (non-modifiers)
  * Common keys that can be used in shortcuts
  */
 export type RegularKey =
-	| 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
-	| 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
-	| '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-	| 'Enter' | 'Space' | 'Tab' | 'Escape' | 'Backspace' | 'Delete'
-	| 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'
-	| 'Home' | 'End' | 'PageUp' | 'PageDown'
-	| 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'F6' | 'F7' | 'F8' | 'F9' | 'F10' | 'F11' | 'F12'
-	| '/' | '[' | ']' | '\\' | ';' | "'" | ',' | '.' | '=' | '-'
-	| string; // Allow custom keys
+	| 'A'
+	| 'B'
+	| 'C'
+	| 'D'
+	| 'E'
+	| 'F'
+	| 'G'
+	| 'H'
+	| 'I'
+	| 'J'
+	| 'K'
+	| 'L'
+	| 'M'
+	| 'N'
+	| 'O'
+	| 'P'
+	| 'Q'
+	| 'R'
+	| 'S'
+	| 'T'
+	| 'U'
+	| 'V'
+	| 'W'
+	| 'X'
+	| 'Y'
+	| 'Z'
+	| '0'
+	| '1'
+	| '2'
+	| '3'
+	| '4'
+	| '5'
+	| '6'
+	| '7'
+	| '8'
+	| '9'
+	| 'Enter'
+	| 'Space'
+	| 'Tab'
+	| 'Escape'
+	| 'Backspace'
+	| 'Delete'
+	| 'ArrowUp'
+	| 'ArrowDown'
+	| 'ArrowLeft'
+	| 'ArrowRight'
+	| 'Home'
+	| 'End'
+	| 'PageUp'
+	| 'PageDown'
+	| 'F1'
+	| 'F2'
+	| 'F3'
+	| 'F4'
+	| 'F5'
+	| 'F6'
+	| 'F7'
+	| 'F8'
+	| 'F9'
+	| 'F10'
+	| 'F11'
+	| 'F12'
+	| '/'
+	| '['
+	| ']'
+	| '\\'
+	| ';'
+	| "'"
+	| ','
+	| '.'
+	| '='
+	| '-'
+	| string // Allow custom keys
 
 /**
  * A single key combination (modifiers + regular key)
@@ -29,16 +93,16 @@ export type RegularKey =
  * This is for display/typing purposes
  */
 export type DisplayKeyCombo = {
-	modifiers?: Modifier[];
-	key: RegularKey;
-};
+	modifiers?: Modifier[]
+	key: RegularKey
+}
 
 /**
  * Delay configuration between key sequences
  */
 export type SequenceDelay = {
-	maxDelay?: number; // Maximum delay in milliseconds between sequences
-};
+	maxDelay?: number // Maximum delay in milliseconds between sequences
+}
 
 /**
  * A keyboard shortcut sequence (chord)
@@ -50,12 +114,12 @@ export type ShortcutSequence =
 	| [DisplayKeyCombo, DisplayKeyCombo, DisplayKeyCombo]
 	| [DisplayKeyCombo, SequenceDelay, DisplayKeyCombo]
 	| [DisplayKeyCombo, DisplayKeyCombo, SequenceDelay, DisplayKeyCombo]
-	| [DisplayKeyCombo, SequenceDelay, DisplayKeyCombo, SequenceDelay, DisplayKeyCombo];
+	| [DisplayKeyCombo, SequenceDelay, DisplayKeyCombo, SequenceDelay, DisplayKeyCombo]
 
 /**
  * Display format for shortcuts
  */
-export type DisplayFormat = 'text' | 'icon' | 'mixed';
+export type DisplayFormat = 'text' | 'icon' | 'mixed'
 
 /**
  * Icon mapping for modifier keys
@@ -66,7 +130,7 @@ export const MODIFIER_ICONS: Record<Modifier, string> = {
 	Alt: '⌥',
 	Shift: '⇧',
 	Meta: '⌘',
-};
+}
 
 /**
  * Icon mapping for special keys
@@ -86,16 +150,16 @@ export const KEY_ICONS: Partial<Record<RegularKey, string>> = {
 	End: '⇲',
 	PageUp: '⇞',
 	PageDown: '⇟',
-};
+}
 
 /**
  * Complete keyboard shortcut definition (for display)
  */
 export type KeyboardShortcut = {
-	sequences: ShortcutSequence[];
-	displayFormat?: DisplayFormat;
-	description?: string;
-};
+	sequences: ShortcutSequence[]
+	displayFormat?: DisplayFormat
+	description?: string
+}
 
 /**
  * Helper type for creating shortcuts with better DX
@@ -105,19 +169,22 @@ export type ShortcutBuilder = {
 	 * Create a simple shortcut with modifiers and a key
 	 * @example shortcut().modifiers('Ctrl', 'Shift').key('N')
 	 */
-	modifiers: (...modifiers: Modifier[]) => ShortcutBuilder;
-	key: (key: RegularKey) => KeyboardShortcut;
-	
+	modifiers: (...modifiers: Modifier[]) => ShortcutBuilder
+	key: (key: RegularKey) => KeyboardShortcut
+
 	/**
 	 * Create a sequence (chord) shortcut
 	 * @example shortcut().combo('Ctrl', 'K').then('Ctrl', 'S')
 	 * @example shortcut().combo(undefined, '/').then('Ctrl', 'K')
 	 */
-	combo: (modifiers: Modifier | Modifier[] | undefined, key: RegularKey) => SequenceBuilder;
-};
+	combo: (modifiers: Modifier | Modifier[] | undefined, key: RegularKey) => SequenceBuilder
+}
 
 export type SequenceBuilder = {
-	then: (modifiers: Modifier | Modifier[] | undefined, key: RegularKey, delay?: SequenceDelay) => SequenceBuilder;
-	build: () => KeyboardShortcut;
-};
-
+	then: (
+		modifiers: Modifier | Modifier[] | undefined,
+		key: RegularKey,
+		delay?: SequenceDelay
+	) => SequenceBuilder
+	build: () => KeyboardShortcut
+}

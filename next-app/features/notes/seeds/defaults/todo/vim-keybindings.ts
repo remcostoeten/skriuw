@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const vimKeybindingsNoteSeed: DefaultNote = {
-  name: 'Vim Keybindings - Additional Considerations',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Additional Considerations for Vim Keybindings Implementation
+	name: 'Vim Keybindings - Additional Considerations',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Additional Considerations for Vim Keybindings Implementation
 
 ## 1. Count Prefix System
 
@@ -327,5 +327,5 @@ type TPlugin = {
 - VSCode keybinding import
 - Sublime Text keybinding import
 - IntelliJ IDEA keybinding import
-- Mapping translation layer`
+- Mapping translation layer`,
 }

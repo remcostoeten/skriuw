@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const multiSelectBulkOperationsNoteSeed: DefaultNote = {
-  name: 'Multi-Select & Bulk Operations',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Multi-Select & Bulk Operations Implementation Plan
+	name: 'Multi-Select & Bulk Operations',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Multi-Select & Bulk Operations Implementation Plan
 
 ## Overview
 
@@ -452,6 +452,5 @@ useEffect(() => {
 - Undo/redo for bulk operations
 - Selection history
 - Smart selection (select by pattern, date, etc.)
-`
+`,
 }
-

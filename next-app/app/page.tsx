@@ -14,7 +14,7 @@ import { IndexSkeleton } from '@/components/pages/index-skeleton'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({
-		default: mod.NoteEditor
+		default: mod.NoteEditor,
 	}))
 )
 
@@ -67,13 +67,16 @@ export default function Index() {
 									<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
 									<div className="flex flex-col items-center gap-1 text-muted-foreground">
 										<p className="text-sm italic">
-											<span className="font-mono">/skrɪu̯/</span> — <span className="font-medium">Frisian, &quot;to write.&quot;</span>
+											<span className="font-mono">/skrɪu̯/</span> —{' '}
+											<span className="font-medium">Frisian, &quot;to write.&quot;</span>
 										</p>
 									</div>
 								</div>
 								<div className="max-w-lg text-center">
 									<p className="text-sm text-muted-foreground leading-relaxed">
-										A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding a opt-in system for all features (yes, ai is included) rather than the usual opt-out system. The tools are here, you just need to opt-in.
+										A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding
+										a opt-in system for all features (yes, ai is included) rather than the usual
+										opt-out system. The tools are here, you just need to opt-in.
 									</p>
 								</div>
 							</div>
@@ -81,20 +84,16 @@ export default function Index() {
 								actions={[
 									{
 										label: 'Open Collection',
-										shortcut: shortcut()
-											.modifiers('Cmd')
-											.key('O'),
+										shortcut: shortcut().modifiers('Cmd').key('O'),
 										separator: true,
-										onClick: handleOpenCollection
+										onClick: handleOpenCollection,
 									},
 									{
 										label: 'Create Note',
-										shortcut: shortcut()
-											.modifiers('Cmd')
-											.key('N'),
+										shortcut: shortcut().modifiers('Cmd').key('N'),
 										separator: true,
-										onClick: handleCreateNote
-									}
+										onClick: handleCreateNote,
+									},
 								]}
 							/>
 						</div>
@@ -104,9 +103,7 @@ export default function Index() {
 				<Suspense
 					fallback={
 						<div className="flex-1 flex items-center justify-center">
-							<div className="text-muted-foreground">
-								Loading editor...
-							</div>
+							<div className="text-muted-foreground">Loading editor...</div>
 						</div>
 					}
 				>
