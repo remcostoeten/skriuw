@@ -1,7 +1,7 @@
-import { getGenericStorage } from "../generic-storage-factory"
-import type { BaseEntity, ReadOptions as GenericReadOptions } from "../generic-types"
+import { getGenericStorage } from '../generic-storage-factory'
+import type { BaseEntity, ReadOptions as GenericReadOptions } from '../generic-types'
 
-export interface ReadOptions<T extends BaseEntity = BaseEntity> {
+export type ReadOptions<T extends BaseEntity = BaseEntity> = {
 	getById?: string
 	filter?: (item: T) => boolean
 	sort?: (a: T, b: T) => number
@@ -19,11 +19,13 @@ export async function read<T extends BaseEntity>(
 			getById: options?.getById,
 			filter: options?.filter as GenericReadOptions['filter'],
 			sort: options?.sort as GenericReadOptions['sort'],
-			getAll: options?.getAll
+			getAll: options?.getAll,
 		}
 
 		return await storage.read<T>(storageKey, genericOptions)
 	} catch (error) {
-		throw new Error(`Failed to read from ${storageKey}: ${error instanceof Error ? error.message : String(error)}`)
+		throw new Error(
+			`Failed to read from ${storageKey}: ${error instanceof Error ? error.message : String(error)}`
+		)
 	}
 }

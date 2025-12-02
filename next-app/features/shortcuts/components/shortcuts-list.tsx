@@ -1,35 +1,28 @@
-import { RotateCcw } from 'lucide-react';
-import { useMemo } from 'react';
+import { RotateCcw } from 'lucide-react'
+import { useMemo } from 'react'
 
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/shared/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 
-import { ShortcutId, KeyCombo } from '../shortcut-definitions';
+import { ShortcutId, KeyCombo } from '../shortcut-definitions'
 
-import { ShortcutRecorder } from './shortcut-recorder';
+import { ShortcutRecorder } from './shortcut-recorder'
 
 export type ShortcutState = {
-	id: ShortcutId;
-	currentKeys: KeyCombo[];
-	defaultKeys: KeyCombo[];
-	description: string;
-	isCustomized: boolean;
-};
+	id: ShortcutId
+	currentKeys: KeyCombo[]
+	defaultKeys: KeyCombo[]
+	description: string
+	isCustomized: boolean
+}
 
 type ShortcutsListProps = {
-	shortcuts: ShortcutState[];
-	recordingId: ShortcutId | null;
-	onShortcutChange: (id: ShortcutId, keys: KeyCombo[]) => void;
-	onResetShortcut: (id: ShortcutId) => void;
-	onStartRecording: (id: ShortcutId) => void;
-	onStopRecording: () => void;
-};
+	shortcuts: ShortcutState[]
+	recordingId: ShortcutId | null
+	onShortcutChange: (id: ShortcutId, keys: KeyCombo[]) => void
+	onResetShortcut: (id: ShortcutId) => void
+	onStartRecording: (id: ShortcutId) => void
+	onStopRecording: () => void
+}
 
 export function ShortcutsList({
 	shortcuts,
@@ -41,18 +34,18 @@ export function ShortcutsList({
 }: ShortcutsListProps) {
 	// Group shortcuts by category (based on id prefix)
 	const groupedShortcuts = useMemo(() => {
-		const groups: Record<string, ShortcutState[]> = {};
+		const groups: Record<string, ShortcutState[]> = {}
 
 		shortcuts.forEach((shortcut) => {
-			const category = shortcut.id.split('-')[0] || 'other';
+			const category = shortcut.id.split('-')[0] || 'other'
 			if (!groups[category]) {
-				groups[category] = [];
+				groups[category] = []
 			}
-			groups[category].push(shortcut);
-		});
+			groups[category].push(shortcut)
+		})
 
-		return groups;
-	}, [shortcuts]);
+		return groups
+	}, [shortcuts])
 
 	const categoryLabels: Record<string, string> = {
 		editor: 'Editor',
@@ -63,15 +56,15 @@ export function ShortcutsList({
 		search: 'Searching',
 		delete: 'Deletion',
 		other: 'Other',
-	};
+	}
 
 	return (
 		<div className="space-y-4">
 			{Object.entries(groupedShortcuts)
 				.sort(([a], [b]) => {
-					if (a === 'other') return 1;
-					if (b === 'other') return -1;
-					return a.localeCompare(b);
+					if (a === 'other') return 1
+					if (b === 'other') return -1
+					return a.localeCompare(b)
 				})
 				.map(([category, categoryShortcuts]) => (
 					<div key={category}>
@@ -89,9 +82,7 @@ export function ShortcutsList({
 							<TableBody>
 								{categoryShortcuts.map((shortcut) => (
 									<TableRow key={shortcut.id}>
-										<TableCell className="font-medium">
-											{shortcut.description}
-										</TableCell>
+										<TableCell className="font-medium">{shortcut.description}</TableCell>
 										<TableCell>
 											<ShortcutRecorder
 												value={shortcut.currentKeys}
@@ -121,5 +112,5 @@ export function ShortcutsList({
 					</div>
 				))}
 		</div>
-	);
+	)
 }

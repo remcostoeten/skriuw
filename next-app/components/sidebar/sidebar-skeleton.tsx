@@ -11,10 +11,7 @@ interface SidebarSkeletonProps {
  * Skeleton loader for sidebar that mimics the actual file tree structure
  * This ensures zero layout shift when real data loads
  */
-export function SidebarSkeleton({
-	itemCount = 8,
-	hasNestedItems = true
-}: SidebarSkeletonProps) {
+export function SidebarSkeleton({ itemCount = 8, hasNestedItems = true }: SidebarSkeletonProps) {
 	return (
 		<div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
 			{/* Action Bar Skeleton */}
@@ -48,10 +45,7 @@ export function SidebarSkeleton({
 								{hasChildren && (
 									<div className="ml-3 space-y-0.5 mt-0.5">
 										{Array.from({ length: 2 }).map((_, j) => (
-											<div
-												key={j}
-												className="flex items-center gap-1 h-7 px-1"
-											>
+											<div key={j} className="flex items-center gap-1 h-7 px-1">
 												<Skeleton className="h-4 w-4" />
 												<Skeleton className="h-3 w-[100px]" />
 											</div>

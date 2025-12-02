@@ -19,11 +19,7 @@ export function blocksToText(blocks: Block[]): string {
 			for (const contentItem of block.content) {
 				if (typeof contentItem === 'string') {
 					textParts.push(contentItem)
-				} else if (
-					contentItem &&
-					typeof contentItem === 'object' &&
-					'text' in contentItem
-				) {
+				} else if (contentItem && typeof contentItem === 'object' && 'text' in contentItem) {
 					textParts.push(String((contentItem as { text: string }).text))
 				}
 			}
@@ -43,4 +39,3 @@ export function blocksToText(blocks: Block[]): string {
 
 	return textParts.join(' ').trim()
 }
-

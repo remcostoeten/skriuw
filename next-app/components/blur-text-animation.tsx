@@ -89,17 +89,20 @@ export default function BlurTextAnimation({
 				maxTime = Math.max(maxTime, totalTime)
 			})
 
-			animationTimeoutRef.current = setTimeout(() => {
-				setIsAnimating(false)
+			animationTimeoutRef.current = setTimeout(
+				() => {
+					setIsAnimating(false)
 
-				if (loop) {
-					resetTimeoutRef.current = setTimeout(() => {
-						startAnimation()
-					}, animationDelay)
-				} else if (onComplete) {
-					onComplete()
-				}
-			}, (maxTime + 1) * 1000)
+					if (loop) {
+						resetTimeoutRef.current = setTimeout(() => {
+							startAnimation()
+						}, animationDelay)
+					} else if (onComplete) {
+						onComplete()
+					}
+				},
+				(maxTime + 1) * 1000
+			)
 
 			return () => {
 				clearTimeout(startTimer)
@@ -118,7 +121,9 @@ export default function BlurTextAnimation({
 	return (
 		<div className={`flex items-center justify-center ${className}`}>
 			<div className="text-center">
-				<p className={`${textColor} ${fontSize} ${fontFamily} font-light leading-relaxed tracking-wide ${textClassName}`}>
+				<p
+					className={`${textColor} ${fontSize} ${fontFamily} font-light leading-relaxed tracking-wide ${textClassName}`}
+				>
 					{textWords.map((word, index) => (
 						<span
 							key={index}
@@ -127,13 +132,22 @@ export default function BlurTextAnimation({
 								transitionDuration: `${word.duration}s`,
 								transitionDelay: `${word.delay}s`,
 								transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-								filter: isMounted && isAnimating ? 'blur(0px) brightness(1)' : `blur(${word.blur}px) brightness(0.6)`,
-								transform: isMounted && isAnimating ? 'translateY(0) scale(1) rotateX(0deg)' : `translateY(20px) scale(${word.scale || 1}) rotateX(-15deg)`,
+								filter:
+									isMounted && isAnimating
+										? 'blur(0px) brightness(1)'
+										: `blur(${word.blur}px) brightness(0.6)`,
+								transform:
+									isMounted && isAnimating
+										? 'translateY(0) scale(1) rotateX(0deg)'
+										: `translateY(20px) scale(${word.scale || 1}) rotateX(-15deg)`,
 								marginRight: '0.35em',
 								willChange: 'filter, transform, opacity',
 								transformStyle: 'preserve-3d',
 								backfaceVisibility: 'hidden',
-								textShadow: isMounted && isAnimating ? '0 2px 8px rgba(255,255,255,0.1)' : '0 0 40px rgba(255,255,255,0.4)',
+								textShadow:
+									isMounted && isAnimating
+										? '0 2px 8px rgba(255,255,255,0.1)'
+										: '0 0 40px rgba(255,255,255,0.4)',
 							}}
 						>
 							{word.text}

@@ -1,22 +1,26 @@
-import { createServerlessApiAdapter } from "./adapters/serverless-api"
+import { createServerlessApiAdapter } from './adapters/serverless-api'
 
-import type {
-	GenericStorageAdapter,
-	StorageConfig,
-} from "./generic-types"
+import type { GenericStorageAdapter, StorageConfig } from './generic-types'
 
-type AdapterFactory = (config?: StorageConfig['options']) => GenericStorageAdapter | Promise<GenericStorageAdapter>
+type AdapterFactory = (
+	config?: StorageConfig['options']
+) => GenericStorageAdapter | Promise<GenericStorageAdapter>
 
 const adapters = new Map<StorageConfig['adapter'], AdapterFactory>()
 
-// Serverless API adapter for database operations via Next.js API routes
-adapters.set("serverless-api", (config) => createServerlessApiAdapter(config?.apiBaseUrl as string | undefined))
+adapters.set('serverless-api', (config) =>
+	createServerlessApiAdapter(config?.apiBaseUrl as string | undefined)
+)
 
-export async function createGenericStorageAdapter(config: StorageConfig): Promise<GenericStorageAdapter> {
+export async function createGenericStorageAdapter(
+	config: StorageConfig
+): Promise<GenericStorageAdapter> {
 	const factory = adapters.get(config.adapter)
 
 	if (!factory) {
-		throw new Error(`Storage adapter '${config.adapter}' not found. Available: ${Array.from(adapters.keys()).join(', ')}`)
+		throw new Error(
+			`Storage adapter '${config.adapter}' not found. Available: ${Array.from(adapters.keys()).join(', ')}`
+		)
 	}
 
 	return await factory(config.options)
@@ -35,7 +39,9 @@ export function getAvailableGenericAdapters(): StorageConfig['adapter'][] {
 
 let currentGenericStorage: GenericStorageAdapter | null = null
 
-export async function initializeGenericStorage(config: StorageConfig): Promise<GenericStorageAdapter> {
+export async function initializeGenericStorage(
+	config: StorageConfig
+): Promise<GenericStorageAdapter> {
 	if (currentGenericStorage) {
 		await currentGenericStorage.destroy()
 	}

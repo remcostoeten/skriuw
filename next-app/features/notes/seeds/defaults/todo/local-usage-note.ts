@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const localUsageNoteSeed = {
-  name: 'Local usage',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Local Servo Installation Guide
+	name: 'Local usage',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Local Servo Installation Guide
 
 **No git required!** Install Servo using your local files without pushing to a repository.
 
@@ -296,5 +296,5 @@ servo-install --force            # Force overwrite
 
 ---
 
-**🎉 You now have a complete offline installation system for Servo!**`
+**🎉 You now have a complete offline installation system for Servo!**`,
 } satisfies DefaultNote

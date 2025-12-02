@@ -1,19 +1,18 @@
 // Runtime shortcut system (keyboard event handling)
-export * from './shortcut-definitions';
-export * from './use-shortcut';
-export * from './global-shortcut-provider';
+export * from './shortcut-definitions'
+export * from './use-shortcut'
+export * from './global-shortcut-provider'
 
 // Display/typing system (for creating and displaying shortcuts)
-export * from './types';
-export * from './builder';
-export * from './display';
+export * from './types'
+export * from './builder'
+export * from './display'
 
 // Components
-export * from './components';
+export * from './components'
 
 // Hooks
-export * from './hooks';
+export * from './hooks'
 
 // API (for advanced usage)
-export * from './api';
-
+export * from './api'

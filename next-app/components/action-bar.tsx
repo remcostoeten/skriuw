@@ -47,15 +47,31 @@ type ActionBarProps = {
 	expandConfig?: ExpandConfig
 }
 
-function TopSectionWrapper({ isInputVisible, children }: { isInputVisible: boolean; children: ReactNode }) {
+function TopSectionWrapper({
+	isInputVisible,
+	children,
+}: {
+	isInputVisible: boolean
+	children: ReactNode
+}) {
 	return (
-		<div className={cn('flex items-center gap-2 px-3.5 transition-all', isInputVisible && 'opacity-0 pointer-events-none')}>
+		<div
+			className={cn(
+				'flex items-center gap-2 px-3.5 transition-all',
+				isInputVisible && 'opacity-0 pointer-events-none'
+			)}
+		>
 			{children}
 		</div>
 	)
 }
 
-export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandConfig }: ActionBarProps) {
+export function ActionBar({
+	onCreateNote,
+	onCreateFolder,
+	searchConfig,
+	expandConfig,
+}: ActionBarProps) {
 	const searchInputRef = useRef<HTMLInputElement>(null)
 	const searchContainerRef = useRef<HTMLDivElement>(null)
 
@@ -88,7 +104,10 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
 	const handleSearchBlur = useCallback(
 		(event: FocusEvent<HTMLDivElement>) => {
 			const nextTarget = event.relatedTarget as Node | null
-			if (searchContainerRef.current && (!nextTarget || !searchContainerRef.current.contains(nextTarget))) {
+			if (
+				searchContainerRef.current &&
+				(!nextTarget || !searchContainerRef.current.contains(nextTarget))
+			) {
 				handleSearchClose()
 			}
 		},
@@ -150,7 +169,15 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
 		}
 
 		return result
-	}, [expandConfig, handleSearchToggle, icons, isSearchOpen, onCreateFolder, onCreateNote, searchConfig])
+	}, [
+		expandConfig,
+		handleSearchToggle,
+		icons,
+		isSearchOpen,
+		onCreateFolder,
+		onCreateNote,
+		searchConfig,
+	])
 
 	return (
 		<div className="relative top-0 flex flex-col items-center justify-center min-h-10 w-full border-b border-sidebar-border bg-sidebar-background overflow-hidden">
@@ -178,7 +205,9 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
 						'absolute pb-[0.5px] flex flex-row items-center justify-center',
 						'w-full h-full px-[5px] gap-1 shrink-0',
 						'transform transition-all duration-200',
-						isSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
+						isSearchOpen
+							? 'translate-y-0 opacity-100'
+							: 'translate-y-12 opacity-0 pointer-events-none'
 					)}
 					onBlur={handleSearchBlur}
 				>
@@ -196,11 +225,17 @@ export function ActionBar({ onCreateNote, onCreateFolder, searchConfig, expandCo
 							onChange={(event) => searchConfig.setQuery(event.target.value)}
 							onKeyDown={(event) => {
 								if (event.key === 'Escape') {
-                                    handleSearchClose()
+									handleSearchClose()
 								}
 							}}
 						/>
-						<IconButton icon={icons.close} tooltip="Close" variant="action-bar" onClick={handleSearchClose} className="w-6 h-6" />
+						<IconButton
+							icon={icons.close}
+							tooltip="Close"
+							variant="action-bar"
+							onClick={handleSearchClose}
+							className="w-6 h-6"
+						/>
 					</div>
 				</div>
 			)}

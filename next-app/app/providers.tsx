@@ -1,22 +1,23 @@
 'use client'
 
-import { AlertCircle } from "lucide-react"
-import { ReactNode, useEffect, useState } from "react"
+import { AlertCircle } from 'lucide-react'
+import { ReactNode, useEffect, useState } from 'react'
+import { Toaster as SonnerToaster } from 'sonner'
 
-import { EmptyState } from "@/shared/ui/empty-state"
+import { EmptyState } from '@/shared/ui/empty-state'
 
-import { SettingsProvider } from "@/features/settings"
-import { EditorTabsProvider } from "@/features/editor/tabs"
-import { ContextMenuProvider } from "@/features/shortcuts/context-menu-context"
-import { ShortcutProvider } from "@/features/shortcuts/global-shortcut-provider"
+import { TooltipProvider } from '@/shared/ui'
 
-import { AppLayoutLoadingSkeleton } from "@/components/layout/app-layout-loading"
+import { initializeAppStorage } from '@/app/storage'
 
-import { AppLayoutManager } from "@/components/layout/app-layout-manager"
-import { TooltipProvider } from "@/shared/ui"
-import { initializeAppStorage } from "@/app/storage"
-import { Toaster as SonnerToaster } from "sonner"
-import { SplashScreen } from "@/components/splash-screen"
+import { EditorTabsProvider } from '@/features/editor/tabs'
+import { SettingsProvider } from '@/features/settings'
+import { ContextMenuProvider } from '@/features/shortcuts/context-menu-context'
+import { ShortcutProvider } from '@/features/shortcuts/global-shortcut-provider'
+
+import { AppLayoutLoadingSkeleton } from '@/components/layout/app-layout-loading'
+import { AppLayoutManager } from '@/components/layout/app-layout-manager'
+import { SplashScreen } from '@/components/splash-screen'
 
 type props = {
 	children: ReactNode
@@ -33,7 +34,7 @@ function StorageInitializer({ children }: props) {
 		let isMounted = true
 		const timeoutId = setTimeout(() => {
 			if (isMounted && !storageReady) {
-				console.warn("Storage initialization taking too long, showing app anyway")
+				console.warn('Storage initialization taking too long, showing app anyway')
 				setStorageReady(true)
 				setIsInitialized(true)
 			}
@@ -42,7 +43,7 @@ function StorageInitializer({ children }: props) {
 		initializeAppStorage()
 			.then(() => {
 				if (isMounted) {
-					console.log("✅ Storage initialized successfully")
+					console.log('✅ Storage initialized successfully')
 					clearTimeout(timeoutId)
 					setStorageReady(true)
 					setIsInitialized(true)
@@ -51,7 +52,7 @@ function StorageInitializer({ children }: props) {
 			})
 			.catch((err) => {
 				if (isMounted) {
-					console.error("Failed to initialize storage:", err)
+					console.error('Failed to initialize storage:', err)
 					clearTimeout(timeoutId)
 					setError(err instanceof Error ? err : new Error(String(err)))
 					// Still show app even if storage fails
@@ -89,7 +90,7 @@ function StorageInitializer({ children }: props) {
 					icon={<AlertCircle className="h-8 w-8 text-destructive" />}
 					actions={[
 						{
-							label: "Refresh page",
+							label: 'Refresh page',
 							onClick: () => window.location.reload(),
 						},
 					]}
@@ -101,10 +102,7 @@ function StorageInitializer({ children }: props) {
 	return (
 		<>
 			{isInitialized ? children : <AppLayoutLoadingSkeleton />}
-			<SplashScreen 
-				show={showSplash} 
-				onAnimationComplete={handleAnimationComplete}
-			/>
+			<SplashScreen show={showSplash} onAnimationComplete={handleAnimationComplete} />
 		</>
 	)
 }

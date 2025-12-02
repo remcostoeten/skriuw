@@ -11,11 +11,11 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 	const slugOrId = resolvedParams.slug?.join('/') || null
 	const { items } = useNotesWithSuspense()
 	const { resolveNoteId } = useNoteSlug(items)
-	
+
 	const noteId = useMemo(() => {
 		if (!slugOrId) return null
 		return resolveNoteId(slugOrId)
 	}, [slugOrId, resolveNoteId])
-	
+
 	return <>{noteId && <NoteEditorComponent key={noteId} noteId={noteId} />}</>
 }

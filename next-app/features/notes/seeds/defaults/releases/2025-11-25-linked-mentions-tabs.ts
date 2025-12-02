@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const releaseNote20251125Seed = {
-  name: 'Linked mentions & tabs — 2025-11-25',
-  parentFolderName: 'Releases',
-  contentMarkdown: `# Release — 2025-11-25
+	name: 'Linked mentions & tabs — 2025-11-25',
+	parentFolderName: 'Releases',
+	contentMarkdown: `# Release — 2025-11-25
 
 ## Linked mentions inside the editor
 - Typing \`@\` now opens a searchable list of existing notes.
@@ -17,5 +17,5 @@ export const releaseNote20251125Seed = {
 
 ## Storage considerations
 - Mention data is saved inside the BlockNote document, so all adapters (localStorage, libsql, future SQLite) behave the same.
-- Tab state only stores ids/titles and clears itself when the underlying note is removed.`
+- Tab state only stores ids/titles and clears itself when the underlying note is removed.`,
 } satisfies DefaultNote

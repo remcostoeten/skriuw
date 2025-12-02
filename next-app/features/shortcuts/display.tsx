@@ -3,9 +3,9 @@
  * Supports text, icon, and mixed display formats with platform awareness
  */
 
-import React from 'react';
+import React from 'react'
 
-import { MODIFIER_ICONS, KEY_ICONS } from './types';
+import { MODIFIER_ICONS, KEY_ICONS } from './types'
 
 import type {
 	KeyboardShortcut,
@@ -13,38 +13,38 @@ import type {
 	Modifier,
 	RegularKey,
 	DisplayFormat,
-} from './types';
+} from './types'
 
 /**
  * Detects if the user is on macOS
  */
 export function isMacOS(): boolean {
-	if (typeof window === 'undefined') return false;
+	if (typeof window === 'undefined') return false
 	return (
 		/Mac|iPhone|iPod|iPad/i.test(navigator.platform) ||
 		/Mac|iPhone|iPod|iPad/i.test(navigator.userAgent)
-	);
+	)
 }
 
 /**
  * Converts modifier keys to platform-appropriate display
  */
 function normalizeModifier(modifier: Modifier, format: DisplayFormat = 'text'): string {
-	const isMac = isMacOS();
+	const isMac = isMacOS()
 
 	if (format === 'icon') {
-		return MODIFIER_ICONS[modifier];
+		return MODIFIER_ICONS[modifier]
 	}
 
 	if (modifier === 'Cmd' || modifier === 'Meta') {
-		return isMac ? '⌘' : 'Ctrl';
+		return isMac ? '⌘' : 'Ctrl'
 	}
 
 	if (modifier === 'Ctrl') {
-		return isMac ? '⌃' : 'Ctrl';
+		return isMac ? '⌃' : 'Ctrl'
 	}
 
-	return modifier;
+	return modifier
 }
 
 /**
@@ -52,7 +52,7 @@ function normalizeModifier(modifier: Modifier, format: DisplayFormat = 'text'): 
  */
 function normalizeKey(key: RegularKey, format: DisplayFormat = 'text'): string {
 	if (format === 'icon' && KEY_ICONS[key as keyof typeof KEY_ICONS]) {
-		return KEY_ICONS[key as keyof typeof KEY_ICONS]!;
+		return KEY_ICONS[key as keyof typeof KEY_ICONS]!
 	}
 
 	// Convert special keys to readable text
@@ -67,31 +67,31 @@ function normalizeKey(key: RegularKey, format: DisplayFormat = 'text'): string {
 		ArrowDown: '↓',
 		ArrowLeft: '←',
 		ArrowRight: '→',
-	};
+	}
 
-	return keyMap[key] || key;
+	return keyMap[key] || key
 }
 
 /**
  * Converts a key combo to display string
  */
 function comboToString(combo: DisplayKeyCombo, format: DisplayFormat = 'text'): string {
-	const parts: string[] = [];
+	const parts: string[] = []
 
 	if (combo.modifiers && combo.modifiers.length > 0) {
-		parts.push(...combo.modifiers.map((m) => normalizeModifier(m, format)));
+		parts.push(...combo.modifiers.map((m) => normalizeModifier(m, format)))
 	}
 
-	parts.push(normalizeKey(combo.key, format));
+	parts.push(normalizeKey(combo.key, format))
 
-	return parts.join(format === 'icon' ? '' : '+');
+	return parts.join(format === 'icon' ? '' : '+')
 }
 
 /**
  * Checks if an item in a sequence is a DisplayKeyCombo
  */
 function isKeyCombo(item: any): item is DisplayKeyCombo {
-	return item && typeof item === 'object' && 'key' in item && !('maxDelay' in item);
+	return item && typeof item === 'object' && 'key' in item && !('maxDelay' in item)
 }
 
 /**
@@ -102,13 +102,13 @@ export function shortcutToString(
 	format: DisplayFormat = 'text',
 	separator: string = ' '
 ): string {
-	const formatToUse = shortcut.displayFormat || format;
+	const formatToUse = shortcut.displayFormat || format
 	const sequences = shortcut.sequences.map((seq) => {
-		const combos = seq.filter(isKeyCombo);
-		return combos.map((combo) => comboToString(combo as DisplayKeyCombo, formatToUse)).join(' ');
-	});
+		const combos = seq.filter(isKeyCombo)
+		return combos.map((combo) => comboToString(combo as DisplayKeyCombo, formatToUse)).join(' ')
+	})
 
-	return sequences.join(separator);
+	return sequences.join(separator)
 }
 
 /**
@@ -118,42 +118,42 @@ export function shortcutToParts(
 	shortcut: KeyboardShortcut,
 	format: DisplayFormat = 'text'
 ): Array<Array<Array<{ type: 'modifier' | 'key'; value: string }>>> {
-	const formatToUse = shortcut.displayFormat || format;
+	const formatToUse = shortcut.displayFormat || format
 
 	return shortcut.sequences.map((seq) => {
-		const combos = seq.filter(isKeyCombo);
+		const combos = seq.filter(isKeyCombo)
 		return combos.map((combo) => {
-			const parts: Array<{ type: 'modifier' | 'key'; value: string }> = [];
+			const parts: Array<{ type: 'modifier' | 'key'; value: string }> = []
 
-			const keyCombo = combo as DisplayKeyCombo;
+			const keyCombo = combo as DisplayKeyCombo
 			if (keyCombo.modifiers && keyCombo.modifiers.length > 0) {
 				keyCombo.modifiers.forEach((mod) => {
 					parts.push({
 						type: 'modifier',
 						value: normalizeModifier(mod, formatToUse),
-					});
-				});
+					})
+				})
 			}
 
 			parts.push({
 				type: 'key',
 				value: normalizeKey(keyCombo.key, formatToUse),
-			});
+			})
 
-			return parts;
-		});
-	});
+			return parts
+		})
+	})
 }
 
 /**
  * React component props for displaying shortcuts
  */
 export type ShortcutDisplayProps = {
-	shortcut: KeyboardShortcut;
-	format?: DisplayFormat;
-	separator?: boolean;
-	className?: string;
-};
+	shortcut: KeyboardShortcut
+	format?: DisplayFormat
+	separator?: boolean
+	className?: string
+}
 
 /**
  * React component for displaying keyboard shortcuts
@@ -164,8 +164,8 @@ export function ShortcutDisplay({
 	separator = true,
 	className = '',
 }: ShortcutDisplayProps) {
-	const formatToUse = shortcut.displayFormat || format;
-	const parts = shortcutToParts(shortcut, formatToUse);
+	const formatToUse = shortcut.displayFormat || format
+	const parts = shortcutToParts(shortcut, formatToUse)
 
 	return (
 		<span className={`inline-flex items-center gap-1 ${className}`}>
@@ -194,6 +194,5 @@ export function ShortcutDisplay({
 				</React.Fragment>
 			))}
 		</span>
-	);
+	)
 }
-

@@ -1,21 +1,20 @@
-import { read } from '@skriuw/storage/crud';
+import { read } from '@skriuw/storage/crud'
 
-import type { SettingsEntity } from "../types";
+import type { SettingsEntity } from '../types'
 
-const STORAGE_KEY = "app:settings";
+const STORAGE_KEY = 'app:settings'
 
 export async function getSettings(): Promise<Record<string, any> | null> {
 	try {
-		const result = await read<SettingsEntity>(STORAGE_KEY, { getById: "app-settings" });
-		
+		const result = await read<SettingsEntity>(STORAGE_KEY, { getById: 'app-settings' })
+
 		if (result && typeof result === 'object' && 'settings' in result) {
-			return (result as any).settings;
+			return (result as any).settings
 		}
-		
-		return null;
+
+		return null
 	} catch (error) {
-		console.error('Failed to get settings:', error);
-		return null;
+		console.error('Failed to get settings:', error)
+		return null
 	}
 }
-

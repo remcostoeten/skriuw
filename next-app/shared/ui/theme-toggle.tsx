@@ -117,7 +117,9 @@ export function ThemeToggle({
 						height: '13.5%',
 						backgroundColor: 'hsl(var(--foreground))',
 						transformOrigin: '-200% 421%',
-						animation: isDark ? 'sunRotateOut 0.6s both ease-out' : 'sunRotateIn 0.6s both ease-out',
+						animation: isDark
+							? 'sunRotateOut 0.6s both ease-out'
+							: 'sunRotateIn 0.6s both ease-out',
 					}}
 				/>
 
@@ -132,7 +134,9 @@ export function ThemeToggle({
 						marginLeft: `calc(${containerSize * 0.057}px * -1)`,
 						marginTop: `calc(${containerSize * 0.017}px * -1)`,
 						transformOrigin: '-200% 421%',
-						animation: isDark ? 'moonRotateIn 0.6s both ease-out' : 'moonRotateOut 0.6s both ease-out',
+						animation: isDark
+							? 'moonRotateIn 0.6s both ease-out'
+							: 'moonRotateOut 0.6s both ease-out',
 					}}
 				>
 					<div
@@ -207,4 +211,3 @@ export function ThemeToggle({
 		</>
 	)
 }
-

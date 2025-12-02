@@ -14,9 +14,9 @@ async function request<T>(url: string): Promise<T> {
 	const response = await fetch(url, {
 		method: 'GET',
 		headers: {
-			'Content-Type': 'application/json'
+			'Content-Type': 'application/json',
 		},
-		cache: 'no-store'
+		cache: 'no-store',
 	})
 
 	if (!response.ok) {
@@ -43,10 +43,7 @@ export async function getTasksForNote(noteId: string): Promise<Task[]> {
 /**
  * Gets a single task by blockId
  */
-export async function getTaskByBlockId(
-	noteId: string,
-	blockId: string
-): Promise<Task | undefined> {
+export async function getTaskByBlockId(noteId: string, blockId: string): Promise<Task | undefined> {
 	if (!noteId || !blockId) return undefined
 	try {
 		const result = await request<Task | null>(
@@ -55,8 +52,6 @@ export async function getTaskByBlockId(
 		return result ?? undefined
 	} catch (error) {
 		console.error('Failed to get task by blockId:', error)
-		throw error instanceof Error
-			? error
-			: new Error(`Failed to get task: ${String(error)}`)
+		throw error instanceof Error ? error : new Error(`Failed to get task: ${String(error)}`)
 	}
 }

@@ -1,5 +1,5 @@
-import { getGenericStorage } from "../generic-storage-factory"
-import type { BaseEntity } from "../generic-types"
+import { getGenericStorage } from '../generic-storage-factory'
+import type { BaseEntity } from '../generic-types'
 
 export interface CreateOptions {
 	merge?: boolean
@@ -13,6 +13,8 @@ export async function create<T extends BaseEntity>(
 		const storage = getGenericStorage()
 		return await storage.create<T>(storageKey, data)
 	} catch (error) {
-		throw new Error(`Failed to create entity in ${storageKey}: ${error instanceof Error ? error.message : String(error)}`)
+		throw new Error(
+			`Failed to create entity in ${storageKey}: ${error instanceof Error ? error.message : String(error)}`
+		)
 	}
 }

@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 
-type SelectionState = {
+type props = {
 	selectedIds: Set<string>
 	isMultiSelectMode: boolean
 	anchorId: string | null
@@ -22,7 +22,7 @@ type SelectionState = {
 	setMultiSelectMode: (enabled: boolean) => void
 }
 
-export const useSelectionStore = create<SelectionState>()((set, get) => ({
+export const useSelectionStore = create<props>()((set, get) => ({
 	selectedIds: new Set(),
 	isMultiSelectMode: false,
 	anchorId: null,

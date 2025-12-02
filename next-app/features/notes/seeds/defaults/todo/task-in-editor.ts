@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const taskInEditorNoteSeed: DefaultNote = {
-  name: 'Task in editor',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Task in editor
+	name: 'Task in editor',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Task in editor
 We want a task system just like Superlist. Tasks are created inside the rich text editor, each task contains its own rich text editor.
 
 Tasks can nest recursively with no depth limit.
@@ -20,4 +20,5 @@ Tasks can nest recursively with no depth limit.
 - Support copy, paste, move of nested task blocks
 - Keep task blocks isolated for future plugins
 - Consider performance for large task trees
-`}
+`,
+}

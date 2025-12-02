@@ -9,7 +9,7 @@ export type {
 	StorageEventListener,
 	StorageAdapterName,
 	StorageAdapterType,
-} from "./generic-types"
+} from './generic-types'
 
 export {
 	createGenericStorageAdapter,
@@ -18,6 +18,6 @@ export {
 	destroyGenericStorage,
 	registerGenericStorageAdapter,
 	getAvailableGenericAdapters,
-} from "./generic-storage-factory"
+} from './generic-storage-factory'
 
-export * from "./crud"
+export * from './crud'

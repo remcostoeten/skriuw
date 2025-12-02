@@ -50,7 +50,9 @@ export default function ArchivePage() {
 								</div>
 								<div className="text-center py-12 border border-dashed border-border rounded-lg">
 									<Download className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground mb-4">Seed importing is no longer supported.</p>
+									<p className="text-muted-foreground mb-4">
+										Seed importing is no longer supported.
+									</p>
 									<p className="text-sm text-muted-foreground">
 										Check back later for new collection workflows.
 									</p>

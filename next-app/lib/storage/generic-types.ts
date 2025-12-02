@@ -3,7 +3,7 @@
  * Works with any entity type, not just Notes/Items
  */
 
-export interface BaseEntity {
+export type BaseEntity = {
 	id: string
 	createdAt: number
 	updatedAt: number

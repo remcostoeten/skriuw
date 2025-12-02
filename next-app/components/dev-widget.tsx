@@ -117,18 +117,27 @@ export function DevWidget() {
 							<>
 								<div className="flex items-center justify-between text-xs">
 									<span className="text-muted-foreground">Status</span>
-									<span className={cn('font-medium', health.status === 'ok' ? 'text-emerald-500' : 'text-destructive')}>
+									<span
+										className={cn(
+											'font-medium',
+											health.status === 'ok' ? 'text-emerald-500' : 'text-destructive'
+										)}
+									>
 										{health.status}
 									</span>
 								</div>
 								<div className="flex items-center justify-between text-xs">
 									<span className="text-muted-foreground">DB URL set</span>
-									<span className="font-medium">{health.environment.hasDatabaseUrl ? 'yes' : 'no'}</span>
+									<span className="font-medium">
+										{health.environment.hasDatabaseUrl ? 'yes' : 'no'}
+									</span>
 								</div>
 								<div className="flex items-center justify-between text-xs">
 									<span className="text-muted-foreground">DB Module</span>
 									<span className="font-medium">
-										{health.environment.dbModuleAvailable ? 'loaded' : health.environment.dbModuleError || 'unavailable'}
+										{health.environment.dbModuleAvailable
+											? 'loaded'
+											: health.environment.dbModuleError || 'unavailable'}
 									</span>
 								</div>
 								<button

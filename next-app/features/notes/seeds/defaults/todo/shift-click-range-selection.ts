@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const shiftClickRangeSelectionNoteSeed: DefaultNote = {
-  name: 'Shift+Click Range Selection',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Shift+Click Range Selection Implementation Plan
+	name: 'Shift+Click Range Selection',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Shift+Click Range Selection Implementation Plan
 
 ## Overview
 
@@ -494,6 +494,5 @@ Selected:  [Item 1] [Item 2] [Item 3]
 - Save range as selection group
 - Range selection with patterns (every Nth item)
 - Smart range selection (select by criteria)
-`
+`,
 }
-

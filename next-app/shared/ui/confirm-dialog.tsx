@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react'
 
 import {
 	AlertDialog,
@@ -9,27 +9,27 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "./alert-dialog";
-import { Button } from "./button";
+} from './alert-dialog'
+import { Button } from './button'
 
 export interface ConfirmDialogOptions {
-	title: string;
-	description: string;
-	confirmText?: string;
-	cancelText?: string;
-	variant?: "default" | "destructive";
+	title: string
+	description: string
+	confirmText?: string
+	cancelText?: string
+	variant?: 'default' | 'destructive'
 }
 
 export interface ConfirmDialogState {
-	isOpen: boolean;
-	options: ConfirmDialogOptions | null;
-	resolve: ((value: boolean) => void) | null;
+	isOpen: boolean
+	options: ConfirmDialogOptions | null
+	resolve: ((value: boolean) => void) | null
 }
 
 /**
  * Reusable confirmation dialog hook
  * Returns a function that shows a confirmation dialog and returns a promise
- * 
+ *
  * @example
  * const confirm = useConfirmDialog();
  * const confirmed = await confirm({
@@ -46,7 +46,7 @@ export function useConfirmDialog() {
 		isOpen: false,
 		options: null,
 		resolve: null,
-	});
+	})
 
 	const confirm = (options: ConfirmDialogOptions): Promise<boolean> => {
 		return new Promise((resolve) => {
@@ -54,41 +54,44 @@ export function useConfirmDialog() {
 				isOpen: true,
 				options,
 				resolve,
-			});
-		});
-	};
+			})
+		})
+	}
 
 	const handleConfirm = () => {
 		if (state.resolve) {
-			state.resolve(true);
+			state.resolve(true)
 		}
-		setState({ isOpen: false, options: null, resolve: null });
-	};
+		setState({ isOpen: false, options: null, resolve: null })
+	}
 
 	const handleCancel = () => {
 		if (state.resolve) {
-			state.resolve(false);
+			state.resolve(false)
 		}
-		setState({ isOpen: false, options: null, resolve: null });
-	};
+		setState({ isOpen: false, options: null, resolve: null })
+	}
 
 	const ConfirmDialogComponent = () => {
-		if (!state.options) return null;
+		if (!state.options) return null
 
 		const {
 			title,
 			description,
-			confirmText = "Confirm",
-			cancelText = "Cancel",
-			variant = "default",
-		} = state.options;
+			confirmText = 'Confirm',
+			cancelText = 'Cancel',
+			variant = 'default',
+		} = state.options
 
 		return (
-			<AlertDialog open={state.isOpen} onOpenChange={(open) => {
-				if (!open) {
-					handleCancel();
-				}
-			}}>
+			<AlertDialog
+				open={state.isOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						handleCancel()
+					}
+				}}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>{title}</AlertDialogTitle>
@@ -102,7 +105,7 @@ export function useConfirmDialog() {
 						</AlertDialogCancel>
 						<AlertDialogAction asChild>
 							<Button
-								variant={variant === "destructive" ? "destructive" : "default"}
+								variant={variant === 'destructive' ? 'destructive' : 'default'}
 								onClick={handleConfirm}
 							>
 								{confirmText}
@@ -111,12 +114,11 @@ export function useConfirmDialog() {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		);
-	};
+		)
+	}
 
 	return {
 		confirm,
 		ConfirmDialog: ConfirmDialogComponent,
-	};
+	}
 }
-

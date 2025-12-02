@@ -1,9 +1,9 @@
 import type { DefaultNote } from '@/features/notes/utils/initialize-defaults'
 
 export const fontSettingsNoteSeed: DefaultNote = {
-  name: 'Font Size, Family, and Line Height Settings',
-  parentFolderName: 'servo',
-  contentMarkdown: `# Font Size, Family, and Line Height Settings Implementation Plan
+	name: 'Font Size, Family, and Line Height Settings',
+	parentFolderName: 'servo',
+	contentMarkdown: `# Font Size, Family, and Line Height Settings Implementation Plan
 
 ## Overview
 
@@ -431,6 +431,5 @@ export function RawMDXEditor({ value, onChange, ...props }: RawMDXEditorProps) {
 - Web font loading optimization
 - CSS font-family fallback strategies
 - Line height and readability research
-`
+`,
 }
-
