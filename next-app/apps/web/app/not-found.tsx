@@ -1,0 +1,29 @@
+'use client'
+
+import { useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+
+import { EmptyState } from '@quantum-work/ui/empty-state'
+
+export default function NotFound() {
+	const pathname = usePathname()
+	const router = useRouter()
+
+	useEffect(() => {
+		console.error('404 Error: User attempted to access non-existent route:', pathname)
+	}, [pathname])
+
+	return (
+		<EmptyState
+			message="404 - Page Not Found"
+			isFull
+			submessage={`The route "${pathname}" does not exist.`}
+			actions={[
+				{
+					label: 'Return to Home',
+					onClick: () => router.push('/'),
+				},
+			]}
+		/>
+	)
+}
