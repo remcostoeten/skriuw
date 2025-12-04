@@ -1,23 +1,32 @@
-import { ReactNode, useMemo, useCallback, Suspense, lazy, useEffect, useState, useRef } from 'react'
+import {
+	ReactNode,
+	useMemo,
+	useCallback,
+	Suspense,
+	lazy,
+	useEffect,
+	useState,
+	useRef
+} from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@/shared/utilities/use-media-query'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic'
 
-import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
-import { useEditorTabs } from '@/features/editor/tabs'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotes } from '@/features/notes/hooks/use-notes'
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
-import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
-import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { GlobalSearchDialog } from '@/features/search'
-import { useSettings, useUserPreferences } from '@/features/settings'
-import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
+import { useEditorTabs } from '../../features/editor/tabs'
+import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
+import { useNotes } from '../../features/notes/hooks/use-notes'
+import { useNotesWithSuspense } from '../../features/notes/hooks/useNotesWithSuspense'
+import { extractFirstHeading } from '../../features/notes/utils/extract-first-heading'
+import { flattenNotes } from '../../features/notes/utils/flatten-notes'
+import { GlobalSearchDialog } from '../../features/search'
+import { useSettings, useUserPreferences } from '../../features/settings'
+import { useShortcut } from '../../features/shortcuts'
 
-import { DevWidget } from '@/components/dev-widget'
-import { Footer } from '@/components/layout/footer'
-import { TopToolbar } from '@/components/layout/top-toolbar'
-import { LeftToolbar } from '@/components/left-toolbar'
+import { DevWidget } from '../dev-widget'
+import { Footer } from './footer'
+import { TopToolbar } from './top-toolbar'
+import { LeftToolbar } from '../left-toolbar'
 import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
 import { SidebarMenu } from '@/components/sidebar-menu'
 
@@ -33,7 +42,7 @@ import { Sidebar } from '@/components/sidebar'
 // Lazy load heavy components
 const ShortcutsSidebar = lazy(() =>
 	import('@/features/shortcuts/components').then((mod) => ({
-		default: mod.ShortcutsSidebar,
+		default: mod.ShortcutsSidebar
 	}))
 )
 
@@ -50,17 +59,20 @@ type AppLayoutManagerProps = {
 export function AppLayoutManager({
 	children,
 	sidebarContentType,
-	sidebarCustomContent,
+	sidebarCustomContent
 }: AppLayoutManagerProps) {
 	const router = useRouter()
 	const pathname = usePathname()
 	const showSidebar = !pathname.startsWith('/archive')
-	const { items, isInitialLoading, createNote, renameItem, deleteItem } = useNotesWithSuspense()
+	const { items, isInitialLoading, createNote, renameItem, deleteItem } =
+		useNotesWithSuspense()
 	const { pinItem, favoriteNote } = useNotes()
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const isNoteRoute = pathname.startsWith('/note/')
-	const slugOrId = isNoteRoute ? pathname.split('/note/')[1]?.split('?')[0] : null
+	const slugOrId = isNoteRoute
+		? pathname.split('/note/')[1]?.split('?')[0]
+		: null
 	const sidebarActiveNoteId = useMemo(() => {
 		if (!slugOrId) return null
 		return resolveNoteId(slugOrId)
@@ -79,7 +91,8 @@ export function AppLayoutManager({
 	}, [isInitialLoading])
 
 	// Only show skeleton on true initial load, not during navigation
-	const shouldShowSidebarSkeleton = isInitialLoading && !hasEverLoadedRef.current
+	const shouldShowSidebarSkeleton =
+		isInitialLoading && !hasEverLoadedRef.current
 	const {
 		isMobileSidebarOpen,
 		toggleMobileSidebar,
@@ -90,9 +103,10 @@ export function AppLayoutManager({
 		setShortcutsSidebarOpen,
 		isSettingsOpen,
 		toggleSettings,
-		setSettingsOpen,
+		setSettingsOpen
 	} = useUIStore()
-	const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
+	const { titleDisplayMode = 'filename', multiNoteTabs = false } =
+		useSettings()
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
 	const {
 		tabs,
@@ -107,14 +121,16 @@ export function AppLayoutManager({
 		closeTabsToRight,
 		closeTabsToLeft,
 		moveTabLeft,
-		moveTabRight,
+		moveTabRight
 	} = useEditorTabs()
 
 	const notesInOrder = useMemo(() => flattenNotes(items), [items])
 
 	const currentNote = useMemo(() => {
 		if (!sidebarActiveNoteId) return null
-		return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
+		return (
+			notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
+		)
 	}, [sidebarActiveNoteId, notesInOrder])
 	const currentNoteId = currentNote?.id ?? null
 
@@ -151,14 +167,18 @@ export function AppLayoutManager({
 	}, [currentNoteIndex, notesInOrder, router, getNoteUrl])
 
 	const handleNavigateNext = useCallback(() => {
-		if (currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1) {
+		if (
+			currentNoteIndex >= 0 &&
+			currentNoteIndex < notesInOrder.length - 1
+		) {
 			const nextNote = notesInOrder[currentNoteIndex + 1]
 			router.push(getNoteUrl(nextNote.id))
 		}
 	}, [currentNoteIndex, notesInOrder, router, getNoteUrl])
 
 	const canNavigatePrevious = currentNoteIndex > 0
-	const canNavigateNext = currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1
+	const canNavigateNext =
+		currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1
 
 	const handleToggleEditorMode = useCallback(() => {
 		togglePreference('rawMDXMode')
@@ -186,7 +206,14 @@ export function AppLayoutManager({
 		}
 		const validIds = new Set(notesInOrder.map((note) => note.id))
 		pruneTabs(validIds)
-	}, [multiNoteTabs, tabs, notesInOrder, pruneTabs, isInitialLoading, clearTabs])
+	}, [
+		multiNoteTabs,
+		tabs,
+		notesInOrder,
+		pruneTabs,
+		isInitialLoading,
+		clearTabs
+	])
 
 	const handleSelectTab = useCallback(
 		(noteId: string) => {
@@ -279,7 +306,7 @@ export function AppLayoutManager({
 			if (!note) return null
 			return {
 				pinned: note.pinned ?? false,
-				favorite: note.favorite ?? false,
+				favorite: note.favorite ?? false
 			}
 		},
 		[notesInOrder]
@@ -307,7 +334,9 @@ export function AppLayoutManager({
 
 	return (
 		<AppLayoutShell
-			leftToolbar={<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />}
+			leftToolbar={
+				<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />
+			}
 			sidebar={
 				showSidebar ? (
 					shouldShowSidebarSkeleton ? (
@@ -317,12 +346,16 @@ export function AppLayoutManager({
 							activeNoteId={sidebarActiveNoteId || undefined}
 							contentType={sidebarContentType}
 							customContent={sidebarCustomContent}
-							openTabIds={multiNoteTabs ? new Set(tabs.map((t) => t.noteId)) : undefined}
+							openTabIds={
+								multiNoteTabs
+									? new Set(tabs.map((t) => t.noteId))
+									: undefined
+							}
 							ruler={{
 								enabled: false,
 								style: 'solid',
 								color: 'hsl(var(--muted-foreground))',
-								opacity: 0.25,
+								opacity: 0.25
 							}}
 						/>
 					)
@@ -385,8 +418,14 @@ export function AppLayoutManager({
 			}
 			floatingWidgets={
 				<>
-					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<GlobalSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+					<SidebarMenu
+						open={isSettingsOpen}
+						onOpenChange={setSettingsOpen}
+					/>
+					<GlobalSearchDialog
+						open={isSearchOpen}
+						onOpenChange={setIsSearchOpen}
+					/>
 					{process.env.NODE_ENV === 'development' && <DevWidget />}
 				</>
 			}

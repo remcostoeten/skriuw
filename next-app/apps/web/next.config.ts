@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
 		]
 	},
 
+	// Configure Turbopack
+	turbopack: {
+		// Empty config to silence the warning about webpack config without turbopack config
+	},
+
 	// Configure webpack to handle large assets and optional Tauri modules
 	webpack: (config, { isServer, webpack }) => {
 		if (!isServer) {

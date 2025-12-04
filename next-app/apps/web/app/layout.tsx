@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import '@/styles/globals.css'
-import '@/styles/outlines-accessibility.css'
+import '../styles/globals.css'
+import '../styles/outlines-accessibility.css'
 import 'prismjs/themes/prism-tomorrow.css'
 
 import { Providers } from './providers'
