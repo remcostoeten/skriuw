@@ -1,32 +1,17 @@
 {
-  "name": "@skriuw/db",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "db:push": "drizzle-kit push --force",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "seed": "pnpm build && node seed.js",
-    "seed:force": "pnpm build && node seed.js --force",
-    "seed:clear": "pnpm build && node seed.js --clear",
-    "reset": "tsx reset-schema.ts",
-    "migrate": "tsx apply-migrations.ts"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^0.10.0",
-    "drizzle-orm": "^0.44.7",
-    "postgres": "^3.4.7"
-  },
-  "devDependencies": {
-    "@types/node": "^24.2.1",
-    "dotenv": "^16.4.5",
-    "drizzle-kit": "^0.31.7",
-    "glob": "^13.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.2"
-  }
+    "name": "@skriuw/db",
+    "version": "0.0.0",
+    "private": true,
+    "main": "./index.ts",
+    "types": "./index.ts",
+    "dependencies": {
+        "drizzle-orm": "^0.44.7",
+        "@neondatabase/serverless": "^0.10.0",
+        "postgres": "^3.4.5"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.30.6",
+        "tsx": "^4.20.3",
+        "dotenv": "^17.2.3"
+    }
 }
