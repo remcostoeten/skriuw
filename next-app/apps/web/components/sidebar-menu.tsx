@@ -17,9 +17,9 @@ import {
 	DialogSeparator,
 } from '@quantum-work/ui/dialog-drawer'
 
-import { useSettings, SettingsGroup } from '@/features/settings'
-import { EDITOR_SETTINGS_GROUPS } from '@/features/settings/editor-settings'
-import { ShortcutsReference } from '@/features/shortcuts/components'
+import { useSettings, SettingsGroup } from '../features/settings'
+import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
+import { ShortcutsReference } from '../features/shortcuts/components'
 
 type props = {
 	open: boolean
