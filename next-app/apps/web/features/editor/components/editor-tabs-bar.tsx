@@ -22,7 +22,7 @@ import {
 
 import { cn } from '@quantum-work/core-logic'
 
-import type { EditorTab } from '@/features/editor/tabs'
+import type { EditorTab } from '../tabs'
 
 type props = {
 	tabs: EditorTab[]

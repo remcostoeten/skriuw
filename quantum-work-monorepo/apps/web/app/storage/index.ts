@@ -1,6 +1,6 @@
-import { initializeDefaultNotesAndFolders } from '@/features/notes/utils/initialize-defaults'
+import { initializeDefaultNotesAndFolders } from '../../features/notes/utils/initialize-defaults'
 
-import { initializeGenericStorage } from '@/lib/storage/generic-storage-factory'
+import { initializeGenericStorage } from '../../lib/generic-storage-factory'
 
 import { DEFAULT_STORAGE_CONFIG } from './config'
 

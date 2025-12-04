@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { X } from 'lucide-react'
 import * as React from 'react'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn, type ToastActionElement, type ToastProps } from '@quantum-work/core-logic'
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -105,13 +105,7 @@ const ToastDescription = React.forwardRef<
 ))
 ToastDescription.displayName = ToastPrimitives.Description.displayName
 
-type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
-
-type ToastActionElement = React.ReactElement<typeof ToastAction>
-
 export {
-	type ToastProps,
-	type ToastActionElement,
 	ToastProvider,
 	ToastViewport,
 	Toast,

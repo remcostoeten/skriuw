@@ -8,16 +8,16 @@ import { EmptyState } from '@quantum-work/ui/empty-state'
 
 import { TooltipProvider } from '@quantum-work/ui'
 
-import { initializeAppStorage } from '@/app/storage'
+import { initializeAppStorage } from './storage'
 
-import { EditorTabsProvider } from '@/features/editor/tabs'
-import { SettingsProvider } from '@/features/settings'
-import { ContextMenuProvider } from '@/features/shortcuts/context-menu-context'
-import { ShortcutProvider } from '@/features/shortcuts/global-shortcut-provider'
+import { EditorTabsProvider } from '../features/editor/tabs'
+import { SettingsProvider } from '../features/settings'
+import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
+import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
-import { AppLayoutLoadingSkeleton } from '@/components/layout/app-layout-loading'
-import { AppLayoutManager } from '@/components/layout/app-layout-manager'
-import { SplashScreen } from '@/components/splash-screen'
+import { AppLayoutLoadingSkeleton } from '../components/layout/app-layout-loading'
+import { AppLayoutManager } from '../components/layout/app-layout-manager'
+import { SplashScreen } from '../components/splash-screen'
 
 type props = {
 	children: ReactNode
