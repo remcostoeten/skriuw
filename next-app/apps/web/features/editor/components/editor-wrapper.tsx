@@ -5,8 +5,8 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/core/style.css'
 import '@blocknote/react/style.css'
 
-import { highlightCodeBlocks } from '@/features/editor/utils/code-highlight'
-import { useUserPreferences, useSettings } from '@/features/settings'
+import { highlightCodeBlocks } from '../utils/code-highlight'
+import { useUserPreferences, useSettings } from '../../settings'
 
 import { DualModeEditor } from './default-mode-editor'
 import { TaskCheckboxReplacer } from './task-checkbox-replacer'

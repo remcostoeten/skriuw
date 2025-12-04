@@ -1,6 +1,6 @@
 import { Skeleton } from '@quantum-work/ui/skeleton'
 
-import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
+import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
 
 import { AppLayoutShell } from './app-layout-shell'
 
