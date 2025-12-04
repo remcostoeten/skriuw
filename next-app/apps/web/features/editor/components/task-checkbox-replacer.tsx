@@ -7,7 +7,7 @@ import type { BlockNoteEditor } from '@blocknote/core'
 
 interface TaskCheckboxReplacerProps {
 	editor: BlockNoteEditor | null
-	editorContainerRef: React.RefObject<HTMLDivElement>
+	editorContainerRef: React.RefObject<HTMLDivElement | null>
 }
 
 interface ReplacedCheckbox {

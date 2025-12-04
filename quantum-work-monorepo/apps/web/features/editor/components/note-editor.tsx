@@ -2,9 +2,9 @@ import { AlertCircle } from 'lucide-react'
 import { useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-import { EmptyState } from '@/shared/ui/empty-state'
+import { EmptyState } from '@quantum-work/ui/empty-state'
 
-import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { useShortcut } from '@/features/shortcuts'
 
 import { useEditor } from '../hooks/use-editor'
 
@@ -23,12 +23,12 @@ export function NoteEditor({
 	className = '',
 	showHeader = true,
 	autoSave = true,
-	autoSaveDelay = 1000,
+	autoSaveDelay = 1000
 }: props) {
 	const { editor, note, isLoading, error } = useEditor({
 		noteId,
 		autoSave,
-		autoSaveDelay,
+		autoSaveDelay
 	})
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)
@@ -52,18 +52,25 @@ export function NoteEditor({
 			const isEmptyParagraph =
 				note.content.length === 1 &&
 				note.content[0].type === 'paragraph' &&
-				(!note.content[0].content || note.content[0].content.length === 0)
+				(!note.content[0].content ||
+					note.content[0].content.length === 0)
 
 			// Check if note starts with an empty heading (h1 or h2 template)
 			const isEmptyHeading =
 				note.content.length === 1 &&
 				note.content[0].type === 'heading' &&
-				(note.content[0].props?.level === 1 || note.content[0].props?.level === 2) &&
-				(!note.content[0].content || note.content[0].content.length === 0)
+				(note.content[0].props?.level === 1 ||
+					note.content[0].props?.level === 2) &&
+				(!note.content[0].content ||
+					note.content[0].content.length === 0)
 
 			const isNewNote =
-				!note.content || note.content.length === 0 || isEmptyParagraph || isEmptyHeading
-			const shouldFocus = isNewNote || searchParams.get('focus') === 'true'
+				!note.content ||
+				note.content.length === 0 ||
+				isEmptyParagraph ||
+				isEmptyHeading
+			const shouldFocus =
+				isNewNote || searchParams.get('focus') === 'true'
 
 			if (shouldFocus) {
 				// Small delay to ensure editor is fully mounted
@@ -84,8 +91,8 @@ export function NoteEditor({
 				actions={[
 					{
 						label: 'Refresh page',
-						onClick: () => window.location.reload(),
-					},
+						onClick: () => window.location.reload()
+					}
 				]}
 				isFull
 			/>
@@ -103,7 +110,9 @@ export function NoteEditor({
 	}
 
 	return (
-		<div className={`flex-1 bg-background overflow-hidden flex flex-col ${className}`}>
+		<div
+			className={`flex-1 bg-background overflow-hidden flex flex-col ${className}`}
+		>
 			<div className="flex-1">
 				{isLoading ? (
 					<EmptyState

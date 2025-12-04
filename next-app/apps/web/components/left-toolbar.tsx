@@ -13,7 +13,7 @@ import {
 	IconButton,
 } from '@quantum-work/ui/icons'
 
-import { Logo } from '@/components/logo'
+import { Logo } from './logo'
 
 type LeftToolbarProps = {
 	onSettingsClick?: () => void
