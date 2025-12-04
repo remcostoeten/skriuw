@@ -6,11 +6,11 @@ import { toast } from 'sonner'
 
 import { EmptyState } from '@quantum-work/ui/empty-state'
 
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
-import { useShortcut, shortcut } from '@/features/shortcuts'
+import { useNoteSlug } from '../features/notes/hooks/use-note-slug'
+import { useNotesWithSuspense } from '../features/notes/hooks/useNotesWithSuspense'
+import { useShortcut, shortcut } from '../features/shortcuts'
 
-import { IndexSkeleton } from '@/components/pages/index-skeleton'
+import { IndexSkeleton } from '../components/pages/index-skeleton'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({

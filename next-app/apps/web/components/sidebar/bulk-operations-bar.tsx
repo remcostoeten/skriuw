@@ -6,12 +6,12 @@ import { useCallback, useRef } from 'react'
 import { useConfirmationPopover } from '@quantum-work/ui/confirmation-popover'
 import { useNotificationPopover } from '@quantum-work/ui/notification-popover'
 
-import { useNotes } from '@/features/notes/hooks/use-notes'
+import { useNotes } from '../../features/notes/hooks/use-notes'
 
-import { useSelectionStore } from '@/stores/selection-store'
+import { useSelectionStore } from '../../stores/selection-store'
 import { Button } from '@quantum-work/ui/button'
 
-import type { Item } from '@/features/notes/types'
+import type { Item } from '../../features/notes/types'
 
 interface BulkOperationsBarProps {
 	className?: string

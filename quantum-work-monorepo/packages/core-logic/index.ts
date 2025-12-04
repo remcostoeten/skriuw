@@ -1,11 +1,8 @@
 // Export all hooks
-export * from './hooks';
+export * from './hooks'
 
 // Export all utilities
-export * from './utilities';
-
-// Export all types
-export * from './types';
+export * from './utilities'
 
 // Export utils
-export * from './utils';
+export * from './utils'

@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 
 import { EmptyState } from '@quantum-work/ui/empty-state'
 
-import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { useShortcut } from '../../shortcuts/use-shortcut'
 
 import { useEditor } from '../hooks/use-editor'
 

@@ -11,15 +11,15 @@ import { useConfirmationPopover } from '@quantum-work/ui/confirmation-popover'
 
 import { cn } from '@quantum-work/core-logic'
 
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotes } from '@/features/notes/hooks/use-notes'
-import { blocksToText } from '@/features/notes/utils/blocks-to-text'
-import { useSettings } from '@/features/settings'
-import { useShortcut } from '@/features/shortcuts'
-import { useContextMenuState } from '@/features/shortcuts/context-menu-context'
+import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
+import { useNotes } from '../../features/notes/hooks/use-notes'
+import { blocksToText } from '../../features/notes/utils/blocks-to-text'
+import { useSettings } from '../../features/settings'
+import { useShortcut } from '../../features/shortcuts'
+import { useContextMenuState } from '../../features/shortcuts/context-menu-context'
 
-import { useSelectionStore } from '@/stores/selection-store'
-import { useUIStore } from '@/stores/ui-store'
+import { useSelectionStore } from '../../stores/selection-store'
+import { useUIStore } from '../../stores/ui-store'
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -37,7 +37,7 @@ import { ActionBar } from '../action-bar'
 import { useSidebarContentType } from './use-sidebar-content-type'
 
 import type { SidebarContentType } from './types'
-import type { Folder as FolderType, Item } from '@/features/notes/types'
+import type { Folder as FolderType, Item } from '../../features/notes/types'
 import type { Block } from '@blocknote/core'
 
 const EXPANDED_FOLDERS_KEY = 'Skriuw_expanded_folders'
