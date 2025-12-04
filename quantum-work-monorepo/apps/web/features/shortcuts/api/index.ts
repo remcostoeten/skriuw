@@ -1,5 +1,0 @@
-export * from './mutations/save-shortcut'
-export * from './mutations/reset-shortcut'
-export * from './mutations/reset-all-shortcuts'
-export * from './queries/get-shortcuts'
-export * from './queries/get-shortcut'
