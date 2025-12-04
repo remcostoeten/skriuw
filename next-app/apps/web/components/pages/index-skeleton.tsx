@@ -1,5 +1,3 @@
-'use client'
-
 export function IndexSkeleton() {
 	return (
 		<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
