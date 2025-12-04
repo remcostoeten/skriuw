@@ -1,6 +1,6 @@
-import { Skeleton } from '@/shared/ui/skeleton'
+import { Skeleton } from '@quantum-work/ui'
 
-import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
+import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
 
 import { AppLayoutShell } from './app-layout-shell'
 
@@ -54,13 +54,19 @@ function EditorPaneSkeleton() {
 
 				<div className="space-y-3">
 					{Array.from({ length: 5 }).map((_, index) => (
-						<Skeleton key={index} className={`h-4 ${index % 2 === 0 ? 'w-full' : 'w-3/4'}`} />
+						<Skeleton
+							key={index}
+							className={`h-4 ${index % 2 === 0 ? 'w-full' : 'w-3/4'}`}
+						/>
 					))}
 				</div>
 
 				<div className="grid grid-cols-3 gap-4 pt-2">
 					{Array.from({ length: 3 }).map((_, index) => (
-						<div key={index} className="border border-border rounded-lg p-4 space-y-3">
+						<div
+							key={index}
+							className="border border-border rounded-lg p-4 space-y-3"
+						>
 							<Skeleton className="h-4 w-3/4" />
 							<Skeleton className="h-6 w-1/2" />
 							<Skeleton className="h-4 w-full" />
