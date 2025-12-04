@@ -4,9 +4,9 @@ import { FileText, Folder } from 'lucide-react'
 import { Dialog, DialogContent } from '@quantum-work/ui/dialog'
 import { DataCommand, type CommandDataItem } from './data-command'
 import { fetchNotes, fetchFolders, fetchOneNote, fetchOneFolder } from '../api/fetch-notes'
-import { useNotes } from '@/features/notes'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import type { Note, Folder as FolderType } from '@/features/notes/types'
+import { useNotes } from '../../notes'
+import { useNoteSlug } from '../../notes/hooks/use-note-slug'
+import type { Note, Folder as FolderType } from '../../notes/types'
 
 type props = {
 	open: boolean

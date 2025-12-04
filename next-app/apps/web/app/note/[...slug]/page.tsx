@@ -2,9 +2,9 @@
 
 import { useMemo, use } from 'react'
 
-import { NoteEditor as NoteEditorComponent } from '@/features/editor/components/note-editor'
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { NoteEditor as NoteEditorComponent } from '../../../features/editor/components/note-editor'
+import { useNotesWithSuspense } from '../../../features/notes/hooks/useNotesWithSuspense'
+import { useNoteSlug } from '../../../features/notes/hooks/use-note-slug'
 
 export default function NoteEditorPage({ params }: { params: Promise<{ slug: string[] }> }) {
 	const resolvedParams = use(params)

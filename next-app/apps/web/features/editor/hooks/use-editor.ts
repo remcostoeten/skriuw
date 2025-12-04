@@ -37,7 +37,7 @@ export function useEditor({
 	const [noteName, setNoteName] = useState('')
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
-	const saveTimeoutRef = useRef<NodeJS.Timeout>()
+	const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 	const hasInitializedRef = useRef(false)
 
 	// Load note data

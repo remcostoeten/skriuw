@@ -8,8 +8,8 @@ import {
 import type { BlockNoteEditor } from '@blocknote/core'
 
 import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotes } from '@/features/notes'
+import { useNoteSlug } from '../../notes/hooks/use-note-slug'
+import { useNotes } from '../../notes'
 import {
 	searchNoteMentions,
 	type HighlightPart,

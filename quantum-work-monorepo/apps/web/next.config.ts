@@ -5,7 +5,11 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 
 	// Transpile packages if needed
-	transpilePackages: ['@quantum-work/ui', '@quantum-work/core-logic', '@quantum-work/db'],
+	transpilePackages: [
+		'@quantum-work/ui',
+		'@quantum-work/core-logic',
+		'@quantum-work/db'
+	],
 
 	// Configure external packages for server components
 	serverExternalPackages: ['postgres'],
@@ -21,10 +25,10 @@ const nextConfig: NextConfig = {
 				headers: [
 					{
 						key: 'Cache-Control',
-						value: 'public, max-age=31536000, immutable',
-					},
-				],
-			},
+						value: 'public, max-age=31536000, immutable'
+					}
+				]
+			}
 		]
 	},
 
@@ -33,19 +37,25 @@ const nextConfig: NextConfig = {
 		if (!isServer) {
 			config.resolve.fallback = {
 				...config.resolve.fallback,
-				fs: false,
+				fs: false
 			}
+		}
+
+		// Add path aliases for @/* imports
+		config.resolve.alias = {
+			...config.resolve.alias,
+			'@': './'
 		}
 
 		// Ignore optional Tauri modules that are only available in desktop environments
 		config.plugins.push(
 			new webpack.IgnorePlugin({
-				resourceRegExp: /^@tauri-apps\/api\/(window|event)$/,
+				resourceRegExp: /^@tauri-apps\/api\/(window|event)$/
 			})
 		)
 
 		return config
-	},
+	}
 }
 
 export default nextConfig

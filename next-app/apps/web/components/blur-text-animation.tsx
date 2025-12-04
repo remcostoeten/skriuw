@@ -43,8 +43,8 @@ export default function BlurTextAnimation({
 }: BlurTextAnimationProps) {
 	const [isAnimating, setIsAnimating] = useState(false)
 	const [isMounted, setIsMounted] = useState(false)
-	const animationTimeoutRef = useRef<NodeJS.Timeout>()
-	const resetTimeoutRef = useRef<NodeJS.Timeout>()
+	const animationTimeoutRef = useRef<NodeJS.Timeout>(undefined)
+	const resetTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 
 	// Prevent hydration mismatch by only running animations after mount
 	useEffect(() => {

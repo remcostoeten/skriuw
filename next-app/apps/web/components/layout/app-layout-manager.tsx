@@ -3,36 +3,36 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
 
-import { EditorTabsBar } from '@/features/editor/components/editor-tabs-bar'
-import { useEditorTabs } from '@/features/editor/tabs'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotes } from '@/features/notes/hooks/use-notes'
-import { useNotesWithSuspense } from '@/features/notes/hooks/useNotesWithSuspense'
-import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
-import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { GlobalSearchDialog } from '@/features/search'
-import { useSettings, useUserPreferences } from '@/features/settings'
-import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
+import { useEditorTabs } from '../../features/editor/tabs'
+import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
+import { useNotes } from '../../features/notes/hooks/use-notes'
+import { useNotesWithSuspense } from '../../features/notes/hooks/useNotesWithSuspense'
+import { extractFirstHeading } from '../../features/notes/utils/extract-first-heading'
+import { flattenNotes } from '../../features/notes/utils/flatten-notes'
+import { GlobalSearchDialog } from '../../features/search'
+import { useSettings, useUserPreferences } from '../../features/settings'
+import { useShortcut } from '../../features/shortcuts/use-shortcut'
 
-import { DevWidget } from '@/components/dev-widget'
-import { Footer } from '@/components/layout/footer'
-import { TopToolbar } from '@/components/layout/top-toolbar'
-import { LeftToolbar } from '@/components/left-toolbar'
-import { SidebarSkeleton } from '@/components/sidebar/sidebar-skeleton'
-import { SidebarMenu } from '@/components/sidebar-menu'
+import { DevWidget } from '../dev-widget'
+import { Footer } from './footer'
+import { TopToolbar } from './top-toolbar'
+import { LeftToolbar } from '../left-toolbar'
+import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
+import { SidebarMenu } from '../sidebar-menu'
 
-import { useUIStore } from '@/stores/ui-store'
+import { useUIStore } from '../../stores/ui-store'
 
 import { AppLayoutShell } from './app-layout-shell'
 
-import type { SidebarContentType } from '@/components/sidebar/types'
+import type { SidebarContentType } from '../sidebar/types'
 
 // Import Sidebar directly - no lazy loading to prevent skeleton during navigation
-import { Sidebar } from '@/components/sidebar'
+import { Sidebar } from '../sidebar'
 
 // Lazy load heavy components
 const ShortcutsSidebar = lazy(() =>
-	import('@/features/shortcuts/components').then((mod) => ({
+	import('../../features/shortcuts/components').then((mod) => ({
 		default: mod.ShortcutsSidebar,
 	}))
 )
