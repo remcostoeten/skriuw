@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, inArray } from 'drizzle-orm'
-import { getDatabase, notes, folders, tasks } from '@quantum-work/db'
-import { getSafeTimestamp } from '@quantum-work/db'
-import type { Item, Note, Folder } from '@/features/notes/types'
+import { getDatabase, notes, folders, tasks } from '@skriuw/db'
+import { getSafeTimestamp } from '@skriuw/db'
+import type { Item, Note, Folder } from '../../../features/notes/types/index'
 
 type NoteRow = typeof notes.$inferSelect
 type FolderRow = typeof folders.$inferSelect

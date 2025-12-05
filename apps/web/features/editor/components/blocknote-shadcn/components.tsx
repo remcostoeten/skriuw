@@ -8,11 +8,11 @@ import {
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
-} from '@quantum-work/ui/dropdown-menu'
-import { Input } from '@quantum-work/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@quantum-work/ui/popover'
+} from '@skriuw/ui/dropdown-menu'
+import { Input } from '@skriuw/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@skriuw/ui/popover'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,

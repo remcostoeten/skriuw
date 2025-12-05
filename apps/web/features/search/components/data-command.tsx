@@ -11,7 +11,7 @@ import {
 	memo,
 } from 'react'
 
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@quantum-work/ui'
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@skriuw/ui'
 
 export type FetchCommandDataSubItems = (_props: { search: string }) => Promise<CommandDataItem[]>
 

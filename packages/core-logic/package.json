@@ -4,6 +4,12 @@
     "private": true,
     "main": "./index.ts",
     "types": "./index.ts",
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "lint": "eslint . --max-warnings 0",
+        "check-types": "tsc --noEmit"
+    },
     "peerDependencies": {
         "react": "^19.2.0",
         "react-dom": "^19.2.0"
@@ -13,7 +19,11 @@
         "tailwind-merge": "^2.6.0"
     },
     "devDependencies": {
+        "@skriuw/eslint-config": "workspace:*",
+        "@skriuw/typescript-config": "workspace:*",
         "@types/react": "^19.2.0",
-        "@types/react-dom": "^19.2.0"
+        "@types/react-dom": "^19.2.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.9.3"
     }
 }

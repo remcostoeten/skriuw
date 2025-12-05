@@ -12,7 +12,10 @@ import { taskBlockSpec } from '../blocks/task-block'
  * and custom task blocks
  */
 export function createEditorSchema() {
-	const codeBlock = createCodeBlockSpec(codeBlockOptions)
+	// The BlockNote code block types pull in a different Shiki version than our tree,
+	// so we cast the shared options to bypass the incompatible signatures.
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+	const codeBlock = createCodeBlockSpec(codeBlockOptions as any)
 	return BlockNoteSchema.create().extend({
 		blockSpecs: {
 			codeBlock,
