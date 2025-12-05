@@ -16,6 +16,8 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'editor-focus': [],
 			'toggle-shortcuts': [],
 			'create-note': [],
+			'create-folder': [],
+			'rename-item': [],
 			'open-collection': [],
 			'toggle-sidebar': [],
 			'save-note': [],

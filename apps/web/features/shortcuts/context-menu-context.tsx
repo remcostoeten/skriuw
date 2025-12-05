@@ -3,6 +3,9 @@ import { createContext, useContext, useState, ReactNode } from 'react'
 type ContextMenuState = {
 	itemId: string | null
 	onDelete: ((id: string) => void) | null
+	onCreateNote: ((id: string) => void) | null
+	onCreateFolder: ((id: string) => void) | null
+	onRename: ((id: string) => void) | null
 }
 
 type ContextMenuContextValue = {
@@ -16,6 +19,9 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
 	const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
 		itemId: null,
 		onDelete: null,
+		onCreateNote: null,
+		onCreateFolder: null,
+		onRename: null,
 	})
 
 	return (
