@@ -16,6 +16,7 @@ export { shiftClickRangeSelectionNoteSeed } from './todo/shift-click-range-selec
 
 // Release notes
 export { releaseNote20251125Seed } from './releases/2025-11-25-linked-mentions-tabs'
+export { releaseNote20251205Seed } from './releases/2025-12-05-data-backup'
 
 // Folders
 export { developmentDocsFolderSeed } from './development-docs-folder'

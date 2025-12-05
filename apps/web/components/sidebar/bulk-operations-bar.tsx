@@ -6,7 +6,7 @@ import { useCallback, useRef } from 'react'
 import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
 import { useNotificationPopover } from '@skriuw/ui/notification-popover'
 
-import { useNotes } from '../../features/notes/hooks/use-notes'
+import { useNotesContext } from '../../features/notes/context/notes-context'
 
 import { useSelectionStore } from '../../stores/selection-store'
 import { Button } from '@skriuw/ui/button'
@@ -21,7 +21,7 @@ interface BulkOperationsBarProps {
 export function BulkOperationsBar({ className = '', items }: BulkOperationsBarProps) {
 	const { getSelectedCount, clearSelection, getSelectedIds } = useSelectionStore()
 
-	const { deleteItem, pinItem, favoriteNote } = useNotes()
+	const { deleteItem, pinItem, favoriteNote } = useNotesContext()
 
 	const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
 	const { showNotification, NotificationPopover } = useNotificationPopover()

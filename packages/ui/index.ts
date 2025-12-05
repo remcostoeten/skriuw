@@ -1,4 +1,5 @@
 export * from './alert-dialog'
+export * from './animated-number'
 export * from './button'
 // // export * from './calendar';
 export * from './card'
@@ -36,7 +37,7 @@ export {
 	DialogHeader,
 	DialogFooter,
 	DialogTitle,
-	DialogDescription,
+	DialogDescription
 } from './dialog'
 export {
 	DrawerDialog,
@@ -49,5 +50,5 @@ export {
 	DialogSection,
 	DialogSeparator,
 	DialogContentArea,
-	DialogNavGroup,
+	DialogNavGroup
 } from './dialog-drawer'

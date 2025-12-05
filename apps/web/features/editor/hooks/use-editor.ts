@@ -2,7 +2,7 @@ import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 
-import { useNotes } from '../../notes'
+import { useNotesContext } from '../../notes/context/notes-context'
 
 import { useEditorConfig } from './useEditorConfig'
 
@@ -31,7 +31,7 @@ export function useEditor({
 	autoSaveDelay = 1000,
 	readOnly = false,
 }: options): props {
-	const { getNote, updateNote } = useNotes()
+	const { getNote, updateNote } = useNotesContext()
 	const { config: editorConfig } = useEditorConfig()
 	const [note, setNote] = useState<Note | null>(null)
 	const [noteName, setNoteName] = useState('')
