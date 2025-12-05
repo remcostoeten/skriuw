@@ -34,7 +34,7 @@ function StorageInitializer({ children }: props) {
 				console.warn('Storage initialization taking too long, showing app anyway')
 				setIsInitialized(true)
 			}
-		}, 5000) // 5 second timeout
+		}, 5000) 
 
 		initializeAppStorage()
 			.then(() => {
@@ -59,7 +59,7 @@ function StorageInitializer({ children }: props) {
 			isMounted = false
 			clearTimeout(timeoutId)
 		}
-	}, [isInitialized])
+	}, [])
 
 	if (error) {
 		return (
