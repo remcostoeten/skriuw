@@ -1,9 +1,9 @@
 import { X, Search } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-import { createFocusTrap } from '@quantum-work/core-logic/focus-trap'
+import { createFocusTrap } from '@skriuw/core-logic/focus-trap'
 
-import { Input } from '@quantum-work/ui/input'
+import { Input } from '@skriuw/ui/input'
 
 import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts'
 import { resetShortcut } from '../api/mutations/reset-shortcut'

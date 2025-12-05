@@ -3,13 +3,13 @@
 import { useMemo, use } from 'react'
 
 import { NoteEditor as NoteEditorComponent } from '../../../features/editor/components/note-editor'
-import { useNotesWithSuspense } from '../../../features/notes/hooks/useNotesWithSuspense'
+import { useNotesContext } from '../../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../../features/notes/hooks/use-note-slug'
 
 export default function NoteEditorPage({ params }: { params: Promise<{ slug: string[] }> }) {
 	const resolvedParams = use(params)
 	const slugOrId = resolvedParams.slug?.join('/') || null
-	const { items } = useNotesWithSuspense()
+	const { items } = useNotesContext()
 	const { resolveNoteId } = useNoteSlug(items)
 
 	const noteId = useMemo(() => {

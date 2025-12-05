@@ -9,10 +9,10 @@ import {
 	Type,
 } from 'lucide-react'
 
-import { IconButton } from '@quantum-work/ui/icons'
+import { IconButton } from '@skriuw/ui/icons'
 import { WindowControls } from './window-controls'
-import { isTauriAvailable } from '@quantum-work/core-logic/tauri-check'
-import { cn } from '@quantum-work/core-logic'
+import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
+import { cn } from '@skriuw/core-logic'
 
 type props = {
 	noteName: string
@@ -120,17 +120,13 @@ export function TopToolbar({
 					}
 					tooltip={isRawMDXMode ? 'Switch to rich editor' : 'Switch to MDX mode'}
 					variant="toolbar"
-					shortcut={{
-						sequences: [[{ modifiers: ['Ctrl'], key: 'm' }], [{ modifiers: ['Meta'], key: 'm' }]],
-					}}
+					shortcut="Ctrl+M / Meta+M"
 					onClick={onToggleEditorMode}
 				/>
 				<IconButton
 					icon={<Keyboard className="w-4 h-4 text-muted-foreground" />}
 					tooltip="Keyboard shortcuts"
-					shortcut={{
-						sequences: [[{ modifiers: ['Ctrl'], key: '/' }], [{ modifiers: ['Meta'], key: '/' }]],
-					}}
+					shortcut="Ctrl+/ / Meta+/"
 					variant="toolbar"
 					onClick={onToggleShortcuts}
 				/>

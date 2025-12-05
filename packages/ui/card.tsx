@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
 	({ className, ...props }, ref) => (

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { getDatabase, shortcuts } from '@quantum-work/db'
+import { getDatabase, shortcuts } from '@skriuw/db'
 
 function deserializeShortcut(row: typeof shortcuts.$inferSelect) {
 	let parsedKeys: unknown = []

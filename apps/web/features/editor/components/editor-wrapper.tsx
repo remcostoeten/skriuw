@@ -521,6 +521,76 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(({ editor },
           font-size: 0.875rem;
           color: hsl(var(--muted-foreground));
         }
+        /* Slash menu styles */
+        .bn-suggestion-menu {
+          display: flex;
+          flex-direction: column;
+          min-width: 280px;
+          max-width: 380px;
+          max-height: 400px;
+          overflow-y: auto;
+          background: hsl(var(--background) / 0.98);
+          border: 1px solid hsl(var(--border) / 0.5);
+          border-radius: 0.75rem;
+          padding: 0.5rem;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.05);
+          backdrop-filter: blur(16px);
+        }
+        .bn-suggestion-menu.empty {
+          padding: 1rem 1.25rem;
+        }
+        .bn-suggestion-menu__empty {
+          font-size: 0.875rem;
+          color: hsl(var(--muted-foreground));
+        }
+        .bn-suggestion-item {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          gap: 0.75rem;
+          padding: 0.625rem 0.75rem;
+          border-radius: 0.5rem;
+          background: transparent;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          border: none;
+          transition: all 0.15s ease;
+        }
+        .bn-suggestion-item:hover {
+          background: hsl(var(--accent) / 0.8);
+        }
+        .bn-suggestion-item.is-selected {
+          background: hsl(var(--accent));
+          color: hsl(var(--accent-foreground));
+        }
+        .bn-suggestion-item__icon {
+          width: 1.5rem;
+          height: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: hsl(var(--foreground) / 0.7);
+          flex-shrink: 0;
+        }
+        .bn-suggestion-item__content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.125rem;
+          min-width: 0;
+          flex: 1;
+        }
+        .bn-suggestion-item__title {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: hsl(var(--foreground));
+          line-height: 1.3;
+        }
+        .bn-suggestion-item__subtext {
+          font-size: 0.75rem;
+          color: hsl(var(--muted-foreground));
+          line-height: 1.3;
+        }
         .editor-container .bn-toolbar {
           background: rgba(18, 18, 18, 0.95) !important;
           border-color: rgba(46, 46, 46, 0.5) !important;

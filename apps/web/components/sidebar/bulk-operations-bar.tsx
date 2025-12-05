@@ -3,13 +3,13 @@
 import { FolderOpen, Pin, Star, Trash2, X } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 
-import { useConfirmationPopover } from '@quantum-work/ui/confirmation-popover'
-import { useNotificationPopover } from '@quantum-work/ui/notification-popover'
+import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
+import { useNotificationPopover } from '@skriuw/ui/notification-popover'
 
-import { useNotes } from '../../features/notes/hooks/use-notes'
+import { useNotesContext } from '../../features/notes/context/notes-context'
 
 import { useSelectionStore } from '../../stores/selection-store'
-import { Button } from '@quantum-work/ui/button'
+import { Button } from '@skriuw/ui/button'
 
 import type { Item } from '../../features/notes/types'
 
@@ -21,7 +21,7 @@ interface BulkOperationsBarProps {
 export function BulkOperationsBar({ className = '', items }: BulkOperationsBarProps) {
 	const { getSelectedCount, clearSelection, getSelectedIds } = useSelectionStore()
 
-	const { deleteItem, pinItem, favoriteNote } = useNotes()
+	const { deleteItem, pinItem, favoriteNote } = useNotesContext()
 
 	const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
 	const { showNotification, NotificationPopover } = useNotificationPopover()

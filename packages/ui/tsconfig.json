@@ -1,10 +1,8 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "@skriuw/typescript-config/react-library.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["node"]
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]

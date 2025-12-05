@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { getDatabase, settings } from '@quantum-work/db'
-import { getSafeTimestamp } from '@quantum-work/db'
+import { getDatabase, settings } from '@skriuw/db'
+import { getSafeTimestamp } from '@skriuw/db'
 
 const SETTINGS_KEY = 'app-settings'
 

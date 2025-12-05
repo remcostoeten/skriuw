@@ -1,21 +1,22 @@
 import { useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Folder } from 'lucide-react'
-import { Dialog, DialogContent } from '@quantum-work/ui/dialog'
+import { FileText, Folder, Hash } from 'lucide-react'
+import { Dialog, DialogContent } from '@skriuw/ui/dialog'
+import { AnimatedNumber } from '@skriuw/ui/animated-number'
 import { DataCommand, type CommandDataItem } from './data-command'
 import { fetchNotes, fetchFolders, fetchOneNote, fetchOneFolder } from '../api/fetch-notes'
-import { useNotes } from '../../notes'
+import { useNotesContext } from '../../notes/context/notes-context'
 import { useNoteSlug } from '../../notes/hooks/use-note-slug'
 import type { Note, Folder as FolderType } from '../../notes/types'
 
-type props = {
+type Props = {
 	open: boolean
 	onOpenChange: (open: boolean) => void
 }
 
-export function GlobalSearchDialog({ open, onOpenChange }: props) {
+export function GlobalSearchDialog({ open, onOpenChange }: Props) {
 	const router = useRouter()
-	const { items } = useNotes()
+	const { items } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 
 	const parseNote = useCallback(
@@ -80,6 +81,48 @@ export function GlobalSearchDialog({ open, onOpenChange }: props) {
 				},
 				onSelect: () => {
 					router.push('/')
+				},
+			},
+			{
+				icon: <Hash className="h-4 w-4 text-muted-foreground" />,
+				label: (
+					<span className="flex items-center gap-2">
+						Animated Number
+						<AnimatedNumber value="42" className="text-sm text-muted-foreground" />
+					</span>
+				),
+				value: 'animated-number',
+				searchPlaceholder: 'Insert animated number...',
+				loadItems: async ({ search }) => {
+					const numberExamples = [
+						{ label: 'Insert 123', value: '123' },
+						{ label: 'Insert 2024', value: '2024' },
+						{ label: 'Insert 999', value: '999' },
+						{ label: 'Insert 42', value: '42' },
+						{ label: 'Insert 1000', value: '1000' },
+					].filter((item) =>
+						search ? item.label.toLowerCase().includes(search.toLowerCase()) : true
+					)
+
+					return numberExamples.map((item) => ({
+						label: (
+							<span className="flex items-center gap-2">
+								{item.label}
+								<AnimatedNumber value={item.value} className="text-sm text-muted-foreground" />
+							</span>
+						),
+						value: `animated-${item.value}`,
+						onSelect: () => {
+							// Copy to clipboard for now - could be enhanced to insert into editor
+							navigator.clipboard.writeText(`<AnimatedNumber value="${item.value}" />`)
+							onOpenChange(false)
+						},
+					}))
+				},
+				onSelect: () => {
+					// Default action - insert a sample number
+					navigator.clipboard.writeText('<AnimatedNumber value="123" />')
+					onOpenChange(false)
 				},
 			},
 		],

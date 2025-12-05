@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
-import { getDatabase, tasks } from '@quantum-work/db'
-import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
+import { getDatabase, tasks } from '@skriuw/db'
+import type { ExtractedTask } from '../../../../features/notes/utils/extract-tasks'
 
 type SyncPayload = {
 	noteId: string

@@ -1,4 +1,4 @@
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 	className?: string

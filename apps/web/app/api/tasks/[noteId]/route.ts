@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
-import { getDatabase, tasks } from '@quantum-work/db'
+import { getDatabase, tasks } from '@skriuw/db'
 
 type RouteContext = {
 	params: Promise<{ noteId: string }>

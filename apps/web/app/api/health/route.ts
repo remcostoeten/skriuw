@@ -11,7 +11,7 @@ export async function GET() {
 		let dbModuleError = null
 
 		try {
-			await import('@quantum-work/db')
+			await import('@skriuw/db')
 			dbModuleAvailable = true
 		} catch (error) {
 			dbModuleError = error instanceof Error ? error.message : String(error)

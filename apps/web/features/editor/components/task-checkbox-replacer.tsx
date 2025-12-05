@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { Checkbox } from '@quantum-work/ui/primitives/checkbox'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 
 import type { BlockNoteEditor } from '@blocknote/core'
 

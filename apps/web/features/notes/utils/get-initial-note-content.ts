@@ -29,7 +29,9 @@ export function getInitialNoteContent(template: 'empty' | 'h1' | 'h2' = 'empty')
 		]
 	}
 
-	// Create a heading block
+	/**
+	 * The level of the heading
+	 */
 	const level = template === 'h1' ? 1 : 2
 	return [
 		{

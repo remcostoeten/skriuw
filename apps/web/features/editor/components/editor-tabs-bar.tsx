@@ -18,9 +18,9 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-} from '@quantum-work/ui/context-menu'
+} from '@skriuw/ui/context-menu'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 import type { EditorTab } from '../tabs'
 

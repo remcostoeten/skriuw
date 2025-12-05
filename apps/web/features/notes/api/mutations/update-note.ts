@@ -1,10 +1,9 @@
-import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
-import { syncTasksToDatabase } from '@/features/tasks'
-
-import { update } from '@skriuw/storage/crud/update'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import type { Note, UpdateNoteData } from '../../types'
+import { update } from '../../../../lib/storage'
+import { syncTasksToDatabase } from '../../../tasks'
+import { extractTasksFromBlocks } from '../../utils/extract-tasks'
 
 const STORAGE_KEY = 'Skriuw_notes'
 

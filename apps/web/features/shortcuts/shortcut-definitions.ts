@@ -28,6 +28,22 @@ export const shortcutDefinitions = {
 		description: 'Create a new note',
 		enabled: true,
 	},
+	'create-folder': {
+		keys: [
+			['Ctrl', 'f'],
+			['Meta', 'f'],
+		],
+		description: 'Create a new folder',
+		enabled: true,
+	},
+	'rename-item': {
+		keys: [
+			['Ctrl', 'r'],
+			['Meta', 'r'],
+		],
+		description: 'Rename selected file/folder',
+		enabled: true,
+	},
 	'open-collection': {
 		keys: [
 			['Ctrl', 'o'],
