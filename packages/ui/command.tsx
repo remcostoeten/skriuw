@@ -5,7 +5,7 @@ import * as React from 'react'
 
 import { Dialog, DialogContent } from './dialog'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const Command = React.forwardRef<
 	React.ElementRef<typeof CommandPrimitive>,

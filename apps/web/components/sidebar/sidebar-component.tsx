@@ -4,19 +4,20 @@ import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
-import { IconButton, NotesIcon } from '@quantum-work/ui/icons'
-import { useConfirmationPopover } from '@quantum-work/ui/confirmation-popover'
+import { IconButton, NotesIcon } from '@skriuw/ui/icons'
+import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
+import { useNotesContext } from '../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
-import { useNotes } from '../../features/notes/hooks/use-notes'
 import { blocksToText } from '../../features/notes/utils/blocks-to-text'
 import { useSettings } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts'
 import { useContextMenuState } from '../../features/shortcuts/context-menu-context'
+import { shortcutDefinitions } from '../../features/shortcuts/shortcut-definitions'
 
 import { useSelectionStore } from '../../stores/selection-store'
 import { useUIStore } from '../../stores/ui-store'
@@ -30,7 +31,7 @@ import {
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
 	ContextMenuTrigger,
-} from '@quantum-work/ui'
+} from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
 
@@ -219,6 +220,38 @@ type props = {
 	openTabIds?: Set<string>
 }
 
+// Helper function to format shortcut keys for display
+const formatShortcut = (shortcutId: keyof typeof shortcutDefinitions): string | null => {
+	const definition = shortcutDefinitions[shortcutId]
+	if (!definition || !definition.enabled) return null
+
+	// Get the first key combo for display
+	const keys = definition.keys[0]
+	if (!keys) return null
+
+	return keys
+		.map((key) => {
+			if (key === 'Meta') return '⌘'
+			if (key === 'Ctrl') return 'Ctrl'
+			if (key === 'Alt') return 'Alt'
+			if (key === 'Shift') return 'Shift'
+			if (key === 'Backspace') return '⌫'
+			if (key === 'Delete') return 'Del'
+			if (key === 'Enter') return '↵'
+			if (key === 'Escape') return 'Esc'
+			if (key === 'Tab') return 'Tab'
+			if (key === 'Space') return 'Space'
+			if (key === 'ArrowUp') return '↑'
+			if (key === 'ArrowDown') return '↓'
+			if (key === 'ArrowLeft') return '←'
+			if (key === 'ArrowRight') return '→'
+			// For single character keys, return uppercase
+			if (key.length === 1) return key.toUpperCase()
+			return key
+		})
+		.join('+')
+}
+
 function FileTreeItem({
 	item,
 	level = 0,
@@ -259,7 +292,16 @@ function FileTreeItem({
 	onDragOver: (e: React.DragEvent) => void
 	onDrop: (targetId: string, e: React.DragEvent) => void
 	onSelectFolder: (id: string | null) => void
-	onContextMenuOpenChange?: (open: boolean, itemId: string, onDelete: (id: string) => void) => void
+	onContextMenuOpenChange?: (
+		open: boolean,
+		itemId: string,
+		handlers: {
+			onDelete: (id: string) => void
+			onCreateNote: (id: string) => void
+			onCreateFolder: (id: string) => void
+			onRename: (id: string) => void
+		}
+	) => void
 	onPinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => void
 	onFavoriteNote: (noteId: string, favorite: boolean) => void
 	onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>
@@ -570,10 +612,18 @@ function FileTreeItem({
 	const handleContextMenuOpenChange = useCallback(
 		(open: boolean) => {
 			if (onContextMenuOpenChange) {
-				onContextMenuOpenChange(open, item.id, onDelete)
+				onContextMenuOpenChange(open, item.id, {
+					onDelete,
+					onCreateNote,
+					onCreateFolder,
+					onRename: (id: string) => {
+						// For rename, we just trigger the rename mode, the actual rename happens in the input
+						onRename(id, '')
+					},
+				})
 			}
 		},
-		[item.id, onDelete, onContextMenuOpenChange]
+		[item.id, onDelete, onCreateNote, onCreateFolder, onRename, onContextMenuOpenChange]
 	)
 
 	// Helper to find item by ID
@@ -912,7 +962,9 @@ function FileTreeItem({
 				>
 					<FilePlus className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
 					New note
-					{!isMobile && <ContextMenuShortcut>N</ContextMenuShortcut>}
+					{!isMobile && (
+						<ContextMenuShortcut>{formatShortcut('create-note') || '⌘N'}</ContextMenuShortcut>
+					)}
 				</ContextMenuItem>
 				{isFolder && (
 					<ContextMenuItem
@@ -924,7 +976,9 @@ function FileTreeItem({
 					>
 						<FolderOpen className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
 						New folder
-						{!isMobile && <ContextMenuShortcut>F</ContextMenuShortcut>}
+						{!isMobile && (
+							<ContextMenuShortcut>{formatShortcut('create-folder') || '⌘F'}</ContextMenuShortcut>
+						)}
 					</ContextMenuItem>
 				)}
 				<ContextMenuSeparator />
@@ -945,7 +999,9 @@ function FileTreeItem({
 				>
 					<Edit className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
 					Rename
-					{!isMobile && <ContextMenuShortcut>R</ContextMenuShortcut>}
+					{!isMobile && (
+						<ContextMenuShortcut>{formatShortcut('rename-item') || '⌘R'}</ContextMenuShortcut>
+					)}
 				</ContextMenuItem>
 				<ContextMenuSeparator />
 				<ContextMenuItem
@@ -1084,7 +1140,9 @@ function FileTreeItem({
 				>
 					<Trash2 className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
 					{getSelectedCount() > 1 ? `Delete ${getSelectedCount()} items` : 'Delete'}
-					{!isMobile && <ContextMenuShortcut>⌘⌫</ContextMenuShortcut>}
+					{!isMobile && (
+						<ContextMenuShortcut>{formatShortcut('delete-item') || 'Del'}</ContextMenuShortcut>
+					)}
 				</ContextMenuItem>
 			</ContextMenuContent>
 
@@ -1155,7 +1213,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		moveItem,
 		pinItem,
 		favoriteNote,
-	} = useNotes()
+	} = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
 	const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
@@ -1442,16 +1500,28 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	}, [])
 
 	const handleContextMenuOpenChange = useCallback(
-		(open: boolean, itemId: string, onDelete: (id: string) => void) => {
+		(
+			open: boolean,
+			itemId: string,
+			handlers: {
+				onDelete: (id: string) => void
+				onCreateNote: (id: string) => void
+				onCreateFolder: (id: string) => void
+				onRename: (id: string) => void
+			}
+		) => {
 			if (open) {
 				setContextMenuState({
 					itemId,
-					onDelete,
+					...handlers,
 				})
 			} else {
 				setContextMenuState({
 					itemId: null,
 					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
 				})
 			}
 		},
@@ -1469,10 +1539,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				e.preventDefault()
 				if (contextMenuState.itemId && contextMenuState.onDelete) {
 					contextMenuState.onDelete(contextMenuState.itemId)
-					// Clear the context menu state after deletion
 					setContextMenuState({
 						itemId: null,
 						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
 					})
 				}
 			},
@@ -1480,7 +1552,67 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		)
 	)
 
-	// Helper function to get all visible item IDs for select all
+	useShortcut(
+		'create-note',
+		useCallback(
+			(e: KeyboardEvent) => {
+				e.preventDefault()
+				if (contextMenuState.itemId && contextMenuState.onCreateNote) {
+					contextMenuState.onCreateNote(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	useShortcut(
+		'create-folder',
+		useCallback(
+			(e: KeyboardEvent) => {
+				e.preventDefault()
+				if (contextMenuState.itemId && contextMenuState.onCreateFolder) {
+					contextMenuState.onCreateFolder(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	// Handle rename-item shortcut
+	useShortcut(
+		'rename-item',
+		useCallback(
+			(e: KeyboardEvent) => {
+				e.preventDefault()
+				if (contextMenuState.itemId && contextMenuState.onRename) {
+					contextMenuState.onRename(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
 	const getAllVisibleItemIds = useCallback(
 		(items: Item[]): string[] => {
 			const ids: string[] = []
@@ -1505,7 +1637,6 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				if (a.pinned && !b.pinned) return -1
 				if (!a.pinned && b.pinned) return 1
 
-				// If both pinned, sort by pinnedAt (most recent first) or creation date
 				if (a.pinned && b.pinned) {
 					const aPinnedAt = a.pinnedAt || a.createdAt
 					const bPinnedAt = b.pinnedAt || b.createdAt
@@ -1514,7 +1645,6 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					}
 				}
 
-				// Then favorites (notes only)
 				if (!a.pinned && !b.pinned) {
 					const aFavorite = a.type === 'note' && a.favorite
 					const bFavorite = b.type === 'note' && b.favorite
@@ -1522,17 +1652,14 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					if (!aFavorite && bFavorite) return 1
 				}
 
-				// Then folders before notes (if not pinned)
 				if (!a.pinned && !b.pinned) {
 					if (a.type === 'folder' && b.type === 'note') return -1
 					if (a.type === 'note' && b.type === 'folder') return 1
 				}
 
-				// Finally, sort alphabetically by name
 				return a.name.localeCompare(b.name)
 			})
 			.map((item) => {
-				// Recursively sort children if it's a folder
 				if (item.type === 'folder') {
 					return {
 						...item,
@@ -1544,7 +1671,6 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		return sorted
 	}, [])
 
-	// Filter and sort items based on search query
 	const filteredItems = useMemo(() => {
 		if (!searchQuery.trim()) {
 			return sortItems(items)
@@ -1552,15 +1678,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 		const query = searchQuery.toLowerCase().trim()
 
-		// Recursive function to filter items
 		const filterItems = (itemList: Item[]): Item[] => {
 			const filtered: Item[] = []
 
 			for (const item of itemList) {
-				// Check if item name matches
 				const nameMatches = item.name.toLowerCase().includes(query)
 
-				// Check if content matches (only for notes and if searchInContent is enabled)
 				let contentMatches = false
 				if (searchInContent && item.type === 'note' && 'content' in item) {
 					const note = item as { content?: Block[] }
@@ -1575,9 +1698,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					}
 				}
 
-				// If this item matches, include it
 				if (nameMatches || contentMatches) {
-					// If it's a folder, recursively filter its children
 					if (item.type === 'folder') {
 						const filteredChildren = filterItems(item.children)
 						filtered.push({
@@ -1588,10 +1709,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						filtered.push(item)
 					}
 				} else if (item.type === 'folder') {
-					// If folder doesn't match, check if any children match
 					const filteredChildren = filterItems(item.children)
 					if (filteredChildren.length > 0) {
-						// Include folder if it has matching children
 						filtered.push({
 							...item,
 							children: filteredChildren,
@@ -1606,16 +1725,13 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		return sortItems(filterItems(items))
 	}, [items, searchQuery, sortItems, searchInContent])
 
-	// Keyboard shortcuts for selection
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// Escape to clear selection
 			if (e.key === 'Escape' && getSelectedCount() > 0) {
 				clearSelection()
 				return
 			}
 
-			// Ctrl/Cmd+A to select all
 			if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
 				e.preventDefault()
 				const allIds = getAllVisibleItemIds(filteredItems)
@@ -1623,7 +1739,6 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				return
 			}
 
-			// Delete key for bulk delete
 			if (e.key === 'Delete' && getSelectedCount() > 0) {
 				e.preventDefault()
 				const count = getSelectedCount()

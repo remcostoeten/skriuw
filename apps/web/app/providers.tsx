@@ -4,20 +4,20 @@ import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
-import { TooltipProvider } from '@quantum-work/ui'
+import { TooltipProvider } from '@skriuw/ui'
 
 import { initializeAppStorage } from './storage'
 
 import { EditorTabsProvider } from '../features/editor/tabs'
+import { NotesProvider } from '../features/notes/context/notes-context'
 import { SettingsProvider } from '../features/settings'
 import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
 import { AppLayoutLoadingSkeleton } from '../components/layout/app-layout-loading'
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
-import { SplashScreen } from '../components/splash-screen'
 
 type props = {
 	children: ReactNode
@@ -25,17 +25,13 @@ type props = {
 
 function StorageInitializer({ children }: props) {
 	const [isInitialized, setIsInitialized] = useState(false)
-	const [showSplash, setShowSplash] = useState(true)
-	const [storageReady, setStorageReady] = useState(false)
-	const [animationComplete, setAnimationComplete] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
 
 	useEffect(() => {
 		let isMounted = true
 		const timeoutId = setTimeout(() => {
-			if (isMounted && !storageReady) {
+			if (isMounted && !isInitialized) {
 				console.warn('Storage initialization taking too long, showing app anyway')
-				setStorageReady(true)
 				setIsInitialized(true)
 			}
 		}, 5000) // 5 second timeout
@@ -45,7 +41,6 @@ function StorageInitializer({ children }: props) {
 				if (isMounted) {
 					console.log('✅ Storage initialized successfully')
 					clearTimeout(timeoutId)
-					setStorageReady(true)
 					setIsInitialized(true)
 					setError(null)
 				}
@@ -56,7 +51,6 @@ function StorageInitializer({ children }: props) {
 					clearTimeout(timeoutId)
 					setError(err instanceof Error ? err : new Error(String(err)))
 					// Still show app even if storage fails
-					setStorageReady(true)
 					setIsInitialized(true)
 				}
 			})
@@ -65,21 +59,7 @@ function StorageInitializer({ children }: props) {
 			isMounted = false
 			clearTimeout(timeoutId)
 		}
-	}, [storageReady])
-
-	// Hide splash screen when both animation and storage are ready
-	useEffect(() => {
-		if (animationComplete && storageReady) {
-			// Small delay to ensure data is loaded
-			setTimeout(() => {
-				setShowSplash(false)
-			}, 300)
-		}
-	}, [animationComplete, storageReady])
-
-	const handleAnimationComplete = () => {
-		setAnimationComplete(true)
-	}
+	}, [isInitialized])
 
 	if (error) {
 		return (
@@ -99,12 +79,7 @@ function StorageInitializer({ children }: props) {
 		)
 	}
 
-	return (
-		<>
-			{isInitialized ? children : <AppLayoutLoadingSkeleton />}
-			<SplashScreen show={showSplash} onAnimationComplete={handleAnimationComplete} />
-		</>
-	)
+	return <>{isInitialized ? children : <AppLayoutLoadingSkeleton />}</>
 }
 
 export function Providers({ children }: props) {
@@ -113,13 +88,15 @@ export function Providers({ children }: props) {
 			<SonnerToaster />
 			<StorageInitializer>
 				<SettingsProvider>
-					<ShortcutProvider>
-						<ContextMenuProvider>
-							<EditorTabsProvider>
-								<AppLayoutManager>{children}</AppLayoutManager>
-							</EditorTabsProvider>
-						</ContextMenuProvider>
-					</ShortcutProvider>
+					<NotesProvider>
+						<ShortcutProvider>
+							<ContextMenuProvider>
+								<EditorTabsProvider>
+									<AppLayoutManager>{children}</AppLayoutManager>
+								</EditorTabsProvider>
+							</ContextMenuProvider>
+						</ShortcutProvider>
+					</NotesProvider>
 				</SettingsProvider>
 			</StorageInitializer>
 		</TooltipProvider>

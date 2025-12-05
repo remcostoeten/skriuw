@@ -1,13 +1,12 @@
 import { ReactNode, useMemo, useCallback, Suspense, lazy, useEffect, useState, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
 import { useEditorTabs } from '../../features/editor/tabs'
+import { useNotesContext } from '../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
-import { useNotes } from '../../features/notes/hooks/use-notes'
-import { useNotesWithSuspense } from '../../features/notes/hooks/useNotesWithSuspense'
 import { extractFirstHeading } from '../../features/notes/utils/extract-first-heading'
 import { flattenNotes } from '../../features/notes/utils/flatten-notes'
 import { GlobalSearchDialog } from '../../features/search'
@@ -55,8 +54,7 @@ export function AppLayoutManager({
 	const router = useRouter()
 	const pathname = usePathname()
 	const showSidebar = !pathname.startsWith('/archive')
-	const { items, isInitialLoading, createNote, renameItem, deleteItem } = useNotesWithSuspense()
-	const { pinItem, favoriteNote } = useNotes()
+	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } = useNotesContext()
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const isNoteRoute = pathname.startsWith('/note/')

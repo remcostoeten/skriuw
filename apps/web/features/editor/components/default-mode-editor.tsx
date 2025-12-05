@@ -6,7 +6,8 @@ import { markdownToBlocks } from '../../notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '../../notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
 import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
-import { cn } from '@quantum-work/core-logic'
+import { SlashSuggestionMenu } from './slash-suggestions-menu'
+import { cn } from '@skriuw/core-logic'
 
 interface DualModeEditorProps {
 	editor: any // BlockNoteEditor instance
@@ -217,15 +218,16 @@ export function DualModeEditor({
 					)}
 					style={{ width: `${splitRatio}%` }}
 				>
-					<>
-						<BlockNoteView
-							editor={editor}
-							sideMenu={blockIndicator}
-							formattingToolbar={showFormattingToolbar}
-							data-theme-css-variables={false}
-						/>
-						<NoteMentionSuggestionMenu editor={editor} />
-					</>
+					<BlockNoteView
+						editor={editor}
+						sideMenu={blockIndicator}
+						formattingToolbar={showFormattingToolbar}
+						slashMenu={false}
+						data-theme-css-variables={false}
+					>
+						<NoteMentionSuggestionMenu />
+						<SlashSuggestionMenu />
+					</BlockNoteView>
 				</div>
 
 				{/* Resizable Splitter */}
@@ -291,8 +293,12 @@ export function DualModeEditor({
 				editor={editor}
 				sideMenu={blockIndicator}
 				formattingToolbar={showFormattingToolbar}
+				slashMenu={false}
 				data-theme-css-variables={false}
-			/>
+			>
+				<NoteMentionSuggestionMenu />
+				<SlashSuggestionMenu />
+			</BlockNoteView>
 		</div>
 	)
 }

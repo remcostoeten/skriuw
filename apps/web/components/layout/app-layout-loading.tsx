@@ -1,4 +1,4 @@
-import { Skeleton } from '@quantum-work/ui/skeleton'
+import { Skeleton } from '@skriuw/ui/skeleton'
 
 import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
 

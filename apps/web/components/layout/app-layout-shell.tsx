@@ -1,7 +1,7 @@
 import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from 'react'
 
-import { cn } from '@quantum-work/core-logic'
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
+import { cn } from '@skriuw/core-logic'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 type props = {
 	leftToolbar?: ReactNode

@@ -1,10 +1,11 @@
-import { Kbd } from './kbd'
 import { Tooltip, TooltipTrigger, TooltipContent } from './tooltip'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
-import type { KeyboardShortcut } from '@/features/shortcuts/types'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+
+// Simplified keyboard shortcut type for UI package
+export type KeyboardShortcut = string | string[]
 
 export type IconProps = {
 	size?: number | string
@@ -102,7 +103,11 @@ export function IconButton({
 				<TooltipContent side={tooltipSide} align="center">
 					<div className="flex items-center gap-2">
 						<span>{tooltip}</span>
-						{shortcut && <Kbd shortcut={shortcut} />}
+						{shortcut && (
+							<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+								{Array.isArray(shortcut) ? shortcut.join(' + ') : shortcut}
+							</kbd>
+						)}
 					</div>
 				</TooltipContent>
 			</Tooltip>
