@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
 	({ className, type, ...props }, ref) => {

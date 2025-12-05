@@ -1,4 +1,4 @@
-import type { StorageConfig } from '@/lib/storage/generic-types'
+import type { StorageConfig } from '../../lib/storage/generic-types'
 
 /**
  * Storage configuration

@@ -11,7 +11,7 @@ import {
 	FolderIcon,
 	UIPlaygroundIcon,
 	IconButton,
-} from '@quantum-work/ui/icons'
+} from '@skriuw/ui/icons'
 
 import { Logo } from './logo'
 

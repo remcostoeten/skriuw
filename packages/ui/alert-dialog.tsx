@@ -3,7 +3,7 @@ import * as React from 'react'
 
 import { buttonVariants } from './button'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const AlertDialog = AlertDialogPrimitive.Root
 
