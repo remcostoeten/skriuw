@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
 export default function NotFound() {
 	const pathname = usePathname()

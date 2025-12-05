@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { Button } from './button'
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 export interface NotificationPopoverOptions {
 	message: string

@@ -6,17 +6,22 @@ import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handl
 import { useSettings, useUserPreferences } from '@/features/settings'
 
 import { taskBlockSpec } from '../blocks/task-block'
+import { animatedNumberBlockSpec } from '../blocks/animated-number-block'
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
  * and custom task blocks
  */
 export function createEditorSchema() {
-	const codeBlock = createCodeBlockSpec(codeBlockOptions)
+	// The BlockNote code block types pull in a different Shiki version than our tree,
+	// so we cast the shared options to bypass the incompatible signatures.
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+	const codeBlock = createCodeBlockSpec(codeBlockOptions as any)
 	return BlockNoteSchema.create().extend({
 		blockSpecs: {
 			codeBlock,
 			task: taskBlockSpec(), // createReactBlockSpec returns a function that needs to be called
+			'animated-number': animatedNumberBlockSpec(),
 		},
 	})
 }

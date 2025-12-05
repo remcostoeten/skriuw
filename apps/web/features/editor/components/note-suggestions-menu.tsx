@@ -5,11 +5,10 @@ import {
 	type SuggestionMenuProps,
 	useBlockNoteEditor,
 } from '@blocknote/react'
-import type { BlockNoteEditor } from '@blocknote/core'
 
 import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
 import { useNoteSlug } from '../../notes/hooks/use-note-slug'
-import { useNotes } from '../../notes'
+import { useNotesContext } from '../../notes/context/notes-context'
 import {
 	searchNoteMentions,
 	type HighlightPart,
@@ -46,7 +45,7 @@ const MentionMenuList = ({
 			aria-label="Mention suggestions"
 			aria-activedescendant={activeOptionId}
 		>
-			{items.map((item, index) => {
+			{items.map((item: MentionSuggestionItem, index: number) => {
 				const optionId = `note-mention-${item.id}`
 				return (
 					<button
@@ -87,11 +86,11 @@ function renderHighlightedText(parts: HighlightPart[]) {
 	)
 }
 
-export function NoteMentionSuggestionMenu({ editor }: { editor?: BlockNoteEditor | null }) {
-	const contextEditor = useBlockNoteEditor()
-	const activeEditor = editor || contextEditor
+export function NoteMentionSuggestionMenu() {
+	// Get editor from BlockNoteContext (must be rendered inside BlockNoteView)
+	const editor = useBlockNoteEditor()
 	const candidates = useNoteMentionCandidates()
-	const { items } = useNotes()
+	const { items } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 
 	const getItems = useCallback<MentionGetItems>(
@@ -107,14 +106,14 @@ export function NoteMentionSuggestionMenu({ editor }: { editor?: BlockNoteEditor
 
 	const handleItemClick = useCallback(
 		(item: MentionSuggestionItem) => {
-			if (!activeEditor) return
-			activeEditor.createLink(item.url, item.title)
-			activeEditor.insertInlineContent(' ')
+			if (!editor) return
+			editor.createLink(item.url, item.title)
+			editor.insertInlineContent(' ')
 		},
-		[activeEditor]
+		[editor]
 	)
 
-	if (!activeEditor) return null
+	if (!editor) return null
 
 	return (
 		<SuggestionMenuController<MentionGetItems>

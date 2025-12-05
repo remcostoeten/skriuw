@@ -4,7 +4,7 @@ import { Suspense, lazy, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
 import { useNoteSlug } from '../features/notes/hooks/use-note-slug'
 import { useNotesWithSuspense } from '../features/notes/hooks/useNotesWithSuspense'
