@@ -1,6 +1,6 @@
 import { createReactBlockSpec } from '@blocknote/react'
 
-import { Checkbox } from '@quantum-work/ui/primitives/checkbox'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 
 /**
  * Custom Task Block for BlockNote

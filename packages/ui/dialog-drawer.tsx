@@ -12,7 +12,7 @@ import {
 	type CSSProperties,
 } from 'react'
 
-import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic'
+import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic'
 
 type DialogContextValue = {
 	open: boolean

@@ -6,7 +6,7 @@ import { markdownToBlocks } from '../../notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '../../notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
 import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 interface DualModeEditorProps {
 	editor: any // BlockNoteEditor instance

@@ -2,7 +2,7 @@ import { AlertCircle } from 'lucide-react'
 import { useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
 import { useShortcut } from '../../shortcuts/use-shortcut'
 

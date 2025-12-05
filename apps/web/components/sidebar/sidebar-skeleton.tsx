@@ -1,6 +1,6 @@
 'use client'
 
-import { Skeleton } from '@quantum-work/ui/skeleton'
+import { Skeleton } from '@skriuw/ui/skeleton'
 
 interface SidebarSkeletonProps {
 	itemCount?: number

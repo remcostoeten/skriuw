@@ -2,11 +2,11 @@ import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 
-import { useNotes } from '@/features/notes'
+import { useNotes } from '../../notes'
 
 import { useEditorConfig } from './useEditorConfig'
 
-import type { Note } from '@/features/notes'
+import type { Note } from '../../notes'
 
 type options = {
 	noteId: string

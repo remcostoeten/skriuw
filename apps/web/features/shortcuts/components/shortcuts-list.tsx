@@ -1,7 +1,7 @@
 import { RotateCcw } from 'lucide-react'
 import { useMemo } from 'react'
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@quantum-work/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@skriuw/ui/table'
 
 import { ShortcutId, KeyCombo } from '../shortcut-definitions'
 

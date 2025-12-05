@@ -4,12 +4,12 @@ import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
-import { IconButton, NotesIcon } from '@quantum-work/ui/icons'
-import { useConfirmationPopover } from '@quantum-work/ui/confirmation-popover'
+import { IconButton, NotesIcon } from '@skriuw/ui/icons'
+import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
 import { useNotes } from '../../features/notes/hooks/use-notes'
@@ -30,7 +30,7 @@ import {
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
 	ContextMenuTrigger,
-} from '@quantum-work/ui'
+} from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
 

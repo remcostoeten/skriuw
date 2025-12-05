@@ -4,7 +4,7 @@ import { Activity, Database, Route as RouteIcon, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 type HealthInfo = {
 	status: string

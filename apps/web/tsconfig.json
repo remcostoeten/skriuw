@@ -1,48 +1,28 @@
 {
+  "extends": "@skriuw/typescript-config/nextjs.json",
   "compilerOptions": {
-    "target": "esnext",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
+    "baseUrl": ".",
     "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "target": "es2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
     "paths": {
       "@/*": [
         "./*"
       ],
+      "@skriuw/ui": [
+        "../../packages/ui"
+      ],
+      "@skriuw/core-logic": [
+        "../../packages/core-logic"
+      ],
+      "@skriuw/db": [
+        "../../packages/db"
+      ],
       "@skriuw/storage": [
-        "./lib/storage/index.ts"
+        "./lib/storage"
       ],
       "@skriuw/storage/*": [
         "./lib/storage/*"
-      ],
-      "@skriuw/db": [
-        "./lib/db/index.ts"
-      ],
-      "@quantum-work/ui": [
-        "../../packages/ui"
-      ],
-      "@quantum-work/core-logic": [
-        "../../packages/core-logic"
-      ],
-      "@quantum-work/db": [
-        "../../packages/db"
       ]
     }
   },
@@ -55,6 +35,8 @@
   ],
   "exclude": [
     "node_modules",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

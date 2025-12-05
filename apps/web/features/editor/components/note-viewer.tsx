@@ -1,7 +1,7 @@
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { AlertCircle } from 'lucide-react'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
 import { useEditor } from '../hooks/use-editor'
 import { createEditorSchema } from '../hooks/useEditorConfig'

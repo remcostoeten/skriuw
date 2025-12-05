@@ -1,9 +1,9 @@
 import { CloudOff, Globe, Zap, Upload } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
-import { Kbd } from '@quantum-work/ui/kbd'
-import { ThemeToggle } from '@quantum-work/ui/theme-toggle'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@quantum-work/ui/tooltip'
+import { Kbd } from '@skriuw/ui/kbd'
+import { ThemeToggle } from '@skriuw/ui/theme-toggle'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@skriuw/ui/tooltip'
 
 import { useSettingsContext } from '../../features/settings/settings-provider'
 import { createShortcut } from '../../features/shortcuts/builder'

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useNotes } from '@/features/notes'
+import { useNotes } from '../../notes'
 
 import { buildMentionCandidates } from '../utils/note-mention-search'
 
