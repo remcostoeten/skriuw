@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 
-import { useNotes } from '../../notes'
+import { useNotesContext } from '../../notes/context/notes-context'
 
 import { buildMentionCandidates } from '../utils/note-mention-search'
 
 export function useNoteMentionCandidates() {
-	const { items } = useNotes()
+	const { items } = useNotesContext()
 
 	return useMemo(() => buildMentionCandidates(items), [items])
 }

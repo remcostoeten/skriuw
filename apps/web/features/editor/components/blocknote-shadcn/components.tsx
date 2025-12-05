@@ -156,12 +156,13 @@ const SuggestionMenuRoot = ({
 	<div
 		id={id}
 		className={cn(
-			'bn-suggestion-menu min-w-[300px] max-w-[400px]',
+			'bn-suggestion-menu min-w-[320px] max-w-[420px]',
 			'rounded-none border border-border/50 bg-background/98',
 			'p-2 text-sm shadow-2xl backdrop-blur-xl',
 			'ring-1 ring-black/5 dark:ring-white/10',
 			'animate-in fade-in-0 zoom-in-95 duration-200',
-			'overflow-hidden',
+			'max-h-[60vh] overflow-y-auto',
+			'scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent',
 			className
 		)}
 	>
@@ -174,33 +175,84 @@ const SuggestionMenuItem = ({
 	isSelected,
 	onClick,
 	item,
-}: BlockNoteComponentProps['SuggestionMenu']['Item']) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className={cn(
-			'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2.5',
-			'text-left text-sm transition-all duration-150',
-			'hover:bg-accent/90 hover:shadow-sm',
-			'active:scale-[0.98] active:bg-accent',
-			isSelected && 'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20',
-			!isSelected && 'text-foreground',
-			className
-		)}
-	>
-		<div className="mt-0.5 shrink-0 text-lg opacity-80">{(item as any).icon ?? '•'}</div>
-		<div className="flex-1 min-w-0">
-			<div className="font-semibold leading-tight">
-				{(item as any).title || (item as any).label || String(item)}
-			</div>
-			{(item as any).description && (
-				<div className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
-					{(item as any).description}
-				</div>
+}: BlockNoteComponentProps['SuggestionMenu']['Item']) => {
+	const title = (item as any).title || (item as any).label || String(item)
+	const description = (item as any).description || (item as any).subtext
+	const icon = (item as any).icon
+
+	// Determine category based on title for better organization
+	const getCategory = (title: string) => {
+		if (
+			title.includes('Heading') ||
+			title.includes('Paragraph') ||
+			title.includes('Quote') ||
+			title.includes('Text')
+		)
+			return 'Text'
+		if (title.includes('List') || title.includes('Task') || title.includes('Todo')) return 'Lists'
+		if (title.includes('Image') || title.includes('Video') || title.includes('Media'))
+			return 'Media'
+		if (title.includes('Code') || title.includes('Table') || title.includes('Advanced'))
+			return 'Advanced'
+		if (title.includes('Animated') || title.includes('Custom')) return 'Custom'
+		return 'Basic'
+	}
+
+	const category = getCategory(title)
+	const categoryColors = {
+		Text: 'text-foreground',
+		Lists: 'text-foreground',
+		Media: 'text-foreground',
+		Advanced: 'text-foreground',
+		Custom: 'text-foreground',
+		Basic: 'text-foreground',
+	}
+
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className={cn(
+				'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2',
+				'text-left text-sm transition-all duration-150',
+				'hover:bg-accent/90 hover:shadow-sm',
+				'active:scale-[0.98] active:bg-accent',
+				'border border-transparent hover:border-border/50',
+				isSelected &&
+					'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
+				!isSelected && 'text-foreground',
+				className
 			)}
-		</div>
-	</button>
-)
+		>
+			<div
+				className={cn(
+					'mt-0.5 shrink-0 text-lg opacity-80 flex items-center justify-center w-5 h-5',
+					categoryColors[category as keyof typeof categoryColors]
+				)}
+			>
+				{icon || '•'}
+			</div>
+			<div className="flex-1 min-w-0">
+				<div className="font-semibold leading-tight flex items-center gap-2">
+					{title}
+					<span
+						className={cn(
+							'text-xs px-1.5 py-0.5 rounded-full opacity-60',
+							'bg-muted text-muted-foreground'
+						)}
+					>
+						{category}
+					</span>
+				</div>
+				{description && (
+					<div className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-1">
+						{description}
+					</div>
+				)}
+			</div>
+		</button>
+	)
+}
 
 const SuggestionMenuEmpty = ({
 	className,
@@ -217,7 +269,9 @@ const SuggestionMenuLabel = ({
 }: BlockNoteComponentProps['SuggestionMenu']['Label']) => (
 	<div
 		className={cn(
-			'bn-suggestion-label px-2 pb-1 text-xs uppercase tracking-wide text-muted-foreground',
+			'bn-suggestion-label px-3 py-2 text-xs uppercase tracking-wide font-semibold',
+			'text-muted-foreground bg-muted/50 rounded-md mb-1',
+			'border border-border/30 sticky top-0 z-10 backdrop-blur-sm',
 			className
 		)}
 	>
