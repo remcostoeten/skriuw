@@ -6,6 +6,7 @@ import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handl
 import { useSettings, useUserPreferences } from '@/features/settings'
 
 import { taskBlockSpec } from '../blocks/task-block'
+import { animatedNumberBlockSpec } from '../blocks/animated-number-block'
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
@@ -20,6 +21,7 @@ export function createEditorSchema() {
 		blockSpecs: {
 			codeBlock,
 			task: taskBlockSpec(), // createReactBlockSpec returns a function that needs to be called
+			'animated-number': animatedNumberBlockSpec(),
 		},
 	})
 }
