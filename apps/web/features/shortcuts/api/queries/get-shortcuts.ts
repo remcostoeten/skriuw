@@ -3,7 +3,7 @@ import { read } from '@skriuw/storage/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
-const STORAGE_KEY = 'quantum-works:shortcuts:custom'
+const STORAGE_KEY = 'skriuw:shortcuts:custom'
 
 /**
  * Get all custom shortcuts as a record

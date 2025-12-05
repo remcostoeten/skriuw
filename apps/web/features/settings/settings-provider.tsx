@@ -50,6 +50,9 @@ export function SettingsProvider({
 	useEffect(() => {
 		const root = window.document.documentElement
 
+		// Remove inline style set by initialization script
+		root.style.backgroundColor = ''
+
 		// Determine the actual theme to apply
 		let themeToApply: string
 		if (settings.theme === 'system') {

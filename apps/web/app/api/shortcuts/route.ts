@@ -29,35 +29,29 @@ async function upsertShortcut(body: any) {
 	}
 
 	const customizedAt = typeof body?.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
+	const safeCustomizedAt = Number.isNaN(customizedAt) ? now : customizedAt
 
-	const existing = await db.select().from(shortcuts).where(eq(shortcuts.id, id)).limit(1)
-
-	if (existing.length > 0) {
-		const [updated] = await db
-			.update(shortcuts)
-			.set({
-				keys: JSON.stringify(keys),
-				customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
-				updatedAt: now,
-			})
-			.where(eq(shortcuts.id, id))
-			.returning()
-
-		return deserializeShortcut(updated)
-	}
-
-	const [created] = await db
+	// Use upsert pattern with onConflictDoUpdate - single query instead of select+insert/update
+	const [result] = await db
 		.insert(shortcuts)
 		.values({
 			id,
 			keys: JSON.stringify(keys),
-			customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
+			customizedAt: safeCustomizedAt,
 			createdAt: now,
 			updatedAt: now,
 		})
+		.onConflictDoUpdate({
+			target: shortcuts.id,
+			set: {
+				keys: JSON.stringify(keys),
+				customizedAt: safeCustomizedAt,
+				updatedAt: now,
+			},
+		})
 		.returning()
 
-	return deserializeShortcut(created)
+	return deserializeShortcut(result)
 }
 
 export async function GET(request: NextRequest) {

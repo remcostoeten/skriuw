@@ -45,22 +45,8 @@ export async function POST(request: NextRequest) {
 		const settingsPayload = body?.settings ?? {}
 		const now = getSafeTimestamp()
 
-		const existing = await db.select().from(settings).where(eq(settings.key, SETTINGS_KEY)).limit(1)
-
-		if (existing.length > 0) {
-			const [updated] = await db
-				.update(settings)
-				.set({
-					value: JSON.stringify(settingsPayload),
-					updatedAt: now,
-				})
-				.where(eq(settings.id, existing[0].id))
-				.returning()
-
-			return NextResponse.json(deserializeSetting(updated))
-		}
-
-		const [created] = await db
+		// Use upsert pattern with onConflictDoUpdate - single query instead of select+insert/update
+		const [result] = await db
 			.insert(settings)
 			.values({
 				id: SETTINGS_KEY,
@@ -69,9 +55,16 @@ export async function POST(request: NextRequest) {
 				createdAt: now,
 				updatedAt: now,
 			})
+			.onConflictDoUpdate({
+				target: settings.key,
+				set: {
+					value: JSON.stringify(settingsPayload),
+					updatedAt: now,
+				},
+			})
 			.returning()
 
-		return NextResponse.json(deserializeSetting(created), { status: 201 })
+		return NextResponse.json(deserializeSetting(result), { status: 201 })
 	} catch (error) {
 		console.error('Failed to save settings:', error)
 		return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
