@@ -15,7 +15,7 @@ import {
 	DialogNavGroup,
 	DialogSection,
 	DialogSeparator,
-} from '@quantum-work/ui/dialog-drawer'
+} from '@skriuw/ui/dialog-drawer'
 
 import { useSettings, SettingsGroup } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'

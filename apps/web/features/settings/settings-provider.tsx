@@ -70,7 +70,8 @@ export function SettingsProvider({
 		try {
 			const storedSettings = await getSettings()
 			if (storedSettings) {
-				setSettings({ ...defaultSettings, ...storedSettings })
+				// Force dark theme regardless of stored settings
+				setSettings({ ...defaultSettings, ...storedSettings, theme: 'dark' })
 			}
 		} catch (error) {
 			console.error('Failed to load settings:', error)

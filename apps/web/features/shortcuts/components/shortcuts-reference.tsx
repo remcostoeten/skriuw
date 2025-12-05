@@ -1,8 +1,8 @@
 import { Search, Keyboard } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@quantum-work/ui/card'
-import { Input } from '@quantum-work/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Input } from '@skriuw/ui/input'
 
 import { getShortcuts } from '../api/queries/get-shortcuts'
 import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions'

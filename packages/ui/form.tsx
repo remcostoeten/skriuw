@@ -12,7 +12,7 @@ import {
 
 import { Label } from './label'
 
-import { cn } from '@quantum-work/core-logic'
+import { cn } from '@skriuw/core-logic'
 
 const Form = FormProvider
 

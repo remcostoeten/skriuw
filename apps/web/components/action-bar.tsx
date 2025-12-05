@@ -13,8 +13,8 @@ import {
 	useState,
 } from 'react'
 
-import { IconButton } from '@quantum-work/ui/icons'
-import { cn } from '@quantum-work/core-logic'
+import { IconButton } from '@skriuw/ui/icons'
+import { cn } from '@skriuw/core-logic'
 
 type ActionButton = {
 	icon: ReactNode

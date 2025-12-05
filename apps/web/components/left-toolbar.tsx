@@ -11,7 +11,7 @@ import {
 	FolderIcon,
 	UIPlaygroundIcon,
 	IconButton,
-} from '@quantum-work/ui/icons'
+} from '@skriuw/ui/icons'
 
 import { Logo } from './logo'
 
@@ -56,7 +56,7 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 				<IconButton
 					icon={<FolderIcon closedVariant />}
 					hoverIcon={<FolderIcon />}
-					tooltip="Archive"
+					tooltip="Data & Backup"
 					active={isOnArchive}
 					variant="sidebar"
 					onClick={() => navigate('/archive')}
