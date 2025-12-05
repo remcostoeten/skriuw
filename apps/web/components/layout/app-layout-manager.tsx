@@ -1,7 +1,7 @@
 import { ReactNode, useMemo, useCallback, Suspense, lazy, useEffect, useState, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@quantum-work/core-logic/use-media-query'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
 import { useEditorTabs } from '../../features/editor/tabs'

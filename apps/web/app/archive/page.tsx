@@ -3,7 +3,7 @@
 import { Download, Archive, Upload } from 'lucide-react'
 import { useState } from 'react'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@quantum-work/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
 
 export default function ArchivePage() {
 	const [activeTab, setActiveTab] = useState('archived')

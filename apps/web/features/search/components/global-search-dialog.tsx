@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Folder } from 'lucide-react'
-import { Dialog, DialogContent } from '@quantum-work/ui/dialog'
+import { Dialog, DialogContent } from '@skriuw/ui/dialog'
 import { DataCommand, type CommandDataItem } from './data-command'
 import { fetchNotes, fetchFolders, fetchOneNote, fetchOneFolder } from '../api/fetch-notes'
 import { useNotes } from '../../notes'

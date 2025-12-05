@@ -1,11 +1,12 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
 	// Enable React strict mode for better development experience
 	reactStrictMode: true,
 
 	// Transpile packages if needed
-	transpilePackages: [],
+	transpilePackages: ['@skriuw/ui', '@skriuw/core-logic', '@skriuw/db'],
 
 	// Configure external packages for server components
 	serverExternalPackages: ['postgres'],
@@ -28,13 +29,20 @@ const nextConfig: NextConfig = {
 		]
 	},
 
-	// Configure Turbopack
-	turbopack: {
-		// Empty config to silence the warning about webpack config without turbopack config
-	},
+	// Configure Turbopack (empty to silence warning)
+	turbopack: {},
 
 	// Configure webpack to handle large assets and optional Tauri modules
 	webpack: (config, { isServer, webpack }) => {
+		// Fix path resolution for @/* alias and @skriuw/storage
+		const projectRoot = path.resolve('.')
+		config.resolve.alias = {
+			...config.resolve.alias,
+			'@': projectRoot,
+			'@skriuw/storage': path.resolve('./lib/storage'),
+			'@skriuw/storage/crud': path.resolve('./lib/storage/crud'),
+		}
+
 		if (!isServer) {
 			config.resolve.fallback = {
 				...config.resolve.fallback,

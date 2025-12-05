@@ -1,11 +1,11 @@
 import React from 'react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@quantum-work/ui/card'
-import { Label } from '@quantum-work/ui/label'
-import { Input } from '@quantum-work/ui/input'
-import { Switch } from '@quantum-work/ui/switch'
-// import { Slider } from '@quantum-work/ui/slider'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@quantum-work/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Label } from '@skriuw/ui/label'
+import { Input } from '@skriuw/ui/input'
+import { Switch } from '@skriuw/ui/switch'
+// import { Slider } from '@skriuw/ui/slider'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@skriuw/ui/select'
 
 import type { SettingsGroup, UserSetting } from '../types'
 

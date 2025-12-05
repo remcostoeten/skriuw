@@ -4,9 +4,9 @@ import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
 
-import { EmptyState } from '@quantum-work/ui/empty-state'
+import { EmptyState } from '@skriuw/ui/empty-state'
 
-import { TooltipProvider } from '@quantum-work/ui'
+import { TooltipProvider } from '@skriuw/ui'
 
 import { initializeAppStorage } from './storage'
 

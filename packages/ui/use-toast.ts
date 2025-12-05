@@ -1,1 +1,1 @@
-export { useToast, toast } from '@quantum-work/core-logic'
+export { useToast, toast } from '@skriuw/core-logic'
