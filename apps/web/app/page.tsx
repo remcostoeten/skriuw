@@ -4,7 +4,7 @@ import { Suspense, lazy, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { EmptyState } from '@skriuw/ui/empty-state'
+import { EmptyState } from '../components/ui/empty-state'
 
 import { useNoteSlug } from '../features/notes/hooks/use-note-slug'
 import { useNotesWithSuspense } from '../features/notes/hooks/useNotesWithSuspense'
@@ -17,6 +17,9 @@ const NoteEditor = lazy(() =>
 		default: mod.NoteEditor,
 	}))
 )
+
+import { Icons } from '@skriuw/ui'
+import HeroBadge from '@skriuw/ui/hero-badge'
 
 export default function Index() {
 	const pathname = usePathname()
@@ -56,6 +59,14 @@ export default function Index() {
 
 	return (
 		<>
+			{!noteId && (
+				<HeroBadge
+					href="/archive"
+					text="New! Collection View"
+					icon={<Icons.logo className="h-4 w-4" />}
+					endIcon={<Icons.chevronRight className="h-4 w-4" />}
+				/>
+			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
 					{isInitialLoading ? (
@@ -72,6 +83,7 @@ export default function Index() {
 										</p>
 									</div>
 								</div>
+
 								<div className="max-w-lg text-center">
 									<p className="text-sm text-muted-foreground leading-relaxed">
 										A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding

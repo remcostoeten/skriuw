@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { Trash2 } from 'lucide-react'
 
 import {
 	NotesIcon,
@@ -31,8 +32,8 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 	const pathname = usePathname()
 
 	const isOnNoteView = pathname === '/' || pathname.startsWith('/note/')
-	const isOnUIPlayground = pathname === '/_ui-playground'
 	const isOnArchive = pathname === '/archive'
+	const isOnTrash = pathname === '/trash'
 
 	const navigate = (href: string) => {
 		if (pathname !== href) {
@@ -75,16 +76,16 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 					variant="sidebar"
 					onClick={() => handleNonExistentRoute('checklist')}
 				/>
-				<IconButton
-					icon={<UIPlaygroundIcon />}
-					tooltip="UI Playground"
-					active={isOnUIPlayground}
-					variant="sidebar"
-					onClick={() => navigate('/_ui-playground')}
-				/>
 			</div>
 
 			<div className="flex flex-col items-center gap-2 pb-12">
+				<IconButton
+					icon={<Trash2 className="w-4 h-4" />}
+					tooltip="Trash"
+					active={isOnTrash}
+					variant="sidebar"
+					onClick={() => navigate('/trash')}
+				/>
 				<IconButton
 					icon={<GearIcon />}
 					tooltip="Settings"
@@ -99,3 +100,4 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 		</div>
 	)
 }
+

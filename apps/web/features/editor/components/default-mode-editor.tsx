@@ -5,15 +5,14 @@ import { useUserPreferences } from '../../settings/use-feature-flags'
 import { markdownToBlocks } from '../../notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '../../notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
-import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
-import { SlashSuggestionMenu } from './slash-suggestions-menu'
+import { NoteMentionSuggestionMenu } from '../slash-menu/note-suggestions-menu'
+import { SlashSuggestionMenu } from '../slash-menu/slash-suggestions-menu'
 import { cn } from '@skriuw/core-logic'
 
 interface DualModeEditorProps {
 	editor: any // BlockNoteEditor instance
 	value: Block[]
 	onChange: (blocks: Block[]) => void
-	placeholder?: string
 	disabled?: boolean
 	fontSize?: string
 	fontFamily?: string
@@ -32,7 +31,7 @@ export function DualModeEditor({
 	editor,
 	value,
 	onChange,
-	placeholder = 'Start typing your note...',
+
 	disabled = false,
 	fontSize = '16px',
 	fontFamily = '"Inter", system-ui, sans-serif',
@@ -246,7 +245,6 @@ export function DualModeEditor({
 					<RawMDXEditor
 						value={rawMDXContent}
 						onChange={handleMDXChange}
-						placeholder={placeholder}
 						disabled={disabled}
 						wordWrap={wordWrap}
 						fontSize={fontSize}
@@ -270,7 +268,6 @@ export function DualModeEditor({
 				<RawMDXEditor
 					value={rawMDXContent}
 					onChange={handleMDXChange}
-					placeholder={placeholder}
 					disabled={disabled}
 					wordWrap={wordWrap}
 					fontSize={fontSize}

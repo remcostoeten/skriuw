@@ -1,14 +1,15 @@
+'use client'
+
 import { AlertCircle } from 'lucide-react'
 import { useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-
-import { EmptyState } from '@skriuw/ui/empty-state'
 
 import { useShortcut } from '../../shortcuts/use-shortcut'
 
 import { useEditor } from '../hooks/use-editor'
 
 import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
+import { EmptyState } from '../../../components/ui/empty-state'
 
 type props = {
 	noteId: string

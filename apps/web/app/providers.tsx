@@ -4,7 +4,7 @@ import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
 
-import { EmptyState } from '@skriuw/ui/empty-state'
+import { EmptyState } from '../components/ui/empty-state'
 
 import { TooltipProvider } from '@skriuw/ui'
 
@@ -34,7 +34,7 @@ function StorageInitializer({ children }: props) {
 				console.warn('Storage initialization taking too long, showing app anyway')
 				setIsInitialized(true)
 			}
-		}, 5000) 
+		}, 5000)
 
 		initializeAppStorage()
 			.then(() => {
