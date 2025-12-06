@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 import { IconButton, NotesIcon } from '@skriuw/ui/icons'
-import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
+import { useConfirmationPopover, type ConfirmationPopoverOptions } from '@skriuw/ui/confirmation-popover'
 
 import { cn } from '@skriuw/core-logic'
 
@@ -276,6 +276,7 @@ function FileTreeItem({
 	ruler,
 	openTabIds,
 	allVisibleItemIds,
+	showConfirm,
 }: {
 	item: Item
 	level?: number
@@ -309,6 +310,7 @@ function FileTreeItem({
 	ruler?: RulerProps
 	openTabIds?: Set<string>
 	allVisibleItemIds?: string[]
+	showConfirm?: (options: ConfirmationPopoverOptions) => void
 }) {
 	const [isRenaming, setIsRenaming] = useState(false)
 	const [renameValue, setRenameValue] = useState(item.name)
@@ -342,9 +344,6 @@ function FileTreeItem({
 		lastSelectedId,
 	} = useSelectionStore()
 	const isItemSelected = isSelected(item.id)
-
-	// Confirmation popover for bulk delete
-	const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
 
 	useEffect(() => {
 		if (isRenaming && inputRef.current) {
@@ -797,8 +796,9 @@ function FileTreeItem({
 			: 0
 
 	return (
-		<ContextMenu onOpenChange={handleContextMenuOpenChange}>
-			<ContextMenuTrigger asChild>
+		<>
+			<ContextMenu onOpenChange={handleContextMenuOpenChange}>
+				<ContextMenuTrigger asChild>
 				<div className="w-full">
 					<div className="w-full h-full">
 						<button
@@ -1109,7 +1109,7 @@ function FileTreeItem({
 				<ContextMenuItem
 					onClick={(e) => {
 						const selectedCount = getSelectedCount()
-						if (selectedCount > 1) {
+						if (selectedCount > 1 && showConfirm) {
 							const selectedIds = getSelectedIds()
 							const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
 							showConfirm({
@@ -1185,12 +1185,13 @@ function FileTreeItem({
 							allItems={allItems}
 							ruler={ruler}
 							allVisibleItemIds={allVisibleItemIds}
+							showConfirm={showConfirm}
 						/>
 					))}
 				</div>
 			)}
-			<ConfirmationPopover />
 		</ContextMenu>
+	</>
 	)
 }
 
@@ -1229,6 +1230,19 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	// Confirmation popover for keyboard-triggered bulk delete
 	const { showConfirm, ConfirmationPopover: SidebarConfirmationPopover } = useConfirmationPopover()
+
+	// Wrap deleteItem to handle navigation when deleting the active note
+	const handleDeleteItem = useCallback(
+		async (id: string) => {
+			// Navigate away FIRST if deleting the active note (optimistic)
+			if (id === activeNoteId) {
+				router.push('/')
+			}
+			// Then perform the delete (UI already updated optimistically)
+			return deleteItem(id)
+		},
+		[activeNoteId, deleteItem, router]
+	)
 
 	// Load expanded folders from localStorage
 	useEffect(() => {
@@ -1751,7 +1765,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					cancelText: 'Cancel',
 					onConfirm: async () => {
 						for (const id of ids) {
-							deleteItem(id).catch((error) => {
+							handleDeleteItem(id).catch((error) => {
 								console.error(`Failed to delete item ${id}:`, error)
 							})
 						}
@@ -1769,7 +1783,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		clearSelection,
 		selectAll,
 		getSelectedIds,
-		deleteItem,
+		handleDeleteItem,
 		getAllVisibleItemIds,
 		filteredItems,
 		showConfirm,
@@ -1853,7 +1867,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 							onToggleFolder={handleToggleFolder}
 							onNavigateNote={(id) => router.push(getNoteUrl(id))}
 							onRename={renameItem}
-							onDelete={deleteItem}
+							onDelete={handleDeleteItem}
 							onCreateNote={handleCreateNote}
 							onCreateFolder={handleCreateFolder}
 							onDragStart={handleDragStart}
@@ -1868,6 +1882,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 							ruler={ruler}
 							openTabIds={openTabIds}
 							allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
+							showConfirm={showConfirm}
 						/>
 					))}
 				</div>

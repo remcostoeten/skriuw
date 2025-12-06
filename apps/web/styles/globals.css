@@ -110,6 +110,15 @@
 		--brand-400: 167.8 53.25% 65%;
 		--brand-500: 167.8 53.25% 54.71%;
 	}
+
+	/* Prevent flash of white background */
+	html {
+		color-scheme: dark;
+	}
+	
+	html:not(.light) {
+		background-color: hsl(0 0% 7%);
+	}
 }
 
 @layer base {

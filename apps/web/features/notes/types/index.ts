@@ -10,6 +10,7 @@ export interface Note {
 	favorite?: boolean
 	createdAt: number
 	updatedAt: number
+	deletedAt?: number
 	type: 'note'
 }
 
@@ -23,6 +24,7 @@ export interface Folder {
 	pinnedAt?: number
 	createdAt: number
 	updatedAt: number
+	deletedAt?: number
 }
 
 export type Item = Note | Folder

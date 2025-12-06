@@ -77,6 +77,7 @@ function deserializeNote(row: NoteRow): Note {
 		pinned: row.pinned === 1,
 		pinnedAt: row.pinnedAt ?? undefined,
 		favorite: row.favorite === 1,
+		deletedAt: row.deletedAt ?? undefined,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 		type: 'note',
@@ -91,6 +92,7 @@ function deserializeFolder(row: FolderRow): Folder {
 		parentFolderId: row.parentFolderId ?? undefined,
 		pinned: row.pinned === 1,
 		pinnedAt: row.pinnedAt ?? undefined,
+		deletedAt: row.deletedAt ?? undefined,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 		children: [],
@@ -312,6 +314,11 @@ export async function PUT(request: NextRequest) {
 
 		if (updates.favorite !== undefined) {
 			noteUpdate.favorite = updates.favorite ? 1 : 0
+		}
+
+		if (updates.deletedAt !== undefined) {
+			noteUpdate.deletedAt = updates.deletedAt ?? null
+			folderUpdate.deletedAt = updates.deletedAt ?? null
 		}
 
 		if (Object.keys(noteUpdate).length > 0) {

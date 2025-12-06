@@ -7,13 +7,12 @@ import type { Item } from '../../types'
 const STORAGE_KEY = 'Skriuw_notes'
 
 /**
- * Soft delete an item by setting deletedAt timestamp.
- * Item will be moved to trash and can be restored within 30 days.
+ * Restore a soft-deleted item from trash
  */
-export async function deleteItem(id: string): Promise<boolean> {
+export async function restoreItem(id: string): Promise<boolean> {
 	try {
 		const result = await update(STORAGE_KEY, id, {
-			deletedAt: Date.now(),
+			deletedAt: undefined,
 		} as Partial<Item>)
 
 		if (result) {
@@ -23,7 +22,7 @@ export async function deleteItem(id: string): Promise<boolean> {
 		return false
 	} catch (error) {
 		throw new Error(
-			`Failed to delete item: ${error instanceof Error ? error.message : String(error)}`
+			`Failed to restore item: ${error instanceof Error ? error.message : String(error)}`
 		)
 	}
 }
