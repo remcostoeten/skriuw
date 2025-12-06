@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { getDatabase, tasks } from '@skriuw/db'
 
 type RouteContext = {
@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const result = await db
             .select()
             .from(tasks)
-            .where(eq(tasks.id, taskId))
+            .where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
             .limit(1)
 
         if (result.length === 0) {
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const result = await db
             .update(tasks)
             .set(updateData)
-            .where(eq(tasks.id, taskId))
+            .where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
             .returning()
 
         if (result.length === 0) {
@@ -109,7 +109,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
         const result = await db
             .delete(tasks)
-            .where(eq(tasks.id, taskId))
+            .where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
             .returning()
 
         if (result.length === 0) {
