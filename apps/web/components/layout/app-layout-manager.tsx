@@ -38,6 +38,8 @@ const ShortcutsSidebar = lazy(() =>
 	}))
 )
 
+import { TaskDetailPanel } from '../../features/tasks'
+
 type AppLayoutManagerProps = {
 	children: ReactNode
 	sidebarContentType?: SidebarContentType
@@ -92,6 +94,8 @@ export function AppLayoutManager({
 		isSettingsOpen,
 		toggleSettings,
 		setSettingsOpen,
+		activeTaskId,
+		setActiveTask,
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
@@ -377,12 +381,18 @@ export function AppLayoutManager({
 			}
 			footer={<Footer />}
 			rightPanel={
-				<Suspense fallback={null}>
-					<ShortcutsSidebar
-						isOpen={isShortcutsSidebarOpen}
-						onClose={() => toggleShortcutsSidebar()}
+				<>
+					<Suspense fallback={null}>
+						<ShortcutsSidebar
+							isOpen={isShortcutsSidebarOpen}
+							onClose={() => toggleShortcutsSidebar()}
+						/>
+					</Suspense>
+					<TaskDetailPanel
+						taskId={activeTaskId}
+						onClose={() => setActiveTask(null)}
 					/>
-				</Suspense>
+				</>
 			}
 			floatingWidgets={
 				<>
@@ -397,7 +407,7 @@ export function AppLayoutManager({
 					{process.env.NODE_ENV === 'development' && <DevWidget />}
 				</>
 			}
-			isRightPanelOpen={isShortcutsSidebarOpen}
+			isRightPanelOpen={isShortcutsSidebarOpen || !!activeTaskId}
 			isSidebarOpen={isMobileSidebarOpen}
 			isDesktopSidebarOpen={isDesktopSidebarOpen}
 			onSidebarClose={isMobile ? toggleMobileSidebar : undefined}
