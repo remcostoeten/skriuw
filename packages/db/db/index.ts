@@ -1,8 +1,11 @@
-import { neon } from '@neondatabase/serverless'
+import { neon, neonConfig } from '@neondatabase/serverless'
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http'
 import postgres from 'postgres'
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
+
+// Enable fetch-based connection caching for faster cold starts in serverless
+// neonConfig.fetchConnectionCache = true
 
 export * from './schema'
 
@@ -34,7 +37,7 @@ export function getDatabase() {
 	if (!url) {
 		throw new Error(
 			'DATABASE_URL environment variable is required.\n' +
-				'Set DATABASE_URL=postgresql://user:password@host:port/database'
+			'Set DATABASE_URL=postgresql://user:password@host:port/database'
 		)
 	}
 
