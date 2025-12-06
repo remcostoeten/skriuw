@@ -871,17 +871,6 @@ function FileTreeItem({
 										<input
 											ref={(el) => {
 												inputRef.current = el
-												if (el) {
-													// Use requestAnimationFrame for better focus handling
-													requestAnimationFrame(() => {
-														requestAnimationFrame(() => {
-															if (el) {
-																el.focus()
-																el.select()
-															}
-														})
-													})
-												}
 											}}
 											type="text"
 											value={renameValue}
