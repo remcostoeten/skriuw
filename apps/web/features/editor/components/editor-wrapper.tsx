@@ -12,186 +12,186 @@ import { DualModeEditor } from './default-mode-editor'
 import { TaskCheckboxReplacer } from './task-checkbox-replacer'
 
 type props = {
-	editor: BlockNoteEditor | null
+  editor: BlockNoteEditor | null
 }
 
 export type EditorWrapperHandle = {
-	focusEditor: () => void
+  focusEditor: () => void
 }
 
-export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(({ editor }, ref) => {
-	const editorRef = useRef<HTMLDivElement>(null)
-	const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
-	const { centeredLayout, blockIndicator, showFormattingToolbar } = useSettings()
-	const [editorContent, setEditorContent] = useState<any[]>([])
+export const EditorWrapper = forwardRef<EditorWrapperHandle, props & { className?: string }>(({ editor, className }, ref) => {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
+  const { centeredLayout, blockIndicator, showFormattingToolbar } = useSettings()
+  const [editorContent, setEditorContent] = useState<any[]>([])
 
-	useImperativeHandle(ref, () => ({
-		focusEditor: () => {
-			if (hasRawMDXMode) {
-				// Focus the MDX textarea
-				const textarea = editorRef.current?.querySelector('textarea') as HTMLTextAreaElement
-				textarea?.focus()
-			} else {
-				const contentEditable = editorRef.current?.querySelector(
-					'[contenteditable="true"]'
-				) as HTMLElement
-				contentEditable?.focus()
-			}
-		},
-	}))
+  useImperativeHandle(ref, () => ({
+    focusEditor: () => {
+      if (hasRawMDXMode) {
+        // Focus the MDX textarea
+        const textarea = editorRef.current?.querySelector('textarea') as HTMLTextAreaElement
+        textarea?.focus()
+      } else {
+        const contentEditable = editorRef.current?.querySelector(
+          '[contenteditable="true"]'
+        ) as HTMLElement
+        contentEditable?.focus()
+      }
+    },
+  }))
 
-	useEffect(() => {
-		if (editor) {
-			setEditorContent(editor.document)
+  useEffect(() => {
+    if (editor) {
+      setEditorContent(editor.document)
 
-			const handleContentChange = () => {
-				setEditorContent(editor.document)
-				// Don't highlight here - let the MutationObserver handle it to avoid double processing
-			}
+      const handleContentChange = () => {
+        setEditorContent(editor.document)
+        // Don't highlight here - let the MutationObserver handle it to avoid double processing
+      }
 
-			editor.onEditorContentChange(handleContentChange)
-		}
-	}, [editor])
+      editor.onEditorContentChange(handleContentChange)
+    }
+  }, [editor])
 
-	// Highlight code blocks on mount and when content changes
-	useEffect(() => {
-		if (!editorRef.current || hasRawMDXMode || !editor) return
+  // Highlight code blocks on mount and when content changes
+  useEffect(() => {
+    if (!editorRef.current || hasRawMDXMode || !editor) return
 
-		let isHighlighting = false
-		let debounceTimeout: NodeJS.Timeout | null = null
+    let isHighlighting = false
+    let debounceTimeout: NodeJS.Timeout | null = null
 
-		const highlight = async () => {
-			// Prevent recursive calls
-			if (isHighlighting) return
+    const highlight = async () => {
+      // Prevent recursive calls
+      if (isHighlighting) return
 
-			isHighlighting = true
-			try {
-				await highlightCodeBlocks(editorRef.current!, editor as any)
-			} catch (error) {
-				console.warn('Failed to highlight code blocks:', error)
-			} finally {
-				isHighlighting = false
-			}
-		}
+      isHighlighting = true
+      try {
+        await highlightCodeBlocks(editorRef.current!, editor as any)
+      } catch (error) {
+        console.warn('Failed to highlight code blocks:', error)
+      } finally {
+        isHighlighting = false
+      }
+    }
 
-		// Debounced highlight function
-		const debouncedHighlight = () => {
-			if (debounceTimeout) {
-				clearTimeout(debounceTimeout)
-			}
-			debounceTimeout = setTimeout(highlight, 300)
-		}
+    // Debounced highlight function
+    const debouncedHighlight = () => {
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout)
+      }
+      debounceTimeout = setTimeout(highlight, 300)
+    }
 
-		// Initial highlight
-		const timeoutId = setTimeout(highlight, 200)
+    // Initial highlight
+    const timeoutId = setTimeout(highlight, 200)
 
-		// Watch for DOM changes (BlockNote renders blocks dynamically)
-		// Only watch for code blocks being added, not all changes
-		const observer = new MutationObserver((mutations) => {
-			// Check if any mutation involves code blocks
-			const hasCodeBlockChange = mutations.some((mutation) => {
-				if (mutation.type === 'childList') {
-					// Check added nodes
-					for (const node of Array.from(mutation.addedNodes)) {
-						if (node.nodeType === Node.ELEMENT_NODE) {
-							const element = node as Element
-							if (
-								element.querySelector?.('[data-content-type="codeBlock"]') ||
-								element.querySelector?.('.bn-code-block') ||
-								element.querySelector?.('pre code') ||
-								element.matches?.('[data-content-type="codeBlock"]') ||
-								element.matches?.('.bn-code-block')
-							) {
-								return true
-							}
-						}
-					}
-					// Check if mutation target is a code block
-					if (mutation.target.nodeType === Node.ELEMENT_NODE) {
-						const target = mutation.target as Element
-						if (
-							target.closest?.('[data-content-type="codeBlock"]') ||
-							target.closest?.('.bn-code-block')
-						) {
-							return true
-						}
-					}
-				}
-				return false
-			})
+    // Watch for DOM changes (BlockNote renders blocks dynamically)
+    // Only watch for code blocks being added, not all changes
+    const observer = new MutationObserver((mutations) => {
+      // Check if any mutation involves code blocks
+      const hasCodeBlockChange = mutations.some((mutation) => {
+        if (mutation.type === 'childList') {
+          // Check added nodes
+          for (const node of Array.from(mutation.addedNodes)) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element
+              if (
+                element.querySelector?.('[data-content-type="codeBlock"]') ||
+                element.querySelector?.('.bn-code-block') ||
+                element.querySelector?.('pre code') ||
+                element.matches?.('[data-content-type="codeBlock"]') ||
+                element.matches?.('.bn-code-block')
+              ) {
+                return true
+              }
+            }
+          }
+          // Check if mutation target is a code block
+          if (mutation.target.nodeType === Node.ELEMENT_NODE) {
+            const target = mutation.target as Element
+            if (
+              target.closest?.('[data-content-type="codeBlock"]') ||
+              target.closest?.('.bn-code-block')
+            ) {
+              return true
+            }
+          }
+        }
+        return false
+      })
 
-			if (hasCodeBlockChange) {
-				debouncedHighlight()
-			}
-		})
+      if (hasCodeBlockChange) {
+        debouncedHighlight()
+      }
+    })
 
-		observer.observe(editorRef.current, {
-			childList: true,
-			subtree: true,
-		})
+    observer.observe(editorRef.current, {
+      childList: true,
+      subtree: true,
+    })
 
-		return () => {
-			clearTimeout(timeoutId)
-			if (debounceTimeout) {
-				clearTimeout(debounceTimeout)
-			}
-			observer.disconnect()
-		}
-	}, [editorContent, hasRawMDXMode, editor])
+    return () => {
+      clearTimeout(timeoutId)
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout)
+      }
+      observer.disconnect()
+    }
+  }, [editorContent, hasRawMDXMode, editor])
 
-	// Apply word wrap styles when setting changes
-	useEffect(() => {
-		if (!editorRef.current) return
+  // Apply word wrap styles when setting changes
+  useEffect(() => {
+    if (!editorRef.current) return
 
-		// Apply a data attribute to the container for CSS targeting
-		if (hasWordWrap) {
-			editorRef.current.setAttribute('data-word-wrap', 'enabled')
-		} else {
-			editorRef.current.setAttribute('data-word-wrap', 'disabled')
-		}
-	}, [hasWordWrap])
+    // Apply a data attribute to the container for CSS targeting
+    if (hasWordWrap) {
+      editorRef.current.setAttribute('data-word-wrap', 'enabled')
+    } else {
+      editorRef.current.setAttribute('data-word-wrap', 'disabled')
+    }
+  }, [hasWordWrap])
 
-	// Apply centered layout class when setting changes
-	useEffect(() => {
-		if (!editorRef.current) return
+  // Apply centered layout class when setting changes
+  useEffect(() => {
+    if (!editorRef.current) return
 
-		if (centeredLayout) {
-			editorRef.current.classList.add('centered-layout')
-		} else {
-			editorRef.current.classList.remove('centered-layout')
-		}
-	}, [centeredLayout])
+    if (centeredLayout) {
+      editorRef.current.classList.add('centered-layout')
+    } else {
+      editorRef.current.classList.remove('centered-layout')
+    }
+  }, [centeredLayout])
 
-	if (!editor) {
-		return null
-	}
+  if (!editor) {
+    return null
+  }
 
-	function handleContentChange(newContent: any[]) {
-		setEditorContent(newContent)
-		if (editor) {
-			editor.replaceBlocks(editor.document, newContent)
-		}
-	}
+  function handleContentChange(newContent: any[]) {
+    setEditorContent(newContent)
+    if (editor) {
+      editor.replaceBlocks(editor.document, newContent)
+    }
+  }
 
-	return (
-		<div
-			ref={editorRef}
-			className={`editor-container !bg-background-secondary w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
-		>
-			<DualModeEditor
-				editor={editor}
-				value={editorContent}
-				onChange={handleContentChange}
-				fontSize="16px"
-				fontFamily='"Inter", system-ui, sans-serif'
-				lineHeight={1.6}
-				wordWrap={hasWordWrap}
-				blockIndicator={blockIndicator}
-				showFormattingToolbar={showFormattingToolbar}
-				className="w-full h-full"
-			/>
-			<TaskCheckboxReplacer editor={editor} editorContainerRef={editorRef} />
-			<style>{`
+  return (
+    <div
+      ref={editorRef}
+      className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''} ${className || 'bg-background-secondary'}`}
+    >
+      <DualModeEditor
+        editor={editor}
+        value={editorContent}
+        onChange={handleContentChange}
+        fontSize="16px"
+        fontFamily='"Inter", system-ui, sans-serif'
+        lineHeight={1.6}
+        wordWrap={hasWordWrap}
+        blockIndicator={blockIndicator}
+        showFormattingToolbar={showFormattingToolbar}
+        className="w-full h-full"
+      />
+      <TaskCheckboxReplacer editor={editor} editorContainerRef={editorRef} />
+      <style>{`
         .editor-container {
           background: transparent !important;
           overflow-y: auto;
@@ -624,8 +624,8 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(({ editor },
           }
         }
       `}</style>
-		</div>
-	)
+    </div>
+  )
 })
 
 EditorWrapper.displayName = 'EditorWrapper'
