@@ -49,7 +49,9 @@ export const tasks = pgTable('tasks', {
 	noteId: text('note_id').notNull(),
 	blockId: text('block_id').notNull(),
 	content: text('content').notNull(),
+	description: text('description'),
 	checked: integer('checked').default(0).notNull(),
+	dueDate: bigint('due_date', { mode: 'number' }),
 	parentTaskId: text('parent_task_id'),
 	position: integer('position').default(0).notNull(),
 	createdAt: bigint('created_at', { mode: 'number' }).notNull(),
@@ -58,6 +60,7 @@ export const tasks = pgTable('tasks', {
 	noteIdIdx: index('tasks_note_id_idx').on(table.noteId),
 	blockIdIdx: index('tasks_block_id_idx').on(table.blockId),
 	noteBlockIdx: index('tasks_note_block_idx').on(table.noteId, table.blockId),
+	dueDateIdx: index('tasks_due_date_idx').on(table.dueDate),
 }))
 
 export const shortcuts = pgTable('shortcuts', {

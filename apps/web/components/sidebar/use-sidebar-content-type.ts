@@ -16,9 +16,9 @@ export function useSidebarContentType(): SidebarContentType {
 	}
 
 	// Future routes can be added here:
-	// if (location.pathname.startsWith('/tasks')) {
-	//   return 'tasks'
-	// }
+	if (pathname.startsWith('/tasks')) {
+		return 'tasks'
+	}
 	// if (location.pathname.startsWith('/agenda')) {
 	//   return 'agenda'
 	// }
