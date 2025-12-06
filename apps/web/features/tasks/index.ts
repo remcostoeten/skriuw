@@ -1,4 +1,7 @@
 export * from './api/mutations/sync-tasks'
 export * from './api/queries/get-tasks'
-export * from './components/task-detail-panel'
-
+export { TaskPanelStack, TaskPanelStack as TaskDetailPanel } from './components/task-detail-panel'
+export { DueDateButton } from './components/due-date-button'
+export { TaskBreadcrumbs } from './components/task-breadcrumbs'
+export { TaskDescriptionEditor } from './components/task-description-editor'
+export * from './hooks/use-task-context'
