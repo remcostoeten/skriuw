@@ -1,4 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Georgia:wght@400;700&display=swap');
 @import 'tailwindcss';
 @plugin 'tailwindcss-animate';
 
@@ -115,7 +118,7 @@
 	html {
 		color-scheme: dark;
 	}
-	
+
 	html:not(.light) {
 		background-color: hsl(0 0% 7%);
 	}

@@ -127,3 +127,10 @@ export function getPrefetchedNote(noteId: string): Note | null {
     }
     return null
 }
+
+/**
+ * Invalidate a prefetched note (call from mutations after update/delete)
+ */
+export function invalidatePrefetchedNote(noteId: string): void {
+    noteCache.delete(noteId)
+}
