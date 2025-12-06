@@ -14,7 +14,7 @@ import {
 
 import { Button } from '@skriuw/ui/button'
 import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
-import { EmptyState } from '@skriuw/ui/empty-state'
+import { EmptyState } from '../../../../components/ui/empty-state'
 import { cn } from '@skriuw/core-logic'
 
 import { getTrashItems, TRASH_RETENTION_DAYS } from '@/features/notes/api/queries/get-trash'
