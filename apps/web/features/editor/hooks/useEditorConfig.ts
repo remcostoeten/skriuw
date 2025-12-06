@@ -35,11 +35,12 @@ export function createEditorSchema() {
  */
 export function useEditorConfig() {
 	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences()
+	const { settings } = useSettings()
 
-	const fontSize = 'medium'
-	const fontFamily = 'inter'
-	const lineHeight = 1.6
-	const maxWidth = 'full'
+	const fontSize = settings.fontSize || 'medium'
+	const fontFamily = settings.fontFamily || 'inter'
+	const lineHeight = settings.lineHeight || 1.6
+	const maxWidth = settings.maxWidth || 'full'
 
 	const editorConfig = useMemo(() => {
 		// Create schema with syntax highlighting enabled for code blocks
@@ -78,7 +79,16 @@ export function useEditorConfig() {
 		config.suggestionMenus = true
 
 		return config
-	}, [fontFamily, fontSize, hasMarkdownShortcuts, hasSpellCheck, hasWordWrap, lineHeight, maxWidth])
+	}, [
+		fontFamily,
+		fontSize,
+		hasMarkdownShortcuts,
+		hasSpellCheck,
+		hasWordWrap,
+		lineHeight,
+		maxWidth,
+		settings,
+	])
 
 	return {
 		config: editorConfig,

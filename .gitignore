@@ -25,9 +25,7 @@ dist-ssr
 
 .config/
 
-!.env
-.env
-x.env
+
 *.env.local
 *.env.production
 
