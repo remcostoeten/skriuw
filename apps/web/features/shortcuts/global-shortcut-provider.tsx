@@ -56,11 +56,12 @@ function isInInputContext(target: EventTarget | null): boolean {
  * Creates a keydown event handler for the given shortcut registry.
  */
 function createKeyDownHandler(
-	registry: ShortcutRegistry,
+	registryRef: React.MutableRefObject<ShortcutRegistry>,
 	customShortcuts: Partial<Record<ShortcutId, KeyCombo[]>>
 ) {
 	return (event: KeyboardEvent) => {
 		const inInput = isInInputContext(event.target)
+		const registry = registryRef.current
 
 		for (const [id, handler] of registry.entries()) {
 			const definition = shortcutDefinitions[id]
@@ -133,7 +134,7 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 	}, [])
 
 	useEffect(() => {
-		const handleKeyDown = createKeyDownHandler(shortcuts.current, customShortcuts)
+		const handleKeyDown = createKeyDownHandler(shortcuts, customShortcuts)
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [customShortcuts])

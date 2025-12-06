@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = {
 	wordWrap: true,
 	blockIndicator: true,
 	showFormattingToolbar: true,
-	placeholder: 'Start typing your note...',
+
 	centeredLayout: false,
 	spellCheck: true,
 	autoBackup: false,

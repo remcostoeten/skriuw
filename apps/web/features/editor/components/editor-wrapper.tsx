@@ -22,7 +22,7 @@ export type EditorWrapperHandle = {
 export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(({ editor }, ref) => {
 	const editorRef = useRef<HTMLDivElement>(null)
 	const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
-	const { centeredLayout, placeholder, blockIndicator, showFormattingToolbar } = useSettings()
+	const { centeredLayout, blockIndicator, showFormattingToolbar } = useSettings()
 	const [editorContent, setEditorContent] = useState<any[]>([])
 
 	useImperativeHandle(ref, () => ({
@@ -182,7 +182,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, props>(({ editor },
 				editor={editor}
 				value={editorContent}
 				onChange={handleContentChange}
-				placeholder={placeholder}
 				fontSize="16px"
 				fontFamily='"Inter", system-ui, sans-serif'
 				lineHeight={1.6}

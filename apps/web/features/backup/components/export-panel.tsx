@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Download, FileJson, FileText, Check, Loader2 } from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
@@ -8,8 +7,10 @@ import { cn } from '@skriuw/core-logic'
 
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { downloadJsonExport, downloadMarkdownExport, type ExportFormat } from '../utils/export-notes'
+import { FormatOptionCard, StatCard } from './shared/import-export-ui'
+import { useState } from 'react'
 
-type ExportOption = {
+type TExportOption = {
 	id: ExportFormat
 	title: string
 	description: string
@@ -17,7 +18,7 @@ type ExportOption = {
 	fileType: string
 }
 
-const exportOptions: ExportOption[] = [
+const exportOptions: TExportOption[] = [
 	{
 		id: 'json',
 		title: 'Skriuw Backup',
@@ -34,40 +35,38 @@ const exportOptions: ExportOption[] = [
 	},
 ]
 
+function countItems(itemList: any[]): { notes: number; folders: number } {
+	let notes = 0
+	let folders = 0
+	for (const item of itemList) {
+		if (item.type === 'note') {
+			notes++
+		} else {
+			folders++
+			const childCounts = countItems(item.children)
+			notes += childCounts.notes
+			folders += childCounts.folders
+		}
+	}
+	return { notes, folders }
+}
+
 export function ExportPanel() {
 	const { items, isInitialLoading } = useNotesContext()
 	const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('json')
 	const [isExporting, setIsExporting] = useState(false)
 	const [exportSuccess, setExportSuccess] = useState(false)
 
-	// Count items
-	const countItems = (itemList: typeof items): { notes: number; folders: number } => {
-		let notes = 0
-		let folders = 0
-		for (const item of itemList) {
-			if (item.type === 'note') {
-				notes++
-			} else {
-				folders++
-				const childCounts = countItems(item.children)
-				notes += childCounts.notes
-				folders += childCounts.folders
-			}
-		}
-		return { notes, folders }
-	}
-
 	const { notes: noteCount, folders: folderCount } = countItems(items)
 	const hasContent = noteCount > 0 || folderCount > 0
 
-	const handleExport = async () => {
+	async function handleExport() {
 		if (!hasContent) return
 
 		setIsExporting(true)
 		setExportSuccess(false)
 
 		try {
-			// Small delay for UX
 			await new Promise(resolve => setTimeout(resolve, 300))
 
 			if (selectedFormat === 'json') {
@@ -95,63 +94,28 @@ export function ExportPanel() {
 
 	return (
 		<div className="space-y-6">
-			{/* Stats */}
 			<div className="flex gap-4">
-				<div className="flex-1 rounded-lg border border-border bg-muted/30 p-4">
-					<div className="text-2xl font-bold">{noteCount}</div>
-					<div className="text-sm text-muted-foreground">Notes</div>
-				</div>
-				<div className="flex-1 rounded-lg border border-border bg-muted/30 p-4">
-					<div className="text-2xl font-bold">{folderCount}</div>
-					<div className="text-sm text-muted-foreground">Folders</div>
-				</div>
+				<StatCard label="Notes" value={noteCount} />
+				<StatCard label="Folders" value={folderCount} />
 			</div>
 
-			{/* Format Selection */}
 			<div className="space-y-3">
 				<h3 className="text-sm font-medium text-muted-foreground">Export Format</h3>
 				<div className="grid gap-3">
 					{exportOptions.map((option) => (
-						<button
+						<FormatOptionCard
 							key={option.id}
-							type="button"
+							title={option.title}
+							description={option.description}
+							icon={option.icon}
+							fileType={option.fileType}
+							isSelected={selectedFormat === option.id}
 							onClick={() => setSelectedFormat(option.id)}
-							className={cn(
-								'flex items-start gap-4 rounded-lg border p-4 text-left transition-all',
-								'hover:bg-muted/50',
-								selectedFormat === option.id
-									? 'border-primary bg-primary/5'
-									: 'border-border'
-							)}
-						>
-							<div className={cn(
-								'rounded-md p-2',
-								selectedFormat === option.id
-									? 'bg-primary text-primary-foreground'
-									: 'bg-muted text-muted-foreground'
-							)}>
-								{option.icon}
-							</div>
-							<div className="flex-1">
-								<div className="flex items-center gap-2">
-									<span className="font-medium">{option.title}</span>
-									<span className="text-xs text-muted-foreground">
-										{option.fileType}
-									</span>
-								</div>
-								<p className="text-sm text-muted-foreground mt-0.5">
-									{option.description}
-								</p>
-							</div>
-							{selectedFormat === option.id && (
-								<Check className="h-5 w-5 text-primary" />
-							)}
-						</button>
+						/>
 					))}
 				</div>
 			</div>
 
-			{/* Export Button */}
 			<Button
 				onClick={handleExport}
 				disabled={!hasContent || isExporting}
