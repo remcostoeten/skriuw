@@ -17,9 +17,29 @@ import type {
 export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdapter {
 	const listeners: StorageEventListener[] = []
 	const apiBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')
-	const NOTES_STORAGE_KEY = 'Skriuw_notes'
-	const SETTINGS_STORAGE_KEY = 'app:settings'
-	const SHORTCUTS_STORAGE_KEY = 'quantum-works:shortcuts:custom'
+	// Support both old and new storage key formats for backwards compatibility
+	const NOTES_STORAGE_KEYS = ['skriuw:notes', 'skriuw_notes']
+	const SETTINGS_STORAGE_KEYS = ['skriuw:settings', 'app:settings']
+	const SHORTCUTS_STORAGE_KEYS = ['skriuw:shortcuts:custom', 'quantum-works:shortcuts:custom']
+
+	const isNotesKey = (key: string) => {
+		const normalized = key.toLowerCase()
+		const result = NOTES_STORAGE_KEYS.includes(normalized)
+		if (!result) console.log('[Storage] isNotesKey check:', { key, normalized, keys: NOTES_STORAGE_KEYS, result })
+		return result
+	}
+	const isSettingsKey = (key: string) => {
+		const normalized = key.toLowerCase()
+		const result = SETTINGS_STORAGE_KEYS.includes(normalized)
+		if (!result) console.log('[Storage] isSettingsKey check:', { key, normalized, keys: SETTINGS_STORAGE_KEYS, result })
+		return result
+	}
+	const isShortcutsKey = (key: string) => {
+		const normalized = key.toLowerCase()
+		const result = SHORTCUTS_STORAGE_KEYS.includes(normalized)
+		if (!result) console.log('[Storage] isShortcutsKey check:', { key, normalized, keys: SHORTCUTS_STORAGE_KEYS, result })
+		return result
+	}
 
 	const capabilities: StorageCapabilities = {
 		realtime: false,
@@ -151,7 +171,8 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			storageKey: string,
 			data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
 		): Promise<T> {
-			if (storageKey === NOTES_STORAGE_KEY) {
+			console.log('[Storage.create] Called with key:', JSON.stringify(storageKey), 'isNotes:', isNotesKey(storageKey), 'isSettings:', isSettingsKey(storageKey))
+			if (isNotesKey(storageKey)) {
 				const payload = { ...data } as Record<string, unknown>
 				delete payload.children
 
@@ -170,7 +191,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return result as T
 			}
 
-			if (storageKey === SETTINGS_STORAGE_KEY) {
+			if (isSettingsKey(storageKey)) {
 				const result = await apiCall('/settings', {
 					method: 'POST',
 					body: JSON.stringify({ settings: (data as any).settings ?? {} }),
@@ -186,7 +207,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return result as T
 			}
 
-			if (storageKey === SHORTCUTS_STORAGE_KEY) {
+			if (isShortcutsKey(storageKey)) {
 				const result = await apiCall('/shortcuts', {
 					method: 'POST',
 					body: JSON.stringify(data),
@@ -209,7 +230,8 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			storageKey: string,
 			options?: ReadOptions
 		): Promise<T[] | T | undefined> {
-			if (storageKey === NOTES_STORAGE_KEY) {
+			console.log('[Storage.read] Called with key:', JSON.stringify(storageKey), 'isNotes:', isNotesKey(storageKey), 'isSettings:', isSettingsKey(storageKey))
+			if (isNotesKey(storageKey)) {
 				if (options?.getById) {
 					try {
 						return (await apiCall(`/notes?id=${encodeURIComponent(options.getById)}`)) as T
@@ -226,13 +248,13 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return items as T[]
 			}
 
-			if (storageKey === SETTINGS_STORAGE_KEY) {
+			if (isSettingsKey(storageKey)) {
 				const result = await apiCall('/settings')
 				if (!result) return options?.getById ? undefined : []
 				return options?.getById ? (result as T) : ([result] as T[])
 			}
 
-			if (storageKey === SHORTCUTS_STORAGE_KEY) {
+			if (isShortcutsKey(storageKey)) {
 				if (options?.getById) {
 					try {
 						return (await apiCall(`/shortcuts?id=${encodeURIComponent(options.getById)}`)) as T
@@ -257,7 +279,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			id: string,
 			data: Partial<T>
 		): Promise<T | undefined> {
-			if (storageKey === NOTES_STORAGE_KEY) {
+			if (isNotesKey(storageKey)) {
 				const payload = { ...data } as Record<string, unknown>
 				delete payload.children
 
@@ -276,7 +298,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return result as T
 			}
 
-			if (storageKey === SETTINGS_STORAGE_KEY) {
+			if (isSettingsKey(storageKey)) {
 				const result = await apiCall('/settings', {
 					method: 'POST',
 					body: JSON.stringify({ settings: (data as any).settings ?? {} }),
@@ -292,7 +314,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return result as T
 			}
 
-			if (storageKey === SHORTCUTS_STORAGE_KEY) {
+			if (isShortcutsKey(storageKey)) {
 				const result = await apiCall('/shortcuts', {
 					method: 'PUT',
 					body: JSON.stringify({ id, ...data }),
@@ -312,7 +334,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 		},
 
 		async delete(storageKey: string, id: string): Promise<boolean> {
-			if (storageKey === NOTES_STORAGE_KEY) {
+			if (isNotesKey(storageKey)) {
 				await apiCall(`/notes?id=${encodeURIComponent(id)}`, {
 					method: 'DELETE',
 				})
@@ -326,7 +348,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return true
 			}
 
-			if (storageKey === SETTINGS_STORAGE_KEY) {
+			if (isSettingsKey(storageKey)) {
 				await apiCall('/settings', {
 					method: 'DELETE',
 				})
@@ -340,7 +362,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 				return true
 			}
 
-			if (storageKey === SHORTCUTS_STORAGE_KEY) {
+			if (isShortcutsKey(storageKey)) {
 				await apiCall(`/shortcuts?id=${encodeURIComponent(id)}`, {
 					method: 'DELETE',
 				})
@@ -366,7 +388,7 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			entityId: string,
 			targetParentId: string | null
 		): Promise<boolean> {
-			if (storageKey !== NOTES_STORAGE_KEY) {
+			if (!isNotesKey(storageKey)) {
 				throw new Error(`Move operation unsupported for ${storageKey}`)
 			}
 
