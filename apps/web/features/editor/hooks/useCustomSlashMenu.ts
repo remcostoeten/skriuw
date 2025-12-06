@@ -1,6 +1,6 @@
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
 import { createElement } from 'react'
-import { Link2 } from 'lucide-react'
+import { CheckSquare } from 'lucide-react'
 
 // Simple hash icon for animated number
 const HashIcon = () =>
@@ -48,6 +48,24 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 	// Add custom items to the default list
 	const customItems: DefaultReactSuggestionItem[] = [
 		{
+			title: 'Task',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				// Replace the current block with the task block
+				editor.updateBlock(currentBlock, {
+					type: 'task',
+					props: { checked: false },
+					content: [],
+				})
+				// Focus the task block for immediate editing
+				editor.setTextCursorPosition(currentBlock, 'end')
+			},
+			aliases: ['task', 'todo', 'checkbox', 'check'],
+			subtext: 'Create a task item',
+			icon: createElement(CheckSquare, { size: 18 }),
+			group: 'Basic blocks',
+		},
+		{
 			title: 'Note Mention',
 			onItemClick: () => {
 				// Insert @ symbol to trigger the mention menu
@@ -90,3 +108,4 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 
 	return [...defaultItems, ...customItems]
 }
+

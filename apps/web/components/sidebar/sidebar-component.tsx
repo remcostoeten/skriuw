@@ -36,6 +36,7 @@ import {
 import { ActionBar } from '../action-bar'
 
 import { useSidebarContentType } from './use-sidebar-content-type'
+import { TasksSidebarContent } from './tasks-sidebar-content'
 
 import type { SidebarContentType } from './types'
 import type { Folder as FolderType, Item } from '../../features/notes/types'
@@ -799,399 +800,399 @@ function FileTreeItem({
 		<>
 			<ContextMenu onOpenChange={handleContextMenuOpenChange}>
 				<ContextMenuTrigger asChild>
-				<div className="w-full">
-					<div className="w-full h-full">
-						<button
-							type="button"
-							onClick={handleRowClick}
-							onDoubleClick={(e) => {
-								e.stopPropagation()
-								handleDoubleClick()
-							}}
-							onTouchStart={handleTouchStart}
-							onTouchMove={handleTouchMove}
-							onTouchEnd={handleTouchEnd}
-							onTouchCancel={handleTouchEnd}
-							onContextMenu={(e) => {
-								if (isMobile) {
-									e.preventDefault()
-								}
-							}}
-							className={cn(
-								'font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative',
-								isActive && !isItemSelected
-									? 'bg-accent text-foreground'
-									: 'text-secondary-foreground/80 hover:text-foreground',
-								isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : '',
-								hasOpenTab && !isActive && !isItemSelected && 'bg-accent'
-							)}
-							style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
-							draggable={true}
-							onDragStart={(e) => {
-								if (isMobile) {
-									// On mobile, only allow drag if we've been holding for a bit
-									if (
-										!touchDragStartTimeRef.current ||
-										Date.now() - touchDragStartTimeRef.current < 200
-									) {
+					<div className="w-full">
+						<div className="w-full h-full">
+							<button
+								type="button"
+								onClick={handleRowClick}
+								onDoubleClick={(e) => {
+									e.stopPropagation()
+									handleDoubleClick()
+								}}
+								onTouchStart={handleTouchStart}
+								onTouchMove={handleTouchMove}
+								onTouchEnd={handleTouchEnd}
+								onTouchCancel={handleTouchEnd}
+								onContextMenu={(e) => {
+									if (isMobile) {
 										e.preventDefault()
-										return
 									}
-								}
-								onDragStart(item, e)
-							}}
-							onDragOver={onDragOver}
-							onDrop={(e) => onDrop(item.id, e)}
-							onKeyDown={handleKeyDown}
-							tabIndex={0}
-							role="treeitem"
-							aria-expanded={isFolder ? isExpanded : undefined}
-							aria-selected={isItemSelected}
-						>
-							<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
-								{isFolder ? (
-									<>
-										<div
-											data-folder-icon
-											onClick={handleFolderToggle}
-											className={cn('shrink-0', hasChildren ? 'cursor-pointer' : 'cursor-default')}
-										>
-											{isExpanded ? <FolderOpenIcon /> : <FolderClosedIcon />}
-										</div>
-									</>
-								) : null}
-
-								{isRenaming ? (
-									<input
-										ref={(el) => {
-											inputRef.current = el
-											if (el) {
-												// Use requestAnimationFrame for better focus handling
-												requestAnimationFrame(() => {
-													requestAnimationFrame(() => {
-														if (el) {
-															el.focus()
-															el.select()
-														}
-													})
-												})
-											}
-										}}
-										type="text"
-										value={renameValue}
-										onChange={(e) => {
-											setRenameValue(e.target.value)
-											e.stopPropagation()
-										}}
-										onBlur={(e) => {
-											// Delay blur handling to prevent premature completion
-											// when context menu closes or other UI interactions occur
-											setTimeout(() => {
-												if (inputRef.current && document.activeElement !== inputRef.current) {
-													handleRenameComplete()
-												}
-											}, 200)
-										}}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter') {
-												e.preventDefault()
-												e.stopPropagation()
-												handleRenameComplete()
-											} else if (e.key === 'Escape') {
-												e.preventDefault()
-												e.stopPropagation()
-												setRenameValue(item.name)
-												setIsRenaming(false)
-											} else {
-												// For all other keys, stop propagation but allow typing
-												e.stopPropagation()
-											}
-										}}
-										onClick={(e) => {
-											e.stopPropagation()
-											e.preventDefault()
-										}}
-										onMouseDown={(e) => {
-											e.stopPropagation()
-											e.preventDefault()
-										}}
-										onFocus={(e) => {
-											e.stopPropagation()
-											// Select all text when focused
-											e.currentTarget.select()
-										}}
-										className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
-										autoFocus
-									/>
-								) : (
-									<span
-										onClick={handleNameClick}
-										className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
-										title={item.name}
-										data-item-name
-									>
-										{item.pinned && (
-											<Pin className="w-3.5 h-3.5 text-muted-foreground/90 shrink-0" />
-										)}
-										{!isFolder && item.favorite && (
-											<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
-										)}
-										<span className="truncate">{item.name}</span>
-									</span>
+								}}
+								className={cn(
+									'font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative',
+									isActive && !isItemSelected
+										? 'bg-accent text-foreground'
+										: 'text-secondary-foreground/80 hover:text-foreground',
+									isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : '',
+									hasOpenTab && !isActive && !isItemSelected && 'bg-accent'
 								)}
-							</div>
+								style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+								draggable={true}
+								onDragStart={(e) => {
+									if (isMobile) {
+										// On mobile, only allow drag if we've been holding for a bit
+										if (
+											!touchDragStartTimeRef.current ||
+											Date.now() - touchDragStartTimeRef.current < 200
+										) {
+											e.preventDefault()
+											return
+										}
+									}
+									onDragStart(item, e)
+								}}
+								onDragOver={onDragOver}
+								onDrop={(e) => onDrop(item.id, e)}
+								onKeyDown={handleKeyDown}
+								tabIndex={0}
+								role="treeitem"
+								aria-expanded={isFolder ? isExpanded : undefined}
+								aria-selected={isItemSelected}
+							>
+								<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
+									{isFolder ? (
+										<>
+											<div
+												data-folder-icon
+												onClick={handleFolderToggle}
+												className={cn('shrink-0', hasChildren ? 'cursor-pointer' : 'cursor-default')}
+											>
+												{isExpanded ? <FolderOpenIcon /> : <FolderClosedIcon />}
+											</div>
+										</>
+									) : null}
 
-							{isFolder && <span className="text-xs text-foreground/40">{childCount}</span>}
-						</button>
+									{isRenaming ? (
+										<input
+											ref={(el) => {
+												inputRef.current = el
+												if (el) {
+													// Use requestAnimationFrame for better focus handling
+													requestAnimationFrame(() => {
+														requestAnimationFrame(() => {
+															if (el) {
+																el.focus()
+																el.select()
+															}
+														})
+													})
+												}
+											}}
+											type="text"
+											value={renameValue}
+											onChange={(e) => {
+												setRenameValue(e.target.value)
+												e.stopPropagation()
+											}}
+											onBlur={(e) => {
+												// Delay blur handling to prevent premature completion
+												// when context menu closes or other UI interactions occur
+												setTimeout(() => {
+													if (inputRef.current && document.activeElement !== inputRef.current) {
+														handleRenameComplete()
+													}
+												}, 200)
+											}}
+											onKeyDown={(e) => {
+												if (e.key === 'Enter') {
+													e.preventDefault()
+													e.stopPropagation()
+													handleRenameComplete()
+												} else if (e.key === 'Escape') {
+													e.preventDefault()
+													e.stopPropagation()
+													setRenameValue(item.name)
+													setIsRenaming(false)
+												} else {
+													// For all other keys, stop propagation but allow typing
+													e.stopPropagation()
+												}
+											}}
+											onClick={(e) => {
+												e.stopPropagation()
+												e.preventDefault()
+											}}
+											onMouseDown={(e) => {
+												e.stopPropagation()
+												e.preventDefault()
+											}}
+											onFocus={(e) => {
+												e.stopPropagation()
+												// Select all text when focused
+												e.currentTarget.select()
+											}}
+											className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
+											autoFocus
+										/>
+									) : (
+										<span
+											onClick={handleNameClick}
+											className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
+											title={item.name}
+											data-item-name
+										>
+											{item.pinned && (
+												<Pin className="w-3.5 h-3.5 text-muted-foreground/90 shrink-0" />
+											)}
+											{!isFolder && item.favorite && (
+												<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
+											)}
+											<span className="truncate">{item.name}</span>
+										</span>
+									)}
+								</div>
+
+								{isFolder && <span className="text-xs text-foreground/40">{childCount}</span>}
+							</button>
+						</div>
 					</div>
-				</div>
-			</ContextMenuTrigger>
+				</ContextMenuTrigger>
 
-			<ContextMenuContent
-				className={cn(
-					'w-44 max-w-[90vw]',
-					isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
-				)}
-			>
-				<ContextMenuItem
-					onClick={(e) => {
-						e.stopPropagation()
-						onCreateNote(isFolder ? item.id : undefined)
-					}}
-					className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
-				>
-					<FilePlus className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-					New note
-					{!isMobile && (
-						<ContextMenuShortcut>{formatShortcut('create-note') || '⌘N'}</ContextMenuShortcut>
+				<ContextMenuContent
+					className={cn(
+						'w-44 max-w-[90vw]',
+						isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 					)}
-				</ContextMenuItem>
-				{isFolder && (
+				>
 					<ContextMenuItem
 						onClick={(e) => {
 							e.stopPropagation()
-							onCreateFolder(item.id)
+							onCreateNote(isFolder ? item.id : undefined)
 						}}
 						className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
 					>
-						<FolderOpen className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-						New folder
+						<FilePlus className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+						New note
 						{!isMobile && (
-							<ContextMenuShortcut>{formatShortcut('create-folder') || '⌘F'}</ContextMenuShortcut>
+							<ContextMenuShortcut>{formatShortcut('create-note') || '⌘N'}</ContextMenuShortcut>
 						)}
 					</ContextMenuItem>
-				)}
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					onClick={(e) => {
-						e.preventDefault()
-						e.stopPropagation()
-						setIsRenaming(true)
-						// Close context menu after a small delay to allow state update
-						setTimeout(() => {
-							if (inputRef.current) {
-								inputRef.current.focus()
-								inputRef.current.select()
-							}
-						}, 50)
-					}}
-					className={cn(' text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
-				>
-					<Edit className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-					Rename
-					{!isMobile && (
-						<ContextMenuShortcut>{formatShortcut('rename-item') || '⌘R'}</ContextMenuShortcut>
-					)}
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					onClick={(e) => {
-						e.stopPropagation()
-						onPinItem(item.id, item.type, !item.pinned)
-					}}
-					className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
-				>
-					{item.pinned ? (
-						<>
-							<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-							Unpin from top
-						</>
-					) : (
-						<>
-							<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-							Pin to top
-						</>
-					)}
-				</ContextMenuItem>
-				{hasMultipleSelections && hasNotesInSelection ? (
-					<>
+					{isFolder && (
 						<ContextMenuItem
 							onClick={(e) => {
 								e.stopPropagation()
-								handleBulkFavorite()
+								onCreateFolder(item.id)
 							}}
 							className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
 						>
-							<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-							Add to favorites
-						</ContextMenuItem>
-						<ContextMenuItem
-							onClick={(e) => {
-								e.stopPropagation()
-								handleBulkUnfavorite()
-							}}
-							className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
-						>
-							<Star
-								className={cn(
-									'w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400',
-									isMobile && 'w-5 h-5'
-								)}
-							/>
-							Remove from favorites
-						</ContextMenuItem>
-					</>
-				) : (
-					!isFolder && (
-						<ContextMenuItem
-							onClick={(e) => {
-								e.stopPropagation()
-								onFavoriteNote(item.id, !item.favorite)
-							}}
-							className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
-						>
-							{item.favorite ? (
-								<>
-									<Star
-										className={cn(
-											'w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400',
-											isMobile && 'w-5 h-5'
-										)}
-									/>
-									Remove from favorites
-								</>
-							) : (
-								<>
-									<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-									Add to favorites
-								</>
+							<FolderOpen className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+							New folder
+							{!isMobile && (
+								<ContextMenuShortcut>{formatShortcut('create-folder') || '⌘F'}</ContextMenuShortcut>
 							)}
 						</ContextMenuItem>
-					)
-				)}
-				<ContextMenuSub>
-					<ContextMenuSubTrigger
-						className={cn('h-7 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+					)}
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={(e) => {
+							e.preventDefault()
+							e.stopPropagation()
+							setIsRenaming(true)
+							// Close context menu after a small delay to allow state update
+							setTimeout(() => {
+								if (inputRef.current) {
+									inputRef.current.focus()
+									inputRef.current.select()
+								}
+							}, 50)
+						}}
+						className={cn(' text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
 					>
-						<FolderOpen className={cn('w-3.5 h-3.5 mr-2', isMobile && 'w-5 h-5')} />
-						{getSelectedCount() > 1
-							? `Move ${getSelectedCount()} items to...`
-							: isFolder
-								? 'Move folder to...'
-								: 'Move to...'}
-					</ContextMenuSubTrigger>
-					<ContextMenuSubContent
+						<Edit className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+						Rename
+						{!isMobile && (
+							<ContextMenuShortcut>{formatShortcut('rename-item') || '⌘R'}</ContextMenuShortcut>
+						)}
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={(e) => {
+							e.stopPropagation()
+							onPinItem(item.id, item.type, !item.pinned)
+						}}
+						className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+					>
+						{item.pinned ? (
+							<>
+								<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								Unpin from top
+							</>
+						) : (
+							<>
+								<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								Pin to top
+							</>
+						)}
+					</ContextMenuItem>
+					{hasMultipleSelections && hasNotesInSelection ? (
+						<>
+							<ContextMenuItem
+								onClick={(e) => {
+									e.stopPropagation()
+									handleBulkFavorite()
+								}}
+								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+							>
+								<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								Add to favorites
+							</ContextMenuItem>
+							<ContextMenuItem
+								onClick={(e) => {
+									e.stopPropagation()
+									handleBulkUnfavorite()
+								}}
+								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+							>
+								<Star
+									className={cn(
+										'w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400',
+										isMobile && 'w-5 h-5'
+									)}
+								/>
+								Remove from favorites
+							</ContextMenuItem>
+						</>
+					) : (
+						!isFolder && (
+							<ContextMenuItem
+								onClick={(e) => {
+									e.stopPropagation()
+									onFavoriteNote(item.id, !item.favorite)
+								}}
+								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+							>
+								{item.favorite ? (
+									<>
+										<Star
+											className={cn(
+												'w-4 h-4 mr-3 shrink-0 fill-yellow-400 text-yellow-400',
+												isMobile && 'w-5 h-5'
+											)}
+										/>
+										Remove from favorites
+									</>
+								) : (
+									<>
+										<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+										Add to favorites
+									</>
+								)}
+							</ContextMenuItem>
+						)
+					)}
+					<ContextMenuSub>
+						<ContextMenuSubTrigger
+							className={cn('h-7 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+						>
+							<FolderOpen className={cn('w-3.5 h-3.5 mr-2', isMobile && 'w-5 h-5')} />
+							{getSelectedCount() > 1
+								? `Move ${getSelectedCount()} items to...`
+								: isFolder
+									? 'Move folder to...'
+									: 'Move to...'}
+						</ContextMenuSubTrigger>
+						<ContextMenuSubContent
+							className={cn(
+								isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+							)}
+						>
+							<MoveFolderMenu
+								currentFolderId={item.id}
+								allItems={allItems}
+								onMoveItem={onMoveItem}
+								isMobile={isMobile}
+								selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
+								onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
+							/>
+						</ContextMenuSubContent>
+					</ContextMenuSub>
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={(e) => {
+							const selectedCount = getSelectedCount()
+							if (selectedCount > 1 && showConfirm) {
+								const selectedIds = getSelectedIds()
+								const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+								showConfirm({
+									title: `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}?`,
+									description: 'This action cannot be undone.',
+									variant: 'destructive',
+									confirmText: 'Delete',
+									cancelText: 'Cancel',
+									position: {
+										x: rect.left + rect.width / 2,
+										y: rect.top,
+									},
+									onConfirm: async () => {
+										for (const id of selectedIds) {
+											await onDelete(id)
+										}
+										clearSelection()
+									},
+								})
+							} else {
+								onDelete(item.id)
+							}
+						}}
 						className={cn(
-							isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+							'h-8 text-xs font-base text-destructive focus:text-destructive min-h-[36px]',
+							isMobile && 'h-12 text-sm px-4'
 						)}
 					>
-						<MoveFolderMenu
-							currentFolderId={item.id}
-							allItems={allItems}
-							onMoveItem={onMoveItem}
-							isMobile={isMobile}
-							selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
-							onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
-						/>
-					</ContextMenuSubContent>
-				</ContextMenuSub>
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					onClick={(e) => {
-						const selectedCount = getSelectedCount()
-						if (selectedCount > 1 && showConfirm) {
-							const selectedIds = getSelectedIds()
-							const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-							showConfirm({
-								title: `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}?`,
-								description: 'This action cannot be undone.',
-								variant: 'destructive',
-								confirmText: 'Delete',
-								cancelText: 'Cancel',
-								position: {
-									x: rect.left + rect.width / 2,
-									y: rect.top,
-								},
-								onConfirm: async () => {
-									for (const id of selectedIds) {
-										await onDelete(id)
-									}
-									clearSelection()
-								},
-							})
-						} else {
-							onDelete(item.id)
-						}
-					}}
-					className={cn(
-						'h-8 text-xs font-base text-destructive focus:text-destructive min-h-[36px]',
-						isMobile && 'h-12 text-sm px-4'
-					)}
-				>
-					<Trash2 className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-					{getSelectedCount() > 1 ? `Delete ${getSelectedCount()} items` : 'Delete'}
-					{!isMobile && (
-						<ContextMenuShortcut>{formatShortcut('delete-item') || 'Del'}</ContextMenuShortcut>
-					)}
-				</ContextMenuItem>
-			</ContextMenuContent>
+						<Trash2 className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+						{getSelectedCount() > 1 ? `Delete ${getSelectedCount()} items` : 'Delete'}
+						{!isMobile && (
+							<ContextMenuShortcut>{formatShortcut('delete-item') || 'Del'}</ContextMenuShortcut>
+						)}
+					</ContextMenuItem>
+				</ContextMenuContent>
 
-			{isFolder && isExpanded && item.type === 'folder' && (
-				<div className="space-y-1.5 pt-1.5 relative w-full">
-					{ruler?.enabled && (
-						<div
-							className="absolute top-0 bottom-0"
-							style={{
-								left: `calc(${0.75 + level * 0.75}rem + 9px - 0.5px)`,
-								borderLeft: `1px ${ruler.style === 'dashed' ? 'dashed' : 'solid'}`,
-								borderColor: ruler.color || 'currentColor',
-								opacity: ruler.opacity || 0.25,
-								zIndex: 1,
-							}}
-						/>
-					)}
-					{item.children.map((child) => (
-						<FileTreeItem
-							key={child.id}
-							item={child}
-							level={level + 1}
-							activeNoteId={activeNoteId}
-							expandedFolders={expandedFolders}
-							selectedFolderId={selectedFolderId}
-							onToggleFolder={onToggleFolder}
-							onNavigateNote={onNavigateNote}
-							onRename={onRename}
-							onDelete={onDelete}
-							onCreateNote={onCreateNote}
-							onCreateFolder={onCreateFolder}
-							onDragStart={onDragStart}
-							onDragOver={onDragOver}
-							onDrop={onDrop}
-							onSelectFolder={onSelectFolder}
-							onContextMenuOpenChange={onContextMenuOpenChange}
-							onPinItem={onPinItem}
-							onFavoriteNote={onFavoriteNote}
-							onMoveItem={onMoveItem}
-							allItems={allItems}
-							ruler={ruler}
-							allVisibleItemIds={allVisibleItemIds}
-							showConfirm={showConfirm}
-						/>
-					))}
-				</div>
-			)}
-		</ContextMenu>
-	</>
+				{isFolder && isExpanded && item.type === 'folder' && (
+					<div className="space-y-1.5 pt-1.5 relative w-full">
+						{ruler?.enabled && (
+							<div
+								className="absolute top-0 bottom-0"
+								style={{
+									left: `calc(${0.75 + level * 0.75}rem + 9px - 0.5px)`,
+									borderLeft: `1px ${ruler.style === 'dashed' ? 'dashed' : 'solid'}`,
+									borderColor: ruler.color || 'currentColor',
+									opacity: ruler.opacity || 0.25,
+									zIndex: 1,
+								}}
+							/>
+						)}
+						{item.children.map((child) => (
+							<FileTreeItem
+								key={child.id}
+								item={child}
+								level={level + 1}
+								activeNoteId={activeNoteId}
+								expandedFolders={expandedFolders}
+								selectedFolderId={selectedFolderId}
+								onToggleFolder={onToggleFolder}
+								onNavigateNote={onNavigateNote}
+								onRename={onRename}
+								onDelete={onDelete}
+								onCreateNote={onCreateNote}
+								onCreateFolder={onCreateFolder}
+								onDragStart={onDragStart}
+								onDragOver={onDragOver}
+								onDrop={onDrop}
+								onSelectFolder={onSelectFolder}
+								onContextMenuOpenChange={onContextMenuOpenChange}
+								onPinItem={onPinItem}
+								onFavoriteNote={onFavoriteNote}
+								onMoveItem={onMoveItem}
+								allItems={allItems}
+								ruler={ruler}
+								allVisibleItemIds={allVisibleItemIds}
+								showConfirm={showConfirm}
+							/>
+						))}
+					</div>
+				)}
+			</ContextMenu>
+		</>
 	)
 }
 
@@ -1795,6 +1796,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	if (finalContentType === 'table-of-contents') {
 		return customContent || null
+	}
+
+	if (finalContentType === 'tasks') {
+		return <TasksSidebarContent activeNoteId={activeNoteId} />
 	}
 
 	const isCollapsed = !isDesktopSidebarOpen
