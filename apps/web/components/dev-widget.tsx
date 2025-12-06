@@ -248,7 +248,7 @@ export function DevWidget() {
 			const files = (e.target as HTMLInputElement).files
 			if (!files) return
 			try {
-				await importFromMarkdown(Array.from(files).map(file => ({ name: file.name, content: file.text() })) as unknown as { name: string; content: string; }[])
+await importFromMarkdown(await Promise.all(Array.from(files).map(async file => ({ name: file.name, content: await file.text() }))))
 				toast.success(`Imported ${files.length} markdown files`)
 				await refreshItems()
 			} catch (err) {
