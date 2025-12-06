@@ -6,8 +6,11 @@ import { useRouter } from 'next/navigation'
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
-import { IconButton, NotesIcon } from '@skriuw/ui/icons'
-import { useConfirmationPopover, type ConfirmationPopoverOptions } from '@skriuw/ui/confirmation-popover'
+import { IconButton, NotesIcon, UIPlaygroundIcon } from '@skriuw/ui/icons'
+import {
+	useConfirmationPopover,
+	type ConfirmationPopoverOptions,
+} from '@skriuw/ui/confirmation-popover'
 
 import { cn } from '@skriuw/core-logic'
 
@@ -855,7 +858,10 @@ function FileTreeItem({
 											<div
 												data-folder-icon
 												onClick={handleFolderToggle}
-												className={cn('shrink-0', hasChildren ? 'cursor-pointer' : 'cursor-default')}
+												className={cn(
+													'shrink-0',
+													hasChildren ? 'cursor-pointer' : 'cursor-default'
+												)}
 											>
 												{isExpanded ? <FolderOpenIcon /> : <FolderClosedIcon />}
 											</div>
@@ -1031,7 +1037,10 @@ function FileTreeItem({
 									e.stopPropagation()
 									handleBulkFavorite()
 								}}
-								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+								className={cn(
+									'h-8 text-xs font-base min-h-[36px]',
+									isMobile && 'h-12 text-sm px-4'
+								)}
 							>
 								<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
 								Add to favorites
@@ -1041,7 +1050,10 @@ function FileTreeItem({
 									e.stopPropagation()
 									handleBulkUnfavorite()
 								}}
-								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+								className={cn(
+									'h-8 text-xs font-base min-h-[36px]',
+									isMobile && 'h-12 text-sm px-4'
+								)}
 							>
 								<Star
 									className={cn(
@@ -1059,7 +1071,10 @@ function FileTreeItem({
 									e.stopPropagation()
 									onFavoriteNote(item.id, !item.favorite)
 								}}
-								className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+								className={cn(
+									'h-8 text-xs font-base min-h-[36px]',
+									isMobile && 'h-12 text-sm px-4'
+								)}
 							>
 								{item.favorite ? (
 									<>
@@ -1815,6 +1830,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						variant="sidebar"
 						onClick={() => router.push('/')}
 					/>
+					<IconButton icon={<UIPlaygroundIcon />} tooltip="UI Playground" variant="sidebar" />
 				</div>
 			</div>
 		)

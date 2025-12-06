@@ -4,7 +4,6 @@ import { cn } from '@skriuw/core-logic'
 interface RawMDXEditorProps {
 	value: string
 	onChange: (value: string) => void
-	placeholder?: string
 	className?: string
 	disabled?: boolean
 	autoFocus?: boolean
@@ -22,7 +21,6 @@ interface RawMDXEditorProps {
 export function RawMDXEditor({
 	value,
 	onChange,
-	placeholder = 'Start typing your MDX...',
 	className,
 	disabled = false,
 	autoFocus = false,
@@ -98,7 +96,6 @@ export function RawMDXEditor({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				onKeyDown={handleKeyDown}
-				placeholder={placeholder}
 				disabled={disabled}
 				spellCheck={spellCheck}
 				className={cn(
