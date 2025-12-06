@@ -14,6 +14,7 @@ import { useSettings, useUserPreferences } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
 
 import { DevWidget } from '../dev-widget'
+// import { AlphaBanner } from '../alpha-banner'
 import { Footer } from './footer'
 import { TopToolbar } from './top-toolbar'
 import { LeftToolbar } from '../left-toolbar'
@@ -23,6 +24,7 @@ import { SidebarMenu } from '../sidebar-menu'
 import { useUIStore } from '../../stores/ui-store'
 
 import { AppLayoutShell } from './app-layout-shell'
+import { ChevronRight, Sparkles } from 'lucide-react'
 
 import type { SidebarContentType } from '../sidebar/types'
 
@@ -54,7 +56,8 @@ export function AppLayoutManager({
 	const router = useRouter()
 	const pathname = usePathname()
 	const showSidebar = !pathname.startsWith('/archive') && !pathname.startsWith('/trash')
-	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } = useNotesContext()
+	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } =
+		useNotesContext()
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const isNoteRoute = pathname.startsWith('/note/')
@@ -385,6 +388,12 @@ export function AppLayoutManager({
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
 					<GlobalSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+					{/* <AlphaBanner
+						href="/docs"
+						text="New! PrismUI Components"
+						icon={<Sparkles className="h-4 w-4" />}
+						endIcon={<ChevronRight className="h-4 w-4" />}
+					/> */}
 					{process.env.NODE_ENV === 'development' && <DevWidget />}
 				</>
 			}

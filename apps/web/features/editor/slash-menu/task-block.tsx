@@ -1,6 +1,8 @@
 import { createReactBlockSpec } from '@blocknote/react'
+import { ArrowUpRight } from 'lucide-react'
 
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
+import { useRouter } from 'next/navigation'
 
 /**
  * Custom Task Block for BlockNote
@@ -25,14 +27,16 @@ export const taskBlockSpec = createReactBlockSpec(
 	{
 		render: ({ block, editor, contentRef }) => {
 			const checked = block.props.checked as boolean
+			// eslint-disable-next-line react-hooks/rules-of-hooks
+			const router = useRouter()
 
 			return (
 				<div
-					className="bn-task-block flex items-start gap-2 py-1 group"
+					className="bn-task-block flex items-start gap-2 py-1 group relative"
 					data-content-type="task"
 					data-block-id={block.id}
 				>
-					<div className="shrink-0 mt-0.5">
+					<div className="shrink-0 mt-0.5 flex items-center gap-1">
 						<Checkbox
 							checked={checked}
 							size="sm"
@@ -45,6 +49,19 @@ export const taskBlockSpec = createReactBlockSpec(
 								})
 							}}
 						/>
+						<div
+							role="button"
+							tabIndex={0}
+							onClick={(e) => {
+								e.stopPropagation()
+								e.preventDefault()
+								router.push(`/tasks/${block.id}`)
+							}}
+							className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted"
+							title="Open task details"
+						>
+							<ArrowUpRight size={14} />
+						</div>
 					</div>
 					{/* Hide any checkbox rendered by BlockNote's inline content */}
 					<style>{`

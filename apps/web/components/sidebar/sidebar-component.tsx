@@ -435,7 +435,10 @@ function FileTreeItem({
 
 		clickTimeoutRef.current = setTimeout(() => {
 			if (isFolder) {
-				// Don't toggle folder when clicking name - only select
+				// Toggle folder when clicking name
+				if (hasChildren) {
+					onToggleFolder(item.id)
+				}
 				onSelectFolder(item.id)
 			} else {
 				onNavigateNote(item.id)
@@ -808,10 +811,6 @@ function FileTreeItem({
 							<button
 								type="button"
 								onClick={handleRowClick}
-								onDoubleClick={(e) => {
-									e.stopPropagation()
-									handleDoubleClick()
-								}}
 								onTouchStart={handleTouchStart}
 								onTouchMove={handleTouchMove}
 								onTouchEnd={handleTouchEnd}
@@ -933,6 +932,10 @@ function FileTreeItem({
 									) : (
 										<span
 											onClick={handleNameClick}
+											onDoubleClick={(e) => {
+												e.stopPropagation()
+												handleDoubleClick()
+											}}
 											className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
 											title={item.name}
 											data-item-name
