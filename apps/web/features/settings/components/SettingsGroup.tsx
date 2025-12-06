@@ -1,10 +1,8 @@
 import React from 'react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@skriuw/ui/card'
 import { Label } from '@skriuw/ui/label'
 import { Input } from '@skriuw/ui/input'
 import { Switch } from '@skriuw/ui/switch'
-// import { Slider } from '@skriuw/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@skriuw/ui/select'
 
 import type { SettingsGroup, UserSetting } from '../types'
@@ -17,7 +15,7 @@ interface SettingsGroupProps {
 }
 
 export function SettingsGroup({ group, values, onChange, disabled = false }: SettingsGroupProps) {
-	const renderSetting = (setting: UserSetting) => {
+	const renderSetting = (setting: UserSetting, isLast: boolean) => {
 		const currentValue = values[setting.key] ?? setting.defaultValue
 		const handleChange = (value: any) => {
 			onChange(setting.key, value)
@@ -29,107 +27,127 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 		switch (setting.type) {
 			case 'boolean':
 				return (
-					<div key={setting.key} className="flex items-center justify-between space-y-0">
-						<div className="space-y-0.5 -2">
-							<Label>{setting.key}</Label>
-							<p className="text-sm text-balance text-muted-foreground">{setting.description}</p>
+					<div
+						key={setting.key}
+						className={`flex items-center justify-between py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
+					>
+						<div className="space-y-1 pr-4">
+							<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
+							<p className="text-sm text-muted-foreground leading-relaxed">
+								{setting.description}
+							</p>
 						</div>
 						<Switch
 							checked={currentValue}
 							onCheckedChange={handleChange}
 							disabled={isSettingDisabled}
+							size="md"
 						/>
 					</div>
 				)
 
 			case 'enum':
 				return (
-					<div key={setting.key} className="space-y-2">
-						<Label>{setting.key}</Label>
-						<p className="text-sm text-balance-muted-foreground">{setting.description}</p>
-
-						<Select
-							value={currentValue?.toString()}
-							onValueChange={handleChange}
-							disabled={isSettingDisabled}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{setting.options?.map((option) => (
-									<SelectItem key={option} value={option.toString()}>
-										{option}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+					<div
+						key={setting.key}
+						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
+					>
+						<div className="flex items-center justify-between">
+							<div className="space-y-1 pr-4">
+								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed">
+									{setting.description}
+								</p>
+							</div>
+							<Select
+								value={currentValue?.toString()}
+								onValueChange={handleChange}
+								disabled={isSettingDisabled}
+							>
+								<SelectTrigger className="w-[180px]">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{setting.options?.map((option) => (
+										<SelectItem key={option} value={option.toString()}>
+											{option}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 					</div>
 				)
 
 			case 'number':
-				// Temporarily removed Slider usage to fix Vercel build
-				// if (['fontSize', 'lineHeight', 'autoSaveInterval', 'tabSize'].includes(setting.key)) {
-				//     return (
-				//         <div key={setting.key} className="space-y-2">
-				//             <Label>{setting.key}</Label>
-				//             <p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
-				//             <Slider
-				//                 value={[currentValue]}
-				//                 onValueChange={([value]) => handleChange(value)}
-				//                 disabled={isSettingDisabled}
-				//                 min={setting.key === 'fontSize' ? 12 : setting.key === 'tabSize' ? 1 : 0}
-				//                 max={setting.key === 'fontSize' ? 24 : setting.key === 'tabSize' ? 8 : 100}
-				//                 step={1}
-				//             />
-				//         </div>
-				//     )
-				// }
-				// Fallthrough to string input for other numeric values
 				return (
-					<div key={setting.key} className="space-y-2">
-						<Label>{setting.key}</Label>
-						<p className="text-sm  text-balance text-muted-foreground">{setting.description}</p>
-						<Input
-							type="number"
-							value={currentValue?.toString() || ''}
-							onChange={(e) => handleChange(Number(e.target.value))}
-							disabled={isSettingDisabled}
-						/>
+					<div
+						key={setting.key}
+						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
+					>
+						<div className="flex items-center justify-between">
+							<div className="space-y-1 pr-4">
+								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed">
+									{setting.description}
+								</p>
+							</div>
+							<Input
+								type="number"
+								value={currentValue?.toString() || ''}
+								onChange={(e) => handleChange(Number(e.target.value))}
+								disabled={isSettingDisabled}
+								className="w-[120px]"
+							/>
+						</div>
 					</div>
 				)
 
 			case 'string':
 				return (
-					<div key={setting.key} className="space-y-2">
-						<Label>{setting.key}</Label>
-						<p className="text-sm text-muted-foreground text-balance">{setting.description}</p>
-						<Input
-							value={currentValue?.toString() || ''}
-							onChange={(e) => handleChange(e.target.value)}
-							disabled={isSettingDisabled}
-						/>
+					<div
+						key={setting.key}
+						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
+					>
+						<div className="flex items-center justify-between">
+							<div className="space-y-1 pr-4">
+								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed">
+									{setting.description}
+								</p>
+							</div>
+							<Input
+								value={currentValue?.toString() || ''}
+								onChange={(e) => handleChange(e.target.value)}
+								disabled={isSettingDisabled}
+								className="w-[200px]"
+							/>
+						</div>
 					</div>
 				)
 
 			default:
 				return (
-					<div key={setting.key} className="text-sm text-muted-foreground">
+					<div key={setting.key} className="text-sm text-muted-foreground py-4">
 						Unsupported setting type: {setting.type}
 					</div>
 				)
 		}
 	}
 
+	const implementedSettings = group.settings.filter((setting) => setting.implemented !== false)
+
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="text-lg">{group.title}</CardTitle>
-				<p className="text-sm text-muted-foreground text-balance">{group.description}</p>
-			</CardHeader>
-			<CardContent className="space-y-6">
-				{group.settings.filter((setting) => setting.implemented !== false).map(renderSetting)}
-			</CardContent>
-		</Card>
+		<div className="space-y-0">
+			<div className="pb-4 mb-2 border-b border-border">
+				<h2 className="text-xl font-semibold text-foreground">{group.title}</h2>
+				<p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+			</div>
+			<div>
+				{implementedSettings.map((setting, index) =>
+					renderSetting(setting, index === implementedSettings.length - 1)
+				)}
+			</div>
+		</div>
 	)
 }

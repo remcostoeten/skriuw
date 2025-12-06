@@ -1,6 +1,6 @@
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
 import { createElement } from 'react'
-import { Link2 } from 'lucide-react'
+import { CheckSquare, FolderTree, Info } from 'lucide-react'
 
 // Simple hash icon for animated number
 const HashIcon = () =>
@@ -48,6 +48,26 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 	// Add custom items to the default list
 	const customItems: DefaultReactSuggestionItem[] = [
 		{
+			title: 'Task',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				// Replace the current block with the task block
+				editor.updateBlock(currentBlock, {
+					type: 'task',
+					props: { checked: false },
+					content: [],
+				})
+				// Focus the task block for immediate editing
+				setTimeout(() => {
+					editor.setTextCursorPosition(currentBlock, 'end')
+				}, 0)
+			},
+			aliases: ['task', 'todo', 'checkbox', 'check'],
+			subtext: 'Create a task item',
+			icon: createElement(CheckSquare, { size: 18 }),
+			group: 'Basic blocks',
+		},
+		{
 			title: 'Note Mention',
 			onItemClick: () => {
 				// Insert @ symbol to trigger the mention menu
@@ -86,7 +106,47 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 			icon: createElement(HashIcon),
 			group: 'Custom',
 		},
+		{
+			title: 'File Tree',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				editor.insertBlocks(
+					[
+						{
+							type: 'fileTree',
+						},
+					],
+					currentBlock,
+					'after' // Try 'after' but ideally replace if empty?
+				)
+			},
+			aliases: ['tree', 'structure', 'folder'],
+			subtext: 'Insert a file tree',
+			icon: createElement(FolderTree, { size: 18 }),
+			group: 'Custom',
+		},
+		{
+			title: 'Callout',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				editor.insertBlocks(
+					[
+						{
+							type: 'callout',
+							props: { type: 'info' },
+						},
+					],
+					currentBlock,
+					'after'
+				)
+			},
+			aliases: ['alert', 'info', 'warning', 'error', 'note'],
+			subtext: 'Insert an information box',
+			icon: createElement(Info, { size: 18 }),
+			group: 'Custom',
+		},
 	]
 
 	return [...defaultItems, ...customItems]
 }
+

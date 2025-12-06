@@ -221,18 +221,17 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 			>
 				<div
 					className={cn(
-						'absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center',
+						'absolute top-1/2 rounded-full flex items-center justify-center',
 						'bg-background shadow-lg',
 						sizeConfig.thumb,
 						thumbClassName
 					)}
-					// MODIFIED TE -50% hEre to test center
 					style={{
 						left: sizeConfig.thumbOffset,
 						transform:
 							checked || indeterminate
-								? `translateY(0%) ${animationConfig.thumbTransform.on}`
-								: `translateY(0%) ${animationConfig.thumbTransform.off}`,
+								? `translateY(-50%) ${animationConfig.thumbTransform.on}`
+								: `translateY(-50%) ${animationConfig.thumbTransform.off}`,
 						transition: animationConfig.thumbTransform.transition,
 					}}
 				>
