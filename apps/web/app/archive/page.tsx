@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
 
 import { ExportPanel } from '@/features/backup/components/export-panel'
 import { ImportPanel } from '@/features/backup/components/import-panel'
+import { TrashPanel } from '@/features/backup/components/trash-panel'
 
 export default function DataBackupPage() {
 	const [activeTab, setActiveTab] = useState('export')
@@ -75,13 +76,7 @@ export default function DataBackupPage() {
 										Deleted items are kept here for 30 days
 									</p>
 								</div>
-								<div className="text-center py-12 border border-dashed border-border rounded-lg">
-									<Trash2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">Trash is empty</p>
-									<p className="text-sm text-muted-foreground mt-2">
-										Deleted notes will appear here
-									</p>
-								</div>
+								<TrashPanel />
 							</div>
 						</TabsContent>
 					</div>

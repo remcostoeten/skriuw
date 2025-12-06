@@ -13,6 +13,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							(function() {
+								// Apply dark theme immediately to prevent flash
+								document.documentElement.classList.add('dark');
+								// Also set background color inline for immediate effect
+								document.documentElement.style.backgroundColor = 'hsl(0 0% 7%)';
+							})();
+						`,
+					}}
+				/>
+			</head>
 			<body className="font-sans antialiased dark bg-background">
 				<Providers>{children}</Providers>
 			</body>
