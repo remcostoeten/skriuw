@@ -53,7 +53,7 @@ export function AppLayoutManager({
 }: AppLayoutManagerProps) {
 	const router = useRouter()
 	const pathname = usePathname()
-	const showSidebar = !pathname.startsWith('/archive')
+	const showSidebar = !pathname.startsWith('/archive') && !pathname.startsWith('/trash')
 	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } = useNotesContext()
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)

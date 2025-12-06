@@ -1,6 +1,7 @@
 import { update } from '../../../../lib/storage'
 
 import { invalidateItemsCache } from '../queries/get-items'
+import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 
@@ -18,6 +19,7 @@ export async function deleteItem(id: string): Promise<boolean> {
 
 		if (result) {
 			invalidateItemsCache()
+			invalidatePrefetchedNote(id)
 			return true
 		}
 		return false

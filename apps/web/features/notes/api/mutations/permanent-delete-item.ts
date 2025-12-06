@@ -3,6 +3,7 @@ import { deleteTasksForNote } from '@/features/tasks'
 import { destroy } from '@skriuw/storage/crud/destroy'
 
 import { invalidateItemsCache } from '../queries/get-items'
+import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 const STORAGE_KEY = 'Skriuw_notes'
 
@@ -22,6 +23,7 @@ export async function permanentDeleteItem(id: string): Promise<boolean> {
 		const result = await destroy(STORAGE_KEY, id)
 		if (result) {
 			invalidateItemsCache()
+			invalidatePrefetchedNote(id)
 		}
 		return result
 	} catch (error) {

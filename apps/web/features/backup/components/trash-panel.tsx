@@ -1,10 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Trash2, RotateCcw, Loader2, AlertTriangle, FileText, Folder } from 'lucide-react'
+import {
+	Trash2,
+	RotateCcw,
+	Loader2,
+	AlertTriangle,
+	FileText,
+	Folder,
+	Clock,
+	Info,
+} from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
 import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
+import { EmptyState } from '@skriuw/ui/empty-state'
 import { cn } from '@skriuw/core-logic'
 
 import { getTrashItems, TRASH_RETENTION_DAYS } from '@/features/notes/api/queries/get-trash'
@@ -21,9 +31,9 @@ function formatTimeAgo(timestamp: number): string {
 	const hours = Math.floor(diff / (1000 * 60 * 60))
 	const minutes = Math.floor(diff / (1000 * 60))
 
-	if (days > 0) return `${days} day${days !== 1 ? 's' : ''} ago`
-	if (hours > 0) return `${hours} hour${hours !== 1 ? 's' : ''} ago`
-	if (minutes > 0) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`
+	if (days > 0) return `${days}d ago`
+	if (hours > 0) return `${hours}h ago`
+	if (minutes > 0) return `${minutes}m ago`
 	return 'Just now'
 }
 
@@ -41,6 +51,7 @@ export function TrashPanel() {
 	const [isRestoring, setIsRestoring] = useState<string | null>(null)
 	const [isDeleting, setIsDeleting] = useState<string | null>(null)
 	const [isEmptying, setIsEmptying] = useState(false)
+	const [hoveredItem, setHoveredItem] = useState<string | null>(null)
 
 	const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
 
@@ -119,37 +130,60 @@ export function TrashPanel() {
 
 	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+			<div className="flex items-center justify-center py-16 gap-2 text-muted-foreground/60">
+				<Loader2 className="h-4 w-4 animate-spin" />
+				<span className="text-sm">Loading...</span>
 			</div>
 		)
 	}
 
 	if (trashItems.length === 0) {
 		return (
-			<div className="text-center py-12 border border-dashed border-border rounded-lg">
-				<Trash2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-				<p className="text-muted-foreground">Trash is empty</p>
-				<p className="text-sm text-muted-foreground mt-2">
-					Deleted notes will appear here for {TRASH_RETENTION_DAYS} days
-				</p>
+			<div className="py-12">
+				<EmptyState
+					message="Trash is empty"
+					submessage={`Deleted notes will appear here for ${TRASH_RETENTION_DAYS} days`}
+					icon={<Trash2 className="h-8 w-8" />}
+					isFull
+				/>
 			</div>
 		)
 	}
 
+	// Group items by urgency
+	const expiringItems = trashItems.filter((item) => {
+		if (!item.deletedAt) return false
+		return getDaysRemaining(item.deletedAt) <= 3
+	})
+	const normalItems = trashItems.filter((item) => {
+		if (!item.deletedAt) return true
+		return getDaysRemaining(item.deletedAt) > 3
+	})
+
 	return (
-		<div className="space-y-4">
-			{/* Header with empty trash button */}
-			<div className="flex items-center justify-between">
-				<p className="text-sm text-muted-foreground">
-					{trashItems.length} item{trashItems.length !== 1 ? 's' : ''} in trash
-				</p>
+		<div className="space-y-6">
+			{/* Header section */}
+			<div className="flex items-start justify-between gap-4">
+				<div className="flex items-center gap-3">
+					<div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 text-sm">
+						<span className="font-medium text-foreground">{trashItems.length}</span>
+						<span className="text-muted-foreground">item{trashItems.length !== 1 ? 's' : ''}</span>
+					</div>
+					{expiringItems.length > 0 && (
+						<div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-500 text-xs font-medium">
+							<AlertTriangle className="h-3 w-3" />
+							{expiringItems.length} expiring soon
+						</div>
+					)}
+				</div>
 				<Button
 					variant="outline"
 					size="sm"
 					onClick={handleEmptyTrash}
 					disabled={isEmptying}
-					className="text-destructive hover:text-destructive"
+					ripple
+					rippleColor="rgba(239, 68, 68, 0.3)"
+					className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/5 rounded-none"
 				>
 					{isEmptying ? (
 						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -160,81 +194,172 @@ export function TrashPanel() {
 				</Button>
 			</div>
 
-			{/* Trash items list */}
-			<div className="space-y-2">
-				{trashItems.map((item) => {
-					const daysRemaining = getDaysRemaining(item.deletedAt!)
-					const isExpiringSoon = daysRemaining <= 3
-
-					return (
-						<div
-							key={item.id}
-							className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
-						>
-							{/* Icon */}
-							<div className="shrink-0 text-muted-foreground">
-								{item.type === 'folder' ? (
-									<Folder className="h-5 w-5" />
-								) : (
-									<FileText className="h-5 w-5" />
-								)}
-							</div>
-
-							{/* Info */}
-							<div className="flex-1 min-w-0">
-								<div className="font-medium truncate">{item.name}</div>
-								<div className="flex items-center gap-2 text-xs text-muted-foreground">
-									<span>Deleted {formatTimeAgo(item.deletedAt!)}</span>
-									<span>•</span>
-									<span
-										className={cn(
-											isExpiringSoon && 'text-amber-500 flex items-center gap-1'
-										)}
-									>
-										{isExpiringSoon && <AlertTriangle className="h-3 w-3" />}
-										{daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
-									</span>
-								</div>
-							</div>
-
-							{/* Actions */}
-							<div className="flex items-center gap-2 shrink-0">
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => handleRestore(item.id)}
-									disabled={isRestoring === item.id}
-									className="h-8"
-								>
-									{isRestoring === item.id ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										<>
-											<RotateCcw className="h-4 w-4 mr-1" />
-											Restore
-										</>
-									)}
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => handlePermanentDelete(item.id, item.name)}
-									disabled={isDeleting === item.id}
-									className="h-8 text-destructive hover:text-destructive"
-								>
-									{isDeleting === item.id ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										<Trash2 className="h-4 w-4" />
-									)}
-								</Button>
-							</div>
-						</div>
-					)
-				})}
+			{/* Info banner */}
+			<div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border border-border/50 text-xs text-muted-foreground">
+				<Info className="h-3.5 w-3.5 shrink-0" />
+				<span>
+					Items are automatically deleted after {TRASH_RETENTION_DAYS} days. Restore items to keep
+					them.
+				</span>
 			</div>
 
+			{/* Expiring soon section */}
+			{expiringItems.length > 0 && (
+				<div className="space-y-2">
+					<h4 className="text-xs font-medium text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+						<Clock className="h-3 w-3" />
+						Expiring Soon
+					</h4>
+					<div className="space-y-1.5">
+						{expiringItems.map((item) => (
+							<TrashItem
+								key={item.id}
+								item={item}
+								isHovered={hoveredItem === item.id}
+								onHover={(hovered) => setHoveredItem(hovered ? item.id : null)}
+								isRestoring={isRestoring === item.id}
+								isDeleting={isDeleting === item.id}
+								onRestore={() => handleRestore(item.id)}
+								onDelete={() => handlePermanentDelete(item.id, item.name)}
+								variant="warning"
+							/>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Normal items section */}
+			{normalItems.length > 0 && (
+				<div className="space-y-2">
+					{expiringItems.length > 0 && (
+						<h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+							Other Items
+						</h4>
+					)}
+					<div className="space-y-1.5">
+						{normalItems.map((item) => (
+							<TrashItem
+								key={item.id}
+								item={item}
+								isHovered={hoveredItem === item.id}
+								onHover={(hovered) => setHoveredItem(hovered ? item.id : null)}
+								isRestoring={isRestoring === item.id}
+								isDeleting={isDeleting === item.id}
+								onRestore={() => handleRestore(item.id)}
+								onDelete={() => handlePermanentDelete(item.id, item.name)}
+							/>
+						))}
+					</div>
+				</div>
+			)}
+
 			<ConfirmationPopover />
+		</div>
+	)
+}
+
+// Individual trash item component
+interface TrashItemProps {
+	item: Item
+	isHovered: boolean
+	onHover: (hovered: boolean) => void
+	isRestoring: boolean
+	isDeleting: boolean
+	onRestore: () => void
+	onDelete: () => void
+	variant?: 'default' | 'warning'
+}
+
+function TrashItem({
+	item,
+	isHovered,
+	onHover,
+	isRestoring,
+	isDeleting,
+	onRestore,
+	onDelete,
+	variant = 'default',
+}: TrashItemProps) {
+	const deletedAt = item.deletedAt
+	const daysRemaining = deletedAt ? getDaysRemaining(deletedAt) : null
+
+	return (
+		<div
+			onMouseEnter={() => onHover(true)}
+			onMouseLeave={() => onHover(false)}
+			className={cn(
+				'group relative flex items-center gap-3 p-3 border transition-colors',
+				variant === 'warning'
+					? 'border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10'
+					: 'border-border/50 bg-muted/20 hover:bg-muted/40',
+				isHovered && 'shadow-sm'
+			)}
+		>
+			{/* Icon */}
+			<div
+				className={cn(
+					'shrink-0 p-2 transition-colors',
+					variant === 'warning'
+						? 'bg-amber-500/10 text-amber-500'
+						: 'bg-muted/50 text-muted-foreground'
+				)}
+			>
+				{item.type === 'folder' ? <Folder className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+			</div>
+
+			{/* Info */}
+			<div className="flex-1 min-w-0">
+				<div className="font-medium truncate text-sm">{item.name}</div>
+				<div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+					<span>{deletedAt ? formatTimeAgo(deletedAt) : 'Unknown'}</span>
+					{daysRemaining !== null && (
+						<>
+							<span className="text-muted-foreground/50">•</span>
+							<span className={cn(variant === 'warning' && 'text-amber-500')}>
+								{daysRemaining}d left
+							</span>
+						</>
+					)}
+				</div>
+			</div>
+
+			{/* Actions - visible on hover */}
+			<div
+				className={cn(
+					'flex items-center gap-1 shrink-0 transition-opacity duration-200',
+					isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+				)}
+			>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={onRestore}
+					disabled={isRestoring}
+					className="h-7 px-2 text-xs rounded-none"
+				>
+					{isRestoring ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+					) : (
+						<>
+							<RotateCcw className="h-3.5 w-3.5 mr-1" />
+							Restore
+						</>
+					)}
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onDelete}
+					disabled={isDeleting}
+					className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-none"
+				>
+					{isDeleting ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+					) : (
+						<Trash2 className="h-3.5 w-3.5" />
+					)}
+				</Button>
+			</div>
 		</div>
 	)
 }

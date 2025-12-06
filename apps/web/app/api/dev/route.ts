@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
 import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp } from '@skriuw/db'
 
-// Only allow in development
 function isDev() {
 	return process.env.NODE_ENV === 'development'
 }
 
-// Sample seed data
 const sampleNotes = [
 	{
 		name: 'Welcome to Skriuw',
@@ -286,11 +283,11 @@ export async function POST(request: NextRequest) {
 			case 'clear-cache': {
 				// Clear Next.js build cache and restart dev server
 				const { execSync } = require('child_process')
-				
+
 				try {
 					// Clear Next.js cache
 					execSync('rm -rf .next', { cwd: process.cwd(), stdio: 'pipe' })
-					
+
 					return NextResponse.json({
 						success: true,
 						action: 'clear-cache',

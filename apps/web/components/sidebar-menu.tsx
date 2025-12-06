@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil, Hand, Keyboard, Settings, Palette } from 'lucide-react'
+import { Pencil, Hand, Keyboard, Settings, Palette, Sliders } from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -48,7 +48,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		{
 			id: 'advanced',
 			label: 'Advanced',
-			icon: <Settings className="w-4 h-4" />,
+			icon: <Sliders className="w-4 h-4" />,
 			active: activeItem === 'advanced',
 			onClick: () => setActiveItem('advanced'),
 		},
@@ -91,10 +91,15 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			case 'Skriuw':
 				return (
 					<div className="space-y-4">
-						<h3 className="text-lg font-semibold text-foreground">Skriuw synchronization</h3>
-						<p className="text-sm text-muted-foreground">
-							Configure Skriuw feedback synchronization settings.
-						</p>
+						<div className="pb-4 mb-2 border-b border-border">
+							<h2 className="text-xl font-semibold text-foreground">Skriuw Sync</h2>
+							<p className="text-sm text-muted-foreground mt-1">
+								Configure Skriuw synchronization settings.
+							</p>
+						</div>
+						<div className="text-sm text-muted-foreground">
+							Sync functionality coming soon...
+						</div>
 					</div>
 				)
 			default:
@@ -104,25 +109,25 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 
 	return (
 		<DrawerDialog open={open} onOpenChange={onOpenChange}>
-			<DrawerContent className="flex flex-col p-0 overflow-hidden border border-border/50">
+			<DrawerContent className="flex flex-col p-0 overflow-hidden">
 				<DrawerClose aria-label="Close settings" />
 				<div className="flex flex-row flex-1 min-h-0">
-					<DialogAside className="min-w-[200px] max-w-[200px] border-r border-border p-6 overflow-y-auto h-full">
-						<DrawerHeader className="w-full pb-4">
-							<DrawerTitle>Settings</DrawerTitle>
+					<DialogAside className="min-w-[220px] max-w-[220px] border-r border-border/50 bg-background/50 p-6 overflow-y-auto h-full">
+						<DrawerHeader className="w-full pb-6">
+							<DrawerTitle className="text-xl">Settings</DrawerTitle>
 						</DrawerHeader>
 						<DialogSection label="App">
 							<DialogNavGroup items={appItems} />
 						</DialogSection>
 
-						<DialogSeparator />
+						<DialogSeparator className="my-4 bg-border/50" />
 
 						<DialogSection label="Synchronization">
 							<DialogNavGroup items={syncItems} />
 						</DialogSection>
 					</DialogAside>
 
-					<DialogContentArea className="flex-1 min-w-0 p-6 overflow-y-auto h-full">
+					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background max-w-3xl">
 						{renderSettingsContent()}
 					</DialogContentArea>
 				</div>

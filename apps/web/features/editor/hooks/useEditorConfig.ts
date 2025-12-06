@@ -30,7 +30,6 @@ export function createEditorSchema() {
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-	const { placeholder } = useSettings()
 	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences()
 
 	const fontSize = 'medium'
@@ -60,7 +59,6 @@ export function useEditorConfig() {
 				},
 				// Editor behavior settings
 				autoFocus: false,
-				placeholder: placeholder ?? 'Start typing your note...',
 				enableInputRules: hasMarkdownShortcuts,
 				enablePasteRules: hasMarkdownShortcuts,
 				enableSlashCommands: true, // Always enable slash commands regardless of markdown shortcuts
@@ -76,16 +74,7 @@ export function useEditorConfig() {
 		config.suggestionMenus = true
 
 		return config
-	}, [
-		fontFamily,
-		fontSize,
-		hasMarkdownShortcuts,
-		hasSpellCheck,
-		hasWordWrap,
-		lineHeight,
-		maxWidth,
-		placeholder,
-	])
+	}, [fontFamily, fontSize, hasMarkdownShortcuts, hasSpellCheck, hasWordWrap, lineHeight, maxWidth])
 
 	return {
 		config: editorConfig,

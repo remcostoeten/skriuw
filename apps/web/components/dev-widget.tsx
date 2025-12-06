@@ -1,12 +1,12 @@
 'use client'
 
-import { 
-	Activity, 
-	Database, 
-	Route as RouteIcon, 
-	X, 
-	Trash2, 
-	Download, 
+import {
+	Activity,
+	Database,
+	Route as RouteIcon,
+	X,
+	Trash2,
+	Download,
 	Upload,
 	FileJson,
 	FileText,
@@ -77,7 +77,7 @@ export function DevWidget() {
 	const { items, createNote, createFolder, deleteItem, isInitialLoading, isRefreshing, refreshItems } = useNotesContext()
 	const { tabs: editorTabs, activeNoteId } = useEditorTabs()
 	const uiStore = useUIStore()
-	
+
 	const [isOpen, setIsOpen] = useState(false)
 	const [health, setHealth] = useState<HealthInfo | null>(null)
 	const [dbStats, setDbStats] = useState<DbStats | null>(null)
@@ -181,7 +181,7 @@ export function DevWidget() {
 			}
 
 			toast.success(data.message || `${action} completed`)
-			
+
 			// Handle restart required actions
 			if (data.restartRequired) {
 				toast.info('Reloading page in 3 seconds...')
@@ -190,7 +190,7 @@ export function DevWidget() {
 				}, 3000)
 				return
 			}
-			
+
 			// Refresh data after action
 			await fetchDbStats()
 			await refreshItems()
@@ -228,8 +228,7 @@ export function DevWidget() {
 			if (!file) return
 			try {
 				const text = await file.text()
-				const data = JSON.parse(text)
-				await importFromJson(data)
+				await importFromJson(text)
 				toast.success('Imported from JSON')
 				await refreshItems()
 			} catch (err) {
@@ -248,7 +247,13 @@ export function DevWidget() {
 			const files = (e.target as HTMLInputElement).files
 			if (!files) return
 			try {
-				await importFromMarkdown(Array.from(files).map(file => ({ name: file.name, content: file.text() })) as unknown as { name: string; content: string; }[])
+				const fileContents = await Promise.all(
+					Array.from(files).map(async (file) => ({
+						name: file.name,
+						content: await file.text(),
+					}))
+				)
+				await importFromMarkdown(fileContents)
 				toast.success(`Imported ${files.length} markdown files`)
 				await refreshItems()
 			} catch (err) {
@@ -325,8 +330,8 @@ export function DevWidget() {
 						onClick={() => setActiveTab(tab.id)}
 						className={cn(
 							'flex-shrink-0 px-2.5 py-2 text-xs font-medium transition-colors flex items-center gap-1',
-							activeTab === tab.id 
-								? 'text-foreground border-b-2 border-primary' 
+							activeTab === tab.id
+								? 'text-foreground border-b-2 border-primary'
 								: 'text-muted-foreground hover:text-foreground'
 						)}
 					>
@@ -344,15 +349,15 @@ export function DevWidget() {
 						<section className="space-y-1.5">
 							<SectionHeader icon={<RouteIcon className="h-3.5 w-3.5" />} title="Route" />
 							<div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-								<div 
-									className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors" 
+								<div
+									className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
 									onClick={() => copyToClipboard(pathname || '/')}
 									title="Click to copy"
 								>
 									{pathname || '/'}
 								</div>
 								{searchParams.size > 0 && (
-									<div 
+									<div
 										className="text-xs text-muted-foreground mt-1 break-all cursor-pointer hover:text-primary transition-colors"
 										onClick={() => copyToClipboard('?' + searchParams.toString())}
 										title="Click to copy"
@@ -463,7 +468,7 @@ export function DevWidget() {
 						<SectionHeader icon={<Keyboard className="h-3.5 w-3.5" />} title="Registered Shortcuts" />
 						<div className="space-y-1 max-h-[350px] overflow-y-auto">
 							{(Object.entries(shortcutDefinitions) as [ShortcutId, typeof shortcutDefinitions[ShortcutId]][]).map(([id, def]) => (
-								<div 
+								<div
 									key={id}
 									className={cn(
 										"flex items-center justify-between px-2 py-1.5 rounded text-xs",
@@ -565,7 +570,7 @@ export function DevWidget() {
 									onClick={() => uiStore.toggleDesktopSidebar()}
 									className={cn(
 										"text-xs px-2 py-1.5 rounded border transition-colors",
-										uiStore.isDesktopSidebarOpen 
+										uiStore.isDesktopSidebarOpen
 											? "bg-primary/10 border-primary/30 text-primary"
 											: "bg-muted/20 border-border/70"
 									)}
@@ -576,7 +581,7 @@ export function DevWidget() {
 									onClick={() => uiStore.toggleSettings()}
 									className={cn(
 										"text-xs px-2 py-1.5 rounded border transition-colors",
-										uiStore.isSettingsOpen 
+										uiStore.isSettingsOpen
 											? "bg-primary/10 border-primary/30 text-primary"
 											: "bg-muted/20 border-border/70"
 									)}
@@ -587,7 +592,7 @@ export function DevWidget() {
 									onClick={() => uiStore.toggleShortcutsSidebar()}
 									className={cn(
 										"text-xs px-2 py-1.5 rounded border transition-colors",
-										uiStore.isShortcutsSidebarOpen 
+										uiStore.isShortcutsSidebarOpen
 											? "bg-primary/10 border-primary/30 text-primary"
 											: "bg-muted/20 border-border/70"
 									)}
@@ -669,8 +674,8 @@ export function DevWidget() {
 							<SectionHeader icon={<Clock className="h-3.5 w-3.5" />} title="Timestamps" />
 							<div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 space-y-2 text-sm">
 								<InfoRow label="Health check" value={health ? new Date(health.timestamp).toLocaleTimeString() : 'N/A'} />
-								<InfoRow label="Build time" value={process.env.BUILD_TIME || 'Unknown'} />
-								<InfoRow label="Git commit" value={process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'Unknown'} />
+								<InfoRow label="Build time" value={process.env.NEXT_PUBLIC_BUILD_TIME || 'Unknown'} />
+								<InfoRow label="Git commit" value={process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'Unknown'} />
 							</div>
 						</section>
 
