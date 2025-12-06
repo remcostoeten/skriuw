@@ -12,10 +12,7 @@
     "dependencies": {
         "@blocknote/code-block": "^0.42.3",
         "@blocknote/core": "^0.42.3",
-        "@blocknote/mantine": "^0.42.3",
         "@blocknote/react": "^0.42.3",
-        "@mantine/core": "^8.3.9",
-        "@mantine/hooks": "^8.3.9",
         "@skriuw/core-logic": "workspace:*",
         "@skriuw/db": "workspace:*",
         "@skriuw/ui": "workspace:*",
@@ -25,7 +22,6 @@
         "drizzle-orm": "^0.44.7",
         "framer-motion": "^12.23.12",
         "lucide-react": "^0.539.0",
-        "motion": "^12.23.25",
         "next": "16.0.2",
         "next-themes": "^0.4.6",
         "postgres": "^3.4.5",
