@@ -19,25 +19,43 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 	const apiBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')
 	// Support both old and new storage key formats for backwards compatibility
 	const NOTES_STORAGE_KEYS = ['skriuw:notes', 'skriuw_notes']
-	const SETTINGS_STORAGE_KEYS = ['skriuw:settings', 'app:settings']
+	const SETTINGS_STORAGE_KEYS = ['skriuw:settings', 'app:settings', 'app-settings']
 	const SHORTCUTS_STORAGE_KEYS = ['skriuw:shortcuts:custom', 'quantum-works:shortcuts:custom']
 
 	const isNotesKey = (key: string) => {
 		const normalized = key.toLowerCase()
 		const result = NOTES_STORAGE_KEYS.includes(normalized)
-		if (!result) console.log('[Storage] isNotesKey check:', { key, normalized, keys: NOTES_STORAGE_KEYS, result })
+		if (!result)
+			console.log('[Storage] isNotesKey check:', {
+				key,
+				normalized,
+				keys: NOTES_STORAGE_KEYS,
+				result,
+			})
 		return result
 	}
 	const isSettingsKey = (key: string) => {
 		const normalized = key.toLowerCase()
 		const result = SETTINGS_STORAGE_KEYS.includes(normalized)
-		if (!result) console.log('[Storage] isSettingsKey check:', { key, normalized, keys: SETTINGS_STORAGE_KEYS, result })
+		if (!result)
+			console.log('[Storage] isSettingsKey check:', {
+				key,
+				normalized,
+				keys: SETTINGS_STORAGE_KEYS,
+				result,
+			})
 		return result
 	}
 	const isShortcutsKey = (key: string) => {
 		const normalized = key.toLowerCase()
 		const result = SHORTCUTS_STORAGE_KEYS.includes(normalized)
-		if (!result) console.log('[Storage] isShortcutsKey check:', { key, normalized, keys: SHORTCUTS_STORAGE_KEYS, result })
+		if (!result)
+			console.log('[Storage] isShortcutsKey check:', {
+				key,
+				normalized,
+				keys: SHORTCUTS_STORAGE_KEYS,
+				result,
+			})
 		return result
 	}
 
@@ -171,7 +189,6 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			storageKey: string,
 			data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
 		): Promise<T> {
-			console.log('[Storage.create] Called with key:', JSON.stringify(storageKey), 'isNotes:', isNotesKey(storageKey), 'isSettings:', isSettingsKey(storageKey))
 			if (isNotesKey(storageKey)) {
 				const payload = { ...data } as Record<string, unknown>
 				delete payload.children
@@ -230,7 +247,6 @@ export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdap
 			storageKey: string,
 			options?: ReadOptions
 		): Promise<T[] | T | undefined> {
-			console.log('[Storage.read] Called with key:', JSON.stringify(storageKey), 'isNotes:', isNotesKey(storageKey), 'isSettings:', isSettingsKey(storageKey))
 			if (isNotesKey(storageKey)) {
 				if (options?.getById) {
 					try {

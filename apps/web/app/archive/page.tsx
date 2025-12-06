@@ -1,16 +1,34 @@
 'use client'
 
-import { Download, Upload, HardDrive, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { Download, Upload, HardDrive } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
+import { cn } from '@skriuw/core-logic'
 
 import { ExportPanel } from '@/features/backup/components/export-panel'
 import { ImportPanel } from '@/features/backup/components/import-panel'
-import { TrashPanel } from '@/features/backup/components/trash-panel'
+
+const tabs = [
+	{ value: 'export', label: 'Export', icon: Download },
+	{ value: 'import', label: 'Import', icon: Upload },
+] as const
 
 export default function DataBackupPage() {
 	const [activeTab, setActiveTab] = useState('export')
+
+	useEffect(() => {
+		const savedTab = localStorage.getItem('archive-active-tab')
+		if (savedTab && ['export', 'import'].includes(savedTab)) {
+			setActiveTab(savedTab)
+		}
+	}, [])
+
+	function handleTabChange(value: string) {
+		setActiveTab(value)
+		localStorage.setItem('archive-active-tab', value)
+	}
 
 	return (
 		<div className="flex flex-col h-full">
@@ -25,63 +43,75 @@ export default function DataBackupPage() {
 			</div>
 
 			<div className="flex-1 overflow-hidden">
-				<Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-					<div className="border-b border-border/70 px-6">
-						<TabsList className="bg-transparent">
-							<TabsTrigger value="export" className="flex items-center gap-2">
-								<Download className="h-4 w-4" />
-								Export
-							</TabsTrigger>
-							<TabsTrigger value="import" className="flex items-center gap-2">
-								<Upload className="h-4 w-4" />
-								Import
-							</TabsTrigger>
-							<TabsTrigger value="trash" className="flex items-center gap-2">
-								<Trash2 className="h-4 w-4" />
-								Trash
-							</TabsTrigger>
+				<Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col px-0">
+					<div className="border-b border-border/50 ">
+						<TabsList className="bg-transparent gap-0 h-11">
+							{tabs.map((tab) => {
+								const Icon = tab.icon
+								const isActive = activeTab === tab.value
+
+								return (
+									<TabsTrigger
+										key={tab.value}
+										value={tab.value}
+										className={cn(
+											'relative flex items-center gap-2 px-4 py-2 text-sm font-medium',
+											'transition-colors duration-150',
+											'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+											isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'
+										)}
+									>
+										{/* Active underline indicator */}
+										{isActive && (
+											<motion.div
+												layoutId="archive-tab-indicator"
+												className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary"
+												transition={{
+													type: 'spring',
+													stiffness: 500,
+													damping: 35,
+												}}
+											/>
+										)}
+
+										<Icon className="h-4 w-4 relative z-10" />
+										<span className="relative z-10">{tab.label}</span>
+									</TabsTrigger>
+								)
+							})}
 						</TabsList>
 					</div>
 
-					<div className="flex-1 overflow-y-auto">
-						<TabsContent value="export" className="m-0 p-6 h-full">
-							<div className="max-w-lg mx-auto">
-								<div className="mb-6">
-									<h2 className="text-xl font-semibold mb-2">Export Notes</h2>
-									<p className="text-sm text-muted-foreground">
-										Download a backup of all your notes and folders
-									</p>
-								</div>
-								<ExportPanel />
-							</div>
-						</TabsContent>
+					<div className="flex-1 overflow-y-auto p-6">
+						<div className="max-w-lg mx-auto">
+							{activeTab === 'export' && (
+								<>
+									<div className="mb-6">
+										<h2 className="text-xl font-semibold mb-2">Export Notes</h2>
+										<p className="text-sm text-muted-foreground">
+											Download a backup of all your notes and folders
+										</p>
+									</div>
+									<ExportPanel />
+								</>
+							)}
 
-						<TabsContent value="import" className="m-0 p-6 h-full">
-							<div className="max-w-lg mx-auto">
-								<div className="mb-6">
-									<h2 className="text-xl font-semibold mb-2">Import Notes</h2>
-									<p className="text-sm text-muted-foreground">
-										Restore from a backup or import from other apps
-									</p>
-								</div>
-								<ImportPanel />
-							</div>
-						</TabsContent>
-
-						<TabsContent value="trash" className="m-0 p-6 h-full">
-							<div className="max-w-lg mx-auto">
-								<div className="mb-6">
-									<h2 className="text-xl font-semibold mb-2">Trash</h2>
-									<p className="text-sm text-muted-foreground">
-										Deleted items are kept here for 30 days
-									</p>
-								</div>
-								<TrashPanel />
-							</div>
-						</TabsContent>
+							{activeTab === 'import' && (
+								<>
+									<div className="mb-6">
+										<h2 className="text-xl font-semibold mb-2">Import Notes</h2>
+										<p className="text-sm text-muted-foreground">
+											Restore from a backup or import from other apps
+										</p>
+									</div>
+									<ImportPanel />
+								</>
+							)}
+						</div>
 					</div>
 				</Tabs>
 			</div>
 		</div>
 	)
 }
+

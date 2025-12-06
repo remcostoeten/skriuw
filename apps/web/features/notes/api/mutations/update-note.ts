@@ -1,5 +1,6 @@
 
 import { invalidateItemsCache } from '../queries/get-items'
+import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 import type { Note, UpdateNoteData } from '../../types'
 import { update } from '../../../../lib/storage'
 import { syncTasksToDatabase } from '../../../tasks'
@@ -16,6 +17,7 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 		} as Partial<Note>)
 
 		invalidateItemsCache()
+		invalidatePrefetchedNote(id)
 
 		// Sync tasks to database if content was updated
 		if (data.content && Array.isArray(data.content)) {

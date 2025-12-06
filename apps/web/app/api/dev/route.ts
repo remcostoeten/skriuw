@@ -1,114 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
 import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp } from '@skriuw/db'
+import { sampleNotes, sampleFolders } from './seeds'
 
-// Only allow in development
 function isDev() {
 	return process.env.NODE_ENV === 'development'
 }
-
-// Sample seed data
-const sampleNotes = [
-	{
-		name: 'Welcome to Skriuw',
-		content: [
-			{
-				id: 'welcome-h1',
-				type: 'heading',
-				props: { level: 1 },
-				content: [{ type: 'text', text: 'Welcome to Skriuw', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'welcome-p1',
-				type: 'paragraph',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-				content: [{ type: 'text', text: 'A blazingly fast, privacy-focused note-taking app.', styles: {} }],
-				children: [],
-			},
-		],
-		pinned: true,
-	},
-	{
-		name: 'Getting Started',
-		content: [
-			{
-				id: 'gs-h1',
-				type: 'heading',
-				props: { level: 2 },
-				content: [{ type: 'text', text: 'Getting Started', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'gs-p1',
-				type: 'paragraph',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-				content: [{ type: 'text', text: 'Create notes and folders using the sidebar or keyboard shortcuts.', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'gs-list',
-				type: 'bulletListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-				content: [{ type: 'text', text: 'Press Ctrl+N to create a new note', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'gs-list2',
-				type: 'bulletListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-				content: [{ type: 'text', text: 'Press Ctrl+F to create a new folder', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'gs-list3',
-				type: 'bulletListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-				content: [{ type: 'text', text: 'Press Ctrl+/ to view all shortcuts', styles: {} }],
-				children: [],
-			},
-		],
-	},
-	{
-		name: 'Sample Note with Tasks',
-		content: [
-			{
-				id: 'task-h1',
-				type: 'heading',
-				props: { level: 2 },
-				content: [{ type: 'text', text: 'My Todo List', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'task-cb1',
-				type: 'checkListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: false },
-				content: [{ type: 'text', text: 'Learn keyboard shortcuts', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'task-cb2',
-				type: 'checkListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: true },
-				content: [{ type: 'text', text: 'Create first note', styles: {} }],
-				children: [],
-			},
-			{
-				id: 'task-cb3',
-				type: 'checkListItem',
-				props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: false },
-				content: [{ type: 'text', text: 'Organize notes into folders', styles: {} }],
-				children: [],
-			},
-		],
-	},
-]
-
-const sampleFolders = [
-	{ name: 'Projects', children: ['Project Alpha', 'Project Beta'] },
-	{ name: 'Personal' },
-	{ name: 'Archive' },
-]
 
 function generateId(prefix: 'note' | 'folder') {
 	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -286,11 +182,11 @@ export async function POST(request: NextRequest) {
 			case 'clear-cache': {
 				// Clear Next.js build cache and restart dev server
 				const { execSync } = require('child_process')
-				
+
 				try {
 					// Clear Next.js cache
 					execSync('rm -rf .next', { cwd: process.cwd(), stdio: 'pipe' })
-					
+
 					return NextResponse.json({
 						success: true,
 						action: 'clear-cache',

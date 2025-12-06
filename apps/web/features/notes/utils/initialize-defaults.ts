@@ -1,5 +1,6 @@
 import { createFolder } from '../api/mutations/create-folder'
 import { createNote } from '../api/mutations/create-note'
+import { updateNote } from '../api/mutations/update-note'
 import { getItems } from '../api/queries/get-items'
 import {
 	welcomeSeed,
@@ -126,7 +127,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 		const itemsAfterServo = await getItems()
 		const installNote = findNoteByName(itemsAfterServo, installNoteSeed.name, servoFolder.id)
 		if (!installNote) {
-			const installContent = await (await import('./markdown-to-blocks')).markdownToBlocks(installNoteSeed.contentMarkdown || '')
+			const installContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(installNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: installNoteSeed.name,
@@ -144,7 +147,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!localUsageNote) {
-			const localUsageContent = await (await import('./markdown-to-blocks')).markdownToBlocks(localUsageNoteSeed.contentMarkdown || '')
+			const localUsageContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(localUsageNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: localUsageNoteSeed.name,
@@ -162,7 +167,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!taskInEditorNote) {
-			const taskInEditorContent = await (await import('./markdown-to-blocks')).markdownToBlocks(taskInEditorNoteSeed.contentMarkdown || '')
+			const taskInEditorContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(taskInEditorNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: taskInEditorNoteSeed.name,
@@ -180,9 +187,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!vimKeybindingsNote) {
-			const vimKeybindingsContent = await (await import('./markdown-to-blocks')).markdownToBlocks(
-				vimKeybindingsNoteSeed.contentMarkdown || ''
-			)
+			const vimKeybindingsContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(vimKeybindingsNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: vimKeybindingsNoteSeed.name,
@@ -200,7 +207,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!fontSettingsNote) {
-			const fontSettingsContent = await (await import('./markdown-to-blocks')).markdownToBlocks(fontSettingsNoteSeed.contentMarkdown || '')
+			const fontSettingsContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(fontSettingsNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: fontSettingsNoteSeed.name,
@@ -218,9 +227,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!pinAndFavoriteItemsNote) {
-			const pinAndFavoriteItemsContent = await (await import('./markdown-to-blocks')).markdownToBlocks(
-				pinAndFavoriteItemsNoteSeed.contentMarkdown || ''
-			)
+			const pinAndFavoriteItemsContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(pinAndFavoriteItemsNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: pinAndFavoriteItemsNoteSeed.name,
@@ -238,9 +247,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!multiSelectBulkOperationsNote) {
-			const multiSelectBulkOperationsContent = await (await import('./markdown-to-blocks')).markdownToBlocks(
-				multiSelectBulkOperationsNoteSeed.contentMarkdown || ''
-			)
+			const multiSelectBulkOperationsContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(multiSelectBulkOperationsNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: multiSelectBulkOperationsNoteSeed.name,
@@ -258,9 +267,9 @@ async function ensureToDoFolderStructure(): Promise<void> {
 			servoFolder.id
 		)
 		if (!shiftClickRangeSelectionNote) {
-			const shiftClickRangeSelectionContent = await (await import('./markdown-to-blocks')).markdownToBlocks(
-				shiftClickRangeSelectionNoteSeed.contentMarkdown || ''
-			)
+			const shiftClickRangeSelectionContent = await (
+				await import('./markdown-to-blocks')
+			).markdownToBlocks(shiftClickRangeSelectionNoteSeed.contentMarkdown || '')
 
 			await createNote({
 				name: shiftClickRangeSelectionNoteSeed.name,
@@ -288,11 +297,13 @@ async function ensureReleaseNotes(): Promise<void> {
 
 		// Process release note seeds
 		const releaseNoteSeeds = [releaseNote20251125Seed, releaseNote20251205Seed]
-		
+
 		for (const seed of releaseNoteSeeds) {
 			const existing = findNoteByName(items, seed.name, releasesFolder.id)
 			if (!existing) {
-				const content = await (await import('./markdown-to-blocks')).markdownToBlocks(seed.contentMarkdown || '')
+				const content = await (
+					await import('./markdown-to-blocks')
+				).markdownToBlocks(seed.contentMarkdown || '')
 				await createNote({
 					name: seed.name,
 					content,
@@ -309,6 +320,40 @@ async function ensureReleaseNotes(): Promise<void> {
 }
 
 const INITIALIZATION_FLAG_KEY = 'skriuw_defaults_initialized'
+
+/**
+ * Fix existing Architecture Overview note if it has malformed content
+ */
+async function fixArchitectureOverviewNote(): Promise<void> {
+	try {
+		const items = await getItems()
+		const existingNote = findNoteByName(items, architectureOverviewSeed.name)
+
+		if (existingNote) {
+			// Check if the note content contains malformed code blocks
+			const contentStr = JSON.stringify(existingNote.content)
+			const hasMalformedCodeBlock =
+				contentStr.includes('Frontend Components') &&
+				contentStr.includes('hardBreak') &&
+				!contentStr.includes('language')
+
+			if (hasMalformedCodeBlock) {
+				console.info('Fixing malformed Architecture Overview note content')
+				const fixedContent = await (
+					await import('./markdown-to-blocks')
+				).markdownToBlocks(architectureOverviewSeed.contentMarkdown || '')
+
+				await updateNote(existingNote.id, {
+					content: fixedContent,
+				})
+				console.info('Successfully fixed Architecture Overview note')
+			}
+		}
+	} catch (error) {
+		console.error('Failed to fix Architecture Overview note:', error)
+		// Don't throw - allow app to continue
+	}
+}
 
 /**
  * Check if defaults have been initialized (using localStorage for persistence across refreshes)
@@ -385,7 +430,9 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 
 				let contentBlocks = note.content
 				if (!contentBlocks && note.contentMarkdown) {
-					contentBlocks = await (await import('./markdown-to-blocks')).markdownToBlocks(note.contentMarkdown)
+					contentBlocks = await (
+						await import('./markdown-to-blocks')
+					).markdownToBlocks(note.contentMarkdown)
 				}
 
 				await createNote({
@@ -412,6 +459,9 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 		// Always ensure the "To Do" folder structure exists
 		await ensureToDoFolderStructure()
 		await ensureReleaseNotes()
+
+		// Fix existing malformed Architecture Overview note if needed
+		await fixArchitectureOverviewNote()
 	} catch (error) {
 		console.error('Failed to initialize default notes and folders:', error)
 		// Don't throw - allow app to continue even if defaults fail

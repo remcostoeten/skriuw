@@ -9,15 +9,21 @@ import {
 	useState,
 	type MouseEvent as ReactMouseEvent,
 	type TouchEvent as ReactTouchEvent,
-	type CSSProperties,
+	type CSSProperties
 } from 'react'
 
-import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic'
+import {
+	createFocusTrap,
+	Portal,
+	useMediaQuery,
+	MOBILE_BREAKPOINT
+} from '@skriuw/core-logic'
 
 type DialogContextValue = {
 	open: boolean
 	onOpenChange: (open: boolean) => void
 	isMobile: boolean
+	fullscreen: boolean
 }
 
 const DialogContext = createContext<DialogContextValue | undefined>(undefined)
@@ -25,7 +31,9 @@ const DialogContext = createContext<DialogContextValue | undefined>(undefined)
 function useDialogContext(): DialogContextValue {
 	const context = useContext(DialogContext)
 	if (!context) {
-		throw new Error('Dialog components must be used within a Dialog provider')
+		throw new Error(
+			'Dialog components must be used within a Dialog provider'
+		)
 	}
 	return context
 }
@@ -37,6 +45,7 @@ type props = {
 	mobileBreakpoint?: string
 	closeOnEscape?: boolean
 	closeOnOutsideClick?: boolean
+	fullscreen?: boolean
 }
 
 export function DrawerDialog({
@@ -46,6 +55,7 @@ export function DrawerDialog({
 	mobileBreakpoint = MOBILE_BREAKPOINT,
 	closeOnEscape = true,
 	closeOnOutsideClick = true,
+	fullscreen = false
 }: props) {
 	const isMobile = useMediaQuery(mobileBreakpoint)
 
@@ -72,7 +82,9 @@ export function DrawerDialog({
 	}, [open])
 
 	return (
-		<DialogContext.Provider value={{ open, onOpenChange, isMobile }}>
+		<DialogContext.Provider
+			value={{ open, onOpenChange, isMobile, fullscreen }}
+		>
 			<DrawerDialogOverlay closeOnOutsideClick={closeOnOutsideClick} />
 			{children}
 		</DialogContext.Provider>
@@ -83,7 +95,9 @@ type DrawerDialogOverlayProps = {
 	closeOnOutsideClick?: boolean
 }
 
-function DrawerDialogOverlay({ closeOnOutsideClick = true }: DrawerDialogOverlayProps) {
+function DrawerDialogOverlay({
+	closeOnOutsideClick = true
+}: DrawerDialogOverlayProps) {
 	const { open, onOpenChange } = useDialogContext()
 
 	if (!open) return null
@@ -104,9 +118,9 @@ function DrawerDialogOverlay({ closeOnOutsideClick = true }: DrawerDialogOverlay
 						exit={{ opacity: 0 }}
 						transition={{
 							duration: 0.3,
-							ease: [0.25, 0.46, 0.45, 0.94],
+							ease: [0.25, 0.46, 0.45, 0.94]
 						}}
-						className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-md"
+						className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm"
 						onClick={handleClick}
 						aria-hidden="true"
 					/>
@@ -127,9 +141,9 @@ export function DrawerContent({
 	children,
 	className = '',
 	enableDragToClose = true,
-	dragThreshold = 100,
+	dragThreshold = 100
 }: DrawerContentProps) {
-	const { open, onOpenChange, isMobile } = useDialogContext()
+	const { open, onOpenChange, isMobile, fullscreen } = useDialogContext()
 	const contentRef = useRef<HTMLDivElement>(null)
 	const [dragOffset, setDragOffset] = useState(0)
 	const startYRef = useRef(0)
@@ -146,7 +160,8 @@ export function DrawerContent({
 	const handleDragStart = (event: ReactTouchEvent | ReactMouseEvent) => {
 		if (!isMobile || !enableDragToClose) return
 
-		const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+		const clientY =
+			'touches' in event ? event.touches[0].clientY : event.clientY
 		startYRef.current = clientY
 		isDraggingRef.current = true
 	}
@@ -154,7 +169,8 @@ export function DrawerContent({
 	const handleDragMove = (event: ReactTouchEvent | ReactMouseEvent) => {
 		if (!isDraggingRef.current || startYRef.current === 0) return
 
-		const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
+		const clientY =
+			'touches' in event ? event.touches[0].clientY : event.clientY
 		const diff = clientY - startYRef.current
 
 		if (diff > 0) {
@@ -198,7 +214,7 @@ export function DrawerContent({
 						style={{
 							height: '65vh',
 							transform: `translateY(${dragOffset}px)`,
-							touchAction: 'none',
+							touchAction: 'none'
 						}}
 						onClick={handleContentClick}
 						onTouchStart={handleDragStart}
@@ -225,7 +241,7 @@ export function DrawerContent({
 		<AnimatePresence>
 			{open && (
 				<Portal>
-					<div className="fixed inset-0 z-[9999] flex items-center justify-center">
+					<div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
 						<motion.div
 							ref={contentRef}
 							role="dialog"
@@ -236,9 +252,9 @@ export function DrawerContent({
 							exit={{ opacity: 0, scale: 0.95 }}
 							transition={{
 								duration: 0.2,
-								ease: [0.4, 0, 0.2, 1],
+								ease: [0.4, 0, 0.2, 1]
 							}}
-							className={`w-[90%] h-[90%] top-[5%] right-[5%] bottom-[5%] left-[5%] fixed bg-popover text-popover-foreground rounded-lg shadow-lg p-6 gap-4 flex flex-col overflow-hidden ${className}`}
+							className={`${fullscreen ? 'w-full h-full' : 'w-full h-full max-w-[1400px] max-h-[900px]'} bg-popover text-popover-foreground rounded-xl shadow-2xl border border-border/40 flex flex-col overflow-hidden ${className}`}
 							onClick={handleContentClick}
 						>
 							{children}
@@ -256,7 +272,11 @@ type DrawerHeaderProps = {
 }
 
 export function DrawerHeader({ children, className = '' }: DrawerHeaderProps) {
-	return <div className={`flex flex-col gap-1.5 pb-4 ${className}`}>{children}</div>
+	return (
+		<div className={`flex flex-col gap-1.5 pb-4 ${className}`}>
+			{children}
+		</div>
+	)
 }
 
 type DrawerTitleProps = {
@@ -265,7 +285,11 @@ type DrawerTitleProps = {
 }
 
 export function DrawerTitle({ children, className = '' }: DrawerTitleProps) {
-	return <h2 className={`text-lg font-semibold text-foreground ${className}`}>{children}</h2>
+	return (
+		<h2 className={`text-lg font-semibold text-foreground ${className}`}>
+			{children}
+		</h2>
+	)
 }
 
 type DrawerCloseProps = {
@@ -275,7 +299,7 @@ type DrawerCloseProps = {
 
 export function DrawerClose({
 	className = '',
-	'aria-label': ariaLabel = 'Close dialog',
+	'aria-label': ariaLabel = 'Close dialog'
 }: DrawerCloseProps) {
 	const { onOpenChange } = useDialogContext()
 
@@ -298,7 +322,9 @@ type DrawerFooterProps = {
 
 export function DrawerFooter({ children, className = '' }: DrawerFooterProps) {
 	return (
-		<div className={`flex items-center justify-end gap-2 pt-4 border-t border-border ${className}`}>
+		<div
+			className={`flex items-center justify-end gap-2 pt-4 border-t border-border ${className}`}
+		>
 			{children}
 		</div>
 	)
@@ -338,11 +364,21 @@ export type DialogSectionProps = {
 	labelClassName?: string
 }
 
-export function DialogSection({ label, children, className, labelClassName }: DialogSectionProps) {
+export function DialogSection({
+	label,
+	children,
+	className,
+	labelClassName
+}: DialogSectionProps) {
 	return (
 		<div className={className || 'flex flex-col items-start gap-2 w-full'}>
 			{label && (
-				<label className={labelClassName || 'font-medium text-muted-foreground text-xs pl-2'}>
+				<label
+					className={
+						labelClassName ||
+						'font-medium text-muted-foreground text-xs pl-2'
+					}
+				>
 					{label}
 				</label>
 			)}
@@ -357,7 +393,11 @@ export type DialogSeparatorProps = {
 
 export function DialogSeparator({ className }: DialogSeparatorProps) {
 	return (
-		<div role="none" aria-hidden="true" className={className || 'shrink-0 bg-border h-px w-full'} />
+		<div
+			role="none"
+			aria-hidden="true"
+			className={className || 'shrink-0 bg-border h-px w-full'}
+		/>
 	)
 }
 
@@ -366,7 +406,10 @@ export type DialogContentAreaProps = {
 	className?: string
 }
 
-export function DialogContentArea({ children, className }: DialogContentAreaProps) {
+export function DialogContentArea({
+	children,
+	className
+}: DialogContentAreaProps) {
 	return (
 		<div
 			className={
@@ -393,7 +436,11 @@ export type DialogNavGroupProps = {
 	className?: string
 }
 
-export function DialogNavGroup({ label, items, className }: DialogNavGroupProps) {
+export function DialogNavGroup({
+	label,
+	items,
+	className
+}: DialogNavGroupProps) {
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 	const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
@@ -402,7 +449,11 @@ export function DialogNavGroup({ label, items, className }: DialogNavGroupProps)
 
 	const activeIndex = items.findIndex((item) => item.active)
 	const currentIndex =
-		hoveredIndex !== null ? hoveredIndex : focusedIndex !== null ? focusedIndex : activeIndex
+		hoveredIndex !== null
+			? hoveredIndex
+			: focusedIndex !== null
+				? focusedIndex
+				: activeIndex
 
 	useEffect(() => {
 		if (currentIndex === -1 || !containerRef.current) return
@@ -417,7 +468,7 @@ export function DialogNavGroup({ label, items, className }: DialogNavGroupProps)
 
 		setIndicatorStyle({
 			top: `${top}px`,
-			height: `${height}px`,
+			height: `${height}px`
 		})
 	}, [currentIndex, items])
 
@@ -428,19 +479,29 @@ export function DialogNavGroup({ label, items, className }: DialogNavGroupProps)
 
 			// Only handle if focus is within this nav group
 			const focusedElement = document.activeElement
-			const isInGroup = itemRefs.current.some((ref) => ref === focusedElement)
+			const isInGroup = itemRefs.current.some(
+				(ref) => ref === focusedElement
+			)
 			if (!isInGroup) return
 
 			e.preventDefault()
 
-			const currentFocusIndex = itemRefs.current.findIndex((ref) => ref === focusedElement)
+			const currentFocusIndex = itemRefs.current.findIndex(
+				(ref) => ref === focusedElement
+			)
 			if (currentFocusIndex === -1) return
 
 			let newIndex = currentFocusIndex
 			if (e.key === 'ArrowDown') {
-				newIndex = currentFocusIndex < items.length - 1 ? currentFocusIndex + 1 : 0
+				newIndex =
+					currentFocusIndex < items.length - 1
+						? currentFocusIndex + 1
+						: 0
 			} else {
-				newIndex = currentFocusIndex > 0 ? currentFocusIndex - 1 : items.length - 1
+				newIndex =
+					currentFocusIndex > 0
+						? currentFocusIndex - 1
+						: items.length - 1
 			}
 
 			setFocusedIndex(newIndex)
@@ -454,9 +515,14 @@ export function DialogNavGroup({ label, items, className }: DialogNavGroupProps)
 	}, [items.length])
 
 	return (
-		<div ref={containerRef} className={className || 'relative flex flex-col gap-1 w-full'}>
+		<div
+			ref={containerRef}
+			className={className || 'relative flex flex-col gap-1 w-full'}
+		>
 			{label && (
-				<span className="text-xs font-medium text-muted-foreground/50 px-2 py-1">{label}</span>
+				<span className="text-xs font-medium text-muted-foreground/50 px-2 py-1">
+					{label}
+				</span>
 			)}
 			{/* Sliding indicator */}
 			{activeIndex !== -1 && (
@@ -479,17 +545,18 @@ export function DialogNavGroup({ label, items, className }: DialogNavGroupProps)
 						// Only clear focused index if focus is moving outside the group
 						setTimeout(() => {
 							const activeElement = document.activeElement
-							const isStillInGroup = itemRefs.current.some((ref) => ref === activeElement)
+							const isStillInGroup = itemRefs.current.some(
+								(ref) => ref === activeElement
+							)
 							if (!isStillInGroup) {
 								setFocusedIndex(null)
 							}
 						}, 0)
 					}}
-					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full focus:outline-none focus:ring-2 focus:ring-ring ${
-						item.active
-							? 'text-accent-foreground bg-accent'
-							: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
-					}`}
+					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-ring ${item.active
+						? 'text-accent-foreground bg-accent'
+						: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
+						}`}
 				>
 					{item.icon}
 					<span>{item.label}</span>

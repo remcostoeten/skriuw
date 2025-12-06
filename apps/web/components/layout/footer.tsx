@@ -1,15 +1,12 @@
 import { CloudOff, Globe, Zap, Upload } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
-import { Kbd } from '@skriuw/ui/kbd'
-import { ThemeToggle } from '@skriuw/ui/theme-toggle'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@skriuw/ui/tooltip'
-
 import { useSettingsContext } from '../../features/settings/settings-provider'
 import { createShortcut } from '../../features/shortcuts/builder'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
 
 import { SidebarMenu } from '../sidebar-menu'
+import { Kbd, ThemeToggle, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
 
 export function Footer() {
 	const [activeMenu, setActiveMenu] = useState<string | null>(null)

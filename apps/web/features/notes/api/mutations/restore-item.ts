@@ -1,6 +1,7 @@
 import { update } from '../../../../lib/storage'
 
 import { invalidateItemsCache } from '../queries/get-items'
+import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 
@@ -12,11 +13,12 @@ const STORAGE_KEY = 'Skriuw_notes'
 export async function restoreItem(id: string): Promise<boolean> {
 	try {
 		const result = await update(STORAGE_KEY, id, {
-			deletedAt: undefined,
+			deletedAt: null,
 		} as Partial<Item>)
 
 		if (result) {
 			invalidateItemsCache()
+			invalidatePrefetchedNote(id)
 			return true
 		}
 		return false
