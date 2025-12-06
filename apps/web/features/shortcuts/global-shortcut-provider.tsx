@@ -15,7 +15,7 @@ export type ShortcutContextValue = {
  * Separated concern: key matching algorithm.
  */
 function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
-	return keys.every((k) => {
+	const result = keys.every((k) => {
 		if (k === 'Ctrl') return event.ctrlKey
 		if (k === 'Meta') return event.metaKey
 		if (k === 'Shift') return event.shiftKey
@@ -23,14 +23,27 @@ function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
 		// Handle comma key specially - check both event.key and event.code
 		// k is "," (string) from definition, event.key is "," when comma is pressed
 		if (k === ',') {
-			return event.key === ',' || event.code === 'Comma'
+			const matches = event.key === ',' || event.code === 'Comma'
+			console.log(`🔍 Comma check: key="${event.key}" code="${event.code}" matches=${matches}`)
+			return matches
 		}
 		// Handle backtick key - event.code is "Backquote", event.key is "`"
 		if (k === '`') {
 			return event.key === '`' || event.code === 'Backquote'
 		}
-		return event.key.toLowerCase() === k.toLowerCase()
+		const matches = event.key.toLowerCase() === k.toLowerCase()
+		console.log(`🔍 Key check: "${k}" vs "${event.key}" matches=${matches}`)
+		return matches
 	})
+	console.log(`🎯 Key combo match: [${keys.join('+')}] -> ${result}`, {
+		key: event.key,
+		code: event.code,
+		ctrlKey: event.ctrlKey,
+		altKey: event.altKey,
+		metaKey: event.metaKey,
+		shiftKey: event.shiftKey,
+	})
+	return result
 }
 
 function matchesAnyCombination(event: KeyboardEvent, combos: KeyCombo[]): boolean {
@@ -73,12 +86,25 @@ function createKeyDownHandler(
 			const keyCombos = customShortcuts[id] || definition.keys
 
 			if (matchesAnyCombination(event, keyCombos)) {
+				console.log(`🎯 Shortcut matched: ${id}`, {
+					key: event.key,
+					code: event.code,
+					ctrlKey: event.ctrlKey,
+					altKey: event.altKey,
+					metaKey: event.metaKey,
+					inInput,
+				})
+
 				// If in input/editor, only trigger shortcuts with modifiers
 				if (inInput) {
 					const hasModifier = event.ctrlKey || event.metaKey || event.altKey
-					if (!hasModifier) continue
+					if (!hasModifier) {
+						console.log(`❌ Shortcut blocked: in input context without modifier`)
+						continue
+					}
 				}
 
+				console.log(`✅ Executing shortcut: ${id}`)
 				handler(event)
 				return // Only trigger the first matching shortcut
 			}
@@ -106,6 +132,7 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 				console.warn(`Shortcut "${id}" is disabled and cannot be registered`)
 				return
 			}
+			console.log(`📝 Registering shortcut: ${id}`, definition.keys)
 			shortcuts.current.set(id, handler)
 		},
 		unregister: (id: ShortcutId) => {
@@ -135,8 +162,8 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 
 	useEffect(() => {
 		const handleKeyDown = createKeyDownHandler(shortcuts, customShortcuts)
-		window.addEventListener('keydown', handleKeyDown)
-		return () => window.removeEventListener('keydown', handleKeyDown)
+		window.addEventListener('keydown', handleKeyDown, true) // Use capture phase
+		return () => window.removeEventListener('keydown', handleKeyDown, true)
 	}, [customShortcuts])
 
 	return (

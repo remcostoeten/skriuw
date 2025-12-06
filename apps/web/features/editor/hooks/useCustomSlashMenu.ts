@@ -58,7 +58,9 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 					content: [],
 				})
 				// Focus the task block for immediate editing
-				editor.setTextCursorPosition(currentBlock, 'end')
+				setTimeout(() => {
+					editor.setTextCursorPosition(currentBlock, 'end')
+				}, 0)
 			},
 			aliases: ['task', 'todo', 'checkbox', 'check'],
 			subtext: 'Create a task item',
