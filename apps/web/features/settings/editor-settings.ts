@@ -50,15 +50,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'editor',
 		implemented: true,
 	},
-	{
-		key: 'placeholder',
-		value: 'Start typing your note...',
-		defaultValue: 'Start typing your note...',
-		type: 'string',
-		description: 'Placeholder text shown in empty editor',
-		category: 'editor',
-		implemented: true,
-	},
+
 	{
 		key: 'centeredLayout',
 		value: false,
@@ -76,7 +68,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'How the title in the top bar should be displayed',
 		category: 'appearance',
 		options: ['filename', 'firstHeading', 'aiGenerated'],
-		implemented: true,
+		implemented: false,
 	},
 	{
 		key: 'searchInContent',

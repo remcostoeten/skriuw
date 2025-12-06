@@ -115,7 +115,7 @@
 	html {
 		color-scheme: dark;
 	}
-	
+
 	html:not(.light) {
 		background-color: hsl(0 0% 7%);
 	}

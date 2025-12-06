@@ -13,7 +13,6 @@ interface DualModeEditorProps {
 	editor: any // BlockNoteEditor instance
 	value: Block[]
 	onChange: (blocks: Block[]) => void
-	placeholder?: string
 	disabled?: boolean
 	fontSize?: string
 	fontFamily?: string
@@ -32,7 +31,7 @@ export function DualModeEditor({
 	editor,
 	value,
 	onChange,
-	placeholder = 'Start typing your note...',
+
 	disabled = false,
 	fontSize = '16px',
 	fontFamily = '"Inter", system-ui, sans-serif',
@@ -246,7 +245,6 @@ export function DualModeEditor({
 					<RawMDXEditor
 						value={rawMDXContent}
 						onChange={handleMDXChange}
-						placeholder={placeholder}
 						disabled={disabled}
 						wordWrap={wordWrap}
 						fontSize={fontSize}
@@ -270,7 +268,6 @@ export function DualModeEditor({
 				<RawMDXEditor
 					value={rawMDXContent}
 					onChange={handleMDXChange}
-					placeholder={placeholder}
 					disabled={disabled}
 					wordWrap={wordWrap}
 					fontSize={fontSize}
