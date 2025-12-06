@@ -5,8 +5,8 @@ import { useUserPreferences } from '../../settings/use-feature-flags'
 import { markdownToBlocks } from '../../notes/utils/markdown-to-blocks'
 import { blocksToMarkdown } from '../../notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
-import { NoteMentionSuggestionMenu } from './note-suggestions-menu'
-import { SlashSuggestionMenu } from './slash-suggestions-menu'
+import { NoteMentionSuggestionMenu } from '../slash-menu/note-suggestions-menu'
+import { SlashSuggestionMenu } from '../slash-menu/slash-suggestions-menu'
 import { cn } from '@skriuw/core-logic'
 
 interface DualModeEditorProps {

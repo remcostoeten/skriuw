@@ -28,7 +28,7 @@ This document describes the current architecture of Skriuw, a Next.js-based note
 
 ### Data Flow
 
-\`\`\`
+\`\`\`text
 Frontend Components
   ↓
 React Hooks (useNotes, etc.)
@@ -82,7 +82,7 @@ The application uses a generic storage adapter pattern:
 
 ## File Structure
 
-\`\`\`
+\`\`\`text
 app/
   ├── api/              # API route handlers
   ├── page.tsx          # Home page
