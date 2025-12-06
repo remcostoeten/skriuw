@@ -2,6 +2,8 @@ import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from 'r
 
 import { cn } from '@skriuw/core-logic'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
+import { Icons } from '@skriuw/ui'
+
 
 type props = {
 	leftToolbar?: ReactNode
@@ -81,6 +83,7 @@ export function AppLayoutShell({
 	return (
 		<div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
 			<div className="flex flex-1 overflow-hidden relative">
+
 				{/* Enhanced backdrop for mobile - better z-index and handling */}
 				{isSidebarOpen && isMobile && (
 					<div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={handleBackdropClick} />
@@ -106,7 +109,7 @@ export function AppLayoutShell({
 							isMobile && (isSidebarOpen ? 'translate-x-0' : '-translate-x-full'),
 							// Desktop toggle behavior
 							!isMobile &&
-								(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'),
+							(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'),
 							// Hide on desktop when closed
 							!isMobile && !isDesktopSidebarOpen && 'lg:-translate-x-full'
 						)}
