@@ -19,15 +19,19 @@ type UIState = {
 	isSettingsOpen: boolean
 	toggleSettings: () => void
 	setSettingsOpen: (open: boolean) => void
+
+	activeTaskId: string | null
+	setActiveTask: (taskId: string | null) => void
+	openTaskPanel: (taskId: string) => void
 }
 
 const safeStorage = () => {
 	if (typeof window === 'undefined') {
 		const noopStorage: Storage = {
 			getItem: () => null,
-			setItem: () => {},
-			removeItem: () => {},
-			clear: () => {},
+			setItem: () => { },
+			removeItem: () => { },
+			clear: () => { },
 			key: () => null,
 			length: 0,
 		}
@@ -67,6 +71,11 @@ export const useUIStore = create<UIState>()(
 					isSettingsOpen: !state.isSettingsOpen,
 				})),
 			setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+
+			// Task Side Panel
+			activeTaskId: null,
+			setActiveTask: (taskId) => set({ activeTaskId: taskId }),
+			openTaskPanel: (taskId) => set({ activeTaskId: taskId, isShortcutsSidebarOpen: false }),
 		}),
 		{
 			name: 'ui-storage',
