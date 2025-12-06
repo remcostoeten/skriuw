@@ -12,6 +12,7 @@ export * from './form'
 export * from './hero-badge'
 export * from './icons'
 export * from './input'
+export * from './kbd'
 
 export * from './label'
 export * from './notification-popover'
