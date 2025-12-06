@@ -79,6 +79,15 @@
         "react-dom": "^19.2.0",
       },
     },
+    "packages/crud": {
+      "name": "@skriuw/crud",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/node": "^20.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
     "packages/db": {
       "name": "@skriuw/db",
       "version": "0.0.0",
@@ -503,6 +512,8 @@
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
 
     "@skriuw/core-logic": ["@skriuw/core-logic@workspace:packages/core-logic"],
+
+    "@skriuw/crud": ["@skriuw/crud@workspace:packages/crud"],
 
     "@skriuw/db": ["@skriuw/db@workspace:packages/db"],
 

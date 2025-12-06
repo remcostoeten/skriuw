@@ -1,0 +1,40 @@
+{
+    "name": "@skriuw/crud",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./types": {
+            "types": "./dist/types/index.d.ts",
+            "import": "./dist/types/index.js"
+        },
+        "./errors": {
+            "types": "./dist/errors/index.d.ts",
+            "import": "./dist/errors/index.js"
+        },
+        "./cache": {
+            "types": "./dist/cache/index.d.ts",
+            "import": "./dist/cache/index.js"
+        },
+        "./operations": {
+            "types": "./dist/operations/index.d.ts",
+            "import": "./dist/operations/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0"
+    }
+}
