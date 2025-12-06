@@ -34,7 +34,7 @@ export const taskBlockSpec = createReactBlockSpec(
 
 			return (
 				<div
-					className="bn-task-block flex items-start gap-3 py-1 group relative w-full"
+					className="bn-task-block flex items-center px-2 gap-3 py-1 group relative w-full"
 					data-content-type="task"
 					data-block-id={block.id}
 				>

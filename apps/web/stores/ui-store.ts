@@ -20,9 +20,14 @@ type UIState = {
 	toggleSettings: () => void
 	setSettingsOpen: (open: boolean) => void
 
-	activeTaskId: string | null
+	// Task Side Panel - Stacked Navigation
+	taskStack: string[] // Stack of task IDs for stacked panel navigation
+	activeTaskId: string | null // Computed from stack (last item)
 	setActiveTask: (taskId: string | null) => void
 	openTaskPanel: (taskId: string) => void
+	pushTask: (taskId: string) => void // Add task to stack (dive deeper)
+	popTask: () => void // Remove last task (go back)
+	closeAllTasks: () => void // Close all panels
 }
 
 const safeStorage = () => {
@@ -43,7 +48,7 @@ const safeStorage = () => {
 
 export const useUIStore = create<UIState>()(
 	persist(
-		(set) => ({
+		(set, get) => ({
 			isDesktopSidebarOpen: true,
 			toggleDesktopSidebar: () =>
 				set((state) => ({
@@ -72,10 +77,26 @@ export const useUIStore = create<UIState>()(
 				})),
 			setSettingsOpen: (open) => set({ isSettingsOpen: open }),
 
-			// Task Side Panel
-			activeTaskId: null,
-			setActiveTask: (taskId) => set({ activeTaskId: taskId }),
-			openTaskPanel: (taskId) => set({ activeTaskId: taskId, isShortcutsSidebarOpen: false }),
+			// Task Side Panel - Stacked Navigation
+			taskStack: [],
+			get activeTaskId() {
+				const stack = get().taskStack
+				return stack.length > 0 ? stack[stack.length - 1] : null
+			},
+			setActiveTask: (taskId) => set({
+				taskStack: taskId ? [taskId] : [],
+			}),
+			openTaskPanel: (taskId) => set({
+				taskStack: [taskId],
+				isShortcutsSidebarOpen: false
+			}),
+			pushTask: (taskId) => set((state) => ({
+				taskStack: [...state.taskStack, taskId],
+			})),
+			popTask: () => set((state) => ({
+				taskStack: state.taskStack.slice(0, -1),
+			})),
+			closeAllTasks: () => set({ taskStack: [] }),
 		}),
 		{
 			name: 'ui-storage',
