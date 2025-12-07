@@ -5,6 +5,8 @@
  * @module @skriuw/crud/types/adapter
  */
 
+import type { BaseEntity } from './base'
+
 /**
  * Storage adapter interface that backends must implement.
  * This is the contract between the CRUD layer and storage implementations.

@@ -16,7 +16,7 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
+    "dev": "echo \"\\n🚀 Starting Skriuw...\\n📦 Database: ${DATABASE_PROVIDER:-postgres} (Check .env to switch)\\n\" && turbo dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo check-types",

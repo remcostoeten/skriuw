@@ -1,7 +1,7 @@
 'use client'
 
-import { Pencil, Hand, Keyboard, Settings, Palette, Sliders } from 'lucide-react'
-import { useState } from 'react'
+import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 
 import {
 	DrawerDialog,
@@ -16,10 +16,16 @@ import {
 	DialogSection,
 	DialogSeparator,
 } from '@skriuw/ui/dialog-drawer'
+import { Input } from '@skriuw/ui/input'
 
 import { useSettings, SettingsGroup } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
-import { ShortcutsReference } from '../features/shortcuts/components'
+import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
+import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
+import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
+import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
+import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
 
 type props = {
 	open: boolean
@@ -29,6 +35,76 @@ type props = {
 export function SidebarMenu({ open, onOpenChange }: props) {
 	const [activeItem, setActiveItem] = useState<string>('editor')
 	const { settings, updateMultipleSettings } = useSettings()
+
+	// Shortcuts state
+	const [shortcuts, setShortcuts] = useState<ShortcutState[]>([])
+	const [recordingId, setRecordingId] = useState<ShortcutId | null>(null)
+	const [searchQuery, setSearchQuery] = useState('')
+	const searchInputRef = useRef<HTMLInputElement>(null)
+
+	// Load shortcuts when opening settings or switching to shortcuts tab
+	useEffect(() => {
+		if (open && activeItem === 'shortcuts') {
+			loadShortcuts()
+		}
+	}, [open, activeItem])
+
+	const loadShortcuts = async () => {
+		const customShortcuts = await getShortcuts()
+
+		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
+			.filter(([, definition]) => definition.enabled !== false)
+			.map(([id, definition]) => {
+				const shortcutId = id as ShortcutId
+				const customKeys = customShortcuts[shortcutId]
+
+				return {
+					id: shortcutId,
+					currentKeys: customKeys || definition.keys,
+					defaultKeys: definition.keys,
+					description: definition.description || id,
+					isCustomized: !!customKeys,
+				}
+			})
+
+		setShortcuts(shortcutStates)
+	}
+
+	// Filter shortcuts based on search query
+	const filteredShortcuts = useMemo(() => {
+		if (!searchQuery.trim()) return shortcuts
+
+		const query = searchQuery.toLowerCase().trim()
+		return shortcuts.filter((shortcut) => {
+			const matchesDescription = shortcut.description.toLowerCase().includes(query)
+			const matchesId = shortcut.id.toLowerCase().includes(query)
+			const matchesKeys = shortcut.currentKeys.some((combo) =>
+				combo.join(' ').toLowerCase().includes(query)
+			)
+			return matchesDescription || matchesId || matchesKeys
+		})
+	}, [shortcuts, searchQuery])
+
+	const handleShortcutChange = async (id: ShortcutId, keys: KeyCombo[]) => {
+		await saveShortcut(id, keys)
+		await loadShortcuts()
+		setRecordingId(null)
+		window.dispatchEvent(new CustomEvent('shortcuts-updated'))
+	}
+
+	const handleResetShortcut = async (id: ShortcutId) => {
+		await resetShortcut(id)
+		await loadShortcuts()
+		window.dispatchEvent(new CustomEvent('shortcuts-updated'))
+	}
+
+	const handleResetAll = async () => {
+		if (confirm('Reset all shortcuts to defaults?')) {
+			await resetAllShortcuts()
+			await loadShortcuts()
+			window.dispatchEvent(new CustomEvent('shortcuts-updated'))
+		}
+	}
 
 	const appItems = [
 		{
@@ -87,7 +163,60 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		// Placeholder content for non-settings sections
 		switch (activeItem) {
 			case 'shortcuts':
-				return <ShortcutsReference />
+				return (
+					<div className="space-y-6">
+						<div className="space-y-2">
+							<h3 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h3>
+							<p className="text-sm text-muted-foreground">
+								Customize keyboard shortcuts for quick access to common actions.
+							</p>
+						</div>
+
+						{/* Search */}
+						<div className="relative">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+							<Input
+								ref={searchInputRef}
+								type="text"
+								placeholder="Search shortcuts..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								className="pl-9 h-9 w-full"
+								aria-label="Search shortcuts"
+							/>
+						</div>
+
+						{/* Content */}
+						<div className="flex-1 overflow-y-auto">
+							{filteredShortcuts.length === 0 ? (
+								<div className="py-12 text-center">
+									<p className="text-sm text-muted-foreground">
+										{searchQuery.trim() ? 'No shortcuts found' : 'No shortcuts available'}
+									</p>
+								</div>
+							) : (
+								<ShortcutsList
+									shortcuts={filteredShortcuts}
+									recordingId={recordingId}
+									onShortcutChange={handleShortcutChange}
+									onResetShortcut={handleResetShortcut}
+									onStartRecording={setRecordingId}
+									onStopRecording={() => setRecordingId(null)}
+								/>
+							)}
+						</div>
+
+						{/* Footer */}
+						<div className="pt-4 border-t border-border">
+							<button
+								onClick={handleResetAll}
+								className="px-4 py-2 rounded-md border border-border hover:bg-accent/30 transition-colors text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+							>
+								Reset All to Defaults
+							</button>
+						</div>
+					</div>
+				)
 			case 'Skriuw':
 				return (
 					<div className="space-y-4">

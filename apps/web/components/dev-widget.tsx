@@ -33,12 +33,14 @@ type DevApiResponse = {
 	error?: string
 	stats?: DbStats
 	restartRequired?: boolean
+	provider?: 'neon' | 'postgres'
 }
 
 export function DevWidget() {
 	const { items, refreshItems } = useNotesContext()
 	const [isOpen, setIsOpen] = useState(false)
 	const [stats, setStats] = useState<DbStats | null>(null)
+	const [provider, setProvider] = useState<'neon' | 'postgres' | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -49,6 +51,7 @@ export function DevWidget() {
 			if (res.ok) {
 				const data = await res.json()
 				setStats(data.stats)
+				if (data.provider) setProvider(data.provider)
 			}
 		} catch (error) {
 			console.error('Failed to fetch dev stats', error)
@@ -155,6 +158,16 @@ export function DevWidget() {
 								<div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
 								DB CONNECTED
 							</div>
+							{provider && (
+								<div className={cn(
+									"flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium",
+									provider === 'neon'
+										? "bg-orange-500/10 border-orange-500/20 text-orange-600"
+										: "bg-blue-500/10 border-blue-500/20 text-blue-600"
+								)}>
+									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
+								</div>
+							)}
 						</div>
 						<button onClick={() => setIsOpen(false)} className="hover:bg-muted rounded p-1 transition-colors">
 							<X className="h-4 w-4 text-muted-foreground" />

@@ -8,6 +8,13 @@
       "when": 1764949102422,
       "tag": "0000_living_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765131009708,
+      "tag": "0001_equal_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

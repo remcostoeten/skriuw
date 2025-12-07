@@ -3,17 +3,8 @@
  * @module @skriuw/crud/types/base
  */
 
-/**
- * Base entity type that all storable entities must extend.
- */
-export interface BaseEntity {
-    /** Unique identifier */
-    id: string
-    /** Unix timestamp (ms) when created */
-    createdAt: number
-    /** Unix timestamp (ms) when last updated */
-    updatedAt: number
-}
+// Re-export BaseEntity from shared package for convenience
+export type { BaseEntity } from '@skriuw/shared'
 
 /**
  * Result wrapper for all CRUD operations.

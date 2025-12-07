@@ -1,77 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
-import { getDatabase, shortcuts } from '@skriuw/db'
-
-function deserializeShortcut(row: typeof shortcuts.$inferSelect) {
-	let parsedKeys: unknown = []
-	try {
-		parsedKeys = JSON.parse(row.keys)
-	} catch (error) {
-		console.warn(`Failed to parse shortcut keys for ${row.id}`, error)
-	}
-
-	return {
-		id: row.id,
-		keys: parsedKeys,
-		customizedAt: new Date(row.customizedAt).toISOString(),
-		createdAt: row.createdAt,
-		updatedAt: row.updatedAt,
-	}
-}
-
-async function upsertShortcut(body: any) {
-	const db = getDatabase()
-	const now = Date.now()
-	const id: string | undefined = body?.id
-	const keys = Array.isArray(body?.keys) ? body.keys : []
-	if (!id) {
-		throw new Error('Shortcut id is required')
-	}
-
-	const customizedAt = typeof body?.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
-	const safeCustomizedAt = Number.isNaN(customizedAt) ? now : customizedAt
-
-	// Use upsert pattern with onConflictDoUpdate - single query instead of select+insert/update
-	const [result] = await db
-		.insert(shortcuts)
-		.values({
-			id,
-			keys: JSON.stringify(keys),
-			customizedAt: safeCustomizedAt,
-			createdAt: now,
-			updatedAt: now,
-		})
-		.onConflictDoUpdate({
-			target: shortcuts.id,
-			set: {
-				keys: JSON.stringify(keys),
-				customizedAt: safeCustomizedAt,
-				updatedAt: now,
-			},
-		})
-		.returning()
-
-	return deserializeShortcut(result)
-}
+import { db } from '../../../lib/storage/adapters/server-db'
 
 export async function GET(request: NextRequest) {
 	try {
-		const db = getDatabase()
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
 
 		if (id) {
-			const result = await db.select().from(shortcuts).where(eq(shortcuts.id, id)).limit(1)
-
-			if (result.length === 0) {
-				return NextResponse.json(null, { status: 404 })
-			}
-
-			return NextResponse.json(deserializeShortcut(result[0]))
+			const result = await db.findById('shortcuts', id)
+			if (!result) return NextResponse.json(null, { status: 404 })
+			return NextResponse.json(result)
 		}
 
-		const allShortcuts = await db.select().from(shortcuts)
-		return NextResponse.json(allShortcuts.map(deserializeShortcut))
+		const all = await db.findAll('shortcuts')
+		return NextResponse.json(all)
 	} catch (error) {
 		console.error('Failed to load shortcuts:', error)
 		return NextResponse.json({ error: 'Failed to load shortcuts' }, { status: 500 })
@@ -81,43 +23,58 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json()
-		const shortcut = await upsertShortcut(body)
-		return NextResponse.json(shortcut, { status: 201 })
+		if (!body?.id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
+
+		const now = Date.now()
+		const customizedAt = typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
+
+		const data = {
+			id: body.id,
+			keys: Array.isArray(body.keys) ? body.keys : [],
+			customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
+			createdAt: now,
+			updatedAt: now,
+		}
+
+		const result = await db.upsert('shortcuts', data)
+		return NextResponse.json(result, { status: 201 })
 	} catch (error) {
 		console.error('Failed to save shortcut:', error)
-		return NextResponse.json(
-			{ error: error instanceof Error ? error.message : 'Failed to save shortcut' },
-			{ status: 400 }
-		)
+		return NextResponse.json({ error: 'Failed to save shortcut' }, { status: 400 })
 	}
 }
 
 export async function PUT(request: NextRequest) {
 	try {
 		const body = await request.json()
-		const shortcut = await upsertShortcut(body)
-		return NextResponse.json(shortcut)
+		if (!body?.id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
+
+		const now = Date.now()
+		const customizedAt = typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
+
+		const data = {
+			id: body.id,
+			keys: Array.isArray(body.keys) ? body.keys : [],
+			customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
+			createdAt: now,
+			updatedAt: now,
+		}
+
+		const result = await db.upsert('shortcuts', data)
+		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to update shortcut:', error)
-		return NextResponse.json(
-			{ error: error instanceof Error ? error.message : 'Failed to update shortcut' },
-			{ status: 400 }
-		)
+		return NextResponse.json({ error: 'Failed to update shortcut' }, { status: 400 })
 	}
 }
 
 export async function DELETE(request: NextRequest) {
 	try {
-		const db = getDatabase()
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
+		if (!id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
 
-		if (!id) {
-			return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
-		}
-
-		await db.delete(shortcuts).where(eq(shortcuts.id, id))
-
+		await db.delete('shortcuts', id)
 		return NextResponse.json({ success: true })
 	} catch (error) {
 		console.error('Failed to delete shortcut:', error)

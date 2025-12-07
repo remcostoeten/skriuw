@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
 				try {
 					// This will trigger a graceful restart of the Next.js dev server.
-					exec('touch next.config.ts', { cwd: process.cwd() }, (err) => {
+					exec('touch next.config.ts', { cwd: process.cwd() }, (err: Error | null) => {
 						if (err) {
 							console.error('Failed to touch next.config.ts:', err)
 						}
@@ -259,6 +259,7 @@ export async function GET() {
 			},
 			environment: process.env.NODE_ENV,
 			timestamp: new Date().toISOString(),
+			provider: process.env.DATABASE_PROVIDER || (process.env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres')
 		})
 	} catch (error) {
 		console.error('Dev API error:', error)

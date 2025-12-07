@@ -126,6 +126,16 @@
         "eslint-plugin-react-hooks": "^4.6.0",
       },
     },
+    "packages/shared": {
+      "name": "@skriuw/shared",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@skriuw/eslint-config": "workspace:*",
+        "@skriuw/typescript-config": "workspace:*",
+        "tsup": "latest",
+        "typescript": "latest",
+      },
+    },
     "packages/typescript-config": {
       "name": "@skriuw/typescript-config",
       "version": "0.0.0",
@@ -768,6 +778,8 @@
     "@skriuw/db": ["@skriuw/db@workspace:packages/db"],
 
     "@skriuw/eslint-config": ["@skriuw/eslint-config@workspace:packages/eslint-config"],
+
+    "@skriuw/shared": ["@skriuw/shared@workspace:packages/shared"],
 
     "@skriuw/typescript-config": ["@skriuw/typescript-config@workspace:packages/typescript-config"],
 
