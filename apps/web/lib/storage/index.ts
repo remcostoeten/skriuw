@@ -1,23 +1,7 @@
-export type {
-	BaseEntity,
-	GenericStorageAdapter,
-	ReadOptions,
-	StorageInfo,
-	StorageCapabilities,
-	StorageConfig,
-	StorageEvent,
-	StorageEventListener,
-	StorageAdapterName,
-	StorageAdapterType,
-} from './generic-types'
+/**
+ * @fileoverview Storage Entry Point
+ * Exports the new @skriuw/crud based implementation
+ */
 
-export {
-	createGenericStorageAdapter,
-	initializeGenericStorage,
-	getGenericStorage,
-	destroyGenericStorage,
-	registerGenericStorageAdapter,
-	getAvailableGenericAdapters,
-} from './generic-storage-factory'
+export * from './client'
 
-export * from './crud'

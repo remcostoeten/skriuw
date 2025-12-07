@@ -1,8 +1,5 @@
+import { ensureStorageInitialized } from '../../lib/storage/client'
 import { initializeDefaultNotesAndFolders } from '../../features/notes/utils/initialize-defaults'
-
-import { initializeGenericStorage } from '../../lib/storage/generic-storage-factory'
-
-import { DEFAULT_STORAGE_CONFIG } from './config'
 
 let initializationPromise: Promise<void> | null = null
 
@@ -20,9 +17,7 @@ export async function initializeAppStorage(): Promise<void> {
 
 async function performInitialization(): Promise<void> {
 	try {
-		const storage = await initializeGenericStorage(DEFAULT_STORAGE_CONFIG)
-		await storage.getStorageInfo()
-
+		ensureStorageInitialized()
 		// Initialize default notes and folders for new visitors
 		await initializeDefaultNotesAndFolders()
 	} catch (error) {

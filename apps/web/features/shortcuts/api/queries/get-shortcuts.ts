@@ -1,5 +1,5 @@
-import { read } from '@skriuw/storage/crud'
 
+import { readMany } from '@skriuw/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
@@ -11,7 +11,7 @@ const STORAGE_KEY = 'skriuw:shortcuts:custom'
  */
 export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 	try {
-		const shortcuts = await read<CustomShortcut>(STORAGE_KEY)
+		const crudResult = await readMany<CustomShortcut>(STORAGE_KEY)
 		const result: Record<ShortcutId, KeyCombo[]> = {
 			'editor-focus': [],
 			'toggle-shortcuts': [],
@@ -27,8 +27,8 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'toggle-theme': [],
 		}
 
-		if (Array.isArray(shortcuts)) {
-			for (const shortcut of shortcuts) {
+		if (crudResult.success && crudResult.data) {
+			for (const shortcut of crudResult.data) {
 				result[shortcut.id as ShortcutId] = shortcut.keys
 			}
 		}

@@ -1,4 +1,4 @@
-import { read } from '@skriuw/storage/crud/read'
+import { readMany } from '@/lib/storage/client'
 
 import type { Item } from '../../types'
 
@@ -31,8 +31,8 @@ function filterDeletedItems(items: Item[]): Item[] {
 
 export async function getTrashItems(): Promise<Item[]> {
 	try {
-		const raw = await read(STORAGE_KEY, { getAll: true })
-		const items = Array.isArray(raw) ? (raw as Item[]) : []
+		const result = await readMany<Item>(STORAGE_KEY)
+		const items = result.success && result.data ? result.data : []
 		return filterDeletedItems(items)
 	} catch (error) {
 		throw new Error(

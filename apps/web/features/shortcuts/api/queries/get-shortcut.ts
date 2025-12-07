@@ -1,5 +1,5 @@
-import { read } from '@skriuw/storage/crud'
 
+import { readOne } from '@skriuw/crud'
 import type { ShortcutId } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
@@ -11,10 +11,10 @@ const STORAGE_KEY = 'quantum-works:shortcuts:custom'
  */
 export async function getShortcut(id: ShortcutId): Promise<CustomShortcut | undefined> {
 	try {
-		const shortcut = await read<CustomShortcut>(STORAGE_KEY, { getById: id })
+		const result = await readOne<CustomShortcut>(STORAGE_KEY, id)
 
-		if (shortcut && typeof shortcut === 'object' && 'id' in shortcut) {
-			return shortcut
+		if (result.success && result.data) {
+			return result.data
 		}
 
 		return undefined

@@ -1,4 +1,4 @@
-import { create } from '@skriuw/storage/crud/create'
+import { create } from '@/lib/storage/client'
 
 import { invalidateItemsCache } from '../queries/get-items'
 
@@ -7,16 +7,20 @@ import type { Folder, CreateFolderData } from '../../types'
 const STORAGE_KEY = 'Skriuw_notes'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
-	const createFn = create
 	try {
-		const result = await createFn(STORAGE_KEY, {
+		const result = await create<Folder>(STORAGE_KEY, {
 			type: 'folder',
 			name: data.name,
 			children: [],
 			parentFolderId: data.parentFolderId,
 		} as any)
+
+		if (!result.success || !result.data) {
+			throw new Error(result.error?.message || 'Failed to create folder')
+		}
+
 		invalidateItemsCache()
-		return result as Folder
+		return result.data
 	} catch (error) {
 		throw new Error(
 			`Failed to create folder: ${error instanceof Error ? error.message : String(error)}`

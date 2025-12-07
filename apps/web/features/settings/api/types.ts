@@ -1,4 +1,4 @@
-import type { BaseEntity } from '@skriuw/storage/generic-types'
+import type { BaseEntity } from '@/lib/storage/client'
 
 /**
  * Settings entity stored in storage

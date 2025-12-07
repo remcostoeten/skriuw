@@ -1,7 +1,7 @@
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { AlertCircle } from 'lucide-react'
 
-import { EmptyState } from '@skriuw/ui/empty-state'
+import { EmptyState } from '@/components/ui/empty-state'
 
 import { useEditor } from '../hooks/use-editor'
 import { createEditorSchema } from '../hooks/useEditorConfig'
@@ -43,11 +43,11 @@ export function NoteViewer({
 
 	const viewer = note
 		? BlockNoteEditor.create({
-				schema: createEditorSchema(),
-				initialContent:
-					note.content && note.content.length > 0 ? note.content : (defaultContent as Block[]),
-				editable: false,
-			})
+			schema: createEditorSchema(),
+			initialContent:
+				note.content && note.content.length > 0 ? note.content : (defaultContent as Block[]),
+			editable: false,
+		})
 		: null
 
 	if (error) {

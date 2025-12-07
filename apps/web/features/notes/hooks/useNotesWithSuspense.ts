@@ -1,7 +1,7 @@
 import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
-import { read } from '@skriuw/storage/crud'
+import { readOne } from '@/lib/storage/client'
 
 import { createFolder as createFolderMutation } from '../api/mutations/create-folder'
 import { createNote as createNoteMutation } from '../api/mutations/create-note'
@@ -77,9 +77,9 @@ export function useNotesWithSuspense() {
 	}, [])
 
 	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
-		const result = await read<Item>(STORAGE_KEY, { getById: id })
-		if (result && typeof result === 'object' && 'id' in result) {
-			return result
+		const result = await readOne<Item>(STORAGE_KEY, id)
+		if (result.success && result.data && 'id' in result.data) {
+			return result.data
 		}
 		return undefined
 	}, [])
@@ -348,16 +348,14 @@ export function useNotesWithSuspense() {
 	)
 
 	const countChildren = useCallback(async (folderId: string): Promise<number> => {
-		const folder = await read<Folder>(STORAGE_KEY, {
-			getById: folderId,
-		})
+		const result = await readOne<Folder>(STORAGE_KEY, folderId)
 		if (
-			folder &&
-			typeof folder === 'object' &&
-			'children' in folder &&
-			Array.isArray(folder.children)
+			result.success &&
+			result.data &&
+			'children' in result.data &&
+			Array.isArray(result.data.children)
 		) {
-			return folder.children.length
+			return result.data.children.length
 		}
 		return 0
 	}, [])

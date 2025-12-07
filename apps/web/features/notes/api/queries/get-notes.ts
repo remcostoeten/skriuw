@@ -1,4 +1,4 @@
-import { read } from '@skriuw/storage/crud/read'
+import { readMany } from '@/lib/storage/client'
 
 import type { Note } from '../../types'
 
@@ -9,10 +9,8 @@ export interface GetNotesOptions {
 }
 
 export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
-	const readFn = read
 	try {
-		const result = await readFn(STORAGE_KEY, {
-			getAll: true,
+		const result = await readMany<Note>(STORAGE_KEY, {
 			filter: (item) => {
 				const typedItem = item as any
 				if (typedItem.type !== 'note') return false
@@ -22,9 +20,10 @@ export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
 				return true
 			},
 		})
-		return Array.isArray(result)
-			? result.filter((item): item is Note => (item as any).type === 'note')
-			: []
+
+		if (!result.success || !result.data) return []
+
+		return result.data.filter((item): item is Note => item.type === 'note')
 	} catch (error) {
 		throw new Error(
 			`Failed to get notes: ${error instanceof Error ? error.message : String(error)}`
