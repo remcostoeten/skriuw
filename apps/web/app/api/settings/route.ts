@@ -71,6 +71,39 @@ export async function POST(request: NextRequest) {
 	}
 }
 
+export async function PUT(request: NextRequest) {
+	try {
+		const db = getDatabase()
+		const body = await request.json()
+		const settingsPayload = body?.settings ?? {}
+		const now = getSafeTimestamp()
+
+		// Use upsert pattern with onConflictDoUpdate - single query instead of select+insert/update
+		const [result] = await db
+			.insert(settings)
+			.values({
+				id: SETTINGS_KEY,
+				key: SETTINGS_KEY,
+				value: JSON.stringify(settingsPayload),
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: settings.key,
+				set: {
+					value: JSON.stringify(settingsPayload),
+					updatedAt: now,
+				},
+			})
+			.returning()
+
+		return NextResponse.json(deserializeSetting(result), { status: 200 })
+	} catch (error) {
+		console.error('Failed to update settings:', error)
+		return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+	}
+}
+
 export async function DELETE() {
 	try {
 		const db = getDatabase()

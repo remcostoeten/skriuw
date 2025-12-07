@@ -73,6 +73,17 @@ export const switchAnimations: Record<
 			transition: 'transform 200ms linear',
 		},
 	},
+	superlist: {
+		name: 'Superlist',
+		description: 'Smooth spring animation inspired by Superlist',
+		timing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+		duration: '300ms',
+		thumbTransform: {
+			off: 'translateX(0) scale(1)',
+			on: 'translateX(var(--switch-thumb-travel)) scale(1)',
+			transition: 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+		},
+	},
 }
 
 /**

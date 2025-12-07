@@ -1,4 +1,4 @@
-import { read } from '@skriuw/storage/crud/read'
+import { readMany } from '@/lib/storage/client'
 
 import type { Item } from '../../types'
 
@@ -29,9 +29,8 @@ function filterActiveItems(items: Item[]): Item[] {
 }
 
 async function fetchItems(): Promise<Item[]> {
-	const readFn = read
-	const raw = await readFn(STORAGE_KEY, { getAll: true })
-	const allItems = normalizeResult(raw)
+	const result = await readMany<Item>(STORAGE_KEY)
+	const allItems = result.success ? normalizeResult(result.data) : []
 	// Filter out soft-deleted items
 	const items = filterActiveItems(allItems)
 

@@ -257,9 +257,7 @@ export function AppLayoutManager({
 			const note = notesInOrder.find((n) => n.id === noteId)
 			if (!note) return
 
-			if (confirm(`Are you sure you want to delete "${note.name}"?`)) {
-				await deleteItem(noteId)
-			}
+			await deleteItem(noteId)
 		},
 		[notesInOrder, deleteItem]
 	)
@@ -374,7 +372,7 @@ export function AppLayoutManager({
 							getNoteData={getNoteData}
 						/>
 					)}
-					<div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary">
+					<div className={`flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary ${multiNoteTabs ? 'pt-3' : ''}`}>
 						{children}
 					</div>
 				</div>
@@ -405,6 +403,7 @@ export function AppLayoutManager({
 				</>
 			}
 			isRightPanelOpen={isShortcutsSidebarOpen || taskStack.length > 0}
+			isTaskPanelOpen={taskStack.length > 0}
 			isSidebarOpen={isMobileSidebarOpen}
 			isDesktopSidebarOpen={isDesktopSidebarOpen}
 			onSidebarClose={isMobile ? toggleMobileSidebar : undefined}

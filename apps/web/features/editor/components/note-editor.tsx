@@ -5,13 +5,12 @@ import { useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { useShortcut } from '../../shortcuts/use-shortcut'
-
 import { useEditor } from '../hooks/use-editor'
-
-import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
 import { EmptyState } from '../../../components/ui/empty-state'
 
-type props = {
+import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
+
+type Props = {
 	noteId: string
 	className?: string
 	autoSave?: boolean
@@ -25,7 +24,7 @@ export function NoteEditor({
 	showHeader = true,
 	autoSave = true,
 	autoSaveDelay = 1000,
-}: props) {
+}: Props) {
 	const { editor, note, isLoading, error } = useEditor({
 		noteId,
 		autoSave,
@@ -46,16 +45,14 @@ export function NoteEditor({
 		hasFocusedRef.current = false
 	}, [noteId])
 
-	// Focus editor when note is newly created (empty content or heading template) or when navigating with ?focus=true
+	// Focus editor when note is newly created or when navigating with ?focus=true
 	useEffect(() => {
 		if (editor && note && !hasFocusedRef.current) {
-			// Check if note is empty or has a single empty paragraph
 			const isEmptyParagraph =
 				note.content.length === 1 &&
 				note.content[0].type === 'paragraph' &&
 				(!note.content[0].content || note.content[0].content.length === 0)
 
-			// Check if note starts with an empty heading (h1 or h2 template)
 			const isEmptyHeading =
 				note.content.length === 1 &&
 				note.content[0].type === 'heading' &&
@@ -67,7 +64,6 @@ export function NoteEditor({
 			const shouldFocus = isNewNote || searchParams.get('focus') === 'true'
 
 			if (shouldFocus) {
-				// Small delay to ensure editor is fully mounted
 				setTimeout(() => {
 					editorRef.current?.focusEditor()
 					hasFocusedRef.current = true
@@ -104,7 +100,7 @@ export function NoteEditor({
 	}
 
 	return (
-		<div className={`flex-1 bg-background overflow-hidden flex flex-col ${className}`}>
+		<div className={`flex-1 bg-background-secondary overflow-hidden flex flex-col ${className}`}>
 			<div className="flex-1">
 				{isLoading ? (
 					<EmptyState

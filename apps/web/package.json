@@ -13,6 +13,7 @@
         "@blocknote/code-block": "^0.42.3",
         "@blocknote/core": "^0.42.3",
         "@blocknote/react": "^0.42.3",
+        "@internationalized/date": "^3.10.0",
         "@skriuw/core-logic": "workspace:*",
         "@skriuw/crud": "workspace:*",
         "@skriuw/db": "workspace:*",
