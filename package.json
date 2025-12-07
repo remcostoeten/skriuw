@@ -19,10 +19,14 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo check-types"
+    "check-types": "turbo check-types",
+    "test": "turbo test"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "next-themes": "^0.4.6"
+  }
 }
