@@ -5,48 +5,10 @@
 
 import type { BaseEntity, CrudResult, BatchCrudResult, UpdateOptions, BatchUpdateOptions, BatchUpdateInput } from '../types'
 import { createCrudError, createValidationError, createNotFoundError } from '../errors'
+import { getAdapter } from '../adapter'
 import * as cache from '../cache'
+import { generateRequestId } from '../utils/id'
 import { successResult, errorResult } from '../utils/result'
-
-/**
- * Storage adapter interface.
- */
-export interface StorageAdapter {
-    /**
-     * Reads an entity from the storage
-     */
-    read<T extends BaseEntity>(
-        storageKey: string,
-        options?: { getById?: string }
-    ): Promise<T[] | T | undefined>
-    /**
-     * Updates an entity in the storage
-     */
-    update<T extends BaseEntity>(
-        storageKey: string,
-        id: string,
-        data: Partial<T>
-    ): Promise<T | undefined>
-}
-
-let storageAdapter: StorageAdapter | null = null
-
-/**
- * Sets the storage adapter.
- */
-export function setStorageAdapter(adapter: StorageAdapter): void {
-    storageAdapter = adapter
-}
-
-/**
- * Gets the storage adapter.
- */
-function getAdapter(): StorageAdapter {
-    if (!storageAdapter) {
-        throw new Error('Storage adapter not set. Call setStorageAdapter first.')
-    }
-    return storageAdapter
-}
 
 /**
  * Updates an existing entity.
@@ -129,6 +91,7 @@ export async function update<T extends BaseEntity>(
             }
         }
 
+        // Standard update
         const updated = await getAdapter().update<T>(storageKey, id, updateData)
 
         if (!updated) {
@@ -153,6 +116,7 @@ export async function batchUpdate<T extends BaseEntity>(
     options?: BatchUpdateOptions<T>
 ): Promise<BatchCrudResult<T>> {
     const startTime = Date.now()
+    const requestId = generateRequestId()
     const results: CrudResult<T>[] = []
     const concurrency = options?.concurrency ?? 10
     const continueOnError = options?.continueOnError ?? true
@@ -184,7 +148,7 @@ export async function batchUpdate<T extends BaseEntity>(
                             success: false,
                             results,
                             summary: { total: updates.length, succeeded, failed, skipped: updates.length - i - batch.length },
-                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
                         }
                     }
                 }
@@ -207,6 +171,6 @@ export async function batchUpdate<T extends BaseEntity>(
         success: failed === 0,
         results,
         summary: { total: updates.length, succeeded, failed, skipped: 0 },
-        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
     }
 }

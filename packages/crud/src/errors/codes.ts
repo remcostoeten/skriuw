@@ -33,7 +33,7 @@ export function detectErrorCode(message: string): CrudErrorCode {
     if (lowerMessage.includes('validation')) return CrudErrorCode.VALIDATION_ERROR
     if (lowerMessage.includes('permission') || lowerMessage.includes('denied')) return CrudErrorCode.PERMISSION_DENIED
     if (lowerMessage.includes('network') || lowerMessage.includes('fetch')) return CrudErrorCode.NETWORK_ERROR
-    if (lowerMessage.includes('timeout')) return CrudErrorCode.TIMEOUT
+    if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) return CrudErrorCode.TIMEOUT
     if (lowerMessage.includes('full') || lowerMessage.includes('quota')) return CrudErrorCode.STORAGE_FULL
 
     return CrudErrorCode.INTERNAL_ERROR

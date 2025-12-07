@@ -6,6 +6,7 @@ export default defineConfig({
         'types/index': 'src/types/index.ts',
         'errors/index': 'src/errors/index.ts',
         'cache/index': 'src/cache/index.ts',
+        'adapter/index': 'src/adapter/index.ts',
         'operations/index': 'src/operations/index.ts',
     },
     format: ['esm'],

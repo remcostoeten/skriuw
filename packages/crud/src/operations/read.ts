@@ -5,31 +5,10 @@
 
 import type { BaseEntity, CrudResult, BatchCrudResult, ReadOptions, BatchReadOptions } from '../types'
 import { createCrudError, createNotFoundError } from '../errors'
+import { getAdapter } from '../adapter'
 import * as cache from '../cache'
+import { generateRequestId } from '../utils/id'
 import { successResult, errorResult } from '../utils/result'
-
-/**
- * Storage adapter interface.
- */
-export interface StorageAdapter {
-    read<T extends BaseEntity>(
-        storageKey: string,
-        options?: { getById?: string; getAll?: boolean }
-    ): Promise<T[] | T | undefined>
-}
-
-let storageAdapter: StorageAdapter | null = null
-
-export function setStorageAdapter(adapter: StorageAdapter): void {
-    storageAdapter = adapter
-}
-
-function getAdapter(): StorageAdapter {
-    if (!storageAdapter) {
-        throw new Error('Storage adapter not set. Call setStorageAdapter first.')
-    }
-    return storageAdapter
-}
 
 /**
  * Reads a single entity by ID.
@@ -182,6 +161,7 @@ export async function batchRead<T extends BaseEntity>(
     options: BatchReadOptions<T>
 ): Promise<BatchCrudResult<T>> {
     const startTime = Date.now()
+    const requestId = generateRequestId()
     const results: CrudResult<T>[] = []
     const continueOnMissing = options.continueOnMissing ?? true
 
@@ -203,7 +183,7 @@ export async function batchRead<T extends BaseEntity>(
         success: failed === 0,
         results,
         summary: { total: options.ids.length, succeeded, failed, skipped: 0 },
-        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
     }
 }
 
@@ -221,7 +201,7 @@ async function revalidateOne<T extends BaseEntity>(
             cache.set(cacheKey, entity, ttl)
         }
     } catch {
-        // Silent fail
+        // Silent fail for background revalidation
     }
 }
 
@@ -243,6 +223,6 @@ async function revalidateMany<T extends BaseEntity>(
 
         cache.set(cacheKey, entities, options?.cache?.ttl)
     } catch {
-        // Silent fail
+        // Silent fail for background revalidation
     }
 }

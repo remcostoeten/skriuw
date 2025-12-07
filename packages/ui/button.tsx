@@ -43,13 +43,14 @@ type TRipple = {
 
 export interface ButtonProps
 	extends
-		React.ButtonHTMLAttributes<HTMLButtonElement>,
-		VariantProps<typeof buttonVariants> {
+	React.ButtonHTMLAttributes<HTMLButtonElement>,
+	VariantProps<typeof buttonVariants> {
 	asChild?: boolean
 	ripple?: boolean
 	rippleColor?: string
 	rippleScale?: number
 	hoverScale?: number
+	tapScale?: number
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -59,10 +60,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			variant,
 			size,
 			asChild = false,
-			ripple = false,
+			ripple = true,
 			rippleColor = 'rgba(255, 255, 255, 0.5)',
 			rippleScale = 10,
 			hoverScale,
+			tapScale = 0.95,
 			onClick,
 			children,
 			...restProps
@@ -98,51 +100,27 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 		const motionProps = hoverScale
 			? {
-					whileHover: { scale: hoverScale }
-				}
-			: {}
+				whileHover: { scale: hoverScale },
+				whileTap: { scale: tapScale }
+			}
+			: { whileTap: { scale: tapScale } }
 
 		if (asChild) {
 			return <Slot {...restProps} />
 		}
 
 		return (
-			<motion.button
+			<Button
 				className={cn(
 					buttonVariants({ variant, size, className }),
 					ripple && 'overflow-hidden'
 				)}
 				ref={ref}
 				{...motionProps}
-				onClick={handleClick}
-				disabled={restProps.disabled}
-				form={restProps.form}
-				formAction={restProps.formAction}
-				formEncType={restProps.formEncType}
-				formMethod={restProps.formMethod}
-				formNoValidate={restProps.formNoValidate}
-				formTarget={restProps.formTarget}
-				name={restProps.name}
-				type={restProps.type}
-				value={restProps.value}
-				autoFocus={restProps.autoFocus}
-				onBlur={restProps.onBlur}
-				onChange={restProps.onChange}
-				onFocus={restProps.onFocus}
-				onKeyDown={restProps.onKeyDown}
-				onKeyPress={restProps.onKeyPress}
-				onKeyUp={restProps.onKeyUp}
-				onMouseDown={restProps.onMouseDown}
-				onMouseEnter={restProps.onMouseEnter}
-				onMouseLeave={restProps.onMouseLeave}
-				onMouseMove={restProps.onMouseMove}
-				onMouseOut={restProps.onMouseOut}
-				onMouseOver={restProps.onMouseOver}
-				onMouseUp={restProps.onMouseUp}
+				//onClick={handleClick}
+				{...restProps}
 			>
-				<span className="relative z-10 flex items-center gap-1">
-					{children}
-				</span>
+				<span className="relative z-10 flex items-center gap-1">{children}</span>
 				{ripple && (
 					<span className="absolute inset-0 z-0">
 						<AnimatePresence>

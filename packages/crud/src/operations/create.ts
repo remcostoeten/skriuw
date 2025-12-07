@@ -3,40 +3,12 @@
  * @module @skriuw/crud/operations/create
  */
 
-import type { BaseEntity, CrudResult, BatchCrudResult, CreateInput, CreateOptions, BatchCreateOptions, BatchProgress } from '../types'
+import type { BaseEntity, CrudResult, BatchCrudResult, CreateInput, CreateOptions, BatchCreateOptions } from '../types'
 import { createCrudError, createValidationError } from '../errors'
 import { invalidateForStorageKey } from '../cache'
-import { generateEntityId } from '../utils/id'
+import { getAdapter } from '../adapter'
+import { generateEntityId, generateRequestId } from '../utils/id'
 import { successResult, errorResult } from '../utils/result'
-
-/**
- * Storage adapter interface (to be injected).
- */
-export interface StorageAdapter {
-    create<T extends BaseEntity>(
-        storageKey: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
-    ): Promise<T>
-}
-
-let storageAdapter: StorageAdapter | null = null
-
-/**
- * Sets the storage adapter for CRUD operations.
- */
-export function setStorageAdapter(adapter: StorageAdapter): void {
-    storageAdapter = adapter
-}
-
-/**
- * Gets the storage adapter.
- */
-function getAdapter(): StorageAdapter {
-    if (!storageAdapter) {
-        throw new Error('Storage adapter not set. Call setStorageAdapter first.')
-    }
-    return storageAdapter
-}
 
 /**
  * Creates a new entity.
@@ -138,6 +110,7 @@ export async function batchCreate<T extends BaseEntity>(
     options?: BatchCreateOptions<T>
 ): Promise<BatchCrudResult<T>> {
     const startTime = Date.now()
+    const requestId = generateRequestId()
     const results: CrudResult<T>[] = []
     const concurrency = options?.concurrency ?? 10
     const continueOnError = options?.continueOnError ?? true
@@ -169,7 +142,7 @@ export async function batchCreate<T extends BaseEntity>(
                             success: false,
                             results,
                             summary: { total: items.length, succeeded, failed, skipped: items.length - i - batch.length },
-                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
                         }
                     }
                 }
@@ -190,6 +163,6 @@ export async function batchCreate<T extends BaseEntity>(
         success: failed === 0,
         results,
         summary: { total: items.length, succeeded, failed, skipped: 0 },
-        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
     }
 }

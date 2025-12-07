@@ -5,37 +5,16 @@
 
 import type { BaseEntity, CrudResult, BatchCrudResult, DeleteOptions, BatchDeleteOptions } from '../types'
 import { createCrudError, createNotFoundError } from '../errors'
+import { getAdapter } from '../adapter'
 import * as cache from '../cache'
+import { generateRequestId } from '../utils/id'
 import { successResult, errorResult } from '../utils/result'
 
-/**
- * Storage adapter interface.
- */
-export interface StorageAdapter {
-    read<T extends BaseEntity>(
-        storageKey: string,
-        options?: { getAll?: boolean }
-    ): Promise<T[] | T | undefined>
-    update<T extends BaseEntity>(
-        storageKey: string,
-        id: string,
-        data: Partial<T>
-    ): Promise<T | undefined>
-    delete(storageKey: string, id: string): Promise<boolean>
-}
+/** Max recursion depth to prevent stack overflow */
+const MAX_RECURSIVE_DEPTH = 50
 
-let storageAdapter: StorageAdapter | null = null
-
-export function setStorageAdapter(adapter: StorageAdapter): void {
-    storageAdapter = adapter
-}
-
-function getAdapter(): StorageAdapter {
-    if (!storageAdapter) {
-        throw new Error('Storage adapter not set. Call setStorageAdapter first.')
-    }
-    return storageAdapter
-}
+/** Default parent key for hierarchical data */
+const DEFAULT_PARENT_KEY = 'parentFolderId'
 
 /**
  * Deletes an entity.
@@ -101,7 +80,7 @@ export async function destroy(
 
         // Recursive delete
         if (options?.recursive) {
-            await handleRecursiveDelete(storageKey, id, options.soft)
+            await handleRecursiveDelete(storageKey, id, options.soft, 0)
         }
 
         // Perform delete
@@ -139,6 +118,7 @@ export async function batchDestroy(
     options?: BatchDeleteOptions
 ): Promise<BatchCrudResult<boolean>> {
     const startTime = Date.now()
+    const requestId = generateRequestId()
     const results: CrudResult<boolean>[] = []
     const concurrency = options?.concurrency ?? 10
     const continueOnError = options?.continueOnError ?? true
@@ -170,7 +150,7 @@ export async function batchDestroy(
                             success: false,
                             results,
                             summary: { total: ids.length, succeeded, failed, skipped: ids.length - i - batch.length },
-                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+                            meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
                         }
                     }
                 }
@@ -193,7 +173,7 @@ export async function batchDestroy(
         success: failed === 0,
         results,
         summary: { total: ids.length, succeeded, failed, skipped: 0 },
-        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId: '' },
+        meta: { timestamp: startTime, duration: Date.now() - startTime, fromCache: false, optimistic: false, requestId },
     }
 }
 
@@ -217,7 +197,7 @@ async function handleCascadeDelete(
                 }
             }
         } catch {
-            // Continue with other relations
+            // Continue with other relations - don't fail cascade on single relation error
         }
     }
 }
@@ -225,16 +205,23 @@ async function handleCascadeDelete(
 async function handleRecursiveDelete(
     storageKey: string,
     parentId: string,
-    soft?: boolean
+    soft?: boolean,
+    depth = 0
 ): Promise<void> {
+    // Prevent stack overflow
+    if (depth >= MAX_RECURSIVE_DEPTH) {
+        console.warn(`Recursive delete max depth (${MAX_RECURSIVE_DEPTH}) reached for ${storageKey}:${parentId}`)
+        return
+    }
+
     try {
-        const all = await getAdapter().read<BaseEntity & { parentFolderId?: string }>(storageKey, { getAll: true })
+        const all = await getAdapter().read<BaseEntity & Record<string, unknown>>(storageKey, { getAll: true })
 
         if (Array.isArray(all)) {
-            const children = all.filter((item) => item.parentFolderId === parentId)
+            const children = all.filter((item) => item[DEFAULT_PARENT_KEY] === parentId)
 
             for (const child of children) {
-                await handleRecursiveDelete(storageKey, child.id, soft)
+                await handleRecursiveDelete(storageKey, child.id, soft, depth + 1)
 
                 if (soft) {
                     await getAdapter().update(storageKey, child.id, {
@@ -247,6 +234,6 @@ async function handleRecursiveDelete(
             }
         }
     } catch {
-        // Silent fail
+        // Don't fail entire operation on recursive delete error
     }
 }
