@@ -111,7 +111,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		<DrawerDialog open={open} onOpenChange={onOpenChange}>
 			<DrawerContent className="flex flex-col p-0 overflow-hidden">
 				<DrawerClose aria-label="Close settings" />
-				<div className="flex flex-row flex-1 min-h-0">
+				<div className="flex flex-row flex-1 min-h-0 max-w-5xl mx-auto w-full ">
 					<DialogAside className="min-w-[220px] max-w-[220px] border-r border-border/50 bg-background/50 p-6 overflow-y-auto h-full">
 						<DrawerHeader className="w-full pb-6">
 							<DrawerTitle className="text-xl">Settings</DrawerTitle>
@@ -127,8 +127,10 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 						</DialogSection>
 					</DialogAside>
 
-					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background max-w-3xl">
-						{renderSettingsContent()}
+					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background">
+						<div className="max-w-2xl mx-auto w-full">
+							{renderSettingsContent()}
+						</div>
 					</DialogContentArea>
 				</div>
 			</DrawerContent>

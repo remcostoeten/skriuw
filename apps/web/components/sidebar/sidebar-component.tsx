@@ -1734,6 +1734,18 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// Check if we're in an input/editor context
+			const target = e.target as HTMLElement
+			const isInput =
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable ||
+				!!target.closest('[contenteditable="true"]')
+
+			if (isInput) {
+				return
+			}
+
 			if (e.key === 'Escape' && getSelectedCount() > 0) {
 				clearSelection()
 				return

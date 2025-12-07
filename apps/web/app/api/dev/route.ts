@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
+import { generateId } from '@skriuw/core-logic'
 
 function isDev() {
 	return process.env.NODE_ENV === 'development'
 }
 
-function generateId(prefix: 'note' | 'folder') {
-	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-}
-
-// POST /api/dev - Execute dev actions
 export async function POST(request: NextRequest) {
 	if (!isDev()) {
 		return NextResponse.json(
@@ -180,24 +176,27 @@ export async function POST(request: NextRequest) {
 			}
 
 			case 'clear-cache': {
-				// Clear Next.js build cache and restart dev server
-				const { execSync } = require('child_process')
+				const { exec } = require('child_process')
 
 				try {
-					// Clear Next.js cache
-					execSync('rm -rf .next', { cwd: process.cwd(), stdio: 'pipe' })
+					// This will trigger a graceful restart of the Next.js dev server.
+					exec('touch next.config.ts', { cwd: process.cwd() }, (err) => {
+						if (err) {
+							console.error('Failed to touch next.config.ts:', err)
+						}
+					})
 
 					return NextResponse.json({
 						success: true,
 						action: 'clear-cache',
-						message: 'Next.js cache cleared. The dev server will restart automatically.',
-						restartRequired: true
+						message: 'Server restart initiated.',
+						restartRequired: true,
 					})
 				} catch (error) {
 					return NextResponse.json({
 						success: false,
 						action: 'clear-cache',
-						error: 'Failed to clear cache',
+						error: 'Failed to initiate server restart.',
 						message: error instanceof Error ? error.message : String(error)
 					}, { status: 500 })
 				}

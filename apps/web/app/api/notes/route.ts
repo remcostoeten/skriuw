@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { getDatabase, notes, folders, tasks } from '@skriuw/db'
 import { getSafeTimestamp } from '@skriuw/db'
 import type { Item, Note, Folder } from '../../../features/notes/types/index'
+import { generateId } from '@skriuw/core-logic'
 
 type NoteRow = typeof notes.$inferSelect
 type FolderRow = typeof folders.$inferSelect
@@ -21,12 +22,12 @@ function createParagraphFromText(text: string): Note['content'] {
 			},
 			content: trimmed
 				? [
-						{
-							type: 'text',
-							text: trimmed,
-							styles: {},
-						},
-					]
+					{
+						type: 'text',
+						text: trimmed,
+						styles: {},
+					},
+				]
 				: [],
 			children: [],
 		},
@@ -163,10 +164,6 @@ function buildItemTree(noteRows: NoteRow[], folderRows: FolderRow[]) {
 	}
 }
 
-function generateId(prefix: 'note' | 'folder') {
-	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-}
-
 async function getAllRows(db: ReturnType<typeof getDatabase>) {
 	const [noteRows, folderRows] = await Promise.all([
 		db.select().from(notes),
@@ -183,6 +180,7 @@ export async function GET(request: NextRequest) {
 		const id = searchParams.get('id')
 
 		const { noteRows, folderRows } = await getAllRows(db)
+
 		const tree = buildItemTree(noteRows, folderRows)
 
 		if (id) {
@@ -235,7 +233,7 @@ export async function POST(request: NextRequest) {
 				.values({
 					id,
 					name: body.name,
-					parentFolderId: body.parentFolderId ?? null,
+					parentFolderId: body.parentFolderId || null,
 					pinned: body.pinned ? 1 : 0,
 					pinnedAt: body.pinned ? now : null,
 					createdAt: now,
@@ -254,7 +252,7 @@ export async function POST(request: NextRequest) {
 				id,
 				name: body.name,
 				content: JSON.stringify(body.content ?? []),
-				parentFolderId: body.parentFolderId ?? null,
+				parentFolderId: body.parentFolderId || null,
 				pinned: body.pinned ? 1 : 0,
 				pinnedAt: body.pinned ? now : null,
 				favorite: body.favorite ? 1 : 0,
@@ -300,8 +298,8 @@ export async function PUT(request: NextRequest) {
 		}
 
 		if (updates.parentFolderId !== undefined) {
-			noteUpdate.parentFolderId = updates.parentFolderId ?? null
-			folderUpdate.parentFolderId = updates.parentFolderId ?? null
+			noteUpdate.parentFolderId = updates.parentFolderId || null
+			folderUpdate.parentFolderId = updates.parentFolderId || null
 		}
 
 		if (updates.pinned !== undefined) {

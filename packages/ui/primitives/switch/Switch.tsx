@@ -173,7 +173,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 	const switchElement = (
 		<div
 			className={cn(
-				'relative inline-flex items-center',
+				'relative inline-flex items-center shrink-0',
 				disabled && 'cursor-not-allowed opacity-50',
 				!disabled && !readOnly && !loading && 'cursor-pointer',
 				className
@@ -213,6 +213,12 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 					isFocused && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
 					trackClassName
 				)}
+				style={{
+					width: sizeConfig.trackWidth,
+					height: sizeConfig.trackHeight,
+					minWidth: sizeConfig.trackWidth,
+					minHeight: sizeConfig.trackHeight,
+				}}
 				onClick={() => {
 					if (!disabled && !readOnly && !loading) {
 						inputRef.current?.click()
@@ -227,6 +233,8 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 						thumbClassName
 					)}
 					style={{
+						width: sizeConfig.thumbWidth,
+						height: sizeConfig.thumbHeight,
 						left: sizeConfig.thumbOffset,
 						transform:
 							checked || indeterminate

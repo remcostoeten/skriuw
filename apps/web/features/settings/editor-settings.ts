@@ -7,15 +7,20 @@ import type { UserSetting, SettingsGroup } from './types'
 export const EDITOR_SETTINGS: UserSetting[] = [
 	{
 		key: 'wordWrap',
+		label: 'Word Wrap',
 		value: true,
 		defaultValue: true,
 		type: 'boolean',
 		description: 'Enable word wrapping in the editor',
 		category: 'editor',
 		implemented: true,
+		preview: {
+			component: 'word-wrap',
+		},
 	},
 	{
 		key: 'blockIndicator',
+		label: 'Block Indicator',
 		value: true,
 		defaultValue: true,
 		type: 'boolean',
@@ -25,6 +30,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 	},
 	{
 		key: 'multiNoteTabs',
+		label: 'Multi-Note Tabs',
 		value: false,
 		defaultValue: false,
 		type: 'boolean',
@@ -34,6 +40,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 	},
 	{
 		key: 'rawMDXMode',
+		label: 'Raw MDX Mode',
 		value: false,
 		defaultValue: false,
 		type: 'boolean',
@@ -43,6 +50,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 	},
 	{
 		key: 'showFormattingToolbar',
+		label: 'Formatting Toolbar',
 		value: true,
 		defaultValue: true,
 		type: 'boolean',
@@ -53,15 +61,21 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 
 	{
 		key: 'centeredLayout',
+		label: 'Centered Layout',
 		value: false,
 		defaultValue: false,
 		type: 'boolean',
 		description: 'Center the editor content with a max-width container',
 		category: 'appearance',
 		implemented: true,
+		preview: {
+			component: 'layout',
+			props: { type: 'centeredLayout' },
+		},
 	},
 	{
 		key: 'fontSize',
+		label: 'Font Size',
 		value: 'medium',
 		defaultValue: 'medium',
 		type: 'enum',
@@ -69,9 +83,14 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		options: ['small', 'medium', 'large', 'x-large'],
 		implemented: true,
+		preview: {
+			component: 'typography',
+			props: { type: 'fontSize' },
+		},
 	},
 	{
 		key: 'fontFamily',
+		label: 'Font Family',
 		value: 'inter',
 		defaultValue: 'inter',
 		type: 'enum',
@@ -79,9 +98,14 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		options: ['inter', 'mono', 'serif', 'sans-serif'],
 		implemented: true,
+		preview: {
+			component: 'typography',
+			props: { type: 'fontFamily' },
+		},
 	},
 	{
 		key: 'lineHeight',
+		label: 'Line Height',
 		value: 1.6,
 		defaultValue: 1.6,
 		type: 'number',
@@ -90,9 +114,14 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		validation: (value: number) =>
 			(value >= 1.0 && value <= 3.0) || 'Line height must be between 1.0 and 3.0',
 		implemented: true,
+		preview: {
+			component: 'typography',
+			props: { type: 'lineHeight' },
+		},
 	},
 	{
 		key: 'maxWidth',
+		label: 'Max Width',
 		value: 'full',
 		defaultValue: 'full',
 		type: 'enum',
@@ -100,9 +129,28 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		options: ['narrow', 'medium', 'wide', 'full'],
 		implemented: true,
+		preview: {
+			component: 'layout',
+			props: { type: 'maxWidth' },
+		},
+	},
+	{
+		key: 'editorTheme',
+		label: 'Editor Theme',
+		value: 'skriuw-dark',
+		defaultValue: 'skriuw-dark',
+		type: 'enum',
+		description: 'Color theme for the MDX code editor',
+		category: 'appearance',
+		options: ['skriuw-dark', 'github-dark', 'dracula', 'one-dark', 'monokai', 'vs-dark', 'vs-light'],
+		implemented: true,
+		preview: {
+			component: 'editor-theme',
+		},
 	},
 	{
 		key: 'titleDisplayMode',
+		label: 'Title Display Mode',
 		value: 'filename',
 		defaultValue: 'filename',
 		type: 'enum',
@@ -113,6 +161,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 	},
 	{
 		key: 'searchInContent',
+		label: 'Search In Content',
 		value: false,
 		defaultValue: false,
 		type: 'boolean',
@@ -120,6 +169,9 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 			'When this is toggled on, the search will search through all contents of the notes in addition to file names',
 		category: 'advanced',
 		implemented: true,
+		preview: {
+			component: 'search',
+		},
 	},
 ]
 
@@ -264,41 +316,41 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)
 		? [
-				{
-					category: 'appearance' as const,
-					title: 'Appearance',
-					description: 'Editor appearance and display settings',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'appearance' && s.implemented !== false
-					),
-				},
-			]
+			{
+				category: 'appearance' as const,
+				title: 'Appearance',
+				description: 'Editor appearance and display settings',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'appearance' && s.implemented !== false
+				),
+			},
+		]
 		: []),
 	// Only include behavior group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'behavior' && s.implemented !== false)
 		? [
-				{
-					category: 'behavior' as const,
-					title: 'Behavior',
-					description: 'Editor behavior and automation settings',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'behavior' && s.implemented !== false
-					),
-				},
-			]
+			{
+				category: 'behavior' as const,
+				title: 'Behavior',
+				description: 'Editor behavior and automation settings',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'behavior' && s.implemented !== false
+				),
+			},
+		]
 		: []),
 	// Only include advanced group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'advanced' && s.implemented !== false)
 		? [
-				{
-					category: 'advanced' as const,
-					title: 'Advanced',
-					description: 'Advanced settings and features',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'advanced' && s.implemented !== false
-					),
-				},
-			]
+			{
+				category: 'advanced' as const,
+				title: 'Advanced',
+				description: 'Advanced settings and features',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'advanced' && s.implemented !== false
+				),
+			},
+		]
 		: []),
 ]
 

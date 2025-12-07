@@ -16,6 +16,7 @@ type props = {
 	className?: string
 	cookieFn?: boolean
 	onClick?: () => void
+	onCancel?: () => void
 }
 
 const badgeVariants: Record<string, string> = {
@@ -52,6 +53,7 @@ export default function HeroBadge({
 	size = 'md',
 	className,
 	onClick,
+	onCancel,
 	cookieFn = false
 }: props) {
 	const controls = useAnimation()
@@ -60,7 +62,7 @@ export default function HeroBadge({
 	const wrapperProps = href ? { href } : ({ onClick } as any)
 
 	const baseClassName = cn(
-		'inline-flex items-center rounded-full border transition-colors fixed top-6 left-1/2 -translate-x-1/2',
+		'inline-flex items-center -z-10 rounded-full border transition-colors',
 		badgeVariants[variant],
 		sizeVariants[size],
 		className
@@ -97,7 +99,19 @@ export default function HeroBadge({
 				)}
 				<span>{text}</span>
 				{endIcon && (
-					<motion.div className="text-foreground/60">
+					<motion.div
+						className={cn(
+							'text-foreground/60',
+							onCancel && 'hover:text-foreground cursor-pointer'
+						)}
+						onClick={(e) => {
+							if (onCancel) {
+								e.preventDefault()
+								e.stopPropagation()
+								onCancel()
+							}
+						}}
+					>
 						{endIcon}
 					</motion.div>
 				)}

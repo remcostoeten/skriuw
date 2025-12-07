@@ -2,6 +2,7 @@
 import type { CustomShortcut } from '../types'
 import type { KeyCombo } from '../../shortcut-definitions'
 import { readOne, update, create } from '@skriuw/crud'
+import { invalidateShortcutsCache } from '../queries/get-shortcuts'
 
 const STORAGE_KEY = 'quantum-works:shortcuts:custom'
 
@@ -40,6 +41,9 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 
 			return newShortcut.data
 		}
+
+		// Invalidate cache when shortcut changes
+		invalidateShortcutsCache()
 	} catch (error) {
 		throw new Error(
 			`Failed to save shortcut: ${error instanceof Error ? error.message : String(error)}`

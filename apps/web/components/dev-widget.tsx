@@ -70,7 +70,7 @@ export function DevWidget() {
 			const res = await fetch('/api/dev', {
 				method: 'POST',
 				body: JSON.stringify({ action }),
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json' },
 			})
 			const data: DevApiResponse = await res.json()
 
@@ -79,14 +79,26 @@ export function DevWidget() {
 			toast.success(data.message || 'Action completed')
 
 			if (data.restartRequired) {
-				window.location.reload()
+				toast.info('Server is restarting. Page will reload automatically.')
+
+				const pollServer = setInterval(async () => {
+					try {
+						const healthCheck = await fetch(window.location.origin)
+						if (healthCheck.ok) {
+							clearInterval(pollServer)
+							toast.success('Server is back online. Reloading page...')
+							setTimeout(() => window.location.reload(), 1000) // Give toast time to show
+						}
+					} catch (e) {
+						// Server is not ready yet, do nothing.
+					}
+				}, 2000) // Poll every 2 seconds
 			} else {
 				await fetchStats()
 				await refreshItems()
 			}
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Action failed')
-		} finally {
 			setActionLoading(null)
 		}
 	}
@@ -195,7 +207,7 @@ export function DevWidget() {
 							<SectionLabel>System</SectionLabel>
 							<ActionButton
 								icon={RefreshCw}
-								label="Clear Cache & Restart"
+								label="Restart Server"
 								onClick={() => executeAction('clear-cache')}
 								loading={actionLoading === 'clear-cache'}
 								fullWidth

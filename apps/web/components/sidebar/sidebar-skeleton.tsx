@@ -14,12 +14,14 @@ interface SidebarSkeletonProps {
 export function SidebarSkeleton({ itemCount = 8, hasNestedItems = true }: SidebarSkeletonProps) {
 	return (
 		<div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
-			{/* Action Bar Skeleton */}
-			<div className="p-2 space-y-2 border-b border-sidebar-border">
-				<div className="flex gap-1">
-					<Skeleton className="h-7 flex-1" />
-					<Skeleton className="h-7 w-7" />
-					<Skeleton className="h-7 w-7" />
+			{/* Action Bar - static placeholder since buttons don't need loading state */}
+			<div className="h-10 border-b border-sidebar-border bg-sidebar-background flex items-center justify-center">
+				<div className="flex items-center gap-2 opacity-30">
+					{/* Static icon placeholders - not loading indicators */}
+					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
+					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
+					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
+					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
 				</div>
 			</div>
 
