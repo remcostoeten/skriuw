@@ -1,9 +1,17 @@
 /**
  * @fileoverview Client API Adapter for @skriuw/crud
- * @description Implements StorageAdapter interface for browser-to-API communication
+ * @description Implements StorageAdapter interface for browser-to-API communication.
+ * Supports user-scoped operations via userId parameter.
  */
 
-import type { StorageAdapter, BaseEntity, ReadAdapterOptions } from '@skriuw/crud'
+import type {
+    StorageAdapter,
+    BaseEntity,
+    ReadAdapterOptions,
+    CreateAdapterOptions,
+    UpdateAdapterOptions,
+    DeleteAdapterOptions
+} from '@skriuw/crud'
 
 /** Storage key mappings to API endpoints */
 const ENDPOINT_MAP: Record<string, string> = {
@@ -33,7 +41,23 @@ function getEndpoint(storageKey: string): string {
 }
 
 /**
+ * Builds URL with query parameters, including userId if provided.
+ */
+function buildUrl(baseUrl: string, endpoint: string, params?: Record<string, string | null | undefined>): string {
+    const url = new URL(endpoint, baseUrl)
+    if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+            if (value != null) {
+                url.searchParams.set(key, value)
+            }
+        })
+    }
+    return url.toString()
+}
+
+/**
  * Creates a client-side API adapter for @skriuw/crud
+ * Supports user-scoped operations by passing userId in requests.
  *
  * @param baseUrl - Optional base URL (defaults to window.location.origin)
  */
@@ -41,7 +65,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
     const apiBaseUrl = baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
     async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-        const url = `${apiBaseUrl}${endpoint}`
+        const url = endpoint.startsWith('http') ? endpoint : `${apiBaseUrl}${endpoint}`
         const response = await globalThis.fetch(url, {
             headers: {
                 'Content-Type': 'application/json',
@@ -73,12 +97,20 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
     return {
         async create<T extends BaseEntity>(
             storageKey: string,
-            data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+            data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+            options?: CreateAdapterOptions
         ): Promise<T> {
             const endpoint = getEndpoint(storageKey)
+            const body: any = { ...data }
+
+            // Include userId in the body if provided
+            if (options?.userId) {
+                body.userId = options.userId
+            }
+
             return apiCall<T>(endpoint, {
                 method: 'POST',
-                body: JSON.stringify(data),
+                body: JSON.stringify(body),
             })
         },
 
@@ -87,10 +119,20 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             options?: ReadAdapterOptions
         ): Promise<T[] | T | undefined> {
             const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {}
+
+            if (options?.getById) {
+                params.id = options.getById
+            }
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
 
             if (options?.getById) {
                 try {
-                    return await apiCall<T>(`${endpoint}?id=${encodeURIComponent(options.getById)}`)
+                    return await apiCall<T>(url)
                 } catch (error) {
                     const msg = (error as Error).message?.toLowerCase() ?? ''
                     if (msg.includes('404') || msg.includes('not found')) {
@@ -100,17 +142,26 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
                 }
             }
 
-            return apiCall<T[]>(endpoint)
+            return apiCall<T[]>(url)
         },
 
         async update<T extends BaseEntity>(
             storageKey: string,
             id: string,
-            data: Partial<T>
+            data: Partial<T>,
+            options?: UpdateAdapterOptions
         ): Promise<T | undefined> {
             const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {}
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
+
             try {
-                return await apiCall<T>(endpoint, {
+                return await apiCall<T>(url, {
                     method: 'PUT',
                     body: JSON.stringify({ id, ...data }),
                 })
@@ -123,10 +174,24 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             }
         },
 
-        async delete(storageKey: string, id: string): Promise<boolean> {
+        async delete(
+            storageKey: string,
+            id: string,
+            options?: DeleteAdapterOptions
+        ): Promise<boolean> {
             const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {
+                id,
+            }
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
+
             try {
-                await apiCall(`${endpoint}?id=${encodeURIComponent(id)}`, {
+                await apiCall(url, {
                     method: 'DELETE',
                 })
                 return true
@@ -140,3 +205,4 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
         },
     }
 }
+
