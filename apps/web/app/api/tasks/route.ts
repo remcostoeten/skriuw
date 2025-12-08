@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { desc, eq } from 'drizzle-orm'
 import { getDatabase, tasks, notes } from '@skriuw/db'
+import { requireAuth } from '../../../lib/api-auth'
 
 function serializeTask(row: {
     id: string
@@ -32,12 +33,16 @@ function serializeTask(row: {
     }
 }
 
-// GET /api/tasks - Get all tasks across all notes
+// GET /api/tasks - Get all tasks for authenticated user
 export async function GET(_request: NextRequest) {
     try {
+        const auth = await requireAuth()
+        if (!auth.authenticated) return auth.response
+        const { userId } = auth
+
         const db = getDatabase()
 
-        // Join tasks with notes to get note names
+        // Join tasks with notes to get note names, filtered by user
         const result = await db
             .select({
                 id: tasks.id,
@@ -55,6 +60,7 @@ export async function GET(_request: NextRequest) {
             })
             .from(tasks)
             .leftJoin(notes, eq(tasks.noteId, notes.id))
+            .where(eq(tasks.userId, userId))
             .orderBy(desc(tasks.updatedAt))
 
         return NextResponse.json(result.map(serializeTask))
@@ -67,4 +73,3 @@ export async function GET(_request: NextRequest) {
         )
     }
 }
-

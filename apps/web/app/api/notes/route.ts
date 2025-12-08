@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../lib/storage/adapters/server-db'
+import { requireAuth } from '../../../lib/api-auth'
 import type { Item, Note, Folder } from '../../../features/notes/types/index'
 
 function sortItems(items: Item[]): Item[] {
@@ -45,12 +46,18 @@ function buildTree(notes: Note[], folders: Folder[]): Item[] {
 
 export async function GET(request: NextRequest) {
 	try {
+		// Require authentication
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
 
+		// Pass userId to scope queries to current user
 		const [notes, folders] = await Promise.all([
-			db.findAll<Note>('notes'),
-			db.findAll<Folder>('folders')
+			db.findAll<Note>('notes', userId),
+			db.findAll<Folder>('folders', userId)
 		])
 
 		if (id) {
@@ -68,6 +75,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 	try {
+		// Require authentication
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const body = await request.json()
 		if (!body.name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
@@ -82,7 +94,8 @@ export async function POST(request: NextRequest) {
 			updatedAt: now,
 		}
 
-		const created = await db.create(table, data)
+		// Pass userId to attach to the created entity
+		const created = await db.create(table, data, userId)
 		return NextResponse.json(created, { status: 201 })
 	} catch (error) {
 		console.error('API Error:', error)
@@ -92,14 +105,20 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
 	try {
+		// Require authentication
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const body = await request.json()
 		const { id, ...updates } = body
 		if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
 		updates.updatedAt = Date.now()
 
-		let result = await db.update('notes', id, updates)
-		if (!result) result = await db.update('folders', id, updates)
+		// Pass userId to ensure user can only update their own items
+		let result = await db.update('notes', id, updates, userId)
+		if (!result) result = await db.update('folders', id, updates, userId)
 		if (!result) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 
 		return NextResponse.json(result)
@@ -111,12 +130,18 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
 	try {
+		// Require authentication
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
 		if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
-		let deleted = await db.delete('notes', id)
-		if (!deleted) deleted = await db.delete('folders', id)
+		// Pass userId to ensure user can only delete their own items
+		let deleted = await db.delete('notes', id, userId)
+		if (!deleted) deleted = await db.delete('folders', id, userId)
 		if (!deleted) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 
 		return NextResponse.json({ id, success: true })

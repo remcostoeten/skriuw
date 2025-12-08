@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../lib/storage/adapters/server-db'
+import { requireAuth } from '../../../lib/api-auth'
 import { getSafeTimestamp } from '@skriuw/db'
 
-const SETTINGS_KEY = 'app-settings'
+/**
+ * Generates a user-specific settings key.
+ */
+function getSettingsKey(userId: string): string {
+	return `settings-${userId}`
+}
 
 export async function GET() {
 	try {
-		const result = await db.findById('settings', SETTINGS_KEY)
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
+		const settingsKey = getSettingsKey(userId)
+		const result = await db.findById('settings', settingsKey, userId)
 		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to load settings:', error)
@@ -16,18 +27,23 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
 	try {
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
+		const settingsKey = getSettingsKey(userId)
 		const body = await request.json()
 		const now = getSafeTimestamp()
 
 		const data = {
-			id: SETTINGS_KEY,
-			key: SETTINGS_KEY,
+			id: settingsKey,
+			key: settingsKey,
 			value: body?.settings ?? {},
 			createdAt: now,
 			updatedAt: now,
 		}
 
-		const result = await db.upsert('settings', data)
+		const result = await db.upsert('settings', data, userId)
 		return NextResponse.json(result, { status: 201 })
 	} catch (error) {
 		console.error('Failed to save settings:', error)
@@ -37,18 +53,23 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
 	try {
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
+		const settingsKey = getSettingsKey(userId)
 		const body = await request.json()
 		const now = getSafeTimestamp()
 
 		const data = {
-			id: SETTINGS_KEY,
-			key: SETTINGS_KEY,
+			id: settingsKey,
+			key: settingsKey,
 			value: body?.settings ?? {},
 			createdAt: now,
 			updatedAt: now,
 		}
 
-		const result = await db.upsert('settings', data)
+		const result = await db.upsert('settings', data, userId)
 		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to update settings:', error)
@@ -58,7 +79,12 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE() {
 	try {
-		await db.delete('settings', SETTINGS_KEY)
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
+		const settingsKey = getSettingsKey(userId)
+		await db.delete('settings', settingsKey, userId)
 		return NextResponse.json({ success: true })
 	} catch (error) {
 		console.error('Failed to delete settings:', error)
