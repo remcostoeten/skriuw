@@ -12,6 +12,7 @@ import { IconButton } from '@skriuw/ui/icons'
 import { WindowControls } from './window-controls'
 import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
 import { cn } from '@skriuw/core-logic'
+import { UserMenu } from '../auth/user-menu'
 
 type props = {
 	noteName: string
@@ -120,6 +121,7 @@ export function TopToolbar({
 					shortcut="Ctrl+M / Meta+M"
 					onClick={onToggleEditorMode}
 				/>
+				<UserMenu />
 				{isTauri && <div className="ml-2 border-l border-border h-6" />}
 				{isTauri && <WindowControls />}
 			</div>
