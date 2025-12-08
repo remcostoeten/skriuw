@@ -1,4 +1,4 @@
-import { readMany, destroy } from '@/lib/storage/client'
+import { readMany, destroy } from '@skriuw/crud'
 
 import type { CustomShortcut } from '../types'
 

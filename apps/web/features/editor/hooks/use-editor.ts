@@ -1,6 +1,7 @@
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { AIExtension, DefaultChatTransport } from '@blocknote/xl-ai'
 
 import { useNotesContext } from '../../notes/context/notes-context'
 
@@ -40,18 +41,24 @@ export function useEditor({
 	const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 	const hasInitializedRef = useRef(false)
 
-	// Load note data
 	useEffect(() => {
+		let isCancelled = false
+
 		const loadNote = async () => {
 			if (!noteId) {
-				setIsLoading(false)
+				if (!isCancelled) setIsLoading(false)
 				return
 			}
 
 			try {
-				setIsLoading(true)
-				setError(null)
+				if (!isCancelled) {
+					setIsLoading(true)
+					setError(null)
+				}
+
 				const noteData = await getNote(noteId)
+
+				if (isCancelled) return
 
 				if (noteData) {
 					setNote(noteData)
@@ -60,13 +67,21 @@ export function useEditor({
 					setError('Note not found')
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to load note')
+				if (!isCancelled) {
+					setError(err instanceof Error ? err.message : 'Failed to load note')
+				}
 			} finally {
-				setIsLoading(false)
+				if (!isCancelled) {
+					setIsLoading(false)
+				}
 			}
 		}
 
 		loadNote()
+
+		return () => {
+			isCancelled = true
+		}
 	}, [noteId, getNote])
 
 	const getDefaultContent = (): Block[] => [
@@ -83,8 +98,6 @@ export function useEditor({
 		} as Block,
 	]
 
-	// Memoize initial content based on note to avoid stale closures
-	// Only depend on note?.content since note.id is already handled by noteId dependency
 	const initialContent = useMemo(() => {
 		if (note?.content && note.content.length > 0) {
 			return note.content
@@ -92,26 +105,27 @@ export function useEditor({
 		return getDefaultContent()
 	}, [note?.content])
 
-	// Create editor instance using the official React hook
-	// The editor will be recreated when noteId changes (via key in parent component)
-	// We use initialContent from memoized value to ensure correct content on first render
+	// @ts-ignore // Suppress type mismatch for AIExtension
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
+		// @ts-ignore // Suppress type mismatch for extensions array
+		extensions: [
+			AIExtension({
+				transport: new DefaultChatTransport({
+					api: '/api/ai/chat',
+				}),
+			}),
+		],
 	})
 
-	// Update editor content when note loads or changes
-	// This handles the case where note loads after editor is created
 	useEffect(() => {
 		if (!editor || !note || readOnly || isLoading) return
 
-		// Only update if this is a new note (noteId changed)
-		// We use a ref to track if we've initialized to avoid overwriting user edits
 		if (!hasInitializedRef.current) {
 			const contentToLoad =
 				note.content && note.content.length > 0 ? note.content : getDefaultContent()
 
-			// Only replace if content is actually different
 			const currentContent = editor.document
 			const contentMatches = JSON.stringify(currentContent) === JSON.stringify(contentToLoad)
 
@@ -125,7 +139,6 @@ export function useEditor({
 		}
 	}, [note, editor, readOnly, isLoading])
 
-	// Reset initialization flag when noteId changes
 	useEffect(() => {
 		hasInitializedRef.current = false
 	}, [noteId])
@@ -141,7 +154,6 @@ export function useEditor({
 		}
 	}, [editor, noteId, noteName, updateNote])
 
-	// Auto-save logic
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
 

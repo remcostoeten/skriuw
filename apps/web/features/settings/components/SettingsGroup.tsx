@@ -45,6 +45,12 @@ function SettingPreview({
 export function SettingsGroup({ group, values, onChange, disabled = false }: SettingsGroupProps) {
 	const renderSetting = (setting: UserSetting, isLast: boolean) => {
 		const currentValue = values[setting.key] ?? setting.defaultValue
+
+		// check condition if present
+		if (setting.condition && !setting.condition(values)) {
+			return null
+		}
+
 		const handleChange = (value: any) => {
 			onChange(setting.key, value)
 		}

@@ -8,7 +8,7 @@ import '../styles/editor.css'
 
 import { highlightCodeBlocks } from '../utils/code-highlight'
 import { useUserPreferences, useSettings } from '../../settings'
-import { getFontSizePx, getFontFamily } from '../styles/editor-tokens'
+import { getFontSizePx, getFontFamily, getMaxWidthPx } from '../styles/editor-tokens'
 
 import { DualModeEditor } from './default-mode-editor'
 import { TaskCheckboxReplacer } from './task-checkbox-replacer'
@@ -33,6 +33,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
       fontSize,
       fontFamily,
       lineHeight,
+      maxWidth,
     } = useSettings()
     const [editorContent, setEditorContent] = useState<any[]>([])
 
@@ -152,10 +153,13 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 
       if (centeredLayout) {
         editorRef.current.classList.add('centered-layout')
+        // Apply max-width variable
+        editorRef.current.style.setProperty('--editor-max-width', getMaxWidthPx(maxWidth ?? 'medium'))
       } else {
         editorRef.current.classList.remove('centered-layout')
+        editorRef.current.style.removeProperty('--editor-max-width')
       }
-    }, [centeredLayout])
+    }, [centeredLayout, maxWidth])
 
     if (!editor) {
       return null
