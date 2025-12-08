@@ -1,7 +1,7 @@
 import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
-import { read } from '@skriuw/storage/crud'
+import { readOne } from '@/lib/storage/client'
 
 import { createFolder as createFolderMutation } from '../api/mutations/create-folder'
 import { createNote as createNoteMutation } from '../api/mutations/create-note'
@@ -17,6 +17,60 @@ import { getNote as getNoteQuery } from '../api/queries/get-note'
 import type { Note, Folder, Item } from '../types'
 
 const STORAGE_KEY = 'Skriuw_notes'
+const RECENT_NOTES_KEY = 'Skriuw_recently_accessed'
+
+// Simple note cache for recently accessed notes
+const NOTE_CACHE_SIZE = 10
+const noteCache = new Map<string, Note>()
+const accessOrder: string[] = []
+
+function addToNoteCache(id: string, note: Note) {
+	if (noteCache.has(id)) {
+		// Move to end (most recently used)
+		const index = accessOrder.indexOf(id)
+		if (index > -1) {
+			accessOrder.splice(index, 1)
+			accessOrder.push(id)
+		}
+		return
+	}
+
+	// Add new note
+	noteCache.set(id, note)
+	accessOrder.push(id)
+
+	// Remove oldest if cache is full
+	if (accessOrder.length > NOTE_CACHE_SIZE) {
+		const oldestId = accessOrder.shift()!
+		noteCache.delete(oldestId)
+	}
+}
+
+function getNoteFromCache(id: string): Note | null {
+	const note = noteCache.get(id)
+	if (note) {
+		// Move to end (most recently used)
+		const index = accessOrder.indexOf(id)
+		if (index > -1) {
+			accessOrder.splice(index, 1)
+			accessOrder.push(id)
+		}
+		return note
+	}
+	return null
+}
+
+function trackNoteAccess(noteId: string) {
+	try {
+		const recentNotes = JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || '[]') as string[]
+		const filtered = recentNotes.filter((id) => id !== noteId)
+		filtered.unshift(noteId)
+		const trimmed = filtered.slice(0, 20)
+		localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(trimmed))
+	} catch (error) {
+		console.debug('Failed to track note access:', error)
+	}
+}
 
 /**
  * Enhanced useNotes hook with non-blocking updates and loading states
@@ -27,7 +81,7 @@ export function useNotesWithSuspense() {
 	const [isInitialLoading, setIsInitialLoading] = useState(true)
 	const [isRefreshing, setIsRefreshing] = useState(false)
 
-	// Deferred valure for non-blocking updates
+	// Deferred value for non-blocking updates
 	const deferredItems = useDeferredValue(items)
 
 	// Initial load
@@ -73,13 +127,27 @@ export function useNotesWithSuspense() {
 	}, [])
 
 	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
-		return await getNoteQuery(id)
+		// Check cache first
+		const cachedNote = getNoteFromCache(id)
+		if (cachedNote) {
+			trackNoteAccess(id)
+			return cachedNote
+		}
+
+		// Fetch from API
+		const note = await getNoteQuery(id)
+		if (note) {
+			addToNoteCache(id, note)
+			trackNoteAccess(id)
+		}
+
+		return note
 	}, [])
 
 	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
-		const result = await read<Item>(STORAGE_KEY, { getById: id })
-		if (result && typeof result === 'object' && 'id' in result) {
-			return result
+		const result = await readOne<Item>(STORAGE_KEY, id)
+		if (result.success && result.data && 'id' in result.data) {
+			return result.data
 		}
 		return undefined
 	}, [])
@@ -348,16 +416,14 @@ export function useNotesWithSuspense() {
 	)
 
 	const countChildren = useCallback(async (folderId: string): Promise<number> => {
-		const folder = await read<Folder>(STORAGE_KEY, {
-			getById: folderId,
-		})
+		const result = await readOne<Folder>(STORAGE_KEY, folderId)
 		if (
-			folder &&
-			typeof folder === 'object' &&
-			'children' in folder &&
-			Array.isArray(folder.children)
+			result.success &&
+			result.data &&
+			'children' in result.data &&
+			Array.isArray(result.data.children)
 		) {
-			return folder.children.length
+			return result.data.children.length
 		}
 		return 0
 	}, [])

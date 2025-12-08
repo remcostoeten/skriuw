@@ -34,6 +34,12 @@ const DEFAULT_SETTINGS = {
 	maxBackupFiles: 10,
 	multiNoteTabs: false,
 	defaultNoteTemplate: 'empty', // 'empty' | 'h1' | 'h2'
+	editorTheme: 'skriuw-dark', // Monaco editor theme
+
+	// Appearance
+	fontFamily: 'inter',
+	lineHeight: 1.6,
+	maxWidth: 'full',
 } as const
 
 export function SettingsProvider({
@@ -41,7 +47,7 @@ export function SettingsProvider({
 	defaultSettings = DEFAULT_SETTINGS,
 }: SettingsProviderProps) {
 	const [settings, setSettings] = useState<Record<string, any>>(defaultSettings)
-	const [isLoading, setIsLoading] = useState(true)
+	const [isLoading, setIsLoading] = useState(false) // Start as false - don't block UI
 
 	useEffect(() => {
 		loadSettings()

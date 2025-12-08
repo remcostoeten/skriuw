@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, lazy, useMemo } from 'react'
+import { Suspense, lazy, useMemo, useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
@@ -21,7 +21,35 @@ const NoteEditor = lazy(() =>
 import { Icons } from '@skriuw/ui'
 import HeroBadge from '@skriuw/ui/hero-badge'
 
+// Cookie handling functions
+const BADGE_COOKIE_NAME = 'hide-alpha-badge'
+
+function setHideBadgeCookie() {
+	if (typeof window !== 'undefined') {
+		document.cookie = `${BADGE_COOKIE_NAME}=true; max-age=${60 * 60 * 24 * 30}; path=/; secure; samesite=strict`
+	}
+}
+
+function getHideBadgeCookie(): boolean {
+	if (typeof window === 'undefined') return false
+
+	const cookies = document.cookie.split(';')
+	for (const cookie of cookies) {
+		const [name, value] = cookie.trim().split('=')
+		if (name === BADGE_COOKIE_NAME) {
+			return value === 'true'
+		}
+	}
+	return false
+}
+
 export default function Index() {
+	const [showBadge, setShowBadge] = useState(true)
+
+	useEffect(() => {
+		// Check cookie on mount
+		setShowBadge(!getHideBadgeCookie())
+	}, [])
 	const pathname = usePathname()
 	const router = useRouter()
 	const { items, createNote, isInitialLoading } = useNotesWithSuspense()
@@ -47,6 +75,11 @@ export default function Index() {
 		router.push('/archive')
 	}
 
+	function handleCancelBadge() {
+		setHideBadgeCookie()
+		setShowBadge(false)
+	}
+
 	useShortcut('create-note', (e) => {
 		e.preventDefault()
 		handleCreateNote()
@@ -59,13 +92,16 @@ export default function Index() {
 
 	return (
 		<>
-			{!noteId && (
-				<HeroBadge
-					href="/archive"
-					text="New! Collection View"
-					icon={<Icons.logo className="h-4 w-4" />}
-					endIcon={<Icons.chevronRight className="h-4 w-4" />}
-				/>
+			{!noteId && showBadge && (
+				<div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+					<HeroBadge
+						href="/archive"
+						text="Bugs might occur! Still in alpha"
+						icon={<Icons.logo className="h-4 w-4" />}
+						endIcon={<Icons.close className="h-4 w-4" />}
+						onCancel={handleCancelBadge}
+					/>
+				</div>
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">

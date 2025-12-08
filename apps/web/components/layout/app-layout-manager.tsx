@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useCallback, Suspense, lazy, useEffect, useState, useRef } from 'react'
+import { ReactNode, useMemo, useCallback, useEffect, useState, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
@@ -30,13 +30,6 @@ import type { SidebarContentType } from '../sidebar/types'
 
 // Import Sidebar directly - no lazy loading to prevent skeleton during navigation
 import { Sidebar } from '../sidebar'
-
-// Lazy load heavy components
-const ShortcutsSidebar = lazy(() =>
-	import('../../features/shortcuts/components').then((mod) => ({
-		default: mod.ShortcutsSidebar,
-	}))
-)
 
 import { TaskPanelStack } from '../../features/tasks'
 
@@ -88,9 +81,6 @@ export function AppLayoutManager({
 		toggleMobileSidebar,
 		isDesktopSidebarOpen,
 		toggleDesktopSidebar,
-		isShortcutsSidebarOpen,
-		toggleShortcutsSidebar,
-		setShortcutsSidebarOpen,
 		isSettingsOpen,
 		toggleSettings,
 		setSettingsOpen,
@@ -243,7 +233,6 @@ export function AppLayoutManager({
 		async (noteId: string) => {
 			const note = notesInOrder.find((n) => n.id === noteId)
 			if (!note) return
-
 			const newName = prompt('Enter new name:', note.name)
 			if (newName && newName.trim() && newName !== note.name) {
 				await renameItem(noteId, newName.trim())
@@ -256,10 +245,7 @@ export function AppLayoutManager({
 		async (noteId: string) => {
 			const note = notesInOrder.find((n) => n.id === noteId)
 			if (!note) return
-
-			if (confirm(`Are you sure you want to delete "${note.name}"?`)) {
-				await deleteItem(noteId)
-			}
+			await deleteItem(noteId)
 		},
 		[notesInOrder, deleteItem]
 	)
@@ -292,7 +278,8 @@ export function AppLayoutManager({
 
 	useShortcut('toggle-shortcuts', (e) => {
 		e.preventDefault()
-		toggleShortcutsSidebar()
+		toggleSettings()
+		// Ideally we would also set the active tab to 'shortcuts' here
 	})
 
 	useShortcut('toggle-sidebar', (e) => {
@@ -341,7 +328,6 @@ export function AppLayoutManager({
 					onSearch={() => {
 						setIsSearchOpen(true)
 					}}
-					onToggleShortcuts={toggleShortcutsSidebar}
 					onNavigatePrevious={handleNavigatePrevious}
 					onNavigateNext={handleNavigateNext}
 					canNavigatePrevious={canNavigatePrevious}
@@ -374,7 +360,7 @@ export function AppLayoutManager({
 							getNoteData={getNoteData}
 						/>
 					)}
-					<div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary">
+					<div className={`flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary ${multiNoteTabs ? 'pt-3' : ''}`}>
 						{children}
 					</div>
 				</div>
@@ -382,12 +368,6 @@ export function AppLayoutManager({
 			footer={<Footer />}
 			rightPanel={
 				<>
-					<Suspense fallback={null}>
-						<ShortcutsSidebar
-							isOpen={isShortcutsSidebarOpen}
-							onClose={() => toggleShortcutsSidebar()}
-						/>
-					</Suspense>
 					<TaskPanelStack />
 				</>
 			}
@@ -404,7 +384,8 @@ export function AppLayoutManager({
 					{process.env.NODE_ENV === 'development' && <DevWidget />}
 				</>
 			}
-			isRightPanelOpen={isShortcutsSidebarOpen || taskStack.length > 0}
+			isRightPanelOpen={taskStack.length > 0}
+			isTaskPanelOpen={taskStack.length > 0}
 			isSidebarOpen={isMobileSidebarOpen}
 			isDesktopSidebarOpen={isDesktopSidebarOpen}
 			onSidebarClose={isMobile ? toggleMobileSidebar : undefined}

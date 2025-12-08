@@ -1,0 +1,38 @@
+'use client'
+
+import React from 'react'
+
+// Props passed to all preview components
+export interface PreviewProps<T = any> {
+    value: T
+    settingKey: string
+    options?: T[]
+}
+
+// Lazy load heavy components
+const EditorThemePreview = React.lazy(() => import('./editor-theme-preview'))
+
+// Import lightweight components directly
+import WordWrapPreview from './word-wrap-preview'
+import TypographyPreview from './typography-preview'
+import LayoutPreview from './layout-preview'
+import SearchPreview from './search-preview'
+
+// Registry of all preview renderers
+export const PREVIEW_RENDERERS: Record<string, React.ComponentType<PreviewProps | any>> = {
+    'editor-theme': EditorThemePreview,
+    'word-wrap': WordWrapPreview,
+    'typography': TypographyPreview,
+    'layout': LayoutPreview,
+    'search': SearchPreview,
+}
+
+// Helper to check if a preview exists for a component key
+export function hasPreviewRenderer(componentKey: string): boolean {
+    return componentKey in PREVIEW_RENDERERS
+}
+
+// Get preview renderer component
+export function getPreviewRenderer(componentKey: string) {
+    return PREVIEW_RENDERERS[componentKey] || null
+}

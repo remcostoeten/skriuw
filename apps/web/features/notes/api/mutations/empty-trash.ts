@@ -1,6 +1,6 @@
 import { deleteTasksForNote } from '@/features/tasks'
 
-import { destroy } from '@skriuw/storage/crud/destroy'
+import { destroy } from '@/lib/storage/client'
 
 import { getTrashItems } from '../queries/get-trash'
 import { invalidateItemsCache } from '../queries/get-items'
@@ -24,7 +24,7 @@ export async function emptyTrash(): Promise<number> {
 			}
 
 			const result = await destroy(STORAGE_KEY, item.id)
-			if (result) {
+			if (result.success) {
 				deletedCount++
 			}
 		}

@@ -43,8 +43,8 @@ type TRipple = {
 
 export interface ButtonProps
 	extends
-		React.ButtonHTMLAttributes<HTMLButtonElement>,
-		VariantProps<typeof buttonVariants> {
+	React.ButtonHTMLAttributes<HTMLButtonElement>,
+	VariantProps<typeof buttonVariants> {
 	asChild?: boolean
 	ripple?: boolean
 	rippleColor?: string
@@ -98,8 +98,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 		const motionProps = hoverScale
 			? {
-					whileHover: { scale: hoverScale }
-				}
+				whileHover: { scale: hoverScale }
+			}
 			: {}
 
 		if (asChild) {

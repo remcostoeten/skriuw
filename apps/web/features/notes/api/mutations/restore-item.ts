@@ -13,7 +13,7 @@ const STORAGE_KEY = 'Skriuw_notes'
 export async function restoreItem(id: string): Promise<boolean> {
 	try {
 		const result = await update(STORAGE_KEY, id, {
-			deletedAt: null,
+			deletedAt: undefined,
 		} as Partial<Item>)
 
 		if (result) {

@@ -1,4 +1,5 @@
 import { createReactBlockSpec } from '@blocknote/react'
+import { generateId } from '@skriuw/core-logic'
 import { FolderTree, Trash2, Edit2, Check, X, ChevronRight, ChevronDown, Folder, File, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
@@ -16,10 +17,6 @@ type TEditingState = {
 }
 
 type TStyle = 'card' | 'minimal'
-
-function generateId(): string {
-    return Math.random().toString(36).substr(2, 9)
-}
 
 function parseTreeString(content: string): TNode[] {
     const lines = content.split('\n').filter(line => line.trim())

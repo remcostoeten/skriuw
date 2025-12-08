@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 
 import { Label } from '@skriuw/ui/label'
 import { Input } from '@skriuw/ui/input'
@@ -6,12 +6,40 @@ import { Switch } from '@skriuw/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@skriuw/ui/select'
 
 import type { SettingsGroup, UserSetting } from '../types'
+import { getPreviewRenderer } from '../preview-renderers'
 
 interface SettingsGroupProps {
 	group: SettingsGroup
 	values: Record<string, any>
 	onChange: (key: string, value: any) => void
 	disabled?: boolean
+}
+
+// Preview wrapper with suspense fallback
+function SettingPreview({
+	componentKey,
+	value,
+	settingKey,
+	options
+}: {
+	componentKey: string
+	value: any
+	settingKey: string
+	options?: any[]
+}) {
+	const PreviewComponent = getPreviewRenderer(componentKey)
+
+	if (!PreviewComponent) return null
+
+	return (
+		<Suspense fallback={
+			<div className="mt-3 rounded-md border border-border bg-muted/30 h-20 flex items-center justify-center">
+				<span className="text-xs text-muted-foreground">Loading preview...</span>
+			</div>
+		}>
+			<PreviewComponent value={value} settingKey={settingKey} options={options} />
+		</Suspense>
+	)
 }
 
 export function SettingsGroup({ group, values, onChange, disabled = false }: SettingsGroupProps) {
@@ -24,25 +52,42 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 		// Disable setting if it's not implemented or explicitly disabled
 		const isSettingDisabled = disabled || setting.implemented === false
 
+		const renderPreview = () => {
+			if (!setting.preview) return null
+
+			return (
+				<SettingPreview
+					componentKey={setting.preview.component}
+					value={currentValue}
+					settingKey={setting.key}
+					options={setting.options}
+					{...setting.preview.props}
+				/>
+			)
+		}
+
 		switch (setting.type) {
 			case 'boolean':
 				return (
 					<div
 						key={setting.key}
-						className={`flex items-center justify-between py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
+						className={`py-4 overflow-visible ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
-						<div className="space-y-1 pr-4">
-							<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
-							<p className="text-sm text-muted-foreground leading-relaxed">
-								{setting.description}
-							</p>
+						<div className="flex items-center justify-between">
+							<div className="flex-1 min-w-0 pr-8">
+								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
+									{setting.description}
+								</p>
+							</div>
+							<Switch
+								checked={currentValue}
+								onCheckedChange={handleChange}
+								disabled={isSettingDisabled}
+								size="md"
+							/>
 						</div>
-						<Switch
-							checked={currentValue}
-							onCheckedChange={handleChange}
-							disabled={isSettingDisabled}
-							size="md"
-						/>
+						{renderPreview()}
 					</div>
 				)
 
@@ -53,9 +98,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
 						<div className="flex items-center justify-between">
-							<div className="space-y-1 pr-4">
-								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed">
+							<div className="flex-1 min-w-0 pr-8">
+								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
 							</div>
@@ -64,7 +109,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								onValueChange={handleChange}
 								disabled={isSettingDisabled}
 							>
-								<SelectTrigger className="w-[180px]">
+								<SelectTrigger className="w-[160px] shrink-0">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -76,6 +121,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								</SelectContent>
 							</Select>
 						</div>
+						{renderPreview()}
 					</div>
 				)
 
@@ -86,9 +132,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
 						<div className="flex items-center justify-between">
-							<div className="space-y-1 pr-4">
-								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed">
+							<div className="flex-1 min-w-0 pr-8">
+								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
 							</div>
@@ -97,9 +143,10 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								value={currentValue?.toString() || ''}
 								onChange={(e) => handleChange(Number(e.target.value))}
 								disabled={isSettingDisabled}
-								className="w-[120px]"
+								className="w-[100px] shrink-0"
 							/>
 						</div>
+						{renderPreview()}
 					</div>
 				)
 
@@ -110,9 +157,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
 						<div className="flex items-center justify-between">
-							<div className="space-y-1 pr-4">
-								<Label className="text-sm font-medium text-foreground">{setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed">
+							<div className="flex-1 min-w-0 pr-8">
+								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
+								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
 							</div>
@@ -120,9 +167,10 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								value={currentValue?.toString() || ''}
 								onChange={(e) => handleChange(e.target.value)}
 								disabled={isSettingDisabled}
-								className="w-[200px]"
+								className="w-[180px] shrink-0"
 							/>
 						</div>
+						{renderPreview()}
 					</div>
 				)
 
@@ -138,7 +186,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 	const implementedSettings = group.settings.filter((setting) => setting.implemented !== false)
 
 	return (
-		<div className="space-y-0">
+		<div className="w-full max-w-2xl">
 			<div className="pb-4 mb-2 border-b border-border">
 				<h2 className="text-xl font-semibold text-foreground">{group.title}</h2>
 				<p className="text-sm text-muted-foreground mt-1">{group.description}</p>

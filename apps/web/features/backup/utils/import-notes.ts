@@ -1,6 +1,7 @@
 import type { Item, Note, Folder } from '@/features/notes/types'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
 import type { SkriuwExportData } from './export-notes'
+import { generateId } from '@skriuw/core-logic'
 
 export type ImportFormat = 'json' | 'markdown'
 
@@ -41,13 +42,6 @@ export interface ParsedMarkdownNote {
 		favorite?: boolean
 		folder?: string
 	}
-}
-
-/**
- * Generate a unique ID
- */
-function generateId(): string {
-	return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 }
 
 /**
@@ -100,7 +94,7 @@ function parseMarkdownFile(content: string, filename: string): ParsedMarkdownNot
 	const { frontmatter, content: markdownContent } = parseFrontmatter(content)
 
 	// Extract title from frontmatter or filename
-	const title = frontmatter.title || 
+	const title = frontmatter.title ||
 		filename.replace(/\.md$/i, '').replace(/-/g, ' ')
 
 	return {
@@ -245,7 +239,7 @@ export async function importFromMarkdown(
 	for (const file of files) {
 		try {
 			const parsed = parseMarkdownFile(file.content, file.name)
-			
+
 			// Convert markdown to blocks
 			const blocks = await markdownToBlocks(parsed.content)
 
@@ -256,11 +250,11 @@ export async function importFromMarkdown(
 				content: blocks,
 				pinned: parsed.metadata.pinned || false,
 				favorite: parsed.metadata.favorite || false,
-				createdAt: parsed.metadata.createdAt 
-					? new Date(parsed.metadata.createdAt).getTime() 
+				createdAt: parsed.metadata.createdAt
+					? new Date(parsed.metadata.createdAt).getTime()
 					: now,
-				updatedAt: parsed.metadata.updatedAt 
-					? new Date(parsed.metadata.updatedAt).getTime() 
+				updatedAt: parsed.metadata.updatedAt
+					? new Date(parsed.metadata.updatedAt).getTime()
 					: now,
 			}
 
@@ -342,7 +336,7 @@ export function readFileAsText(file: File): Promise<string> {
  */
 export async function processImportFiles(files: FileList | File[]): Promise<ImportResult> {
 	const fileArray = Array.from(files)
-	
+
 	if (fileArray.length === 0) {
 		return {
 			success: false,
@@ -360,7 +354,7 @@ export async function processImportFiles(files: FileList | File[]): Promise<Impo
 	}
 
 	// Otherwise, treat as markdown files
-	const markdownFiles = fileArray.filter(f => 
+	const markdownFiles = fileArray.filter(f =>
 		f.name.endsWith('.md') || f.name.endsWith('.markdown')
 	)
 

@@ -1,4 +1,4 @@
-import { update } from '@skriuw/storage/crud/update'
+import { update } from '@/lib/storage/client'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import type { Item } from '../../types'
@@ -9,7 +9,7 @@ export async function renameItem(id: string, newName: string): Promise<Item | un
 	try {
 		const result = await update<Item>(STORAGE_KEY, id, { name: newName })
 		invalidateItemsCache()
-		return result
+		return result.data as Item | undefined
 	} catch (error) {
 		throw new Error(
 			`Failed to rename item: ${error instanceof Error ? error.message : String(error)}`

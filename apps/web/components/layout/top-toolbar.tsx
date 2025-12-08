@@ -2,7 +2,6 @@ import {
 	Menu,
 	PanelLeftClose,
 	Search,
-	Keyboard,
 	ChevronLeft,
 	ChevronRight,
 	Code,
@@ -19,7 +18,6 @@ type props = {
 	onToggleSidebar: () => void
 	onToggleDesktopSidebar?: () => void
 	onSearch?: (query: string) => void
-	onToggleShortcuts?: () => void
 	onNavigatePrevious?: () => void
 	onNavigateNext?: () => void
 	canNavigatePrevious?: boolean
@@ -33,7 +31,6 @@ export function TopToolbar({
 	onToggleSidebar,
 	onToggleDesktopSidebar,
 	onSearch,
-	onToggleShortcuts,
 	onNavigatePrevious,
 	onNavigateNext,
 	canNavigatePrevious = false,
@@ -122,13 +119,6 @@ export function TopToolbar({
 					variant="toolbar"
 					shortcut="Ctrl+M / Meta+M"
 					onClick={onToggleEditorMode}
-				/>
-				<IconButton
-					icon={<Keyboard className="w-4 h-4 text-muted-foreground" />}
-					tooltip="Keyboard shortcuts"
-					shortcut="Ctrl+/ / Meta+/"
-					variant="toolbar"
-					onClick={onToggleShortcuts}
 				/>
 				{isTauri && <div className="ml-2 border-l border-border h-6" />}
 				{isTauri && <WindowControls />}

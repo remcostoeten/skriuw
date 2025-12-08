@@ -149,6 +149,19 @@
 	}
 }
 
+/* Screen reader only - for accessibility */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border-width: 0;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
 	width: 6px;
@@ -180,4 +193,43 @@
 
 .hide-scrollbar::-webkit-scrollbar {
 	display: none;
+}
+
+/* Soft text selection styling */
+::selection {
+	background: hsl(var(--accent));
+	color: inherit;
+}
+
+::-moz-selection {
+	background: hsl(var(--accent));
+	color: inherit;
+}
+
+/* Minimal focus rings - almost invisible */
+input:focus,
+textarea:focus,
+[contenteditable]:focus,
+button:focus,
+[tabindex]:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px hsl(var(--muted-foreground) / 0.15);
+}
+
+/* Remove harsh focus-visible ring from Tailwind */
+.focus-visible\:ring-ring:focus-visible {
+	--tw-ring-color: transparent !important;
+}
+
+.focus-visible\:ring-1:focus-visible,
+.focus-visible\:ring-2:focus-visible {
+	--tw-ring-color: transparent !important;
 }

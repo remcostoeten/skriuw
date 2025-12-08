@@ -12,10 +12,6 @@ type UIState = {
 	toggleMobileSidebar: () => void
 	setMobileSidebarOpen: (open: boolean) => void
 
-	isShortcutsSidebarOpen: boolean
-	toggleShortcutsSidebar: () => void
-	setShortcutsSidebarOpen: (open: boolean) => void
-
 	isSettingsOpen: boolean
 	toggleSettings: () => void
 	setSettingsOpen: (open: boolean) => void
@@ -63,13 +59,6 @@ export const useUIStore = create<UIState>()(
 				})),
 			setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
 
-			isShortcutsSidebarOpen: false,
-			toggleShortcutsSidebar: () =>
-				set((state) => ({
-					isShortcutsSidebarOpen: !state.isShortcutsSidebarOpen,
-				})),
-			setShortcutsSidebarOpen: (open) => set({ isShortcutsSidebarOpen: open }),
-
 			isSettingsOpen: false,
 			toggleSettings: () =>
 				set((state) => ({
@@ -88,7 +77,6 @@ export const useUIStore = create<UIState>()(
 			}),
 			openTaskPanel: (taskId) => set({
 				taskStack: [taskId],
-				isShortcutsSidebarOpen: false
 			}),
 			pushTask: (taskId) => set((state) => ({
 				taskStack: [...state.taskStack, taskId],
