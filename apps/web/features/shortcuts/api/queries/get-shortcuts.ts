@@ -34,6 +34,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'save-note': [],
 			'search-notes': [],
 			'delete-item': [],
+			'pin-item': [],
 			'open-settings': [],
 			'toggle-theme': [],
 		}

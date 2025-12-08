@@ -51,6 +51,21 @@ export * from './cache'
 export { setAdapter, getAdapter, hasAdapter, resetAdapter } from './adapter'
 
 // ============================================================================
+// USER CONTEXT
+// ============================================================================
+
+export {
+    setUserContext,
+    getUserContext,
+    clearUserContext,
+    getCurrentUserId,
+    withUser,
+    withUserSync,
+    createScopedContext,
+} from './context'
+export type { UserContext } from './context'
+
+// ============================================================================
 // OPERATIONS
 // ============================================================================
 
