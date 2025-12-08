@@ -1,4 +1,4 @@
-import { read } from '@skriuw/storage/crud'
+import { readMany, readOne } from '@/lib/storage/client'
 import type { Folder, Note, Item } from '@/features/notes/types'
 
 const STORAGE_KEY = 'Skriuw_notes'
@@ -10,8 +10,7 @@ export interface FetchNotesOptions {
 
 export async function fetchNotes(options?: FetchNotesOptions): Promise<Note[]> {
 	try {
-		const result = await read<Item>(STORAGE_KEY, {
-			getAll: true,
+		const result = await readMany<Item>(STORAGE_KEY, {
 			filter: (item) => {
 				if (item.type !== 'note') return false
 				if (options?.parentFolderId) {
@@ -25,7 +24,10 @@ export async function fetchNotes(options?: FetchNotesOptions): Promise<Note[]> {
 				return true
 			},
 		})
-		return Array.isArray(result) ? result.filter((item): item is Note => item.type === 'note') : []
+
+		if (!result.success || !result.data) return []
+
+		return result.data.filter((item): item is Note => item.type === 'note')
 	} catch (error) {
 		throw new Error(
 			`Failed to fetch notes: ${error instanceof Error ? error.message : String(error)}`
@@ -35,8 +37,7 @@ export async function fetchNotes(options?: FetchNotesOptions): Promise<Note[]> {
 
 export async function fetchFolders(options?: FetchNotesOptions): Promise<Folder[]> {
 	try {
-		const result = await read<Item>(STORAGE_KEY, {
-			getAll: true,
+		const result = await readMany<Item>(STORAGE_KEY, {
 			filter: (item) => {
 				if (item.type !== 'folder') return false
 				if (options?.parentFolderId) {
@@ -50,9 +51,10 @@ export async function fetchFolders(options?: FetchNotesOptions): Promise<Folder[
 				return true
 			},
 		})
-		return Array.isArray(result)
-			? result.filter((item): item is Folder => item.type === 'folder')
-			: []
+
+		if (!result.success || !result.data) return []
+
+		return result.data.filter((item): item is Folder => item.type === 'folder')
 	} catch (error) {
 		throw new Error(
 			`Failed to fetch folders: ${error instanceof Error ? error.message : String(error)}`
@@ -62,9 +64,9 @@ export async function fetchFolders(options?: FetchNotesOptions): Promise<Folder[
 
 export async function fetchOneNote(noteId: string): Promise<Note | undefined> {
 	try {
-		const result = await read<Note>(STORAGE_KEY, { getById: noteId })
-		if (result && typeof result === 'object' && !Array.isArray(result) && result.type === 'note') {
-			return result
+		const result = await readOne<Note>(STORAGE_KEY, noteId)
+		if (result.success && result.data && result.data.type === 'note') {
+			return result.data
 		}
 		return undefined
 	} catch (error) {
@@ -76,14 +78,13 @@ export async function fetchOneNote(noteId: string): Promise<Note | undefined> {
 
 export async function fetchOneFolder(folderId: string): Promise<Folder | undefined> {
 	try {
-		const result = await read<Folder>(STORAGE_KEY, { getById: folderId })
+		const result = await readOne<Folder>(STORAGE_KEY, folderId)
 		if (
-			result &&
-			typeof result === 'object' &&
-			!Array.isArray(result) &&
-			result.type === 'folder'
+			result.success &&
+			result.data &&
+			result.data.type === 'folder'
 		) {
-			return result
+			return result.data
 		}
 		return undefined
 	} catch (error) {

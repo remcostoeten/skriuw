@@ -140,12 +140,17 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 		},
 	})
 
-	// Load custom shortcuts on mount
+	// Load custom shortcuts on mount (non-blocking)
 	useEffect(() => {
 		const loadCustomShortcuts = async () => {
-			const custom = await getShortcuts()
-			setCustomShortcuts(custom)
+			try {
+				const custom = await getShortcuts()
+				setCustomShortcuts(custom)
+			} catch (error) {
+				console.error('Failed to load shortcuts:', error)
+			}
 		}
+		// Don't block - load in background
 		loadCustomShortcuts()
 	}, [])
 

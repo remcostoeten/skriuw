@@ -151,7 +151,7 @@ export const customCodeBlockSpec = createReactBlockSpec(
 					{/* Hidden content ref to satisfy BlockNote's content requirement */}
 					<div className="hidden" ref={contentRef} />
 
-					<div className="relative font-mono text-[13px] leading-6">
+					<div className="relative font-mono text-[13px] leading-6 bg-card">
 						<div
 							style={{
 								maxHeight: isCollapsed ? `${block.props.maxHeight}px` : 'none',
@@ -180,7 +180,7 @@ export const customCodeBlockSpec = createReactBlockSpec(
 									className="cursor-text text-foreground overflow-x-auto"
 								>
 									<pre
-										className="font-mono font-[500] !text-[14px] bg-transparent px-3 pt-[14px] !pb-[7px] m-0"
+										className="font-mono font-[500] !text-[14px] bg-transparent px-3 pt-[4px]  m-0"
 										style={{
 											whiteSpace: 'pre-wrap',
 											wordWrap: 'break-word',

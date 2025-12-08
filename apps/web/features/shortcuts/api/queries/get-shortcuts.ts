@@ -1,17 +1,28 @@
-import { read } from '@skriuw/storage/crud'
 
+import { readMany } from '@skriuw/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
 const STORAGE_KEY = 'skriuw:shortcuts:custom'
+const CACHE_TTL = 60000 // 1 minute cache for shortcuts
+let cachedShortcuts: Record<ShortcutId, KeyCombo[]> | null = null
+let cacheTimestamp = 0
 
 /**
  * Get all custom shortcuts as a record
  * Uses the generic CRUD layer for agnostic storage
+ * Includes in-memory caching to reduce storage calls
  */
 export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
+	const now = Date.now()
+
+	// Return cached shortcuts if still valid
+	if (cachedShortcuts && (now - cacheTimestamp) < CACHE_TTL) {
+		return cachedShortcuts
+	}
+
 	try {
-		const shortcuts = await read<CustomShortcut>(STORAGE_KEY)
+		const crudResult = await readMany<CustomShortcut>(STORAGE_KEY)
 		const result: Record<ShortcutId, KeyCombo[]> = {
 			'editor-focus': [],
 			'toggle-shortcuts': [],
@@ -27,11 +38,15 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'toggle-theme': [],
 		}
 
-		if (Array.isArray(shortcuts)) {
-			for (const shortcut of shortcuts) {
+		if (crudResult.success && crudResult.data) {
+			for (const shortcut of crudResult.data) {
 				result[shortcut.id as ShortcutId] = shortcut.keys
 			}
 		}
+
+		// Cache the result
+		cachedShortcuts = result
+		cacheTimestamp = now
 
 		return result
 	} catch (error) {
@@ -39,4 +54,9 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)}`
 		)
 	}
+}
+
+export function invalidateShortcutsCache(): void {
+	cachedShortcuts = null
+	cacheTimestamp = 0
 }

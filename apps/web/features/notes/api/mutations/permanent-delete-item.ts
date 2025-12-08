@@ -1,6 +1,6 @@
 import { deleteTasksForNote } from '@/features/tasks'
 
-import { destroy } from '@skriuw/storage/crud/destroy'
+import { destroy } from '@/lib/storage/client'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
@@ -21,11 +21,11 @@ export async function permanentDeleteItem(id: string): Promise<boolean> {
 		}
 
 		const result = await destroy(STORAGE_KEY, id)
-		if (result) {
+		if (result.success) {
 			invalidateItemsCache()
 			invalidatePrefetchedNote(id)
 		}
-		return result
+		return result.success
 	} catch (error) {
 		throw new Error(
 			`Failed to permanently delete item: ${error instanceof Error ? error.message : String(error)}`

@@ -1,4 +1,4 @@
-import { create, update, read } from '@skriuw/storage/crud'
+import { create, update, readOne } from '@/lib/storage/client'
 
 import type { SettingsEntity } from '../types'
 
@@ -6,9 +6,9 @@ const STORAGE_KEY = 'app:settings'
 
 export async function saveSettings(settings: Record<string, any>): Promise<void> {
 	try {
-		const existing = await read<SettingsEntity>(STORAGE_KEY, { getById: 'app-settings' })
+		const result = await readOne<SettingsEntity>(STORAGE_KEY, 'app-settings')
 
-		if (existing && typeof existing === 'object' && 'id' in existing) {
+		if (result.success && result.data) {
 			// Update existing
 			await update<SettingsEntity>(STORAGE_KEY, 'app-settings', {
 				settings,

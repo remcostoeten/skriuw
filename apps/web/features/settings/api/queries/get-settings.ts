@@ -1,4 +1,4 @@
-import { read } from '@skriuw/storage/crud'
+import { readOne } from '@/lib/storage/client'
 
 import type { SettingsEntity } from '../types'
 
@@ -6,10 +6,10 @@ const STORAGE_KEY = 'app:settings'
 
 export async function getSettings(): Promise<Record<string, any> | null> {
 	try {
-		const result = await read<SettingsEntity>(STORAGE_KEY, { getById: 'app-settings' })
+		const result = await readOne<SettingsEntity>(STORAGE_KEY, 'app-settings')
 
-		if (result && typeof result === 'object' && 'settings' in result) {
-			return (result as any).settings
+		if (result.success && result.data && 'settings' in result.data) {
+			return (result.data as any).settings
 		}
 
 		return null

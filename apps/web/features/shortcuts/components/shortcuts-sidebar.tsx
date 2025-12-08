@@ -136,9 +136,8 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 			{/* Sidebar */}
 			<div
 				ref={sidebarRef}
-				className={`fixed top-0 right-0 h-full w-full sm:w-[500px] bg-popover border-l border-border z-50 flex flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-					isOpen ? 'translate-x-0' : 'translate-x-full'
-				}`}
+				className={`fixed top-1 right-0 h-full w-full sm:w-[500px] bg-popover border-l border-border z-50 flex flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(-1.34,1.56,0.64,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full'
+					}`}
 				tabIndex={-1}
 			>
 				{/* Header */}

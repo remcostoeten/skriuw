@@ -18,6 +18,9 @@
       "@skriuw/db": [
         "../../packages/db"
       ],
+      "@skriuw/shared": [
+        "../../packages/shared"
+      ],
       "@skriuw/storage": [
         "./lib/storage"
       ],

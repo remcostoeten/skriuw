@@ -1,20 +1,22 @@
-
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 import type { Note, UpdateNoteData } from '../../types'
-import { update } from '../../../../lib/storage'
+import { update } from '@/lib/storage/client'
 import { syncTasksToDatabase } from '../../../tasks'
 import { extractTasksFromBlocks } from '../../utils/extract-tasks'
 
 const STORAGE_KEY = 'Skriuw_notes'
 
 export async function updateNote(id: string, data: UpdateNoteData): Promise<Note | undefined> {
-	const updateFn = update
 	try {
-		const result = await updateFn(STORAGE_KEY, id, {
+		const result = await update<Note>(STORAGE_KEY, id, {
 			name: data.name,
 			content: data.content,
 		} as Partial<Note>)
+
+		if (!result.success) {
+			throw new Error(result.error?.message || 'Failed to update note')
+		}
 
 		invalidateItemsCache()
 		invalidatePrefetchedNote(id)
@@ -30,7 +32,7 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 			}
 		}
 
-		return result as Note | undefined
+		return result.data ?? undefined
 	} catch (error) {
 		throw new Error(
 			`Failed to update note: ${error instanceof Error ? error.message : String(error)}`
