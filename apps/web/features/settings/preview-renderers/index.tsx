@@ -17,6 +17,8 @@ import WordWrapPreview from './word-wrap-preview'
 import TypographyPreview from './typography-preview'
 import LayoutPreview from './layout-preview'
 import SearchPreview from './search-preview'
+import BlockNotePreview from './blocknote-preview'
+import MultiTabPreview from './multi-tab-preview'
 
 // Registry of all preview renderers
 export const PREVIEW_RENDERERS: Record<string, React.ComponentType<PreviewProps | any>> = {
@@ -25,6 +27,8 @@ export const PREVIEW_RENDERERS: Record<string, React.ComponentType<PreviewProps 
     'typography': TypographyPreview,
     'layout': LayoutPreview,
     'search': SearchPreview,
+    'blocknote': BlockNotePreview,
+    'multi-tab': MultiTabPreview,
 }
 
 // Helper to check if a preview exists for a component key
