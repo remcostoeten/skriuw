@@ -2,8 +2,7 @@
 // Placeholder for future speech-to-text and text-to-speech AI features.
 // Uses Vercel AI SDK 5's experimental speech features.
 
-// TODO: Install AI packages and enable speech features
-// import { experimental_generateSpeech, experimental_transcribeAudio } from "ai/core";
+import { experimental_generateSpeech, experimental_transcribeAudio } from "ai/core";
 
 // Placeholder function for text-to-speech
 export async function generateSpeech(text: string): Promise<Blob> {

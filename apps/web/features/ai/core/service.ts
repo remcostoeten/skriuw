@@ -43,6 +43,10 @@ export class AiService {
         return retryWithFallback(() =>
             generateText({
                 model: parsed.model ? (this.provider as any)(parsed.model) : undefined,
+        const model: Model | undefined = parsed.model ? this.provider(parsed.model) : undefined;
+        return retryWithFallback(() =>
+            generateText({
+                model,
                 prompt: parsed.prompt,
                 ...parsed.options,
             })
@@ -50,18 +54,18 @@ export class AiService {
     }
 
     /** Stream a chat conversation – used by BlockNote AI */
-    async chat(opts: { messages: any[]; toolDefinitions?: any[] }) {
+    async chat(opts: { messages: ChatMessage[]; toolDefinitions?: any[] }) {
         // Validate chat payload
         const parsed = AiChatSchema.parse(opts);
-        // For streaming, we don't use retry fallback as it would break the stream
-        // Use the global provider that was set in config
-        return streamText({
-            // Use the default model from global provider
-            model: (globalThis as any).AI_SDK_DEFAULT_PROVIDER?.('google/gemini-1.5-flash'),
-            messages: parsed.messages,
-            tools: parsed.toolDefinitions as any,
-            includeRawChunks: true,
-        });
+        return retryWithFallback(() =>
+            streamText({
+                // model is resolved from global provider (default) – can be overridden per message if needed
+                model: undefined,
+                messages: parsed.messages,
+                tools: parsed.toolDefinitions ? toolDefinitionsToToolSet(parsed.toolDefinitions) : undefined,
+                includeRawChunks: true,
+            })
+        );
     }
 }
 

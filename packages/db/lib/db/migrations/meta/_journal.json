@@ -19,7 +19,6 @@
     {
       "idx": 2,
       "version": "7",
-<<<<<<< HEAD
       "when": 1765131009709,
       "tag": "0002_reflective_menace",
       "breakpoints": true
@@ -37,11 +36,10 @@
       "when": 1765220648671,
       "tag": "0004_early_siren",
       "breakpoints": true
-=======
+
       "when": 1765155094045,
       "tag": "0002_reflective_menace",
       "breakpoints": true
->>>>>>> 7c2f80e (feat: AI Integration MVP (#37))
     }
   ]
 }

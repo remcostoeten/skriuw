@@ -1,3 +1,4 @@
+
 import { pgTable, text, integer, bigint, index, boolean, timestamp } from 'drizzle-orm/pg-core'
 import { createUserIndex, createUserCompositeIndex } from './user-owned'
 
