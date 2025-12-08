@@ -37,6 +37,9 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'Enable multi-note tabs to keep several notes open at once',
 		category: 'editor',
 		implemented: true,
+		preview: {
+			component: 'multi-tab',
+		},
 	},
 	{
 		key: 'rawMDXMode',
@@ -129,6 +132,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		options: ['narrow', 'medium', 'wide', 'full'],
 		implemented: true,
+		condition: (settings) => settings.centeredLayout === true,
 		preview: {
 			component: 'layout',
 			props: { type: 'maxWidth' },

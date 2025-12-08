@@ -44,8 +44,6 @@ export function getGlobalProvider(): Provider {
 // Set the global provider for the SDK (available to all calls).
 // This must be executed once at app startup.
 export function initGlobalProvider() {
-    // The Vercel AI SDK reads `globalThis.AI_SDK_DEFAULT_PROVIDER` if present.
-    // We assign the provider instance here.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).AI_SDK_DEFAULT_PROVIDER = getGlobalProvider();
 }

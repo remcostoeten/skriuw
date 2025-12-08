@@ -1,7 +1,3 @@
-// apps/web/features/ai/api/chat.ts
-// Server Action (or API route) handling AI chat requests for BlockNote AI integration.
-// It receives a JSON payload with `messages` (array of UIMessage) and optional `toolDefinitions`.
-// The route uses the global provider set in `config.ts` and streams the response back to the client.
 
 import { streamText } from "ai";
 import { injectDocumentStateMessages, toolDefinitionsToToolSet, aiDocumentFormats } from "@blocknote/xl-ai/server";

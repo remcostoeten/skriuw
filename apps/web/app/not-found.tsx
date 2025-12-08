@@ -17,7 +17,7 @@ export default function NotFound() {
 		<EmptyState
 			message="404 - Page Not Found"
 			isFull
-			submessage={`The route "${pathname}" does not exist.`}
+			isError={`The route "${pathname}" does not exist.`}
 			actions={[
 				{
 					label: 'Return to Home',

@@ -38,12 +38,23 @@ export default function DataBackupPage() {
 					Data & Backup
 				</h1>
 				<p className="text-sm text-muted-foreground mt-1">
-					Export your notes for backup, or import from other apps
+					Safely backup your notes, migrate between devices, or import from other note-taking apps
 				</p>
+				<div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+					<p className="text-xs text-blue-800 dark:text-blue-200">
+						<strong>💡 Why use this?</strong> Create regular backups to prevent data loss, easily
+						move your notes to a new device, or switch from other apps like Notion, Evernote, or
+						Apple Notes.
+					</p>
+				</div>
 			</div>
 
 			<div className="flex-1 overflow-hidden">
-				<Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col px-0">
+				<Tabs
+					value={activeTab}
+					onValueChange={handleTabChange}
+					className="h-full flex flex-col px-0"
+				>
 					<div className="border-b border-border/50 ">
 						<TabsList className="bg-transparent gap-0 h-11">
 							{tabs.map((tab) => {
@@ -58,7 +69,9 @@ export default function DataBackupPage() {
 											'relative flex items-center gap-2 px-4 py-2 text-sm font-medium',
 											'transition-colors duration-150',
 											'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
-											isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'
+											isActive
+												? 'text-foreground'
+												: 'text-muted-foreground hover:text-foreground/80'
 										)}
 									>
 										{/* Active underline indicator */}
@@ -88,9 +101,23 @@ export default function DataBackupPage() {
 								<>
 									<div className="mb-6">
 										<h2 className="text-xl font-semibold mb-2">Export Notes</h2>
-										<p className="text-sm text-muted-foreground">
-											Download a backup of all your notes and folders
+										<p className="text-sm text-muted-foreground mb-3">
+											Create a backup of all your notes and folders to keep them safe
 										</p>
+										<div className="space-y-2 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+											<p>
+												<strong>📦 Export as JSON:</strong> Complete backup with all formatting,
+												perfect for restoring to this app
+											</p>
+											<p>
+												<strong>📄 Export as Markdown:</strong> Plain text files, great for reading
+												in any text editor or importing to other apps
+											</p>
+											<p>
+												<strong>🔄 When to export:</strong> Before switching devices, after
+												important changes, or monthly for peace of mind
+											</p>
+										</div>
 									</div>
 									<ExportPanel />
 								</>
@@ -100,9 +127,23 @@ export default function DataBackupPage() {
 								<>
 									<div className="mb-6">
 										<h2 className="text-xl font-semibold mb-2">Import Notes</h2>
-										<p className="text-sm text-muted-foreground">
-											Restore from a backup or import from other apps
+										<p className="text-sm text-muted-foreground mb-3">
+											Restore from a backup or bring notes from other apps
 										</p>
+										<div className="space-y-2 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+											<p>
+												<strong>📂 Import JSON:</strong> Restore a previous backup from this app
+												(includes all formatting)
+											</p>
+											<p>
+												<strong>📝 Import Markdown:</strong> Bring in notes from other apps like
+												Notion, Bear, or plain text files
+											</p>
+											<p>
+												<strong>⚠️ Important:</strong> Importing creates new notes - it won't
+												overwrite your existing content
+											</p>
+										</div>
 									</div>
 									<ImportPanel />
 								</>
@@ -114,4 +155,3 @@ export default function DataBackupPage() {
 		</div>
 	)
 }
-

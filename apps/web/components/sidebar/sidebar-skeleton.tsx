@@ -13,7 +13,7 @@ interface SidebarSkeletonProps {
  */
 export function SidebarSkeleton({ itemCount = 8, hasNestedItems = true }: SidebarSkeletonProps) {
 	return (
-		<div className="w-[210px] h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
+		<div className="hidden lg:flex w-[210px] h-full bg-sidebar-background flex-col border-r border-sidebar-border">
 			{/* Action Bar - static placeholder since buttons don't need loading state */}
 			<div className="h-10 border-b border-sidebar-border bg-sidebar-background flex items-center justify-center">
 				<div className="flex items-center gap-2 opacity-30">

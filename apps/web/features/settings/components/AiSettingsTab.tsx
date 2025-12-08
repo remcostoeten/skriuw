@@ -3,21 +3,22 @@
 // Uses existing SettingsGroup component for consistent styling.
 
 import React from "react";
-import { SettingsGroup } from "./SettingsGroup";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AiSettingsValidation } from "../types"; // Assume this type exists in settings/types.ts
-import { useSettings } from "../hooks/useSettings"; // hypothetical hook to read/write settings
+import { SettingsGroup } from "./SettingsGroup";
+import { useSettings } from "../use-settings";
+import { AiSettingsValidation } from "../ai-settings-validation";
 
 type FormValues = {
     enabled: boolean;
     provider: string;
     model: string;
-    userKey: string;
+    userKey?: string;
     spellcheck: boolean;
 };
 
-export const AiSettingsTab: React.FC = () => {
+
+
+export function ActiveTab() {
     const { settings, updateSetting } = useSettings();
     const defaultValues: FormValues = {
         enabled: settings["ai.enabled"] ?? false,
@@ -33,7 +34,6 @@ export const AiSettingsTab: React.FC = () => {
         watch,
         formState: { errors },
     } = useForm<FormValues>({
-        resolver: zodResolver(AiSettingsValidation),
         defaultValues,
     });
 
@@ -55,26 +55,32 @@ export const AiSettingsTab: React.FC = () => {
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
-            <SettingsGroup title="AI Features" description="Enable AI-powered tools such as spellcheck.">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div>
+                <h3 className="text-lg font-medium">AI Features</h3>
+                <p className="text-sm text-gray-600 mb-4">Enable AI-powered tools such as spellcheck.</p>
                 <label className="flex items-center space-x-2">
                     <input type="checkbox" {...register("enabled")} />
                     <span>Enable AI</span>
                 </label>
                 {errors.enabled && <p className="text-red-500">{errors.enabled.message}</p>}
-            </SettingsGroup>
+            </div>
 
             {watch("enabled") && (
                 <>
-                    <SettingsGroup title="Provider" description="Select the AI provider.">
+                    <div>
+                        <h3 className="text-lg font-medium">Provider</h3>
+                        <p className="text-sm text-gray-600 mb-4">Select the AI provider.</p>
                         <select {...register("provider")} className="w-full p-2 border rounded">
                             <option value="gemini">Google Gemini</option>
                             <option value="openrouter">OpenRouter (OpenAI/Anthropic)</option>
                         </select>
                         {errors.provider && <p className="text-red-500">{errors.provider.message}</p>}
-                    </SettingsGroup>
+                    </div>
 
-                    <SettingsGroup title="Model" description="Choose the model for the selected provider.">
+                    <div>
+                        <h3 className="text-lg font-medium">Model</h3>
+                        <p className="text-sm text-gray-600 mb-4">Choose the model for the selected provider.</p>
                         <select {...register("model")} className="w-full p-2 border rounded">
                             {modelOptions[selectedProvider]?.map((m) => (
                                 <option key={m} value={m}>
@@ -83,9 +89,11 @@ export const AiSettingsTab: React.FC = () => {
                             ))}
                         </select>
                         {errors.model && <p className="text-red-500">{errors.model.message}</p>}
-                    </SettingsGroup>
+                    </div>
 
-                    <SettingsGroup title="API Key" description="Optional custom API key – overrides system keys.">
+                    <div>
+                        <h3 className="text-lg font-medium">API Key</h3>
+                        <p className="text-sm text-gray-600 mb-4">Optional custom API key – overrides system keys.</p>
                         <input
                             type="text"
                             placeholder="sk-..."
@@ -93,15 +101,17 @@ export const AiSettingsTab: React.FC = () => {
                             className="w-full p-2 border rounded"
                         />
                         {errors.userKey && <p className="text-red-500">{errors.userKey.message}</p>}
-                    </SettingsGroup>
+                    </div>
 
-                    <SettingsGroup title="Spellcheck" description="Enable AI‑driven spellcheck and grammar fixing.">
+                    <div>
+                        <h3 className="text-lg font-medium">Spellcheck</h3>
+                        <p className="text-sm text-gray-600 mb-4">Enable AI‑driven spellcheck and grammar fixing.</p>
                         <label className="flex items-center space-x-2">
                             <input type="checkbox" {...register("spellcheck")} />
                             <span>Enable Spellcheck</span>
                         </label>
                         {errors.spellcheck && <p className="text-red-500">{errors.spellcheck.message}</p>}
-                    </SettingsGroup>
+                    </div>
                 </>
             )}
 

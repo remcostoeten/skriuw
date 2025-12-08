@@ -9,13 +9,21 @@ import {
 	Sprout,
 	X,
 	Loader2,
-	Bug
+	Bug,
+	Cookie,
+	GripVertical,
 } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { cn } from '@skriuw/core-logic'
-import { downloadJsonExport, downloadMarkdownExport, importFromJson, importFromMarkdown } from '@/features/backup'
+import {
+	downloadJsonExport,
+	downloadMarkdownExport,
+	importFromJson,
+	importFromMarkdown,
+} from '@/features/backup'
 import { useNotesContext } from '@/features/notes'
+import { useDraggable } from '@/hooks/use-draggable'
 
 type DbStats = {
 	notes: number
@@ -43,6 +51,56 @@ export function DevWidget() {
 	const [provider, setProvider] = useState<'neon' | 'postgres' | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
+	const [hasHeroCookie, setHasHeroCookie] = useState(false)
+	const [isConnected, setIsConnected] = useState<boolean | null>(null)
+	
+	// Click vs drag detection
+	const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
+	const [hasMoved, setHasMoved] = useState(false)
+
+	// Draggable functionality
+	const {
+		dragRef,
+		position,
+		isDragging,
+		handleMouseDown,
+		handleTouchStart,
+		resetPosition,
+	} = useDraggable({
+		initialPosition: { x: 50, y: 100 }, // Simple default position
+		storageKey: 'dev-widget-position',
+		bounds: {
+			// Keep within viewport with some margin
+			left: -320, // Allow to be mostly off-screen left
+			top: -100, // Allow to be mostly off-screen top
+		},
+	})
+
+	// Cookie handling functions (matching page.tsx)
+	const BADGE_COOKIE_NAME = 'hide-alpha-badge'
+
+	function getHideBadgeCookie(): boolean {
+		if (typeof window === 'undefined') return false
+
+		const cookies = document.cookie.split(';')
+		for (const cookie of cookies) {
+			const [name, value] = cookie.trim().split('=')
+			if (name === BADGE_COOKIE_NAME) {
+				return value === 'true'
+			}
+		}
+		return false
+	}
+
+	function setHideBadgeCookie(hide: boolean) {
+		if (typeof window !== 'undefined') {
+			if (hide) {
+				document.cookie = `${BADGE_COOKIE_NAME}=true; max-age=${60 * 60 * 24 * 30}; path=/; secure; samesite=strict`
+			} else {
+				document.cookie = `${BADGE_COOKIE_NAME}=; max-age=0; path=/; secure; samesite=strict`
+			}
+		}
+	}
 
 	const fetchStats = useCallback(async () => {
 		setLoading(true)
@@ -52,9 +110,13 @@ export function DevWidget() {
 				const data = await res.json()
 				setStats(data.stats)
 				if (data.provider) setProvider(data.provider)
+				setIsConnected(true)
+			} else {
+				setIsConnected(false)
 			}
 		} catch (error) {
 			console.error('Failed to fetch dev stats', error)
+			setIsConnected(false)
 		} finally {
 			setLoading(false)
 		}
@@ -63,8 +125,54 @@ export function DevWidget() {
 	useEffect(() => {
 		if (isOpen) {
 			fetchStats()
+			setHasHeroCookie(getHideBadgeCookie())
 		}
 	}, [isOpen, fetchStats])
+
+	// Track mouse movement to detect click vs drag
+	useEffect(() => {
+		if (!dragStartPos) return
+
+		const handleMouseMove = (e: MouseEvent) => {
+			const deltaX = Math.abs(e.clientX - dragStartPos.x)
+			const deltaY = Math.abs(e.clientY - dragStartPos.y)
+			const threshold = 5 // 5px threshold to distinguish click from drag
+			
+			if (deltaX > threshold || deltaY > threshold) {
+				setHasMoved(true)
+			}
+		}
+
+		const handleMouseUp = () => {
+			// Don't reset state here - let click handler handle it
+			// This prevents race condition between mouseup and click events
+			// Reset after a short delay to handle cases where click doesn't fire
+			setTimeout(() => {
+				setDragStartPos(null)
+				setHasMoved(false)
+			}, 100)
+		}
+
+		if (dragStartPos) {
+			document.addEventListener('mousemove', handleMouseMove)
+			document.addEventListener('mouseup', handleMouseUp)
+		}
+
+		return () => {
+			document.removeEventListener('mousemove', handleMouseMove)
+			document.removeEventListener('mouseup', handleMouseUp)
+		}
+	}, [dragStartPos])
+
+	const toggleHeroCookie = () => {
+		const newState = !hasHeroCookie
+		setHideBadgeCookie(newState)
+		setHasHeroCookie(newState)
+		toast.success(newState ? 'Hero badge hidden' : 'Hero badge shown')
+		
+		// Notify main page to re-check badge visibility
+		window.dispatchEvent(new CustomEvent('badgeCookieChanged'))
+	}
 
 	const executeAction = async (action: string, confirmMsg?: string) => {
 		if (confirmMsg && !confirm(confirmMsg)) return
@@ -122,13 +230,11 @@ export function DevWidget() {
 					await importFromJson(await files[0].text())
 				} else {
 					const contents = await Promise.all(
-						Array.from(files).map(async f => ({ name: f.name, content: await f.text() }))
+						Array.from(files).map(async (f) => ({ name: f.name, content: await f.text() }))
 					)
 					await importFromMarkdown(contents)
 				}
 				toast.success('Import successful', { id: toastId })
-await importFromMarkdown(await Promise.all(Array.from(files).map(async file => ({ name: file.name, content: await file.text() }))))
-				toast.success(`Imported ${files.length} markdown files`)
 				await refreshItems()
 				fetchStats()
 			} catch (err) {
@@ -144,39 +250,110 @@ await importFromMarkdown(await Promise.all(Array.from(files).map(async file => (
 		<>
 			{!isOpen && (
 				<button
-					onClick={() => setIsOpen(true)}
-					className="fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200"
+					ref={dragRef as any}
+					onClick={() => {
+						// Only toggle if we haven't moved (i.e., it was a click, not a drag)
+						if (!hasMoved && dragStartPos) {
+							setIsOpen(true)
+						}
+						// Reset drag detection state
+						setHasMoved(false)
+						setDragStartPos(null)
+					}}
+					onMouseDown={(e) => {
+						// Track initial position for click vs drag detection
+						setDragStartPos({ x: e.clientX, y: e.clientY })
+						setHasMoved(false)
+						handleMouseDown(e)
+					}}
+					onTouchStart={(e) => {
+						// Track initial position for touch events
+						const touch = e.touches[0]
+						setDragStartPos({ x: touch.clientX, y: touch.clientY })
+						setHasMoved(false)
+						handleTouchStart(e)
+					}}
+					className={cn(
+						'fixed z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200',
+						isDragging && 'cursor-grabbing'
+					)}
+					style={{
+						left: position.x + 8, // Center the button in the widget area
+						top: position.y + 8,
+						right: 'auto',
+						bottom: 'auto',
+					}}
 				>
 					<Bug className="h-5 w-5" />
 				</button>
 			)}
 
 			{isOpen && (
-				<div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-2xl animate-in slide-in-from-bottom-5 duration-200 flex flex-col overflow-hidden">
+				<div
+					ref={dragRef}
+					className={cn(
+						'fixed z-50 w-[320px] rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-2xl duration-0 flex flex-col overflow-hidden',
+						isDragging && 'cursor-grabbing'
+					)}
+					style={{
+						left: position.x,
+						top: position.y,
+						right: 'auto',
+						bottom: 'auto',
+					}}
+					onMouseDown={handleMouseDown}
+					onTouchStart={handleTouchStart}
+				>
 					{/* Header */}
-					<div className="flex items-center justify-between p-3 border-b bg-muted/30">
+					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm	 cursor-grab active:cursor-grabbing">
 						<div className="flex items-center gap-2">
-							<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-medium">
-								<div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-								DB CONNECTED
+							<GripVertical className="h-4 w-4 text-muted-foreground" />
+							<div
+								className={cn(
+									'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
+									isConnected
+										? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
+										: 'bg-red-500/10 border-red-500/20 text-red-600'
+								)}
+							>
+								<div
+									className={cn(
+										'h-1.5 w-1.5 rounded-full animate-pulse',
+										isConnected ? 'bg-emerald-500' : 'bg-red-500'
+									)}
+								/>
+								{isConnected ? 'DB CONNECTED' : 'DB DOWN'}
 							</div>
 							{provider && (
-								<div className={cn(
-									"flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium",
-									provider === 'neon'
-										? "bg-orange-500/10 border-orange-500/20 text-orange-600"
-										: "bg-blue-500/10 border-blue-500/20 text-blue-600"
-								)}>
+								<div
+									className={cn(
+										'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium',
+										provider === 'neon'
+											? 'bg-orange-500/10 border-orange-500/20 text-orange-600'
+											: 'bg-blue-500/10 border-blue-500/20 text-blue-600'
+									)}
+								>
 									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
 								</div>
 							)}
 						</div>
-						<button onClick={() => setIsOpen(false)} className="hover:bg-muted rounded p-1 transition-colors">
+						<button
+							onClick={(e) => {
+								e.stopPropagation()
+								setIsOpen(false)
+							}}
+							onMouseDown={(e) => e.stopPropagation()}
+							className="hover:bg-muted rounded p-1 transition-colors cursor-pointer"
+						>
 							<X className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</div>
 
-					<div className="p-3 space-y-4 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar">
+					<div
+						className="p-3 space-y-4 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar"
+						onMouseDown={(e) => e.stopPropagation()}
+						onTouchStart={(e) => e.stopPropagation()}
+					>
 						{/* Stats Grid */}
 						<div className="grid grid-cols-3 gap-2">
 							<StatCard label="Notes" value={stats?.notes ?? '-'} loading={loading} />
@@ -208,25 +385,128 @@ await importFromMarkdown(await Promise.all(Array.from(files).map(async file => (
 							<SectionLabel>Transfer</SectionLabel>
 							<div className="grid grid-cols-2 gap-2">
 								<div className="flex flex-col gap-1">
-									<ActionButton icon={Download} label="Export JSON" onClick={() => downloadJsonExport(items)} />
-									<ActionButton icon={Download} label="Export MD" onClick={() => downloadMarkdownExport(items)} />
+									<ActionButton
+										icon={Download}
+										label="Export JSON"
+										onClick={() => downloadJsonExport(items)}
+									/>
+									<ActionButton
+										icon={Download}
+										label="Export MD"
+										onClick={() => downloadMarkdownExport(items)}
+									/>
 								</div>
 								<div className="flex flex-col gap-1">
-									<ActionButton icon={Upload} label="Import JSON" onClick={() => handleImport('json')} />
-									<ActionButton icon={Upload} label="Import MD" onClick={() => handleImport('md')} />
+									<ActionButton
+										icon={Upload}
+										label="Import JSON"
+										onClick={() => handleImport('json')}
+									/>
+									<ActionButton
+										icon={Upload}
+										label="Import MD"
+										onClick={() => handleImport('md')}
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<SectionLabel>Cookies</SectionLabel>
+							<ActionButton
+								icon={Cookie}
+								label={hasHeroCookie ? 'Show Hero Badge' : 'Hide Hero Badge'}
+								onClick={toggleHeroCookie}
+								fullWidth
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<SectionLabel>Database Schema</SectionLabel>
+							<div className="bg-muted/30 border rounded-lg p-2 space-y-2 text-xs">
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-blue-600">notes</div>
+										<div className="text-blue-600 font-bold">
+											{loading ? '-' : (stats?.notes ?? 0)}
+										</div>
+									</div>
+									<div className="text-muted-foreground">
+										id, name, content, parentFolderId, pinned, pinnedAt, favorite, deletedAt,
+										createdAt, updatedAt, type
+									</div>
+								</div>
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-green-600">folders</div>
+										<div className="text-green-600 font-bold">
+											{loading ? '-' : (stats?.folders ?? 0)}
+										</div>
+									</div>
+									<div className="text-muted-foreground">
+										id, name, parentFolderId, pinned, pinnedAt, deletedAt, createdAt, updatedAt,
+										type
+									</div>
+								</div>
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-purple-600">tasks</div>
+										<div className="text-purple-600 font-bold">
+											{loading ? '-' : (stats?.tasks ?? 0)}
+										</div>
+									</div>
+									<div className="text-muted-foreground">
+										id, noteId, blockId, content, description, checked, dueDate, parentTaskId,
+										position, createdAt, updatedAt
+									</div>
+								</div>
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-orange-600">settings</div>
+										<div className="text-orange-600 font-bold">
+											{loading ? '-' : (stats?.settings ?? 0)}
+										</div>
+									</div>
+									<div className="text-muted-foreground">id, key, value, createdAt, updatedAt</div>
+								</div>
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-pink-600">shortcuts</div>
+										<div className="text-pink-600 font-bold">
+											{loading ? '-' : (stats?.shortcuts ?? 0)}
+										</div>
+									</div>
+									<div className="text-muted-foreground">
+										id, keys, customizedAt, createdAt, updatedAt
+									</div>
+								</div>
+								<div className="font-mono">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-gray-600">total</div>
+										<div className="text-gray-600 font-bold">
+											{loading ? '-' : (stats?.total ?? 0)}
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
 
 						<div className="space-y-2">
 							<SectionLabel>System</SectionLabel>
-							<ActionButton
-								icon={RefreshCw}
-								label="Restart Server"
-								onClick={() => executeAction('clear-cache')}
-								loading={actionLoading === 'clear-cache'}
-								fullWidth
-							/>
+							<div className="grid grid-cols-2 gap-2">
+								<ActionButton
+									icon={RefreshCw}
+									label="Clear Cache"
+									onClick={() => executeAction('clear-cache')}
+									loading={actionLoading === 'clear-cache'}
+								/>
+								<ActionButton
+									icon={Download}
+									label="Reset Position"
+									onClick={resetPosition}
+									variant="default"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -235,10 +515,20 @@ await importFromMarkdown(await Promise.all(Array.from(files).map(async file => (
 	)
 }
 
-function StatCard({ label, value, loading }: { label: string, value: number | string, loading: boolean }) {
+function StatCard({
+	label,
+	value,
+	loading,
+}: {
+	label: string
+	value: number | string
+	loading: boolean
+}) {
 	return (
 		<div className="bg-muted/30 border rounded-lg p-2 text-center">
-			<div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</div>
+			<div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+				{label}
+			</div>
 			<div className="text-lg font-bold tabular-nums text-foreground">
 				{loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto my-1" /> : value}
 			</div>
@@ -247,7 +537,11 @@ function StatCard({ label, value, loading }: { label: string, value: number | st
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-	return <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-0.5">{children}</div>
+	return (
+		<div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-0.5">
+			{children}
+		</div>
+	)
 }
 
 function ActionButton({
@@ -256,13 +550,13 @@ function ActionButton({
 	onClick,
 	loading,
 	variant = 'default',
-	fullWidth
+	fullWidth,
 }: {
-	icon: any,
-	label: string,
-	onClick: () => void,
-	loading?: boolean,
-	variant?: 'default' | 'destructive',
+	icon: any
+	label: string
+	onClick: () => void
+	loading?: boolean
+	variant?: 'default' | 'destructive'
 	fullWidth?: boolean
 }) {
 	return (
@@ -270,14 +564,18 @@ function ActionButton({
 			onClick={onClick}
 			disabled={loading}
 			className={cn(
-				"flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
+				'flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none',
 				variant === 'default'
-					? "bg-background hover:bg-muted hover:border-border/80"
-					: "bg-destructive/5 border-destructive/20 text-destructive hover:bg-destructive/10",
-				fullWidth ? "w-full justify-center" : "w-full justify-start"
+					? 'bg-background hover:bg-muted hover:border-border/80'
+					: 'bg-destructive/5 border-destructive/20 text-destructive hover:bg-destructive/10',
+				fullWidth ? 'w-full justify-center' : 'w-full justify-start'
 			)}
 		>
-			{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+			{loading ? (
+				<Loader2 className="h-3.5 w-3.5 animate-spin" />
+			) : (
+				<Icon className="h-3.5 w-3.5" />
+			)}
 			{label}
 		</button>
 	)

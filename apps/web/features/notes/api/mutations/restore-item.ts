@@ -1,4 +1,4 @@
-import { update } from '../../../../lib/storage'
+import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
@@ -16,7 +16,7 @@ export async function restoreItem(id: string): Promise<boolean> {
 			deletedAt: undefined,
 		} as Partial<Item>)
 
-		if (result) {
+		if (result.success) {
 			invalidateItemsCache()
 			invalidatePrefetchedNote(id)
 			return true

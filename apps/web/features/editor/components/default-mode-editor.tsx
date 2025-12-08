@@ -35,7 +35,7 @@ export function DualModeEditor({
 	disabled = false,
 	fontSize = '16px',
 	fontFamily = '"Inter", system-ui, sans-serif',
-	lineHeight = 1.6,
+	lineHeight = 1.4,
 	wordWrap = true,
 	blockIndicator = true,
 	showFormattingToolbar = true,

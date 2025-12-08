@@ -4,41 +4,20 @@ import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
 
 import { AppLayoutShell } from './app-layout-shell'
 
+import { LeftToolbar } from '../left-toolbar'
+import { TopToolbar } from './top-toolbar'
+
 function LeftToolbarSkeleton() {
-	return (
-		<div className="w-12 h-full bg-sidebar-background border-r border-sidebar-border flex flex-col justify-between items-center px-1.5 py-2">
-			<div className="flex flex-col items-center gap-2">
-				<Skeleton className="h-7 w-7 rounded-md" />
-				{Array.from({ length: 4 }).map((_, index) => (
-					<Skeleton key={index} className="h-8 w-8 rounded-md" />
-				))}
-			</div>
-			<div className="flex flex-col items-center gap-2 pb-10">
-				<Skeleton className="h-8 w-8 rounded-md" />
-			</div>
-		</div>
-	)
+	return <LeftToolbar />
 }
 
 function TopToolbarSkeleton() {
 	return (
-		<div className="h-10 bg-background border-b border-border flex items-center justify-between px-2">
-			<div className="flex items-center gap-1.5">
-				{Array.from({ length: 3 }).map((_, index) => (
-					<Skeleton key={index} className="h-7 w-7 rounded-md" />
-				))}
-			</div>
-
-			<div className="flex-1 flex justify-center">
-				<Skeleton className="h-5 w-48 rounded-sm" />
-			</div>
-
-			<div className="flex items-center gap-1.5">
-				{Array.from({ length: 2 }).map((_, index) => (
-					<Skeleton key={index} className="h-7 w-7 rounded-md" />
-				))}
-			</div>
-		</div>
+		<TopToolbar
+			noteName=""
+			onToggleSidebar={() => { }}
+			onToggleDesktopSidebar={() => { }}
+		/>
 	)
 }
 
