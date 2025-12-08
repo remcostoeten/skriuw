@@ -8,6 +8,7 @@ import * as schema from './schema'
 // neonConfig.fetchConnectionCache = true
 
 export * from './schema'
+export * from './user-owned'
 
 type DatabaseProvider = 'neon' | 'postgres'
 
@@ -19,7 +20,6 @@ function detectProvider(url: string): DatabaseProvider {
 		return explicitProvider
 	}
 
-	// Auto-detect based on URL
 	if (url.includes('neon.tech') || url.includes('neon')) {
 		return 'neon'
 	}

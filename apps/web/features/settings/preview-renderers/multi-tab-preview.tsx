@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { PreviewProps } from './index'
 
 // Mock tab data for preview
@@ -25,36 +25,51 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 			// Cycle through different demos
 			const demos: Array<'idle' | 'switch' | 'close' | 'new'> = ['switch', 'close', 'new']
 			let index = 0
+			let demoIndex = 0
 
 			const cycleDemos = () => {
+				demoIndex = index
 				setCurrentDemo(demos[index])
 
-				// Execute the demo action
+				// Execute the demo action with stable references
 				switch (demos[index]) {
 					case 'switch':
-						// Switch to next tab
-						const nextIndex = (tabs.findIndex(t => t.id === activeTab) + 1) % tabs.length
-						setActiveTab(tabs[nextIndex].id)
+						// Switch to next tab using current state
+						setActiveTab(current => {
+							const currentTabs = mockTabs
+							const nextIndex = (currentTabs.findIndex(t => t.id === current) + 1) % currentTabs.length
+							return currentTabs[nextIndex].id
+						})
 						break
 					case 'close':
-						// Close a tab and add it back
-						if (tabs.length > 2) {
-							const tabIndexToClose = tabs.findIndex(t => t.id !== activeTab)
-							const tabToClose = tabs[tabIndexToClose]
-							setTabs(prev => prev.filter(t => t.id !== tabToClose.id))
-							// Add it back after a delay
-							setTimeout(() => {
-								setTabs(prev => [...prev, tabToClose])
-							}, 1500)
-						}
+						// Close a tab and add it back (using a timeout ref for cleanup)
+						const timeoutId = setTimeout(() => {
+							setTabs(prev => {
+								if (prev.length > 2) {
+									const tabIndexToClose = prev.findIndex(t => t.id !== activeTab)
+									const tabToClose = prev[tabIndexToClose]
+									const newTabs = prev.filter(t => t.id !== tabToClose.id)
+									// Add it back after a delay
+									setTimeout(() => {
+										setTabs(prevTabs => [...prevTabs, tabToClose])
+									}, 1500)
+									return newTabs
+								}
+								return prev
+							})
+						}, 1000)
+						demoTimeoutRef.current = timeoutId
 						break
 					case 'new':
 						// Add a new tab temporarily
-						const newTab = { id: 'temp', title: 'New Note.md', isActive: false }
-						setTabs(prev => [...prev, newTab])
-						setTimeout(() => {
-							setTabs(prev => prev.filter(t => t.id !== 'temp'))
-						}, 2000)
+						const newTabTimeout = setTimeout(() => {
+							setTabs(prev => [...prev, { id: 'temp', title: 'New Note.md', isActive: false }])
+							// Remove it after delay
+							setTimeout(() => {
+								setTabs(prev => prev.filter(t => t.id !== 'temp'))
+							}, 2000)
+						}, 1000)
+						demoTimeoutRef.current = newTabTimeout
 						break
 				}
 
@@ -82,7 +97,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 			setTabs(mockTabs)
 			setActiveTab('1')
 		}
-	}, [isHovering, value, tabs, activeTab])
+	}, [isHovering, value])
 
 	const getDemoHint = () => {
 		switch (currentDemo) {
@@ -97,13 +112,13 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 		}
 	}
 
-	const handleTabClick = (tabId: string) => {
+	const handleTabClick = useCallback((tabId: string) => {
 		if (value) {
 			setActiveTab(tabId)
 		}
-	}
+	}, [value])
 
-	const handleCloseTab = (e: React.MouseEvent, tabId: string) => {
+	const handleCloseTab = useCallback((e: React.MouseEvent, tabId: string) => {
 		e.stopPropagation()
 		if (value && tabs.length > 1) {
 			const newTabs = tabs.filter(t => t.id !== tabId)
@@ -113,7 +128,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 				setActiveTab(newTabs[newActiveIndex]?.id || newTabs[0]?.id)
 			}
 		}
-	}
+	}, [value, tabs.length, activeTab])
 
 	return (
 		<div
@@ -128,7 +143,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 
 			{/* Demo hints */}
 			<div
-				className="text-xs px-3 py-1 bg-gradient-to-r from-green-500/10 to-blue-500/10 border-b border-border/50 text-green-600 dark:text-green-400 transition-all duration-500"
+				className="text-xs px-3 py-1 bg-muted/30 border-b border-border/50 text-muted-foreground transition-all duration-500"
 				style={{
 					opacity: isHovering && value ? 1 : 0.7,
 					transform: isHovering && value ? 'translateY(0)' : 'translateY(-2px)',
@@ -154,11 +169,11 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 								<div
 									key={tab.id}
 									className={`group relative flex items-center px-3 py-2 text-xs font-medium border-r border-border/50 cursor-pointer transition-all duration-200 ${tab.id === activeTab
-											? 'bg-primary text-primary-foreground border-b-2 border-b-primary'
+											? 'bg-accent text-accent-foreground border-b-2 border-b-accent'
 											: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
 										} ${currentDemo === 'switch' && tab.id === activeTab ? 'animate-pulse' : ''
 										} ${currentDemo === 'close' && tab.id !== activeTab ? 'animate-pulse opacity-50' : ''
-										} ${currentDemo === 'new' && tab.id === 'temp' ? 'animate-pulse bg-green-500/10' : ''
+										} ${currentDemo === 'new' && tab.id === 'temp' ? 'animate-pulse bg-muted/30' : ''
 										}`}
 									onClick={() => handleTabClick(tab.id)}
 									style={{
@@ -181,7 +196,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 									{/* Close button */}
 									<button
 										onClick={(e) => handleCloseTab(e, tab.id)}
-										className="ml-2 w-3 h-3 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500 flex items-center justify-center transition-all duration-150"
+										className="ml-2 w-3 h-3 rounded-full opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground flex items-center justify-center transition-all duration-150"
 									>
 										<span className="text-[10px] leading-none">×</span>
 									</button>
@@ -195,7 +210,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 
 							{/* New tab button */}
 							<div
-								className={`px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-all duration-200 border-r border-border/50 ${currentDemo === 'new' ? 'animate-pulse bg-green-500/10' : ''
+								className={`px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-all duration-200 border-r border-border/50 ${currentDemo === 'new' ? 'animate-pulse bg-muted/30' : ''
 									}`}
 							>
 								<span className="text-[12px]">+</span>
@@ -261,16 +276,16 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 
 			{/* Feature highlights */}
 			{isHovering && value && (
-				<div className="px-3 py-2 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-t border-border/50 grid grid-cols-3 gap-2 text-xs">
-					<div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+				<div className="px-3 py-2 bg-muted/20 border-t border-border/50 grid grid-cols-3 gap-2 text-xs">
+					<div className="flex items-center gap-1 text-muted-foreground">
 						<span className="font-medium">🔄</span>
 						<span>Quick Switch</span>
 					</div>
-					<div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+					<div className="flex items-center gap-1 text-muted-foreground">
 						<span className="font-medium">💾</span>
 						<span>Auto Save</span>
 					</div>
-					<div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+					<div className="flex items-center gap-1 text-muted-foreground">
 						<span className="font-medium">⚡</span>
 						<span>Instant Access</span>
 					</div>

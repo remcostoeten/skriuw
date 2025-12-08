@@ -27,9 +27,6 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
 		category: 'editor',
 		implemented: true,
-		preview: {
-			component: 'blocknote',
-		},
 	},
 	{
 		key: 'multiNoteTabs',

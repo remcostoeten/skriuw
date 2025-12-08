@@ -25,6 +25,8 @@ type props = {
 	canNavigateNext?: boolean
 	isRawMDXMode?: boolean
 	onToggleEditorMode?: () => void
+	showSidebar?: boolean
+	showEditorModeToggle?: boolean
 }
 
 export function TopToolbar({
@@ -38,6 +40,8 @@ export function TopToolbar({
 	canNavigateNext = false,
 	isRawMDXMode = false,
 	onToggleEditorMode,
+	showSidebar = true,
+	showEditorModeToggle = true,
 }: props) {
 	const isTauri = isTauriAvailable()
 
@@ -53,21 +57,25 @@ export function TopToolbar({
 				className="flex items-center gap-1.5"
 				data-tauri-drag-region={isTauri ? 'false' : undefined}
 			>
-				<IconButton
-					icon={<Menu className="w-4 h-4 text-muted-foreground" />}
-					tooltip="Toggle sidebar"
-					variant="toolbar"
-					onClick={onToggleSidebar}
-					className="flex lg:hidden"
-				/>
+				{showSidebar && (
+					<IconButton
+						icon={<Menu className="w-4 h-4 text-muted-foreground" />}
+						tooltip="Toggle sidebar"
+						variant="toolbar"
+						onClick={onToggleSidebar}
+						className="flex lg:hidden"
+					/>
+				)}
 
-				<IconButton
-					icon={<PanelLeftClose className="w-4 h-4 text-muted-foreground" />}
-					tooltip="Togglefile tree"
-					variant="toolbar"
-					onClick={onToggleDesktopSidebar}
-					className="hidden lg:flex"
-				/>
+				{showSidebar && (
+					<IconButton
+						icon={<PanelLeftClose className="w-4 h-4 text-muted-foreground" />}
+						tooltip="Toggle file tree"
+						variant="toolbar"
+						onClick={onToggleDesktopSidebar}
+						className="hidden lg:flex"
+					/>
+				)}
 
 				{onNavigatePrevious && onNavigateNext && (
 					<div className="flex items-center gap-0.5 ml-1">
@@ -108,19 +116,21 @@ export function TopToolbar({
 					variant="toolbar"
 					onClick={() => onSearch?.('')}
 				/>
-				<IconButton
-					icon={
-						isRawMDXMode ? (
-							<Type className="w-4 h-4 text-muted-foreground" />
-						) : (
-							<Code className="w-4 h-4 text-muted-foreground" />
-						)
-					}
-					tooltip={isRawMDXMode ? 'Switch to rich editor' : 'Switch to MDX mode'}
-					variant="toolbar"
-					shortcut="Ctrl+M / Meta+M"
-					onClick={onToggleEditorMode}
-				/>
+				{showEditorModeToggle && (
+					<IconButton
+						icon={
+							isRawMDXMode ? (
+								<Type className="w-4 h-4 text-muted-foreground" />
+							) : (
+								<Code className="w-4 h-4 text-muted-foreground" />
+							)
+						}
+						tooltip={isRawMDXMode ? 'Switch to rich editor' : 'Switch to MDX mode'}
+						variant="toolbar"
+						shortcut="Ctrl+M / Meta+M"
+						onClick={onToggleEditorMode}
+					/>
+				)}
 				<UserMenu />
 				{isTauri && <div className="ml-2 border-l border-border h-6" />}
 				{isTauri && <WindowControls />}

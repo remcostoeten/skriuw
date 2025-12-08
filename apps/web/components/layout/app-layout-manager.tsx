@@ -334,6 +334,8 @@ export function AppLayoutManager({
 					canNavigateNext={canNavigateNext}
 					isRawMDXMode={hasRawMDXMode}
 					onToggleEditorMode={handleToggleEditorMode}
+					showSidebar={showSidebar}
+					showEditorModeToggle={!!sidebarActiveNoteId}
 				/>
 			}
 			mainContent={
