@@ -139,6 +139,25 @@ export default function HeroBadge({
 								{endIcon}
 							</motion.div>
 						)}
+						{icon}
+					</motion.div>
+				)}
+				<span>{text}</span>
+				{endIcon && (
+					<motion.div
+						className={cn(
+							'text-foreground/60',
+							onCancel && 'hover:text-foreground cursor-pointer'
+						)}
+						onClick={(e) => {
+							if (onCancel) {
+								e.preventDefault()
+								e.stopPropagation()
+								onCancel()
+							}
+						}}
+					>
+						{endIcon}
 					</motion.div>
 				)}
 			</AnimatePresence>

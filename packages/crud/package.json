@@ -25,6 +25,10 @@
         "./operations": {
             "types": "./dist/operations/index.d.ts",
             "import": "./dist/operations/index.js"
+        },
+        "./adapter": {
+            "types": "./dist/adapter/index.d.ts",
+            "import": "./dist/adapter/index.js"
         }
     },
     "scripts": {

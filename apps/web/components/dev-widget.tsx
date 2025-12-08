@@ -127,6 +127,8 @@ export function DevWidget() {
 					await importFromMarkdown(contents)
 				}
 				toast.success('Import successful', { id: toastId })
+await importFromMarkdown(await Promise.all(Array.from(files).map(async file => ({ name: file.name, content: await file.text() }))))
+				toast.success(`Imported ${files.length} markdown files`)
 				await refreshItems()
 				fetchStats()
 			} catch (err) {

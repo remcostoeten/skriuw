@@ -1,4 +1,3 @@
-// User settings interfaces
 export interface UserSetting<T = any> {
 	key: string
 	label?: string
