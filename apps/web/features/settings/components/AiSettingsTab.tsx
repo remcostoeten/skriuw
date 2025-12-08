@@ -6,7 +6,6 @@ import React from 'react'
 import { SettingsGroup } from './SettingsGroup'
 import { AI_SETTINGS_GROUPS } from '../ai-settings'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
 const AiSettingsValidation = z.object({
@@ -43,15 +42,28 @@ export const AiSettingsTab: React.FC = () => {
 		spellcheck: mockSettings['ai.features.spellcheck'] ?? true,
 	}
 
+	const form = useForm<FormValues>({
+		resolver: (data) => {
+			const result = AiSettingsValidation.safeParse(data)
+			if (result.success) {
+				return { values: result.data, errors: {} }
+			}
+			const errors: Record<string, { message: string }> = {}
+			result.error.issues.forEach((issue) => {
+				const path = issue.path.join('.')
+				errors[path] = { message: issue.message }
+			})
+			return { values: {}, errors }
+		},
+		defaultValues,
+	})
+
 	const {
 		register,
 		handleSubmit,
 		watch,
 		formState: { errors },
-	} = useForm<FormValues>({
-		resolver: zodResolver(AiSettingsValidation),
-		defaultValues,
-	})
+	} = form
 
 	const onSubmit = (data: FormValues) => {
 		// Persist each setting individually – Settings system expects key/value pairs.

@@ -12,7 +12,7 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 		const result = await update<Note>(STORAGE_KEY, id, {
 			name: data.name,
 			content: data.content,
-		} as Partial<Note>)
+		})
 
 		if (!result.success) {
 			throw new Error(result.error?.message || 'Failed to update note')
