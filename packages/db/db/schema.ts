@@ -71,6 +71,17 @@ export const shortcuts = pgTable('shortcuts', {
 	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
 
+export const aiUsage = pgTable('ai_usage', {
+	id: text('id').primaryKey(),
+	userId: text('user_id').notNull(),
+	month: text('month').notNull(), // Format: YYYY-MM
+	count: integer('count').default(0).notNull(),
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+	userMonthIdx: index('ai_usage_user_month_idx').on(table.userId, table.month),
+}))
+
+
 // Type exports for use in the app
 export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
@@ -79,4 +90,7 @@ export type NewFolder = typeof folders.$inferInsert
 export type Setting = typeof settings.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type Shortcut = typeof shortcuts.$inferSelect
+export type AiUsage = typeof aiUsage.$inferSelect
+export type NewAiUsage = typeof aiUsage.$inferInsert
+
 
