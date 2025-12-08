@@ -1,4 +1,4 @@
-import { readMany } from '@/lib/storage/client'
+import { readMany } from '@skriuw/crud'
 
 import type { Item } from '../../types'
 

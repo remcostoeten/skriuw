@@ -1,7 +1,17 @@
-import { ensureStorageInitialized } from '../../lib/storage/client'
+import { setAdapter, hasAdapter } from '@skriuw/crud'
+import { createClientApiAdapter } from '../../lib/storage/adapters/client-api'
 import { initializeDefaultNotesAndFolders } from '../../features/notes/utils/initialize-defaults'
 
 let initializationPromise: Promise<void> | null = null
+
+/**
+ * Ensures the @skriuw/crud adapter is initialized.
+ * Safe to call multiple times - will only initialize once.
+ */
+function ensureStorageInitialized(): void {
+	if (hasAdapter()) return
+	setAdapter(createClientApiAdapter())
+}
 
 /**
  * Initialize the storage system with database (PostgreSQL via Drizzle)

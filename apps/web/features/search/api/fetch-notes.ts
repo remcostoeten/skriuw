@@ -1,4 +1,4 @@
-import { readMany, readOne } from '@/lib/storage/client'
+import { readMany, readOne } from '@skriuw/crud'
 import type { Folder, Note, Item } from '@/features/notes/types'
 
 const STORAGE_KEY = 'Skriuw_notes'

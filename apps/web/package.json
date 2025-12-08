@@ -10,9 +10,13 @@
         "start": "next start"
     },
     "dependencies": {
+        "@ai-sdk/google": "^2.0.44",
+        "@ai-sdk/openai": "^2.0.79",
         "@blocknote/code-block": "^0.42.3",
         "@blocknote/core": "^0.42.3",
         "@blocknote/react": "^0.42.3",
+        "@blocknote/xl-ai": "0.42.3",
+        "@hookform/resolvers": "^5.2.2",
         "@internationalized/date": "^3.10.0",
         "@monaco-editor/react": "^4.7.0",
         "@skriuw/core-logic": "workspace:*",
@@ -21,6 +25,7 @@
         "@skriuw/shared": "workspace:*",
         "@skriuw/ui": "workspace:*",
         "@tauri-apps/api": "^1.5.0",
+        "ai": "^5.0.108",
         "class-variance-authority": "^0.7.1",
         "cmdk": "^1.1.1",
         "drizzle-orm": "^0.44.7",
@@ -38,6 +43,7 @@
         "react-use-measure": "^2.1.7",
         "sonner": "^1.7.4",
         "vaul": "^1.1.2",
+        "zod": "^4.1.13",
         "zustand": "^5.0.8"
     },
     "devDependencies": {
