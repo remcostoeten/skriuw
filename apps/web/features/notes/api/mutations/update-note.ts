@@ -1,7 +1,7 @@
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 import type { Note, UpdateNoteData } from '../../types'
-import { update } from '@/lib/storage/client'
+import { update } from '@skriuw/crud'
 import { syncTasksToDatabase } from '../../../tasks'
 import { extractTasksFromBlocks } from '../../utils/extract-tasks'
 

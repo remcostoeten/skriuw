@@ -93,10 +93,10 @@ export default function Index() {
 	return (
 		<>
 			{!noteId && showBadge && (
-				<div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+				<div className="fixed bottom-6 w-full flex justify-center left-1/2 transform -translate-x-1/2 z-50">
 					<HeroBadge
 						href="/archive"
-						text="Bugs might occur! Still in alpha"
+						text="Bugs will occur! Still in alpha"
 						icon={<Icons.logo className="h-4 w-4" />}
 						endIcon={<Icons.close className="h-4 w-4" />}
 						onCancel={handleCancelBadge}

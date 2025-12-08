@@ -1,10 +1,19 @@
-import { create } from '@/lib/storage/client'
-import { getSettings } from '@/features/settings/api/queries/get-settings'
+import { create, readMany } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { getInitialNoteContent } from '../../utils/get-initial-note-content'
 
 import type { Note, CreateNoteData } from '../../types'
+import type { SettingsEntity } from '@/features/settings/api/types'
+
+const SETTINGS_STORAGE_KEY = 'skriuw:settings'
+
+async function getSettings(): Promise<SettingsEntity | null> {
+	const result = await readMany<SettingsEntity>(SETTINGS_STORAGE_KEY)
+	if (!result.success || !result.data) return null
+	const items = Array.isArray(result.data) ? result.data : []
+	return items[0] ?? null
+}
 
 const STORAGE_KEY = 'Skriuw_notes'
 
@@ -13,8 +22,9 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 		// If content is not provided, get initial content based on settings
 		let initialContent = data.content
 		if (!initialContent || initialContent.length === 0) {
-			const settings = await getSettings()
-			const template = (settings?.defaultNoteTemplate as 'empty' | 'h1' | 'h2') || 'empty'
+			const settingsEntity = await getSettings()
+			const template =
+				(settingsEntity?.settings?.defaultNoteTemplate as 'empty' | 'h1' | 'h2') || 'empty'
 			initialContent = getInitialNoteContent(template)
 		}
 

@@ -1,4 +1,4 @@
-import { create } from '@/lib/storage/client'
+import { create } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 

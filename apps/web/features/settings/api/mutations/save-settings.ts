@@ -1,4 +1,4 @@
-import { create, update, readOne } from '@/lib/storage/client'
+import { create, update, readOne } from '@skriuw/crud'
 
 import type { SettingsEntity } from '../types'
 

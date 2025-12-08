@@ -1,7 +1,7 @@
 import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
-import { readOne } from '@/lib/storage/client'
+import { readOne } from '@skriuw/crud'
 
 import { createFolder as createFolderMutation } from '../api/mutations/create-folder'
 import { createNote as createNoteMutation } from '../api/mutations/create-note'

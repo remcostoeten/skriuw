@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
 import type { Note } from '../types'
+import { noop } from '@skriuw/core-logic';
 
 // In-memory cache for prefetched notes
 const noteCache = new Map<string, { data: Note; timestamp: number }>()
@@ -60,7 +61,7 @@ export function usePrefetch() {
                 }
             })
             .catch(() => {
-                // Silently fail - prefetch is best-effort
+                noop()
             })
             .finally(() => {
                 inflightPrefetches.delete(noteId)
