@@ -3,6 +3,7 @@
 // and optional fallback/retry logic for rate‑limit errors.
 
 import { generateText, streamText } from "ai";
+import { toolDefinitionsToToolSet } from "@blocknote/xl-ai/server";
 import { AiGenerateSchema, AiChatSchema } from "./validation";
 import { getGlobalProvider } from "../config";
 import { z } from "zod";
@@ -38,15 +39,10 @@ export class AiService {
     async generate(opts: { prompt: string; model?: string; options?: any }) {
         // Validate input with Zod
         const parsed = AiGenerateSchema.parse(opts);
-        // For now, we'll let the AI SDK handle the model resolution
-        // The provider should be configured globally in the config
+            const modelName = parsed.model || "google/gemini-1.5-flash";
         return retryWithFallback(() =>
             generateText({
-                model: parsed.model ? (this.provider as any)(parsed.model) : undefined,
-        const model: Model | undefined = parsed.model ? this.provider(parsed.model) : undefined;
-        return retryWithFallback(() =>
-            generateText({
-                model,
+                model: modelName,
                 prompt: parsed.prompt,
                 ...parsed.options,
             })
@@ -54,18 +50,19 @@ export class AiService {
     }
 
     /** Stream a chat conversation – used by BlockNote AI */
-    async chat(opts: { messages: ChatMessage[]; toolDefinitions?: any[] }) {
+    async chat(opts: { messages: any[]; toolDefinitions?: any[] }) {
         // Validate chat payload
         const parsed = AiChatSchema.parse(opts);
-        return retryWithFallback(() =>
-            streamText({
-                // model is resolved from global provider (default) – can be overridden per message if needed
-                model: undefined,
+          const result = await retryWithFallback(async () => {
+            const streamResult = streamText({
+                model: "google/gemini-1.5-flash",
                 messages: parsed.messages,
-                tools: parsed.toolDefinitions ? toolDefinitionsToToolSet(parsed.toolDefinitions) : undefined,
+                tools: parsed.toolDefinitions ? toolDefinitionsToToolSet(parsed.toolDefinitions as any) : undefined,
                 includeRawChunks: true,
-            })
-        );
+            });
+            return streamResult;
+        });
+        return result;
     }
 }
 
