@@ -1,23 +1,6 @@
-export type {
-	BaseEntity,
-	GenericStorageAdapter,
-	ReadOptions,
-	StorageInfo,
-	StorageCapabilities,
-	StorageConfig,
-	StorageEvent,
-	StorageEventListener,
-	StorageAdapterName,
-	StorageAdapterType,
-} from './generic-types'
+/**
+ * @fileoverview Storage module exports
+ * @description Re-exports all storage functionality
+ */
 
-export {
-	createGenericStorageAdapter,
-	initializeGenericStorage,
-	getGenericStorage,
-	destroyGenericStorage,
-	registerGenericStorageAdapter,
-	getAvailableGenericAdapters,
-} from './generic-storage-factory'
-
-export * from './crud'
+export * from './client'

@@ -1,9 +1,9 @@
 'use client'
 
 import { FolderOpen, Pin, Star, Trash2, X } from 'lucide-react'
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 
-import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
+
 import { useNotificationPopover } from '@skriuw/ui/notification-popover'
 
 import { useNotesContext } from '../../features/notes/context/notes-context'
@@ -23,9 +23,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 
 	const { deleteItem, pinItem, favoriteNote } = useNotesContext()
 
-	const { showConfirm, ConfirmationPopover } = useConfirmationPopover()
 	const { showNotification, NotificationPopover } = useNotificationPopover()
-	const deleteButtonRef = useRef<HTMLButtonElement>(null)
 
 	// Helper to find item by ID and determine its type
 	const findItemById = useCallback(
@@ -45,36 +43,17 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 		[items]
 	)
 
-	const handleBulkDelete = useCallback(() => {
-		const count = getSelectedCount()
-		const buttonRect = deleteButtonRef.current?.getBoundingClientRect()
-		const position = buttonRect
-			? {
-					x: buttonRect.left + buttonRect.width / 2,
-					y: buttonRect.top,
-				}
-			: undefined
-
-		showConfirm({
-			title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
-			description: 'This action cannot be undone.',
-			variant: 'destructive',
-			confirmText: 'Delete',
-			cancelText: 'Cancel',
-			position,
-			onConfirm: async () => {
-				const ids = getSelectedIds()
-				for (const id of ids) {
-					try {
-						await deleteItem(id)
-					} catch (error) {
-						console.error(`Failed to delete item ${id}:`, error)
-					}
-				}
-				clearSelection()
-			},
-		})
-	}, [getSelectedCount, getSelectedIds, deleteItem, clearSelection, showConfirm])
+	const handleBulkDelete = useCallback(async () => {
+		const ids = getSelectedIds()
+		for (const id of ids) {
+			try {
+				await deleteItem(id)
+			} catch (error) {
+				console.error(`Failed to delete item ${id}:`, error)
+			}
+		}
+		clearSelection()
+	}, [getSelectedIds, deleteItem, clearSelection])
 
 	const handleBulkMove = useCallback(() => {
 		// This would open a move dialog, for now just show a notification
@@ -166,7 +145,6 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 
 				<div className="flex items-center gap-2 flex-wrap">
 					<Button
-						ref={deleteButtonRef}
 						variant="outline"
 						size="sm"
 						onClick={handleBulkDelete}
@@ -216,7 +194,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 					</Button>
 				</div>
 			</div>
-			<ConfirmationPopover />
+
 			<NotificationPopover />
 		</div>
 	)

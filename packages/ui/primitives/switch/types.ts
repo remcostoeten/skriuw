@@ -10,6 +10,7 @@ export type SwitchAnimationVariant =
 	| 'slide-gentle'
 	| 'slide-elastic'
 	| 'slide-linear'
+	| 'superlist'
 
 /**
  * Switch state types

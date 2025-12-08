@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, X } from 'lucide-react'
+import { Calendar as CalendarIcon, X } from 'lucide-react'
+import { parseDate, CalendarDate, getLocalTimeZone, today, DateValue } from '@internationalized/date'
 
 import { cn } from '@skriuw/core-logic'
 import { Button } from '@skriuw/ui/button'
@@ -10,7 +11,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@skriuw/ui/popover'
-import { Calendar as CalendarComponent } from '@skriuw/ui/calendar'
+import { Calendar } from '@skriuw/ui/calendar-rac'
 
 interface DueDateButtonProps {
     dueDate: number | null
@@ -56,13 +57,32 @@ function getDueDateColor(timestamp: number | null): string {
     return 'text-blue-400'
 }
 
+function timestampToCalendarDate(timestamp: number): CalendarDate {
+    const date = new Date(timestamp)
+    return parseDate(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`)
+}
+
+function calendarDateToTimestamp(calendarDate: CalendarDate): number {
+    const date = calendarDate.toDate(getLocalTimeZone())
+    date.setHours(23, 59, 59, 999)
+    return date.getTime()
+}
+
 export function DueDateButton({ dueDate, onUpdate, className }: DueDateButtonProps) {
     const [open, setOpen] = useState(false)
 
-    const handleSelect = (date: Date | undefined) => {
-        if (date) {
-            date.setHours(23, 59, 59, 999)
-            onUpdate(date.getTime())
+    const selectedDate = dueDate ? timestampToCalendarDate(dueDate) : null
+
+    const handleChange = (value: DateValue) => {
+        if (value) {
+            // value can be CalendarDate, CalendarDateTime, or ZonedDateTime.
+            // Since we are using simple date picker, it usually returns CalendarDate.
+            // But to be safe and satisfy TS, we treat it as DateValue which has toDate().
+            // But helper needs CalendarDate.
+            // Let's rely on basic CalendarDate casting if possible, or convert DateValue to CalendarDate.
+            // Actually `Calendar` from RAC returns what you give it or CalendarDate by default.
+            // Let's try casting for now as it's the simplest path given previous code.
+            onUpdate(calendarDateToTimestamp(value as CalendarDate))
         }
         setOpen(false)
     }
@@ -86,7 +106,7 @@ export function DueDateButton({ dueDate, onUpdate, className }: DueDateButtonPro
                         className
                     )}
                 >
-                    <Calendar className="h-3.5 w-3.5" />
+                    <CalendarIcon className="h-3.5 w-3.5" />
                     <span>{dueDate ? formatDueDate(dueDate) : 'Due date'}</span>
                     {dueDate && (
                         <span
@@ -99,12 +119,11 @@ export function DueDateButton({ dueDate, onUpdate, className }: DueDateButtonPro
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                    mode="single"
-                    selected={dueDate ? new Date(dueDate) : undefined}
-                    onSelect={handleSelect}
-                    initialFocus
+            <PopoverContent className="w-auto p-3" align="start">
+                <Calendar
+                    value={selectedDate}
+                    onChange={handleChange}
+                    minValue={today(getLocalTimeZone())}
                 />
             </PopoverContent>
         </Popover>

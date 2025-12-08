@@ -116,8 +116,10 @@ export function useEditor({
 			const contentMatches = JSON.stringify(currentContent) === JSON.stringify(contentToLoad)
 
 			if (!contentMatches) {
-				// Replace all blocks with the note content
-				editor.replaceBlocks(editor.document, contentToLoad)
+				// Defer replaceBlocks to avoid flushSync during React render
+				queueMicrotask(() => {
+					editor.replaceBlocks(editor.document, contentToLoad)
+				})
 			}
 			hasInitializedRef.current = true
 		}

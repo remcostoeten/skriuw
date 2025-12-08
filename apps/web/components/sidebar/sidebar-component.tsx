@@ -826,7 +826,6 @@ function FileTreeItem({
 										? 'bg-accent text-foreground'
 										: 'text-secondary-foreground/80 hover:text-foreground',
 									isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : '',
-									hasOpenTab && !isActive && !isItemSelected && 'bg-accent'
 								)}
 								style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
 								draggable={true}
@@ -1115,28 +1114,14 @@ function FileTreeItem({
 					</ContextMenuSub>
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onClick={(e) => {
+						onClick={async (e) => {
 							const selectedCount = getSelectedCount()
-							if (selectedCount > 1 && showConfirm) {
+							if (selectedCount > 1) {
 								const selectedIds = getSelectedIds()
-								const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-								showConfirm({
-									title: `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}?`,
-									description: 'This action cannot be undone.',
-									variant: 'destructive',
-									confirmText: 'Delete',
-									cancelText: 'Cancel',
-									position: {
-										x: rect.left + rect.width / 2,
-										y: rect.top,
-									},
-									onConfirm: async () => {
-										for (const id of selectedIds) {
-											await onDelete(id)
-										}
-										clearSelection()
-									},
-								})
+								for (const id of selectedIds) {
+									await onDelete(id)
+								}
+								clearSelection()
 							} else {
 								onDelete(item.id)
 							}
@@ -1749,6 +1734,18 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// Check if we're in an input/editor context
+			const target = e.target as HTMLElement
+			const isInput =
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable ||
+				!!target.closest('[contenteditable="true"]')
+
+			if (isInput) {
+				return
+			}
+
 			if (e.key === 'Escape' && getSelectedCount() > 0) {
 				clearSelection()
 				return
@@ -1763,23 +1760,13 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 			if (e.key === 'Delete' && getSelectedCount() > 0) {
 				e.preventDefault()
-				const count = getSelectedCount()
 				const ids = getSelectedIds()
-				showConfirm({
-					title: `Delete ${count} item${count !== 1 ? 's' : ''}?`,
-					description: 'This action cannot be undone.',
-					variant: 'destructive',
-					confirmText: 'Delete',
-					cancelText: 'Cancel',
-					onConfirm: async () => {
-						for (const id of ids) {
-							handleDeleteItem(id).catch((error) => {
-								console.error(`Failed to delete item ${id}:`, error)
-							})
-						}
-						clearSelection()
-					},
-				})
+				for (const id of ids) {
+					handleDeleteItem(id).catch((error) => {
+						console.error(`Failed to delete item ${id}:`, error)
+					})
+				}
+				clearSelection()
 				return
 			}
 		}

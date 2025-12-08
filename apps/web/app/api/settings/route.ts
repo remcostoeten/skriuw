@@ -1,37 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
-import { getDatabase, settings } from '@skriuw/db'
+import { db } from '../../../lib/storage/adapters/server-db'
 import { getSafeTimestamp } from '@skriuw/db'
 
 const SETTINGS_KEY = 'app-settings'
 
-function deserializeSetting(row: typeof settings.$inferSelect) {
-	let parsed: Record<string, any> = {}
-	try {
-		parsed = JSON.parse(row.value)
-	} catch (error) {
-		console.warn('Failed to parse settings JSON, returning empty object:', error)
-	}
-
-	return {
-		id: row.id,
-		key: row.key,
-		settings: parsed,
-		createdAt: row.createdAt,
-		updatedAt: row.updatedAt,
-	}
-}
-
 export async function GET() {
 	try {
-		const db = getDatabase()
-		const existing = await db.select().from(settings).where(eq(settings.key, SETTINGS_KEY)).limit(1)
-
-		if (existing.length === 0) {
-			return NextResponse.json(null)
-		}
-
-		return NextResponse.json(deserializeSetting(existing[0]))
+		const result = await db.findById('settings', SETTINGS_KEY)
+		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to load settings:', error)
 		return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 })
@@ -40,42 +16,49 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
 	try {
-		const db = getDatabase()
 		const body = await request.json()
-		const settingsPayload = body?.settings ?? {}
 		const now = getSafeTimestamp()
 
-		// Use upsert pattern with onConflictDoUpdate - single query instead of select+insert/update
-		const [result] = await db
-			.insert(settings)
-			.values({
-				id: SETTINGS_KEY,
-				key: SETTINGS_KEY,
-				value: JSON.stringify(settingsPayload),
-				createdAt: now,
-				updatedAt: now,
-			})
-			.onConflictDoUpdate({
-				target: settings.key,
-				set: {
-					value: JSON.stringify(settingsPayload),
-					updatedAt: now,
-				},
-			})
-			.returning()
+		const data = {
+			id: SETTINGS_KEY,
+			key: SETTINGS_KEY,
+			value: body?.settings ?? {},
+			createdAt: now,
+			updatedAt: now,
+		}
 
-		return NextResponse.json(deserializeSetting(result), { status: 201 })
+		const result = await db.upsert('settings', data)
+		return NextResponse.json(result, { status: 201 })
 	} catch (error) {
 		console.error('Failed to save settings:', error)
 		return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
 	}
 }
 
+export async function PUT(request: NextRequest) {
+	try {
+		const body = await request.json()
+		const now = getSafeTimestamp()
+
+		const data = {
+			id: SETTINGS_KEY,
+			key: SETTINGS_KEY,
+			value: body?.settings ?? {},
+			createdAt: now,
+			updatedAt: now,
+		}
+
+		const result = await db.upsert('settings', data)
+		return NextResponse.json(result)
+	} catch (error) {
+		console.error('Failed to update settings:', error)
+		return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+	}
+}
+
 export async function DELETE() {
 	try {
-		const db = getDatabase()
-		await db.delete(settings).where(eq(settings.key, SETTINGS_KEY))
-
+		await db.delete('settings', SETTINGS_KEY)
 		return NextResponse.json({ success: true })
 	} catch (error) {
 		console.error('Failed to delete settings:', error)

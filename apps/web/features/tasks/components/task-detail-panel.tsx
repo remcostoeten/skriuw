@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import { cn } from '@skriuw/core-logic'
-import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 import { TaskDescriptionEditor } from './task-description-editor'
 import { DueDateButton } from './due-date-button'
 import { TaskContextProvider } from '../hooks/use-task-context'
@@ -91,7 +90,7 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
     }
 
     const handleDelete = async () => {
-        if (!task || !confirm('Delete this task?')) return
+        if (!task) return
         try {
             await fetch(`/api/tasks/item/${task.id}`, { method: 'DELETE' })
             toast.success('Deleted')
@@ -103,31 +102,25 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 
     // Calculate panel width based on position
     const getPanelWidth = () => {
-        if (isActive) return 'w-full sm:w-[420px] lg:w-[480px]'
+        if (isActive) return 'w-full sm:w-[480px] lg:w-[560px]'
         // Collapsed panels are thinner
         return 'w-[60px] sm:w-[80px]'
     }
 
     return (
         <motion.div
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{
-                x: 0,
-                opacity: 1,
-            }}
-            exit={{ x: '100%', opacity: 0 }}
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
             transition={{
-                type: 'spring',
-                damping: 25,
-                stiffness: 300,
-                delay: index * 0.05
+                duration: -1.3,
+                ease: [-1.4, 0, 0.2, 1]
             }}
             className={cn(
                 'relative flex flex-col shrink-0',
-                'bg-background/95 backdrop-blur-md',
+                'bg-background backdrop-blur-none',
                 'border-l border-border/50',
                 'shadow-xl',
-                'transition-all duration-300',
                 getPanelWidth(),
                 isCollapsed && 'cursor-pointer hover:bg-muted/30'
             )}
@@ -162,57 +155,59 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                     ) : (
                         <>
                             {/* Header */}
-                            <div className="shrink-0 border-b border-border/50">
+                            <div className="shrink-0">
                                 {/* Top bar */}
-                                <div className="flex items-center justify-between px-3 py-2">
+                                <div className="flex items-center justify-between px-4 py-3">
                                     <button
                                         onClick={onClose}
-                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        className="p-2 rounded-full hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
                                     >
-                                        <X className="w-4 h-4" />
+                                        <X className="w-5 h-5" />
                                     </button>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-2">
                                         <button
                                             onClick={handleDelete}
-                                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-red-400 transition-colors"
+                                            className="p-2 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash2 className="w-5 h-5" />
                                         </button>
-                                        <button className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors">
-                                            <MoreHorizontal className="w-4 h-4" />
+                                        <button className="p-2 rounded-full hover:bg-muted/60 text-muted-foreground transition-colors">
+                                            <MoreHorizontal className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Title with checkbox */}
-                                <div className="flex items-start gap-3 px-4 py-3">
-                                    <Checkbox
-                                        checked={task.checked === 1}
-                                        onChange={() => {
+                                <div className="flex items-start gap-3 px-4 pb-4">
+                                    <button
+                                        onClick={() => {
                                             const newChecked = task.checked === 1 ? 0 : 1
                                             setTask({ ...task, checked: newChecked })
                                             updateTask({ checked: newChecked })
                                         }}
-                                        size="md"
-                                    />
+                                        className={cn(
+                                            'mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                                            task.checked === 1
+                                                ? 'bg-primary border-primary text-primary-foreground'
+                                                : 'border-muted-foreground/40 hover:border-muted-foreground'
+                                        )}
+                                    >
+                                        {task.checked === 1 && (
+                                            <svg className="w-4 h-4" viewBox="0 0 12 12" fill="none">
+                                                <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </button>
                                     <h2 className={cn(
-                                        'text-lg font-semibold leading-tight flex-1',
+                                        'text-xl font-semibold leading-tight flex-1',
                                         task.checked === 1 && 'line-through text-muted-foreground'
                                     )}>
                                         {task.content || 'Untitled'}
                                     </h2>
                                 </div>
 
-                                {/* Metadata row */}
-                                <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto scrollbar-none">
-                                    {task.parentTaskId && (
-                                        <button
-                                            onClick={onNavigateBack}
-                                            className="shrink-0 h-7 px-2 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                        >
-                                            ← Parent
-                                        </button>
-                                    )}
+                                {/* Metadata buttons row */}
+                                <div className="flex items-center gap-2 px-4 pb-4 flex-wrap">
                                     <DueDateButton
                                         dueDate={task.dueDate}
                                         onUpdate={(dueDate: number | null) => {
@@ -220,11 +215,22 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                                             updateTask({ dueDate })
                                         }}
                                     />
+                                    {task.parentTaskId && (
+                                        <button
+                                            onClick={onNavigateBack}
+                                            className="shrink-0 h-7 px-3 text-xs rounded-full border border-border/50 text-muted-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5"
+                                        >
+                                            ← Parent
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
+                            {/* Divider */}
+                            <div className="border-t border-border/30" />
+
                             {/* Editor */}
-                            <div className="flex-1 min-h-0 overflow-hidden">
+                            <div className="flex-1 min-h-0 overflow-y-auto">
                                 <TaskContextProvider
                                     parentTaskId={task.id}
                                     noteId={task.noteId}
@@ -249,8 +255,8 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                             </div>
 
                             {/* Footer */}
-                            <div className="shrink-0 px-4 py-2 border-t border-border/30 text-xs text-muted-foreground/60 text-center">
-                                Created {new Date(task.createdAt).toLocaleDateString()}
+                            <div className="shrink-0 px-4 py-3 border-t border-border/30 text-xs text-muted-foreground/60 text-center">
+                                Created {new Date(task.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
                         </>
                     )}
@@ -278,32 +284,20 @@ export function TaskPanelStack() {
     return (
         <AnimatePresence>
             {isOpen && (
-                <>
-                    {/* Backdrop overlay */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={closeAllTasks}
-                        className="fixed inset-0 bg-background/70 backdrop-blur-sm z-50"
-                    />
-
-                    {/* Stacked panels container */}
-                    <div className="fixed inset-y-0 right-0 z-50 flex">
-                        <AnimatePresence mode="popLayout">
-                            {taskStack.map((taskId, index) => (
-                                <SingleTaskPanel
-                                    key={taskId}
-                                    taskId={taskId}
-                                    index={index}
-                                    totalPanels={taskStack?.length}
-                                    onClose={closeAllTasks}
-                                    onNavigateBack={handlePopTask}
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                </>
+                <div className="fixed inset-y-0 right-0 z-40 flex h-full">
+                    <AnimatePresence mode="popLayout">
+                        {taskStack.map((taskId, index) => (
+                            <SingleTaskPanel
+                                key={taskId}
+                                taskId={taskId}
+                                index={index}
+                                totalPanels={taskStack?.length}
+                                onClose={closeAllTasks}
+                                onNavigateBack={handlePopTask}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </div>
             )}
         </AnimatePresence>
     )
