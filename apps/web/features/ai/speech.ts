@@ -2,7 +2,7 @@
 // Placeholder for future speech-to-text and text-to-speech AI features.
 // Uses Vercel AI SDK 5's experimental speech features.
 
-import { experimental_generateSpeech, experimental_transcribeAudio } from "ai/core";
+import { experimental_generateSpeech, experimental_transcribe } from "ai";
 
 // Placeholder function for text-to-speech
 export async function generateSpeech(text: string): Promise<Blob> {
@@ -13,7 +13,7 @@ export async function generateSpeech(text: string): Promise<Blob> {
 
 // Placeholder function for speech-to-text
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
-    // TODO: Implement speech-to-text using experimental_transcribeAudio
+    // TODO: Implement speech-to-text using experimental_transcribe
     // This will be activated in a future feature release
     throw new Error("Audio transcription not yet implemented");
 }
