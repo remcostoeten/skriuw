@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X } from 'lucide-react'
+import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, Sparkles } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 
 import {
@@ -20,6 +20,7 @@ import { Input } from '@skriuw/ui/input'
 
 import { useSettings, SettingsGroup } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
+import { AI_SETTINGS_GROUPS } from '../features/settings/ai-settings'
 import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
 import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
 import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
@@ -122,6 +123,13 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			onClick: () => setActiveItem('appearance'),
 		},
 		{
+			id: 'ai',
+			label: 'AI Features',
+			icon: <Sparkles className="w-4 h-4" />,
+			active: activeItem === 'ai',
+			onClick: () => setActiveItem('ai'),
+		},
+		{
 			id: 'advanced',
 			label: 'Advanced',
 			icon: <Sliders className="w-4 h-4" />,
@@ -152,7 +160,8 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	}
 
 	const renderSettingsContent = () => {
-		const settingsGroup = EDITOR_SETTINGS_GROUPS.find((group) => group.category === activeItem)
+		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, ...AI_SETTINGS_GROUPS]
+		const settingsGroup = allSettingsGroups.find((group) => group.category === activeItem)
 
 		if (settingsGroup) {
 			return (
