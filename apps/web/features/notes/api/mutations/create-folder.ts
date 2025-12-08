@@ -1,4 +1,4 @@
-import { create } from '@/lib/storage/client'
+import { create } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 
@@ -13,7 +13,7 @@ export async function createFolder(data: CreateFolderData): Promise<Folder> {
 			name: data.name,
 			children: [],
 			parentFolderId: data.parentFolderId,
-		} as any)
+		})
 
 		if (!result.success || !result.data) {
 			throw new Error(result.error?.message || 'Failed to create folder')

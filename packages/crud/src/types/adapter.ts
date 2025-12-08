@@ -14,13 +14,14 @@ import type { BaseEntity } from './base'
  * @example
  * ```typescript
  * const adapter: StorageAdapter = {
- *   async create(storageKey, data) {
- *     // Insert into database/API
- *     return { id: 'new-id', ...data, createdAt: Date.now(), updatedAt: Date.now() }
+ *   async create(storageKey, data, options) {
+ *     // Insert into database/API with userId if provided
+ *     return { id: 'new-id', ...data, userId: options?.userId, createdAt: Date.now(), updatedAt: Date.now() }
  *   },
  *   async read(storageKey, options) {
  *     if (options?.getById) return db.get(options.getById)
- *     return db.getAll(storageKey)
+ *     // Filter by userId if provided
+ *     return db.getAll(storageKey, { userId: options?.userId })
  *   },
  *   async update(storageKey, id, data) {
  *     return db.update(id, data)
@@ -36,17 +37,19 @@ export interface StorageAdapter {
      * Creates a new entity in storage.
      * @param storageKey - Collection/table name
      * @param data - Entity data (id may be provided or auto-generated)
+     * @param options - Create options including userId
      * @returns Created entity with all fields populated
      */
     create<T extends BaseEntity>(
         storageKey: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+        options?: CreateAdapterOptions
     ): Promise<T>
 
     /**
      * Reads entities from storage.
      * @param storageKey - Collection/table name
-     * @param options - Query options
+     * @param options - Query options including userId for filtering
      * @returns Single entity, array, or undefined
      */
     read<T extends BaseEntity>(
@@ -59,21 +62,36 @@ export interface StorageAdapter {
      * @param storageKey - Collection/table name
      * @param id - Entity ID to update
      * @param data - Partial data to merge
+     * @param options - Update options including userId for ownership verification
      * @returns Updated entity or undefined if not found
      */
     update<T extends BaseEntity>(
         storageKey: string,
         id: string,
-        data: Partial<T>
+        data: Partial<T>,
+        options?: UpdateAdapterOptions
     ): Promise<T | undefined>
 
     /**
      * Deletes an entity from storage.
      * @param storageKey - Collection/table name
      * @param id - Entity ID to delete
+     * @param options - Delete options including userId for ownership verification
      * @returns True if deleted, false if not found
      */
-    delete(storageKey: string, id: string): Promise<boolean>
+    delete(
+        storageKey: string,
+        id: string,
+        options?: DeleteAdapterOptions
+    ): Promise<boolean>
+}
+
+/**
+ * Options for the create adapter method.
+ */
+export interface CreateAdapterOptions {
+    /** User ID to associate with the created entity */
+    userId?: string | null
 }
 
 /**
@@ -84,4 +102,23 @@ export interface ReadAdapterOptions {
     getById?: string
     /** Fetch all entities */
     getAll?: boolean
+    /** Filter results to entities owned by this user */
+    userId?: string | null
 }
+
+/**
+ * Options for the update adapter method.
+ */
+export interface UpdateAdapterOptions {
+    /** Only update if entity belongs to this user */
+    userId?: string | null
+}
+
+/**
+ * Options for the delete adapter method.
+ */
+export interface DeleteAdapterOptions {
+    /** Only delete if entity belongs to this user */
+    userId?: string | null
+}
+

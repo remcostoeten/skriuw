@@ -38,7 +38,7 @@ const DEFAULT_SETTINGS = {
 
 	// Appearance
 	fontFamily: 'inter',
-	lineHeight: 1.6,
+	lineHeight: 1.4,
 	maxWidth: 'full',
 } as const
 
