@@ -35,7 +35,7 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 			name: data.name,
 			content: initialContent,
 			parentFolderId: data.parentFolderId,
-		} as any)
+		})
 
 		if (!result.success || !result.data) {
 			throw new Error(result.error?.message || 'Failed to create note')

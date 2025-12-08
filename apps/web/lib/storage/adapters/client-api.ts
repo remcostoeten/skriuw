@@ -6,11 +6,11 @@
 
 import type {
     StorageAdapter,
-    BaseEntity,
     ReadAdapterOptions,
     CreateAdapterOptions,
     UpdateAdapterOptions,
-    DeleteAdapterOptions
+    DeleteAdapterOptions,
+    BaseEntity
 } from '@skriuw/crud'
 
 /** Storage key mappings to API endpoints */

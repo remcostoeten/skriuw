@@ -1,7 +1,7 @@
 import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import type { Note, Folder } from '../../types'
+import type { Note, Folder, Item } from '../../types'
 
 const STORAGE_KEY = 'Skriuw_notes'
 
@@ -21,7 +21,7 @@ export async function pinItem(
 				// Omit pinnedAt when unpinning - let storage layer handle undefined/null
 			}
 
-		const result = await update(STORAGE_KEY, itemId, updateData as any)
+		const result = await update<Item>(STORAGE_KEY, itemId, updateData)
 		invalidateItemsCache()
 		return result.data as Note | Folder | undefined
 	} catch (error) {

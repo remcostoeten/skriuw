@@ -115,22 +115,15 @@ export const shortcuts = pgTable(
 	})
 )
 
-export const aiUsage = pgTable(
-	'ai_usage',
-	{
-		id: text('id').primaryKey(),
-		userId: text('user_id').notNull(),
-		month: text('month').notNull(), // Format: YYYY-MM
-		count: integer('count').default(0).notNull(),
-		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
-	},
-	(table) => ({
-		userMonthIdx: index('ai_usage_user_month_idx').on(
-			table.userId,
-			table.month
-		)
-	})
-)
+export const aiUsage = pgTable('ai_usage', {
+	id: text('id').primaryKey(),
+	userId: text('user_id').notNull(),
+	month: text('month').notNull(), // Format: YYYY-MM
+	count: integer('count').default(0).notNull(),
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+	userMonthIdx: index('ai_usage_user_month_idx').on(table.userId, table.month),
+}))
 
 // Type exports for use in app
 export type Note = typeof notes.$inferSelect

@@ -37,8 +37,7 @@ export const AI_SETTINGS: UserSetting[] = [
 		category: 'ai',
 		options: ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro'],
 		implemented: true,
-		condition: (settings) =>
-			settings['ai.enabled'] === true && settings['ai.provider'] === 'gemini',
+		condition: (settings) => settings['ai.enabled'] === true && settings['ai.provider'] === 'gemini',
 	},
 	{
 		key: 'ai.model',
@@ -55,8 +54,7 @@ export const AI_SETTINGS: UserSetting[] = [
 			'openrouter/auto',
 		],
 		implemented: true,
-		condition: (settings) =>
-			settings['ai.enabled'] === true && settings['ai.provider'] === 'openrouter',
+		condition: (settings) => settings['ai.enabled'] === true && settings['ai.provider'] === 'openrouter',
 	},
 	{
 		key: 'ai.userKey',

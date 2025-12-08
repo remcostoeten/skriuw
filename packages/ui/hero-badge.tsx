@@ -1,6 +1,6 @@
 'use client'
 
-import { AnimatePresence, motion, useAnimation, type Variants } from 'framer-motion'
+import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from 'framer-motion'
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { cn } from '@skriuw/core-logic'
@@ -151,6 +151,13 @@ export default function HeroBadge({
 	cookieFn = false
 }: props) {
 	const controls = useAnimation()
+	const [isClosed, setIsClosed] = useState(false)
+
+	useEffect(() => {
+		if (cookieFn && document.cookie.includes('heroBadgeClicked=true')) {
+			setIsClosed(true)
+		}
+	}, [cookieFn])
 
 	const BadgeWrapper = href ? Link : motion.button
 	const wrapperProps = href ? { href } : ({ onClick } as any)
@@ -165,29 +172,66 @@ export default function HeroBadge({
 	return (
 		<BadgeWrapper
 			{...wrapperProps}
-			className={cn('group', href && 'cursor-pointer')}
+			className={cn('group', href ? 'cursor-pointer' : '')}
 		>
-			<motion.div
-				className={baseClassName}
-				initial={{ opacity: 0, y: -20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.8, ease }}
-				onClick={cookieFn ? createCookie : onClick}
-				onHoverStart={() => controls.start('hover')}
-				onHoverEnd={() => controls.start('initial')}
-			>
-				{icon && (
+			<AnimatePresence mode="wait" onExitComplete={onCancel}>
+				{!isClosed && (
 					<motion.div
-						className="text-foreground/60 transition-colors group-hover:text-primary"
-						variants={iconAnimationVariants}
-						initial="initial"
-						animate={controls}
-						transition={{
-							type: 'spring',
-							stiffness: 300,
-							damping: 10
+						className={baseClassName}
+						initial={{ opacity: 0, y: 200, scale: 0.65 }}
+						animate={{ opacity: 1, y: 0, scale: 1 }}
+						exit={{
+							opacity: 0,
+							y: 200,
+							scale: 0.65,
+							transition: { duration: 0.4, ease: cubicBezier(0.56, 0.2, 0.1, 1) }
 						}}
+						drag="y"
+						dragConstraints={{ top: 0, bottom: 0 }}
+						dragElastic={{ top: 0, bottom: 0.5 }}
+						onDragEnd={(_, info) => {
+							if (info.offset.y > 50) {
+								setIsClosed(true)
+							}
+						}}
+						transition={{ duration: 0.8, ease: cubicBezier(0.56, 0.2, 0.1, 1) }}
+						onClick={cookieFn ? createCookie : onClick}
+						onHoverStart={() => controls.start('hover')}
+						onHoverEnd={() => controls.start('initial')}
 					>
+						{icon && (
+							<motion.div
+								className="text-foreground/60 transition-colors group-hover:text-primary"
+								variants={iconAnimationVariants}
+								initial="initial"
+								animate={controls}
+								transition={{
+									type: 'spring',
+									stiffness: 300,
+									damping: 10
+								}}
+							>
+								{icon}
+							</motion.div>
+						)}
+						<span>{text}</span>
+						{endIcon && (
+							<motion.div
+								className={cn(
+									'text-foreground/60 p-2 sm:p-0',
+									onCancel && 'hover:text-foreground cursor-pointer'
+								)}
+								onClick={(e) => {
+									if (onCancel) {
+										e.preventDefault()
+										e.stopPropagation()
+										setIsClosed(true)
+									}
+								}}
+							>
+								{endIcon}
+							</motion.div>
+						)}
 						{icon}
 					</motion.div>
 				)}
@@ -220,7 +264,7 @@ export default function HeroBadge({
 						{endIcon}
 					</motion.div>
 				)}
-			</motion.div>
+			</AnimatePresence>
 		</BadgeWrapper>
 	)
 }
