@@ -115,7 +115,7 @@
 
 .editor-container.centered-layout .bn-editor {
     width: 100%;
-    max-width: 655px;
+    max-width: var(--editor-max-width, 655px);
     margin-left: auto;
     margin-right: auto;
     padding: 0 1.5rem 1.5rem;
@@ -133,7 +133,7 @@
 }
 
 .editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='1'] {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     line-height: 1.2;
 }
 
@@ -475,6 +475,16 @@
 }
 
 /* =============================================================================
+   Monaco Editor Specific Styles
+   ============================================================================= */
+
+/* Only adjust line number appearance, not layout */
+.monaco-editor .line-numbers .line-number {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* =============================================================================
    Note Viewer Styles
    ============================================================================= */
 
@@ -524,13 +534,13 @@
 }
 
 .viewer-minimal .editor-container .bn-block[data-content-type='heading'][data-level='1'] {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     line-height: 2rem;
 }
 
 @media (min-width: 640px) {
     .viewer-minimal .editor-container .bn-block[data-content-type='heading'][data-level='1'] {
-        font-size: 1.75rem;
+        font-size: 1.625rem;
         line-height: 2.25rem;
     }
 }
@@ -583,7 +593,7 @@
 }
 
 .viewer-presentation .editor-container .bn-block[data-content-type='heading'][data-level='1'] {
-    font-size: 2rem;
+    font-size: 1.875rem;
     line-height: 1.2;
     margin-bottom: 2rem;
     text-align: center;
@@ -603,7 +613,7 @@
 }
 
 .viewer-document .editor-container .bn-block[data-content-type='heading'][data-level='1'] {
-    font-size: 1.75rem;
+    font-size: 1.625rem;
     line-height: 2rem;
     margin-bottom: 1.5rem;
     font-weight: 600;

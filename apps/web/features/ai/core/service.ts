@@ -2,7 +2,7 @@
 // AiService singleton – wraps Vercel AI SDK generateText/streamText with Zod validation
 // and optional fallback/retry logic for rate‑limit errors.
 
-import { generateText, streamText, Model, ChatMessage } from "ai";
+import { generateText, streamText } from "ai";
 import { AiGenerateSchema, AiChatSchema } from "./validation";
 import { getGlobalProvider } from "../config";
 import { z } from "zod";
@@ -38,6 +38,11 @@ export class AiService {
     async generate(opts: { prompt: string; model?: string; options?: any }) {
         // Validate input with Zod
         const parsed = AiGenerateSchema.parse(opts);
+        // For now, we'll let the AI SDK handle the model resolution
+        // The provider should be configured globally in the config
+        return retryWithFallback(() =>
+            generateText({
+                model: parsed.model ? (this.provider as any)(parsed.model) : undefined,
         const model: Model | undefined = parsed.model ? this.provider(parsed.model) : undefined;
         return retryWithFallback(() =>
             generateText({

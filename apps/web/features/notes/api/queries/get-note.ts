@@ -1,4 +1,4 @@
-import { readOne } from '@/lib/storage/client'
+import { readOne } from '@skriuw/crud'
 
 import type { Note } from '../../types'
 

@@ -39,7 +39,7 @@ export function useEditorConfig() {
 
 	const fontSize = settings.fontSize || 'medium'
 	const fontFamily = settings.fontFamily || 'inter'
-	const lineHeight = settings.lineHeight || 1.6
+	const lineHeight = settings.lineHeight || 1.4
 	const maxWidth = settings.maxWidth || 'full'
 
 	const editorConfig = useMemo(() => {

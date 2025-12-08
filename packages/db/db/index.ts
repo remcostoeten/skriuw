@@ -1,25 +1,26 @@
-import { neon, neonConfig } from '@neondatabase/serverless'
+import { neon } from '@neondatabase/serverless'
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http'
 import postgres from 'postgres'
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
 
-// Enable fetch-based connection caching for faster cold starts in serverless
-// neonConfig.fetchConnectionCache = true
+// Lazy import to avoid build-time validation
+// drizzle.config.ts uses dotenv, runtime uses @skriuw/env
+let _dbClient: ReturnType<typeof drizzleNeon> | ReturnType<typeof drizzlePostgres> | null = null
 
 export * from './schema'
+export * from './user-owned'
 
 type DatabaseProvider = 'neon' | 'postgres'
 
-let dbClient: ReturnType<typeof drizzleNeon> | ReturnType<typeof drizzlePostgres> | null = null
-
 function detectProvider(url: string): DatabaseProvider {
+	// Check explicit provider first
 	const explicitProvider = process.env.DATABASE_PROVIDER as DatabaseProvider | undefined
 	if (explicitProvider && (explicitProvider === 'neon' || explicitProvider === 'postgres')) {
 		return explicitProvider
 	}
 
-	// Auto-detect based on URL
+	// Auto-detect from URL
 	if (url.includes('neon.tech') || url.includes('neon')) {
 		return 'neon'
 	}
@@ -27,12 +28,35 @@ function detectProvider(url: string): DatabaseProvider {
 	return 'postgres'
 }
 
+/**
+ * Get the database connection.
+ * Automatically detects Neon vs PostgreSQL and creates the appropriate client.
+ * Uses @skriuw/env for validated environment configuration.
+ *
+ * @example
+ * ```typescript
+ * import { getDatabase } from '@skriuw/db'
+ *
+ * const db = getDatabase()
+ * const users = await db.select().from(users)
+ * ```
+ */
 export function getDatabase() {
-	if (dbClient) {
-		return dbClient
+	if (_dbClient) {
+		return _dbClient
 	}
 
-	const url = process.env.DATABASE_URL
+	// Try @skriuw/env first, fallback to process.env for drizzle-kit compatibility
+	let url: string
+
+	try {
+		// Dynamic import to avoid validation at build time
+		const { database } = require('@skriuw/env/server')
+		url = database.url
+	} catch {
+		// Fallback for drizzle-kit commands that use dotenv
+		url = process.env.DATABASE_URL || ''
+	}
 
 	if (!url) {
 		throw new Error(
@@ -45,13 +69,14 @@ export function getDatabase() {
 
 	if (provider === 'neon') {
 		const sql = neon(url)
-		dbClient = drizzleNeon(sql, { schema })
+		_dbClient = drizzleNeon(sql, { schema })
 		console.log('✅ Database: Connected via Neon')
 	} else {
 		const queryClient = postgres(url)
-		dbClient = drizzlePostgres(queryClient, { schema })
+		_dbClient = drizzlePostgres(queryClient, { schema })
 		console.log('✅ Database: Connected via PostgreSQL')
 	}
 
-	return dbClient
+	return _dbClient
 }
+

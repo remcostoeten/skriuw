@@ -1,6 +1,6 @@
 import { deleteTasksForNote } from '@/features/tasks'
 
-import { destroy } from '@/lib/storage/client'
+import { destroy } from '@skriuw/crud'
 
 import { getTrashItems } from '../queries/get-trash'
 import { invalidateItemsCache } from '../queries/get-items'

@@ -1,4 +1,4 @@
-import { destroy } from '@/lib/storage/client'
+import { destroy } from '@skriuw/crud'
 
 import type { ShortcutId } from '../../shortcut-definitions'
 

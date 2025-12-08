@@ -1,4 +1,4 @@
-import { update } from '@/lib/storage/client'
+import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import type { Item } from '../../types'

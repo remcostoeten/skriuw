@@ -46,3 +46,11 @@ next-app/apps/web/.tmp/*
 .vercel
 .env*.local
 .turbo/
+.env
+.gitignore
+.env copy
+packages/db/.env
+.env
+.env.local
+.env.production
+packages/db/.env

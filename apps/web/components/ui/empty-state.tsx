@@ -1,3 +1,4 @@
+import { shortcut } from '@/features/shortcuts'
 import React from 'react'
 
 interface EmptyStateProps {
@@ -7,6 +8,7 @@ interface EmptyStateProps {
 	title?: string
 	description?: string
 	message?: string
+	isError?: string
 	isFull?: boolean
 	submessage?: string
 	actions?: Array<{
@@ -24,6 +26,7 @@ export function EmptyState({
 	title,
 	description,
 	message,
+	isError,
 	isFull,
 	submessage,
 	actions,
@@ -36,6 +39,7 @@ export function EmptyState({
 			{message && <h1 className="text-2xl font-bold mb-2">{message}</h1>}
 			{title && <h3 className="text-lg font-medium mb-2">{title}</h3>}
 			{description && <p className="text-muted-foreground mb-4">{description}</p>}
+			{isError && <p className="text- mb-4">{submessage}</p>}
 			{submessage && <p className="text-muted-foreground mb-4">{submessage}</p>}
 			{actions && (
 				<div className="flex flex-col gap-2 mt-4">
