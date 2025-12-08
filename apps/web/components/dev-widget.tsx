@@ -72,7 +72,7 @@ export function DevWidget() {
 			if (hide) {
 				document.cookie = `${BADGE_COOKIE_NAME}=true; max-age=${60 * 60 * 24 * 30}; path=/; secure; samesite=strict`
 			} else {
-				document.cookie = `${BADGE_COOKIE_NAME}=; path=/; max-age=0`
+				document.cookie = `${BADGE_COOKIE_NAME}=; max-age=0; path=/; secure; samesite=strict`
 			}
 		}
 	}
@@ -209,6 +209,11 @@ export function DevWidget() {
 									)}
 								>
 									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
+								</div>
+							)}
+							{provider && (
+								<div className="mt-1 text-sm text-muted-foreground">
+									Database: {provider === 'neon' ? 'Neon Cloud' : 'Local Docker'}
 								</div>
 							)}
 						</div>

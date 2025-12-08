@@ -27,6 +27,9 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
 		category: 'editor',
 		implemented: true,
+		preview: {
+			component: 'blocknote',
+		},
 	},
 	{
 		key: 'multiNoteTabs',
@@ -37,6 +40,9 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'Enable multi-note tabs to keep several notes open at once',
 		category: 'editor',
 		implemented: true,
+		preview: {
+			component: 'multi-tab',
+		},
 	},
 	{
 		key: 'rawMDXMode',
