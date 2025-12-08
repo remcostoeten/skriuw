@@ -138,10 +138,15 @@ export function AppLayoutShell({
 
 				<div
 					className={cn(
-						'flex-1 flex flex-col overflow-hidden',
+						'flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out',
+						// Task panel adjustments
 						isTaskPanelOpen && 'pr-[480px] lg:pr-[560px]',
 						isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
 					)}
+					style={{
+						// On desktop, adjust margin when sidebar is closed to reclaim the 210px space
+						marginLeft: !isMobile && !isDesktopSidebarOpen ? '-210px' : undefined,
+					}}
 				>
 					{topToolbar}
 					<div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary pb-9">

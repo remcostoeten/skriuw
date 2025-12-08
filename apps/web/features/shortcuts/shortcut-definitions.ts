@@ -24,6 +24,7 @@ export const shortcutDefinitions = {
 		keys: [
 			['Ctrl', 'n'],
 			['Meta', 'n'],
+			['n'],
 		],
 		description: 'Create a new note',
 		enabled: true,
@@ -40,6 +41,7 @@ export const shortcutDefinitions = {
 		keys: [
 			['Ctrl', 'r'],
 			['Meta', 'r'],
+			['r'],
 		],
 		description: 'Rename selected file/folder',
 		enabled: true,
@@ -77,8 +79,13 @@ export const shortcutDefinitions = {
 		enabled: true,
 	},
 	'delete-item': {
-		keys: [['Delete'], ['Ctrl', 'Backspace'], ['Meta', 'Backspace']],
+		keys: [['Delete'], ['Backspace'], ['Ctrl', 'Backspace'], ['Meta', 'Backspace']],
 		description: 'Delete selected file/folder when context menu is open',
+		enabled: true,
+	},
+	'pin-item': {
+		keys: [['p']],
+		description: 'Pin/unpin selected file/folder when context menu is open',
 		enabled: true,
 	},
 	'open-settings': {

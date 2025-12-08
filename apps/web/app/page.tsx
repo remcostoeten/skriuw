@@ -30,6 +30,12 @@ function setHideBadgeCookie() {
 	}
 }
 
+function removeHideBadgeCookie() {
+	if (typeof window !== 'undefined') {
+		document.cookie = `${BADGE_COOKIE_NAME}=; max-age=0; path=/; secure; samesite=strict`
+	}
+}
+
 function getHideBadgeCookie(): boolean {
 	if (typeof window === 'undefined') return false
 
@@ -47,8 +53,18 @@ export default function Index() {
 	const [showBadge, setShowBadge] = useState(true)
 
 	useEffect(() => {
-		// Check cookie on mount
 		setShowBadge(!getHideBadgeCookie())
+		
+		// Listen for cookie changes from dev widget
+		const handleCookieChange = () => {
+			setShowBadge(!getHideBadgeCookie())
+		}
+		
+		window.addEventListener('badgeCookieChanged', handleCookieChange)
+		
+		return () => {
+			window.removeEventListener('badgeCookieChanged', handleCookieChange)
+		}
 	}, [])
 	const pathname = usePathname()
 	const router = useRouter()

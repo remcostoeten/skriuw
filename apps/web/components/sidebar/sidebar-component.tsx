@@ -37,6 +37,7 @@ import {
 } from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
+import { EmptyState } from '../ui/empty-state'
 
 import { useSidebarContentType } from './use-sidebar-content-type'
 import { TasksSidebarContent } from './tasks-sidebar-content'
@@ -225,12 +226,14 @@ type props = {
 }
 
 // Helper function to format shortcut keys for display
+// Prefers single-key shortcuts for context menu display
 const formatShortcut = (shortcutId: keyof typeof shortcutDefinitions): string | null => {
 	const definition = shortcutDefinitions[shortcutId]
 	if (!definition || !definition.enabled) return null
 
-	// Get the first key combo for display
-	const keys = definition.keys[0]
+	// Prefer single-key shortcuts (no modifiers) for context menu display
+	const singleKeyCombo = definition.keys.find(combo => combo.length === 1)
+	const keys = singleKeyCombo || definition.keys[0]
 	if (!keys) return null
 
 	return keys
@@ -305,6 +308,7 @@ function FileTreeItem({
 			onCreateNote: (id: string) => void
 			onCreateFolder: (id: string) => void
 			onRename: (id: string) => void
+			onPinItem: (id: string) => void
 		}
 	) => void
 	onPinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => void
@@ -318,6 +322,7 @@ function FileTreeItem({
 }) {
 	const [isRenaming, setIsRenaming] = useState(false)
 	const [renameValue, setRenameValue] = useState(item.name)
+	const [isHovering, setIsHovering] = useState(false)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -623,13 +628,22 @@ function FileTreeItem({
 					onCreateNote,
 					onCreateFolder,
 					onRename: (id: string) => {
-						// For rename, we just trigger the rename mode, the actual rename happens in the input
-						onRename(id, '')
+						setIsRenaming(true)
+						// Ensure input gets focus
+						setTimeout(() => {
+							if (inputRef.current) {
+								inputRef.current.focus()
+								inputRef.current.select()
+							}
+						}, 50)
+					},
+					onPinItem: (id: string) => {
+						onPinItem(id, item.type, !item.pinned)
 					},
 				})
 			}
 		},
-		[item.id, onDelete, onCreateNote, onCreateFolder, onRename, onContextMenuOpenChange]
+		[item.id, item.type, item.pinned, onDelete, onCreateNote, onCreateFolder, onRename, onPinItem, onContextMenuOpenChange]
 	)
 
 	// Helper to find item by ID
@@ -825,7 +839,7 @@ function FileTreeItem({
 									isActive && !isItemSelected
 										? 'bg-accent text-foreground'
 										: 'text-secondary-foreground/80 hover:text-foreground',
-									isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : '',
+									isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : ''
 								)}
 								style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
 								draggable={true}
@@ -856,12 +870,18 @@ function FileTreeItem({
 											<div
 												data-folder-icon
 												onClick={handleFolderToggle}
+												onMouseEnter={() => setIsHovering(true)}
+												onMouseLeave={() => setIsHovering(false)}
 												className={cn(
 													'shrink-0',
 													hasChildren ? 'cursor-pointer' : 'cursor-default'
 												)}
 											>
-												{isExpanded ? <FolderOpenIcon /> : <FolderClosedIcon />}
+												{isExpanded || isFolderSelected || (isHovering && hasChildren) ? (
+													<FolderOpenIcon />
+												) : (
+													<FolderClosedIcon />
+												)}
 											</div>
 										</>
 									) : null}
@@ -982,7 +1002,6 @@ function FileTreeItem({
 					<ContextMenuSeparator />
 					<ContextMenuItem
 						onClick={(e) => {
-							e.preventDefault()
 							e.stopPropagation()
 							setIsRenaming(true)
 							// Close context menu after a small delay to allow state update
@@ -1200,6 +1219,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	// All hooks must be called before any conditional returns
 	const {
 		items,
+		isInitialLoading,
+		isRefreshing,
 		createNote,
 		createFolder,
 		renameItem,
@@ -1515,6 +1536,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				onCreateNote: (id: string) => void
 				onCreateFolder: (id: string) => void
 				onRename: (id: string) => void
+				onPinItem: (id: string) => void
 			}
 		) => {
 			if (open) {
@@ -1529,6 +1551,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					onCreateNote: null,
 					onCreateFolder: null,
 					onRename: null,
+					onPinItem: null,
 				})
 			}
 		},
@@ -1552,6 +1575,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						onCreateNote: null,
 						onCreateFolder: null,
 						onRename: null,
+						onPinItem: null,
 					})
 				}
 			},
@@ -1572,6 +1596,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						onCreateNote: null,
 						onCreateFolder: null,
 						onRename: null,
+						onPinItem: null,
 					})
 				}
 			},
@@ -1592,6 +1617,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						onCreateNote: null,
 						onCreateFolder: null,
 						onRename: null,
+						onPinItem: null,
 					})
 				}
 			},
@@ -1599,13 +1625,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		)
 	)
 
-	// Handle rename-item shortcut
 	useShortcut(
 		'rename-item',
 		useCallback(
 			(e: KeyboardEvent) => {
-				e.preventDefault()
 				if (contextMenuState.itemId && contextMenuState.onRename) {
+					e.preventDefault()
 					contextMenuState.onRename(contextMenuState.itemId)
 					setContextMenuState({
 						itemId: null,
@@ -1613,6 +1638,28 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						onCreateNote: null,
 						onCreateFolder: null,
 						onRename: null,
+						onPinItem: null,
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	useShortcut(
+		'pin-item',
+		useCallback(
+			(e: KeyboardEvent) => {
+				if (contextMenuState.itemId && contextMenuState.onPinItem) {
+					e.preventDefault()
+					contextMenuState.onPinItem(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null,
 					})
 				}
 			},
@@ -1857,34 +1904,83 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						}
 					}}
 				>
-					{filteredItems.map((item) => (
-						<FileTreeItem
-							key={item.id}
-							item={item}
-							activeNoteId={activeNoteId}
-							expandedFolders={expandedFolders}
-							selectedFolderId={selectedFolderId}
-							onToggleFolder={handleToggleFolder}
-							onNavigateNote={(id) => router.push(getNoteUrl(id))}
-							onRename={renameItem}
-							onDelete={handleDeleteItem}
-							onCreateNote={handleCreateNote}
-							onCreateFolder={handleCreateFolder}
-							onDragStart={handleDragStart}
-							onDragOver={(e) => e.preventDefault()}
-							onDrop={handleDrop}
-							onSelectFolder={handleSelectFolder}
-							onContextMenuOpenChange={handleContextMenuOpenChange}
-							onPinItem={pinItem}
-							onFavoriteNote={favoriteNote}
-							onMoveItem={moveItem}
-							allItems={items}
-							ruler={ruler}
-							openTabIds={openTabIds}
-							allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
-							showConfirm={showConfirm}
-						/>
-					))}
+					{isInitialLoading || isRefreshing ? (
+						/* Skeleton loader to prevent layout shift during initial load and refreshes */
+						<div className="flex flex-col gap-0.5 w-full animate-pulse">
+							{Array.from({ length: 8 }).map((_, i) => {
+								const isFolder = i % 3 === 0
+								const hasChildren = isFolder && i < 3
+								return (
+									<div key={i}>
+										<div className="flex items-center justify-between h-7 rounded-md px-1">
+											<div className="flex items-center gap-1.5 flex-1">
+												<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+												<div className="h-3 rounded bg-muted-foreground/20" style={{ width: `${60 + (i * 13) % 60}px` }} />
+											</div>
+											{isFolder && <div className="h-3 w-4 rounded bg-muted-foreground/15" />}
+										</div>
+										{hasChildren && (
+											<div className="ml-4 space-y-0.5 mt-0.5">
+												{Array.from({ length: 2 }).map((_, j) => (
+													<div key={j} className="flex items-center gap-1.5 h-7 px-1">
+														<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+														<div className="h-3 rounded bg-muted-foreground/20" style={{ width: `${50 + (j * 20) % 50}px` }} />
+													</div>
+												))}
+											</div>
+										)}
+									</div>
+								)
+							})}
+						</div>
+					) : filteredItems.length === 0 ? (
+						<div className="flex h-[200px] w-full items-center justify-center">
+							<EmptyState
+								icon={<FilePlus className="h-10 w-10 text-muted-foreground/50" />}
+								title={searchQuery ? 'No results' : 'No notes'}
+								description={searchQuery ? 'Try a different search' : 'Create your first note'}
+								actions={
+									!searchQuery
+										? [
+											{
+												label: 'Create Note',
+												onClick: () => handleCreateNote(),
+											},
+										]
+										: undefined
+								}
+							/>
+						</div>
+					) : (
+						filteredItems.map((item) => (
+							<FileTreeItem
+								key={item.id}
+								item={item}
+								activeNoteId={activeNoteId}
+								expandedFolders={expandedFolders}
+								selectedFolderId={selectedFolderId}
+								onToggleFolder={handleToggleFolder}
+								onNavigateNote={(id) => router.push(getNoteUrl(id))}
+								onRename={renameItem}
+								onDelete={handleDeleteItem}
+								onCreateNote={handleCreateNote}
+								onCreateFolder={handleCreateFolder}
+								onDragStart={handleDragStart}
+								onDragOver={(e) => e.preventDefault()}
+								onDrop={handleDrop}
+								onSelectFolder={handleSelectFolder}
+								onContextMenuOpenChange={handleContextMenuOpenChange}
+								onPinItem={pinItem}
+								onFavoriteNote={favoriteNote}
+								onMoveItem={moveItem}
+								allItems={items}
+								ruler={ruler}
+								openTabIds={openTabIds}
+								allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
+								showConfirm={showConfirm}
+							/>
+						))
+					)}
 				</div>
 			</div>
 			<SidebarConfirmationPopover />

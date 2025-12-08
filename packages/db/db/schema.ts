@@ -1,4 +1,6 @@
 import { pgTable, text, integer, bigint, index, boolean, timestamp } from 'drizzle-orm/pg-core'
+import { createUserIndex, createUserCompositeIndex } from './user-owned'
+
 
 export const notes = pgTable(
 	'notes',
@@ -7,6 +9,7 @@ export const notes = pgTable(
 		name: text('name').notNull(),
 		content: text('content').notNull(),
 		parentFolderId: text('parent_folder_id'),
+		userId: text('user_id'),
 		pinned: integer('pinned').default(0),
 		pinnedAt: bigint('pinned_at', { mode: 'number' }),
 		favorite: integer('favorite').default(0),
@@ -21,7 +24,9 @@ export const notes = pgTable(
 		),
 		deletedAtIdx: index('notes_deleted_at_idx').on(table.deletedAt),
 		pinnedIdx: index('notes_pinned_idx').on(table.pinned),
-		updatedAtIdx: index('notes_updated_at_idx').on(table.updatedAt)
+		updatedAtIdx: index('notes_updated_at_idx').on(table.updatedAt),
+		userIdx: createUserIndex('notes', table.userId),
+		userParentIdx: createUserCompositeIndex('notes', 'parent', table.userId, table.parentFolderId)
 	})
 )
 
@@ -31,6 +36,7 @@ export const folders = pgTable(
 		id: text('id').primaryKey(),
 		name: text('name').notNull(),
 		parentFolderId: text('parent_folder_id'),
+		userId: text('user_id'),
 		pinned: integer('pinned').default(0),
 		pinnedAt: bigint('pinned_at', { mode: 'number' }),
 		deletedAt: bigint('deleted_at', { mode: 'number' }),
@@ -42,7 +48,9 @@ export const folders = pgTable(
 		parentFolderIdx: index('folders_parent_folder_idx').on(
 			table.parentFolderId
 		),
-		deletedAtIdx: index('folders_deleted_at_idx').on(table.deletedAt)
+		deletedAtIdx: index('folders_deleted_at_idx').on(table.deletedAt),
+		userIdx: createUserIndex('folders', table.userId),
+		userParentIdx: createUserCompositeIndex('folders', 'parent', table.userId, table.parentFolderId)
 	})
 )
 
@@ -52,11 +60,14 @@ export const settings = pgTable(
 		id: text('id').primaryKey(),
 		key: text('key').notNull().unique(),
 		value: text('value').notNull(),
+		userId: text('user_id'),
 		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
 	},
 	(table) => ({
-		keyIdx: index('settings_key_idx').on(table.key)
+		keyIdx: index('settings_key_idx').on(table.key),
+		userIdx: createUserIndex('settings', table.userId),
+		userKeyIdx: createUserCompositeIndex('settings', 'key', table.userId, table.key)
 	})
 )
 
@@ -68,6 +79,7 @@ export const tasks = pgTable(
 		blockId: text('block_id').notNull(),
 		content: text('content').notNull(),
 		description: text('description'),
+		userId: text('user_id'),
 		checked: integer('checked').default(0).notNull(),
 		dueDate: bigint('due_date', { mode: 'number' }),
 		parentTaskId: text('parent_task_id'),
@@ -82,17 +94,26 @@ export const tasks = pgTable(
 			table.noteId,
 			table.blockId
 		),
-		dueDateIdx: index('tasks_due_date_idx').on(table.dueDate)
+		dueDateIdx: index('tasks_due_date_idx').on(table.dueDate),
+		userIdx: createUserIndex('tasks', table.userId),
+		userNoteIdx: createUserCompositeIndex('tasks', 'note', table.userId, table.noteId)
 	})
 )
 
-export const shortcuts = pgTable('shortcuts', {
-	id: text('id').primaryKey(),
-	keys: text('keys').notNull(),
-	customizedAt: bigint('customized_at', { mode: 'number' }).notNull(),
-	createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
-})
+export const shortcuts = pgTable(
+	'shortcuts',
+	{
+		id: text('id').primaryKey(),
+		keys: text('keys').notNull(),
+		userId: text('user_id'),
+		customizedAt: bigint('customized_at', { mode: 'number' }).notNull(),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	},
+	(table) => ({
+		userIdx: createUserIndex('shortcuts', table.userId)
+	})
+)
 
 export const aiUsage = pgTable(
 	'ai_usage',

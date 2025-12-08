@@ -118,7 +118,7 @@ export function RawMDXEditor({
 	wordWrap = true,
 	fontSize = '14px',
 	fontFamily = '"Fira Code", "Menlo", "Monaco", monospace',
-	lineHeight = 1.6,
+	lineHeight = 1.4,
 }: RawMDXEditorProps) {
 	const [isReady, setIsReady] = useState(false)
 	const monacoRef = useRef<Monaco | null>(null)
@@ -174,7 +174,7 @@ export function RawMDXEditor({
 	return (
 		<div
 			className={cn(
-				'relative w-full h-[calc(100vh-200px)] bg-background-secondary',
+				'relative w-[90%] max-w-4xl mx-auto h-[calc(100vh-200px)] bg-background-secondary',
 				disabled && 'opacity-50 pointer-events-none',
 				className
 			)}
@@ -206,7 +206,7 @@ export function RawMDXEditor({
 						minimap: { enabled: false },
 						scrollBeyondLastLine: false,
 						automaticLayout: true,
-						padding: { top: 0, bottom: 0 },
+						padding: { top: 16, bottom: 0 },
 						lineNumbers: 'on',
 						renderLineHighlight: 'line',
 						cursorBlinking: 'smooth',

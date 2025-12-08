@@ -5,10 +5,11 @@ import type { Config } from 'drizzle-kit';
 config();
 
 export default {
-  schema: './packages/db/src/schema.ts',
+  schema: './packages/db/db/schema.ts',
   out: './packages/db/migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres',
+    url: process.env.DATABASE_URL || 'postgresql://skriuw:skriuw_dev@localhost:5432/skriuw',
   },
 } satisfies Config;
+

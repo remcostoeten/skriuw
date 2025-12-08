@@ -11,6 +11,7 @@ import {
 	Loader2,
 	Bug,
 	Cookie,
+	GripVertical,
 } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
@@ -22,6 +23,7 @@ import {
 	importFromMarkdown,
 } from '@/features/backup'
 import { useNotesContext } from '@/features/notes'
+import { useDraggable } from '@/hooks/use-draggable'
 
 type DbStats = {
 	notes: number
@@ -50,6 +52,29 @@ export function DevWidget() {
 	const [loading, setLoading] = useState(false)
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 	const [hasHeroCookie, setHasHeroCookie] = useState(false)
+	const [isConnected, setIsConnected] = useState<boolean | null>(null)
+	
+	// Click vs drag detection
+	const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
+	const [hasMoved, setHasMoved] = useState(false)
+
+	// Draggable functionality
+	const {
+		dragRef,
+		position,
+		isDragging,
+		handleMouseDown,
+		handleTouchStart,
+		resetPosition,
+	} = useDraggable({
+		initialPosition: { x: 50, y: 100 }, // Simple default position
+		storageKey: 'dev-widget-position',
+		bounds: {
+			// Keep within viewport with some margin
+			left: -320, // Allow to be mostly off-screen left
+			top: -100, // Allow to be mostly off-screen top
+		},
+	})
 
 	// Cookie handling functions (matching page.tsx)
 	const BADGE_COOKIE_NAME = 'hide-alpha-badge'
@@ -85,9 +110,13 @@ export function DevWidget() {
 				const data = await res.json()
 				setStats(data.stats)
 				if (data.provider) setProvider(data.provider)
+				setIsConnected(true)
+			} else {
+				setIsConnected(false)
 			}
 		} catch (error) {
 			console.error('Failed to fetch dev stats', error)
+			setIsConnected(false)
 		} finally {
 			setLoading(false)
 		}
@@ -100,11 +129,49 @@ export function DevWidget() {
 		}
 	}, [isOpen, fetchStats])
 
+	// Track mouse movement to detect click vs drag
+	useEffect(() => {
+		if (!dragStartPos) return
+
+		const handleMouseMove = (e: MouseEvent) => {
+			const deltaX = Math.abs(e.clientX - dragStartPos.x)
+			const deltaY = Math.abs(e.clientY - dragStartPos.y)
+			const threshold = 5 // 5px threshold to distinguish click from drag
+			
+			if (deltaX > threshold || deltaY > threshold) {
+				setHasMoved(true)
+			}
+		}
+
+		const handleMouseUp = () => {
+			// Don't reset state here - let click handler handle it
+			// This prevents race condition between mouseup and click events
+			// Reset after a short delay to handle cases where click doesn't fire
+			setTimeout(() => {
+				setDragStartPos(null)
+				setHasMoved(false)
+			}, 100)
+		}
+
+		if (dragStartPos) {
+			document.addEventListener('mousemove', handleMouseMove)
+			document.addEventListener('mouseup', handleMouseUp)
+		}
+
+		return () => {
+			document.removeEventListener('mousemove', handleMouseMove)
+			document.removeEventListener('mouseup', handleMouseUp)
+		}
+	}, [dragStartPos])
+
 	const toggleHeroCookie = () => {
 		const newState = !hasHeroCookie
 		setHideBadgeCookie(newState)
 		setHasHeroCookie(newState)
 		toast.success(newState ? 'Hero badge hidden' : 'Hero badge shown')
+		
+		// Notify main page to re-check badge visibility
+		window.dispatchEvent(new CustomEvent('badgeCookieChanged'))
 	}
 
 	const executeAction = async (action: string, confirmMsg?: string) => {
@@ -183,21 +250,79 @@ export function DevWidget() {
 		<>
 			{!isOpen && (
 				<button
-					onClick={() => setIsOpen(true)}
-					className="fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200"
+					ref={dragRef as any}
+					onClick={() => {
+						// Only toggle if we haven't moved (i.e., it was a click, not a drag)
+						if (!hasMoved && dragStartPos) {
+							setIsOpen(true)
+						}
+						// Reset drag detection state
+						setHasMoved(false)
+						setDragStartPos(null)
+					}}
+					onMouseDown={(e) => {
+						// Track initial position for click vs drag detection
+						setDragStartPos({ x: e.clientX, y: e.clientY })
+						setHasMoved(false)
+						handleMouseDown(e)
+					}}
+					onTouchStart={(e) => {
+						// Track initial position for touch events
+						const touch = e.touches[0]
+						setDragStartPos({ x: touch.clientX, y: touch.clientY })
+						setHasMoved(false)
+						handleTouchStart(e)
+					}}
+					className={cn(
+						'fixed z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200',
+						isDragging && 'cursor-grabbing'
+					)}
+					style={{
+						left: position.x + 8, // Center the button in the widget area
+						top: position.y + 8,
+						right: 'auto',
+						bottom: 'auto',
+					}}
 				>
 					<Bug className="h-5 w-5" />
 				</button>
 			)}
 
 			{isOpen && (
-				<div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-2xl animate-in slide-in-from-bottom-5 duration-200 flex flex-col overflow-hidden">
+				<div
+					ref={dragRef}
+					className={cn(
+						'fixed z-50 w-[320px] rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-2xl duration-0 flex flex-col overflow-hidden',
+						isDragging && 'cursor-grabbing'
+					)}
+					style={{
+						left: position.x,
+						top: position.y,
+						right: 'auto',
+						bottom: 'auto',
+					}}
+					onMouseDown={handleMouseDown}
+					onTouchStart={handleTouchStart}
+				>
 					{/* Header */}
-					<div className="flex items-center justify-between p-3 border-b bg-muted/30">
+					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm	 cursor-grab active:cursor-grabbing">
 						<div className="flex items-center gap-2">
-							<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-medium">
-								<div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-								DB CONNECTED
+							<GripVertical className="h-4 w-4 text-muted-foreground" />
+							<div
+								className={cn(
+									'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
+									isConnected
+										? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
+										: 'bg-red-500/10 border-red-500/20 text-red-600'
+								)}
+							>
+								<div
+									className={cn(
+										'h-1.5 w-1.5 rounded-full animate-pulse',
+										isConnected ? 'bg-emerald-500' : 'bg-red-500'
+									)}
+								/>
+								{isConnected ? 'DB CONNECTED' : 'DB DOWN'}
 							</div>
 							{provider && (
 								<div
@@ -211,21 +336,24 @@ export function DevWidget() {
 									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
 								</div>
 							)}
-							{provider && (
-								<div className="mt-1 text-sm text-muted-foreground">
-									Database: {provider === 'neon' ? 'Neon Cloud' : 'Local Docker'}
-								</div>
-							)}
 						</div>
 						<button
-							onClick={() => setIsOpen(false)}
-							className="hover:bg-muted rounded p-1 transition-colors"
+							onClick={(e) => {
+								e.stopPropagation()
+								setIsOpen(false)
+							}}
+							onMouseDown={(e) => e.stopPropagation()}
+							className="hover:bg-muted rounded p-1 transition-colors cursor-pointer"
 						>
 							<X className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</div>
 
-					<div className="p-3 space-y-4 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar">
+					<div
+						className="p-3 space-y-4 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar"
+						onMouseDown={(e) => e.stopPropagation()}
+						onTouchStart={(e) => e.stopPropagation()}
+					>
 						{/* Stats Grid */}
 						<div className="grid grid-cols-3 gap-2">
 							<StatCard label="Notes" value={stats?.notes ?? '-'} loading={loading} />
@@ -365,13 +493,20 @@ export function DevWidget() {
 
 						<div className="space-y-2">
 							<SectionLabel>System</SectionLabel>
-							<ActionButton
-								icon={RefreshCw}
-								label="Restart Server"
-								onClick={() => executeAction('clear-cache')}
-								loading={actionLoading === 'clear-cache'}
-								fullWidth
-							/>
+							<div className="grid grid-cols-2 gap-2">
+								<ActionButton
+									icon={RefreshCw}
+									label="Clear Cache"
+									onClick={() => executeAction('clear-cache')}
+									loading={actionLoading === 'clear-cache'}
+								/>
+								<ActionButton
+									icon={Download}
+									label="Reset Position"
+									onClick={resetPosition}
+									variant="default"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>

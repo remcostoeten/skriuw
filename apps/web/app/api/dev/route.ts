@@ -179,7 +179,8 @@ export async function POST(request: NextRequest) {
 				const { exec } = require('child_process')
 
 				try {
-					// This will trigger a graceful restart of the Next.js dev server.
+					// This will trigger a graceful restart of the Next.js dev server
+					// by touching the next.config.ts file, which Next.js watches
 					exec('touch next.config.ts', { cwd: process.cwd() }, (err: Error | null) => {
 						if (err) {
 							console.error('Failed to touch next.config.ts:', err)
@@ -189,27 +190,17 @@ export async function POST(request: NextRequest) {
 					return NextResponse.json({
 						success: true,
 						action: 'clear-cache',
-						message: 'Server restart initiated.',
+						message: 'Cache cleared and server restart initiated.',
 						restartRequired: true,
 					})
 				} catch (error) {
 					return NextResponse.json({
 						success: false,
 						action: 'clear-cache',
-						error: 'Failed to initiate server restart.',
+						error: 'Failed to clear cache.',
 						message: error instanceof Error ? error.message : String(error)
 					}, { status: 500 })
 				}
-			}
-
-			case 'restart-server': {
-				// Trigger a graceful restart of the dev server
-				return NextResponse.json({
-					success: true,
-					action: 'restart-server',
-					message: 'Dev server restart triggered. The page will reload in 3 seconds.',
-					restartRequired: true
-				})
 			}
 
 			default:
