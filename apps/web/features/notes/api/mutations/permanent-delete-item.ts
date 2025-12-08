@@ -1,6 +1,6 @@
 import { deleteTasksForNote } from '@/features/tasks'
 
-import { destroy } from '@/lib/storage/client'
+import { destroy } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
