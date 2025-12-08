@@ -15,6 +15,13 @@
       "when": 1765131009708,
       "tag": "0001_equal_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765155094045,
+      "tag": "0002_reflective_menace",
+      "breakpoints": true
     }
   ]
 }
