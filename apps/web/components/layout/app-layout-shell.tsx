@@ -14,6 +14,7 @@ type props = {
 	rightPanel: ReactNode
 	floatingWidgets: ReactNode
 	isRightPanelOpen: boolean
+	isTaskPanelOpen?: boolean
 	isSidebarOpen: boolean
 	isDesktopSidebarOpen: boolean
 	onSidebarClose?: () => void
@@ -32,6 +33,7 @@ export function AppLayoutShell({
 	rightPanel,
 	floatingWidgets,
 	isRightPanelOpen = false,
+	isTaskPanelOpen = false,
 	isSidebarOpen = false,
 	isDesktopSidebarOpen = true,
 	onSidebarClose,
@@ -136,12 +138,13 @@ export function AppLayoutShell({
 
 				<div
 					className={cn(
-						'flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out',
-						isRightPanelOpen && 'pr-[420px]'
+						'flex-1 flex flex-col overflow-hidden',
+						isTaskPanelOpen && 'pr-[480px] lg:pr-[560px]',
+						isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
 					)}
 				>
 					{topToolbar}
-					<div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary">
+					<div className="flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary pb-9">
 						{mainContent}
 					</div>
 					{footer}

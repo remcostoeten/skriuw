@@ -1,4 +1,4 @@
-import { update } from '../../../../lib/storage'
+import { update } from '@/lib/storage/client'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
@@ -17,7 +17,7 @@ export async function deleteItem(id: string): Promise<boolean> {
 			deletedAt: Date.now(),
 		} as Partial<Item>)
 
-		if (result) {
+		if (result.success && result.data) {
 			invalidateItemsCache()
 			invalidatePrefetchedNote(id)
 			return true

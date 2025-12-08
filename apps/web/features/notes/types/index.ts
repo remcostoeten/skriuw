@@ -1,3 +1,4 @@
+
 import type { Block } from '@blocknote/core'
 
 export interface Note {
@@ -10,7 +11,7 @@ export interface Note {
 	favorite?: boolean
 	createdAt: number
 	updatedAt: number
-	deletedAt?: number | null
+	deletedAt?: number
 	type: 'note'
 }
 
@@ -24,7 +25,21 @@ export interface Folder {
 	pinnedAt?: number
 	createdAt: number
 	updatedAt: number
-	deletedAt?: number | null
+	deletedAt?: number
+}
+
+export interface Task {
+	id: string
+	noteId: string
+	blockId: string
+	content: string
+	description?: string | null
+	checked: number // 0 or 1
+	dueDate?: number | null
+	parentTaskId?: string | null
+	position: number
+	createdAt: number
+	updatedAt: number
 }
 
 export type Item = Note | Folder
