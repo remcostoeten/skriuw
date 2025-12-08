@@ -6,6 +6,7 @@ type ContextMenuState = {
 	onCreateNote: ((id: string) => void) | null
 	onCreateFolder: ((id: string) => void) | null
 	onRename: ((id: string) => void) | null
+	onPinItem: ((id: string) => void) | null
 }
 
 type ContextMenuContextValue = {
@@ -22,6 +23,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
 		onCreateNote: null,
 		onCreateFolder: null,
 		onRename: null,
+		onPinItem: null,
 	})
 
 	return (

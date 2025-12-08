@@ -27,9 +27,9 @@ import type { Item } from '@/features/notes/types'
 function formatTimeAgo(timestamp: number): string {
 	const now = Date.now()
 	const diff = now - timestamp
-	
+
 	if (diff < 0) return 'Invalid date'
-	
+
 	const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 	const hours = Math.floor(diff / (1000 * 60 * 60))
 	const minutes = Math.floor(diff / (1000 * 60))
@@ -145,7 +145,7 @@ export function TrashPanel() {
 			<div className="py-12">
 				<EmptyState
 					message="Trash is empty"
-					submessage={`Deleted notes will appear here for ${TRASH_RETENTION_DAYS} days`}
+					isError={`Deleted notes will appear here for ${TRASH_RETENTION_DAYS} days`}
 					icon={<Trash2 className="h-8 w-8" />}
 					isFull
 				/>
