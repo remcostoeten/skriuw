@@ -52,7 +52,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 		return result
 	} catch (error) {
 		throw new Error(
-			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)} `
+			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)}`
 		)
 	}
 }
