@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { Layout } from 'lucide-react'
 import type { PreviewProps } from './index'
 
 // Mock tab data for preview
@@ -169,8 +170,8 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 								<div
 									key={tab.id}
 									className={`group relative flex items-center px-3 py-2 text-xs font-medium border-r border-border/50 cursor-pointer transition-all duration-200 ${tab.id === activeTab
-											? 'bg-accent text-accent-foreground border-b-2 border-b-accent'
-											: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+										? 'bg-accent text-accent-foreground border-b-2 border-b-accent'
+										: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
 										} ${currentDemo === 'switch' && tab.id === activeTab ? 'animate-pulse' : ''
 										} ${currentDemo === 'close' && tab.id !== activeTab ? 'animate-pulse opacity-50' : ''
 										} ${currentDemo === 'new' && tab.id === 'temp' ? 'animate-pulse bg-muted/30' : ''
@@ -265,10 +266,15 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 						</div>
 					</div>
 				) : (
-					<div className="h-full flex items-center justify-center text-muted-foreground">
-						<div className="text-center">
-							<div className="text-4xl mb-2">📑</div>
-							<div className="text-sm">Multi-Tabs Disabled</div>
+					<div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3">
+						<div className="p-3 rounded-full bg-muted/50 ring-1 ring-border/50">
+							<Layout className="w-8 h-8 opacity-50" />
+						</div>
+						<div className="text-center space-y-1">
+							<div className="text-sm font-medium text-foreground">Multi-Tabs Disabled</div>
+							<div className="text-xs text-muted-foreground max-w-[180px]">
+								Enable to work on multiple notes at once
+							</div>
 						</div>
 					</div>
 				)}

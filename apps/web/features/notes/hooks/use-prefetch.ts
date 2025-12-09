@@ -135,3 +135,10 @@ export function getPrefetchedNote(noteId: string): Note | null {
 export function invalidatePrefetchedNote(noteId: string): void {
     noteCache.delete(noteId)
 }
+
+/**
+ * Add a note to the prefetch cache (call when a note is successfully fetched)
+ */
+export function addToPrefetchCache(noteId: string, note: Note): void {
+    noteCache.set(noteId, { data: note, timestamp: Date.now() })
+}
