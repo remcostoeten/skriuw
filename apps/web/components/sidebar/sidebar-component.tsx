@@ -38,7 +38,7 @@ import {
 } from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
-import { EmptyState } from '../ui/empty-state'
+
 import { SidebarEmptyState } from './sidebar-empty-state'
 
 import { useSidebarContentType } from './use-sidebar-content-type'
