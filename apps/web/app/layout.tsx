@@ -4,6 +4,7 @@ import '../styles/outlines-accessibility.css'
 import 'prismjs/themes/prism-tomorrow.css'
 
 import { Providers } from './providers'
+import { AutoSignIn } from '@/components/auth/auto-sign-in'
 
 export const metadata: Metadata = {
 	title: 'Skriuw',
@@ -28,7 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				/>
 			</head>
 			<body className="font-sans antialiased dark bg-background">
-				<Providers>{children}</Providers>
+				<Providers>
+					<AutoSignIn />
+					{children}
+				</Providers>
 			</body>
 		</html>
 	)

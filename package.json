@@ -4,6 +4,7 @@
   "devDependencies": {
     "@skriuw/eslint-config": "workspace:*",
     "@skriuw/typescript-config": "workspace:*",
+    "baseline-browser-mapping": "^2.9.5",
     "next": "16.0.2",
     "prettier": "^3.6.2",
     "tinyglobby": "^0.2.15",
@@ -18,6 +19,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "bun tools/check-db.ts && echo \"\\n🚀 Starting Skriuw...\\n📦 Database: ${DATABASE_PROVIDER:-postgres} (Check .env to switch)\\n\" && turbo dev",
+    "start": "turbo start",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo check-types",

@@ -32,6 +32,7 @@ import type { SidebarContentType } from '../sidebar/types'
 import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
+import { useSplitViewStore } from '../../features/notes/split-view/store'
 
 type AppLayoutManagerProps = {
 	children: ReactNode
@@ -297,6 +298,19 @@ export function AppLayoutManager({
 		setIsSearchOpen(true)
 	})
 
+	const splitOrientation = useSplitViewStore((state) => state.orientation)
+	const splitToggleFromStore = useSplitViewStore((state) => state.toggleSplit)
+	const splitPaneCount = useSplitViewStore((state) => state.panes.length)
+	const splitActivePaneId = useSplitViewStore((state) => state.activePaneId)
+
+	const isSplitViewActive = splitOrientation !== 'single' && splitPaneCount > 1
+	const shouldShowSplitToggle = isNoteRoute && !!sidebarActiveNoteId
+
+	const handleToolbarSplitToggle = useCallback(() => {
+		if (!sidebarActiveNoteId) return
+		splitToggleFromStore(sidebarActiveNoteId)
+	}, [sidebarActiveNoteId, splitToggleFromStore])
+
 	return (
 		<AppLayoutShell
 			leftToolbar={<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />}
@@ -336,6 +350,10 @@ export function AppLayoutManager({
 					onToggleEditorMode={handleToggleEditorMode}
 					showSidebar={showSidebar}
 					showEditorModeToggle={!!sidebarActiveNoteId}
+					showSplitToggle={shouldShowSplitToggle}
+					isSplitViewActive={isSplitViewActive}
+					onSplitToggle={handleToolbarSplitToggle}
+					splitOrientation={splitOrientation}
 				/>
 			}
 			mainContent={
@@ -360,6 +378,7 @@ export function AppLayoutManager({
 							onPinNote={handlePinNote}
 							onFavoriteNote={handleFavoriteNote}
 							getNoteData={getNoteData}
+							dragSourcePaneId={splitActivePaneId}
 						/>
 					)}
 					<div
