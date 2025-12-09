@@ -27,27 +27,30 @@ const FONT_FAMILIES = {
     'sans-serif': 'system-ui, sans-serif',
 }
 
-export default function TypographyPreview({ value, type }: TypographyPreviewProps) {
+export default function TypographyPreview({ value, type, allSettings }: TypographyPreviewProps) {
     const getStyle = () => {
-        const baseStyle: React.CSSProperties = {
-            fontSize: '16px',
-            fontFamily: '"Inter", system-ui, sans-serif',
-            lineHeight: 1.6,
+        // Default values
+        let fontSize = 'medium'
+        let fontFamily = 'inter'
+        let lineHeight = 1.6
+
+        // Override with allSettings if available
+        if (allSettings) {
+            if (allSettings.fontSize) fontSize = allSettings.fontSize
+            if (allSettings.fontFamily) fontFamily = allSettings.fontFamily
+            if (allSettings.lineHeight) lineHeight = allSettings.lineHeight
         }
 
-        switch (type) {
-            case 'fontSize':
-                baseStyle.fontSize = FONT_SIZES[value as keyof typeof FONT_SIZES] || value
-                break
-            case 'fontFamily':
-                baseStyle.fontFamily = FONT_FAMILIES[value as keyof typeof FONT_FAMILIES] || value
-                break
-            case 'lineHeight':
-                baseStyle.lineHeight = value
-                break
-        }
+        // Override with current value being edited
+        if (type === 'fontSize') fontSize = value
+        if (type === 'fontFamily') fontFamily = value
+        if (type === 'lineHeight') lineHeight = value
 
-        return baseStyle
+        return {
+            fontSize: FONT_SIZES[fontSize as keyof typeof FONT_SIZES] || fontSize,
+            fontFamily: FONT_FAMILIES[fontFamily as keyof typeof FONT_FAMILIES] || fontFamily,
+            lineHeight: lineHeight,
+        }
     }
 
     return (

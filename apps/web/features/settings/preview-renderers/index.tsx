@@ -7,6 +7,7 @@ export interface PreviewProps<T = any> {
     value: T
     settingKey: string
     options?: T[]
+    allSettings?: Record<string, any>
 }
 
 // Lazy load heavy components

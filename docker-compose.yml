@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -6,7 +5,7 @@ services:
     container_name: skriuw-db
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      - '5433:5432'
     environment:
       POSTGRES_USER: skriuw
       POSTGRES_PASSWORD: skriuw_dev

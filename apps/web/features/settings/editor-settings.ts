@@ -84,6 +84,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'enum',
 		description: 'Editor font size',
 		category: 'appearance',
+		subsection: 'Typography',
 		options: ['small', 'medium', 'large', 'x-large'],
 		implemented: true,
 		preview: {
@@ -99,6 +100,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'enum',
 		description: 'Editor font family',
 		category: 'appearance',
+		subsection: 'Typography',
 		options: ['inter', 'mono', 'serif', 'sans-serif'],
 		implemented: true,
 		preview: {
@@ -114,6 +116,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'number',
 		description: 'Line height for the editor',
 		category: 'appearance',
+		subsection: 'Typography',
 		validation: (value: number) =>
 			(value >= 1.0 && value <= 3.0) || 'Line height must be between 1.0 and 3.0',
 		implemented: true,
