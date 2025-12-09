@@ -9,3 +9,20 @@ target/
 *.deb
 *.dmg
 *.exe
+
+# Exclude other apps (keep only web)
+apps/desktop/
+apps/cli/
+
+# Exclude docs and test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.stories.tsx
+**/coverage/
+**/node_modules/.cache/
+
+# Exclude lock files for other package managers
+package-lock.json
+pnpm-lock.yaml

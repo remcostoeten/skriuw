@@ -2,7 +2,7 @@ import { destroy } from '@skriuw/crud'
 
 import type { ShortcutId } from '../../shortcut-definitions'
 
-const STORAGE_KEY = 'quantum-works:shortcuts:custom'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Reset a custom shortcut (delete it)
@@ -10,7 +10,7 @@ const STORAGE_KEY = 'quantum-works:shortcuts:custom'
  */
 export async function resetShortcut(id: ShortcutId): Promise<boolean> {
 	try {
-		const result = await destroy(STORAGE_KEY, id)
+		const result = await destroy(STORAGE_KEYS.SHORTCUTS, id)
 		return result.success
 	} catch (error) {
 		throw new Error(

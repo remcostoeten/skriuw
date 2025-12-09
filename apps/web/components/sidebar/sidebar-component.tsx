@@ -18,6 +18,7 @@ import { useNotesContext } from '../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
 import { blocksToText } from '../../features/notes/utils/blocks-to-text'
 import { useSettings } from '../../features/settings'
+import { findItemById, isDescendant } from '../../features/notes/utils/tree-helpers'
 import { useShortcut } from '../../features/shortcuts'
 import { useContextMenuState } from '../../features/shortcuts/context-menu-context'
 import { shortcutDefinitions } from '../../features/shortcuts/shortcut-definitions'
@@ -37,7 +38,8 @@ import {
 } from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
-import { EmptyState } from '../ui/empty-state'
+
+import { SidebarEmptyState } from './sidebar-empty-state'
 
 import { useSidebarContentType } from './use-sidebar-content-type'
 import { TasksSidebarContent } from './tasks-sidebar-content'
@@ -66,39 +68,9 @@ function MoveFolderMenu({
 }) {
 	const isBulkMove = selectedIds && selectedIds.length > 1
 
-	const isDescendant = useCallback(
+	const checkIsDescendant = useCallback(
 		(folderId: string, ancestorIds: string[], items: Item[]): boolean => {
-			const findFolder = (itemList: Item[], id: string): FolderType | null => {
-				for (const item of itemList) {
-					if (item.id === id && item.type === 'folder') {
-						return item as FolderType
-					}
-					if (item.type === 'folder') {
-						const found = findFolder(item.children, id)
-						if (found) return found
-					}
-				}
-				return null
-			}
-
-			for (const ancestorId of ancestorIds) {
-				const ancestor = findFolder(items, ancestorId)
-				if (!ancestor) continue
-
-				const checkChildren = (folder: FolderType): boolean => {
-					return folder.children.some((child) => {
-						if (child.id === folderId) return true
-						if (child.type === 'folder') {
-							return checkChildren(child as FolderType)
-						}
-						return false
-					})
-				}
-
-				if (checkChildren(ancestor)) return true
-			}
-
-			return false
+			return ancestorIds.some((ancestorId) => isDescendant(items, ancestorId, folderId))
 		},
 		[]
 	)
@@ -109,17 +81,7 @@ function MoveFolderMenu({
 		const idsToExclude = isBulkMove ? selectedIds! : [currentFolderId]
 		// Only check descendants for folders, since notes can't have descendants
 		const folderIdsToExclude = idsToExclude.filter((id) => {
-			const findItem = (itemList: Item[]): Item | undefined => {
-				for (const item of itemList) {
-					if (item.id === id) return item
-					if (item.type === 'folder') {
-						const found = findItem(item.children)
-						if (found) return found
-					}
-				}
-				return undefined
-			}
-			const item = findItem(allItems)
+			const item = findItemById(allItems, id)
 			return item?.type === 'folder'
 		})
 
@@ -128,7 +90,7 @@ function MoveFolderMenu({
 				if (
 					item.type === 'folder' &&
 					!idsToExclude.includes(item.id) &&
-					!isDescendant(item.id, folderIdsToExclude, allItems)
+					!checkIsDescendant(item.id, folderIdsToExclude, allItems)
 				) {
 					folders.push(item)
 					collectFolders(item.children)
@@ -138,7 +100,7 @@ function MoveFolderMenu({
 
 		collectFolders(allItems)
 		return folders
-	}, [allItems, currentFolderId, isDescendant, isBulkMove, selectedIds])
+	}, [allItems, currentFolderId, checkIsDescendant, isBulkMove, selectedIds])
 
 	const handleMoveToRoot = useCallback(async () => {
 		const idsToMove = isBulkMove ? selectedIds! : [currentFolderId]
@@ -232,7 +194,7 @@ const formatShortcut = (shortcutId: keyof typeof shortcutDefinitions): string | 
 	if (!definition || !definition.enabled) return null
 
 	// Prefer single-key shortcuts (no modifiers) for context menu display
-	const singleKeyCombo = definition.keys.find(combo => combo.length === 1)
+	const singleKeyCombo = definition.keys.find((combo) => combo.length === 1)
 	const keys = singleKeyCombo || definition.keys[0]
 	if (!keys) return null
 
@@ -643,23 +605,23 @@ function FileTreeItem({
 				})
 			}
 		},
-		[item.id, item.type, item.pinned, onDelete, onCreateNote, onCreateFolder, onRename, onPinItem, onContextMenuOpenChange]
+		[
+			item.id,
+			item.type,
+			item.pinned,
+			onDelete,
+			onCreateNote,
+			onCreateFolder,
+			onRename,
+			onPinItem,
+			onContextMenuOpenChange,
+		]
 	)
 
 	// Helper to find item by ID
-	const findItemById = useCallback(
+	const findItem = useCallback(
 		(id: string): Item | undefined => {
-			const findInItems = (itemList: Item[]): Item | undefined => {
-				for (const item of itemList) {
-					if (item.id === id) return item
-					if (item.type === 'folder') {
-						const found = findInItems(item.children)
-						if (found) return found
-					}
-				}
-				return undefined
-			}
-			return findInItems(allItems)
+			return findItemById(allItems, id)
 		},
 		[allItems]
 	)
@@ -673,17 +635,17 @@ function FileTreeItem({
 		if (!hasMultipleSelections) return false
 		const selectedIds = getSelectedIds()
 		return selectedIds.some((id) => {
-			const item = findItemById(id)
+			const item = findItem(id)
 			return item?.type === 'note'
 		})
-	}, [hasMultipleSelections, getSelectedIds, findItemById])
+	}, [hasMultipleSelections, getSelectedIds, findItem])
 
 	// Bulk favorite handlers
 	const handleBulkFavorite = useCallback(async () => {
 		const selectedIds = getSelectedIds()
 		for (const id of selectedIds) {
 			try {
-				const item = findItemById(id)
+				const item = findItem(id)
 				// Only favorite notes, skip folders
 				if (!item || item.type !== 'note') {
 					continue
@@ -694,13 +656,13 @@ function FileTreeItem({
 			}
 		}
 		clearSelection()
-	}, [getSelectedIds, findItemById, onFavoriteNote, clearSelection])
+	}, [getSelectedIds, findItem, onFavoriteNote, clearSelection])
 
 	const handleBulkUnfavorite = useCallback(async () => {
 		const selectedIds = getSelectedIds()
 		for (const id of selectedIds) {
 			try {
-				const item = findItemById(id)
+				const item = findItem(id)
 				// Only unfavorite notes, skip folders
 				if (!item || item.type !== 'note') {
 					continue
@@ -711,7 +673,7 @@ function FileTreeItem({
 			}
 		}
 		clearSelection()
-	}, [getSelectedIds, findItemById, onFavoriteNote, clearSelection])
+	}, [getSelectedIds, findItem, onFavoriteNote, clearSelection])
 
 	// Long-press handler for mobile
 	const handleTouchStart = useCallback(
@@ -1915,7 +1877,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 										<div className="flex items-center justify-between h-7 rounded-md px-1">
 											<div className="flex items-center gap-1.5 flex-1">
 												<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-												<div className="h-3 rounded bg-muted-foreground/20" style={{ width: `${60 + (i * 13) % 60}px` }} />
+												<div
+													className="h-3 rounded bg-muted-foreground/20"
+													style={{ width: `${60 + ((i * 13) % 60)}px` }}
+												/>
 											</div>
 											{isFolder && <div className="h-3 w-4 rounded bg-muted-foreground/15" />}
 										</div>
@@ -1924,7 +1889,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 												{Array.from({ length: 2 }).map((_, j) => (
 													<div key={j} className="flex items-center gap-1.5 h-7 px-1">
 														<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-														<div className="h-3 rounded bg-muted-foreground/20" style={{ width: `${50 + (j * 20) % 50}px` }} />
+														<div
+															className="h-3 rounded bg-muted-foreground/20"
+															style={{ width: `${50 + ((j * 20) % 50)}px` }}
+														/>
 													</div>
 												))}
 											</div>
@@ -1934,21 +1902,15 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 							})}
 						</div>
 					) : filteredItems.length === 0 ? (
-						<div className="flex h-[200px] w-full items-center justify-center">
-							<EmptyState
-								icon={<FilePlus className="h-10 w-10 text-muted-foreground/50" />}
-								title={searchQuery ? 'No results' : 'No notes'}
-								description={searchQuery ? 'Try a different search' : 'Create your first note'}
-								actions={
-									!searchQuery
-										? [
-											{
-												label: 'Create Note',
-												onClick: () => handleCreateNote(),
-											},
-										]
-										: undefined
-								}
+						<div className="flex-1 w-full">
+							<SidebarEmptyState
+								hasSearchQuery={!!searchQuery}
+								onCreateNote={() => handleCreateNote()}
+								onCreateFolder={() => handleCreateFolder()}
+								onSearch={() => {
+									setSearchQuery('')
+									setIsSearchOpen(false)
+								}}
 							/>
 						</div>
 					) : (

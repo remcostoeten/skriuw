@@ -20,12 +20,14 @@ function SettingPreview({
 	componentKey,
 	value,
 	settingKey,
-	options
+	options,
+	allSettings
 }: {
 	componentKey: string
 	value: any
 	settingKey: string
 	options?: any[]
+	allSettings?: Record<string, any>
 }) {
 	const PreviewComponent = getPreviewRenderer(componentKey)
 
@@ -37,7 +39,12 @@ function SettingPreview({
 				<span className="text-xs text-muted-foreground">Loading preview...</span>
 			</div>
 		}>
-			<PreviewComponent value={value} settingKey={settingKey} options={options} />
+			<PreviewComponent
+				value={value}
+				settingKey={settingKey}
+				options={options}
+				allSettings={allSettings}
+			/>
 		</Suspense>
 	)
 }
@@ -67,6 +74,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 					value={currentValue}
 					settingKey={setting.key}
 					options={setting.options}
+					allSettings={values}
 					{...setting.preview.props}
 				/>
 			)
@@ -198,9 +206,25 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 				<p className="text-sm text-muted-foreground mt-1">{group.description}</p>
 			</div>
 			<div>
-				{implementedSettings.map((setting, index) =>
-					renderSetting(setting, index === implementedSettings.length - 1)
-				)}
+				{implementedSettings.map((setting, index) => {
+					const isLast = index === implementedSettings.length - 1
+					const showSubsectionHeader = setting.subsection && (
+						index === 0 || implementedSettings[index - 1].subsection !== setting.subsection
+					)
+
+					return (
+						<React.Fragment key={setting.key}>
+							{showSubsectionHeader && (
+								<div className="mt-6 mb-2 first:mt-0">
+									<h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+										{setting.subsection}
+									</h3>
+								</div>
+							)}
+							{renderSetting(setting, isLast)}
+						</React.Fragment>
+					)
+				})}
 			</div>
 		</div>
 	)

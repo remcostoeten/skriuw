@@ -4,7 +4,7 @@ import type { KeyCombo } from '../../shortcut-definitions'
 import { readOne, update, create } from '@skriuw/crud'
 import { invalidateShortcutsCache } from '../queries/get-shortcuts'
 
-const STORAGE_KEY = 'quantum-works:shortcuts:custom'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Save or update a custom shortcut
@@ -13,11 +13,11 @@ const STORAGE_KEY = 'quantum-works:shortcuts:custom'
 export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<CustomShortcut> {
 	try {
 		// Check if shortcut already exists
-		const result = await readOne<CustomShortcut>(STORAGE_KEY, id)
+		const result = await readOne<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, id)
 
 		if (result.success && result.data) {
 			// Update existing shortcut
-			const updated = await update<CustomShortcut>(STORAGE_KEY, id, {
+			const updated = await update<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, id, {
 				keys,
 				customizedAt: new Date().toISOString(),
 			})
@@ -26,10 +26,12 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 				throw new Error('Failed to update shortcut')
 			}
 
+			// Invalidate cache when shortcut changes
+			invalidateShortcutsCache()
 			return updated.data
 		} else {
 			// Create new shortcut
-			const newShortcut = await create<CustomShortcut>(STORAGE_KEY, {
+			const newShortcut = await create<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, {
 				id,
 				keys,
 				customizedAt: new Date().toISOString(),
@@ -39,11 +41,10 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 				throw new Error('Failed to create shortcut')
 			}
 
+			// Invalidate cache when shortcut changes
+			invalidateShortcutsCache()
 			return newShortcut.data
 		}
-
-		// Invalidate cache when shortcut changes
-		invalidateShortcutsCache()
 	} catch (error) {
 		throw new Error(
 			`Failed to save shortcut: ${error instanceof Error ? error.message : String(error)}`

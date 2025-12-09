@@ -5,14 +5,14 @@ import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Restore a soft-deleted item from trash
  */
 export async function restoreItem(id: string): Promise<boolean> {
 	try {
-		const result = await update(STORAGE_KEY, id, {
+		const result = await update(STORAGE_KEYS.NOTES, id, {
 			deletedAt: undefined,
 		} as Partial<Item>)
 

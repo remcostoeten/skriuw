@@ -39,7 +39,7 @@ export class AiService {
     async generate(opts: { prompt: string; model?: string; options?: any }) {
         // Validate input with Zod
         const parsed = AiGenerateSchema.parse(opts);
-            const modelName = parsed.model || "google/gemini-1.5-flash";
+        const modelName = parsed.model || "google/gemini-1.5-flash";
         return retryWithFallback(() =>
             generateText({
                 model: modelName,
@@ -51,6 +51,9 @@ export class AiService {
 
     /** Stream a chat conversation – used by BlockNote AI */
     async chat(opts: { messages: any[]; toolDefinitions?: any[] }) {
+        // AI feature is currently disabled to fix build issues
+        throw new Error("AI feature is disabled");
+        /*
         // Validate chat payload
         const parsed = AiChatSchema.parse(opts);
           const result = await retryWithFallback(async () => {
@@ -63,6 +66,7 @@ export class AiService {
             return streamResult;
         });
         return result;
+        */
     }
 }
 
