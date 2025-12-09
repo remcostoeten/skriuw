@@ -30,14 +30,17 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'create-folder': [],
 			'rename-item': [],
 			'open-collection': [],
-			'toggle-sidebar': [],
-			'save-note': [],
-			'search-notes': [],
-			'delete-item': [],
-			'pin-item': [],
-			'open-settings': [],
-			'toggle-theme': [],
-		}
+                        'toggle-sidebar': [],
+                        'save-note': [],
+                        'search-notes': [],
+                        'toggle-split-view': [],
+                        'swap-split-panes': [],
+                        'cycle-split-orientation': [],
+                        'delete-item': [],
+                        'pin-item': [],
+                        'open-settings': [],
+                        'toggle-theme': [],
+                }
 
 		if (crudResult.success && crudResult.data) {
 			for (const shortcut of crudResult.data) {
