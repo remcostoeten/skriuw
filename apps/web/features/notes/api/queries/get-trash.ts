@@ -2,7 +2,7 @@ import { readMany } from '@skriuw/crud'
 
 import type { Item } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /** Number of days to keep deleted items in trash */
 export const TRASH_RETENTION_DAYS = 30
@@ -31,7 +31,7 @@ function filterDeletedItems(items: Item[]): Item[] {
 
 export async function getTrashItems(): Promise<Item[]> {
 	try {
-		const result = await readMany<Item>(STORAGE_KEY)
+		const result = await readMany<Item>(STORAGE_KEYS.NOTES)
 		const items = result.success && result.data ? result.data : []
 		return filterDeletedItems(items)
 	} catch (error) {

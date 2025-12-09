@@ -12,6 +12,7 @@ import { useSelectionStore } from '../../stores/selection-store'
 import { Button } from '@skriuw/ui/button'
 
 import type { Item } from '../../features/notes/types'
+import { findItemById } from '../../features/notes/utils/tree-helpers'
 
 interface BulkOperationsBarProps {
 	className?: string
@@ -25,23 +26,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 
 	const { showNotification, NotificationPopover } = useNotificationPopover()
 
-	// Helper to find item by ID and determine its type
-	const findItemById = useCallback(
-		(id: string): Item | undefined => {
-			const findInItems = (itemList: Item[]): Item | undefined => {
-				for (const item of itemList) {
-					if (item.id === id) return item
-					if (item.type === 'folder') {
-						const found = findInItems(item.children)
-						if (found) return found
-					}
-				}
-				return undefined
-			}
-			return findInItems(items)
-		},
-		[items]
-	)
+
 
 	const handleBulkDelete = useCallback(async () => {
 		const ids = getSelectedIds()
@@ -68,7 +53,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 		const ids = getSelectedIds()
 		for (const id of ids) {
 			try {
-				const item = findItemById(id)
+				const item = findItemById(items, id)
 				if (!item) {
 					console.warn(`Item ${id} not found`)
 					continue
@@ -85,7 +70,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 		const ids = getSelectedIds()
 		for (const id of ids) {
 			try {
-				const item = findItemById(id)
+				const item = findItemById(items, id)
 				if (!item) {
 					console.warn(`Item ${id} not found`)
 					continue
@@ -102,7 +87,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 		const ids = getSelectedIds()
 		for (const id of ids) {
 			try {
-				const item = findItemById(id)
+				const item = findItemById(items, id)
 				// Only favorite notes, skip folders
 				if (!item || item.type !== 'note') {
 					continue
@@ -119,7 +104,7 @@ export function BulkOperationsBar({ className = '', items }: BulkOperationsBarPr
 		const ids = getSelectedIds()
 		for (const id of ids) {
 			try {
-				const item = findItemById(id)
+				const item = findItemById(items, id)
 				// Only unfavorite notes, skip folders
 				if (!item || item.type !== 'note') {
 					continue

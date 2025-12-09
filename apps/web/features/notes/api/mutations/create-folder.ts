@@ -4,11 +4,11 @@ import { invalidateItemsCache } from '../queries/get-items'
 
 import type { Folder, CreateFolderData } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
 	try {
-		const result = await create<Folder>(STORAGE_KEY, {
+		const result = await create<Folder>(STORAGE_KEYS.NOTES, {
 			type: 'folder',
 			name: data.name,
 			children: [],

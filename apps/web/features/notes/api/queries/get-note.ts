@@ -1,12 +1,11 @@
 import { readOne } from '@skriuw/crud'
 
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 import type { Note } from '../../types'
-
-const STORAGE_KEY = 'Skriuw_notes'
 
 export async function getNote(id: string): Promise<Note | undefined> {
 	try {
-		const result = await readOne<Note>(STORAGE_KEY, id)
+		const result = await readOne<Note>(STORAGE_KEYS.NOTES, id)
 		if (result.success && result.data && result.data.type === 'note') {
 			return result.data
 		}

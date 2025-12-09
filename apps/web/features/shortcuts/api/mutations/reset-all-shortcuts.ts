@@ -2,7 +2,7 @@ import { readMany, destroy } from '@skriuw/crud'
 
 import type { CustomShortcut } from '../types'
 
-const STORAGE_KEY = 'quantum-works:shortcuts:custom'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Reset all custom shortcuts (delete all)
@@ -10,11 +10,11 @@ const STORAGE_KEY = 'quantum-works:shortcuts:custom'
  */
 export async function resetAllShortcuts(): Promise<boolean> {
 	try {
-		const result = await readMany<CustomShortcut>(STORAGE_KEY)
+		const result = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS)
 
 		if (result.success && result.data && result.data.length > 0) {
 			// Delete all shortcuts
-			await Promise.all(result.data.map((shortcut) => destroy(STORAGE_KEY, shortcut.id)))
+			await Promise.all(result.data.map((shortcut) => destroy(STORAGE_KEYS.SHORTCUTS, shortcut.id)))
 			return true
 		}
 

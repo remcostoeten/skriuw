@@ -5,7 +5,7 @@ import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Soft delete an item by setting deletedAt timestamp.
@@ -13,7 +13,7 @@ const STORAGE_KEY = 'Skriuw_notes'
  */
 export async function deleteItem(id: string): Promise<boolean> {
 	try {
-		const result = await update(STORAGE_KEY, id, {
+		const result = await update(STORAGE_KEYS.NOTES, id, {
 			deletedAt: Date.now(),
 		} as Partial<Item>)
 

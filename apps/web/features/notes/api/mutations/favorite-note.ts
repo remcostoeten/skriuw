@@ -3,11 +3,11 @@ import { update } from '@skriuw/crud'
 import { invalidateItemsCache } from '../queries/get-items'
 import type { Note } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function favoriteNote(noteId: string, favorite: boolean): Promise<Note | undefined> {
 	try {
-		const result = await update<Note>(STORAGE_KEY, noteId, {
+		const result = await update<Note>(STORAGE_KEYS.NOTES, noteId, {
 			favorite,
 		})
 		invalidateItemsCache()
