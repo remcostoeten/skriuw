@@ -38,14 +38,3 @@ export function useNotesContext() {
 	}
 	return context
 }
-
-/**
- * Safe hook that returns notes context if available, or falls back to direct hook
- * Use this in components that may or may not be within the NotesProvider
- */
-export function useNotesContextSafe() {
-	const context = useContext(NotesContext)
-	// If no context, use the direct hook (creates separate state)
-	const directNotes = useNotesWithSuspense()
-	return context ?? directNotes
-}

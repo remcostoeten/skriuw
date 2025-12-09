@@ -5,7 +5,7 @@ import { destroy } from '@skriuw/crud'
 import { getTrashItems } from '../queries/get-trash'
 import { invalidateItemsCache } from '../queries/get-items'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Permanently delete all items in trash
@@ -23,7 +23,7 @@ export async function emptyTrash(): Promise<number> {
 				console.error('Failed to delete tasks for note:', taskError)
 			}
 
-			const result = await destroy(STORAGE_KEY, item.id)
+			const result = await destroy(STORAGE_KEYS.NOTES, item.id)
 			if (result.success) {
 				deletedCount++
 			}

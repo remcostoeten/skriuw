@@ -11,6 +11,7 @@ export interface UserSetting<T = any> {
 	validation?: (value: T) => boolean | string
 	implemented?: boolean // Whether this setting is actually implemented in the app
 	condition?: (settings: Record<string, any>) => boolean // Conditionally show setting based on other settings
+	subsection?: string // Optional subsection to group settings visually
 	preview?: {
 		component: string // Key to lookup the preview component in registry
 		props?: Record<string, any> // Extra props for the preview component

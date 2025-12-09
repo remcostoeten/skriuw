@@ -1,13 +1,13 @@
 
 import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 import type { SettingsEntity } from '../types'
 
-const STORAGE_KEY = 'skriuw:settings'
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 export function invalidateSettingsCache(): void {
-	invalidateForStorageKey(STORAGE_KEY)
+	invalidateForStorageKey(STORAGE_KEYS.SETTINGS)
 }
 
 /**
@@ -15,7 +15,7 @@ export function invalidateSettingsCache(): void {
  */
 export async function getSettings(options: { forceRefresh?: boolean } = {}): Promise<SettingsEntity | null> {
 	try {
-		const result = await readMany<SettingsEntity>(STORAGE_KEY, {
+		const result = await readMany<SettingsEntity>(STORAGE_KEYS.SETTINGS, {
 			cache: {
 				ttl: CACHE_TTL_MS,
 				staleWhileRevalidate: true,

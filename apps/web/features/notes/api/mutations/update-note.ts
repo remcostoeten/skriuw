@@ -5,11 +5,11 @@ import { update } from '@skriuw/crud'
 import { syncTasksToDatabase } from '../../../tasks'
 import { extractTasksFromBlocks } from '../../utils/extract-tasks'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function updateNote(id: string, data: UpdateNoteData): Promise<Note | undefined> {
 	try {
-		const result = await update<Note>(STORAGE_KEY, id, {
+		const result = await update<Note>(STORAGE_KEYS.NOTES, id, {
 			name: data.name,
 			content: data.content,
 		})

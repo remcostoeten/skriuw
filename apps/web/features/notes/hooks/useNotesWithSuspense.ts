@@ -13,64 +13,11 @@ import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
 import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
+import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
 
 import type { Note, Folder, Item } from '../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
-const RECENT_NOTES_KEY = 'Skriuw_recently_accessed'
-
-// Simple note cache for recently accessed notes
-const NOTE_CACHE_SIZE = 10
-const noteCache = new Map<string, Note>()
-const accessOrder: string[] = []
-
-function addToNoteCache(id: string, note: Note) {
-	if (noteCache.has(id)) {
-		// Move to end (most recently used)
-		const index = accessOrder.indexOf(id)
-		if (index > -1) {
-			accessOrder.splice(index, 1)
-			accessOrder.push(id)
-		}
-		return
-	}
-
-	// Add new note
-	noteCache.set(id, note)
-	accessOrder.push(id)
-
-	// Remove oldest if cache is full
-	if (accessOrder.length > NOTE_CACHE_SIZE) {
-		const oldestId = accessOrder.shift()!
-		noteCache.delete(oldestId)
-	}
-}
-
-function getNoteFromCache(id: string): Note | null {
-	const note = noteCache.get(id)
-	if (note) {
-		// Move to end (most recently used)
-		const index = accessOrder.indexOf(id)
-		if (index > -1) {
-			accessOrder.splice(index, 1)
-			accessOrder.push(id)
-		}
-		return note
-	}
-	return null
-}
-
-function trackNoteAccess(noteId: string) {
-	try {
-		const recentNotes = JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || '[]') as string[]
-		const filtered = recentNotes.filter((id) => id !== noteId)
-		filtered.unshift(noteId)
-		const trimmed = filtered.slice(0, 20)
-		localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(trimmed))
-	} catch (error) {
-		console.debug('Failed to track note access:', error)
-	}
-}
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Enhanced useNotes hook with non-blocking updates and loading states
@@ -127,25 +74,24 @@ export function useNotesWithSuspense() {
 	}, [])
 
 	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
-		// Check cache first
-		const cachedNote = getNoteFromCache(id)
+		// Check prefetch cache first
+		const cachedNote = getPrefetchedNote(id)
 		if (cachedNote) {
-			trackNoteAccess(id)
 			return cachedNote
 		}
 
 		// Fetch from API
 		const note = await getNoteQuery(id)
 		if (note) {
-			addToNoteCache(id, note)
-			trackNoteAccess(id)
+			// Add to shared prefetch cache
+			addToPrefetchCache(id, note)
 		}
 
 		return note
 	}, [])
 
 	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
-		const result = await readOne<Item>(STORAGE_KEY, id)
+		const result = await readOne<Item>(STORAGE_KEYS.NOTES, id)
 		if (result.success && result.data && 'id' in result.data) {
 			return result.data
 		}
@@ -416,7 +362,7 @@ export function useNotesWithSuspense() {
 	)
 
 	const countChildren = useCallback(async (folderId: string): Promise<number> => {
-		const result = await readOne<Folder>(STORAGE_KEY, folderId)
+		const result = await readOne<Folder>(STORAGE_KEYS.NOTES, folderId)
 		if (
 			result.success &&
 			result.data &&

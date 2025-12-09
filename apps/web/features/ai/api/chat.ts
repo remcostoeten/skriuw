@@ -6,6 +6,8 @@ import { injectDocumentStateMessages, toolDefinitionsToToolSet, aiDocumentFormat
 
 export async function POST(req: Request) {
     try {
+        return Response.json({ error: "AI feature is disabled" }, { status: 503 });
+        /*
         const { messages, toolDefinitions } = await req.json();
 
         // Convert UIMessages to ModelMessages for the AI SDK
@@ -19,13 +21,14 @@ export async function POST(req: Request) {
 
             system: aiDocumentFormats.html.systemPrompt,
             messages: modelMessages,
-            tools: toolDefinitions ? toolDefinitionsToToolSet(toolDefinitions) : undefined,
+            tools: toolDefinitions ? toolDefinitionsToToolSet(toolDefinitions) as any : undefined,
             // Enable raw chunk access for debugging / logging.
             includeRawChunks: true,
         });
 
         // Return a streaming response compatible with the AI SDK UI components.
         return result.toUIMessageStreamResponse();
+        */
     } catch (error) {
         console.error("AI chat route error:", error);
         return Response.json({ error: "Failed to process AI request" }, { status: 500 });

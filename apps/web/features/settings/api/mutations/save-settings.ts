@@ -1,22 +1,21 @@
 import { create, update, readOne } from '@skriuw/crud'
 
+import { STORAGE_KEYS, DEFAULT_IDS } from '@/lib/storage-keys'
 import type { SettingsEntity } from '../types'
-
-const STORAGE_KEY = 'app:settings'
 
 export async function saveSettings(settings: Record<string, any>): Promise<void> {
 	try {
-		const result = await readOne<SettingsEntity>(STORAGE_KEY, 'app-settings')
+		const result = await readOne<SettingsEntity>(STORAGE_KEYS.SETTINGS, DEFAULT_IDS.SETTINGS)
 
 		if (result.success && result.data) {
 			// Update existing
-			await update<SettingsEntity>(STORAGE_KEY, 'app-settings', {
+			await update<SettingsEntity>(STORAGE_KEYS.SETTINGS, DEFAULT_IDS.SETTINGS, {
 				settings,
 			})
 		} else {
 			// Create new
-			await create<SettingsEntity>(STORAGE_KEY, {
-				id: 'app-settings',
+			await create<SettingsEntity>(STORAGE_KEYS.SETTINGS, {
+				id: DEFAULT_IDS.SETTINGS,
 				settings,
 			})
 		}
