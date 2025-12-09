@@ -6,14 +6,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
     try {
-        // Verify authorization (e.g. via Vercel Cron header or secret)
+        // Verify authorization via Bearer token or Vercel Cron header
         const authHeader = request.headers.get('authorization')
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            // Allow if it's a Vercel Cron request
-            // const isVercelCron = request.headers.get('vercel-cron') === 'true';
-            // if (!isVercelCron) {
-            //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            // }
+        const isVercelCron = request.headers.get('vercel-cron') === 'true'
+        const isValidBearer = authHeader === `Bearer ${process.env.CRON_SECRET}`
+
+        if (!isVercelCron && !isValidBearer) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const db = getDatabase()
