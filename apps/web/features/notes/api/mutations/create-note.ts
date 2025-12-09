@@ -15,7 +15,7 @@ async function getSettings(): Promise<SettingsEntity | null> {
 	return items[0] ?? null
 }
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function createNote(data: CreateNoteData): Promise<Note> {
 	try {
@@ -30,7 +30,7 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 
 		console.info(`[createNote] Creating note "${data.name}" in ${data.parentFolderId || 'root'}`)
 
-		const result = await create<Note>(STORAGE_KEY, {
+		const result = await create<Note>(STORAGE_KEYS.NOTES, {
 			type: 'note',
 			name: data.name,
 			content: initialContent,

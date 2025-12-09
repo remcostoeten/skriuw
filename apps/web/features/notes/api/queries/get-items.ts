@@ -1,8 +1,8 @@
 import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 import type { Item } from '../../types'
 
-const STORAGE_KEY = 'Skriuw_notes'
 const CACHE_TTL_MS = 60000
 
 let inflightRequest: Promise<Item[]> | null = null
@@ -26,7 +26,7 @@ function filterActiveItems(items: Item[]): Item[] {
 }
 
 async function fetchItems(options?: { forceRefresh?: boolean }): Promise<Item[]> {
-	const result = await readMany<Item>(STORAGE_KEY, {
+	const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 		cache: {
 			ttl: CACHE_TTL_MS,
 			staleWhileRevalidate: true,
@@ -41,7 +41,7 @@ async function fetchItems(options?: { forceRefresh?: boolean }): Promise<Item[]>
 
 export function invalidateItemsCache(): void {
 	inflightRequest = null
-	invalidateForStorageKey(STORAGE_KEY)
+	invalidateForStorageKey(STORAGE_KEYS.NOTES)
 }
 
 /**

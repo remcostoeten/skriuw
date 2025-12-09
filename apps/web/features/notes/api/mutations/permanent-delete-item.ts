@@ -5,7 +5,7 @@ import { destroy } from '@skriuw/crud'
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
-const STORAGE_KEY = 'Skriuw_notes'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
  * Permanently delete an item (bypass trash)
@@ -20,7 +20,7 @@ export async function permanentDeleteItem(id: string): Promise<boolean> {
 			console.error('Failed to delete tasks for note:', taskError)
 		}
 
-		const result = await destroy(STORAGE_KEY, id)
+		const result = await destroy(STORAGE_KEYS.NOTES, id)
 		if (result.success) {
 			invalidateItemsCache()
 			invalidatePrefetchedNote(id)

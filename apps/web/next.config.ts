@@ -12,7 +12,16 @@ const nextConfig: NextConfig = {
 	serverExternalPackages: ['postgres'],
 
 	// Fix for 431 Request Header Fields Too Large errors in development
-	experimental: {},
+	experimental: {
+		// Optimize production builds
+		optimizePackageImports: ['@blocknote/mantine', '@blocknote/xl-ai'],
+	},
+
+	// Disable source maps in production to reduce bundle size
+	productionBrowserSourceMaps: false,
+
+	// Optimize for Docker and Vercel deployments by only including necessary files
+	output: 'standalone',
 
 	// Configure headers to handle large headers in development
 	headers: async () => {
@@ -34,6 +43,11 @@ const nextConfig: NextConfig = {
 
 	// Configure webpack to handle large assets and optional Tauri modules
 	webpack: (config, { isServer, webpack }) => {
+		// Remove source maps in production to reduce bundle size
+		if (config.mode === 'production') {
+			config.devtool = false
+		}
+
 		// Fix path resolution for @/* alias and @skriuw/storage
 		const projectRoot = path.resolve('.')
 		config.resolve.alias = {
