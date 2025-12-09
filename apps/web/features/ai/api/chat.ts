@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
             system: aiDocumentFormats.html.systemPrompt,
             messages: modelMessages,
-            tools: toolDefinitions ? toolDefinitionsToToolSet(toolDefinitions) : undefined,
+            tools: toolDefinitions ? toolDefinitionsToToolSet(toolDefinitions) as any : undefined,
             // Enable raw chunk access for debugging / logging.
             includeRawChunks: true,
         });
