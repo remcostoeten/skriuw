@@ -2,10 +2,11 @@ import {
 	Menu,
 	PanelLeftClose,
 	Search,
-	ChevronLeft,
-	ChevronRight,
-	Code,
-	Type,
+        ChevronLeft,
+        ChevronRight,
+        Code,
+        Type,
+        Panels,
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -22,11 +23,14 @@ type props = {
 	onNavigatePrevious?: () => void
 	onNavigateNext?: () => void
 	canNavigatePrevious?: boolean
-	canNavigateNext?: boolean
-	isRawMDXMode?: boolean
-	onToggleEditorMode?: () => void
-	showSidebar?: boolean
-	showEditorModeToggle?: boolean
+        canNavigateNext?: boolean
+        isRawMDXMode?: boolean
+        onToggleEditorMode?: () => void
+        showSidebar?: boolean
+        showEditorModeToggle?: boolean
+        showSplitToggle?: boolean
+        isSplitView?: boolean
+        onToggleSplitView?: () => void
 }
 
 export function TopToolbar({
@@ -36,14 +40,17 @@ export function TopToolbar({
 	onSearch,
 	onNavigatePrevious,
 	onNavigateNext,
-	canNavigatePrevious = false,
-	canNavigateNext = false,
-	isRawMDXMode = false,
-	onToggleEditorMode,
-	showSidebar = true,
-	showEditorModeToggle = true,
+        canNavigatePrevious = false,
+        canNavigateNext = false,
+        isRawMDXMode = false,
+        onToggleEditorMode,
+        showSidebar = true,
+        showEditorModeToggle = true,
+        showSplitToggle = false,
+        isSplitView = false,
+        onToggleSplitView,
 }: props) {
-	const isTauri = isTauriAvailable()
+        const isTauri = isTauriAvailable()
 
 	return (
 		<div
@@ -97,24 +104,32 @@ export function TopToolbar({
 				)}
 			</div>
 
-			<div
-				className="flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5 cursor-default"
-				data-tauri-drag-region={isTauri ? true : undefined}
-			>
-				<span className="text-[13px] text-foreground truncate max-w-[200px] sm:max-w-none">
+                        <div
+                                className="flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5 cursor-default"
+                                data-tauri-drag-region={isTauri ? true : undefined}
+                        >
+                                <span className="text-[13px] text-foreground truncate max-w-[200px] sm:max-w-none">
 					{noteName}
 				</span>
 			</div>
 
-			<div
-				className="flex items-center gap-1.5"
-				data-tauri-drag-region={isTauri ? 'false' : undefined}
-			>
-				<IconButton
-					icon={<Search className="w-4 h-4 text-muted-foreground" />}
-					tooltip="Search notes"
-					variant="toolbar"
-					onClick={() => onSearch?.('')}
+                        <div
+                                className="flex items-center gap-1.5"
+                                data-tauri-drag-region={isTauri ? 'false' : undefined}
+                        >
+                                {showSplitToggle && (
+                                        <IconButton
+                                                icon={<Panels className="w-4 h-4 text-muted-foreground" />}
+                                                tooltip={isSplitView ? 'Disable split view' : 'Open split view'}
+                                                variant="toolbar"
+                                                onClick={onToggleSplitView}
+                                        />
+                                )}
+                                <IconButton
+                                        icon={<Search className="w-4 h-4 text-muted-foreground" />}
+                                        tooltip="Search notes"
+                                        variant="toolbar"
+                                        onClick={() => onSearch?.('')}
 				/>
 				{showEditorModeToggle && (
 					<IconButton

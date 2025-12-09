@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
+import { SplitEditorLayout } from '../../features/editor/components/split-editor-layout'
 import { useEditorTabs } from '../../features/editor/tabs'
 import { useNotesContext } from '../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
@@ -32,6 +33,7 @@ import type { SidebarContentType } from '../sidebar/types'
 import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
+import { NoteEditor } from '../../features/editor/components/note-editor'
 
 type AppLayoutManagerProps = {
 	children: ReactNode
@@ -62,10 +64,17 @@ export function AppLayoutManager({
 		return resolveNoteId(slugOrId)
 	}, [slugOrId, resolveNoteId])
 
-	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
-	const [isSearchOpen, setIsSearchOpen] = useState(false)
-	// Track if we've ever loaded to prevent showing skeleton during navigation
-	const hasEverLoadedRef = useRef(false)
+        const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
+        const [isSearchOpen, setIsSearchOpen] = useState(false)
+        // Track if we've ever loaded to prevent showing skeleton during navigation
+        const hasEverLoadedRef = useRef(false)
+        const [isSplitView, setIsSplitView] = useState(false)
+        const [splitPanes, setSplitPanes] = useState<{ id: string; noteId: string | null }[]>([
+                { id: 'primary', noteId: null },
+        ])
+        const [activePaneId, setActivePaneId] = useState('primary')
+        const [splitRatio, setSplitRatio] = useState(0.5)
+        const [splitOrientation, setSplitOrientation] = useState<'vertical' | 'horizontal'>('vertical')
 
 	// Update ref when loading completes
 	useEffect(() => {
@@ -113,16 +122,55 @@ export function AppLayoutManager({
 	}, [sidebarActiveNoteId, notesInOrder])
 	const currentNoteId = currentNote?.id ?? null
 
-	const currentNoteIndex = useMemo(() => {
-		if (!sidebarActiveNoteId) return -1
-		return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
-	}, [sidebarActiveNoteId, notesInOrder])
+        const currentNoteIndex = useMemo(() => {
+                if (!sidebarActiveNoteId) return -1
+                return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
+        }, [sidebarActiveNoteId, notesInOrder])
 
-	// Compute title based on titleDisplayMode setting
-	const computedTitle = useMemo(() => {
-		if (!currentNote) {
-			return 'Untitled'
-		}
+        useEffect(() => {
+                if (!isNoteRoute) {
+                        setIsSplitView(false)
+                        setSplitPanes([{ id: 'primary', noteId: null }])
+                        setActivePaneId('primary')
+                }
+        }, [isNoteRoute])
+
+        useEffect(() => {
+                if (!currentNoteId) return
+                setSplitPanes((prev) => {
+                        if (!prev.length) {
+                                return [{ id: 'primary', noteId: currentNoteId }]
+                        }
+                        const hasActivePane = prev.some((pane) => pane.id === activePaneId)
+                        const nextPanes = prev.map((pane, index) => {
+                                if (pane.id === activePaneId || (!hasActivePane && index === 0)) {
+                                        return { ...pane, noteId: currentNoteId }
+                                }
+                                if (pane.noteId === null) {
+                                        return { ...pane, noteId: currentNoteId }
+                                }
+                                return pane
+                        })
+                        return nextPanes
+                })
+        }, [currentNoteId, activePaneId])
+
+        useEffect(() => {
+                if (!isSplitView) {
+                        setSplitPanes((prev) => {
+                                const activePane = prev.find((pane) => pane.id === activePaneId)
+                                const fallbackNoteId = activePane?.noteId ?? currentNoteId ?? null
+                                return [{ id: 'primary', noteId: fallbackNoteId }]
+                        })
+                        setActivePaneId('primary')
+                }
+        }, [isSplitView, activePaneId, currentNoteId])
+
+        // Compute title based on titleDisplayMode setting
+        const computedTitle = useMemo(() => {
+                if (!currentNote) {
+                        return 'Untitled'
+                }
 
 		switch (titleDisplayMode) {
 			case 'firstHeading': {
@@ -155,9 +203,77 @@ export function AppLayoutManager({
 	const canNavigatePrevious = currentNoteIndex > 0
 	const canNavigateNext = currentNoteIndex >= 0 && currentNoteIndex < notesInOrder.length - 1
 
-	const handleToggleEditorMode = useCallback(() => {
-		togglePreference('rawMDXMode')
-	}, [togglePreference])
+        const handleToggleEditorMode = useCallback(() => {
+                togglePreference('rawMDXMode')
+        }, [togglePreference])
+
+        const handleToggleSplitView = useCallback(() => {
+                if (!isNoteRoute) return
+                setIsSplitView((prev) => {
+                        if (prev) return false
+                        setSplitPanes((current) => {
+                                const activePane = current.find((pane) => pane.id === activePaneId)
+                                const baseNoteId = activePane?.noteId ?? currentNoteId ?? null
+                                const firstPane = current[0]
+                                        ? { ...current[0], noteId: current[0].noteId ?? baseNoteId }
+                                        : { id: 'primary', noteId: baseNoteId }
+                                const secondPane = current[1]
+                                        ? { ...current[1], noteId: current[1].noteId ?? baseNoteId }
+                                        : { id: 'secondary', noteId: baseNoteId }
+                                return [firstPane, secondPane]
+                        })
+                        return true
+                })
+        }, [activePaneId, currentNoteId, isNoteRoute])
+
+        const handleCycleSplitOrientation = useCallback(() => {
+                setSplitOrientation((prev) => (prev === 'vertical' ? 'horizontal' : 'vertical'))
+        }, [])
+
+        const handleClosePane = useCallback(
+                (paneId: string) => {
+                        setSplitPanes((prev) => {
+                                if (prev.length <= 1) return prev
+                                const wasActive = activePaneId === paneId
+                                const remaining = prev.filter((pane) => pane.id !== paneId)
+                                if (!remaining.length) {
+                                        setIsSplitView(false)
+                                        setActivePaneId('primary')
+                                        return [{ id: 'primary', noteId: currentNoteId ?? null }]
+                                }
+                                if (remaining.length === 1) {
+                                        setIsSplitView(false)
+                                        setActivePaneId(remaining[0].id)
+                                } else if (wasActive) {
+                                        setActivePaneId(remaining[0].id)
+                                }
+                                return remaining
+                        })
+                },
+                [activePaneId, currentNoteId]
+        )
+
+        const handleSwapPanes = useCallback(() => {
+                setSplitPanes((prev) => {
+                        if (prev.length < 2) return prev
+                        const swapped = [prev[1], prev[0], ...prev.slice(2)]
+                        if (activePaneId === prev[0].id) {
+                                setActivePaneId(prev[1].id)
+                        } else if (activePaneId === prev[1].id) {
+                                setActivePaneId(prev[0].id)
+                        }
+                        return swapped
+                })
+        }, [activePaneId])
+
+        const handleAssignNoteToPane = useCallback((paneId: string, noteId: string) => {
+                setSplitPanes((prev) => prev.map((pane) => (pane.id === paneId ? { ...pane, noteId } : pane)))
+                setActivePaneId(paneId)
+        }, [])
+
+        const handlePaneClick = useCallback((paneId: string) => {
+                setActivePaneId(paneId)
+        }, [])
 
 	useEffect(() => {
 		if (!multiNoteTabs) {
@@ -287,20 +403,76 @@ export function AppLayoutManager({
 		toggleDesktopSidebar()
 	})
 
-	useShortcut('open-settings', (e) => {
-		e.preventDefault()
-		toggleSettings()
-	})
+        useShortcut('open-settings', (e) => {
+                e.preventDefault()
+                toggleSettings()
+        })
 
-	useShortcut('search-notes', (e) => {
-		e.preventDefault()
-		setIsSearchOpen(true)
-	})
+        useShortcut('search-notes', (e) => {
+                e.preventDefault()
+                setIsSearchOpen(true)
+        })
 
-	return (
-		<AppLayoutShell
-			leftToolbar={<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />}
-			sidebar={
+        useShortcut('toggle-split-view', (e) => {
+                if (!isNoteRoute) return
+                e.preventDefault()
+                handleToggleSplitView()
+        })
+
+        useShortcut('swap-split-panes', (e) => {
+                if (!isNoteRoute || !isSplitView) return
+                e.preventDefault()
+                handleSwapPanes()
+        })
+
+        useShortcut('cycle-split-orientation', (e) => {
+                if (!isNoteRoute || !isSplitView) return
+                e.preventDefault()
+                handleCycleSplitOrientation()
+        })
+
+        const resolvedSplitPanes = useMemo(() => {
+                if (!isNoteRoute) return splitPanes
+                const fallbackNoteId = currentNoteId ?? null
+                return splitPanes.map((pane, index) => {
+                        if (pane.noteId) return pane
+                        if (index === 0) return { ...pane, noteId: fallbackNoteId }
+                        return pane
+                })
+        }, [currentNoteId, isNoteRoute, splitPanes])
+
+        const noteContent = isNoteRoute ? (
+                <SplitEditorLayout
+                        panes={resolvedSplitPanes}
+                        isSplit={isSplitView}
+                        activePaneId={activePaneId}
+                        splitRatio={splitRatio}
+                        orientation={splitOrientation}
+                        onToggleSplit={handleToggleSplitView}
+                        onPaneClick={handlePaneClick}
+                        onClosePane={handleClosePane}
+                        onSwapPanes={handleSwapPanes}
+                        onResize={setSplitRatio}
+                        onToggleOrientation={handleCycleSplitOrientation}
+                        onAssignNote={handleAssignNoteToPane}
+                        renderPane={(pane) =>
+                                pane.noteId ? (
+                                        <NoteEditor key={`${pane.id}-${pane.noteId}`} noteId={pane.noteId} />
+                                ) : (
+                                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                                Select a note to view in this pane
+                                        </div>
+                                )
+                        }
+                />
+        ) : (
+                children
+        )
+
+        return (
+                <AppLayoutShell
+                        leftToolbar={<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />}
+                        sidebar={
 				showSidebar ? (
 					shouldShowSidebarSkeleton ? (
 						<SidebarSkeleton />
@@ -331,16 +503,19 @@ export function AppLayoutManager({
 					onNavigatePrevious={handleNavigatePrevious}
 					onNavigateNext={handleNavigateNext}
 					canNavigatePrevious={canNavigatePrevious}
-					canNavigateNext={canNavigateNext}
-					isRawMDXMode={hasRawMDXMode}
-					onToggleEditorMode={handleToggleEditorMode}
-					showSidebar={showSidebar}
-					showEditorModeToggle={!!sidebarActiveNoteId}
-				/>
-			}
-			mainContent={
-				<div className="flex h-full flex-col">
-					{multiNoteTabs && (
+                                        canNavigateNext={canNavigateNext}
+                                        isRawMDXMode={hasRawMDXMode}
+                                        onToggleEditorMode={handleToggleEditorMode}
+                                        showSidebar={showSidebar}
+                                        showEditorModeToggle={!!sidebarActiveNoteId}
+                                        showSplitToggle={isNoteRoute && !!currentNoteId}
+                                        isSplitView={isSplitView}
+                                        onToggleSplitView={handleToggleSplitView}
+                                />
+                        }
+                        mainContent={
+                                <div className="flex h-full flex-col">
+                                        {multiNoteTabs && (
 						<EditorTabsBar
 							tabs={tabs}
 							activeNoteId={activeNoteId}
@@ -358,17 +533,17 @@ export function AppLayoutManager({
 							onRenameNote={handleRenameNote}
 							onDeleteNote={handleDeleteNote}
 							onPinNote={handlePinNote}
-							onFavoriteNote={handleFavoriteNote}
-							getNoteData={getNoteData}
-						/>
-					)}
-					<div
-						className={`flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary ${multiNoteTabs ? 'pt-3' : ''}`}
-					>
-						{children}
-					</div>
-				</div>
-			}
+                                                        onFavoriteNote={handleFavoriteNote}
+                                                        getNoteData={getNoteData}
+                                                />
+                                        )}
+                                        <div
+                                                className={`flex-1 overflow-y-auto overflow-x-hidden bg-background-secondary ${multiNoteTabs ? 'pt-3' : ''}`}
+                                        >
+                                                {noteContent}
+                                        </div>
+                                </div>
+                        }
 			footer={<Footer />}
 			rightPanel={
 				<>
