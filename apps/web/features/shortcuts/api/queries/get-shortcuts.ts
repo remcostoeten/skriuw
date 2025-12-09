@@ -33,16 +33,13 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'toggle-sidebar': [],
 			'save-note': [],
 			'search-notes': [],
+			'toggle-split-view': [],
+			'swap-split-panes': [],
+			'cycle-split-orientation': [],
 			'delete-item': [],
 			'pin-item': [],
 			'open-settings': [],
 			'toggle-theme': [],
-			'split.toggle': [],
-			'split.swap': [],
-			'split.orientation.next': [],
-			'split.focus.left': [],
-			'split.focus.right': [],
-			'split.close': [],
 		}
 
 		if (crudResult.success && crudResult.data) {
