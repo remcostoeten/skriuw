@@ -2,7 +2,7 @@
 
 import { useMemo, use } from 'react'
 
-import { NoteEditor as NoteEditorComponent } from '../../../features/editor/components/note-editor'
+import { NoteSplitView } from '../../../features/notes/components/note-split-view'
 import { useNotesContext } from '../../../features/notes/context/notes-context'
 import { useNoteSlug } from '../../../features/notes/hooks/use-note-slug'
 
@@ -17,5 +17,5 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 		return resolveNoteId(slugOrId)
 	}, [slugOrId, resolveNoteId])
 
-	return <>{noteId && <NoteEditorComponent key={noteId} noteId={noteId} />}</>
+	return noteId ? <NoteSplitView noteId={noteId} /> : null
 }
