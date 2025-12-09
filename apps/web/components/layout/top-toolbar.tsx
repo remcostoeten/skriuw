@@ -1,12 +1,11 @@
 import {
-        Menu,
-        PanelLeftClose,
+	Menu,
+	PanelLeftClose,
 	Search,
 	ChevronLeft,
 	ChevronRight,
 	Code,
 	Type,
-        PanelsLeftRight,
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -51,27 +50,27 @@ export function TopToolbar({
 	showSplitToggle = false,
 	isSplitViewActive = false,
 	onSplitToggle,
-        splitOrientation = 'single',
+	splitOrientation = 'single',
 }: props) {
-        const isTauri = isTauriAvailable()
-        const isTouchDevice = useIsTouchDevice()
+	const isTauri = isTauriAvailable()
+	const isTouchDevice = useIsTouchDevice()
 
-        return (
-                <div
-                        className={cn(
-                                'bg-background border-b border-border flex items-center justify-between relative',
-                                isTouchDevice ? 'h-12 px-2 gap-1.5' : 'h-10 px-1.5',
-                                isTauri && 'select-none'
-                        )}
-                        data-tauri-drag-region={isTauri ? true : undefined}
+	return (
+		<div
+			className={cn(
+				'bg-background border-b border-border flex items-center justify-between relative',
+				isTouchDevice ? 'h-12 px-2 gap-1.5' : 'h-10 px-1.5',
+				isTauri && 'select-none'
+			)}
+			data-tauri-drag-region={isTauri ? true : undefined}
 		>
 			<div
-                                className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2')}
-                                data-tauri-drag-region={isTauri ? 'false' : undefined}
-                        >
-                                {showSidebar && (
-                                        <IconButton
-                                                icon={<Menu className="w-4 h-4 text-muted-foreground" />}
+				className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2')}
+				data-tauri-drag-region={isTauri ? 'false' : undefined}
+			>
+				{showSidebar && (
+					<IconButton
+						icon={<Menu className="w-4 h-4 text-muted-foreground" />}
 						tooltip="Toggle sidebar"
 						variant="toolbar"
 						onClick={onToggleSidebar}
@@ -109,36 +108,36 @@ export function TopToolbar({
 				)}
 			</div>
 
-                        <div
-                                className={cn(
-                                        'flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5 cursor-default',
-                                        isTouchDevice && 'px-3'
-                                )}
-                                data-tauri-drag-region={isTauri ? true : undefined}
-                        >
-                                <span
-                                        className={cn(
-                                                'text-[13px] text-foreground truncate max-w-[200px] sm:max-w-none text-center',
-                                                isTouchDevice && 'text-sm'
-                                        )}
-                                >
-                                        {noteName}
-                                </span>
-                        </div>
+			<div
+				className={cn(
+					'flex justify-center items-center flex-1 px-1.5 py-1 mx-1.5 cursor-default',
+					isTouchDevice && 'px-3'
+				)}
+				data-tauri-drag-region={isTauri ? true : undefined}
+			>
+				<span
+					className={cn(
+						'text-[13px] text-foreground truncate max-w-[200px] sm:max-w-none text-center',
+						isTouchDevice && 'text-sm'
+					)}
+				>
+					{noteName}
+				</span>
+			</div>
 
-                        <div
-                                className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2 pr-[env(safe-area-inset-right)]')}
-                                data-tauri-drag-region={isTauri ? 'false' : undefined}
-                        >
-                                <IconButton
-                                        icon={<Search className="w-4 h-4 text-muted-foreground" />}
-                                        tooltip="Search notes"
-                                        variant="toolbar"
-                                        onClick={() => onSearch?.('')}
-                                />
+			<div
+				className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2 pr-[env(safe-area-inset-right)]')}
+				data-tauri-drag-region={isTauri ? 'false' : undefined}
+			>
+				<IconButton
+					icon={<Search className="w-4 h-4 text-muted-foreground" />}
+					tooltip="Search notes"
+					variant="toolbar"
+					onClick={() => onSearch?.('')}
+				/>
 				{showSplitToggle && (
 					<IconButton
-						icon={<PanelsLeftRight className="w-4 h-4 text-muted-foreground" />}
+						icon={<PanelLeftClose className="w-4 h-4 text-muted-foreground" />}
 						tooltip={
 							splitOrientation === 'single'
 								? 'Enable split view'

@@ -72,7 +72,7 @@ export function EditorTabsBar({
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
 	function handleDragStart(e: React.DragEvent, index: number) {
-		// Onlywe allow dragging if not clicking on a button
+		// Only allow dragging if not clicking on a button
 		const target = e.target as HTMLElement
 		if (target.tagName === 'BUTTON' || target.closest('button')) {
 			e.preventDefault()
@@ -80,7 +80,9 @@ export function EditorTabsBar({
 		}
 		setDraggedIndex(index)
 		e.dataTransfer.effectAllowed = 'move'
-		e.dataTransfer.setData('text/plain', '') // Required for Firefox
+		e.dataTransfer.setData('text/plain', tabs[index]?.noteId || '') // Required for Firefox
+		e.dataTransfer.setData('application/x-skriuw-note-id', tabs[index]?.noteId || '')
+
 		const tab = tabs[index]
 		if (tab) {
 			e.dataTransfer.setData(
