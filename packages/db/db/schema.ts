@@ -10,7 +10,7 @@ export const notes = pgTable(
 		name: text('name').notNull(),
 		content: text('content').notNull(),
 		parentFolderId: text('parent_folder_id'),
-		userId: text('user_id'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		pinned: integer('pinned').default(0),
 		pinnedAt: bigint('pinned_at', { mode: 'number' }),
 		favorite: integer('favorite').default(0),
@@ -37,7 +37,7 @@ export const folders = pgTable(
 		id: text('id').primaryKey(),
 		name: text('name').notNull(),
 		parentFolderId: text('parent_folder_id'),
-		userId: text('user_id'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		pinned: integer('pinned').default(0),
 		pinnedAt: bigint('pinned_at', { mode: 'number' }),
 		deletedAt: bigint('deleted_at', { mode: 'number' }),
@@ -61,7 +61,7 @@ export const settings = pgTable(
 		id: text('id').primaryKey(),
 		key: text('key').notNull().unique(),
 		value: text('value').notNull(),
-		userId: text('user_id'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
 	},
@@ -80,7 +80,7 @@ export const tasks = pgTable(
 		blockId: text('block_id').notNull(),
 		content: text('content').notNull(),
 		description: text('description'),
-		userId: text('user_id'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		checked: integer('checked').default(0).notNull(),
 		dueDate: bigint('due_date', { mode: 'number' }),
 		parentTaskId: text('parent_task_id'),
@@ -106,7 +106,7 @@ export const shortcuts = pgTable(
 	{
 		id: text('id').primaryKey(),
 		keys: text('keys').notNull(),
-		userId: text('user_id'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		customizedAt: bigint('customized_at', { mode: 'number' }).notNull(),
 		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
@@ -118,7 +118,7 @@ export const shortcuts = pgTable(
 
 export const aiUsage = pgTable('ai_usage', {
 	id: text('id').primaryKey(),
-	userId: text('user_id').notNull(),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	month: text('month').notNull(), // Format: YYYY-MM
 	count: integer('count').default(0).notNull(),
 	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),

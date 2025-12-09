@@ -1,7 +1,7 @@
 import { config } from 'dotenv'
 import postgres from 'postgres'
 
-config()
+config({ quiet: true })
 
 async function dropAllTables() {
 	const databaseUrl = process.env.DATABASE_URL

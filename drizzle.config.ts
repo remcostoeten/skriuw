@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 import type { Config } from 'drizzle-kit';
 
 // Load .env file (runs in Node.js context, so process.env is correct)
-config();
+config({ quiet: true });
 
 export default {
   schema: './packages/db/db/schema.ts',
