@@ -1,5 +1,4 @@
 export * from './types'
-export * from './hooks/use-notes'
 export * from './context/notes-context'
 export * from './api/queries/get-items'
 export * from './api/queries/get-note'

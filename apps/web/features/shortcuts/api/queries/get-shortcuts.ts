@@ -3,7 +3,7 @@ import { readMany } from '@skriuw/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
-const STORAGE_KEY = 'skriuw:shortcuts:custom'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 const CACHE_TTL = 60000 // 1 minute cache for shortcuts
 let cachedShortcuts: Record<ShortcutId, KeyCombo[]> | null = null
 let cacheTimestamp = 0
@@ -22,7 +22,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 	}
 
 	try {
-		const crudResult = await readMany<CustomShortcut>(STORAGE_KEY)
+		const crudResult = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS)
 		const result: Record<ShortcutId, KeyCombo[]> = {
 			'editor-focus': [],
 			'toggle-shortcuts': [],
@@ -52,7 +52,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 		return result
 	} catch (error) {
 		throw new Error(
-			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)}`
+			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)} `
 		)
 	}
 }
