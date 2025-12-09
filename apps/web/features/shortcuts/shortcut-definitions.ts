@@ -101,6 +101,54 @@ export const shortcutDefinitions = {
 		description: 'Toggle theme',
 		enabled: true,
 	},
+	'split.toggle': {
+		keys: [
+			['Ctrl', '\\'],
+			['Meta', '\\'],
+		],
+		description: 'Toggle split view',
+		enabled: true,
+	},
+	'split.swap': {
+		keys: [
+			['Ctrl', 'Shift', '\\'],
+			['Meta', 'Shift', '\\'],
+		],
+		description: 'Swap panes',
+		enabled: true,
+	},
+	'split.orientation.next': {
+		keys: [
+			['Ctrl', 'Alt', 'o'],
+			['Meta', 'Alt', 'o'],
+		],
+		description: 'Cycle split orientation',
+		enabled: true,
+	},
+	'split.focus.left': {
+		keys: [
+			['Ctrl', 'Alt', 'ArrowLeft'],
+			['Meta', 'Alt', 'ArrowLeft'],
+		],
+		description: 'Focus left pane',
+		enabled: true,
+	},
+	'split.focus.right': {
+		keys: [
+			['Ctrl', 'Alt', 'ArrowRight'],
+			['Meta', 'Alt', 'ArrowRight'],
+		],
+		description: 'Focus right pane',
+		enabled: true,
+	},
+	'split.close': {
+		keys: [
+			['Ctrl', 'Alt', 'w'],
+			['Meta', 'Alt', 'w'],
+		],
+		description: 'Close active pane',
+		enabled: true,
+	},
 } satisfies Record<string, ShortcutDefinition>
 
 export type ShortcutId = keyof typeof shortcutDefinitions

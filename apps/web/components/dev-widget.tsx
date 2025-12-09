@@ -53,7 +53,7 @@ export function DevWidget() {
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 	const [hasHeroCookie, setHasHeroCookie] = useState(false)
 	const [isConnected, setIsConnected] = useState<boolean | null>(null)
-	
+
 	// Click vs drag detection
 	const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
 	const [hasMoved, setHasMoved] = useState(false)
@@ -137,7 +137,7 @@ export function DevWidget() {
 			const deltaX = Math.abs(e.clientX - dragStartPos.x)
 			const deltaY = Math.abs(e.clientY - dragStartPos.y)
 			const threshold = 5 // 5px threshold to distinguish click from drag
-			
+
 			if (deltaX > threshold || deltaY > threshold) {
 				setHasMoved(true)
 			}
@@ -169,7 +169,7 @@ export function DevWidget() {
 		setHideBadgeCookie(newState)
 		setHasHeroCookie(newState)
 		toast.success(newState ? 'Hero badge hidden' : 'Hero badge shown')
-		
+
 		// Notify main page to re-check badge visibility
 		window.dispatchEvent(new CustomEvent('badgeCookieChanged'))
 	}
@@ -274,7 +274,7 @@ export function DevWidget() {
 						handleTouchStart(e)
 					}}
 					className={cn(
-						'fixed z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200',
+						'fixed z-50 h-10 w-10 rounded-full border border-border bg-background/80 backdrop-blur-sm text-muted-foreground shadow-lg hover:shadow-xl hover:bg-accent hover:text-accent-foreground transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200',
 						isDragging && 'cursor-grabbing'
 					)}
 					style={{

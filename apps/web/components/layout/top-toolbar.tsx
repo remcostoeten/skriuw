@@ -6,6 +6,7 @@ import {
 	ChevronRight,
 	Code,
 	Type,
+	PanelsLeftRight,
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -27,6 +28,10 @@ type props = {
 	onToggleEditorMode?: () => void
 	showSidebar?: boolean
 	showEditorModeToggle?: boolean
+	showSplitToggle?: boolean
+	isSplitViewActive?: boolean
+	onSplitToggle?: () => void
+	splitOrientation?: 'single' | 'vertical' | 'horizontal'
 }
 
 export function TopToolbar({
@@ -42,6 +47,10 @@ export function TopToolbar({
 	onToggleEditorMode,
 	showSidebar = true,
 	showEditorModeToggle = true,
+	showSplitToggle = false,
+	isSplitViewActive = false,
+	onSplitToggle,
+	splitOrientation = 'single',
 }: props) {
 	const isTauri = isTauriAvailable()
 
@@ -116,6 +125,23 @@ export function TopToolbar({
 					variant="toolbar"
 					onClick={() => onSearch?.('')}
 				/>
+				{showSplitToggle && (
+					<IconButton
+						icon={<PanelsLeftRight className="w-4 h-4 text-muted-foreground" />}
+						tooltip={
+							splitOrientation === 'single'
+								? 'Enable split view'
+								: `Split view (${splitOrientation === 'vertical' ? 'vertical' : 'horizontal'})`
+						}
+						variant="toolbar"
+						className={cn(
+							'transition-colors',
+							isSplitViewActive && 'bg-accent/50 text-foreground'
+						)}
+						active={isSplitViewActive}
+						onClick={onSplitToggle}
+					/>
+				)}
 				{showEditorModeToggle && (
 					<IconButton
 						icon={

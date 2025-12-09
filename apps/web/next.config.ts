@@ -38,8 +38,10 @@ const nextConfig: NextConfig = {
 		]
 	},
 
-	// Configure Turbopack (empty to silence warning)
-	turbopack: {},
+	// Configure Turbopack to use explicit root directory
+	turbopack: {
+		root: path.resolve('../..'),
+	},
 
 	// Configure webpack to handle large assets and optional Tauri modules
 	webpack: (config, { isServer, webpack }) => {

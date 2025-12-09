@@ -1,14 +1,15 @@
 import { neon } from '@neondatabase/serverless'
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http'
+import { drizzle as drizzleNeon, NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import postgres from 'postgres'
-import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js'
+import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
 
 // Lazy import to avoid build-time validation
 // drizzle.config.ts uses dotenv, runtime uses @skriuw/env
-let _dbClient: ReturnType<typeof drizzleNeon> | ReturnType<typeof drizzlePostgres> | null = null
+let _dbClient: NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schema> | null = null
 
 export * from './schema'
+export { schema }
 export * from './user-owned'
 
 type DatabaseProvider = 'neon' | 'postgres'

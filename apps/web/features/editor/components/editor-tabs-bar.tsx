@@ -23,6 +23,7 @@ import {
 import { cn } from '@skriuw/core-logic'
 
 import type { EditorTab } from '../tabs'
+import { NOTE_TAB_DRAG_TYPE } from '../../notes/split-view/constants'
 
 type props = {
 	tabs: EditorTab[]
@@ -43,6 +44,7 @@ type props = {
 	onPinNote?: (noteId: string, pinned: boolean) => void
 	onFavoriteNote?: (noteId: string, favorite: boolean) => void
 	getNoteData?: (noteId: string) => { pinned?: boolean; favorite?: boolean } | null
+	dragSourcePaneId?: string | null
 }
 
 export function EditorTabsBar({
@@ -64,6 +66,7 @@ export function EditorTabsBar({
 	onPinNote,
 	onFavoriteNote,
 	getNoteData,
+	dragSourcePaneId = null,
 }: props) {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -78,6 +81,16 @@ export function EditorTabsBar({
 		setDraggedIndex(index)
 		e.dataTransfer.effectAllowed = 'move'
 		e.dataTransfer.setData('text/plain', '') // Required for Firefox
+		const tab = tabs[index]
+		if (tab) {
+			e.dataTransfer.setData(
+				NOTE_TAB_DRAG_TYPE,
+				JSON.stringify({
+					noteId: tab.noteId,
+					sourcePaneId: dragSourcePaneId,
+				})
+			)
+		}
 	}
 	function handleDragOver(e: React.DragEvent, index: number) {
 		e.preventDefault()
