@@ -4,9 +4,10 @@
 
 export {
     AIMenuController,
-    FormattingToolbarWithAI,
     AIExtension,
-    DefaultChatTransport,
+    ClientSideTransport,
 } from "@blocknote/xl-ai";
 
-export type { AIExtensionOptions } from "@blocknote/xl-ai";
+export {
+    AIToolbarButton,
+} from "@blocknote/xl-ai";
