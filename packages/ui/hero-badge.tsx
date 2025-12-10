@@ -3,7 +3,7 @@
 import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from 'framer-motion'
 import Link from 'next/link'
 import { useState } from 'react'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 type props = {
 	href?: string
@@ -34,7 +34,7 @@ const iconAnimationVariants: Variants = {
 	hover: { rotate: -10 }
 }
 
-export default function HeroBadge({
+export function HeroBadge({
 	href,
 	text,
 	icon,

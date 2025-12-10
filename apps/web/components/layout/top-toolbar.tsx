@@ -12,7 +12,7 @@ import {
 import { IconButton } from '@skriuw/ui/icons'
 import { WindowControls } from './window-controls'
 import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { UserMenu } from '../auth/user-menu'
 
 type props = {

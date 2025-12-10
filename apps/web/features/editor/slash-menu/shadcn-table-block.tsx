@@ -12,7 +12,7 @@ import {
 } from '@skriuw/ui/table'
 import { Button } from '@skriuw/ui/button'
 import { Input } from '@skriuw/ui/input'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 /**
  * Custom Shadcn Table Block for BlockNote

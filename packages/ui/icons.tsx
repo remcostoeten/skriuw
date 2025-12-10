@@ -1,6 +1,6 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from './tooltip'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 

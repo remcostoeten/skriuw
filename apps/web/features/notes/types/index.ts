@@ -1,61 +1,110 @@
-
 import type { Block } from '@blocknote/core'
+import type { BaseEntity, UUID } from '@skriuw/shared'
 
-export interface Note {
-	id: string
+/**
+ * Represents a single note entity in the system.
+ * Contains the rich text content and metadata.
+ */
+export type Note = BaseEntity & {
+	/** Display name or title of the note */
 	name: string
+	/** Rich text content blocks (BlockNote format) */
 	content: Block[]
-	parentFolderId?: string
+	/** ID of the parent folder, if any */
+	parentFolderId?: UUID
+	/** Whether the note is pinned to the top of lists */
 	pinned?: boolean
+	/** Timestamp when the note was pinned */
 	pinnedAt?: number
+	/** Whether the note is marked as a favorite */
 	favorite?: boolean
-	createdAt: number
-	updatedAt: number
-	deletedAt?: number
+	/** Discriminator type literal */
 	type: 'note'
 }
 
-export interface Folder {
-	id: string
+/**
+ * Represents a folder that can contain notes and other folders.
+ * Used for hierarchical organization.
+ */
+export type Folder = BaseEntity & {
+	/** Display name of the folder */
 	name: string
+	/** Discriminator type literal */
 	type: 'folder'
+	/** Nested items (notes or subfolders) */
 	children: (Note | Folder)[]
-	parentFolderId?: string
+	/** ID of the parent folder, if any */
+	parentFolderId?: UUID
+	/** Whether the folder is pinned */
 	pinned?: boolean
+	/** Timestamp when the folder was pinned */
 	pinnedAt?: number
-	createdAt: number
-	updatedAt: number
-	deletedAt?: number
 }
 
-export interface Task {
-	id: string
-	noteId: string
+/**
+ * Represents a task item, typically embedded within a note or standalone.
+ */
+export type Task = BaseEntity & {
+	/** ID of the note this task belongs to */
+	noteId: UUID
+	/** ID of the specific block within the note (if applicable) */
 	blockId: string
+	/** The text content of the task */
 	content: string
+	/** Optional detailed description */
 	description?: string | null
-	checked: number // 0 or 1
+	/** Completion status (0 for unchecked, 1 for checked) */
+	checked: number
+	/** Optional due date timestamp */
 	dueDate?: number | null
-	parentTaskId?: string | null
+	/** ID of the parent task for nested subtasks */
+	parentTaskId?: UUID | null
+	/** Sort order position */
 	position: number
-	createdAt: number
-	updatedAt: number
 }
 
+/**
+ * Union type representing either a Note or a Folder.
+ * Useful for tree rendering and mixed lists.
+ */
 export type Item = Note | Folder
 
-export interface CreateNoteData {
+/**
+ * Payload for creating a new note.
+ */
+export type CreateNoteData = {
+	/** Title of the new note */
 	name: string
+	/** Optional initial content blocks */
 	content?: Block[]
-	parentFolderId?: string
+	/** Optional ID of the parent folder */
+	parentFolderId?: UUID
 }
 
-export interface UpdateNoteData {
+/**
+ * Payload for updating an existing note.
+ */
+export type UpdateNoteData = {
+	/** New title for the note */
 	name?: string
+	/** New content blocks */
 	content?: Block[]
 }
 
-export interface CreateFolderData {
+/**
+ * Payload for creating a new folder.
+ */
+export type CreateFolderData = {
+	/** Name of the new folder */
 	name: string
-	parentFolderId?: string
+	/** Optional ID of the parent folder */
+	parentFolderId?: UUID
+}
+
+/**
+ * Payload for dragging a note tab.
+ */
+export type NoteTabDragPayload = {
+	noteId: string
+	sourcePaneId: string | null
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 interface KbdProps {
 	children?: React.ReactNode

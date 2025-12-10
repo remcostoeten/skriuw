@@ -1,11 +1,5 @@
 import type { Block } from '@blocknote/core'
-
-/**
- * Generate a simple ID for blocks
- */
-function generateBlockId(): string {
-	return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-}
+import { generateId } from '@skriuw/core-logic'
 
 /**
  * Get initial content for a new note based on the default note template setting
@@ -16,7 +10,7 @@ export function getInitialNoteContent(template: 'empty' | 'h1' | 'h2' = 'empty')
 	if (template === 'empty') {
 		return [
 			{
-				id: generateBlockId(),
+				id: generateId(),
 				type: 'paragraph',
 				props: {
 					backgroundColor: 'default',
@@ -35,7 +29,7 @@ export function getInitialNoteContent(template: 'empty' | 'h1' | 'h2' = 'empty')
 	const level = template === 'h1' ? 1 : 2
 	return [
 		{
-			id: generateBlockId(),
+			id: generateId(),
 			type: 'heading',
 			props: {
 				level,

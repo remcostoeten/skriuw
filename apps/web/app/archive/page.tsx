@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
 import { Tabs, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import { ExportPanel } from '@/features/backup/components/export-panel'
 import { ImportPanel } from '@/features/backup/components/import-panel'

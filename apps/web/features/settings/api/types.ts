@@ -1,4 +1,4 @@
-import type { BaseEntity } from '@skriuw/shared'
+import { BaseEntity } from "@skriuw/crud"
 
 /**
  * Settings entity stored in storage

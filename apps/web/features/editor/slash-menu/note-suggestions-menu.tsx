@@ -7,8 +7,8 @@ import {
 } from '@blocknote/react'
 
 import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
-import { useNoteSlug } from '../../notes/hooks/use-note-slug'
-import { useNotesContext } from '../../notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { useNotesContext } from '@/features/notes/context/notes-context'
 import {
 	searchNoteMentions,
 	type HighlightPart,

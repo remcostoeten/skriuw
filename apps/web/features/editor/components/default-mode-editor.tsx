@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Block } from '@blocknote/core'
 import { RawMDXEditor } from './raw-mdx-editor'
 import { useUserPreferences } from '../../settings/use-feature-flags'
-import { markdownToBlocks } from '../../notes/utils/markdown-to-blocks'
-import { blocksToMarkdown } from '../../notes/utils/blocks-to-markdown'
+import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
+import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
 import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
 import { NoteMentionSuggestionMenu } from '../slash-menu/note-suggestions-menu'
 import { SlashSuggestionMenu } from '../slash-menu/slash-suggestions-menu'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 interface DualModeEditorProps {
 	editor: any // BlockNoteEditor instance

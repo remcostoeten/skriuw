@@ -12,7 +12,7 @@ import {
 
 import { Label } from './label'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 const Form = FormProvider
 

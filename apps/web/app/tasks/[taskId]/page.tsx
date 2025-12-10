@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, CheckSquare, Clock, Trash2, X, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 
 interface TaskDetail {
