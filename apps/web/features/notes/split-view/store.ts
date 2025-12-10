@@ -4,27 +4,28 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import { generateId } from '@skriuw/core-logic/generate-id'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
-export type SplitOrientation = 'single' | 'vertical' | 'horizontal'
+type Orientation = 'single' | 'vertical' | 'horizontal'
 
-export type SplitPaneState = {
+type PaneState = {
 	id: string
 	noteId: string | null
 	scrollTop: number
 	editorKey: string
 }
 
-type SplitNoteLayout = {
-	orientation: SplitOrientation
+type NoteLayout = {
+	orientation: Orientation
 	sizes: number[]
 }
 
 type SplitViewState = {
-	panes: SplitPaneState[]
+	panes: PaneState[]
 	activePaneId: string
-	orientation: SplitOrientation
+	orientation: Orientation
 	sizes: number[]
-	layoutByNoteId: Record<string, SplitNoteLayout>
+	layoutByNoteId: Record<string, NoteLayout>
 	currentNoteId: string | null
 	toggleSplit: (noteId: string | null) => void
 	openSplitWithNote: (noteId: string | null) => string | null
@@ -33,7 +34,7 @@ type SplitViewState = {
 	setActivePane: (paneId: string) => void
 	updatePaneNote: (paneId: string, noteId: string | null) => void
 	updatePaneScroll: (paneId: string, scrollTop: number) => void
-	setOrientation: (orientation: SplitOrientation, noteId?: string | null) => void
+	setOrientation: (orientation: Orientation, noteId?: string | null) => void
 	cycleOrientation: (noteId: string | null) => void
 	swapPanes: () => void
 	setSizes: (sizes: number[]) => void
@@ -43,18 +44,18 @@ type SplitViewState = {
 	reset: () => void
 }
 
-const STORAGE_KEY = 'skriuw:noteSplitView:state'
-
 const MIN_PANE_SIZE = 0.15
 
-const createPane = (noteId: string | null = null): SplitPaneState => ({
-	id: generateId('pane-'),
-	noteId,
-	scrollTop: 0,
-	editorKey: generateId('editor-'),
-})
+function createPane(noteId: string | null = null): PaneState {
+	return {
+		id: generateId('pane-'),
+		noteId,
+		scrollTop: 0,
+		editorKey: generateId('editor-'),
+	}
+}
 
-const normalizeSizes = (sizes: number[]): number[] => {
+function normalizeSizes(sizes: number[]): number[] {
 	if (!sizes.length) return [1]
 	const clamped = sizes.map((size) => Math.max(size, MIN_PANE_SIZE))
 	const total = clamped.reduce((sum, size) => sum + size, 0)
@@ -64,7 +65,7 @@ const normalizeSizes = (sizes: number[]): number[] => {
 	return clamped.map((size) => Number((size / total).toFixed(4)))
 }
 
-const ensureTwoPanes = (panes: SplitPaneState[], noteId: string | null): SplitPaneState[] => {
+function ensureTwoPanes(panes: PaneState[], noteId: string | null): PaneState[] {
 	if (panes.length >= 2) {
 		return panes
 	}
@@ -75,22 +76,17 @@ const ensureTwoPanes = (panes: SplitPaneState[], noteId: string | null): SplitPa
 		return [first, second]
 	}
 	const [first] = panes
-	const updatedFirst: SplitPaneState = {
+	const updatedFirst: PaneState = {
 		...first,
 		noteId: base,
 	}
 	return [updatedFirst, createPane(base)]
 }
 
-const defaultLayout: SplitNoteLayout = {
-	orientation: 'single',
-	sizes: [1],
-}
-
-const withLayoutPersistence = (
+function withLayoutPersistence(
 	state: SplitViewState,
 	partial: Partial<SplitViewState>
-): Partial<SplitViewState> => {
+): Partial<SplitViewState> {
 	if (!state.currentNoteId) {
 		return partial
 	}
@@ -108,7 +104,7 @@ const withLayoutPersistence = (
 	}
 }
 
-const safeStorage = () => {
+function safeStorage(): Storage {
 	if (typeof window === 'undefined') {
 		const noopStorage: Storage = {
 			length: 0,
@@ -125,6 +121,32 @@ const safeStorage = () => {
 
 const initialPane = createPane(null)
 
+// Helper to apply a specific orientation state
+function applyOrientationState(
+	state: SplitViewState,
+	orientation: Orientation,
+	noteId: string | null
+): Partial<SplitViewState> {
+	if (orientation === 'single') {
+		const firstPane = state.panes[0] as unknown as PaneState | undefined
+		const existingNoteId = firstPane ? firstPane.noteId : null
+		const first = firstPane ?? createPane(noteId ?? existingNoteId ?? null)
+		return withLayoutPersistence(state, {
+			panes: [{ ...first }],
+			activePaneId: first.id,
+			orientation: 'single',
+			sizes: [1],
+		})
+	}
+	const panes = ensureTwoPanes(state.panes, noteId ?? state.panes[0]?.noteId ?? null)
+	return withLayoutPersistence(state, {
+		panes,
+		activePaneId: state.activePaneId || panes[0].id,
+		orientation,
+		sizes: normalizeSizes(state.sizes.length === 2 ? state.sizes : [0.5, 0.5]),
+	})
+}
+
 export const useSplitViewStore = create<SplitViewState>()(
 	persist(
 		(set, get) => ({
@@ -137,30 +159,12 @@ export const useSplitViewStore = create<SplitViewState>()(
 			toggleSplit: (noteId) =>
 				set((state) => {
 					if (state.panes.length > 1) {
-						const firstPane: SplitPaneState = {
-							...(state.panes[0] ?? createPane(noteId)),
-							noteId: noteId ?? state.panes[0]?.noteId ?? null,
-						}
-						return withLayoutPersistence(state, {
-							panes: [firstPane],
-							activePaneId: firstPane.id,
-							orientation: 'single',
-							sizes: [1],
-						})
+						// Switch to single
+						return applyOrientationState(state, 'single', noteId)
 					}
-
-					const base = noteId ?? state.panes[0]?.noteId ?? null
-					const first = state.panes[0]
-						? { ...state.panes[0], noteId: base }
-						: createPane(base)
-					const second = createPane(base)
-
-					return withLayoutPersistence(state, {
-						panes: [first, second],
-						activePaneId: second.id,
-						orientation: state.orientation === 'horizontal' ? 'horizontal' : 'vertical',
-						sizes: normalizeSizes([0.5, 0.5]),
-					})
+					// Switch to split (default vertical)
+					const targetOrientation = state.orientation === 'horizontal' ? 'horizontal' : 'vertical'
+					return applyOrientationState(state, targetOrientation, noteId)
 				}),
 			openSplitWithNote: (noteId) => {
 				let newPaneId: string | null = null
@@ -187,14 +191,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 			closePane: (paneId) =>
 				set((state) => {
 					if (state.panes.length <= 1) {
-						return withLayoutPersistence(state, {
-							panes: state.panes.length
-								? [{ ...state.panes[0], noteId: state.panes[0].noteId }]
-								: [createPane(null)],
-							activePaneId: state.panes[0]?.id ?? paneId,
-							orientation: 'single',
-							sizes: [1],
-						})
+						return applyOrientationState(state, 'single', null)
 					}
 					const remaining = state.panes.filter((pane) => pane.id !== paneId)
 					const fallback = remaining[0] ?? remaining[remaining.length - 1]
@@ -232,49 +229,13 @@ export const useSplitViewStore = create<SplitViewState>()(
 					),
 				})),
 			setOrientation: (orientation, noteId) =>
-				set((state) => {
-					if (orientation === 'single') {
-						const firstPane = state.panes[0] as unknown as SplitPaneState | undefined
-						const existingNoteId = firstPane ? firstPane.noteId : null
-						const first = firstPane ?? createPane(noteId ?? existingNoteId ?? null)
-						return withLayoutPersistence(state, {
-							panes: [{ ...first }],
-							activePaneId: first.id,
-							orientation: 'single',
-							sizes: [1],
-						})
-					}
-					const panes = ensureTwoPanes(state.panes, noteId ?? state.panes[0]?.noteId ?? null)
-					return withLayoutPersistence(state, {
-						panes,
-						activePaneId: state.activePaneId || panes[0].id,
-						orientation,
-						sizes: normalizeSizes(state.sizes.length === 2 ? state.sizes : [0.5, 0.5]),
-					})
-				}),
+				set((state) => applyOrientationState(state, orientation, noteId ?? null)),
 			cycleOrientation: (noteId) =>
 				set((state) => {
-					const order: SplitOrientation[] = ['single', 'vertical', 'horizontal']
+					const order: Orientation[] = ['single', 'vertical', 'horizontal']
 					const currentIndex = order.indexOf(state.orientation)
 					const nextOrientation = order[(currentIndex + 1) % order.length]
-					if (nextOrientation === 'single') {
-						const firstPane = state.panes[0] as unknown as SplitPaneState | undefined
-						const existingNoteId = firstPane ? firstPane.noteId : null
-						const first = firstPane ?? createPane(noteId ?? existingNoteId ?? null)
-						return withLayoutPersistence(state, {
-							panes: [{ ...first }],
-							activePaneId: first.id,
-							orientation: 'single',
-							sizes: [1],
-						})
-					}
-					const panes = ensureTwoPanes(state.panes, noteId ?? state.panes[0]?.noteId ?? null)
-					return withLayoutPersistence(state, {
-						panes,
-						activePaneId: state.activePaneId || panes[0].id,
-						orientation: nextOrientation,
-						sizes: normalizeSizes(state.sizes.length === 2 ? state.sizes : [0.5, 0.5]),
-					})
+					return applyOrientationState(state, nextOrientation, noteId)
 				}),
 			swapPanes: () =>
 				set((state) => {
@@ -331,7 +292,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 						return state
 					}
 
-					const updatedLayouts: Record<string, SplitNoteLayout> = { ...state.layoutByNoteId }
+					const updatedLayouts: Record<string, NoteLayout> = { ...state.layoutByNoteId }
 					if (state.currentNoteId) {
 						updatedLayouts[state.currentNoteId] = {
 							orientation: state.orientation,
@@ -367,6 +328,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 								}
 							}
 						} else {
+							// Default to single view for new notes
 							const first = panes[0] ?? createPane(noteId)
 							const normalizedFirst = { ...first, noteId }
 							panes = [normalizedFirst]
@@ -397,7 +359,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 				}),
 		}),
 		{
-			name: STORAGE_KEY,
+			name: STORAGE_KEYS.NOTE_SPLIT_VIEW,
 			storage: createJSONStorage(safeStorage),
 			partialize: (state) => ({
 				panes: state.panes,
