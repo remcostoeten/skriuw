@@ -5,10 +5,10 @@ import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-q
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
 import { useEditorTabs } from '../../features/editor/tabs'
-import { useNotesContext } from '../../features/notes/context/notes-context'
-import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
-import { extractFirstHeading } from '../../features/notes/utils/extract-first-heading'
-import { flattenNotes } from '../../features/notes/utils/flatten-notes'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
+import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import { GlobalSearchDialog } from '../../features/search'
 import { useSettings, useUserPreferences } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
@@ -32,7 +32,7 @@ import type { SidebarContentType } from '../sidebar/types'
 import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
-import { useSplitViewStore } from '../../features/notes/split-view/store'
+import { useSplitViewStore } from '@/features/notes/split-view/store'
 
 type AppLayoutManagerProps = {
 	children: ReactNode

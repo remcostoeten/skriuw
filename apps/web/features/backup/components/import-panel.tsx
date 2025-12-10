@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { Upload, FileJson, FileText, Check, Loader2, AlertCircle, X } from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { processImportFiles, type ImportResult } from '../utils/import-notes'

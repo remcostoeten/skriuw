@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckSquare, Square, FileText, RefreshCw } from 'lucide-react'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 
 export interface TaskItem {

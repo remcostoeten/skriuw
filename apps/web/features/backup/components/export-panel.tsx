@@ -3,7 +3,7 @@
 import { Download, FileJson, FileText, Check, Loader2 } from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { downloadJsonExport, downloadMarkdownExport, type ExportFormat } from '../utils/export-notes'
