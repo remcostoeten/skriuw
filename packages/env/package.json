@@ -26,7 +26,8 @@
         "build": "tsup",
         "dev": "tsup --watch",
         "lint": "eslint . --max-warnings 0",
-        "check-types": "tsc --noEmit"
+        "check-types": "tsc --noEmit",
+        "validate": "tsx src/validate-build.ts"
     },
     "dependencies": {
         "zod": "^3.24.0"

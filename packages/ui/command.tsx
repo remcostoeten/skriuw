@@ -5,7 +5,7 @@ import * as React from 'react'
 
 import { Dialog, DialogContent } from './dialog'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 const Command = React.forwardRef<
 	React.ElementRef<typeof CommandPrimitive>,

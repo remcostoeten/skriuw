@@ -17,3 +17,4 @@ type Timestamps = {
 export type BaseEntity = {
     id: UUID
 } & Timestamps
+
