@@ -23,7 +23,9 @@
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo check-types",
-    "test": "turbo test"
+    "test": "turbo test",
+    "db": "./bin/db-cli",
+    "validate": "turbo lint check-types test build"
   },
   "workspaces": [
     "apps/*",

@@ -3,6 +3,6 @@
   "compilerOptions": {
     "outDir": "./dist"
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "../shared/src/utilities/cn.ts"],
   "exclude": ["node_modules", "dist"]
 }
