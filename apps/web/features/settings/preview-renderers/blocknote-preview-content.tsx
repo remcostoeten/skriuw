@@ -5,6 +5,7 @@ import { PartialBlock } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import '@blocknote/core/style.css'
 import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
+import { generateId } from '@skriuw/core-logic'
 
 // Sample content for BlockNote preview
 const SAMPLE_BLOCKS: PartialBlock[] = [
@@ -120,7 +121,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 	const [currentDemo, setCurrentDemo] = useState<'idle' | 'typing' | 'slash' | 'drag'>('idle')
 	const demoTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const editorInitializedRef = useRef(false)
-	const instanceId = useMemo(() => `blocknote-${Date.now()}-${Math.random()}`, [])
+	const instanceId = useMemo(() => generateId('blocknote-'), [])
 
 	// Create a read-only editor for preview with stable reference
 	// Use a stable key to prevent duplicate instances in React Strict Mode

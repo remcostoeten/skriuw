@@ -20,10 +20,10 @@ import {
 	ContextMenuTrigger,
 } from '@skriuw/ui/context-menu'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import type { EditorTab } from '../tabs'
-import { NOTE_TAB_DRAG_TYPE } from '../../notes/split-view/constants'
+import { NOTE_TAB_DRAG_TYPE } from '@/features/notes/constants'
 
 type props = {
 	tabs: EditorTab[]
