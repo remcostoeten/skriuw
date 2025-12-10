@@ -37,6 +37,7 @@
         "@skriuw/core-logic": "workspace:*",
         "@skriuw/crud": "workspace:*",
         "@skriuw/db": "workspace:*",
+        "@skriuw/env": "workspace:*",
         "@skriuw/shared": "workspace:*",
         "@skriuw/ui": "workspace:*",
         "@tauri-apps/api": "^1.5.0",
@@ -119,6 +120,7 @@
         "@neondatabase/serverless": "^0.10.0",
         "@skriuw/env": "workspace:*",
         "drizzle-orm": "^0.44.7",
+        "picocolors": "^1.1.1",
         "postgres": "^3.4.5",
       },
       "devDependencies": {
@@ -2271,8 +2273,6 @@
 
     "vite/esbuild": ["esbuild@0.21.5", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.21.5", "@esbuild/android-arm": "0.21.5", "@esbuild/android-arm64": "0.21.5", "@esbuild/android-x64": "0.21.5", "@esbuild/darwin-arm64": "0.21.5", "@esbuild/darwin-x64": "0.21.5", "@esbuild/freebsd-arm64": "0.21.5", "@esbuild/freebsd-x64": "0.21.5", "@esbuild/linux-arm": "0.21.5", "@esbuild/linux-arm64": "0.21.5", "@esbuild/linux-ia32": "0.21.5", "@esbuild/linux-loong64": "0.21.5", "@esbuild/linux-mips64el": "0.21.5", "@esbuild/linux-ppc64": "0.21.5", "@esbuild/linux-riscv64": "0.21.5", "@esbuild/linux-s390x": "0.21.5", "@esbuild/linux-x64": "0.21.5", "@esbuild/netbsd-x64": "0.21.5", "@esbuild/openbsd-x64": "0.21.5", "@esbuild/sunos-x64": "0.21.5", "@esbuild/win32-arm64": "0.21.5", "@esbuild/win32-ia32": "0.21.5", "@esbuild/win32-x64": "0.21.5" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw=="],
 
-    "web/@blocknote/mantine": ["@blocknote/mantine@0.44.0", "", { "dependencies": { "@blocknote/core": "0.44.0", "@blocknote/react": "0.44.0", "react-icons": "^5.5.0" }, "peerDependencies": { "@mantine/core": "^8.3.4", "@mantine/hooks": "^8.3.4", "@mantine/utils": "^6.0.22", "react": "^18.0 || ^19.0 || >= 19.0.0-rc", "react-dom": "^18.0 || ^19.0 || >= 19.0.0-rc" } }, "sha512-DJSXNEcoNyDWf61zkFcf9FRwq6WShmuMpiJ5gC8BIdkSHbDz48sQnW6wHB/bQLfhWNmtPCnBkCuuRGAvXgF0ZQ=="],
-
     "web/@blocknote/xl-ai": ["@blocknote/xl-ai@0.42.3", "", { "dependencies": { "@ai-sdk/provider-utils": "^3.0.12", "@ai-sdk/react": "^2.0.76", "@blocknote/core": "0.42.3", "@blocknote/mantine": "0.42.3", "@blocknote/prosemirror-suggest-changes": "^0.1.3", "@blocknote/react": "0.42.3", "@floating-ui/react": "^0.26.28", "@tiptap/core": "^3.11.0", "ai": "^5.0.76", "lodash.isequal": "^4.5.0", "prosemirror-changeset": "^2.3.1", "prosemirror-model": "^1.25.4", "prosemirror-state": "^1.4.4", "prosemirror-tables": "^1.8.1", "prosemirror-transform": "^1.10.5", "prosemirror-view": "^1.41.3", "react": "^19.2.0", "react-dom": "^19.2.0", "react-icons": "^5.5.0", "remark-parse": "^11.0.0", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "y-prosemirror": "^1.3.7", "zustand": "^5.0.8" } }, "sha512-vooXyuT4sN+6v+xIIqrdavUtB7oDvlIDDYq5kJranYndVv55Ou7R2qTeHKwXEU1z0Dy5aqGq45NDRd+/dIU0vA=="],
 
     "web/@types/node": ["@types/node@24.10.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ=="],
@@ -2433,14 +2433,8 @@
 
     "vite/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.21.5", "", { "os": "win32", "cpu": "x64" }, "sha512-tQd/1efJuzPC6rCFwEvLtci/xNFcTZknmXs98FYDfGE4wP9ClFV98nyKrzJKVPMhdDnjzLhdUyMX4PsQAPjwIw=="],
 
-    "web/@blocknote/mantine/@blocknote/core": ["@blocknote/core@0.44.0", "", { "dependencies": { "@emoji-mart/data": "^1.2.1", "@handlewithcare/prosemirror-inputrules": "0.1.3", "@shikijs/types": "3.13.0", "@tanstack/store": "0.7.7", "@tiptap/core": "^3.11.0", "@tiptap/extension-bold": "^3.7.2", "@tiptap/extension-code": "^3.7.2", "@tiptap/extension-gapcursor": "^3.7.2", "@tiptap/extension-horizontal-rule": "^3.7.2", "@tiptap/extension-italic": "^3.7.2", "@tiptap/extension-link": "^3.7.2", "@tiptap/extension-paragraph": "^3.7.2", "@tiptap/extension-strike": "^3.7.2", "@tiptap/extension-text": "^3.7.2", "@tiptap/extension-underline": "^3.7.2", "@tiptap/pm": "^3.11.0", "emoji-mart": "^5.6.0", "fast-deep-equal": "^3.1.3", "hast-util-from-dom": "^5.0.1", "prosemirror-dropcursor": "^1.8.2", "prosemirror-highlight": "^0.13.0", "prosemirror-model": "^1.25.4", "prosemirror-state": "^1.4.4", "prosemirror-tables": "^1.8.1", "prosemirror-transform": "^1.10.5", "prosemirror-view": "^1.41.3", "rehype-format": "^5.0.1", "rehype-parse": "^9.0.1", "rehype-remark": "^10.0.1", "rehype-stringify": "^10.0.1", "remark-gfm": "^4.0.1", "remark-parse": "^11.0.0", "remark-rehype": "^11.1.2", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "unist-util-visit": "^5.0.0", "uuid": "^8.3.2", "y-prosemirror": "^1.3.7", "y-protocols": "^1.0.6", "yjs": "^13.6.27" }, "peerDependencies": { "@hocuspocus/provider": "^2.15.2 || ^3.0.0" }, "optionalPeers": ["@hocuspocus/provider"] }, "sha512-k7iG80o2URiW3O0KCvDM8AGr2xgsLOceJpZpDCIq5niG+SmIRfx6N8vgHHBuDNgFSvX+vEriXbTaHzHKr/mAuA=="],
-
-    "web/@blocknote/mantine/@blocknote/react": ["@blocknote/react@0.44.0", "", { "dependencies": { "@blocknote/core": "0.44.0", "@emoji-mart/data": "^1.2.1", "@floating-ui/react": "^0.27.16", "@floating-ui/utils": "0.2.10", "@tanstack/react-store": "0.7.7", "@tiptap/core": "^3.11.0", "@tiptap/pm": "^3.11.0", "@tiptap/react": "^3.11.0", "@types/use-sync-external-store": "1.5.0", "emoji-mart": "^5.6.0", "fast-deep-equal": "^3.1.3", "lodash.merge": "^4.6.2", "react-icons": "^5.5.0", "use-sync-external-store": "1.6.0" }, "peerDependencies": { "react": "^18.0 || ^19.0 || >= 19.0.0-rc", "react-dom": "^18.0 || ^19.0 || >= 19.0.0-rc" } }, "sha512-4itxoRPqdw4oOccY31Sx6miyFWE+OVSaSWyXEMNqVyZ8USb4Gs/GhshpHfciFsN7SEqqOBUy2EYxF3sHlp9seg=="],
-
     "web/@blocknote/xl-ai/@blocknote/mantine": ["@blocknote/mantine@0.42.3", "", { "dependencies": { "@blocknote/core": "0.42.3", "@blocknote/react": "0.42.3", "react-icons": "^5.5.0" }, "peerDependencies": { "@mantine/core": "^8.3.4", "@mantine/hooks": "^8.3.4", "@mantine/utils": "^6.0.22", "react": "^18.0 || ^19.0 || >= 19.0.0-rc", "react-dom": "^18.0 || ^19.0 || >= 19.0.0-rc" } }, "sha512-xzLweZG1KfFoOp/aSHTXE10IrfEHnhDlP0C2Qt2eNO2IHHa7l8XZJpIGhCoVMsn0yylm91OSynNfTO7JkZZi8w=="],
 
     "web/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "web/@blocknote/mantine/@blocknote/react/@floating-ui/react": ["@floating-ui/react@0.27.16", "", { "dependencies": { "@floating-ui/react-dom": "^2.1.6", "@floating-ui/utils": "^0.2.10", "tabbable": "^6.0.0" }, "peerDependencies": { "react": ">=17.0.0", "react-dom": ">=17.0.0" } }, "sha512-9O8N4SeG2z++TSM8QA/KTeKFBVCNEz/AGS7gWPJf6KFRzmRWixFRnCnkPHRDwSVZW6QPDO6uT0P2SpWNKCc9/g=="],
   }
 }

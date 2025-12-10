@@ -21,8 +21,8 @@ export function useShortcutsManager() {
 		try {
 			const shortcuts = await getShortcuts()
 			setCustomShortcuts(shortcuts)
-		} catch (error) {
-			console.error('Failed to load shortcuts:', error)
+		} catch {
+			// Silently fail - likely not authenticated yet, will use defaults
 		} finally {
 			setIsLoading(false)
 		}

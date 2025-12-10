@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp } from '@skriuw/db'
+import {
+	getDatabase,
+	notes,
+	folders,
+	tasks,
+	settings,
+	shortcuts,
+	getSafeTimestamp,
+} from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
 import { generateId } from '@skriuw/core-logic'
+import { isDevelopment, database } from '@skriuw/env/server'
 
 function isDev() {
-	return process.env.NODE_ENV === 'development'
+	return isDevelopment()
 }
 
 export async function POST(request: NextRequest) {
@@ -50,7 +59,11 @@ export async function POST(request: NextRequest) {
 									{
 										id: `p-${Date.now()}`,
 										type: 'paragraph',
-										props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+										props: {
+											textColor: 'default',
+											backgroundColor: 'default',
+											textAlignment: 'left',
+										},
 										content: [{ type: 'text', text: `This is the ${childName} note.`, styles: {} }],
 										children: [],
 									},
@@ -194,28 +207,25 @@ export async function POST(request: NextRequest) {
 						restartRequired: true,
 					})
 				} catch (error) {
-					return NextResponse.json({
-						success: false,
-						action: 'clear-cache',
-						error: 'Failed to clear cache.',
-						message: error instanceof Error ? error.message : String(error)
-					}, { status: 500 })
+					return NextResponse.json(
+						{
+							success: false,
+							action: 'clear-cache',
+							error: 'Failed to clear cache.',
+							message: error instanceof Error ? error.message : String(error),
+						},
+						{ status: 500 }
+					)
 				}
 			}
 
 			default:
-				return NextResponse.json(
-					{ error: `Unknown action: ${action}` },
-					{ status: 400 }
-				)
+				return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
 		}
 	} catch (error) {
 		console.error('Dev API error:', error)
 		const errorMessage = error instanceof Error ? error.message : String(error)
-		return NextResponse.json(
-			{ error: 'Dev action failed', message: errorMessage },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Dev action failed', message: errorMessage }, { status: 500 })
 	}
 }
 
@@ -239,6 +249,31 @@ export async function GET() {
 			db.select().from(shortcuts),
 		])
 
+		// Extract schema column names dynamically
+		const getSchemaColumns = (table: any) => {
+			// Drizzle table objects contain column definitions as properties
+			// We can get them by filtering for objects that look like columns (have a 'name' and 'dataType')
+			// Or simpler: use getTableColumns if available, or just iterate known tables if we want simple strings
+			// For now, let's try to extract keys that are likely columns
+			// Actually, we can use the getTableColumns utility from drizzle-orm if we import it,
+			// but let's try to just inspect the imported table objects which are already available.
+			const columns: string[] = []
+			for (const key in table) {
+				if (table[key] && typeof table[key] === 'object' && 'name' in table[key]) {
+					columns.push(table[key].name)
+				}
+			}
+			return columns.join(', ')
+		}
+
+		const schemaInfo = {
+			notes: getSchemaColumns(notes),
+			folders: getSchemaColumns(folders),
+			tasks: getSchemaColumns(tasks),
+			settings: getSchemaColumns(settings),
+			shortcuts: getSchemaColumns(shortcuts),
+		}
+
 		return NextResponse.json({
 			stats: {
 				notes: noteRows.length,
@@ -248,9 +283,10 @@ export async function GET() {
 				shortcuts: shortcutRows.length,
 				total: noteRows.length + folderRows.length,
 			},
+			schema: schemaInfo, // Send dynamic schema info
 			environment: process.env.NODE_ENV,
 			timestamp: new Date().toISOString(),
-			provider: process.env.DATABASE_PROVIDER || (process.env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres')
+			provider: database.provider,
 		})
 	} catch (error) {
 		console.error('Dev API error:', error)

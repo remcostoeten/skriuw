@@ -14,9 +14,10 @@
         "db:studio": "drizzle-kit studio"
     },
     "dependencies": {
+        "@neondatabase/serverless": "^0.10.0",
         "@skriuw/env": "workspace:*",
         "drizzle-orm": "^0.44.7",
-        "@neondatabase/serverless": "^0.10.0",
+        "picocolors": "^1.1.1",
         "postgres": "^3.4.5"
     },
     "devDependencies": {

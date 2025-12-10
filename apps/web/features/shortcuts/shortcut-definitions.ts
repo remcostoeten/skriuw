@@ -78,6 +78,30 @@ export const shortcutDefinitions = {
 		description: 'Search notes',
 		enabled: true,
 	},
+	'toggle-split-view': {
+		keys: [
+			['Ctrl', '\\'],
+			['Meta', '\\'],
+		],
+		description: 'Toggle split editor view',
+		enabled: true,
+	},
+	'swap-split-panes': {
+		keys: [
+			['Ctrl', 'Shift', '\\'],
+			['Meta', 'Shift', '\\'],
+		],
+		description: 'Swap split panes',
+		enabled: true,
+	},
+	'cycle-split-orientation': {
+		keys: [
+			['Ctrl', 'Alt', '\\'],
+			['Meta', 'Alt', '\\'],
+		],
+		description: 'Toggle vertical/horizontal split orientation',
+		enabled: true,
+	},
 	'delete-item': {
 		keys: [['Delete'], ['Backspace'], ['Ctrl', 'Backspace'], ['Meta', 'Backspace']],
 		description: 'Delete selected file/folder when context menu is open',

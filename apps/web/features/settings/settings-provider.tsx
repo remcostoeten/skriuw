@@ -82,8 +82,8 @@ export function SettingsProvider({
 				// Force dark theme regardless of stored settings
 				setSettings({ ...defaultSettings, ...storedSettings, theme: 'dark' })
 			}
-		} catch (error) {
-			console.error('Failed to load settings:', error)
+		} catch {
+			// Silently fail - likely not authenticated yet, will use defaults
 		} finally {
 			setIsLoading(false)
 		}

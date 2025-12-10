@@ -1,0 +1,8 @@
+{
+	"name": "@skriuw/tools",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"build:cli": "cd db-cli && chmod +x build.sh && ./build.sh"
+	}
+}

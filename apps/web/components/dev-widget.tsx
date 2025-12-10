@@ -53,28 +53,23 @@ export function DevWidget() {
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 	const [hasHeroCookie, setHasHeroCookie] = useState(false)
 	const [isConnected, setIsConnected] = useState<boolean | null>(null)
-	
+	const [schema, setSchema] = useState<Record<string, string> | null>(null)
+
 	// Click vs drag detection
 	const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
 	const [hasMoved, setHasMoved] = useState(false)
 
 	// Draggable functionality
-	const {
-		dragRef,
-		position,
-		isDragging,
-		handleMouseDown,
-		handleTouchStart,
-		resetPosition,
-	} = useDraggable({
-		initialPosition: { x: 50, y: 100 }, // Simple default position
-		storageKey: 'dev-widget-position',
-		bounds: {
-			// Keep within viewport with some margin
-			left: -320, // Allow to be mostly off-screen left
-			top: -100, // Allow to be mostly off-screen top
-		},
-	})
+	const { dragRef, position, isDragging, handleMouseDown, handleTouchStart, resetPosition } =
+		useDraggable({
+			initialPosition: { x: 50, y: 100 }, // Simple default position
+			storageKey: 'dev-widget-position',
+			bounds: {
+				// Keep within viewport with some margin
+				left: -320, // Allow to be mostly off-screen left
+				top: -100, // Allow to be mostly off-screen top
+			},
+		})
 
 	// Cookie handling functions (matching page.tsx)
 	const BADGE_COOKIE_NAME = 'hide-alpha-badge'
@@ -109,6 +104,7 @@ export function DevWidget() {
 			if (res.ok) {
 				const data = await res.json()
 				setStats(data.stats)
+				if (data.schema) setSchema(data.schema)
 				if (data.provider) setProvider(data.provider)
 				setIsConnected(true)
 			} else {
@@ -137,7 +133,7 @@ export function DevWidget() {
 			const deltaX = Math.abs(e.clientX - dragStartPos.x)
 			const deltaY = Math.abs(e.clientY - dragStartPos.y)
 			const threshold = 5 // 5px threshold to distinguish click from drag
-			
+
 			if (deltaX > threshold || deltaY > threshold) {
 				setHasMoved(true)
 			}
@@ -169,7 +165,7 @@ export function DevWidget() {
 		setHideBadgeCookie(newState)
 		setHasHeroCookie(newState)
 		toast.success(newState ? 'Hero badge hidden' : 'Hero badge shown')
-		
+
 		// Notify main page to re-check badge visibility
 		window.dispatchEvent(new CustomEvent('badgeCookieChanged'))
 	}
@@ -244,7 +240,7 @@ export function DevWidget() {
 		input.click()
 	}
 
-	if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') return null
+	if (typeof window === 'undefined' || process.env.NODE_ENV !== 'development') return null
 
 	return (
 		<>
@@ -424,70 +420,35 @@ export function DevWidget() {
 						<div className="space-y-2">
 							<SectionLabel>Database Schema</SectionLabel>
 							<div className="bg-muted/30 border rounded-lg p-2 space-y-2 text-xs">
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-blue-600">notes</div>
-										<div className="text-blue-600 font-bold">
-											{loading ? '-' : (stats?.notes ?? 0)}
+								{schema && Object.entries(schema).map(([tableName, columns]) => (
+									<div key={tableName} className="font-mono">
+										<div className="flex items-center justify-between">
+											<div className={cn(
+												"font-semibold",
+												tableName === 'notes' ? "text-blue-600" :
+													tableName === 'folders' ? "text-green-600" :
+														tableName === 'tasks' ? "text-purple-600" :
+															tableName === 'settings' ? "text-orange-600" :
+																tableName === 'shortcuts' ? "text-pink-600" :
+																	"text-gray-600"
+											)}>{tableName}</div>
+											<div className={cn(
+												"font-bold",
+												tableName === 'notes' ? "text-blue-600" :
+													tableName === 'folders' ? "text-green-600" :
+														tableName === 'tasks' ? "text-purple-600" :
+															tableName === 'settings' ? "text-orange-600" :
+																tableName === 'shortcuts' ? "text-pink-600" :
+																	"text-gray-600"
+											)}>
+												{loading ? '-' : (stats && tableName in stats ? (stats as any)[tableName] : 0)}
+											</div>
+										</div>
+										<div className="text-muted-foreground">
+											{String(columns)}
 										</div>
 									</div>
-									<div className="text-muted-foreground">
-										id, name, content, parentFolderId, pinned, pinnedAt, favorite, deletedAt,
-										createdAt, updatedAt, type
-									</div>
-								</div>
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-green-600">folders</div>
-										<div className="text-green-600 font-bold">
-											{loading ? '-' : (stats?.folders ?? 0)}
-										</div>
-									</div>
-									<div className="text-muted-foreground">
-										id, name, parentFolderId, pinned, pinnedAt, deletedAt, createdAt, updatedAt,
-										type
-									</div>
-								</div>
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-purple-600">tasks</div>
-										<div className="text-purple-600 font-bold">
-											{loading ? '-' : (stats?.tasks ?? 0)}
-										</div>
-									</div>
-									<div className="text-muted-foreground">
-										id, noteId, blockId, content, description, checked, dueDate, parentTaskId,
-										position, createdAt, updatedAt
-									</div>
-								</div>
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-orange-600">settings</div>
-										<div className="text-orange-600 font-bold">
-											{loading ? '-' : (stats?.settings ?? 0)}
-										</div>
-									</div>
-									<div className="text-muted-foreground">id, key, value, createdAt, updatedAt</div>
-								</div>
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-pink-600">shortcuts</div>
-										<div className="text-pink-600 font-bold">
-											{loading ? '-' : (stats?.shortcuts ?? 0)}
-										</div>
-									</div>
-									<div className="text-muted-foreground">
-										id, keys, customizedAt, createdAt, updatedAt
-									</div>
-								</div>
-								<div className="font-mono">
-									<div className="flex items-center justify-between">
-										<div className="font-semibold text-gray-600">total</div>
-										<div className="text-gray-600 font-bold">
-											{loading ? '-' : (stats?.total ?? 0)}
-										</div>
-									</div>
-								</div>
+								))}
 							</div>
 						</div>
 

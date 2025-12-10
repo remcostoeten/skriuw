@@ -42,8 +42,8 @@ export function useNotesWithSuspense() {
 					setItems(data)
 					setIsInitialLoading(false)
 				}
-			} catch (error) {
-				console.error('Failed to load notes:', error)
+			} catch {
+				// Silently fail - likely not authenticated yet, will show empty state
 				if (!isCancelled) {
 					setIsInitialLoading(false)
 				}

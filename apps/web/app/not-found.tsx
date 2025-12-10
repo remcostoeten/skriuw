@@ -21,7 +21,7 @@ export default function NotFound() {
 			actions={[
 				{
 					label: 'Return to Home',
-					onClick: () => router.push('/'),
+					onClick: () => router.push('/app'),
 				},
 			]}
 		/>

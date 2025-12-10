@@ -6,6 +6,7 @@ import {
 	ChevronRight,
 	Code,
 	Type,
+	Columns, // Panels is not available in all versions, using Columns as fallback
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -27,6 +28,9 @@ type props = {
 	onToggleEditorMode?: () => void
 	showSidebar?: boolean
 	showEditorModeToggle?: boolean
+	showSplitToggle?: boolean
+	isSplitView?: boolean
+	onToggleSplitView?: () => void
 }
 
 export function TopToolbar({
@@ -42,6 +46,9 @@ export function TopToolbar({
 	onToggleEditorMode,
 	showSidebar = true,
 	showEditorModeToggle = true,
+	showSplitToggle = false,
+	isSplitView = false,
+	onToggleSplitView,
 }: props) {
 	const isTauri = isTauriAvailable()
 
@@ -110,6 +117,14 @@ export function TopToolbar({
 				className="flex items-center gap-1.5"
 				data-tauri-drag-region={isTauri ? 'false' : undefined}
 			>
+				{showSplitToggle && (
+					<IconButton
+						icon={<Columns className="h-4 w-4 text-muted-foreground" />}
+						tooltip={isSplitView ? 'Disable split view' : 'Open split view'}
+						variant="toolbar"
+						onClick={onToggleSplitView}
+					/>
+				)}
 				<IconButton
 					icon={<Search className="w-4 h-4 text-muted-foreground" />}
 					tooltip="Search notes"

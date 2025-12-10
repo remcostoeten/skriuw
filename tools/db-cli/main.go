@@ -147,7 +147,7 @@ func findProjectRoot() string {
 
 func initialModel() model {
 	projectRoot := findProjectRoot()
-	envPath := filepath.Join(projectRoot, "packages", "db", ".env")
+	envPath := filepath.Join(projectRoot, ".env")
 
 	provider := detectProvider(envPath)
 

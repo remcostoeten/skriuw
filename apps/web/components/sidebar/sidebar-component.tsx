@@ -1212,7 +1212,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		async (id: string) => {
 			// Navigate away FIRST if deleting the active note (optimistic)
 			if (id === activeNoteId) {
-				router.push('/')
+				router.push('/app')
 			}
 			// Then perform the delete (UI already updated optimistically)
 			return deleteItem(id)
@@ -1816,7 +1816,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						tooltip="Notes"
 						active={true}
 						variant="sidebar"
-						onClick={() => router.push('/')}
+						onClick={() => router.push('/app')}
 					/>
 					<IconButton icon={<UIPlaygroundIcon />} tooltip="UI Playground" variant="sidebar" />
 				</div>

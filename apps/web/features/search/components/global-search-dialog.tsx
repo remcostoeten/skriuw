@@ -58,7 +58,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
 			},
 			onSelect: () => {
 				// Could navigate to folder view if implemented
-				router.push('/')
+				router.push('/app')
 			},
 		}),
 		[router, parseNote]
@@ -80,7 +80,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
 					return [...folders.map((f) => parseFolder(f)), ...notes.map((n) => parseNote(n))]
 				},
 				onSelect: () => {
-					router.push('/')
+					router.push('/app')
 				},
 			},
 			{
