@@ -14,6 +14,28 @@
     min-height: 100%;
 }
 
+/* =============================================================================
+   Spellcheck Support
+   ============================================================================= */
+
+/* Enable spellcheck on all editable content within BlockNote */
+.editor-container [contenteditable="true"],
+.editor-container .bn-editor [contenteditable="true"],
+.editor-container .bn-block-content [contenteditable="true"],
+.editor-container .bn-inline-content [contenteditable="true"] {
+    spellcheck: true !important;
+    /* Force browser spellcheck to be enabled */
+    -webkit-spellcheck: true !important;
+    -moz-spellcheck: true !important;
+    /* Ensure text suggestions and corrections are visible */
+    text-decoration-skip-ink: none;
+}
+
+/* Override any BlockNote CSS that might disable spellcheck */
+.editor-container [spellcheck="false"] {
+    spellcheck: true !important;
+}
+
 .editor-container[data-word-wrap='enabled'] {
     overflow-x: hidden;
 }
