@@ -16,6 +16,9 @@ export const STORAGE_KEYS = {
 
     // Editor tabs state
     EDITOR_TABS: 'skriuw:editor-tabs',
+
+    // Split view state
+    NOTE_SPLIT_VIEW: 'skriuw:noteSplitView:state',
 } as const
 
 // Default entity IDs

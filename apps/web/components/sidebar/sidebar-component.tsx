@@ -12,13 +12,13 @@ import {
 	type ConfirmationPopoverOptions,
 } from '@skriuw/ui/confirmation-popover'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
-import { useNotesContext } from '../../features/notes/context/notes-context'
-import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
-import { blocksToText } from '../../features/notes/utils/blocks-to-text'
-import { useSettings } from '../../features/settings'
-import { findItemById, isDescendant } from '../../features/notes/utils/tree-helpers'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { blocksToText } from '@/features/notes/utils/blocks-to-text'
+import { useSettings } from '@/features/settings'
+import { findItemById, isDescendant } from '@/features/notes/utils/tree-helpers'
 import { useShortcut } from '../../features/shortcuts'
 import { useContextMenuState } from '../../features/shortcuts/context-menu-context'
 import { shortcutDefinitions } from '../../features/shortcuts/shortcut-definitions'
@@ -45,7 +45,7 @@ import { useSidebarContentType } from './use-sidebar-content-type'
 import { TasksSidebarContent } from './tasks-sidebar-content'
 
 import type { SidebarContentType } from './types'
-import type { Folder as FolderType, Item } from '../../features/notes/types'
+import type { Folder as FolderType, Item } from '@/features/notes/types'
 import type { Block } from '@blocknote/core'
 
 const EXPANDED_FOLDERS_KEY = 'Skriuw_expanded_folders'

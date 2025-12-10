@@ -2,7 +2,7 @@ import { Minimize2, Maximize2, X, Square } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 export function WindowControls() {
 	const [isMaximized, setIsMaximized] = useState(false)

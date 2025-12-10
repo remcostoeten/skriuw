@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../lib/storage/adapters/server-db'
 import { requireAuth } from '../../../lib/api-auth'
-import type { Item, Note, Folder } from '../../../features/notes/types/index'
+import type { Item, Note, Folder } from '@/features/notes/types/index'
 
 function sortItems(items: Item[]): Item[] {
 	const comparator = (a: Item, b: Item) => {
