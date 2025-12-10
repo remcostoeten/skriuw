@@ -1,6 +1,7 @@
 export * from './focus-trap'
 export * from './portal'
 export * from './use-media-query'
+export * from './use-is-touch-device'
 export * from './use-mobile'
 export * from './smart-save'
 export * from './slug'

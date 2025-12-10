@@ -1,6 +1,9 @@
+'use client'
+
 import { Tooltip, TooltipTrigger, TooltipContent } from './tooltip'
 
 import { cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
@@ -99,35 +102,36 @@ export function IconButton({
 	tooltip,
 	shortcut,
 	active = false,
-	variant = 'sidebar',
-	className,
-	onClick,
-	disabled,
-	...buttonProps
+        variant = 'sidebar',
+        className,
+        onClick,
+        disabled,
+        ...buttonProps
 }: IconButtonProps) {
-	const { ['aria-label']: ariaLabel, ...restButtonProps } = buttonProps
+        const isTouchDevice = useIsTouchDevice()
+        const { ['aria-label']: ariaLabel, ...restButtonProps } = buttonProps
 
-	const baseStyles =
-		'inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-95 transition-all'
+        const baseStyles =
+                'inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-95 transition-all'
 
-	const variantStyles = {
-		sidebar: cn(
-			'h-7 w-7',
-			active
-				? 'bg-sidebar-accent text-sidebar-accent-foreground'
-				: 'hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/50 active:bg-sidebar-accent/50 text-muted-foreground'
-		),
-		'action-bar': cn(
-			'w-7 h-7',
-			'hover:bg-sidebar-accent/50 transition-colors',
-			disabled && 'opacity-50 cursor-not-allowed'
-		),
-		toolbar: cn(
-			'w-6 h-6',
-			'hover:bg-accent/50 transition-colors',
-			disabled && 'opacity-40 cursor-not-allowed'
-		)
-	}
+        const variantStyles = {
+                sidebar: cn(
+                        isTouchDevice ? 'h-10 w-10 rounded-lg text-base' : 'h-7 w-7',
+                        active
+                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                : 'hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/50 active:bg-sidebar-accent/50 text-muted-foreground'
+                ),
+                'action-bar': cn(
+                        isTouchDevice ? 'w-10 h-10 rounded-lg text-base' : 'w-7 h-7',
+                        'hover:bg-sidebar-accent/50 transition-colors',
+                        disabled && 'opacity-50 cursor-not-allowed'
+                ),
+                toolbar: cn(
+                        isTouchDevice ? 'w-10 h-10 rounded-lg text-base' : 'w-6 h-6',
+                        'hover:bg-accent/50 transition-colors',
+                        disabled && 'opacity-40 cursor-not-allowed'
+                )
+        }
 
 	const button = (
 		<button
@@ -177,12 +181,14 @@ export function IconButton({
 		</button>
 	)
 
-	if (tooltip) {
-		const tooltipSide = variant === 'sidebar' ? 'right' : 'bottom'
-		return (
-			<Tooltip>
-				<TooltipTrigger asChild>{button}</TooltipTrigger>
-				<TooltipContent side={tooltipSide} align="center">
+        const shouldShowTooltip = tooltip && !isTouchDevice
+
+        if (shouldShowTooltip) {
+                const tooltipSide = variant === 'sidebar' ? 'right' : 'bottom'
+                return (
+                        <Tooltip>
+                                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                                <TooltipContent side={tooltipSide} align="center">
 					<div className="flex items-center gap-2">
 						<span>{tooltip}</span>
 						{shortcut && (
