@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp } from '@skriuw/db'
+import { getDatabase, notes, folders, tasks, settings, shortcuts, schema, getSafeTimestamp } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
 import { generateId } from '@skriuw/core-logic'
+import { eq, lt } from 'drizzle-orm'
 
 function isDev() {
 	return process.env.NODE_ENV === 'development'
@@ -230,14 +231,26 @@ export async function GET() {
 
 	try {
 		const db = getDatabase()
+		const now = new Date()
+		const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-		const [noteRows, folderRows, taskRows, settingRows, shortcutRows] = await Promise.all([
+		const [noteRows, folderRows, taskRows, settingRows, shortcutRows, userRows] = await Promise.all([
 			db.select().from(notes),
 			db.select().from(folders),
 			db.select().from(tasks),
 			db.select().from(settings),
 			db.select().from(shortcuts),
+			db.query.user.findMany({
+				columns: { id: true, isAnonymous: true, createdAt: true }
+			})
 		])
+
+		// Calculate user statistics
+		const totalUsers = userRows.length
+		const anonymousUsers = userRows.filter(u => u.isAnonymous).length
+		const anonymousUsersOld = userRows.filter(u =>
+			u.isAnonymous && new Date(u.createdAt) < twentyFourHoursAgo
+		).length
 
 		return NextResponse.json({
 			stats: {
@@ -247,6 +260,9 @@ export async function GET() {
 				settings: settingRows.length,
 				shortcuts: shortcutRows.length,
 				total: noteRows.length + folderRows.length,
+				users: totalUsers,
+				anonymousUsers,
+				anonymousUsersOld,
 			},
 			environment: process.env.NODE_ENV,
 			timestamp: new Date().toISOString(),
