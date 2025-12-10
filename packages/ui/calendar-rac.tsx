@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { getLocalTimeZone, today } from "@internationalized/date"
 import { ComponentProps } from "react"
 import {

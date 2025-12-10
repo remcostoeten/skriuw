@@ -1,6 +1,6 @@
 import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from 'react'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 import { Icons } from '@skriuw/ui'
 

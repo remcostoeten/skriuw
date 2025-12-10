@@ -1,14 +1,15 @@
 'use client'
 
-import { Suspense, lazy, useMemo, useState, useEffect } from 'react'
+import { Suspense, lazy, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { EmptyState } from '../components/ui/empty-state'
 
-import { useNoteSlug } from '../features/notes/hooks/use-note-slug'
-import { useNotesWithSuspense } from '../features/notes/hooks/useNotesWithSuspense'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut, shortcut } from '../features/shortcuts'
+import { useCookie } from '@/hooks/use-cookie'
 
 import { IndexSkeleton } from '../components/pages/index-skeleton'
 
@@ -19,56 +20,16 @@ const NoteEditor = lazy(() =>
 )
 
 import { Icons } from '@skriuw/ui'
-import HeroBadge from '@skriuw/ui/hero-badge'
-
-// Cookie handling functions
-const BADGE_COOKIE_NAME = 'hide-alpha-badge'
-
-function setHideBadgeCookie() {
-	if (typeof window !== 'undefined') {
-		document.cookie = `${BADGE_COOKIE_NAME}=true; max-age=${60 * 60 * 24 * 30}; path=/; secure; samesite=strict`
-	}
-}
-
-function removeHideBadgeCookie() {
-	if (typeof window !== 'undefined') {
-		document.cookie = `${BADGE_COOKIE_NAME}=; max-age=0; path=/; secure; samesite=strict`
-	}
-}
-
-function getHideBadgeCookie(): boolean {
-	if (typeof window === 'undefined') return false
-
-	const cookies = document.cookie.split(';')
-	for (const cookie of cookies) {
-		const [name, value] = cookie.trim().split('=')
-		if (name === BADGE_COOKIE_NAME) {
-			return value === 'true'
-		}
-	}
-	return false
-}
+import { HeroBadge } from '@skriuw/ui/hero-badge'
 
 export default function Index() {
-	const [showBadge, setShowBadge] = useState(true)
+	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
+	const showBadge = hideBadgeCookie !== 'true'
 
-	useEffect(() => {
-		setShowBadge(!getHideBadgeCookie())
-		
-		// Listen for cookie changes from dev widget
-		const handleCookieChange = () => {
-			setShowBadge(!getHideBadgeCookie())
-		}
-		
-		window.addEventListener('badgeCookieChanged', handleCookieChange)
-		
-		return () => {
-			window.removeEventListener('badgeCookieChanged', handleCookieChange)
-		}
-	}, [])
+	const hideBadge = () => updateCookie('true')
 	const pathname = usePathname()
 	const router = useRouter()
-	const { items, createNote, isInitialLoading } = useNotesWithSuspense()
+	const { items, createNote, isInitialLoading } = useNotesContext()
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 
 	const isNoteRoute = pathname.startsWith('/note/')
@@ -91,10 +52,7 @@ export default function Index() {
 		router.push('/archive')
 	}
 
-	function handleCancelBadge() {
-		setHideBadgeCookie()
-		setShowBadge(false)
-	}
+
 
 	useShortcut('create-note', (e) => {
 		e.preventDefault()
@@ -115,7 +73,7 @@ export default function Index() {
 						text="Bugs will occur! Still in alpha"
 						icon={<Icons.logo className="h-4 w-4" />}
 						endIcon={<Icons.close className="h-4 w-4" />}
-						onCancel={handleCancelBadge}
+						onCancel={hideBadge}
 					/>
 				</div>
 			)}

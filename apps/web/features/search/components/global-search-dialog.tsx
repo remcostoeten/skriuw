@@ -5,9 +5,9 @@ import { Dialog, DialogContent } from '@skriuw/ui/dialog'
 import { AnimatedNumber } from '@skriuw/ui/animated-number'
 import { DataCommand, type CommandDataItem } from './data-command'
 import { fetchNotes, fetchFolders, fetchOneNote, fetchOneFolder } from '../api/fetch-notes'
-import { useNotesContext } from '../../notes/context/notes-context'
-import { useNoteSlug } from '../../notes/hooks/use-note-slug'
-import type { Note, Folder as FolderType } from '../../notes/types'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import type { Note, Folder as FolderType } from '@/features/notes/types'
 
 type Props = {
 	open: boolean
