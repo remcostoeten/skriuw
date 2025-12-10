@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../../lib/storage/adapters/server-db'
-import type { ExtractedTask } from '../../../../features/notes/utils/extract-tasks'
-import type { Task } from '../../../../features/notes/types/index'
+import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
+import type { Task } from '@/features/notes/types/index'
+import { generateId } from '@skriuw/core-logic'
 
 type SyncPayload = {
 	noteId: string
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 				}
 			} else {
 				toInsert.push({
-					id: `${body.noteId}-${task.blockId}-${now}-${Math.random().toString(36).slice(2, 6)}`,
+					id: generateId(`${body.noteId}-${task.blockId}-`),
 					noteId: body.noteId,
 					blockId: task.blockId,
 					content: task.content,

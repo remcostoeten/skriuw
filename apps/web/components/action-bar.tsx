@@ -14,7 +14,7 @@ import {
 } from 'react'
 
 import { IconButton } from '@skriuw/ui/icons'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 type ActionButton = {
 	icon: ReactNode

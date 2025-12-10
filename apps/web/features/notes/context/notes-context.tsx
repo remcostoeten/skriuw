@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, ReactNode } from 'react'
-import { useNotesWithSuspense } from '../hooks/useNotesWithSuspense'
+import { useNotes } from '../hooks/use-notes'
 import type { Item, Note, Folder } from '../types'
 import type { Block } from '@blocknote/core'
 
@@ -26,7 +26,7 @@ type NotesContextValue = {
 const NotesContext = createContext<NotesContextValue | null>(null)
 
 export function NotesProvider({ children }: { children: ReactNode }) {
-	const notesState = useNotesWithSuspense()
+	const notesState = useNotes()
 
 	return <NotesContext.Provider value={notesState}>{children}</NotesContext.Provider>
 }

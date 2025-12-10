@@ -12,7 +12,7 @@ import {
 import { Input } from '@skriuw/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@skriuw/ui/popover'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,
