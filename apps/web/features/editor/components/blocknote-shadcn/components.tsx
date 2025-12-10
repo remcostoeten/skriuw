@@ -16,21 +16,22 @@ import { cn } from '@skriuw/shared'
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,
-	BlockNoteComponentProps['FormattingToolbar']['Root']
+        BlockNoteComponentProps['FormattingToolbar']['Root']
 >(({ className, children, onMouseEnter, onMouseLeave }, ref) => {
-	return (
-		<div
-			ref={ref}
-			role="toolbar"
-			onMouseEnter={onMouseEnter}
-			onMouseLeave={onMouseLeave}
-			className={cn(
-				'bn-toolbar flex items-center gap-0.5 rounded-md border border-border bg-background/90 px-0.5 py-0 shadow-md backdrop-blur',
-				className
-			)}
-		>
-			{children}
-		</div>
+        return (
+                <div
+                        ref={ref}
+                        role="toolbar"
+                        onMouseEnter={onMouseEnter}
+                        onMouseLeave={onMouseLeave}
+                        className={cn(
+                                'bn-toolbar flex flex-wrap items-center gap-0.5 rounded-md border border-border bg-background/90 px-1 py-1 shadow-md backdrop-blur max-w-full',
+                                'max-sm:w-full max-sm:justify-center max-sm:gap-2 max-sm:px-2 max-sm:py-2 max-sm:rounded-lg',
+                                className
+                        )}
+                >
+                        {children}
+                </div>
 	)
 })
 
@@ -46,14 +47,15 @@ const ToolbarButton = ({
 	secondaryTooltip,
 }: BlockNoteComponentProps['FormattingToolbar']['Button']) => {
 	return (
-		<button
-			type="button"
-			className={cn(
-				'bn-toolbar-button inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-1 text-[10px] font-medium text-foreground/90 transition hover:bg-muted',
-				isSelected && 'bg-primary/20 text-primary border-primary/40',
-				isDisabled && 'cursor-not-allowed opacity-40',
-				className
-			)}
+                <button
+                        type="button"
+                        className={cn(
+                                'bn-toolbar-button inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90 transition hover:bg-muted',
+                                'max-sm:h-11 max-sm:min-w-11 max-sm:px-3 max-sm:text-sm max-sm:rounded-lg',
+                                isSelected && 'bg-primary/20 text-primary border-primary/40 shadow-sm',
+                                isDisabled && 'cursor-not-allowed opacity-40',
+                                className
+                        )}
 			disabled={isDisabled}
 			title={secondaryTooltip || mainTooltip || label}
 			onClick={(event) => {
@@ -76,15 +78,16 @@ const ToolbarSelect = ({
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<button
-					type="button"
-					className={cn(
-						'bn-toolbar-select inline-flex h-6 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-1 text-[10px] font-medium text-foreground/90',
-						isDisabled && 'cursor-not-allowed opacity-40',
-						className
-					)}
-					disabled={isDisabled}
+                <DropdownMenuTrigger asChild>
+                        <button
+                                type="button"
+                                className={cn(
+                                        'bn-toolbar-select inline-flex h-9 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90',
+                                        'max-sm:h-11 max-sm:px-3 max-sm:text-sm max-sm:rounded-lg',
+                                        isDisabled && 'cursor-not-allowed opacity-40',
+                                        className
+                                )}
+                                disabled={isDisabled}
 				>
 					<span className="flex items-center gap-0.5">
 						{selected?.icon}
@@ -117,31 +120,33 @@ const ToolbarSelect = ({
 }
 
 const SideMenuRoot = ({ className, children }: BlockNoteComponentProps['SideMenu']['Root']) => (
-	<div
-		className={cn(
-			'bn-side-menu flex flex-col items-center gap-2 rounded-md bg-background/80 p-1 shadow',
-			className
-		)}
-	>
-		{children}
-	</div>
+        <div
+                className={cn(
+                        'bn-side-menu flex flex-col items-center gap-2 rounded-md bg-background/80 p-1 shadow ring-1 ring-border/60',
+                        'max-sm:flex-row max-sm:w-full max-sm:justify-center max-sm:gap-3 max-sm:rounded-lg max-sm:p-2',
+                        className
+                )}
+        >
+                {children}
+        </div>
 )
 
 const SideMenuButton = forwardRef<HTMLButtonElement, BlockNoteComponentProps['SideMenu']['Button']>(
-	({ className, icon, label, onClick, draggable, onDragEnd, onDragStart, children }, ref) => (
-		<button
-			ref={ref}
-			type="button"
-			draggable={draggable}
-			onDragStart={onDragStart}
-			onDragEnd={onDragEnd}
-			className={cn(
-				'bn-side-menu-button flex h-5 w-5 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition hover:bg-muted',
-				className
-			)}
-			onClick={onClick}
-			title={label}
-		>
+        ({ className, icon, label, onClick, draggable, onDragEnd, onDragStart, children }, ref) => (
+                <button
+                        ref={ref}
+                        type="button"
+                        draggable={draggable}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        className={cn(
+                                'bn-side-menu-button flex h-7 w-7 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition hover:bg-muted',
+                                'max-sm:h-10 max-sm:w-10 max-sm:rounded-lg',
+                                className
+                        )}
+                        onClick={onClick}
+                        title={label}
+                >
 			{icon || children}
 		</button>
 	)
@@ -153,18 +158,19 @@ const SuggestionMenuRoot = ({
 	className,
 	children,
 }: BlockNoteComponentProps['SuggestionMenu']['Root']) => (
-	<div
-		id={id}
-		className={cn(
-			'bn-suggestion-menu min-w-[320px] max-w-[420px]',
-			'rounded-none border border-border/50 bg-background/98',
-			'p-2 text-sm shadow-2xl backdrop-blur-xl',
-			'ring-1 ring-black/5 dark:ring-white/10',
-			'animate-in fade-in-0 zoom-in-95 duration-200',
-			'max-h-[60vh] overflow-y-auto',
-			'scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent',
-			className
-		)}
+        <div
+                id={id}
+                className={cn(
+                        'bn-suggestion-menu min-w-[min(320px,92vw)] max-w-[92vw]',
+                        'rounded-none border border-border/50 bg-background/98',
+                        'p-3 text-sm shadow-2xl backdrop-blur-xl rounded-md',
+                        'max-sm:p-4 max-sm:text-base max-sm:rounded-lg',
+                        'ring-1 ring-black/5 dark:ring-white/10',
+                        'animate-in fade-in-0 zoom-in-95 duration-200',
+                        'max-h-[60vh] overflow-y-auto',
+                        'scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent',
+                        className
+                )}
 	>
 		{children}
 	</div>
@@ -212,12 +218,13 @@ const SuggestionMenuItem = ({
 		<button
 			type="button"
 			onClick={onClick}
-			className={cn(
-				'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2',
-				'text-left text-sm transition-all duration-150',
-				'hover:bg-accent/90 hover:shadow-sm',
-				'active:scale-[0.98] active:bg-accent',
-				'border border-transparent hover:border-border/50',
+                        className={cn(
+                                'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2',
+                                'text-left text-sm transition-all duration-150',
+                                'max-sm:px-3.5 max-sm:py-3 max-sm:text-base',
+                                'hover:bg-accent/90 hover:shadow-sm',
+                                'active:scale-[0.98] active:bg-accent',
+                                'border border-transparent hover:border-border/50',
 				isSelected &&
 					'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
 				!isSelected && 'text-foreground',
@@ -264,18 +271,19 @@ const SuggestionMenuEmpty = ({
 )
 
 const SuggestionMenuLabel = ({
-	className,
-	children,
+        className,
+        children,
 }: BlockNoteComponentProps['SuggestionMenu']['Label']) => (
-	<div
-		className={cn(
-			'bn-suggestion-label px-3 py-2 text-xs uppercase tracking-wide font-semibold',
-			'text-muted-foreground bg-muted/50 rounded-md mb-1',
-			'border border-border/30 sticky top-0 z-10 backdrop-blur-sm',
-			className
-		)}
-	>
-		{children}
+        <div
+                className={cn(
+                        'bn-suggestion-label px-3 py-2 text-xs uppercase tracking-wide font-semibold',
+                        'text-muted-foreground bg-muted/50 rounded-md mb-1',
+                        'max-sm:text-sm max-sm:px-3.5',
+                        'border border-border/30 sticky top-0 z-10 backdrop-blur-sm',
+                        className
+                )}
+        >
+                {children}
 	</div>
 )
 
