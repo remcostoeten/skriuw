@@ -14,6 +14,7 @@ import {
 } from 'react'
 
 import { IconButton } from '@skriuw/ui/icons'
+import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
 import { cn } from '@skriuw/shared'
 
 type ActionButton = {
@@ -72,8 +73,9 @@ export function ActionBar({
 	searchConfig,
 	expandConfig,
 }: ActionBarProps) {
-	const searchInputRef = useRef<HTMLInputElement>(null)
-	const searchContainerRef = useRef<HTMLDivElement>(null)
+        const searchInputRef = useRef<HTMLInputElement>(null)
+        const searchContainerRef = useRef<HTMLDivElement>(null)
+        const isTouchDevice = useIsTouchDevice()
 
 	const [localSearchVisible, setLocalSearchVisible] = useState(false)
 	const isSearchOpen = searchConfig?.isOpen !== undefined ? searchConfig.isOpen : localSearchVisible
@@ -179,21 +181,26 @@ export function ActionBar({
 		searchConfig,
 	])
 
-	return (
-		<div className="relative top-0 flex flex-col items-center justify-center min-h-10 w-full border-b border-sidebar-border bg-sidebar-background overflow-hidden">
-			<TopSectionWrapper isInputVisible={isSearchOpen}>
+        return (
+                <div
+                        className={cn(
+                                'relative top-0 flex flex-col items-center justify-center min-h-10 w-full border-b border-sidebar-border bg-sidebar-background overflow-hidden',
+                                isTouchDevice && 'min-h-12'
+                        )}
+                >
+                        <TopSectionWrapper isInputVisible={isSearchOpen}>
 				{buttons.map((button) => (
-					<IconButton
-						key={button.tooltip}
-						icon={button.icon}
-						tooltip={button.tooltip}
-						variant="action-bar"
-						className={button.className}
-						onClick={button.onClick}
-						disabled={button.disabled}
-						onKeyDown={button.onKeyDown}
-						aria-expanded={button['aria-expanded']}
-						aria-controls={button['aria-controls']}
+                                        <IconButton
+                                                key={button.tooltip}
+                                                icon={button.icon}
+                                                tooltip={button.tooltip}
+                                                variant="action-bar"
+                                                className={cn(button.className, isTouchDevice && 'h-10 w-10 rounded-lg')}
+                                                onClick={button.onClick}
+                                                disabled={button.disabled}
+                                                onKeyDown={button.onKeyDown}
+                                                aria-expanded={button['aria-expanded']}
+                                                aria-controls={button['aria-controls']}
 					/>
 				))}
 			</TopSectionWrapper>
@@ -211,34 +218,42 @@ export function ActionBar({
 					)}
 					onBlur={handleSearchBlur}
 				>
-					<div className="rounded-md w-full flex items-center justify-start bg-sidebar-background pl-2 pr-1 gap-0.5 border border-sidebar-border focus-within:ring-1 focus-within:ring-sidebar-ring transition-all">
-						<input
-							ref={searchInputRef}
-							id="notesSearch"
-							className="w-full bg-transparent outline-none placeholder:text-muted-foreground h-[30px] text-xs text-sidebar-foreground"
-							type="text"
-							placeholder="Search..."
-							aria-label="Search notes"
-							autoComplete="off"
-							autoCorrect="off"
-							value={searchConfig.query}
-							onChange={(event) => searchConfig.setQuery(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === 'Escape') {
-									handleSearchClose()
-								}
-							}}
-						/>
-						<IconButton
-							icon={icons.close}
-							tooltip="Close"
-							variant="action-bar"
-							onClick={handleSearchClose}
-							className="w-6 h-6"
-						/>
-					</div>
-				</div>
-			)}
+                                        <div
+                                                className={cn(
+                                                        'rounded-md w-full flex items-center justify-start bg-sidebar-background pl-2 pr-1 gap-0.5 border border-sidebar-border focus-within:ring-1 focus-within:ring-sidebar-ring transition-all',
+                                                        isTouchDevice && 'h-12 px-3 py-2 gap-2 rounded-lg'
+                                                )}
+                                        >
+                                                <input
+                                                        ref={searchInputRef}
+                                                        id="notesSearch"
+                                                        className={cn(
+                                                                'w-full bg-transparent outline-none placeholder:text-muted-foreground h-[30px] text-xs text-sidebar-foreground',
+                                                                isTouchDevice && 'h-8 text-sm'
+                                                        )}
+                                                        type="text"
+                                                        placeholder="Search..."
+                                                        aria-label="Search notes"
+                                                        autoComplete="off"
+                                                        autoCorrect="off"
+                                                        value={searchConfig.query}
+                                                        onChange={(event) => searchConfig.setQuery(event.target.value)}
+                                                        onKeyDown={(event) => {
+                                                                if (event.key === 'Escape') {
+                                                                        handleSearchClose()
+                                                                }
+                                                        }}
+                                                />
+                                                <IconButton
+                                                        icon={icons.close}
+                                                        tooltip="Close"
+                                                        variant="action-bar"
+                                                        onClick={handleSearchClose}
+                                                        className={cn('w-6 h-6', isTouchDevice && 'w-9 h-9 rounded-lg')}
+                                                />
+                                        </div>
+                                </div>
+                        )}
 		</div>
 	)
 }
