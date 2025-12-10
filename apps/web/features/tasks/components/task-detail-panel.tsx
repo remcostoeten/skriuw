@@ -5,7 +5,7 @@ import { Trash2, X, MoreHorizontal, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { TaskDescriptionEditor } from './task-description-editor'
 import { DueDateButton } from './due-date-button'
 import { TaskContextProvider } from '../hooks/use-task-context'

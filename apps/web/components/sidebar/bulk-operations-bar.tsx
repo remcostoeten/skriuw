@@ -6,13 +6,13 @@ import { useCallback } from 'react'
 
 import { useNotificationPopover } from '@skriuw/ui/notification-popover'
 
-import { useNotesContext } from '../../features/notes/context/notes-context'
+import { useNotesContext } from '@/features/notes/context/notes-context'
 
 import { useSelectionStore } from '../../stores/selection-store'
 import { Button } from '@skriuw/ui/button'
 
-import type { Item } from '../../features/notes/types'
-import { findItemById } from '../../features/notes/utils/tree-helpers'
+import type { Item } from '@/features/notes/types'
+import { findItemById } from '@/features/notes/utils/tree-helpers'
 
 interface BulkOperationsBarProps {
 	className?: string

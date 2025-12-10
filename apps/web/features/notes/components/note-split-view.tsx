@@ -12,17 +12,15 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 import { EmptyState } from '../../../components/ui/empty-state'
 import { useShortcut } from '../../shortcuts'
 import { NoteEditor } from '../../editor/components/note-editor'
-import { useNotesContext } from '../context/notes-context'
+import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '../hooks/use-note-slug'
-import {
-	NOTE_TAB_DRAG_TYPE,
-	type NoteTabDragPayload,
-} from '../split-view/constants'
+import { NOTE_TAB_DRAG_TYPE } from '../constants'
+import type { NoteTabDragPayload } from '../types'
 import { useSplitViewStore } from '../split-view/store'
 
 type NoteSplitViewProps = {

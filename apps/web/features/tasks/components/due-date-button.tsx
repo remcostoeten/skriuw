@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Calendar as CalendarIcon, X } from 'lucide-react'
 import { parseDate, CalendarDate, getLocalTimeZone, today, DateValue } from '@internationalized/date'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { Button } from '@skriuw/ui/button'
 import {
     Popover,

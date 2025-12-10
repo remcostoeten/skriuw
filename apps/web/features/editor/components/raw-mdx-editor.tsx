@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import type { OnMount, Monaco } from '@monaco-editor/react'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { useSettingsContext } from '../../settings/settings-provider'
 
 // Dynamically import Monaco - no SSR, loads only when needed

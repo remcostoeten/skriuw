@@ -2,9 +2,9 @@
 
 import { useMemo, use } from 'react'
 
-import { NoteSplitView } from '../../../features/notes/components/note-split-view'
-import { useNotesContext } from '../../../features/notes/context/notes-context'
-import { useNoteSlug } from '../../../features/notes/hooks/use-note-slug'
+import { NoteSplitView } from '@/features/notes/components/note-split-view'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 
 export default function NoteEditorPage({ params }: { params: Promise<{ slug: string[] }> }) {
 	const resolvedParams = use(params)

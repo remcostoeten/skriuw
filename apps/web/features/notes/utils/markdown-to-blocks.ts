@@ -1,12 +1,6 @@
 
 import { BlockNoteEditor, Block } from '@blocknote/core'
-
-/**
- * Generate a simple ID for blocks
- */
-function generateBlockId(): string {
-	return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-}
+import { generateId } from '@skriuw/core-logic'
 
 /**
  * @description Converts markdown text to BlockNote blocks
@@ -17,7 +11,7 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 	if (!markdown || markdown.trim().length === 0) {
 		return [
 			{
-				id: generateBlockId(),
+				id: generateId(),
 				type: 'paragraph',
 				props: {
 					backgroundColor: 'default',
@@ -37,7 +31,7 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 		editor = BlockNoteEditor.create({
 			initialContent: [
 				{
-					id: generateBlockId(),
+					id: generateId(),
 					type: 'paragraph',
 					props: {
 						backgroundColor: 'default',
@@ -111,7 +105,7 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 		console.warn('All markdown parsing methods failed, using fallback paragraph block')
 		return [
 			{
-				id: generateBlockId(),
+				id: generateId(),
 				type: 'paragraph',
 				props: {
 					backgroundColor: 'default',
@@ -143,7 +137,7 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 		// Fallback: create a simple paragraph block with the markdown text
 		return [
 			{
-				id: generateBlockId(),
+				id: generateId(),
 				type: 'paragraph',
 				props: {
 					backgroundColor: 'default',
