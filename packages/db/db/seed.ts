@@ -17,7 +17,7 @@ const welcomeContent = [
 ]
 
 async function seed() {
-	console.log('🌱 Seeding database...')
+	console.log('Seeding database...')
 
 	const db = getDatabase()
 	const now = Date.now()
@@ -39,16 +39,16 @@ async function seed() {
 			type: 'note',
 		})
 
-		console.log('✅ Created welcome note')
+		console.log('Created welcome note')
 	} else {
-		console.log('ℹ️ Database already has notes, skipping seed')
+		console.log('Database already has notes, skipping seed')
 	}
 
-	console.log('✅ Seeding complete')
+	console.log('Seeding complete')
 	process.exit(0)
 }
 
 seed().catch((err) => {
-	console.error('❌ Seeding failed:', err)
+	console.error('Seeding failed:', err)
 	process.exit(1)
 })

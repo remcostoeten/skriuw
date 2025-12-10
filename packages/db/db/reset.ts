@@ -22,24 +22,24 @@ async function dropAllTables() {
     ` as unknown as Promise<{ tablename: string }[]>)
 
 		if (tables.length === 0) {
-			console.log('ℹ️ No user tables found in public schema.')
+			console.log('No user tables found in public schema.')
 			return
 		}
 
-		console.log(`⚠️ Dropping ${tables.length} tables from ${databaseUrl}`)
+		console.log(`Dropping ${tables.length} tables from ${databaseUrl}`)
 
 		for (const { tablename } of tables) {
 			console.log(` - Dropping table "${tablename}"`)
 			await sql.unsafe(`DROP TABLE IF EXISTS "${tablename}" CASCADE`)
 		}
 
-		console.log('✅ All tables dropped successfully.')
+		console.log('All tables dropped successfully.')
 	} finally {
 		await sql.end({ timeout: 5 })
 	}
 }
 
 dropAllTables().catch((error) => {
-	console.error('❌ Failed to drop tables:', error)
+	console.error('Failed to drop tables:', error)
 	process.exit(1)
 })
