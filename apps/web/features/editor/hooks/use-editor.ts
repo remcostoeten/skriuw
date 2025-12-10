@@ -6,11 +6,66 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createAIExtension } from '@blocknote/xl-ai'
 import type { ChatTransport, UIMessage } from 'ai'
 
-import { useNotesContext } from '../../notes/context/notes-context'
+import { useNotesContext } from '@/features/notes/context/notes-context'
 
 import { useEditorConfig } from './useEditorConfig'
 
-import type { Note } from '../../notes'
+import type { Note } from '@/features/notes'
+
+/**
+ * Enforces spellcheck on all contenteditable elements within a container
+ */
+function enforceSpellcheck(container: Element | null): MutationObserver | null {
+	if (!container) return null
+
+	// Find all contenteditable elements
+	const editableElements = container.querySelectorAll('[contenteditable="true"]')
+
+	editableElements.forEach((element) => {
+		// Force spellcheck to be enabled
+		element.setAttribute('spellcheck', 'true')
+
+		// Also force via property for browsers that respect it
+		if ('spellcheck' in element) {
+			(element as any).spellcheck = true
+		}
+	})
+
+	// Also observe for dynamically created elements
+	const observer = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			mutation.addedNodes.forEach((node) => {
+				if (node.nodeType === Node.ELEMENT_NODE) {
+					const element = node as Element
+					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
+						element.setAttribute('spellcheck', 'true')
+						if ('spellcheck' in element) {
+							(element as any).spellcheck = true
+						}
+					}
+
+					// Also check nested elements
+					const nestedEditables = element.querySelectorAll('[contenteditable="true"]')
+					nestedEditables.forEach((nested) => {
+						nested.setAttribute('spellcheck', 'true')
+						if ('spellcheck' in nested) {
+							(nested as any).spellcheck = true
+						}
+					})
+				}
+			})
+		})
+	})
+
+	observer.observe(container, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['contenteditable']
+	})
+
+	return observer
+}
 
 type options = {
 	noteId: string
@@ -43,6 +98,8 @@ export function useEditor({
 	const [error, setError] = useState<string | null>(null)
 	const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 	const hasInitializedRef = useRef(false)
+	const spellcheckObserverRef = useRef<MutationObserver | null>(null)
+	const hasSpellCheck = editorConfig.editorProps?.attributes?.spellcheck === 'true'
 
 	useEffect(() => {
 		let isCancelled = false
@@ -187,6 +244,45 @@ export function useEditor({
 			hasInitializedRef.current = true
 		}
 	}, [note, editor, readOnly, isLoading])
+
+	// Enforce spellcheck on editor elements
+	useEffect(() => {
+		if (!editor) return
+
+		// Wait for DOM to be ready, then enforce spellcheck
+		const enforceSpellcheckWithDelay = () => {
+			setTimeout(() => {
+				const editorElement = document.querySelector('.bn-editor')
+				if (editorElement && hasSpellCheck) {
+					// Clean up previous observer if exists
+					if (spellcheckObserverRef.current) {
+						spellcheckObserverRef.current.disconnect()
+					}
+
+					// Enforce spellcheck and set up new observer
+					spellcheckObserverRef.current = enforceSpellcheck(editorElement)
+				}
+			}, 100) // Small delay to ensure BlockNote has rendered
+		}
+
+		// Initial enforcement
+		enforceSpellcheckWithDelay()
+
+		// Also enforce when editor content changes
+		const handleContentChange = () => {
+			enforceSpellcheckWithDelay()
+		}
+
+		editor.onEditorContentChange(handleContentChange)
+
+		return () => {
+			// Clean up observer on unmount
+			if (spellcheckObserverRef.current) {
+				spellcheckObserverRef.current.disconnect()
+				spellcheckObserverRef.current = null
+			}
+		}
+	}, [editor, hasSpellCheck])
 
 	useEffect(() => {
 		hasInitializedRef.current = false

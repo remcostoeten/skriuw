@@ -8,7 +8,7 @@ import { useTheme } from 'next-themes'
 import { useEditorConfig } from '../../editor/hooks/useEditorConfig'
 import { EditorWrapper } from '../../editor/components/editor-wrapper'
 import { useTaskContext } from '../hooks/use-task-context'
-import { extractTasksFromBlocks } from '../../notes/utils/extract-tasks'
+import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
 import { syncTasksToDatabase } from '../api/mutations/sync-tasks'
 
 interface TaskDescriptionEditorProps {

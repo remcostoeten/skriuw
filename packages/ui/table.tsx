@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
 	({ className, ...props }, ref) => (

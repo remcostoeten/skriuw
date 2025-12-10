@@ -1,4 +1,4 @@
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 	className?: string

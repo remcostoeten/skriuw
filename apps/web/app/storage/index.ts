@@ -1,6 +1,5 @@
 import { setAdapter, hasAdapter } from '@skriuw/crud'
 import { createClientApiAdapter } from '../../lib/storage/adapters/client-api'
-import { initializeDefaultNotesAndFolders } from '../../features/notes/utils/initialize-defaults'
 
 let initializationPromise: Promise<void> | null = null
 
@@ -28,11 +27,6 @@ export async function initializeAppStorage(): Promise<void> {
 async function performInitialization(): Promise<void> {
 	try {
 		ensureStorageInitialized()
-		// Initialize default notes and folders for new visitors (non-blocking)
-		// Don't await this - let it run in background
-		initializeDefaultNotesAndFolders().catch(error => {
-			console.error('Failed to initialize defaults in background:', error)
-		})
 	} catch (error) {
 		initializationPromise = null
 		console.error('Failed to initialize storage:', error)

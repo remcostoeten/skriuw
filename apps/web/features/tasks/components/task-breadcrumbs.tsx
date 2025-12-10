@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronRight, Home } from 'lucide-react'
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import type { TaskBreadcrumb } from '../hooks/use-task-context'
 
 interface TaskBreadcrumbsProps {

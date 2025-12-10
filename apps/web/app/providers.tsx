@@ -11,7 +11,7 @@ import { TooltipProvider } from '@skriuw/ui'
 import { initializeAppStorage } from './storage'
 
 import { EditorTabsProvider } from '../features/editor/tabs'
-import { NotesProvider } from '../features/notes/context/notes-context'
+import { NotesProvider } from '@/features/notes/context/notes-context'
 import { SettingsProvider } from '../features/settings'
 import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
