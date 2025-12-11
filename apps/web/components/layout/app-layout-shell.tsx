@@ -8,6 +8,7 @@ import { Icons } from '@skriuw/ui'
 type props = {
 	leftToolbar?: ReactNode
 	sidebar: ReactNode
+	sidebarVisible?: boolean // Control sidebar visibility without unmounting
 	topToolbar: ReactNode
 	mainContent: ReactNode
 	footer: ReactNode
@@ -27,6 +28,7 @@ type props = {
 export function AppLayoutShell({
 	leftToolbar,
 	sidebar,
+	sidebarVisible = true,
 	topToolbar,
 	mainContent,
 	footer,
@@ -82,9 +84,9 @@ export function AppLayoutShell({
 		isDraggingRef.current = false
 	}
 
-        return (
-                <div className="h-screen w-screen flex flex-col bg-background overflow-hidden touch-pan-y pt-[env(safe-area-inset-top)]">
-                        <div className="flex flex-1 overflow-hidden relative">
+	return (
+		<div className="h-screen w-screen flex flex-col bg-background overflow-hidden touch-pan-y pt-[env(safe-area-inset-top)]">
+			<div className="flex flex-1 overflow-hidden relative">
 
 				{/* Enhanced backdrop for mobile - better z-index and handling */}
 				{isSidebarOpen && isMobile && (
@@ -113,7 +115,9 @@ export function AppLayoutShell({
 							!isMobile &&
 							(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'),
 							// Hide on desktop when closed
-							!isMobile && !isDesktopSidebarOpen && 'lg:-translate-x-full'
+							!isMobile && !isDesktopSidebarOpen && 'lg:-translate-x-full',
+							// Hide via CSS when sidebarVisible is false (SPA-like, stays mounted)
+							!sidebarVisible && 'hidden'
 						)}
 						style={{
 							// Add shadow for mobile
@@ -136,26 +140,26 @@ export function AppLayoutShell({
 					</div>
 				)}
 
-                                <div
-                                        className={cn(
-                                                'flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out',
-                                                // Task panel adjustments
-                                                isTaskPanelOpen && 'pr-[480px] lg:pr-[560px]',
-                                                isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
-                                        )}
-                                        style={{
-                                                // On desktop, adjust margin when sidebar is closed to reclaim the 210px space
-                                                marginLeft: !isMobile && !isDesktopSidebarOpen ? '-210px' : undefined,
-                                        }}
-                                >
-                                        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
-                                                {topToolbar}
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))]">
-                                                {mainContent}
-                                        </div>
-                                        {footer}
-                                </div>
+				<div
+					className={cn(
+						'flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out',
+						// Task panel adjustments
+						isTaskPanelOpen && 'pr-[480px] lg:pr-[560px]',
+						isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
+					)}
+					style={{
+						// On desktop, adjust margin when sidebar is closed to reclaim the 210px space
+						marginLeft: !isMobile && !isDesktopSidebarOpen ? '-210px' : undefined,
+					}}
+				>
+					<div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+						{topToolbar}
+					</div>
+					<div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))]">
+						{mainContent}
+					</div>
+					{footer}
+				</div>
 
 				{/* Right Panel (e.g., shortcuts sidebar) */}
 				{rightPanel}

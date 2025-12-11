@@ -10,6 +10,8 @@ export interface UserSetting<T = any> {
 	options?: T[] // For enum type settings
 	validation?: (value: T) => boolean | string
 	implemented?: boolean // Whether this setting is actually implemented in the app
+	disabled?: boolean // Rendered but not interactive
+	disabledReason?: string
 	condition?: (settings: Record<string, any>) => boolean // Conditionally show setting based on other settings
 	subsection?: string // Optional subsection to group settings visually
 	preview?: {
