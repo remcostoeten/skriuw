@@ -20,17 +20,23 @@ export async function GET() {
 		const settingsKey = getSettingsKey(userId)
 		const result = await db.findById('settings', settingsKey, userId)
 		// Decrypt storage connectors before returning to the client
-		const decrypted =
-			result && result.value?.storageConnectors
-				? {
+		if (result && result.value?.storageConnectors) {
+			try {
+				const decrypted = decryptConnectorStates(result.value.storageConnectors)
+				return NextResponse.json({
 					...result,
-					value: {
-						...result.value,
-						storageConnectors: decryptConnectorStates(result.value.storageConnectors),
-					},
-				}
-				: result
-		return NextResponse.json(decrypted)
+					value: { ...result.value, storageConnectors: decrypted },
+				})
+			} catch (decryptError) {
+				console.error('Failed to decrypt storage connectors:', decryptError)
+				return NextResponse.json(
+					{ error: 'Failed to load storage connectors' },
+					{ status: 500 }
+				)
+			}
+		}
+
+		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to load settings:', error)
 		return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 })
