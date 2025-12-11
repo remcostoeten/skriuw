@@ -13,7 +13,9 @@ const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024 // 8 MB
 
 async function toHexSha256(data: Uint8Array): Promise<string> {
 	if (typeof crypto !== 'undefined' && crypto.subtle) {
-		const digest = await crypto.subtle.digest('SHA-256', data)
+		const buffer = new ArrayBuffer(data.byteLength)
+		new Uint8Array(buffer).set(data)
+		const digest = await crypto.subtle.digest('SHA-256', buffer)
 		return Array.from(new Uint8Array(digest))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('')
