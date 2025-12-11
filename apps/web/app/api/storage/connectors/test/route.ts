@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 		if (!type) return jsonError('Missing provider type')
 		const rawConfig = body?.config || {}
 		const result = await runConnectorHandshake(type, rawConfig)
-		return NextResponse.json({ ok: true, ...result })
+		return NextResponse.json(result)
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Handshake failed'
 		console.error('Connector handshake failed:', message)
