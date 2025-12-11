@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../lib/storage/adapters/server-db'
 import { requireAuth } from '../../../lib/api-auth'
 import { getSafeTimestamp } from '@skriuw/db'
+import { decryptConnectorStates, encryptConnectorStates } from '@/features/backup/core/connector-secrets'
 
 /**
  * Generates a user-specific settings key.
@@ -18,7 +19,18 @@ export async function GET() {
 
 		const settingsKey = getSettingsKey(userId)
 		const result = await db.findById('settings', settingsKey, userId)
-		return NextResponse.json(result)
+		// Decrypt storage connectors before returning to the client
+		const decrypted =
+			result && result.value?.storageConnectors
+				? {
+					...result,
+					value: {
+						...result.value,
+						storageConnectors: decryptConnectorStates(result.value.storageConnectors),
+					},
+				}
+				: result
+		return NextResponse.json(decrypted)
 	} catch (error) {
 		console.error('Failed to load settings:', error)
 		return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 })
@@ -35,10 +47,19 @@ export async function POST(request: NextRequest) {
 		const body = await request.json()
 		const now = getSafeTimestamp()
 
+		// Encrypt storage connectors before persistence
+		const rawSettings = body?.settings ?? {}
+		const encryptedSettings = {
+			...rawSettings,
+			storageConnectors: rawSettings.storageConnectors
+				? encryptConnectorStates(rawSettings.storageConnectors)
+				: undefined,
+		}
+
 		const data = {
 			id: settingsKey,
 			key: settingsKey,
-			value: body?.settings ?? {},
+			value: encryptedSettings,
 			createdAt: now,
 			updatedAt: now,
 		}
@@ -61,10 +82,19 @@ export async function PUT(request: NextRequest) {
 		const body = await request.json()
 		const now = getSafeTimestamp()
 
+		// Encrypt storage connectors before persistence
+		const rawSettings = body?.settings ?? {}
+		const encryptedSettings = {
+			...rawSettings,
+			storageConnectors: rawSettings.storageConnectors
+				? encryptConnectorStates(rawSettings.storageConnectors)
+				: undefined,
+		}
+
 		const data = {
 			id: settingsKey,
 			key: settingsKey,
-			value: body?.settings ?? {},
+			value: encryptedSettings,
 			createdAt: now,
 			updatedAt: now,
 		}
