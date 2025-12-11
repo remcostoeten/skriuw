@@ -12,6 +12,7 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				label: 'Access Key ID',
 				placeholder: 'AKIA...',
 				required: true,
+				help: 'Create an IAM user with programmatic access and S3 permissions.',
 			},
 			{
 				name: 'secretAccessKey',
@@ -19,6 +20,7 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				placeholder: '********',
 				secret: true,
 				required: true,
+				help: 'Store securely; used only to sign S3 requests.',
 			},
 			{
 				name: 'region',
@@ -31,6 +33,7 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				label: 'Bucket Name',
 				placeholder: 'skriuw-backups',
 				required: true,
+				help: 'Bucket name where backups will be stored.',
 			},
 			{
 				name: 'endpoint',
