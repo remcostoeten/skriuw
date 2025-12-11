@@ -1,17 +1,18 @@
 'use client'
 
-import { Suspense, lazy, useMemo } from 'react'
+import { Suspense, lazy, useMemo, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-
-import { EmptyState } from '../components/ui/empty-state'
 
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut, shortcut } from '../features/shortcuts'
 import { useCookie } from '@/hooks/use-cookie'
+import { useUIStore } from '@/stores/ui-store'
+import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 
 import { IndexSkeleton } from '../components/pages/index-skeleton'
+import { SkriuwExplanation } from '../components/landing/skriuw-explanation'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({
@@ -31,13 +32,51 @@ export default function Index() {
 	const router = useRouter()
 	const { items, createNote, isInitialLoading } = useNotesContext()
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
+	const { lastActiveNoteId, setLastActiveNote } = useUIStore()
 
 	const isNoteRoute = pathname.startsWith('/note/')
+	const isBaseNoteRoute = pathname === '/note'
 	const slugOrId = isNoteRoute ? pathname.split('/note/')[1]?.split('?')[0] : null
 	const noteId = useMemo(() => {
 		if (!slugOrId) return null
 		return resolveNoteId(slugOrId)
 	}, [slugOrId, resolveNoteId])
+
+	// Get all notes (flattened)
+	const allNotes = useMemo(() => flattenNotes(items), [items])
+
+	// Track the active note ID
+	useEffect(() => {
+		if (noteId) {
+			setLastActiveNote(noteId)
+		}
+	}, [noteId, setLastActiveNote])
+
+	// Smart navigation when visiting /note
+	useEffect(() => {
+		if (isBaseNoteRoute && !isInitialLoading) {
+			if (allNotes.length === 0) {
+				// No notes: stay on /note to show SkriuwExplanation
+				return
+			} else if (allNotes.length === 1) {
+				// Single note: navigate to it
+				const singleNote = allNotes[0]
+				router.replace(getNoteUrl(singleNote.id))
+			} else if (lastActiveNoteId) {
+				// Multiple notes: navigate to last active note if it exists
+				const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
+				if (noteExists) {
+					router.replace(getNoteUrl(lastActiveNoteId))
+				} else {
+					// Last active note was deleted, navigate to first note
+					router.replace(getNoteUrl(allNotes[0].id))
+				}
+			} else {
+				// Multiple notes but no last active: navigate to first note
+				router.replace(getNoteUrl(allNotes[0].id))
+			}
+		}
+	}, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
 
 	async function handleCreateNote() {
 		const newNote = await createNote('Untitled')
@@ -82,43 +121,10 @@ export default function Index() {
 					{isInitialLoading ? (
 						<IndexSkeleton />
 					) : (
-						<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
-							<div className="flex flex-col items-center gap-6 mb-8">
-								<div className="flex flex-col items-center gap-3">
-									<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
-									<div className="flex flex-col items-center gap-1 text-muted-foreground">
-										<p className="text-sm italic">
-											<span className="font-mono">/skrɪu̯/</span> —{' '}
-											<span className="font-medium">Frisian, &quot;to write.&quot;</span>
-										</p>
-									</div>
-								</div>
-
-								<div className="max-w-lg text-center">
-									<p className="text-sm text-muted-foreground leading-relaxed">
-										A blazingly fast, privacy-focused note-taking app built for everyone. Prooviding
-										a opt-in system for all features (yes, ai is included) rather than the usual
-										opt-out system. The tools are here, you just need to opt-in.
-									</p>
-								</div>
-							</div>
-							<EmptyState
-								actions={[
-									{
-										label: 'Open Collection',
-										shortcut: shortcut().modifiers('Cmd').key('O'),
-										separator: true,
-										onClick: handleOpenCollection,
-									},
-									{
-										label: 'Create Note',
-										shortcut: shortcut().modifiers('Cmd').key('N'),
-										separator: true,
-										onClick: handleCreateNote,
-									},
-								]}
-							/>
-						</div>
+						<SkriuwExplanation
+							onCreateNote={handleCreateNote}
+							onOpenCollection={handleOpenCollection}
+						/>
 					)}
 				</div>
 			) : (

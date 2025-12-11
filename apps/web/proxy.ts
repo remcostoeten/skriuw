@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function proxy(request: NextRequest) {
-	// Add any middleware logic here (auth, redirects, etc.)
+	// Redirect /notes to /note
+	if (request.nextUrl.pathname === '/notes') {
+		return NextResponse.redirect(new URL('/note', request.url))
+	}
+
+	// Add any other middleware logic here (auth, redirects, etc.)
 	return NextResponse.next()
 }
 
