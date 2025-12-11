@@ -53,9 +53,10 @@ export function StorageAdaptersPanel({
 		definitions,
 		connectors,
 		testConnector,
-		disconnectConnector,
-		testingConnector,
-	} = useStorageConnectors()
+	disconnectConnector,
+	removeConnector,
+	testingConnector,
+} = useStorageConnectors()
 
 	const [formState, setFormState] = useState<FormState>({} as FormState)
 	const [nameState, setNameState] = useState<NameState>({} as NameState)
@@ -276,12 +277,35 @@ export function StorageAdaptersPanel({
 								</div>
 								</CardHeader>
 								<CardContent className="space-y-6">
-									<div className="grid gap-3">
-										<div className="grid gap-2">
-											<Label className="text-xs text-muted-foreground">Connection name</Label>
-											<Input
-												value={friendlyName}
-												onChange={(e) => handleNameChange(definition.type, e.target.value)}
+										<div className="grid gap-3">
+											<div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+												<p className="font-medium text-foreground mb-1">Where to find these credentials</p>
+												{definition.type === 's3' && (
+													<ul className="list-disc list-inside space-y-1">
+														<li>Use an access key with programmatic access.</li>
+														<li>Bucket name and region must match the bucket you will store backups in.</li>
+														<li>Custom endpoint is for S3-compatible services (e.g., R2, MinIO).</li>
+													</ul>
+												)}
+												{definition.type === 'dropbox' && (
+													<ul className="list-disc list-inside space-y-1">
+														<li>Create a Dropbox app and generate a short-lived access token.</li>
+														<li>Root path controls where backups are stored (e.g., /Apps/Skriuw).</li>
+													</ul>
+												)}
+												{definition.type === 'google-drive' && (
+													<ul className="list-disc list-inside space-y-1">
+														<li>Use an OAuth client ID/secret with Drive API enabled.</li>
+														<li>Provide a refresh token with Drive scope; folderId is optional.</li>
+													</ul>
+												)}
+											</div>
+
+											<div className="grid gap-2">
+												<Label className="text-xs text-muted-foreground">Connection name</Label>
+												<Input
+													value={friendlyName}
+													onChange={(e) => handleNameChange(definition.type, e.target.value)}
 												placeholder={`${definition.label} backup`}
 												className={inputClass}
 											/>
@@ -355,6 +379,12 @@ export function StorageAdaptersPanel({
 											disabled={connector?.status !== 'connected'}
 										>
 											Disconnect
+										</Button>
+										<Button
+											variant="ghost"
+											onClick={() => removeConnector(definition.type)}
+										>
+											Remove
 										</Button>
 									</div>
 								</CardContent>
