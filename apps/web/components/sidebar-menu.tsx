@@ -28,7 +28,7 @@ import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcu
 import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
 import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
 import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
-import type { SettingsGroup as SettingsGroupType } from '../features/settings'
+import type { SettingsGroup as SettingsGroupDefinition } from '../features/settings/types'
 
 type props = {
 	open: boolean
@@ -164,7 +164,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	}
 
 	const renderSettingsContent = () => {
-		const animationSetting: SettingsGroupType = {
+		const animationSetting: SettingsGroupDefinition = {
 			category: 'appearance',
 			title: 'UI Preferences',
 			description: 'Global interface preferences',

@@ -1,7 +1,7 @@
 'use client'
 
 import { Download, Upload, HardDrive, Cloud } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 
 import { Tabs, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
@@ -27,6 +27,7 @@ export default function DataBackupPage() {
 	const { definitions, connectors } = useStorageConnectors()
 	const prefersAnimations = usePrefersAnimations(true)
 	const lastProviderRef = useRef<StorageConnectorType>('s3')
+	const connectorTypes = useMemo(() => definitions.map((d) => d.type), [definitions])
 
 	useEffect(() => {
 		const savedTab = localStorage.getItem('archive-active-tab')
@@ -35,9 +36,13 @@ export default function DataBackupPage() {
 		}
 		const savedProvider = localStorage.getItem('archive-storage-provider')
 		if (savedProvider) {
-			setStorageProvider(savedProvider)
+			const typedProvider = savedProvider as StorageConnectorType
+			if (connectorTypes.includes(typedProvider)) {
+				setStorageProvider(typedProvider)
+				lastProviderRef.current = typedProvider
+			}
 		}
-	}, [])
+	}, [connectorTypes])
 
 	function handleTabChange(value: string) {
 		setActiveTab(value)

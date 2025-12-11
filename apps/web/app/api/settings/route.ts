@@ -4,6 +4,15 @@ import { requireAuth } from '../../../lib/api-auth'
 import { getSafeTimestamp } from '@skriuw/db'
 import { decryptConnectorStates, encryptConnectorStates } from '@/features/backup/core/connector-secrets'
 
+type SettingsRecord = {
+	id: string
+	key: string
+	value: Record<string, any>
+	userId?: string | null
+	createdAt: number
+	updatedAt: number
+}
+
 /**
  * Generates a user-specific settings key.
  */
@@ -18,7 +27,7 @@ export async function GET() {
 		const { userId } = auth
 
 		const settingsKey = getSettingsKey(userId)
-		const result = await db.findById('settings', settingsKey, userId)
+		const result = await db.findById<SettingsRecord>('settings', settingsKey, userId)
 		// Decrypt storage connectors before returning to the client
 		if (result && result.value?.storageConnectors) {
 			try {
