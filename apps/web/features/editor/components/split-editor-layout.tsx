@@ -2,10 +2,10 @@
 
 import { ReactNode, useCallback, useMemo, useRef, useState } from 'react'
 
-import { cn } from '@skriuw/core-logic'
+import { cn } from '@skriuw/shared'
 import { IconButton } from '@skriuw/ui/icons'
 
-import { Panels, StretchHorizontal, StretchVertical, Swap, X } from 'lucide-react'
+import { LayoutPanelLeft, RotateCcw, Split, StretchHorizontal, StretchVertical, X } from 'lucide-react'
 
 type SplitPane = {
         id: string
@@ -113,7 +113,7 @@ export function SplitEditorLayout({
                 <div className="absolute right-2 top-2 flex items-center gap-1 text-muted-foreground">
                         {isSplit && panes.length > 1 && (
                                 <IconButton
-                                        icon={<Swap className="w-3.5 h-3.5" />}
+                                        icon={<RotateCcw className="w-3.5 h-3.5" />}
                                         tooltip="Swap panes"
                                         variant="toolbar"
                                         onClick={onSwapPanes}
@@ -156,7 +156,7 @@ export function SplitEditorLayout({
                         <div className="flex h-full flex-col gap-2">
                                 <div className="flex items-center justify-end gap-2">
                                         <IconButton
-                                                icon={<Panels className="w-4 h-4" />}
+                                                icon={<LayoutPanelLeft className="w-4 h-4" />}
                                                 tooltip="Split editor"
                                                 variant="toolbar"
                                                 onClick={onToggleSplit}
@@ -171,7 +171,7 @@ export function SplitEditorLayout({
                 <div className="flex h-full flex-col" ref={containerRef}>
                         <div className="flex items-center justify-end gap-2 pb-2">
                                 <IconButton
-                                        icon={<Panels className="w-4 h-4" />}
+                                        icon={<Split className="w-4 h-4" />}
                                         tooltip="Toggle split"
                                         variant="toolbar"
                                         onClick={onToggleSplit}
