@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { STORAGE_CONNECTOR_DEFINITIONS } from './connectors'
-import { decryptConnectorStates, encryptConnectorStates } from './connector-secrets'
+import { STORAGE_CONNECTOR_DEFINITIONS } from '../../features/backup/core/connectors'
+import {
+	decryptConnectorStates,
+	encryptConnectorStates,
+} from '../../features/backup/core/connector-secrets'
 
 const baseConnectors = [
 	{
@@ -42,7 +45,7 @@ const baseConnectors = [
 
 describe('connector-secrets', () => {
 	beforeEach(() => {
-		process.env.CONNECTOR_ENCRYPTION_KEY = 'test-key'
+		process.env.CONNECTOR_ENCRYPTION_KEY = 'test-key-should-work'
 	})
 
 	it('encrypts and decrypts secret fields while preserving non-secret fields', () => {
