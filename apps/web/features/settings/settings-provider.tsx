@@ -40,6 +40,12 @@ const DEFAULT_SETTINGS = {
 	fontFamily: 'inter',
 	lineHeight: 1.4,
 	maxWidth: 'full',
+
+	// Storage connectors
+	storageConnectors: [],
+
+	// UI preferences
+	'ui.animations': true,
 } as const
 
 export function SettingsProvider({

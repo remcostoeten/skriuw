@@ -95,7 +95,7 @@ export function ExportPanel() {
 	return (
 		<div className="space-y-6">
 			<div className="flex gap-4">
-				<StatCard label="Notes" value={noteCount} />
+				<StatCard label="Notes ready to export" value={noteCount} />
 				<StatCard label="Folders" value={folderCount} />
 			</div>
 

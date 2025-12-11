@@ -88,3 +88,35 @@ export interface BackupJob {
 	status: 'pending' | 'running' | 'succeeded' | 'failed'
 	error?: string
 }
+
+// Storage connector configuration (S3, Dropbox, Google Drive)
+export type StorageConnectorType = 's3' | 'dropbox' | 'google-drive'
+
+export type StorageConnectorStatus = 'disconnected' | 'connected' | 'error'
+
+export interface StorageConnectorField {
+	name: string
+	label: string
+	placeholder?: string
+	help?: string
+	secret?: boolean
+	required?: boolean
+}
+
+export interface StorageConnectorDefinition {
+	type: StorageConnectorType
+	label: string
+	description: string
+	fields: StorageConnectorField[]
+	docsUrl?: string
+}
+
+export interface StorageConnectorState {
+	id: string
+	type: StorageConnectorType
+	name: string
+	status: StorageConnectorStatus
+	lastValidatedAt?: string
+	lastError?: string | null
+	config: Record<string, string>
+}
