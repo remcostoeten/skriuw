@@ -75,6 +75,7 @@ export function AppLayoutManager({
 	const [splitRatio, setSplitRatio] = useState(0.5)
 	const [splitOrientation, setSplitOrientation] = useState<'vertical' | 'horizontal'>('vertical')
 
+
 	// Update ref when loading completes
 	useEffect(() => {
 		if (!isInitialLoading) {
@@ -126,6 +127,7 @@ export function AppLayoutManager({
 		return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
 	}, [sidebarActiveNoteId, notesInOrder])
 
+<<<<<<< HEAD
 	useEffect(() => {
 		if (!isNoteRoute) {
 			setIsSplitView(false)
@@ -164,6 +166,9 @@ export function AppLayoutManager({
 			setActivePaneId('primary')
 		}
 	}, [isSplitView, activePaneId, currentNoteId])
+=======
+
+>>>>>>> a586e0e (refactor: remove unused local split view state and import)
 
 	// Compute title based on titleDisplayMode setting
 	const computedTitle = useMemo(() => {
