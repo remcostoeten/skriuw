@@ -21,11 +21,7 @@ export const shortcutDefinitions = {
 		enabled: true,
 	},
 	'create-note': {
-		keys: [
-			['Ctrl', 'n'],
-			['Meta', 'n'],
-			['n'],
-		],
+		keys: [['Ctrl', 'n'], ['Meta', 'n'], ['n']],
 		description: 'Create a new note',
 		enabled: true,
 	},
@@ -38,11 +34,7 @@ export const shortcutDefinitions = {
 		enabled: true,
 	},
 	'rename-item': {
-		keys: [
-			['Ctrl', 'r'],
-			['Meta', 'r'],
-			['r'],
-		],
+		keys: [['Ctrl', 'r'], ['Meta', 'r'], ['r']],
 		description: 'Rename selected file/folder',
 		enabled: true,
 	},
@@ -70,43 +62,36 @@ export const shortcutDefinitions = {
 		description: 'Save the current note',
 		enabled: false, // Not implemented yet
 	},
-        'search-notes': {
-                keys: [
-                        ['Ctrl', 'k'],
-                        ['Meta', 'k'],
-                ],
-                description: 'Search notes',
-                enabled: true,
-        },
-        'toggle-split-view': {
-                keys: [
-                        ['Ctrl', '\\'],
-                        ['Meta', '\\'],
-                ],
-                description: 'Toggle split editor view',
-                enabled: true,
-        },
-        'swap-split-panes': {
-                keys: [
-                        ['Ctrl', 'Shift', '\\'],
-                        ['Meta', 'Shift', '\\'],
-                ],
-                description: 'Swap split panes',
-                enabled: true,
-        },
-        'cycle-split-orientation': {
-                keys: [
-                        ['Ctrl', 'Alt', '\\'],
-                        ['Meta', 'Alt', '\\'],
-                ],
-                description: 'Toggle vertical/horizontal split orientation',
-                enabled: true,
-        },
-        'delete-item': {
-                keys: [['Delete'], ['Backspace'], ['Ctrl', 'Backspace'], ['Meta', 'Backspace']],
-                description: 'Delete selected file/folder when context menu is open',
-                enabled: true,
-        },
+
+	'toggle-split-view': {
+		keys: [
+			['Ctrl', '`'],
+			['Meta', '`'],
+		],
+		description: 'Toggle split view (single ↔ split)',
+		enabled: true,
+	},
+	'swap-split-panes': {
+		keys: [
+			['Ctrl', 'Shift', '\\'],
+			['Meta', 'Shift', '\\'],
+		],
+		description: 'Swap split panes',
+		enabled: true,
+	},
+	'cycle-split-orientation': {
+		keys: [
+			['Ctrl', 'Alt', '\\'],
+			['Meta', 'Alt', '\\'],
+		],
+		description: 'Toggle vertical/horizontal split orientation',
+		enabled: true,
+	},
+	'delete-item': {
+		keys: [['Delete'], ['Backspace'], ['Ctrl', 'Backspace'], ['Meta', 'Backspace']],
+		description: 'Delete selected file/folder when context menu is open',
+		enabled: true,
+	},
 	'pin-item': {
 		keys: [['p']],
 		description: 'Pin/unpin selected file/folder when context menu is open',
@@ -171,6 +156,27 @@ export const shortcutDefinitions = {
 			['Meta', 'Alt', 'w'],
 		],
 		description: 'Close active pane',
+		enabled: true,
+	},
+	'toggle-panes': {
+		keys: [['`']],
+		description: 'Cycle between split panes (clockwise)',
+		enabled: true,
+	},
+	'split.vertical': {
+		keys: [
+			['Ctrl', 'Alt', 'v'],
+			['Meta', 'Alt', 'v'],
+		],
+		description: 'Force vertical split',
+		enabled: true,
+	},
+	'split.horizontal': {
+		keys: [
+			['Ctrl', 'Alt', 'h'],
+			['Meta', 'Alt', 'h'],
+		],
+		description: 'Force horizontal split',
 		enabled: true,
 	},
 } satisfies Record<string, ShortcutDefinition>

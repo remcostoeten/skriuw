@@ -24,6 +24,7 @@ export function useUserPreferences() {
 		autoBackup: (value) => Boolean(value), // default false
 		rawMDXMode: (value) => Boolean(value), // default false (start with rich editor)
 		sideBySideMode: (value) => Boolean(value), // default false
+		'ui.animations': (value) => value !== false, // default true
 	}
 
 	const isEnabled = useCallback(
@@ -148,6 +149,13 @@ export function useUserPreferences() {
 				type: 'boolean',
 				description: 'Show rich editor and MDX editor side by side',
 				category: 'editor',
+			},
+			'ui.animations': {
+				value: settings['ui.animations'] !== false,
+				defaultValue: true,
+				type: 'boolean',
+				description: 'Enable interface animations (tab transitions, subtle motion)',
+				category: 'appearance',
 			},
 		}
 

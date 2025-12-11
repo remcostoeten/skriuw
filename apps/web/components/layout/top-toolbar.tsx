@@ -1,11 +1,12 @@
 import {
 	Menu,
 	PanelLeftClose,
-	Search,
 	ChevronLeft,
 	ChevronRight,
 	Code,
 	Type,
+	Square,
+	SplitSquareHorizontal,
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -19,7 +20,6 @@ type props = {
 	noteName: string
 	onToggleSidebar: () => void
 	onToggleDesktopSidebar?: () => void
-	onSearch?: (query: string) => void
 	onNavigatePrevious?: () => void
 	onNavigateNext?: () => void
 	canNavigatePrevious?: boolean
@@ -38,7 +38,6 @@ export function TopToolbar({
 	noteName,
 	onToggleSidebar,
 	onToggleDesktopSidebar,
-	onSearch,
 	onNavigatePrevious,
 	onNavigateNext,
 	canNavigatePrevious = false,
@@ -129,19 +128,19 @@ export function TopToolbar({
 				className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2 pr-[env(safe-area-inset-right)]')}
 				data-tauri-drag-region={isTauri ? 'false' : undefined}
 			>
-				<IconButton
-					icon={<Search className="w-4 h-4 text-muted-foreground" />}
-					tooltip="Search notes"
-					variant="toolbar"
-					onClick={() => onSearch?.('')}
-				/>
 				{showSplitToggle && (
 					<IconButton
-						icon={<PanelLeftClose className="w-4 h-4 text-muted-foreground" />}
+						icon={
+							splitOrientation === 'single' ? (
+								<SplitSquareHorizontal className="w-4 h-4 text-muted-foreground" />
+							) : (
+								<Square className="w-4 h-4 text-muted-foreground" />
+							)
+						}
 						tooltip={
 							splitOrientation === 'single'
 								? 'Enable split view'
-								: `Split view (${splitOrientation === 'vertical' ? 'vertical' : 'horizontal'})`
+								: 'Close split view'
 						}
 						variant="toolbar"
 						className={cn(
