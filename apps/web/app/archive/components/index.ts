@@ -1,4 +1,4 @@
-export { ArchivePageSkeleton } from './archive-page-skeleton'
+// Archive components index - skeleton moved to loading.tsx
 export { ExportPanelSkeleton } from './export-panel-skeleton'
 export {
 	ImportPanelSkeleton,
