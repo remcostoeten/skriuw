@@ -40,6 +40,7 @@ type SplitViewState = {
 	setSizes: (sizes: number[]) => void
 	ensurePrimaryPane: (noteId: string | null) => void
 	focusPaneByIndex: (index: number) => void
+	toggleActivePane: () => void
 	setCurrentNoteId: (noteId: string | null) => void
 	reset: () => void
 }
@@ -108,11 +109,11 @@ function safeStorage(): Storage {
 	if (typeof window === 'undefined') {
 		const noopStorage: Storage = {
 			length: 0,
-			clear: () => { },
+			clear: () => {},
 			getItem: () => null,
 			key: () => null,
-			removeItem: () => { },
-			setItem: () => { },
+			removeItem: () => {},
+			setItem: () => {},
 		}
 		return noopStorage
 	}
@@ -158,13 +159,27 @@ export const useSplitViewStore = create<SplitViewState>()(
 			currentNoteId: null,
 			toggleSplit: (noteId) =>
 				set((state) => {
+					const baseNote = noteId ?? state.panes[0]?.noteId ?? state.currentNoteId ?? null
+
+					// If we already have two panes, collapse to single
 					if (state.panes.length > 1) {
-						// Switch to single
-						return applyOrientationState(state, 'single', noteId)
+						return applyOrientationState(state, 'single', baseNote)
 					}
-					// Switch to split (default vertical)
+
+					// Otherwise, ensure two panes seeded with the same note for side-by-side editing
+					const first = state.panes[0]
+						? { ...state.panes[0], noteId: baseNote }
+						: createPane(baseNote)
+					const second = createPane(baseNote)
+
 					const targetOrientation = state.orientation === 'horizontal' ? 'horizontal' : 'vertical'
-					return applyOrientationState(state, targetOrientation, noteId)
+
+					return withLayoutPersistence(state, {
+						panes: [first, second],
+						activePaneId: second.id,
+						orientation: targetOrientation,
+						sizes: normalizeSizes([0.5, 0.5]),
+					})
 				}),
 			openSplitWithNote: (noteId) => {
 				let newPaneId: string | null = null
@@ -174,9 +189,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 						return state
 					}
 					const base = noteId ?? state.panes[0]?.noteId ?? null
-					const first = state.panes[0]
-						? { ...state.panes[0], noteId: base }
-						: createPane(base)
+					const first = state.panes[0] ? { ...state.panes[0], noteId: base } : createPane(base)
 					const second = createPane(noteId ?? base)
 					newPaneId = second.id
 					return withLayoutPersistence(state, {
@@ -224,9 +237,7 @@ export const useSplitViewStore = create<SplitViewState>()(
 				})),
 			updatePaneScroll: (paneId, scrollTop) =>
 				set((state) => ({
-					panes: state.panes.map((pane) =>
-						pane.id === paneId ? { ...pane, scrollTop } : pane
-					),
+					panes: state.panes.map((pane) => (pane.id === paneId ? { ...pane, scrollTop } : pane)),
 				})),
 			setOrientation: (orientation, noteId) =>
 				set((state) => applyOrientationState(state, orientation, noteId ?? null)),
@@ -285,6 +296,15 @@ export const useSplitViewStore = create<SplitViewState>()(
 						return state
 					}
 					return { ...state, activePaneId: state.panes[index].id }
+				}),
+			toggleActivePane: () =>
+				set((state) => {
+					if (state.panes.length <= 1) {
+						return state
+					}
+					const currentIndex = state.panes.findIndex((pane) => pane.id === state.activePaneId)
+					const nextIndex = (currentIndex + 1) % state.panes.length
+					return { ...state, activePaneId: state.panes[nextIndex].id }
 				}),
 			setCurrentNoteId: (noteId) =>
 				set((state) => {

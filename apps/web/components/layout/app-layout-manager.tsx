@@ -4,15 +4,16 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
-import { SplitEditorLayout } from '../../features/editor/components/split-editor-layout'
 import { useEditorTabs } from '../../features/editor/tabs'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { GlobalSearchDialog } from '../../features/search'
+
 import { useSettings, useUserPreferences } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
+
+import { useSplitViewStore } from '../../features/notes/split-view/store'
 
 import { DevWidget } from '../dev-widget'
 // import { AlphaBanner } from '../alpha-banner'
@@ -25,11 +26,9 @@ import { SidebarMenu } from '../sidebar-menu'
 import { useUIStore } from '../../stores/ui-store'
 
 import { AppLayoutShell } from './app-layout-shell'
-import { ChevronRight, Sparkles } from 'lucide-react'
 
 import type { SidebarContentType } from '../sidebar/types'
 
-// Import Sidebar directly - no lazy loading to prevent skeleton during navigation
 import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
@@ -51,6 +50,7 @@ export function AppLayoutManager({
 }: AppLayoutManagerProps) {
 	const router = useRouter()
 	const pathname = usePathname()
+	// Hide sidebar on archive/trash but keep it mounted for SPA-like behavior
 	const showSidebar = !pathname.startsWith('/archive') && !pathname.startsWith('/trash')
 	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } =
 		useNotesContext()
@@ -64,17 +64,11 @@ export function AppLayoutManager({
 	}, [slugOrId, resolveNoteId])
 
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
-	const [isSearchOpen, setIsSearchOpen] = useState(false)
+
 	// Track if we've ever loaded to prevent showing skeleton during navigation
 	const hasEverLoadedRef = useRef(false)
-	const [isSplitView, setIsSplitView] = useState(false)
-	const [splitPanes, setSplitPanes] = useState<{ id: string; noteId: string | null }[]>([
-		{ id: 'primary', noteId: null },
-	])
-	const [activePaneId, setActivePaneId] = useState('primary')
-	const [splitRatio, setSplitRatio] = useState(0.5)
-	const [splitOrientation, setSplitOrientation] = useState<'vertical' | 'horizontal'>('vertical')
 
+	const { toggleSplit, orientation, toggleActivePane, setOrientation } = useSplitViewStore()
 
 	// Update ref when loading completes
 	useEffect(() => {
@@ -95,6 +89,7 @@ export function AppLayoutManager({
 		setSettingsOpen,
 		taskStack,
 		closeAllTasks,
+		setLastActiveNote,
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
@@ -126,49 +121,6 @@ export function AppLayoutManager({
 		if (!sidebarActiveNoteId) return -1
 		return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
 	}, [sidebarActiveNoteId, notesInOrder])
-
-<<<<<<< HEAD
-	useEffect(() => {
-		if (!isNoteRoute) {
-			setIsSplitView(false)
-			setSplitPanes([{ id: 'primary', noteId: null }])
-			setActivePaneId('primary')
-		}
-	}, [isNoteRoute])
-
-	useEffect(() => {
-		if (!currentNoteId) return
-		setSplitPanes((prev) => {
-			if (!prev.length) {
-				return [{ id: 'primary', noteId: currentNoteId }]
-			}
-			const hasActivePane = prev.some((pane) => pane.id === activePaneId)
-			const nextPanes = prev.map((pane, index) => {
-				if (pane.id === activePaneId || (!hasActivePane && index === 0)) {
-					return { ...pane, noteId: currentNoteId }
-				}
-				if (pane.noteId === null) {
-					return { ...pane, noteId: currentNoteId }
-				}
-				return pane
-			})
-			return nextPanes
-		})
-	}, [currentNoteId, activePaneId])
-
-	useEffect(() => {
-		if (!isSplitView) {
-			setSplitPanes((prev) => {
-				const activePane = prev.find((pane) => pane.id === activePaneId)
-				const fallbackNoteId = activePane?.noteId ?? currentNoteId ?? null
-				return [{ id: 'primary', noteId: fallbackNoteId }]
-			})
-			setActivePaneId('primary')
-		}
-	}, [isSplitView, activePaneId, currentNoteId])
-=======
-
->>>>>>> a586e0e (refactor: remove unused local split view state and import)
 
 	// Compute title based on titleDisplayMode setting
 	const computedTitle = useMemo(() => {
@@ -211,79 +163,18 @@ export function AppLayoutManager({
 		togglePreference('rawMDXMode')
 	}, [togglePreference])
 
-	const handleToggleSplitView = useCallback(() => {
-		if (!isNoteRoute) return
-		setIsSplitView((prev) => {
-			if (prev) return false
-			setSplitPanes((current) => {
-				const activePane = current.find((pane) => pane.id === activePaneId)
-				const baseNoteId = activePane?.noteId ?? currentNoteId ?? null
-				const firstPane = current[0]
-					? { ...current[0], noteId: current[0].noteId ?? baseNoteId }
-					: { id: 'primary', noteId: baseNoteId }
-				const secondPane = current[1]
-					? { ...current[1], noteId: current[1].noteId ?? baseNoteId }
-					: { id: 'secondary', noteId: baseNoteId }
-				return [firstPane, secondPane]
-			})
-			return true
-		})
-	}, [activePaneId, currentNoteId, isNoteRoute])
-
-	const handleCycleSplitOrientation = useCallback(() => {
-		setSplitOrientation((prev) => (prev === 'vertical' ? 'horizontal' : 'vertical'))
-	}, [])
-
-	const handleClosePane = useCallback(
-		(paneId: string) => {
-			setSplitPanes((prev) => {
-				if (prev.length <= 1) return prev
-				const wasActive = activePaneId === paneId
-				const remaining = prev.filter((pane) => pane.id !== paneId)
-				if (!remaining.length) {
-					setIsSplitView(false)
-					setActivePaneId('primary')
-					return [{ id: 'primary', noteId: currentNoteId ?? null }]
-				}
-				if (remaining.length === 1) {
-					setIsSplitView(false)
-					setActivePaneId(remaining[0].id)
-				} else if (wasActive) {
-					setActivePaneId(remaining[0].id)
-				}
-				return remaining
-			})
-		},
-		[activePaneId, currentNoteId]
-	)
-
-	const handleSwapPanes = useCallback(() => {
-		setSplitPanes((prev) => {
-			if (prev.length < 2) return prev
-			const swapped = [prev[1], prev[0], ...prev.slice(2)]
-			if (activePaneId === prev[0].id) {
-				setActivePaneId(prev[1].id)
-			} else if (activePaneId === prev[1].id) {
-				setActivePaneId(prev[0].id)
-			}
-			return swapped
-		})
-	}, [activePaneId])
-
-	const handleAssignNoteToPane = useCallback((paneId: string, noteId: string) => {
-		setSplitPanes((prev) => prev.map((pane) => (pane.id === paneId ? { ...pane, noteId } : pane)))
-		setActivePaneId(paneId)
-	}, [])
-
-	const handlePaneClick = useCallback((paneId: string) => {
-		setActivePaneId(paneId)
-	}, [])
-
 	useEffect(() => {
 		if (!multiNoteTabs) {
 			clearTabs()
 		}
 	}, [multiNoteTabs, clearTabs])
+
+	// Track last active note
+	useEffect(() => {
+		if (sidebarActiveNoteId) {
+			setLastActiveNote(sidebarActiveNoteId)
+		}
+	}, [sidebarActiveNoteId, setLastActiveNote])
 
 	useEffect(() => {
 		if (!multiNoteTabs || !currentNoteId) return
@@ -412,42 +303,48 @@ export function AppLayoutManager({
 		toggleSettings()
 	})
 
-	useShortcut('search-notes', (e) => {
+	useShortcut('toggle-panes', (e) => {
 		e.preventDefault()
-		setIsSearchOpen(true)
+		toggleActivePane()
+	})
+
+	useShortcut('split.vertical', (e) => {
+		e.preventDefault()
+		setOrientation('vertical', currentNoteId)
+	})
+
+	useShortcut('split.horizontal', (e) => {
+		e.preventDefault()
+		setOrientation('horizontal', currentNoteId)
 	})
 
 	return (
 		<AppLayoutShell
 			leftToolbar={<LeftToolbar onSettingsClick={() => setSettingsOpen(true)} />}
 			sidebar={
-				showSidebar ? (
-					shouldShowSidebarSkeleton ? (
-						<SidebarSkeleton />
-					) : (
-						<Sidebar
-							activeNoteId={sidebarActiveNoteId || undefined}
-							contentType={sidebarContentType}
-							customContent={sidebarCustomContent}
-							openTabIds={multiNoteTabs ? new Set(tabs.map((t) => t.noteId)) : undefined}
-							ruler={{
-								enabled: false,
-								style: 'solid',
-								color: 'hsl(var(--muted-foreground))',
-								opacity: 0.25,
-							}}
-						/>
-					)
-				) : null
+				shouldShowSidebarSkeleton ? (
+					<SidebarSkeleton />
+				) : (
+					<Sidebar
+						activeNoteId={sidebarActiveNoteId || undefined}
+						contentType={sidebarContentType}
+						customContent={sidebarCustomContent}
+						openTabIds={multiNoteTabs ? new Set(tabs.map((t) => t.noteId)) : undefined}
+						ruler={{
+							enabled: false,
+							style: 'solid',
+							color: 'hsl(var(--muted-foreground))',
+							opacity: 0.25,
+						}}
+					/>
+				)
 			}
+			sidebarVisible={showSidebar}
 			topToolbar={
 				<TopToolbar
 					noteName={computedTitle}
 					onToggleSidebar={toggleMobileSidebar}
 					onToggleDesktopSidebar={toggleDesktopSidebar}
-					onSearch={() => {
-						setIsSearchOpen(true)
-					}}
 					onNavigatePrevious={handleNavigatePrevious}
 					onNavigateNext={handleNavigateNext}
 					canNavigatePrevious={canNavigatePrevious}
@@ -456,6 +353,11 @@ export function AppLayoutManager({
 					onToggleEditorMode={handleToggleEditorMode}
 					showSidebar={showSidebar}
 					showEditorModeToggle={!!sidebarActiveNoteId}
+					// Wiring up split toggles
+					showSplitToggle={!!sidebarActiveNoteId}
+					isSplitViewActive={orientation !== 'single'}
+					onSplitToggle={() => toggleSplit(currentNoteId)}
+					splitOrientation={orientation}
 				/>
 			}
 			mainContent={
@@ -498,7 +400,7 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<GlobalSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+
 					{/* <AlphaBanner
 						href="/docs"
 						text="New! PrismUI Components"
