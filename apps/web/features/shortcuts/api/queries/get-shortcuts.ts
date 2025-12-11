@@ -1,4 +1,3 @@
-
 import { readMany } from '@skriuw/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
@@ -17,7 +16,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 	const now = Date.now()
 
 	// Return cached shortcuts if still valid
-	if (cachedShortcuts && (now - cacheTimestamp) < CACHE_TTL) {
+	if (cachedShortcuts && now - cacheTimestamp < CACHE_TTL) {
 		return cachedShortcuts
 	}
 
@@ -32,10 +31,18 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'open-collection': [],
 			'toggle-sidebar': [],
 			'save-note': [],
-			'search-notes': [],
 			'toggle-split-view': [],
 			'swap-split-panes': [],
 			'cycle-split-orientation': [],
+			'split.toggle': [],
+			'split.swap': [],
+			'split.orientation.next': [],
+			'split.focus.left': [],
+			'split.focus.right': [],
+			'split.close': [],
+			'split.vertical': [],
+			'split.horizontal': [],
+			'toggle-panes': [],
 			'delete-item': [],
 			'pin-item': [],
 			'open-settings': [],
