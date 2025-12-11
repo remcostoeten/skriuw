@@ -1,7 +1,7 @@
 import type { BackupManifest, DestinationConfig, StorageDriver, BackupVerificationResult } from '../types'
 
 interface DownloadArchive {
-	manifest: BackupManifest
+	manifest: BackupManifest | null
 	chunks: Array<{ id: string; data: string }>
 }
 
@@ -60,7 +60,8 @@ export function createDownloadDriver(options?: { filenamePrefix?: string }): Sto
 		},
 
 		async putChunk(manifestId, chunkMeta, data) {
-			const archive = archives.get(manifestId) ?? { manifest: null as any, chunks: [] }
+			const archive: DownloadArchive =
+				archives.get(manifestId) ?? { manifest: null, chunks: [] }
 			archive.chunks.push({ id: chunkMeta.id, data: toBase64(data) })
 			archives.set(manifestId, archive)
 		},
@@ -95,7 +96,7 @@ export function createDownloadDriver(options?: { filenamePrefix?: string }): Sto
 		async listManifests() {
 			return Array.from(archives.values())
 				.map((entry) => entry.manifest)
-				.filter(Boolean)
+				.filter((manifest): manifest is BackupManifest => Boolean(manifest))
 		},
 
 		async verify(manifestId): Promise<BackupVerificationResult> {
