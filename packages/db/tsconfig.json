@@ -1,8 +1,15 @@
 {
   "extends": "@skriuw/typescript-config/base.json",
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "moduleResolution": "bundler"
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "drizzle.config.ts"
+  ]
 }

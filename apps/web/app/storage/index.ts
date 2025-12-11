@@ -1,20 +1,10 @@
-import { setAdapter, hasAdapter } from '@skriuw/crud'
-import { createClientApiAdapter } from '../../lib/storage/adapters/client-api'
 import { initializeDefaultNotesAndFolders } from '../../features/notes/utils/initialize-defaults'
 
 let initializationPromise: Promise<void> | null = null
 
 /**
- * Ensures the @skriuw/crud adapter is initialized.
- * Safe to call multiple times - will only initialize once.
- */
-function ensureStorageInitialized(): void {
-	if (hasAdapter()) return
-	setAdapter(createClientApiAdapter())
-}
-
-/**
- * Initialize the storage system with database (PostgreSQL via Drizzle)
+ * Initialize the storage system.
+ * Note: The adapter is set by AuthInitializer based on auth status.
  */
 export async function initializeAppStorage(): Promise<void> {
 	if (initializationPromise) {
@@ -27,16 +17,13 @@ export async function initializeAppStorage(): Promise<void> {
 
 async function performInitialization(): Promise<void> {
 	try {
-		ensureStorageInitialized()
 		// Initialize default notes and folders for new visitors (non-blocking)
 		// Don't await this - let it run in background
-		initializeDefaultNotesAndFolders().catch(error => {
-			console.error('Failed to initialize defaults in background:', error)
+		initializeDefaultNotesAndFolders().catch(() => {
+			// Silently fail - will work once storage is ready
 		})
-	} catch (error) {
+	} catch {
 		initializationPromise = null
-		console.error('Failed to initialize storage:', error)
-		throw error
 	}
 }
 

@@ -6,7 +6,7 @@ import {
 	ChevronRight,
 	Code,
 	Type,
-	Columns, // Panels is not available in all versions, using Columns as fallback
+	Columns,
 } from 'lucide-react'
 
 import { IconButton } from '@skriuw/ui/icons'
@@ -15,7 +15,7 @@ import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
 import { cn } from '@skriuw/core-logic'
 import { UserMenu } from '../auth/user-menu'
 
-type props = {
+type Props = {
 	noteName: string
 	onToggleSidebar: () => void
 	onToggleDesktopSidebar?: () => void
@@ -49,7 +49,7 @@ export function TopToolbar({
 	showSplitToggle = false,
 	isSplitView = false,
 	onToggleSplitView,
-}: props) {
+}: Props) {
 	const isTauri = isTauriAvailable()
 
 	return (

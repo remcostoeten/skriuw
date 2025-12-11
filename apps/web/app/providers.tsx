@@ -8,15 +8,18 @@ import { EmptyState } from '../components/ui/empty-state'
 
 import { TooltipProvider } from '@skriuw/ui'
 
+import { ReactQueryProvider } from './query-provider'
+
 import { initializeAppStorage } from './storage'
 
+import { AuthInitializer } from '../components/auth/auth-initializer'
 import { EditorTabsProvider } from '../features/editor/tabs'
 import { NotesProvider } from '../features/notes/context/notes-context'
 import { SettingsProvider } from '../features/settings'
 import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
-import { AppLayoutLoadingSkeleton } from '../components/layout/app-layout-loading'
+import { AppLayoutLoadingSkeleton } from '../components/layout/loading.app-layout'
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
 
 type props = {
@@ -31,7 +34,6 @@ function StorageInitializer({ children }: props) {
 		let isMounted = true
 		const timeoutId = setTimeout(() => {
 			if (isMounted && !isInitialized) {
-				console.warn('Storage initialization taking too long, showing app anyway')
 				setIsInitialized(true)
 			}
 		}, 5000)
@@ -39,7 +41,6 @@ function StorageInitializer({ children }: props) {
 		initializeAppStorage()
 			.then(() => {
 				if (isMounted) {
-					console.log('✅ Storage initialized successfully')
 					clearTimeout(timeoutId)
 					setIsInitialized(true)
 					setError(null)
@@ -47,7 +48,6 @@ function StorageInitializer({ children }: props) {
 			})
 			.catch((err) => {
 				if (isMounted) {
-					console.error('Failed to initialize storage:', err)
 					clearTimeout(timeoutId)
 					setError(err instanceof Error ? err : new Error(String(err)))
 					// Still show app even if storage fails
@@ -84,21 +84,25 @@ function StorageInitializer({ children }: props) {
 
 export function Providers({ children }: props) {
 	return (
-		<TooltipProvider delayDuration={0}>
-			<SonnerToaster />
-			<StorageInitializer>
-				<SettingsProvider>
-					<NotesProvider>
-						<ShortcutProvider>
-							<ContextMenuProvider>
-								<EditorTabsProvider>
-									<AppLayoutManager>{children}</AppLayoutManager>
-								</EditorTabsProvider>
-							</ContextMenuProvider>
-						</ShortcutProvider>
-					</NotesProvider>
-				</SettingsProvider>
-			</StorageInitializer>
-		</TooltipProvider>
+		<ReactQueryProvider>
+			<TooltipProvider delayDuration={0}>
+				<SonnerToaster />
+				<AuthInitializer>
+					<StorageInitializer>
+						<SettingsProvider>
+							<NotesProvider>
+								<ShortcutProvider>
+									<ContextMenuProvider>
+										<EditorTabsProvider>
+											<AppLayoutManager>{children}</AppLayoutManager>
+										</EditorTabsProvider>
+									</ContextMenuProvider>
+								</ShortcutProvider>
+							</NotesProvider>
+						</SettingsProvider>
+					</StorageInitializer>
+				</AuthInitializer>
+			</TooltipProvider>
+		</ReactQueryProvider>
 	)
 }

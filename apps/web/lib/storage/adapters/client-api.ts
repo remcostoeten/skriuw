@@ -64,7 +64,7 @@ function buildUrl(baseUrl: string, endpoint: string, params?: Record<string, str
 export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
     const apiBaseUrl = baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
-    async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
         const url = endpoint.startsWith('http') ? endpoint : `${apiBaseUrl}${endpoint}`
         const response = await globalThis.fetch(url, {
             headers: {
@@ -73,6 +73,11 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             },
             ...options,
         })
+
+        // Return null for auth errors - caller should handle gracefully
+        if (response.status === 401 || response.status === 403) {
+            return null
+        }
 
         if (!response.ok) {
             const text = await response.text()
@@ -108,10 +113,14 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
                 body.userId = options.userId
             }
 
-            return apiCall<T>(endpoint, {
+            const result = await apiCall<T>(endpoint, {
                 method: 'POST',
                 body: JSON.stringify(body),
             })
+            if (result === null) {
+                throw new Error('Authentication required')
+            }
+            return result
         },
 
         async read<T extends BaseEntity>(
@@ -132,7 +141,8 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 
             if (options?.getById) {
                 try {
-                    return await apiCall<T>(url)
+                    const result = await apiCall<T>(url)
+                    return result ?? undefined
                 } catch (error) {
                     const msg = (error as Error).message?.toLowerCase() ?? ''
                     if (msg.includes('404') || msg.includes('not found')) {
@@ -142,7 +152,8 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
                 }
             }
 
-            return apiCall<T[]>(url)
+            const result = await apiCall<T[]>(url)
+            return result ?? []
         },
 
         async update<T extends BaseEntity>(
@@ -161,7 +172,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             const url = buildUrl(apiBaseUrl, endpoint, params)
 
             try {
-                return await apiCall<T>(url, {
+                return await apiCall<any>(url, {
                     method: 'PUT',
                     body: JSON.stringify({ id, ...data }),
                 })

@@ -13,6 +13,9 @@
  * ```
  */
 
+// Load .env files BEFORE any validation happens
+import './loader'
+
 import { serverSchema, type ServerEnv } from './schema'
 import { validateEnvCached } from './validate'
 

@@ -49,5 +49,5 @@ export function getAppUrl(): string {
         return (globalThis as typeof globalThis & { location: { origin: string } }).location.origin
     }
 
-    return 'http://localhost:3000'
+    return 'http://localhost:42069'
 }

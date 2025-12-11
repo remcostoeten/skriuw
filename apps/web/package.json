@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "next build",
-		"dev": "next dev",
+		"dev": "next dev -p 42069",
 		"lint": "next lint",
 		"check-types": "tsc --noEmit",
 		"start": "next start",
@@ -27,6 +27,7 @@
 		"@skriuw/env": "workspace:*",
 		"@skriuw/shared": "workspace:*",
 		"@skriuw/ui": "workspace:*",
+		"@tanstack/react-query": "^5.90.12",
 		"@tauri-apps/api": "^1.5.0",
 		"ai": "^5.0.108",
 		"better-auth": "^1.4.5",

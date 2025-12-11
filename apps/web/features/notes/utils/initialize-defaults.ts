@@ -389,7 +389,6 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 	try {
 		// Fast check: skip if we've already initialized (persists across page refreshes)
 		if (hasInitializationFlag()) {
-			console.info('Defaults already initialized (localStorage flag), skipping')
 			return
 		}
 
@@ -397,7 +396,6 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 
 		// Only initialize if no items exist (first visit)
 		if (existingItems.length === 0) {
-			console.info('No items found, initializing default notes and folders...')
 
 			// Create folders first (they might be parents for notes)
 			const folderMap = new Map<string, string>() // name -> id
@@ -442,14 +440,9 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 				})
 			}
 
-			console.info(
-				`Initialized ${[toDoFolderSeed, servoFolderSeed, releasesFolderSeed, developmentDocsFolderSeed].length} folders and ${DEFAULT_NOTES.length} notes`
-			)
-
 			// Set flag to prevent re-initialization on page refresh
 			setInitializationFlag()
 		} else {
-			console.info(`Found ${existingItems.length} existing items, skipping default initialization`)
 
 			// Set flag even if items exist (they might have been created manually)
 			// This prevents unnecessary DB queries on future page refreshes
@@ -462,8 +455,8 @@ export async function initializeDefaultNotesAndFolders(): Promise<void> {
 
 		// Fix existing malformed Architecture Overview note if needed
 		await fixArchitectureOverviewNote()
-	} catch (error) {
-		console.error('Failed to initialize default notes and folders:', error)
+	} catch {
+		// Silently fail - likely not authenticated yet
 		// Don't throw - allow app to continue even if defaults fail
 	}
 }

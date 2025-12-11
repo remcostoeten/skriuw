@@ -1,5 +1,6 @@
 import { Block } from '@blocknote/core'
-import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
+import { useState, useCallback, startTransition, useDeferredValue } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { readOne } from '@skriuw/crud'
 
@@ -11,7 +12,7 @@ import { moveItem as moveItemMutation } from '../api/mutations/move-item'
 import { pinItem as pinItemMutation } from '../api/mutations/pin-item'
 import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
 import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
-import { getItems, invalidateItemsCache } from '../api/queries/get-items'
+import { getItems } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
 import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
 
@@ -19,59 +20,37 @@ import type { Note, Folder, Item } from '../types'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
+// Query key for notes - used for cache invalidation
+export const NOTES_QUERY_KEY = ['notes'] as const
+
 /**
- * Enhanced useNotes hook with non-blocking updates and loading states
- * Supports concurrent rendering and prevents layout shifts
+ * Enhanced useNotes hook with React Query for caching and deduplication.
+ * Keeps optimistic updates for fast UI feedback.
  */
-export function useNotesWithSuspense() {
-	const [items, setItems] = useState<Item[]>([])
-	const [isInitialLoading, setIsInitialLoading] = useState(true)
-	const [isRefreshing, setIsRefreshing] = useState(false)
+export function useNotes() {
+	const queryClient = useQueryClient()
+
+	// React Query handles fetching, caching, deduplication, and background refresh
+	const { data: items = [], isLoading: isInitialLoading, isFetching: isRefreshing } = useQuery({
+		queryKey: NOTES_QUERY_KEY,
+		queryFn: () => getItems(),
+		staleTime: 60 * 1000, // Consider data fresh for 1 minute
+	})
+
+	// Local state for optimistic updates (synced from React Query)
+	const [optimisticItems, setOptimisticItems] = useState<Item[] | null>(null)
+
+	// Use optimistic items if available, otherwise use query data
+	const displayItems = optimisticItems ?? items
 
 	// Deferred value for non-blocking updates
-	const deferredItems = useDeferredValue(items)
+	const deferredItems = useDeferredValue(displayItems)
 
-	// Initial load
-	useEffect(() => {
-		let isCancelled = false
-
-		const loadInitialData = async () => {
-			try {
-				const data = await getItems()
-				if (!isCancelled) {
-					setItems(data)
-					setIsInitialLoading(false)
-				}
-			} catch {
-				// Silently fail - likely not authenticated yet, will show empty state
-				if (!isCancelled) {
-					setIsInitialLoading(false)
-				}
-			}
-		}
-
-		loadInitialData()
-
-		return () => {
-			isCancelled = true
-		}
-	}, [])
-
+	// Invalidate and refetch
 	const refreshItems = useCallback(async () => {
-		setIsRefreshing(true)
-		try {
-			invalidateItemsCache()
-			const updatedItems = await getItems({ forceRefresh: true })
-			// Use startTransition to make this update non-blocking
-			startTransition(() => {
-				setItems(updatedItems)
-				setIsRefreshing(false)
-			})
-		} catch (error) {
-			console.error('Failed to refresh items:', error)
-			setIsRefreshing(false)
-		}
-	}, [])
+		setOptimisticItems(null) // Clear optimistic state
+		await queryClient.invalidateQueries({ queryKey: NOTES_QUERY_KEY })
+	}, [queryClient])
 
 	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
 		// Check prefetch cache first
@@ -133,7 +112,7 @@ export function useNotesWithSuspense() {
 					return i
 				})
 			}
-			setItems(addItem(items, optimisticNote, parentFolderId))
+			setOptimisticItems(addItem(items, optimisticNote, parentFolderId))
 
 			try {
 				// Create on server
@@ -151,11 +130,11 @@ export function useNotesWithSuspense() {
 						return i
 					})
 				}
-				setItems(replaceItem)
+				setOptimisticItems(replaceItem)
 				return newNote
 			} catch (error) {
 				// Rollback on failure
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to create note:', error)
 				throw error
 			}
@@ -197,7 +176,7 @@ export function useNotesWithSuspense() {
 					return i
 				})
 			}
-			setItems(addItem(items, optimisticFolder, parentFolderId))
+			setOptimisticItems(addItem(items, optimisticFolder, parentFolderId))
 
 			try {
 				// Create on server
@@ -215,11 +194,11 @@ export function useNotesWithSuspense() {
 						return i
 					})
 				}
-				setItems(replaceItem)
+				setOptimisticItems(replaceItem)
 				return newFolder
 			} catch (error) {
 				// Rollback on failure
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to create folder:', error)
 				throw error
 			}
@@ -251,12 +230,12 @@ export function useNotesWithSuspense() {
 					return item
 				})
 			}
-			setItems(updateName(items))
+			setOptimisticItems(updateName(items))
 
 			try {
 				await renameItemMutation(id, newName)
 			} catch (error) {
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to rename item:', error)
 			}
 		},
@@ -277,20 +256,20 @@ export function useNotesWithSuspense() {
 						return item
 					})
 			}
-			setItems(removeItemById(items))
+			setOptimisticItems(removeItemById(items))
 
 			// Perform actual deletion in background
 			try {
 				const success = await deleteItemMutation(id)
 				if (!success) {
 					// Rollback on failure
-					setItems(previousItems)
+					setOptimisticItems(previousItems)
 					return false
 				}
 				return true
 			} catch (error) {
 				// Rollback on error
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to delete item:', error)
 				return false
 			}
@@ -341,19 +320,19 @@ export function useNotesWithSuspense() {
 
 			const withoutItem = removeItem(items)
 			if (movedItem) {
-				setItems(addToTarget(withoutItem))
+				setOptimisticItems(addToTarget(withoutItem))
 			}
 
 			// Perform actual move in background
 			try {
 				const success = await moveItemMutation(itemId, targetFolderId)
 				if (!success) {
-					setItems(previousItems)
+					setOptimisticItems(previousItems)
 					return false
 				}
 				return true
 			} catch (error) {
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to move item:', error)
 				return false
 			}
@@ -389,12 +368,12 @@ export function useNotesWithSuspense() {
 					return item
 				})
 			}
-			setItems(updatePinStatus(items))
+			setOptimisticItems(updatePinStatus(items))
 
 			try {
 				await pinItemMutation(itemId, itemType, pinned)
 			} catch (error) {
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to pin item:', error)
 			}
 		},
@@ -416,12 +395,12 @@ export function useNotesWithSuspense() {
 					return item
 				})
 			}
-			setItems(updateFavoriteStatus(items))
+			setOptimisticItems(updateFavoriteStatus(items))
 
 			try {
 				await favoriteNoteMutation(noteId, favorite)
 			} catch (error) {
-				setItems(previousItems)
+				setOptimisticItems(previousItems)
 				console.error('Failed to favorite note:', error)
 			}
 		},

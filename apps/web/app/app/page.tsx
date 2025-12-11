@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { EmptyState } from '../../components/ui/empty-state'
 
 import { useNoteSlug } from '../../features/notes/hooks/use-note-slug'
-import { useNotesWithSuspense } from '../../features/notes/hooks/useNotesWithSuspense'
+import { useNotes } from '../../features/notes/hooks/useNotes'
 import { useShortcut, shortcut } from '../../features/shortcuts'
 
 import { IndexSkeleton } from '../../components/pages/index-skeleton'
@@ -68,7 +68,7 @@ export default function AppPage() {
 	}, [])
 	const pathname = usePathname()
 	const router = useRouter()
-	const { items, createNote, isInitialLoading } = useNotesWithSuspense()
+	const { items, createNote, isInitialLoading } = useNotes()
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 
 	const isNoteRoute = pathname.startsWith('/note/')
