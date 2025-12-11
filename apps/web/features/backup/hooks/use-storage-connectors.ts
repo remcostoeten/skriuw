@@ -7,6 +7,7 @@ import type {
 	StorageConnectorState,
 	StorageConnectorType,
 } from '../core/types'
+import { validateConnectorConfig } from '../core/validation'
 
 function generateConnectorId(type: StorageConnectorType): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -63,6 +64,7 @@ export function useStorageConnectors() {
 			}
 
 			const normalizedConfig = normalizeConfig(definition, config)
+			validateConnectorConfig(type, normalizedConfig)
 			const missing = findMissingFields(definition, normalizedConfig)
 
 			if (missing.length > 0) {
@@ -101,6 +103,7 @@ export function useStorageConnectors() {
 				if (!definition) throw new Error(`Unknown connector: ${type}`)
 
 				const normalized = normalizeConfig(definition, config)
+				validateConnectorConfig(type, normalized)
 				const missing = findMissingFields(definition, normalized)
 
 				if (missing.length > 0) {
