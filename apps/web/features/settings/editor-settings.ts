@@ -61,6 +61,16 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'editor',
 		implemented: true,
 	},
+	{
+		key: 'ui.animations',
+		label: 'UI Animations',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Enable interface transitions and motion effects across the app',
+		category: 'appearance',
+		implemented: true,
+	},
 
 	{
 		key: 'centeredLayout',
@@ -76,6 +86,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 			props: { type: 'centeredLayout' },
 		},
 	},
+	// Disabled typography options (future)
 	{
 		key: 'fontSize',
 		label: 'Font Size',
@@ -87,6 +98,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		subsection: 'Typography',
 		options: ['small', 'medium', 'large', 'x-large'],
 		implemented: true,
+		disabled: true,
+		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
 			props: { type: 'fontSize' },
@@ -103,6 +116,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		subsection: 'Typography',
 		options: ['inter', 'mono', 'serif', 'sans-serif'],
 		implemented: true,
+		disabled: true,
+		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
 			props: { type: 'fontFamily' },
@@ -120,6 +135,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		validation: (value: number) =>
 			(value >= 1.0 && value <= 3.0) || 'Line height must be between 1.0 and 3.0',
 		implemented: true,
+		disabled: true,
+		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
 			props: { type: 'lineHeight' },
