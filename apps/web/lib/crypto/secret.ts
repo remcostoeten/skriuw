@@ -4,10 +4,12 @@ const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // recommended for GCM
 
 function getKey(): Buffer {
-	const secret =
-		process.env.CONNECTOR_ENCRYPTION_KEY ||
-		process.env.BETTER_AUTH_SECRET ||
-		'dev-connector-secret'
+	const secret = process.env.CONNECTOR_ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET
+	if (!secret || secret.length < 16) {
+		throw new Error(
+			'CONNECTOR_ENCRYPTION_KEY (preferred) or BETTER_AUTH_SECRET must be set and at least 16 characters'
+		)
+	}
 	return createHash('sha256').update(secret).digest()
 }
 
