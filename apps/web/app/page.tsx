@@ -12,7 +12,6 @@ import { useUIStore } from '@/stores/ui-store'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 
 import { IndexSkeleton } from '../components/pages/index-skeleton'
-import { SkriuwExplanation } from '../components/landing/skriuw-explanation'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({
@@ -22,6 +21,7 @@ const NoteEditor = lazy(() =>
 
 import { Icons } from '@skriuw/ui'
 import { HeroBadge } from '@skriuw/ui/hero-badge'
+import { SkriuwExplanation } from '@/components/skiuw'
 
 export default function Index() {
 	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
@@ -90,8 +90,6 @@ export default function Index() {
 	function handleOpenCollection() {
 		router.push('/archive')
 	}
-
-
 
 	useShortcut('create-note', (e) => {
 		e.preventDefault()

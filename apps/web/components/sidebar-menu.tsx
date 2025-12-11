@@ -1,6 +1,16 @@
 'use client'
 
-import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, Sparkles } from 'lucide-react'
+import {
+	Pencil,
+	Hand,
+	Keyboard,
+	Settings,
+	Palette,
+	Sliders,
+	Search,
+	X,
+	Sparkles,
+} from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 
 import {
@@ -18,7 +28,7 @@ import {
 } from '@skriuw/ui/dialog-drawer'
 import { Input } from '@skriuw/ui/input'
 
-import { useSettings, SettingsGroup } from '../features/settings'
+import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
 import { AI_SETTINGS_GROUPS } from '../features/settings/ai-settings'
 import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
@@ -26,8 +36,12 @@ import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all
 import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
 import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
 import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
-import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
-import type { SettingsGroup as SettingsGroupType } from '../features/settings'
+import {
+	ShortcutId,
+	shortcutDefinitions,
+	KeyCombo,
+} from '../features/shortcuts/shortcut-definitions'
+import type { SettingsGroup } from '../features/settings/types'
 
 type props = {
 	open: boolean
@@ -163,7 +177,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	}
 
 	const renderSettingsContent = () => {
-		const animationSetting: SettingsGroupType = {
+		const animationSetting: SettingsGroup = {
 			category: 'appearance',
 			title: 'UI Preferences',
 			description: 'Global interface preferences',
@@ -186,7 +200,11 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 
 		if (settingsGroup) {
 			return (
-				<SettingsGroup group={settingsGroup} values={settings} onChange={handleSettingChange} />
+				<SettingsGroupComponent
+					group={settingsGroup}
+					values={settings}
+					onChange={handleSettingChange}
+				/>
 			)
 		}
 
@@ -256,9 +274,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 								Configure Skriuw synchronization settings.
 							</p>
 						</div>
-						<div className="text-sm text-muted-foreground">
-							Sync functionality coming soon...
-						</div>
+						<div className="text-sm text-muted-foreground">Sync functionality coming soon...</div>
 					</div>
 				)
 			default:
@@ -287,9 +303,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					</DialogAside>
 
 					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background">
-						<div className="max-w-2xl mx-auto w-full">
-							{renderSettingsContent()}
-						</div>
+						<div className="max-w-2xl mx-auto w-full">{renderSettingsContent()}</div>
 					</DialogContentArea>
 				</div>
 			</DrawerContent>
