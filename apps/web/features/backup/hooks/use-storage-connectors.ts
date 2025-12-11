@@ -56,15 +56,15 @@ export function useStorageConnectors() {
 		[updateSetting]
 	)
 
-	const saveConnector = useCallback(
+ const saveConnector = useCallback(
 		async (type: StorageConnectorType, name: string, config: Record<string, string>) => {
 			const definition = definitionsMap[type]
 			if (!definition) {
 				throw new Error(`Unknown connector type: ${type}`)
 			}
 
-			const normalizedConfig = normalizeConfig(definition, config)
-			validateConnectorConfig(type, normalizedConfig)
+      const normalizedConfig = normalizeConfig(definition, config)
+      validateConnectorConfig(type, normalizedConfig)
 			const missing = findMissingFields(definition, normalizedConfig)
 
 			if (missing.length > 0) {
@@ -95,23 +95,31 @@ export function useStorageConnectors() {
 		[connectors, definitionsMap, persist]
 	)
 
-	const testConnector = useCallback(
-		async (type: StorageConnectorType, config: Record<string, string>, name?: string) => {
-			setTestingConnector(type)
-			try {
-				const definition = definitionsMap[type]
-				if (!definition) throw new Error(`Unknown connector: ${type}`)
+  const testConnector = useCallback(
+    async (type: StorageConnectorType, config: Record<string, string>, name?: string) => {
+      setTestingConnector(type)
+      try {
+        const definition = definitionsMap[type]
+        if (!definition) throw new Error(`Unknown connector: ${type}`)
 
-				const normalized = normalizeConfig(definition, config)
-				validateConnectorConfig(type, normalized)
+        const normalized = normalizeConfig(definition, config)
+        validateConnectorConfig(type, normalized)
 				const missing = findMissingFields(definition, normalized)
 
 				if (missing.length > 0) {
 					throw new Error(`Missing required fields: ${missing.join(', ')}`)
 				}
 
-				// Simulate a network validation; swap this for a real ping later.
-				await new Promise((resolve) => setTimeout(resolve, 500))
+        // Real handshake call
+        const res = await fetch('/api/storage/connectors/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, config: normalized }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data?.message || `Handshake failed (${res.status})`)
+        }
 
 				const existing = connectors.find((c) => c.type === type)
 
