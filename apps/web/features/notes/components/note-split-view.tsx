@@ -142,8 +142,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 				if (!containerSize) return
 
 				const delta =
-					(moveEvent[axis as 'clientX' | 'clientY'] - dragStartRef.current.pos) /
-					containerSize
+					(moveEvent[axis as 'clientX' | 'clientY'] - dragStartRef.current.pos) / containerSize
 
 				const nextSizes = [...dragStartRef.current.sizes]
 				nextSizes[0] = Math.min(Math.max(nextSizes[0] + delta, MIN_SIZE), 1 - MIN_SIZE)
@@ -263,7 +262,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 			<div
 				ref={containerRef}
 				className={cn(
-					'flex flex-1 overflow-hidden rounded-md border border-border/40 bg-background-secondary',
+					'flex flex-1 overflow-hidden rounded-md bg-background-secondary',
 					orientation === 'horizontal' ? 'flex-col' : 'flex-row'
 				)}
 			>
@@ -282,19 +281,15 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 								height: orientation === 'horizontal' ? basis : '100%',
 							}}
 							className={cn(
-								'relative flex flex-1 flex-col overflow-hidden border border-transparent transition-colors',
-								isActive && 'border-primary/50 shadow-inner',
-								isDropTarget && 'border-primary/80 bg-primary/5'
+								'relative flex flex-1 flex-col overflow-hidden transition-colors',
+								isDropTarget && 'border border-primary/80 bg-primary/5'
 							)}
 							onClick={() => setActivePane(pane.id)}
 							onDragOver={handleDragOver(pane.id)}
 							onDragLeave={handleDragLeave(pane.id)}
 							onDrop={handleDrop(pane.id)}
 						>
-							<div
-								className="flex-1 overflow-auto"
-								onScroll={handlePaneScroll(pane.id)}
-							>
+							<div className="flex-1 overflow-auto" onScroll={handlePaneScroll(pane.id)}>
 								{pane.noteId ? (
 									<NoteEditor
 										key={`${pane.id}-${pane.editorKey}-${pane.noteId}`}
@@ -320,9 +315,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 						onPointerDown={handleDividerPointerDown}
 						className={cn(
 							'flex items-center justify-center bg-background-secondary/80',
-							orientation === 'vertical'
-								? 'w-1 cursor-col-resize'
-								: 'h-1 cursor-row-resize',
+							orientation === 'vertical' ? 'w-1 cursor-col-resize' : 'h-1 cursor-row-resize',
 							isResizing && 'bg-primary/40'
 						)}
 					>

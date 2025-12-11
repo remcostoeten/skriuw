@@ -206,7 +206,7 @@
 	color: inherit;
 }
 
-/* Minimal focus rings - almost invisible */
+/* Softer focus rings */
 input:focus,
 textarea:focus,
 [contenteditable]:focus,
@@ -221,15 +221,7 @@ textarea:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 1px hsl(var(--muted-foreground) / 0.15);
+	box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 0 3px hsl(var(--primary) / 0.12);
 }
 
-/* Remove harsh focus-visible ring from Tailwind */
-.focus-visible\:ring-ring:focus-visible {
-	--tw-ring-color: transparent !important;
-}
-
-.focus-visible\:ring-1:focus-visible,
-.focus-visible\:ring-2:focus-visible {
-	--tw-ring-color: transparent !important;
-}
+/* Keep Tailwind focus utilities intact */

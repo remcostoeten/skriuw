@@ -24,6 +24,10 @@ type UIState = {
 	pushTask: (taskId: string) => void // Add task to stack (dive deeper)
 	popTask: () => void // Remove last task (go back)
 	closeAllTasks: () => void // Close all panels
+
+	// Last Active Note Tracking
+	lastActiveNoteId: string | null
+	setLastActiveNote: (noteId: string | null) => void
 }
 
 const safeStorage = () => {
@@ -85,11 +89,16 @@ export const useUIStore = create<UIState>()(
 				taskStack: state.taskStack.slice(0, -1),
 			})),
 			closeAllTasks: () => set({ taskStack: [] }),
+
+			// Last Active Note Tracking
+			lastActiveNoteId: null,
+			setLastActiveNote: (noteId) => set({ lastActiveNoteId: noteId }),
 		}),
 		{
 			name: 'ui-storage',
 			partialize: (state) => ({
 				isDesktopSidebarOpen: state.isDesktopSidebarOpen,
+				lastActiveNoteId: state.lastActiveNoteId,
 			}),
 			storage: createJSONStorage(safeStorage),
 		}

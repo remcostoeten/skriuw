@@ -63,7 +63,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 		}
 
 		// Disable setting if it's not implemented or explicitly disabled
-		const isSettingDisabled = disabled || setting.implemented === false
+		const isSettingDisabled = disabled || setting.implemented === false || setting.disabled === true
 
 		const renderPreview = () => {
 			if (!setting.preview) return null
@@ -93,6 +93,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
+								{setting.disabledReason && (
+									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+								)}
 							</div>
 							<Switch
 								checked={currentValue}
@@ -117,6 +120,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
+								{setting.disabledReason && (
+									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+								)}
 							</div>
 							<Select
 								value={currentValue?.toString()}
@@ -151,6 +157,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
+								{setting.disabledReason && (
+									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+								)}
 							</div>
 							<Input
 								type="number"
@@ -176,6 +185,9 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
 									{setting.description}
 								</p>
+								{setting.disabledReason && (
+									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+								)}
 							</div>
 							<Input
 								value={currentValue?.toString() || ''}
@@ -198,12 +210,21 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 	}
 
 	const implementedSettings = group.settings.filter((setting) => setting.implemented !== false)
+	const disabledNotice =
+		group.category === 'ai'
+			? 'AI settings are coming soon and are currently disabled.'
+			: undefined
 
 	return (
 		<div className="w-full max-w-2xl">
 			<div className="pb-4 mb-2 border-b border-border">
 				<h2 className="text-xl font-semibold text-foreground">{group.title}</h2>
 				<p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+				{disabledNotice && (
+					<p className="text-xs text-muted-foreground mt-1 bg-muted/40 inline-block px-2 py-1 rounded border border-dashed border-border">
+						{disabledNotice}
+					</p>
+				)}
 			</div>
 			<div>
 				{implementedSettings.map((setting, index) => {

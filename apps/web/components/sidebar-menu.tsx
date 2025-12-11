@@ -27,6 +27,7 @@ import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcu
 import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
 import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
 import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
+import type { SettingsGroup as SettingsGroupType } from '../features/settings'
 
 type props = {
 	open: boolean
@@ -128,6 +129,8 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			icon: <Sparkles className="w-4 h-4" />,
 			active: activeItem === 'ai',
 			onClick: () => setActiveItem('ai'),
+			disabled: true,
+			disabledReason: 'AI settings are disabled for now.',
 		},
 		{
 			id: 'advanced',
@@ -160,7 +163,25 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	}
 
 	const renderSettingsContent = () => {
-		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, ...AI_SETTINGS_GROUPS]
+		const animationSetting: SettingsGroupType = {
+			category: 'appearance',
+			title: 'UI Preferences',
+			description: 'Global interface preferences',
+			settings: [
+				{
+					key: 'ui.animations',
+					label: 'UI Animations',
+					value: settings['ui.animations'] !== false,
+					defaultValue: true,
+					type: 'boolean',
+					description: 'Enable interface transitions and motion effects across the app',
+					category: 'appearance',
+					implemented: true,
+				},
+			],
+		}
+
+		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, animationSetting, ...AI_SETTINGS_GROUPS]
 		const settingsGroup = allSettingsGroups.find((group) => group.category === activeItem)
 
 		if (settingsGroup) {
