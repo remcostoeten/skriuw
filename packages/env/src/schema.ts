@@ -92,18 +92,6 @@ export const aiSchema = z.object({
 })
 
 /**
- * v0.dev API configuration schema.
- */
-export const v0Schema = z.object({
-    V0_API_KEY: z
-        .string({
-            required_error: '❌ V0_API_KEY is required',
-            invalid_type_error: 'V0_API_KEY must be a string',
-        })
-        .min(1, { message: 'V0_API_KEY is required' }),
-})
-
-/**
  * Other API Keys and services.
  */
 export const apiKeysSchema = z.object({
@@ -186,7 +174,6 @@ export const clientSchema = z.object({
 export type DatabaseEnv = z.infer<typeof databaseSchema>
 export type AuthEnv = z.infer<typeof authSchema>
 export type AIEnv = z.infer<typeof aiSchema>
-export type V0Env = z.infer<typeof v0Schema>
 export type APIKeysEnv = z.infer<typeof apiKeysSchema>
 export type VercelEnv = z.infer<typeof vercelSchema>
 export type ServerEnv = z.infer<typeof serverSchema>
