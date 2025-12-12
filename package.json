@@ -5,7 +5,9 @@
     "@skriuw/eslint-config": "workspace:*",
     "@skriuw/typescript-config": "workspace:*",
     "baseline-browser-mapping": "^2.9.5",
+    "dotenv": "^17.2.3",
     "next": "16.0.2",
+    "postgres": "^3.4.7",
     "prettier": "^3.6.2",
     "tinyglobby": "^0.2.15",
     "turbo": "^2.6.2",
@@ -25,6 +27,10 @@
     "check-types": "turbo check-types",
     "test": "turbo test",
     "db": "./bin/db-cli",
+    "gen": "cd packages/db && bun drizzle-kit generate",
+    "migrate": "cd packages/db && bun drizzle-kit migrate",
+    "dbpush": "cd packages/db && bun drizzle-kit push",
+    "studio": "cd packages/db && bun drizzle-kit studio",
     "validate": "turbo lint check-types test build"
   },
   "workspaces": [

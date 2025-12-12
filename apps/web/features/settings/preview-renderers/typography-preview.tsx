@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { PreviewProps } from './index'
+import type { PreviewProps } from '../types'
 
 const SAMPLE_TEXT = `The quick brown fox jumps over the lazy dog.
 1234567890
