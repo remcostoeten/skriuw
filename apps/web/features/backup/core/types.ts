@@ -80,7 +80,7 @@ export interface StorageDriver {
 
 export interface EncryptionHandler {
 	encrypt(data: Uint8Array, context: { manifestId: string; chunkId: string }): Promise<Uint8Array>
-	decrypt?(data: Uint8Array, context: { manifestId: string; chunkId: string }): Promise<Uint8Array>
+	decrypt(data: Uint8Array, context: { manifestId: string; chunkId: string }): Promise<Uint8Array>
 }
 
 export interface BackupJob {
