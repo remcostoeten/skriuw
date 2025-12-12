@@ -3,7 +3,7 @@
 import { Suspense, lazy, useMemo, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-
+2
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut, shortcut } from '../features/shortcuts'

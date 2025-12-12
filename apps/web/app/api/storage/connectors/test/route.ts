@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
 		const type = body?.type as StorageConnectorType
 		if (!type) return jsonError('Missing provider type')
 		const rawConfig = body?.config || {}
-		const result = await runConnectorHandshake(type, rawConfig)
+		const oauth2Tokens = body?.oauth2Tokens
+		const result = await runConnectorHandshake(type, rawConfig, oauth2Tokens)
 		return NextResponse.json(result)
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Handshake failed'
