@@ -101,6 +101,23 @@ export interface StorageConnectorField {
 	help?: string
 	secret?: boolean
 	required?: boolean
+	type?: 'text' | 'oauth2'
+}
+
+export interface OAuth2Config {
+	clientId: string
+	redirectUri: string
+	scope: string
+	authUrl: string
+	tokenUrl: string
+}
+
+export interface OAuth2Tokens {
+	access_token: string
+	refresh_token?: string
+	expires_in?: number
+	scope?: string
+	token_type?: string
 }
 
 export interface StorageConnectorDefinition {
@@ -119,4 +136,5 @@ export interface StorageConnectorState {
 	lastValidatedAt?: string
 	lastError?: string | null
 	config: Record<string, string>
+	oauth2Tokens?: OAuth2Tokens
 }
