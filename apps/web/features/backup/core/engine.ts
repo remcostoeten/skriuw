@@ -70,7 +70,10 @@ export async function runBackup({
 	const manifestId = payload.id ?? generateId('manifest-')
 	const createdAt = payload.createdAt ?? new Date().toISOString()
 	const version = payload.version ?? '1.0'
-	const isEncrypted = Boolean(encryption) || destination.encrypt
+	const isEncrypted = Boolean(encryption)
+	if (destination.encrypt && !encryption) {
+		throw new Error('Destination requires encryption but no encryption handler provided')
+	}
 	const manifestChunks: BackupChunkMeta[] = []
 
 	await driver.init?.(destination)
