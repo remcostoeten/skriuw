@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { useEffect, useMemo, useState, useRef, type ComponentType } from 'react'
 import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 import { Button } from '@skriuw/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
@@ -45,6 +46,97 @@ type StorageAdaptersPanelProps = {
 	onTypeChange?: (type: StorageConnectorType) => void
 	showHeader?: boolean
 	showTabs?: boolean
+	direction?: number // 1 for right, -1 for left
+}
+
+// Snappy ease-out-back style bezier for poppy feel
+const snappyEase = [0.34, 1.56, 0.64, 1] // Overshoots slightly then settles
+const smoothEase = [0.22, 1, 0.36, 1] // Fast start, smooth deceleration
+
+// Staggered content animation variants - main form content
+const contentVariants = {
+	initial: (direction: number) => ({
+		opacity: 0,
+		x: direction * 50,
+		scale: 0.96,
+	}),
+	animate: {
+		opacity: 1,
+		x: 0,
+		scale: 1,
+		transition: {
+			duration: 0.35,
+			ease: snappyEase,
+			delay: 0.08, // Comes in last
+		},
+	},
+	exit: (direction: number) => ({
+		opacity: 0,
+		x: direction * -40,
+		scale: 0.98,
+		transition: {
+			duration: 0.2,
+			ease: smoothEase,
+		},
+	}),
+}
+
+// Left side - icon, title, description (enters first)
+const leftContentVariants = {
+	initial: (direction: number) => ({
+		opacity: 0,
+		x: direction * 40,
+		scale: 0.95,
+	}),
+	animate: {
+		opacity: 1,
+		x: 0,
+		scale: 1,
+		transition: {
+			duration: 0.32,
+			ease: snappyEase,
+			delay: 0, // First to animate
+		},
+	},
+	exit: (direction: number) => ({
+		opacity: 0,
+		x: direction * -35,
+		scale: 0.97,
+		transition: {
+			duration: 0.18,
+			ease: smoothEase,
+			delay: 0.06, // Exits after right
+		},
+	}),
+}
+
+// Right side - status badge (enters second, exits first)
+const rightContentVariants = {
+	initial: (direction: number) => ({
+		opacity: 0,
+		x: direction * 60,
+		scale: 0.92,
+	}),
+	animate: {
+		opacity: 1,
+		x: 0,
+		scale: 1,
+		transition: {
+			duration: 0.3,
+			ease: snappyEase,
+			delay: 0.04, // Slight delay after left
+		},
+	},
+	exit: (direction: number) => ({
+		opacity: 0,
+		x: direction * -50,
+		scale: 0.95,
+		transition: {
+			duration: 0.15,
+			ease: smoothEase,
+			delay: 0, // Exits first
+		},
+	}),
 }
 
 export function StorageAdaptersPanel({
@@ -52,6 +144,7 @@ export function StorageAdaptersPanel({
 	onTypeChange,
 	showHeader = true,
 	showTabs = true,
+	direction: externalDirection = 1,
 }: StorageAdaptersPanelProps) {
 	const {
 		definitions,
@@ -142,7 +235,7 @@ export function StorageAdaptersPanel({
 				}
 
 				// Clear URL parameters and hash
-				window.history.replaceState({}, '', '/backup')
+				window.history.replaceState({}, '', '/archive')
 
 				// Save connector with OAuth2 tokens
 				connectWithOAuth2(
@@ -319,19 +412,30 @@ export function StorageAdaptersPanel({
 					</TabsList>
 				)}
 
-				{definitions.map((definition) => {
-					const Icon = connectorIcons[definition.type]
-					const connector = connectors.find((c) => c.type === definition.type)
-					const formValues = formState[definition.type] || {}
-					const friendlyName = nameState[definition.type] || definition.label
-					const isTesting = testingConnector === definition.type
-					const currentFeedback = feedback?.[definition.type]
+				{(() => {
+					const definition = definitionMap[currentType]
+					if (!definition) return null
+
+					const Icon = connectorIcons[currentType]
+					const connector = connectors.find((c) => c.type === currentType)
+					const formValues = formState[currentType] || {}
+					const friendlyName = nameState[currentType] || definition.label
+					const isTesting = testingConnector === currentType
+					const currentFeedback = feedback?.[currentType]
 
 					return (
-						<TabsContent key={definition.type} value={definition.type} className="w-full">
-							<Card className="border-border/70 shadow-sm w-full">
-								<CardHeader className="flex flex-row items-start justify-between gap-4">
-									<div className="flex items-start gap-3">
+						<Card className="border-border/70 shadow-sm w-full overflow-hidden">
+							<CardHeader className="flex flex-row items-start justify-between gap-4">
+								<AnimatePresence mode="wait" initial={false}>
+									<motion.div
+										key={`left-${currentType}`}
+										className="flex items-start gap-3"
+										variants={leftContentVariants}
+										initial="initial"
+										animate="animate"
+										exit="exit"
+										custom={externalDirection}
+									>
 										<div className="rounded-lg bg-muted p-2 text-muted-foreground">
 											{Icon ? <Icon className="h-5 w-5" /> : <Cloud className="h-5 w-5" />}
 										</div>
@@ -349,23 +453,43 @@ export function StorageAdaptersPanel({
 												</a>
 											)}
 										</div>
-									</div>
-									<div className="flex flex-col items-end gap-2">
+									</motion.div>
+								</AnimatePresence>
+								<AnimatePresence mode="wait" initial={false}>
+									<motion.div
+										key={`right-${currentType}`}
+										className="flex flex-col items-end gap-2"
+										variants={rightContentVariants}
+										initial="initial"
+										animate="animate"
+										exit="exit"
+										custom={externalDirection}
+									>
 										{statusBadge(connector?.status)}
 										{connector?.lastValidatedAt && (
 											<span className="text-[11px] text-muted-foreground">
 												Last checked {new Date(connector.lastValidatedAt).toLocaleString()}
 											</span>
 										)}
-									</div>
-								</CardHeader>
-								<CardContent className="space-y-6">
-									<div className="grid gap-3">
+									</motion.div>
+								</AnimatePresence>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								<AnimatePresence mode="wait" initial={false}>
+									<motion.div
+										key={`content-${currentType}`}
+										className="grid gap-3"
+										variants={contentVariants}
+										initial="initial"
+										animate="animate"
+										exit="exit"
+										custom={externalDirection}
+									>
 										<div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
 											<p className="font-medium text-foreground mb-1">
 												Where to find these credentials
 											</p>
-											{definition.type === 's3' && (
+											{currentType === 's3' && (
 												<ul className="list-disc list-inside space-y-1">
 													<li>Use an access key with programmatic access.</li>
 													<li>
@@ -374,7 +498,7 @@ export function StorageAdaptersPanel({
 													<li>Custom endpoint is for S3-compatible services (e.g., R2, MinIO).</li>
 												</ul>
 											)}
-											{definition.type === 'dropbox' && (
+											{currentType === 'dropbox' && (
 												<ul className="list-disc list-inside space-y-1">
 													<li>
 														Click "Connect with Dropbox" to authorize Skriuw to access your Dropbox.
@@ -382,7 +506,7 @@ export function StorageAdaptersPanel({
 													<li>Root path controls where backups are stored (e.g., /Apps/Skriuw).</li>
 												</ul>
 											)}
-											{definition.type === 'google-drive' && (
+											{currentType === 'google-drive' && (
 												<ul className="list-disc list-inside space-y-1">
 													<li>
 														Click "Connect with Google Drive" to authorize Skriuw to access your
@@ -397,7 +521,7 @@ export function StorageAdaptersPanel({
 											<Label className="text-xs text-muted-foreground">Connection name</Label>
 											<Input
 												value={friendlyName}
-												onChange={(e) => handleNameChange(definition.type, e.target.value)}
+												onChange={(e) => handleNameChange(currentType, e.target.value)}
 												placeholder={`${definition.label} backup`}
 												className={inputClass}
 											/>
@@ -417,7 +541,7 @@ export function StorageAdaptersPanel({
 																)}
 															</div>
 															<Button
-																onClick={() => handleOAuth2Connect(definition.type)}
+																onClick={() => handleOAuth2Connect(currentType)}
 																variant="outline"
 																className="w-full justify-start"
 															>
@@ -444,7 +568,7 @@ export function StorageAdaptersPanel({
 																type={field.secret ? 'password' : 'text'}
 																value={formValues[field.name] || ''}
 																onChange={(e) =>
-																	handleFieldChange(definition.type, field.name, e.target.value)
+																	handleFieldChange(currentType, field.name, e.target.value)
 																}
 																placeholder={field.placeholder}
 																className={inputClass}
@@ -459,56 +583,56 @@ export function StorageAdaptersPanel({
 												</div>
 											))}
 										</div>
+									</motion.div>
+								</AnimatePresence>
+
+								{currentFeedback && (
+									<div
+										className={cn(
+											'rounded-md border px-3 py-2 text-sm',
+											currentFeedback.type === 'error'
+												? 'border-destructive/30 bg-destructive/10 text-destructive'
+												: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300'
+										)}
+									>
+										{currentFeedback.message}
 									</div>
+								)}
 
-									{currentFeedback && (
-										<div
-											className={cn(
-												'rounded-md border px-3 py-2 text-sm',
-												currentFeedback.type === 'error'
-													? 'border-destructive/30 bg-destructive/10 text-destructive'
-													: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300'
-											)}
-										>
-											{currentFeedback.message}
-										</div>
-									)}
+								<div className="flex flex-wrap gap-3 pt-2">
+									<Button
+										onClick={() => handleConnect(currentType)}
+										disabled={isTesting}
+										className="flex items-center gap-2"
+									>
+										{isTesting ? (
+											<>
+												<RefreshCcw className="h-4 w-4 animate-spin" />
+												Checking...
+											</>
+										) : (
+											<>
+												<CheckCircle2 className="h-4 w-4" />
+												Save & Test
+											</>
+										)}
+									</Button>
 
-									<div className="flex flex-wrap gap-3 pt-2">
-										<Button
-											onClick={() => handleConnect(definition.type)}
-											disabled={isTesting}
-											className="flex items-center gap-2"
-										>
-											{isTesting ? (
-												<>
-													<RefreshCcw className="h-4 w-4 animate-spin" />
-													Checking...
-												</>
-											) : (
-												<>
-													<CheckCircle2 className="h-4 w-4" />
-													Save & Test
-												</>
-											)}
-										</Button>
-
-										<Button
-											variant="outline"
-											onClick={() => disconnectConnector(definition.type)}
-											disabled={connector?.status !== 'connected'}
-										>
-											Disconnect
-										</Button>
-										<Button variant="ghost" onClick={() => removeConnector(definition.type)}>
-											Remove
-										</Button>
-									</div>
-								</CardContent>
-							</Card>
-						</TabsContent>
+									<Button
+										variant="outline"
+										onClick={() => disconnectConnector(currentType)}
+										disabled={connector?.status !== 'connected'}
+									>
+										Disconnect
+									</Button>
+									<Button variant="ghost" onClick={() => removeConnector(currentType)}>
+										Remove
+									</Button>
+								</div>
+							</CardContent>
+						</Card>
 					)
-				})}
+				})()}
 			</Tabs>
 		</div>
 	)

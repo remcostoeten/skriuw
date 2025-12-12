@@ -38,13 +38,14 @@ async function exchangeCodeForTokens(
 	return response.json()
 }
 
-export async function GET(request: NextRequest, { params }: { params: { type: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ type: string }> }) {
 	try {
 		const auth = await requireAuth()
 		if (!auth.authenticated) return auth.response
 
-		const type = params.type as keyof typeof OAUTH2_CONFIGS
-		const config = OAUTH2_CONFIGS[type]
+		const { type } = await params
+		const oauthType = type as keyof typeof OAUTH2_CONFIGS
+		const config = OAUTH2_CONFIGS[oauthType]
 
 		if (!config) {
 			return jsonError(`Unknown OAuth2 provider: ${type}`, 404)
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { type: st
 		// Handle OAuth2 errors
 		if (error) {
 			return NextResponse.redirect(
-				`${process.env.NEXT_PUBLIC_APP_URL}/settings/backup?error=${encodeURIComponent(error)}`
+				`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
 			)
 		}
 
@@ -73,11 +74,11 @@ export async function GET(request: NextRequest, { params }: { params: { type: st
 		}
 
 		// Exchange code for tokens
-		const tokens = await exchangeCodeForTokens(type, code)
+		const tokens = await exchangeCodeForTokens(oauthType, code)
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/settings/backup`)
+		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest, { params }: { params: { type: st
 		console.error('OAuth2 callback failed:', message)
 
 		return NextResponse.redirect(
-			`${process.env.NEXT_PUBLIC_APP_URL}/settings/backup?error=${encodeURIComponent(message)}`
+			`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
 		)
 	}
 }
