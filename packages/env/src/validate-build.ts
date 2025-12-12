@@ -133,7 +133,6 @@ function printResults(result: ValidationResult): void {
 # Required environment variables
 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
 AUTH_SECRET="your-very-long-secret-key-here-min-32-chars"
-V0_API_KEY="v0_sk_your_api_key_here"
 
 # Optional variables
 NODE_ENV="development"
@@ -142,7 +141,6 @@ PORT="3000"
 `)
 }
 
-// Main execution
 if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('🔍 Validating environment variables...\n')
 
