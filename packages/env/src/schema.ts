@@ -92,15 +92,33 @@ export const aiSchema = z.object({
 })
 
 /**
- * v0.dev API configuration schema.
+ * OAuth Storage configuration schema.
+ * ⚠️ WARNING: These keys are required for cloud storage backup features.
  */
-export const v0Schema = z.object({
-    V0_API_KEY: z
+export const oauthStorageSchema = z.object({
+    // Dropbox OAuth
+    DROPBOX_CLIENT_ID: z
         .string({
-            required_error: '❌ V0_API_KEY is required',
-            invalid_type_error: 'V0_API_KEY must be a string',
+            description: '⚠️ WARNING: DROPBOX_CLIENT_ID is required for Dropbox storage integration',
         })
-        .min(1, { message: 'V0_API_KEY is required' }),
+        .optional(),
+    DROPBOX_CLIENT_SECRET: z
+        .string({
+            description: '⚠️ WARNING: DROPBOX_CLIENT_SECRET is required for Dropbox storage integration',
+        })
+        .optional(),
+
+    // Google Drive OAuth
+    GOOGLE_DRIVE_CLIENT_ID: z
+        .string({
+            description: '⚠️ WARNING: GOOGLE_DRIVE_CLIENT_ID is required for Google Drive storage integration',
+        })
+        .optional(),
+    GOOGLE_DRIVE_CLIENT_SECRET: z
+        .string({
+            description: '⚠️ WARNING: GOOGLE_DRIVE_CLIENT_SECRET is required for Google Drive storage integration',
+        })
+        .optional(),
 })
 
 /**
@@ -128,6 +146,13 @@ export const apiKeysSchema = z.object({
 })
 
 /**
+ * v0 AI configuration schema.
+ */
+export const v0Schema = z.object({
+    V0_API_KEY: z.string().optional(),
+})
+
+/**
  * Vercel-specific configuration schema.
  */
 export const vercelSchema = z.object({
@@ -146,6 +171,7 @@ export const serverSchema = z.object({
     ...authSchema.shape,
     ...aiSchema.shape,
     ...v0Schema.shape,
+    ...oauthStorageSchema.shape,
     ...apiKeysSchema.shape,
     ...vercelSchema.shape,
 
@@ -177,6 +203,28 @@ export const serverSchema = z.object({
 export const clientSchema = z.object({
     NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
+
+    // Feature Flags & Logging
+    NEXT_PUBLIC_ENABLE_AUTH_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_DISABLE_AUTO_SIGNIN: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
 })
 
 // ============================================================================
@@ -187,6 +235,7 @@ export type DatabaseEnv = z.infer<typeof databaseSchema>
 export type AuthEnv = z.infer<typeof authSchema>
 export type AIEnv = z.infer<typeof aiSchema>
 export type V0Env = z.infer<typeof v0Schema>
+export type OAuthStorageEnv = z.infer<typeof oauthStorageSchema>
 export type APIKeysEnv = z.infer<typeof apiKeysSchema>
 export type VercelEnv = z.infer<typeof vercelSchema>
 export type ServerEnv = z.infer<typeof serverSchema>

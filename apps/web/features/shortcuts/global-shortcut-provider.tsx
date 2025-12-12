@@ -1,5 +1,6 @@
 import { createContext, useEffect, useRef, useState } from 'react'
 
+import { logger } from '@/lib/logger'
 import { getShortcuts } from './api/queries/get-shortcuts'
 import { KeyCombo, ShortcutId, shortcutDefinitions } from './shortcut-definitions'
 
@@ -24,7 +25,7 @@ function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
 		// k is "," (string) from definition, event.key is "," when comma is pressed
 		if (k === ',') {
 			const matches = event.key === ',' || event.code === 'Comma'
-			console.log(`🔍 Comma check: key="${event.key}" code="${event.code}" matches=${matches}`)
+			logger.debug('shortcuts', `🔍 Comma check: key="${event.key}" code="${event.code}" matches=${matches}`)
 			return matches
 		}
 		// Handle backtick key - event.code is "Backquote", event.key is "`"
@@ -32,10 +33,10 @@ function matchesKeyCombination(event: KeyboardEvent, keys: KeyCombo): boolean {
 			return event.key === '`' || event.code === 'Backquote'
 		}
 		const matches = event.key.toLowerCase() === k.toLowerCase()
-		console.log(`🔍 Key check: "${k}" vs "${event.key}" matches=${matches}`)
+		logger.debug('shortcuts', `🔍 Key check: "${k}" vs "${event.key}" matches=${matches}`)
 		return matches
 	})
-	console.log(`🎯 Key combo match: [${keys.join('+')}] -> ${result}`, {
+	logger.debug('shortcuts', `🎯 Key combo match: [${keys.join('+')}] -> ${result}`, {
 		key: event.key,
 		code: event.code,
 		ctrlKey: event.ctrlKey,
@@ -86,7 +87,7 @@ function createKeyDownHandler(
 			const keyCombos = customShortcuts[id] || definition.keys
 
 			if (matchesAnyCombination(event, keyCombos)) {
-				console.log(`🎯 Shortcut matched: ${id}`, {
+				logger.debug('shortcuts', `🎯 Shortcut matched: ${id}`, {
 					key: event.key,
 					code: event.code,
 					ctrlKey: event.ctrlKey,
@@ -99,12 +100,12 @@ function createKeyDownHandler(
 				if (inInput) {
 					const hasModifier = event.ctrlKey || event.metaKey || event.altKey
 					if (!hasModifier) {
-						console.log(`❌ Shortcut blocked: in input context without modifier`)
+						logger.debug('shortcuts', `❌ Shortcut blocked: in input context without modifier`)
 						continue
 					}
 				}
 
-				console.log(`✅ Executing shortcut: ${id}`)
+				logger.info('shortcuts', `✅ Executing shortcut: ${id}`)
 				handler(event)
 				return // Only trigger the first matching shortcut
 			}
@@ -124,15 +125,15 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 		register: (id: ShortcutId, handler: ShortcutHandler) => {
 			const definition = shortcutDefinitions[id]
 			if (!definition) {
-				console.warn(`Shortcut "${id}" is not declared in shortcut-definitions.ts`)
+				logger.warn('shortcuts', `Shortcut "${id}" is not declared in shortcut-definitions.ts`)
 				return
 			}
 			// Don't register disabled shortcuts
 			if (definition.enabled === false) {
-				console.warn(`Shortcut "${id}" is disabled and cannot be registered`)
+				logger.warn('shortcuts', `Shortcut "${id}" is disabled and cannot be registered`)
 				return
 			}
-			console.log(`📝 Registering shortcut: ${id}`, definition.keys)
+			logger.info('shortcuts', `📝 Registering shortcut: ${id}`, definition.keys)
 			shortcuts.current.set(id, handler)
 		},
 		unregister: (id: ShortcutId) => {
