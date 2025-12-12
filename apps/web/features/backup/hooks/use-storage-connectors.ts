@@ -8,6 +8,7 @@ import type {
 	StorageConnectorType,
 } from '../core/types'
 import { validateConnectorConfig } from '../core/validation'
+import type { OAuth2Tokens } from '../core/types'
 
 function generateConnectorId(type: StorageConnectorType): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -43,10 +44,13 @@ export function useStorageConnectors() {
 	const definitions = STORAGE_CONNECTOR_DEFINITIONS
 
 	const definitionsMap = useMemo(() => {
-		return definitions.reduce<Record<StorageConnectorType, StorageConnectorDefinition>>((acc, def) => {
-			acc[def.type] = def
-			return acc
-		}, {} as Record<StorageConnectorType, StorageConnectorDefinition>)
+		return definitions.reduce<Record<StorageConnectorType, StorageConnectorDefinition>>(
+			(acc, def) => {
+				acc[def.type] = def
+				return acc
+			},
+			{} as Record<StorageConnectorType, StorageConnectorDefinition>
+		)
 	}, [definitions])
 
 	const persist = useCallback(
@@ -57,14 +61,19 @@ export function useStorageConnectors() {
 	)
 
 	const saveConnector = useCallback(
-		async (type: StorageConnectorType, name: string, config: Record<string, string>) => {
+		async (
+			type: StorageConnectorType,
+			name: string,
+			config: Record<string, string>,
+			oauth2Tokens?: OAuth2Tokens
+		) => {
 			const definition = definitionsMap[type]
 			if (!definition) {
 				throw new Error(`Unknown connector type: ${type}`)
 			}
 
-      const normalizedConfig = normalizeConfig(definition, config)
-      validateConnectorConfig(type, normalizedConfig)
+			const normalizedConfig = normalizeConfig(definition, config)
+			validateConnectorConfig(type, normalizedConfig)
 			const missing = findMissingFields(definition, normalizedConfig)
 
 			if (missing.length > 0) {
@@ -82,12 +91,10 @@ export function useStorageConnectors() {
 				lastValidatedAt: now,
 				lastError: null,
 				config: normalizedConfig,
+				oauth2Tokens,
 			}
 
-			const nextConnectors = [
-				...connectors.filter((connector) => connector.type !== type),
-				updated,
-			]
+			const nextConnectors = [...connectors.filter((connector) => connector.type !== type), updated]
 
 			persist(nextConnectors)
 			return updated
@@ -96,7 +103,12 @@ export function useStorageConnectors() {
 	)
 
 	const testConnector = useCallback(
-		async (type: StorageConnectorType, config: Record<string, string>, name?: string) => {
+		async (
+			type: StorageConnectorType,
+			config: Record<string, string>,
+			name?: string,
+			oauth2Tokens?: OAuth2Tokens
+		) => {
 			setTestingConnector(type)
 			try {
 				const definition = definitionsMap[type]
@@ -114,7 +126,7 @@ export function useStorageConnectors() {
 				const res = await fetch('/api/storage/connectors/test', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ type, config: normalized }),
+					body: JSON.stringify({ type, config: normalized, oauth2Tokens }),
 				})
 				if (!res.ok) {
 					const data = await res.json().catch(() => ({}))
@@ -131,12 +143,10 @@ export function useStorageConnectors() {
 					lastValidatedAt: new Date().toISOString(),
 					lastError: null,
 					config: normalized,
+					oauth2Tokens,
 				}
 
-				persist([
-					...connectors.filter((connector) => connector.type !== type),
-					success,
-				])
+				persist([...connectors.filter((connector) => connector.type !== type), success])
 
 				return success
 			} catch (error) {
@@ -150,11 +160,9 @@ export function useStorageConnectors() {
 					lastValidatedAt: existing?.lastValidatedAt,
 					lastError: message,
 					config: existing?.config ?? {},
+					oauth2Tokens: existing?.oauth2Tokens,
 				}
-				persist([
-					...connectors.filter((connector) => connector.type !== type),
-					fallback,
-				])
+				persist([...connectors.filter((connector) => connector.type !== type), fallback])
 				throw new Error(message)
 			} finally {
 				setTestingConnector(null)
@@ -176,10 +184,7 @@ export function useStorageConnectors() {
 				lastError: null,
 			}
 
-			persist([
-				...connectors.filter((connector) => connector.type !== type),
-				updated,
-			])
+			persist([...connectors.filter((connector) => connector.type !== type), updated])
 		},
 		[connectors, persist]
 	)
@@ -192,6 +197,18 @@ export function useStorageConnectors() {
 		[connectors, persist]
 	)
 
+	const connectWithOAuth2 = useCallback(
+		async (
+			type: StorageConnectorType,
+			name: string,
+			config: Record<string, string>,
+			oauth2Tokens: OAuth2Tokens
+		) => {
+			return saveConnector(type, name, config, oauth2Tokens)
+		},
+		[saveConnector]
+	)
+
 	return {
 		definitions,
 		connectors,
@@ -199,6 +216,7 @@ export function useStorageConnectors() {
 		testConnector,
 		disconnectConnector,
 		removeConnector,
+		connectWithOAuth2,
 		testingConnector,
 	}
 }

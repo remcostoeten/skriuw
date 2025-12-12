@@ -1,7 +1,7 @@
-**Skriuw** *(noun)*  
-/skrɪu̯/ — *Frisian, “to write.”*  
+**Skriuw** _(noun)_
+/skrɪu̯/ — _Frisian, “to write.”_
 
-A local-first desktop application for writing and organizing thoughts. Built with Tauri 2.0 and React, **Skriuw** blends note-taking and task management into a fast, private workspace with Markdown editing and offline access.  
+A local-first desktop application for writing and organizing thoughts. Built with Tauri 2.0 and React, **Skriuw** blends note-taking and task management into a fast, private workspace with Markdown editing and offline access.
 
 ---
 
@@ -26,32 +26,24 @@ skriuw/
 
 ### Development
 
-Install dependencies:
-```bash
-bun install
-```
+### OAuth2 Setup
 
-Run development server:
-```bash
-bun run dev
-```
+For backup storage connectors, you'll need to set up OAuth2 apps:
 
-Build for production:
-```bash
-bun run build
-```
+**Dropbox:**
 
-### Available Scripts
+- Create app at https://www.dropbox.com/developers/apps
+- Get `DROPBOX_CLIENT_ID` and `DROPBOX_CLIENT_SECRET`
+- Required permissions: `account_info.read`, `files.metadata.write`, `files.content.write`
 
-- `bun run dev` - Start development server
-- `bun run build` - Build for production
-- `bun run lint` - Run ESLint
-- `bun run lint:fix` - Fix ESLint issues
-- `bun run format` - Format code with Prettier
-- `bun run typecheck` - Run TypeScript type checking
-- `bun run db:push` - Push database schema changes
-- `bun run db:generate` - Generate database migrations
-- `bun run db:studio` - Open Drizzle Studio
+**Google Drive:**
+
+- Create OAuth client at https://console.cloud.google.com/
+- Get `GOOGLE_DRIVE_CLIENT_ID` and `GOOGLE_DRIVE_CLIENT_SECRET`
+- Enable Google Drive API
+- Add redirect: `https://your-domain.com/api/storage/oauth2/callback/google-drive`
+
+Also set `NEXT_PUBLIC_APP_URL` to your domain.
 
 ### Deployment
 
