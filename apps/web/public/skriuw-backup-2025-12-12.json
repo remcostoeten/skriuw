@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "exportedAt": "2025-12-12T22:06:38.448Z",
+  "appName": "Skriuw",
+  "items": [
+    {
+      "id": "skriuw:notes_1765573705227_zc5dumj",
+      "name": "Untitled",
+      "content": [
+        {
+          "id": "1765573705227-wjfe19n90",
+          "type": "paragraph",
+          "props": {
+            "backgroundColor": "default",
+            "textColor": "default",
+            "textAlignment": "left"
+          },
+          "content": [],
+          "children": []
+        }
+      ],
+      "parentFolderId": null,
+      "userId": "6zpgtDGnsxG1QhVwJTGpswEoY8Qvuq0R",
+      "pinned": false,
+      "pinnedAt": null,
+      "favorite": false,
+      "deletedAt": null,
+      "createdAt": 1765573705363,
+      "updatedAt": 1765573705363,
+      "type": "note"
+    },
+    {
+      "id": "skriuw:notes_1765573658678_4qjno5k",
+      "name": "New Folder",
+      "parentFolderId": null,
+      "userId": "6zpgtDGnsxG1QhVwJTGpswEoY8Qvuq0R",
+      "pinned": false,
+      "pinnedAt": null,
+      "deletedAt": null,
+      "createdAt": 1765573658717,
+      "updatedAt": 1765573658717,
+      "type": "folder",
+      "children": []
+    }
+  ],
+  "metadata": {
+    "totalNotes": 1,
+    "totalFolders": 1
+  }
+}

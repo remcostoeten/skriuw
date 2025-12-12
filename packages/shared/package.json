@@ -1,36 +1,37 @@
 {
-  "name": "@skriuw/shared",
-  "version": "0.1.0",
-  "description": "Shared utilities and types for the Skriuw monorepo",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "type-check": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@skriuw/eslint-config": "workspace:*",
-    "@skriuw/typescript-config": "workspace:*",
-    "tsup": "latest",
-    "typescript": "latest"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "tailwindcss-animate": "^1.0.7"
-  }
+	"name": "@skriuw/shared",
+	"version": "0.1.0",
+	"description": "Shared utilities and types for the Skriuw monorepo",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"type-check": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@skriuw/eslint-config": "workspace:*",
+		"@skriuw/typescript-config": "workspace:*",
+		"tsup": "latest",
+		"typescript": "latest"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"clsx": "^2.1.1",
+		"tailwind-merge": "^2.5.4",
+		"tailwindcss-animate": "^1.0.7"
+	}
 }

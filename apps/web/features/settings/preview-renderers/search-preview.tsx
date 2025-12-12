@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Search, FileText } from 'lucide-react'
-import type { PreviewProps } from './index'
+import type { PreviewProps } from '../types'
 
 export default function SearchPreview({ value }: PreviewProps<boolean>) {
     return (

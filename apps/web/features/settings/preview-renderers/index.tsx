@@ -3,12 +3,8 @@
 import React from 'react'
 
 // Props passed to all preview components
-export interface PreviewProps<T = any> {
-    value: T
-    settingKey: string
-    options?: T[]
-    allSettings?: Record<string, any>
-}
+import type { PreviewProps } from '../types'
+
 
 // Lazy load heavy components
 const EditorThemePreview = React.lazy(() => import('./editor-theme-preview'))

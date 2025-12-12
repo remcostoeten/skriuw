@@ -59,7 +59,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			variant,
 			size,
 			asChild = false,
-			ripple = false,
+			ripple = true,
 			rippleColor = 'rgba(255, 255, 255, 0.5)',
 			rippleScale = 10,
 			hoverScale,

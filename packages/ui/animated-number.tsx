@@ -1,3 +1,789 @@
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
+/**
+ * @author Remco Stoeten
+ * @description Animated number component with slot machine style digit transitions.
+ * Provides smooth animations for numerical value changes with customizable timing.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 
 const DIGITS_PER_SET = 10

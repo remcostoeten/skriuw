@@ -120,7 +120,6 @@ export function ExportPanel() {
 				onClick={handleExport}
 				disabled={!hasContent || isExporting}
 				className="w-full"
-				size="lg"
 			>
 				{isExporting ? (
 					<>
