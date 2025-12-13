@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "build": "next build",
-        "validate-env": "tsx -e \"import('@skriuw/env/server').catch(() => process.exit(1))\"",
+        "validate-env": "tsx -e \"import('../../packages/env/src/server.ts').catch((err) => { console.error(err); process.exit(1); })\"",
         "dev": "next dev",
         "lint": "next lint",
         "check-types": "tsc --noEmit",
