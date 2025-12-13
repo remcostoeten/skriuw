@@ -184,7 +184,7 @@ type props = {
 	contentType?: SidebarContentType
 	customContent?: React.ReactNode
 	ruler?: RulerProps
-	openTabIds?: Set<string>
+	openTabIds?: string[]
 }
 
 // Helper function to format shortcut keys for display
@@ -278,7 +278,7 @@ function FileTreeItem({
 	onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>
 	allItems: Item[]
 	ruler?: RulerProps
-	openTabIds?: Set<string>
+	openTabIds?: string[]
 	allVisibleItemIds?: string[]
 	showConfirm?: (options: ConfirmationPopoverOptions) => void
 }) {
@@ -298,7 +298,7 @@ function FileTreeItem({
 	const isExpanded = expandedFolders.has(item.id)
 	const isActive = !isFolder && activeNoteId === item.id
 	const isFolderSelected = isFolder && selectedFolderId === item.id
-	const hasOpenTab = !isFolder && openTabIds?.has(item.id)
+	const hasOpenTab = !isFolder && openTabIds?.includes(item.id)
 	const hasChildren = isFolder && item.type === 'folder' && item.children.length > 0
 
 	// Selection store

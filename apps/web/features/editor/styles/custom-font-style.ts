@@ -1,7 +1,7 @@
 import { createReactStyleSpec } from '@blocknote/react'
 import { createElement } from 'react'
 
-export const Font = createReactStyleSpec(
+export const Font: any = createReactStyleSpec(
 	{
 		type: 'font',
 		propSchema: 'string',

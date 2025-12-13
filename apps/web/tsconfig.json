@@ -1,20 +1,43 @@
 {
-	"extends": "@skriuw/typescript-config/nextjs.json",
+	"extends": "@skriuw/config/typescript/nextjs",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"moduleResolution": "bundler",
 		"target": "es2022",
-		"lib": ["dom", "dom.iterable", "es2022", "es2015", "es2017", "es2015.promise"],
-		"types": ["node"],
+		"lib": [
+			"dom",
+			"dom.iterable",
+			"es2022",
+			"es2015",
+			"es2017",
+			"es2015.promise"
+		],
+		"types": [
+			"node"
+		],
 		"skipLibCheck": true,
 		"paths": {
-			"@/*": ["./*"],
-			"@skriuw/ui": ["../../packages/ui"],
-			"@skriuw/core-logic": ["../../packages/core-logic"],
-			"@skriuw/db": ["../../packages/db"],
-			"@skriuw/shared": ["../../packages/shared"],
-			"@skriuw/storage": ["./lib/storage"],
-			"@skriuw/storage/*": ["./lib/storage/*"]
+			"@/*": [
+				"./*"
+			],
+			"@skriuw/ui": [
+				"../../packages/ui"
+			],
+			"@skriuw/core-logic": [
+				"../../packages/core-logic"
+			],
+			"@skriuw/db": [
+				"../../packages/src"
+			],
+			"@skriuw/shared": [
+				"../../packages/shared"
+			],
+			"@skriuw/storage": [
+				"./lib/storage"
+			],
+			"@skriuw/storage/*": [
+				"./lib/storage/*"
+			]
 		}
 	},
 	"include": [
@@ -29,6 +52,7 @@
 		"drizzle.config.ts",
 		"**/*.test.ts",
 		"**/*.test.tsx",
-		"test-setup.ts"
+		"test-setup.ts",
+		"src-tauri"
 	]
 }

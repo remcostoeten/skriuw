@@ -9,7 +9,6 @@ async function main() {
 
         // Test simple query
         console.log('Running SELECT 1...');
-        // @ts-ignore
         const result = await db.execute('SELECT 1');
         console.log('SELECT 1 success:', result);
 

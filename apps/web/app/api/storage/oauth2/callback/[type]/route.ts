@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { env } from '@skriuw/env/server'
+import { env } from '../../../../../../lib/env'
 
 import { requireAuth } from '@/lib/api-auth'
 import { OAUTH2_CONFIGS } from '../../authorize/[type]/route'
@@ -14,21 +14,25 @@ function jsonError(message: string, status = 400) {
 async function exchangeCodeForTokens(
 	type: keyof typeof OAUTH2_CONFIGS,
 	code: string
-): Promise<{ access_token: string; refresh_token?: string; expires_in?: number }> {
+): Promise<{
+	access_token: string
+	refresh_token?: string
+	expires_in?: number
+}> {
 	const config = OAUTH2_CONFIGS[type]
 
 	const response = await fetch(config.tokenUrl, {
 		method: 'POST',
 		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
+			'Content-Type': 'application/x-www-form-urlencoded'
 		},
 		body: new URLSearchParams({
 			grant_type: 'authorization_code',
 			code,
 			client_id: config.clientId,
 			client_secret: config.clientSecret,
-			redirect_uri: config.redirectUri,
-		}),
+			redirect_uri: config.redirectUri
+		})
 	})
 
 	if (!response.ok) {
@@ -39,7 +43,10 @@ async function exchangeCodeForTokens(
 	return response.json()
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ type: string }> }) {
+export async function GET(
+	request: NextRequest,
+	{ params }: { params: Promise<{ type: string }> }
+) {
 	try {
 		const auth = await requireAuth()
 		if (!auth.authenticated) return auth.response
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		// Handle OAuth2 errors
 		if (error) {
 			return NextResponse.redirect(
-				`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
+				`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
 			)
 		}
 
@@ -79,13 +86,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(`${env.NEXT_PUBLIC_APP_URL}/archive`)
+		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,
 			access_token: tokens.access_token,
-			...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
-			...(tokens.expires_in && { expires_in: tokens.expires_in.toString() }),
+			...(tokens.refresh_token && {
+				refresh_token: tokens.refresh_token
+			}),
+			...(tokens.expires_in && {
+				expires_in: tokens.expires_in.toString()
+			})
 		}).toString()
 
 		const response = NextResponse.redirect(redirectUrl.toString())
@@ -95,11 +106,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 		return response
 	} catch (error) {
-		const message = error instanceof Error ? error.message : 'OAuth2 callback failed'
+		const message =
+			error instanceof Error ? error.message : 'OAuth2 callback failed'
 		console.error('OAuth2 callback failed:', message)
 
 		return NextResponse.redirect(
-			`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
+			`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
 		)
 	}
 }

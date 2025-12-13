@@ -14,7 +14,7 @@ import { useUIStore } from '@/stores/ui-store'
  * - Slash command: /task
  * - Click task title to open task detail view
  */
-export const taskBlockSpec = createReactBlockSpec(
+export const taskBlockSpec: any = createReactBlockSpec(
 	{
 		type: 'task',
 		propSchema: {
