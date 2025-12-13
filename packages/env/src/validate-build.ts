@@ -8,7 +8,6 @@
  */
 
 import { serverSchema, clientSchema } from './schema'
-import { formatErrors } from './validate'
 import { ZodError } from 'zod'
 import { glob } from 'glob'
 import { readFile } from 'fs/promises'
@@ -70,7 +69,7 @@ async function scanProcessEnvUsage(): Promise<string[]> {
 					)
 				}
 			})
-		} catch (error) {
+		} catch {
 			// Skip files that can't be read
 		}
 	}
