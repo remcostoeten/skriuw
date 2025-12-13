@@ -5,7 +5,7 @@ import 'prismjs/themes/prism-tomorrow.css'
 
 import { Providers } from './providers'
 import { AutoSignIn } from '@/components/auth/auto-sign-in'
-import { AuthStatus } from '@/components/auth/auth-status'
+
 import { AuthGuardListener } from '@/components/auth/auth-guard-listener'
 
 import { CommandPaletteWrapper } from '@/components/command-palette/wrapper'
@@ -18,9 +18,8 @@ export const metadata: Metadata = {
 	manifest: '/manifest.json',
 	icons: {
 		icon: [
-			{ url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-			{ url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-			{ url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+			{ url: '/favicon.svg', type: 'image/svg+xml' },
+			{ url: '/favicon.ico', sizes: 'any' },
 		],
 		apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
 	},
@@ -51,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<Providers>
 					<AutoSignIn />
 					<AuthGuardListener />
-					<AuthStatus />
+
 					<CommandPaletteWrapper />
 					{children}
 				</Providers>

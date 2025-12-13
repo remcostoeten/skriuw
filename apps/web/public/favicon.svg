@@ -1,0 +1,16 @@
+<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    rect { fill: #000000; }
+    @media (prefers-color-scheme: dark) {
+      rect { fill: #FFFFFF; }
+    }
+  </style>
+  <g>
+    <!-- First bar - leftmost -->
+    <rect x="4" y="8" width="8" height="24" rx="1" />
+    <!-- Second bar - middle -->
+    <rect x="16" y="4" width="8" height="32" rx="1" />
+    <!-- Third bar - rightmost -->
+    <rect x="28" y="12" width="8" height="16" rx="1" />
+  </g>
+</svg>

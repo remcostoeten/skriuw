@@ -21,7 +21,7 @@ const NoteEditor = lazy(() =>
 
 import { Icons } from '@skriuw/ui'
 import { HeroBadge } from '@skriuw/ui/hero-badge'
-import { SkriuwExplanation } from '@/components/skiuw'
+import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
 
 export default function Index() {
 	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
@@ -116,7 +116,7 @@ export default function Index() {
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
-					{isInitialLoading ? (
+					{isInitialLoading || allNotes.length > 0 ? (
 						<IndexSkeleton />
 					) : (
 						<SkriuwExplanation
