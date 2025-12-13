@@ -61,7 +61,6 @@ describe('connector-secrets', () => {
 					expect(c.config[f.name]).not.toBe((base as any).config[f.name])
 				})
 		})
-		})
 
 		const decrypted = decryptConnectorStates(encrypted as any)
 		expect(decrypted).toEqual(baseConnectors)
