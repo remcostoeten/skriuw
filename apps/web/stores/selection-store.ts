@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 
 type props = {
-	selectedIds: Set<string>
+	selectedIds: string[]
 	isMultiSelectMode: boolean
 	anchorId: string | null
 	lastSelectedId: string | null
@@ -23,15 +23,16 @@ type props = {
 }
 
 export const useSelectionStore = create<props>()((set, get) => ({
-	selectedIds: new Set(),
+	selectedIds: [],
 	isMultiSelectMode: false,
 	anchorId: null,
 	lastSelectedId: null,
 
 	selectItem: (id) =>
 		set((state) => {
-			const selectedIds = new Set(state.selectedIds)
-			selectedIds.add(id)
+			const selectedIds = state.selectedIds.includes(id)
+				? state.selectedIds
+				: [...state.selectedIds, id]
 			return {
 				selectedIds,
 				isMultiSelectMode: true,
@@ -41,38 +42,35 @@ export const useSelectionStore = create<props>()((set, get) => ({
 
 	deselectItem: (id) =>
 		set((state) => {
-			const selectedIds = new Set(state.selectedIds)
-			selectedIds.delete(id)
+			const selectedIds = state.selectedIds.filter(selectedId => selectedId !== id)
 			return {
 				selectedIds,
-				isMultiSelectMode: selectedIds.size > 0,
+				isMultiSelectMode: selectedIds.length > 0,
 			}
 		}),
 
 	toggleSelection: (id) =>
 		set((state) => {
-			const selectedIds = new Set(state.selectedIds)
-			if (selectedIds.has(id)) {
-				selectedIds.delete(id)
-			} else {
-				selectedIds.add(id)
-			}
+			const isSelected = state.selectedIds.includes(id)
+			const selectedIds = isSelected
+				? state.selectedIds.filter(selectedId => selectedId !== id)
+				: [...state.selectedIds, id]
 			return {
 				selectedIds,
-				isMultiSelectMode: selectedIds.size > 0,
-				lastSelectedId: selectedIds.has(id) ? id : state.lastSelectedId,
+				isMultiSelectMode: selectedIds.length > 0,
+				lastSelectedId: !isSelected ? id : state.lastSelectedId,
 			}
 		}),
 
 	selectAll: (ids) =>
 		set({
-			selectedIds: new Set(ids),
+			selectedIds: [...ids],
 			isMultiSelectMode: true,
 		}),
 
 	clearSelection: () =>
 		set({
-			selectedIds: new Set(),
+			selectedIds: [],
 			isMultiSelectMode: false,
 			anchorId: null,
 			lastSelectedId: null,
@@ -82,14 +80,14 @@ export const useSelectionStore = create<props>()((set, get) => ({
 		set({
 			anchorId: id,
 			lastSelectedId: id,
-			selectedIds: new Set([id]),
+			selectedIds: [id],
 			isMultiSelectMode: true,
 		}),
 
 	selectRange: (fromId, toId, itemIds) => {
 		const range = get().getRangeBetween(fromId, toId, itemIds)
 		set({
-			selectedIds: new Set(range),
+			selectedIds: range,
 			lastSelectedId: toId,
 			isMultiSelectMode: true,
 		})
@@ -112,12 +110,12 @@ export const useSelectionStore = create<props>()((set, get) => ({
 		return itemIds.slice(start, end + 1)
 	},
 
-	isSelected: (id) => get().selectedIds.has(id),
-	getSelectedCount: () => get().selectedIds.size,
-	getSelectedIds: () => Array.from(get().selectedIds),
+	isSelected: (id) => get().selectedIds.includes(id),
+	getSelectedCount: () => get().selectedIds.length,
+	getSelectedIds: () => get().selectedIds,
 
 	setMultiSelectMode: (enabled) =>
 		set((state) => ({
-			isMultiSelectMode: enabled && state.selectedIds.size > 0,
+			isMultiSelectMode: enabled && state.selectedIds.length > 0,
 		})),
 }))

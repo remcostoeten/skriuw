@@ -1,6 +1,5 @@
 import { createReactBlockSpec } from '@blocknote/react'
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from 'lucide-react'
-import { useMemo } from 'react'
 
 const calloutTypes = {
     info: {
@@ -35,7 +34,7 @@ const calloutTypes = {
 
 type CalloutType = keyof typeof calloutTypes
 
-export const calloutBlockSpec = createReactBlockSpec(
+export const calloutBlockSpec: any = createReactBlockSpec(
     {
         type: 'callout',
         propSchema: {

@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 import path from 'path'
 
+const isTauriBuild = process.env.TAURI_BUILD === 'true'
+
 const nextConfig: NextConfig = {
 	// Enable React strict mode for better development experience
 	reactStrictMode: true,
@@ -14,14 +16,22 @@ const nextConfig: NextConfig = {
 	// Fix for 431 Request Header Fields Too Large errors in development
 	experimental: {
 		// Optimize production builds
-		optimizePackageImports: ['@blocknote/mantine', '@blocknote/xl-ai'],
+		optimizePackageImports: ['@blocknote/mantine'],
 	},
+
+	// Disable static generation to avoid BlockNote SSR issues
+	generateEtags: false,
+	skipTrailingSlashRedirect: true,
 
 	// Disable source maps in production to reduce bundle size
 	productionBrowserSourceMaps: false,
 
 	// Optimize for Docker and Vercel deployments by only including necessary files
-	output: 'standalone',
+	output: process.env.TAURI_BUILD === 'true' ? 'standalone' : 'standalone',
+
+	images: {
+		unoptimized: isTauriBuild,
+	},
 
 	// Configure headers to handle large headers in development
 	headers: async () => {
@@ -66,12 +76,14 @@ const nextConfig: NextConfig = {
 			}
 		}
 
-		// Ignore optional Tauri modules that are only available in desktop environments
-		config.plugins.push(
-			new webpack.IgnorePlugin({
-				resourceRegExp: /^@tauri-apps\/api\/(window|event)$/,
-			})
-		)
+		// Ignore optional Tauri modules in web-only builds; include them when bundling the desktop app
+		if (!isTauriBuild) {
+			config.plugins.push(
+				new webpack.IgnorePlugin({
+					resourceRegExp: /^@tauri-apps\/api\/(window|event)$/,
+				})
+			)
+		}
 
 		return config
 	},

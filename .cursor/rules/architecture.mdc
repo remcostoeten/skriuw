@@ -1,0 +1,34 @@
+---
+description: Architectural rules and folder structure enforcement.
+globs: "**/*"
+priority: high
+version: 1.0.0
+---
+
+# Architecture & Folder Structure
+
+## Monorepo Structure
+
+- **`apps/web`**: The main Next.js application (Tauri frontend).
+- **`packages/shared`**: Shared types, utilities, and constants.
+- **`packages/crud`**: Core data access layer.
+- **`packages/ui`**: Shared UI components (if applicable).
+
+## Feature Colocation Rule
+
+All code related to a specific feature MUST be located in `apps/web/features/<feature-name>`.
+
+### Structure
+```
+apps/web/features/<feature-name>/
+├── api/              # Queries and Mutations
+├── components/       # Feature-specific UI components
+├── hooks/            # Custom hooks
+├── utils/            # Helper functions
+├── types/            # Feature-specific types (extend shared types)
+└── index.ts          # Public API (optional)
+```
+
+### Rules
+1. **Do not scatter code**: Avoid putting feature logic in global `components/` or `lib/` folders unless it is truly generic.
+2. **Imports**: Use `@/features/<feature-name>` for internal imports.

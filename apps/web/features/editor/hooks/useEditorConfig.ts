@@ -1,5 +1,4 @@
-import { codeBlockOptions } from '@blocknote/code-block'
-import { BlockNoteSchema, createCodeBlockSpec } from '@blocknote/core'
+import { BlockNoteSchema } from '@blocknote/core'
 import { customCodeBlockSpec } from '../blocks/custom-code-block'
 import { useMemo } from 'react'
 
@@ -7,7 +6,7 @@ import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handl
 import { useSettings, useUserPreferences } from '@/features/settings'
 
 import { taskBlockSpec } from '../slash-menu/task-block'
-import { animatedNumberBlockSpec } from '../slash-menu/animated-number-block'
+
 import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
 import { fileTreeBlockSpec } from '../slash-menu/file-tree-block'
 import { calloutBlockSpec } from '../blocks/callout-block'
@@ -22,11 +21,11 @@ export function createEditorSchema() {
 		blockSpecs: {
 			codeBlock: customCodeBlockSpec(),
 			task: taskBlockSpec(), // createReactBlockSpec returns a function that needs to be called
-			'animated-number': animatedNumberBlockSpec(),
+
 			shadcnTable: shadcnTableBlockSpec(), // Add our new block custom block
 			fileTree: fileTreeBlockSpec(),
-			callout: calloutBlockSpec(),
-		},
+			callout: calloutBlockSpec()
+		}
 	})
 }
 
@@ -34,7 +33,8 @@ export function createEditorSchema() {
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences()
+	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } =
+		useUserPreferences()
 	const { settings } = useSettings()
 
 	const fontSize = settings.fontSize || 'medium'
@@ -58,9 +58,9 @@ export function useEditorConfig() {
 						lineHeight: lineHeight.toString(),
 						maxWidth: getMaxWidthPx(maxWidth),
 						wordWrap: hasWordWrap ? 'break-word' : 'normal',
-						whiteSpace: hasWordWrap ? 'pre-wrap' : 'pre',
+						whiteSpace: hasWordWrap ? 'pre-wrap' : 'pre'
 					},
-					spellcheck: hasSpellCheck ? 'true' : 'false',
+					spellcheck: hasSpellCheck ? 'true' : 'false'
 				},
 				// Editor behavior settings
 				autoFocus: false,
@@ -71,8 +71,8 @@ export function useEditorConfig() {
 				// Custom paste handler for markdown/MDX content
 				// Uses BlockNote's official pasteHandler API
 				// See: https://www.blocknotejs.org/docs/reference/editor/paste-handling
-				pasteHandler: createPasteHandler(),
-			},
+				pasteHandler: createPasteHandler()
+			}
 		}
 
 		// Enable suggestion menus (slash commands) by default
@@ -87,14 +87,14 @@ export function useEditorConfig() {
 		hasWordWrap,
 		lineHeight,
 		maxWidth,
-		settings,
+		settings
 	])
 
 	return {
 		config: editorConfig,
 		hasWordWrap,
 		hasSpellCheck,
-		hasMarkdownShortcuts,
+		hasMarkdownShortcuts
 	}
 }
 
@@ -106,7 +106,7 @@ function getFontSizePx(size: string): string {
 		small: '14px',
 		medium: '16px',
 		large: '18px',
-		'x-large': '20px',
+		'x-large': '20px'
 	}
 	return sizeMap[size] || '16px'
 }
@@ -116,7 +116,7 @@ function getFontFamily(family: string): string {
 		inter: '"Inter", system-ui, sans-serif',
 		mono: '"Fira Code", "Menlo", "Monaco", monospace',
 		serif: '"Georgia", "Times New Roman", serif',
-		'sans-serif': 'system-ui, sans-serif',
+		'sans-serif': 'system-ui, sans-serif'
 	}
 	return fontMap[family] || '"Inter", system-ui, sans-serif'
 }
@@ -126,7 +126,7 @@ function getMaxWidthPx(width: string): string {
 		narrow: '65ch',
 		medium: '75ch',
 		wide: '85ch',
-		full: 'none',
+		full: 'none'
 	}
 	return widthMap[width] || 'none'
 }

@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { anonymous } from 'better-auth/plugins'
 import { getDatabase } from '@skriuw/db'
-import { env } from '@skriuw/env/server'
+import { env } from './env'
 
 type AuthInstance = ReturnType<typeof betterAuth> | null
 
@@ -12,8 +12,9 @@ if (!env.BETTER_AUTH_SECRET) missingVars.push('BETTER_AUTH_SECRET')
 const hasGithub = Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET)
 
 export const authEnabled = missingVars.length === 0
-export const authDisabledReason =
-	authEnabled ? null : `Auth disabled: missing ${missingVars.join(', ')}`
+export const authDisabledReason = authEnabled
+	? null
+	: `Auth disabled: missing ${missingVars.join(', ')}`
 
 let hasWarned = false
 
@@ -33,21 +34,21 @@ function createAuth(): AuthInstance {
 
 	return betterAuth({
 		database: drizzleAdapter(db, {
-			provider: 'pg',
+			provider: 'pg'
 		}),
 		emailAndPassword: {
-			enabled: true,
+			enabled: true
 		},
 		socialProviders: hasGithub
 			? {
-					github: {
-						clientId: env.GITHUB_CLIENT_ID!,
-						clientSecret: env.GITHUB_CLIENT_SECRET!,
-					},
-			  }
+				github: {
+					clientId: env.GITHUB_CLIENT_ID!,
+					clientSecret: env.GITHUB_CLIENT_SECRET!
+				}
+			}
 			: undefined,
 		secret: env.BETTER_AUTH_SECRET,
-		plugins: [anonymous()],
+		plugins: [anonymous()]
 	})
 }
 

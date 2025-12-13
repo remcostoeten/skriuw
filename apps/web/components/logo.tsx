@@ -1,155 +1,26 @@
 'use client'
 
-import { motion, easeInOut } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 const LogoIcon = () => {
-	const pathVariants = {
-		hidden: { pathLength: 0, opacity: 0 },
-		visible: {
-			pathLength: 1,
-			opacity: 1,
-			transition: {
-				pathLength: { duration: 1, ease: easeInOut },
-				opacity: { duration: 0.5 },
-			},
-		},
-	}
-
-	const circleVariants = {
-		hidden: { scale: 0, opacity: 0 },
-		visible: {
-			scale: 1,
-			opacity: 1,
-			transition: {
-				duration: 0.3,
-				ease: easeInOut,
-			},
-		},
-	}
-
-	const streamVariants = {
-		hidden: { opacity: 0, pathLength: 0 },
-		visible: {
-			opacity: 1,
-			pathLength: 1,
-			transition: {
-				duration: 0.5,
-				ease: easeInOut,
-			},
-		},
-	}
-
 	return (
-		<motion.svg
-			viewBox="0 0 32 32"
-			fill="none"
+		<svg
+			viewBox="0 0 40 40"
+			fill="currentColor"
 			xmlns="http://www.w3.org/2000/svg"
-			className="h-5 w-5 transition-all duration-300"
-			initial="hidden"
-			animate="visible"
+			className="h-5 w-5 text-primary transition-all duration-300"
 		>
-			<motion.path
-				d="M16 2L28 9V23L16 30L4 23V9L16 2Z"
-				className="fill-primary/10 stroke-primary"
-				strokeWidth="1"
-				variants={pathVariants}
-			/>
-
-			<motion.g
-				variants={{
-					hidden: { opacity: 0 },
-					visible: {
-						opacity: 1,
-						transition: {
-							delayChildren: 0.15,
-							staggerChildren: 0.1,
-						},
-					},
-				}}
-				className="animate-[slideUp_3s_linear_infinite]"
-			>
-				<motion.path
-					d="M8 18L16 22L24 18"
-					className="stroke-primary"
-					strokeWidth="1"
-					strokeLinecap="round"
-					variants={streamVariants}
-				/>
-				<motion.path
-					d="M8 14L16 18L24 14"
-					className="stroke-primary"
-					strokeWidth="1"
-					strokeLinecap="round"
-					variants={streamVariants}
-				/>
-				<motion.path
-					d="M8 10L16 14L24 10"
-					className="stroke-primary"
-					strokeWidth="1"
-					strokeLinecap="round"
-					variants={streamVariants}
-				/>
-			</motion.g>
-
-			<motion.g
-				variants={{
-					hidden: { opacity: 0 },
-					visible: {
-						opacity: 1,
-						transition: {
-							delay: 0.8,
-							duration: 0.5,
-						},
-					},
-				}}
-			>
-				<path d="M16 2V30" className="stroke-primary/40" strokeWidth="0.75" strokeDasharray="2 2" />
-				<path
-					d="M4 9L28 9"
-					className="stroke-primary/40"
-					strokeWidth="0.75"
-					strokeDasharray="2 2"
-				/>
-				<path
-					d="M4 23L28 23"
-					className="stroke-primary/40"
-					strokeWidth="0.75"
-					strokeDasharray="2 2"
-				/>
-			</motion.g>
-
-			<motion.g
-				variants={{
-					hidden: { opacity: 0 },
-					visible: {
-						opacity: 1,
-						transition: {
-							delayChildren: 1,
-							staggerChildren: 0.1,
-						},
-					},
-				}}
-			>
-				{[
-					{ cx: 16, cy: 2 },
-					{ cx: 28, cy: 9 },
-					{ cx: 28, cy: 23 },
-					{ cx: 16, cy: 30 },
-					{ cx: 4, cy: 23 },
-					{ cx: 4, cy: 9 },
-				].map((circle) => (
-					<motion.circle
-						key={`${circle.cx}-${circle.cy}`}
-						{...circle}
-						r="1.5"
-						className="fill-primary"
-						variants={circleVariants}
-					/>
-				))}
-			</motion.g>
-		</motion.svg>
+			<g className="fill-current">
+				{/* First bar - leftmost */}
+				<rect x="4" y="8" width="8" height="24" rx="1" />
+				{/* Second bar - middle */}
+				<rect x="16" y="4" width="8" height="32" rx="1" />
+				{/* Third bar - rightmost */}
+				<rect x="28" y="12" width="8" height="16" rx="1" />
+			</g>
+		</svg>
 	)
 }
 

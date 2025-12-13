@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.skriuw.app</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Skriuw</name>
+  <summary>A modern note-taking application</summary>
+  <description>
+    <p>
+      Skriuw is a blazingly fast, privacy-focused note-taking app with advanced features.
+    </p>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image type="source">https://raw.githubusercontent.com/remcostoeten/skriuw/main/apps/web/src-tauri/assets/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://skriuw.com</url>
+</component>
