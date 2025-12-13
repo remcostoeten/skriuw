@@ -16,9 +16,13 @@ jobs:
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
       DATABASE_PROVIDER: "postgres"
       BETTER_AUTH_SECRET: "ci-secret-value-must-be-32-chars-long-dummy-value"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      CLERK_SECRET_KEY: "sk_test_ci_dummy"
       CONNECTOR_ENCRYPTION_KEY: "00000000000000000000000000000000" # 32 chars hex
       CRON_SECRET: "0000000000000000000000000000000000000000000000000000000000000000" # 64 chars hex
       NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_dummy"
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: "http://localhost:3000/sign-in"
       
     steps:
       - uses: actions/checkout@v4
