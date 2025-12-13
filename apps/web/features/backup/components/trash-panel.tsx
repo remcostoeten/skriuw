@@ -142,14 +142,12 @@ export function TrashPanel() {
 
 	if (trashItems.length === 0) {
 		return (
-			<div className="py-12">
-				<EmptyState
-					message="Trash is empty"
-					isError={`Deleted notes will appear here for ${TRASH_RETENTION_DAYS} days`}
-					icon={<Trash2 className="h-8 w-8" />}
-					isFull
-				/>
-			</div>
+			<EmptyState
+				message="Trash is empty"
+				description={`Deleted notes will appear here for ${TRASH_RETENTION_DAYS} days`}
+				icon={<Trash2 className="h-12 w-12 text-muted-foreground/40" />}
+				className="min-h-[300px]"
+			/>
 		)
 	}
 

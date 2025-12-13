@@ -27,9 +27,7 @@ mock.module("../env", () => ({
             isConfigured: false
         }
     },
-    ai: {
-        geminiKey: undefined
-    },
+
     isProduction: false,
     isDevelopment: false,
     isTest: true,

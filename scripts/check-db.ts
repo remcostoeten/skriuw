@@ -1,6 +1,6 @@
 import { spawn } from "bun";
 
-async function checkDockerDB() {
+export async function checkDockerDB() {
     console.log("\n🔍 Checking Database Status...");
 
     try {
@@ -33,4 +33,6 @@ async function checkDockerDB() {
     console.log(""); // Empty line
 }
 
-checkDockerDB();
+if (import.meta.main) {
+    checkDockerDB();
+}
