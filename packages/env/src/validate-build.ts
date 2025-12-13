@@ -83,7 +83,26 @@ async function scanProcessEnvUsage(): Promise<string[]> {
  */
 function validateServer(): ValidationResult {
 	try {
-		serverSchema.parse(process.env)
+		// During build time, we skip validation of runtime-only variables
+		// like DATABASE_URL since they're not needed for the build process
+		const isBuildTime = process.env.NODE_ENV === 'production' ||
+		                   process.argv.includes('--build-mode') ||
+		                   process.env.VERCEL === '1' ||
+		                   process.env.CI === 'true'
+
+		if (isBuildTime) {
+			// Create a modified schema that makes runtime variables optional during build
+			const buildSchema = serverSchema.partial({
+				DATABASE_URL: true,
+				AUTH_SECRET: true,
+				BETTER_AUTH_SECRET: true,
+			})
+
+			buildSchema.parse(process.env)
+		} else {
+			serverSchema.parse(process.env)
+		}
+
 		return { success: true }
 	} catch (error) {
 		if (error instanceof ZodError) {
