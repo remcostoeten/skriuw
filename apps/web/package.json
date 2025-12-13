@@ -6,7 +6,7 @@
         "build": "next build",
         "validate-env": "tsx -e \"import('../../packages/env/src/server.ts').catch((err) => { console.error(err); process.exit(1); })\"",
         "dev": "next dev",
-        "lint": "next lint",
+        "lint": "next lint --dir .",
         "check-types": "tsc --noEmit",
         "start": "next start",
         "test": "bun test --preload ./test-setup.ts",
@@ -17,7 +17,7 @@
     },
     "dependencies": {
         "@blocknote/core": "^0.44.2",
-        "@blocknote/react": "^0.42.3",
+        "@blocknote/react": "^0.44.2",
         "@hookform/resolvers": "^5.2.2",
         "@internationalized/date": "^3.10.0",
         "@monaco-editor/react": "^4.7.0",
