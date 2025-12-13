@@ -184,7 +184,47 @@ export const verification = pgTable("verification", {
 	updatedAt: timestamp("updated_at"),
 });
 
+// Seed templates - admin-managed notes/folders cloned to new users
+export const seedTemplateFolders = pgTable(
+	'seed_template_folders',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		parentFolderId: text('parent_folder_id'),
+		order: integer('order').default(0).notNull(),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+		updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	},
+	(table) => ({
+		parentFolderIdx: index('seed_folders_parent_idx').on(table.parentFolderId),
+		orderIdx: index('seed_folders_order_idx').on(table.order),
+	})
+)
+
+export const seedTemplateNotes = pgTable(
+	'seed_template_notes',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		content: text('content').notNull(), // BlockNote JSON
+		parentFolderId: text('parent_folder_id'),
+		pinned: integer('pinned').default(0),
+		order: integer('order').default(0).notNull(),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+		updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	},
+	(table) => ({
+		parentFolderIdx: index('seed_notes_parent_idx').on(table.parentFolderId),
+		orderIdx: index('seed_notes_order_idx').on(table.order),
+	})
+)
+
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
 export type Account = typeof account.$inferSelect;
 export type Verification = typeof verification.$inferSelect;
+export type SeedTemplateFolder = typeof seedTemplateFolders.$inferSelect;
+export type NewSeedTemplateFolder = typeof seedTemplateFolders.$inferInsert;
+export type SeedTemplateNote = typeof seedTemplateNotes.$inferSelect;
+export type NewSeedTemplateNote = typeof seedTemplateNotes.$inferInsert;
+
