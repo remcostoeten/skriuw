@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ShieldAlert } from 'lucide-react'
 
 export function AuthGuardListener() {
+	const lastShownRef = useRef<number>(0)
+
 	useEffect(() => {
 		function handleAuthRequired(event: Event) {
+			// Prevent spamming toasts (debounce for 2 seconds)
+			const now = Date.now()
+			if (now - lastShownRef.current < 2000) return
+			lastShownRef.current = now
+
 			const detail = (event as CustomEvent<{ status: number; message: string }>).detail
 			const status = detail?.status
 			const isDisabled = status === 503
@@ -17,11 +24,11 @@ export function AuthGuardListener() {
 				action: isDisabled
 					? undefined
 					: {
-							label: 'Sign in',
-							onClick: () => {
-								window.location.href = '/api/auth'
-							},
-					  },
+						label: 'Sign in',
+						onClick: () => {
+							window.location.href = '/api/auth'
+						},
+					},
 			})
 		}
 

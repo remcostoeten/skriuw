@@ -1,5 +1,6 @@
-import { EmptyState } from '../ui/empty-state'
-import { shortcut } from '../../features/shortcuts'
+import { Button } from '../ui/button'
+import { Kbd } from '../ui/kbd'
+import { BrandLogo } from '../brand-logo'
 
 type Props = {
 	onCreateNote: () => void
@@ -11,20 +12,7 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 		<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
 			<div className="flex flex-col items-center gap-6 mb-8">
 				<div className="flex flex-col items-center gap-3">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 390 513"
-						width="120"
-						height="120"
-						preserveAspectRatio="xMidYMid meet"
-						className="text-foreground mb-4"
-					>
-						<g fill="currentColor">
-							<path d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z" />
-							<path d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z" />
-							<path d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z" />
-						</g>
-					</svg>
+					<BrandLogo size={120} className="mb-4" />
 					<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
 					<div className="flex flex-col items-center gap-1 text-muted-foreground">
 						<p className="text-sm italic">
@@ -42,30 +30,27 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 					</p>
 				</div>
 			</div>
-			<div>
-				<ul>
-                                        <li>todo: tabs settings remove emojis en show reorder gif</li>
-                                        <li>todo: better empty state with search (21st.dev</li>
-                                        <li>User menu tyling</li>
-                                        <li>login flow</li>
-                                </ul>
-                        </div>
-			<EmptyState
-				actions={[
-					{
-						label: 'Open Collection',
-						shortcut: shortcut().modifiers('Cmd').key('O'),
-						separator: true,
-						onClick: onOpenCollection,
-					},
-					{
-						label: 'Create Note',
-						shortcut: shortcut().modifiers('Cmd').key('N'),
-						separator: true,
-						onClick: onCreateNote,
-					},
-				]}
-			/>
+
+			<div className="flex flex-row items-center gap-4 mt-8">
+				<Button
+					variant="secondary"
+					size="lg"
+					onClick={onOpenCollection}
+					className="gap-3 pr-2"
+				>
+					Open Collection
+					<Kbd>⌘O</Kbd>
+				</Button>
+				<Button
+					variant="default"
+					size="lg"
+					onClick={onCreateNote}
+					className="gap-3 pr-2"
+				>
+					Create Note
+					<Kbd className="bg-primary-foreground/20 text-primary-foreground">⌘N</Kbd>
+				</Button>
+			</div>
 		</div>
 	)
 }

@@ -1,0 +1,19 @@
+## Dev widget improvements
+
+We have this dev widget which has some features that lack rearl usacase or ar ejust st
+raight up buggy.
+
+### Additions
+
+### Visibility
+
+Currently the dev widget is only visible on dev, we want to modify this so we can perform crons, seeds and more on production.
+
+Make it so that the dev widet is visible on prod also, but then only if the autghenticated user their email adres equals env.ADMIN_EMAIL || env.A
+DMIN_EMAIL_TWO. Make sure to add this env to ourt env module
+.
+
+#### Title
+There is this title mechanism that says database down or postgres or neon, but it has quite a few edge cases where it is not rendered properly we want this title to consist of two parts. The firs being the provider (Neon || Docker), and the second being the status in which we should query the database on devwidget load with a simple ping to see if the database is active.
+
+In case of docker add a small hint that docker isnt running if the query fails, in case of neon say that the database url is most likely not proper
