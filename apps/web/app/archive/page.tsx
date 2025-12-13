@@ -12,7 +12,7 @@ import { ExportPanel } from '@/features/backup/components/export-panel'
 import { ImportPanel } from '@/features/backup/components/import-panel'
 import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
 import { useStorageConnectors } from '@/features/backup/hooks/use-storage-connectors'
-import { usePrefersAnimations } from '@/features/backup/hooks/use-prefers-animations'
+import { usePrefersAnimations } from '@/hooks/use-prefers-animations'
 import type { StorageConnectorType } from '@/features/backup/core/types'
 
 const tabs = [
