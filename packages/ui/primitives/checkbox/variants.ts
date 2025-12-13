@@ -26,7 +26,7 @@ export const checkboxStyles: Record<
 		name: 'Default',
 		description: 'Standard checkbox with border and background',
 		unchecked: {
-			border: 'border-2 border-input',
+			border: 'border-2 border-border',
 			background: 'bg-background',
 		},
 		checked: {

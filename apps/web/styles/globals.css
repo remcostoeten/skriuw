@@ -101,7 +101,7 @@
 		--destructive-foreground: 355.47deg 98.62% 75.48% / 20%;
 		--border: 0 0% 18%;
 		--input: 0 0% 18%;
-		--ring: 0 0% 90%;
+		--ring: 0 0% 30%;
 		--sidebar-background: 0 0% 7%;
 		--sidebar-foreground: 0 0% 85%;
 		--sidebar-primary: 0 0% 90%;
@@ -232,8 +232,13 @@ input:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
-	outline: none;
-	box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 0 3px hsl(var(--primary) / 0.12);
+	outline: none !important;
+	box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 0 3px hsl(var(--primary) / 0.12) !important;
+	/* Disable Tailwind ring utilities */
+	--tw-ring-offset-width: 0px !important;
+	--tw-ring-offset-color: transparent !important;
+	--tw-ring-color: transparent !important;
+	--tw-ring-shadow: none !important;
 }
 
 /* Keep Tailwind focus utilities intact */

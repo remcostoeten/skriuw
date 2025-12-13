@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
 		optimizePackageImports: ['@blocknote/mantine'],
 	},
 
+	devIndicators: false,
+
 	// Disable static generation to avoid BlockNote SSR issues
 	generateEtags: false,
 	skipTrailingSlashRedirect: true,
