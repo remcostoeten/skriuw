@@ -2,8 +2,7 @@
   "name": "skriuw-monorepo",
   "version": "0.1.0",
   "devDependencies": {
-    "@skriuw/eslint-config": "workspace:*",
-    "@skriuw/typescript-config": "workspace:*",
+    "@skriuw/config": "workspace:*",
     "baseline-browser-mapping": "^2.9.5",
     "dotenv": "^17.2.3",
     "next": "16.0.2",
@@ -40,7 +39,6 @@
   ],
   "dependencies": {
     "@blocknote/mantine": "^0.44.1",
-    "@blocknote/xl-ai": "^0.44.0",
     "better-auth": "^1.4.5",
     "next-themes": "^0.4.6"
   }
