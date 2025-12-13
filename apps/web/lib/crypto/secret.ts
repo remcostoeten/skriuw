@@ -4,7 +4,7 @@ import {
 	createHash,
 	randomBytes
 } from 'crypto'
-import { Env as env } from '../env'
+import { env } from '../env'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // recommended for GCM

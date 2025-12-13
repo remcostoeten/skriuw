@@ -2,16 +2,13 @@ import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 
 // Don't add NODE_ENV into T3 Env, it changes the tree-shaking behavior
-export const Env = createEnv({
+export const env = createEnv({
     clientPrefix: 'NEXT_PUBLIC_',
     server: {
-        CLERK_SECRET_KEY: z.string().min(1),
         DATABASE_URL: z.string().min(1),
-        DATABASE_AUTH_TOKEN: z.string().optional(),
         DATABASE_PROVIDER: z.enum(['postgres', 'neon']).default('postgres'),
         BETTER_AUTH_SECRET: z.string().min(1),
         BETTER_AUTH_URL: z.string().url(),
-        AUTH_TRUST_HOST: z.string().optional(),
         GITHUB_CLIENT_ID: z.string().optional(),
         GITHUB_CLIENT_SECRET: z.string().optional(),
         GEMINI_API_KEY: z.string().optional(),
@@ -24,25 +21,29 @@ export const Env = createEnv({
     },
     client: {
         NEXT_PUBLIC_APP_URL: z.string().optional(),
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
-        NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().min(1),
-        NEXT_PUBLIC_DROPBOX_CLIENT_ID: z.string().optional(),
+            NEXT_PUBLIC_DROPBOX_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
-        NEXT_PUBLIC_ENABLE_AUTH_LOGGING: z.string().optional(),
-        NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING: z.string().optional(),
-        NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: z.string().optional(),
+        NEXT_PUBLIC_ENABLE_AUTH_LOGGING: z
+            .string()
+            .optional()
+            .transform((s) => s === 'true'),
+        NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING: z
+            .string()
+            .optional()
+            .transform((s) => s === 'true'),
+        NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: z
+            .string()
+            .optional()
+            .transform((s) => s === 'true'),
         NEXT_PUBLIC_DISABLE_AUTO_SIGNIN: z.string().optional(),
     },
     // You need to destructure all the keys manually
     runtimeEnv: {
-        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
         DATABASE_URL: process.env.DATABASE_URL,
-        DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
         DATABASE_PROVIDER: process.env.DATABASE_PROVIDER,
         BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
         BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-        AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
         GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
         GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
         GEMINI_API_KEY: process.env.GEMINI_API_KEY,
