@@ -1,6 +1,6 @@
-import { env } from '@skriuw/env/server';
 import { config } from 'dotenv';
 import type { Config } from 'drizzle-kit';
+import { env } from './apps/web/env';
 
 config({ quiet: true });
 

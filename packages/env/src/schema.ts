@@ -4,6 +4,7 @@
  * Provides type-safe access and validation with helpful error messages.
  */
 
+import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 
 // ============================================================================

@@ -12,8 +12,9 @@ if (!env.BETTER_AUTH_SECRET) missingVars.push('BETTER_AUTH_SECRET')
 const hasGithub = Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET)
 
 export const authEnabled = missingVars.length === 0
-export const authDisabledReason =
-	authEnabled ? null : `Auth disabled: missing ${missingVars.join(', ')}`
+export const authDisabledReason = authEnabled
+	? null
+	: `Auth disabled: missing ${missingVars.join(', ')}`
 
 let hasWarned = false
 
@@ -33,21 +34,21 @@ function createAuth(): AuthInstance {
 
 	return betterAuth({
 		database: drizzleAdapter(db, {
-			provider: 'pg',
+			provider: 'pg'
 		}),
 		emailAndPassword: {
-			enabled: true,
+			enabled: true
 		},
 		socialProviders: hasGithub
 			? {
 					github: {
 						clientId: env.GITHUB_CLIENT_ID!,
-						clientSecret: env.GITHUB_CLIENT_SECRET!,
-					},
-			  }
+						clientSecret: env.GITHUB_CLIENT_SECRET!
+					}
+				}
 			: undefined,
 		secret: env.BETTER_AUTH_SECRET,
-		plugins: [anonymous()],
+		plugins: [anonymous()]
 	})
 }
 

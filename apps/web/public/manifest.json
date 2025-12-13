@@ -1,12 +1,12 @@
 {
-	"name": "newskriuw",
-	"short_name": "newskriuw",
+	"name": "Skriuw",
+	"short_name": "Skriuw",
 	"description": "A modern note-taking application",
 	"start_url": "/",
 	"display": "standalone",
 	"background_color": "#ffffff",
 	"theme_color": "#000000",
-	"orientation": "any",
+	"orientation": "portrait-primary",
 	"icons": [
 		{
 			"src": "/android-chrome-192x192.png",

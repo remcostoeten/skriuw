@@ -28,9 +28,27 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": ["app", "dmg", "deb", "appimage"],
-		"icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+		"targets": [
+			"app",
+			"dmg",
+			"deb",
+			"appimage"
+		],
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.png"
+		],
 		"resources": [],
+		"linux": {
+			"deb": {
+				"files": {
+					"/usr/share/metainfo/com.skriuw.app.metainfo.xml": "com.skriuw.app.metainfo.xml",
+					"/usr/share/doc/skriuw/screenshot.png": "assets/screenshot.png"
+				}
+			}
+		},
 		"externalBin": [],
 		"copyright": "",
 		"category": "Productivity",
