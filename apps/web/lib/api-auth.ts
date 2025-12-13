@@ -6,7 +6,7 @@
 
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, authEnabled, authDisabledReason } from '@/lib/auth'
 
 /**
  * Session result from Better Auth
@@ -49,6 +49,11 @@ export interface AuthError {
  * @returns Session or null if not authenticated
  */
 export async function getSession(): Promise<Session | null> {
+    if (!authEnabled || !auth) {
+        console.warn(authDisabledReason || 'Auth disabled')
+        return null
+    }
+
     try {
         const session = await auth.api.getSession({
             headers: await headers(),
@@ -75,6 +80,42 @@ export async function getCurrentUserId(): Promise<string | null> {
 // API ROUTE HELPERS
 // ============================================================================
 
+export async function evaluateAuthGuard(
+    getSessionFn: () => Promise<Session | null>,
+    options: { authEnabled: boolean; disabledReason?: string }
+): Promise<AuthResult | AuthError> {
+    if (!options.authEnabled) {
+        return {
+            authenticated: false,
+            response: NextResponse.json(
+                {
+                    error: 'Service unavailable',
+                    message: options.disabledReason || 'Authentication is disabled',
+                },
+                { status: 503 }
+            ),
+        }
+    }
+
+    const session = await getSessionFn()
+
+    if (!session?.user?.id) {
+        return {
+            authenticated: false,
+            response: NextResponse.json(
+                { error: 'Unauthorized', message: 'Authentication required' },
+                { status: 401 }
+            ),
+        }
+    }
+
+    return {
+        authenticated: true,
+        userId: session.user.id,
+        session,
+    }
+}
+
 /**
  * Requires authentication for an API route.
  * Returns an error response if not authenticated.
@@ -93,23 +134,10 @@ export async function getCurrentUserId(): Promise<string | null> {
  * ```
  */
 export async function requireAuth(): Promise<AuthResult | AuthError> {
-    const session = await getSession()
-
-    if (!session?.user?.id) {
-        return {
-            authenticated: false,
-            response: NextResponse.json(
-                { error: 'Unauthorized', message: 'Authentication required' },
-                { status: 401 }
-            ),
-        }
-    }
-
-    return {
-        authenticated: true,
-        userId: session.user.id,
-        session,
-    }
+    return evaluateAuthGuard(getSession, {
+        authEnabled: authEnabled && Boolean(auth),
+        disabledReason: authDisabledReason || undefined,
+    })
 }
 
 /**
