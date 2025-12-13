@@ -1,13 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "turbo build --filter=web && rm -rf .next public && cp -r apps/web/.next .next && cp -r apps/web/public public",
+  "buildCommand": "turbo build --filter=web^... && cd apps/web && npx next build && cd ../.. && ln -sf apps/web/.next .next && ln -sf apps/web/public public",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "build": {
-    "env": {
-      "NEXT_TELEMETRY_DISABLED": "1"
-    }
-  },
+  "regions": [
+    "iad1"
+  ],
   "crons": [
     {
       "path": "/api/cron/cleanup",
