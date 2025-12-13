@@ -33,8 +33,21 @@ interface ValidationResult {
  */
 async function scanProcessEnvUsage(): Promise<string[]> {
 	const warnings: string[] = []
+	const rootDir = resolve(process.cwd(), '../../') // Assuming running from packages/env
+
 	const files = await glob('**/*.{ts,tsx}', {
-		ignore: ['node_modules/**', 'dist/**', '.next/**', 'packages/*/dist/**']
+		cwd: rootDir,
+		ignore: [
+			'**/node_modules/**',
+			'**/dist/**',
+			'**/.next/**',
+			'**/.turbo/**',
+			'packages/env/src/**', // Ignore the env package itself as it needs process.env
+			'packages/env/dist/**',
+			'**/*.d.ts',
+			'**/build/**'
+		],
+		absolute: true
 	})
 
 	for (const file of files) {
@@ -47,11 +60,13 @@ async function scanProcessEnvUsage(): Promise<string[]> {
 					trimmed.includes('process.env') &&
 					!trimmed.includes('@skriuw/env') &&
 					!trimmed.includes('import') &&
-					!trimmed.includes('from')
+					!trimmed.includes('from') &&
+					!trimmed.includes('// eslint-disable-next-line') &&
+					!trimmed.includes('process.env.NODE_ENV')
 				) {
 					// Simple check: if process.env is used without importing from env
 					warnings.push(
-						`${pc.cyan(relative(process.cwd(), file))}:${pc.yellow(String(index + 1))}: ${pc.dim(trimmed)}`
+						`${pc.cyan(relative(rootDir, file))}:${pc.yellow(String(index + 1))}: ${pc.dim(trimmed)}`
 					)
 				}
 			})
@@ -133,12 +148,27 @@ async function validateAll(
 		errors.push(...(clientResult.errors || []))
 	}
 
-	// Add warnings for optional but recommended variables
-	if (!process.env.DATABASE_URL) {
-		warnings.push(
-			`${pc.bold('DATABASE_URL')} is not set - ${pc.yellow('database features will not work')}`
-		)
-	}
+	// Dynamic check for missing optional variables via Zod Schema
+	// If validation passed (success=true), then any missing keys are optional.
+	// We warn about them to inform the user about disabled features.
+
+	const allSchemas = { ...serverSchema.shape, ...clientSchema.shape }
+	const ignoredKeys = ['NODE_ENV', 'PORT', 'DEBUG', 'DATABASE_URL', 'AUTH_SECRET', 'BETTER_AUTH_SECRET']
+
+	Object.keys(allSchemas).forEach((key) => {
+		if (ignoredKeys.includes(key)) return
+
+		const value = process.env[key]
+		if (!value || value === '') {
+			// Try to get description from Zod schema if possible, or just warn about key
+			const schemaDef = allSchemas[key as keyof typeof allSchemas]
+			const description = schemaDef.description ? ` - ${schemaDef.description}` : ''
+
+			warnings.push(
+				`${pc.bold(key)} is missing${description}`
+			)
+		}
+	})
 
 	if (!process.env.AUTH_SECRET && !process.env.BETTER_AUTH_SECRET) {
 		warnings.push(

@@ -5,6 +5,8 @@ import 'prismjs/themes/prism-tomorrow.css'
 
 import { Providers } from './providers'
 import { AutoSignIn } from '@/components/auth/auto-sign-in'
+import { AuthStatus } from '@/components/auth/auth-status'
+import { AuthGuardListener } from '@/components/auth/auth-guard-listener'
 
 export const metadata: Metadata = {
 	title: 'Skriuw',
@@ -44,6 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<body className="font-sans antialiased dark bg-background">
 				<Providers>
 					<AutoSignIn />
+					<AuthGuardListener />
+					<AuthStatus />
 					{children}
 				</Providers>
 			</body>
