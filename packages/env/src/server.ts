@@ -72,17 +72,7 @@ export const auth = {
             return !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET)
         },
     },
-    google: {
-        get clientId(): string | undefined {
-            return env.GOOGLE_CLIENT_ID
-        },
-        get clientSecret(): string | undefined {
-            return env.GOOGLE_CLIENT_SECRET
-        },
-        get isConfigured(): boolean {
-            return !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
-        },
-    },
+
 } as const
 
 /**
@@ -92,12 +82,7 @@ export const ai = {
     get geminiKey(): string | undefined {
         return env.GEMINI_API_KEY || env.GEMINI_BACKUP_KEY
     },
-    get openaiKey(): string | undefined {
-        return env.OPENAI_API_KEY
-    },
-    get anthropicKey(): string | undefined {
-        return env.ANTHROPIC_API_KEY
-    },
+
 } as const
 
 // Re-export utilities

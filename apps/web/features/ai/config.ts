@@ -5,6 +5,7 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Provider } from "ai";
+import { env } from '@skriuw/env/server'
 
 // Helper to read a setting value – replace with your actual settings accessor.
 // For now we assume a synchronous function that returns a string or undefined.
@@ -27,9 +28,8 @@ export function getGlobalProvider(): Provider {
 
     // 2. Fallback to environment variables for Gemini.
     const geminiKey =
-        process.env.GEMINI_KEY ||
-        process.env.GEMINI_BACKUP_KEY ||
-        process.env.GEMINI_THIRD_BACKUP_KEY;
+        env.GEMINI_API_KEY ||
+        env.GEMINI_BACKUP_KEY;
 
     if (geminiKey) {
         return createGoogleGenerativeAI({ apiKey: geminiKey });

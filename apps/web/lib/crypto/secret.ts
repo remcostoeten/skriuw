@@ -1,10 +1,12 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
+import { env } from '@skriuw/env/server'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // recommended for GCM
 
 function getKey(): Buffer {
-	const secret = process.env.CONNECTOR_ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET
+	// Use a specific key for connector encryption, falling back to auth secret
+	const secret = env.CONNECTOR_ENCRYPTION_KEY || env.BETTER_AUTH_SECRET
 	if (!secret || secret.length < 16) {
 		throw new Error(
 			'CONNECTOR_ENCRYPTION_KEY (preferred) or BETTER_AUTH_SECRET must be set and at least 16 characters'

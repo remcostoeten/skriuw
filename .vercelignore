@@ -10,6 +10,19 @@ target/
 *.dmg
 *.exe
 
+# Exclude local Next dev cache
+apps/web/.next/dev
+apps/web/.next/cache
+
+# Exclude source maps (major size reduction)
+**/*.map
+*.map
+apps/web/.next/**/*.map
+
+# Turbo cache
+.turbo
+**/.turbo
+
 # Exclude other apps (keep only web)
 apps/desktop/
 apps/cli/

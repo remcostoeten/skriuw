@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { env } from '@skriuw/env/server'
 
 import { requireAuth } from '@/lib/api-auth'
 import { OAUTH2_CONFIGS } from '../../authorize/[type]/route'
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		// Handle OAuth2 errors
 		if (error) {
 			return NextResponse.redirect(
-				`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
+				`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
 			)
 		}
 
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
+		const redirectUrl = new URL(`${env.NEXT_PUBLIC_APP_URL}/archive`)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		console.error('OAuth2 callback failed:', message)
 
 		return NextResponse.redirect(
-			`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
+			`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
 		)
 	}
 }
