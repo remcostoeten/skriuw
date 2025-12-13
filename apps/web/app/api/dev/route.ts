@@ -11,7 +11,7 @@ import {
 } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
 import { generateId } from '@skriuw/core-logic'
-import { Env as env } from '../../../lib/env'
+import { env } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
 	if (process.env.NODE_ENV !== 'development') {

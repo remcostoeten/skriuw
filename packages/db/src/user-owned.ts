@@ -5,7 +5,7 @@
  */
 
 import { text, index } from 'drizzle-orm/pg-core'
-import type { AnyPgColumn, PgTableWithColumns } from 'drizzle-orm/pg-core'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 /**
  * Standard columns for user-owned entities.
@@ -21,7 +21,7 @@ import type { AnyPgColumn, PgTableWithColumns } from 'drizzle-orm/pg-core'
  * ```
  */
 export function createUserOwnershipColumn(
-    userTable: PgTableWithColumns<{ id: AnyPgColumn }>
+    userTable: { id: AnyPgColumn }
 ) {
     return {
         userId: text('user_id').references(() => userTable.id),

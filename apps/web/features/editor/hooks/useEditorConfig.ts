@@ -1,5 +1,4 @@
-import { codeBlockOptions } from '@blocknote/code-block'
-import { BlockNoteSchema, createCodeBlockSpec } from '@blocknote/core'
+import { BlockNoteSchema } from '@blocknote/core'
 import { customCodeBlockSpec } from '../blocks/custom-code-block'
 import { useMemo } from 'react'
 

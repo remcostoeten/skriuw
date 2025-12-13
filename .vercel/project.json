@@ -1,1 +1,16 @@
-{"projectId":"prj_25hWRweX5uFPoZGSqJnswQ3xFkXJ","orgId":"team_9Sx89dTpthtuqHCxRJ8a0jvl","projectName":"skriuw"}
+{
+  "projectId": "prj_25hWRweX5uFPoZGSqJnswQ3xFkXJ",
+  "orgId": "team_9Sx89dTpthtuqHCxRJ8a0jvl",
+  "projectName": "skriuw",
+  "settings": {
+    "createdAt": 1764627793835,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}

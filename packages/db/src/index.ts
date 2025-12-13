@@ -48,17 +48,8 @@ export function getDatabase() {
 	}
 
 	// Try @skriuw/env first, fallback to process.env for drizzle-kit compatibility
-	let url: string
-
-	try {
-		// Dynamic import to avoid validation at build time
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { database } = require('../lib/env')
-		url = database.url
-	} catch {
-		// Fallback for drizzle-kit commands that use dotenv
-		url = process.env.DATABASE_URL || ''
-	}
+	// Fallback for drizzle-kit commands that use dotenv
+	const url = process.env.DATABASE_URL || ''
 
 	if (!url) {
 		throw new Error(

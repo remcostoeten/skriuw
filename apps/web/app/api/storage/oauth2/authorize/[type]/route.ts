@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { requireAuth } from '@/lib/api-auth'
-import { Env as env } from '../../../../../../lib/env'
+import { env } from '../../../../../../lib/env'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,17 +50,17 @@ export async function GET(
 		// Store state in session/cookie for verification
 		const response = NextResponse.redirect(
 			`${config.authUrl}?` +
-				new URLSearchParams({
-					client_id: config.clientId,
-					redirect_uri: config.redirectUri,
-					response_type: 'code',
-					state,
-					...(config.scope && { scope: config.scope }),
-					...(type === 'google-drive' && {
-						access_type: 'offline',
-						prompt: 'consent'
-					})
+			new URLSearchParams({
+				client_id: config.clientId,
+				redirect_uri: config.redirectUri,
+				response_type: 'code',
+				state,
+				...(config.scope && { scope: config.scope }),
+				...(type === 'google-drive' && {
+					access_type: 'offline',
+					prompt: 'consent'
 				})
+			})
 		)
 
 		// Set state cookie for verification
