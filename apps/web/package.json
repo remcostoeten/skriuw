@@ -3,11 +3,13 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "build": "next build",
+        "build": "bun run validate-env && next build",
+        "validate-env": "tsx ../../packages/env/src/validate-build.ts",
         "dev": "next dev",
         "lint": "next lint",
         "check-types": "tsc --noEmit",
-        "start": "next start"
+        "start": "next start",
+        "test": "bun test --preload ./test-setup.ts"
     },
     "dependencies": {
         "@ai-sdk/google": "^2.0.44",

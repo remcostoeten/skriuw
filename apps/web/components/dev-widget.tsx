@@ -58,6 +58,7 @@ type DevApiResponse = {
 	stats?: DbStats
 	restartRequired?: boolean
 	provider?: 'neon' | 'postgres'
+	cronConfigured?: boolean
 }
 
 type UserInfo = {
@@ -86,6 +87,7 @@ type TabType = 'database' | 'users' | 'cron' | 'health' | 'config'
 export function DevWidget() {
 	const { items, refreshItems } = useNotesContext()
 	const [isOpen, setIsOpen] = useState(false)
+	const [cronConfigured, setCronConfigured] = useState<boolean>(false)
 	const [activeTab, setActiveTab] = useState<TabType>('database')
 	const [stats, setStats] = useState<DbStats | null>(null)
 	const [provider, setProvider] = useState<'neon' | 'postgres' | null>(null)
@@ -889,9 +891,9 @@ export function DevWidget() {
 												<span className="text-xs font-medium">Cron Secret</span>
 												<div className={cn(
 													'px-2 py-1 rounded-full text-[10px] font-medium',
-													process.env.CRON_SECRET ? 'bg-emerald-500/10 text-emerald-600' : 'bg-orange-500/10 text-orange-600'
+													cronConfigured ? 'bg-emerald-500/10 text-emerald-600' : 'bg-orange-500/10 text-orange-600'
 												)}>
-													{process.env.CRON_SECRET ? 'CONFIGURED' : 'NOT SET'}
+													{cronConfigured ? 'CONFIGURED' : 'NOT SET'}
 												</div>
 											</div>
 										</div>

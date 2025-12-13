@@ -4,13 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize]
 
 jobs:
   validate:
-    name: Validate
+    name: Validate & Build
     runs-on: ubuntu-latest
-    
+    env:
+      # Dummy required secrets to pass environment validation in CI
+      # Does not need to be real for build/lint/type-check
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+      DATABASE_PROVIDER: "postgres"
+      BETTER_AUTH_SECRET: "ci-secret-value-must-be-32-chars-long-dummy-value"
+      CONNECTOR_ENCRYPTION_KEY: "00000000000000000000000000000000" # 32 chars hex
+      CRON_SECRET: "0000000000000000000000000000000000000000000000000000000000000000" # 64 chars hex
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      
     steps:
       - uses: actions/checkout@v4
       
@@ -18,18 +27,22 @@ jobs:
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-          
+
       - name: Install Dependencies
-        run: bun install
-        
+        run: bun install --frozen-lockfile
+
+      - name: Validate Environment Schema
+        run: bun run validate-env
+        working-directory: apps/web
+
       - name: Lint
         run: bun run lint
-        
+
       - name: Type Check
         run: bun run check-types
-        
+
       - name: Test
         run: bun run test
-        
+
       - name: Build
         run: bun run build

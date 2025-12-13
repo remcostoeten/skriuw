@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STORAGE_CONNECTOR_DEFINITIONS } from '../../features/backup/core/connectors'
 import {
 	decryptConnectorStates,
 	encryptConnectorStates,
 } from '../../features/backup/core/connector-secrets'
+
+
 
 const baseConnectors = [
 	{
@@ -18,6 +20,7 @@ const baseConnectors = [
 			region: 'us-east-1',
 			bucket: 'bucket',
 		},
+		oauth2Tokens: undefined,
 	},
 	{
 		id: 'two',
@@ -25,8 +28,13 @@ const baseConnectors = [
 		name: 'Dropbox',
 		status: 'connected' as const,
 		config: {
-			accessToken: 'token',
 			rootPath: '/Apps/Skriuw',
+		},
+		oauth2Tokens: {
+			access_token: 'token',
+			refresh_token: 'refresh',
+			token_type: 'bearer',
+			expires_in: 3600,
 		},
 	},
 	{
@@ -35,17 +43,20 @@ const baseConnectors = [
 		name: 'Drive',
 		status: 'connected' as const,
 		config: {
-			clientId: 'cid',
-			clientSecret: 'csecret',
-			refreshToken: 'rtoken',
 			folderId: 'folder',
+		},
+		oauth2Tokens: {
+			access_token: 'drive-token',
+			refresh_token: 'drive-refresh',
+			scope: 'drive.file',
+			token_type: 'bearer',
 		},
 	},
 ]
 
 describe('connector-secrets', () => {
 	beforeEach(() => {
-		process.env.CONNECTOR_ENCRYPTION_KEY = 'test-key-should-work'
+		// Mock is handled globally
 	})
 
 	it('encrypts and decrypts secret fields while preserving non-secret fields', () => {
@@ -60,6 +71,13 @@ describe('connector-secrets', () => {
 				.forEach((f) => {
 					expect(c.config[f.name]).not.toBe((base as any).config[f.name])
 				})
+			if (base?.oauth2Tokens) {
+				Object.keys(base.oauth2Tokens).forEach((tokenKey) => {
+					expect(c.oauth2Tokens?.[tokenKey]).not.toBe(
+						(base as any).oauth2Tokens[tokenKey]
+					)
+				})
+			}
 		})
 
 		const decrypted = decryptConnectorStates(encrypted as any)
