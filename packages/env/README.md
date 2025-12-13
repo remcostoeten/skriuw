@@ -52,12 +52,23 @@ const currentUrl = getAppUrl()
 
 ```json
 {
-  "scripts": {
-    "build": "tsx /path/to/skriuw/packages/env/src/validate-build.ts && next build",
-    "check-env": "tsx /path/to/skriuw/packages/env/src/validate-build.ts"
-  }
+	"scripts": {
+		"build": "tsx /path/to/skriuw/packages/env/src/validate-build.ts && next build",
+		"check-env": "tsx /path/to/skriuw/packages/env/src/validate-build.ts",
+		"check-env-usage": "tsx /path/to/skriuw/packages/env/src/validate-build.ts --check-env-usage"
+	}
 }
 ```
+
+### Check Environment Usage
+
+Use the `--check-env-usage` flag to scan TypeScript files for improper `process.env` usage instead of the typed `env` from this package:
+
+```bash
+bun run check-env-usage
+```
+
+This will report warnings for any direct `process.env` access in `.ts` and `.tsx` files, helping maintain type safety.
 
 ## Environment Variables
 
@@ -68,24 +79,29 @@ const currentUrl = getAppUrl()
 ### Optional Variables
 
 #### Authentication
+
 - `AUTH_SECRET` / `BETTER_AUTH_SECRET` - Auth secret (min 32 chars)
 - `AUTH_URL` / `BETTER_AUTH_URL` - Auth callback URL
 - `AUTH_TRUST_HOST` - Trust host in production
 
 #### Database
+
 - `POSTGRES_PRISMA_URL` - Non-pooling database URL
 - `DATABASE_PROVIDER` - Provider type (neon, postgres, turso, sqlite)
 
 #### OAuth Providers
+
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 
 #### AI/LLM Services
+
 - `GEMINI_API_KEY` / `GEMINI_BACKUP_KEY`
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 
 #### Other Services
+
 - `RESEND_API_KEY` - Email service
 - `STRIPE_*` - Payment processing
 - `AWS_*` - AWS services
@@ -94,6 +110,7 @@ const currentUrl = getAppUrl()
 ## Validation Errors
 
 ### Missing Required Variable
+
 ```
 ❌ Invalid environment variables:
 
@@ -103,6 +120,7 @@ DATABASE_URL: ❌ DATABASE_URL is required
 ```
 
 ### Invalid Value
+
 ```
 ❌ Invalid environment variables:
 
@@ -128,11 +146,11 @@ const customEnv = validateEnv(serverSchema, myCustomEnv)
 import { isProduction, isDevelopment, isVercel } from '@skriuw/env/server'
 
 if (isProduction()) {
-  // Production-specific logic
+	// Production-specific logic
 }
 
 if (isVercel()) {
-  // Vercel-specific logic
+	// Vercel-specific logic
 }
 ```
 

@@ -27,6 +27,7 @@
     "check-types": "turbo check-types",
     "test": "turbo test",
     "db": "./bin/db-cli",
+    "validate-env": "cd packages/env && bun run check-env-usage",
     "gen": "cd packages/db && bun drizzle-kit generate",
     "migrate": "cd packages/db && bun drizzle-kit migrate",
     "dbpush": "cd packages/db && bun drizzle-kit push",
