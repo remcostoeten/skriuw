@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/dev - Get database stats
-export async function GET() {
+export async function GET(request: NextRequest) {
 	if (process.env.NODE_ENV !== 'development') {
 		return NextResponse.json(
 			{ error: 'Dev endpoints are only available in development mode' },
@@ -268,6 +268,11 @@ export async function GET() {
 	}
 
 	try {
+		const { auth } = await import('@/lib/auth')
+		const { isAdmin } = await import('@/lib/is-admin')
+		const session = auth ? await auth.api.getSession({ headers: request.headers }) : null
+		const userIsAdmin = session?.user?.email ? isAdmin(session.user.email) : false
+
 		const db = getDatabase()
 		const now = new Date()
 		const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -314,7 +319,8 @@ export async function GET() {
 			provider:
 				env.DATABASE_PROVIDER ||
 				(env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres'),
-			cronConfigured: !!env.CRON_SECRET
+			cronConfigured: !!env.CRON_SECRET,
+			isAdmin: userIsAdmin
 		})
 	} catch (error) {
 		console.error('Dev API error:', error)
@@ -326,3 +332,4 @@ export async function GET() {
 		)
 	}
 }
+

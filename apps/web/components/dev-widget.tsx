@@ -59,6 +59,7 @@ type DevApiResponse = {
 	restartRequired?: boolean
 	provider?: 'neon' | 'postgres'
 	cronConfigured?: boolean
+	isAdmin?: boolean
 }
 
 type UserInfo = {
@@ -96,6 +97,7 @@ export function DevWidget() {
 	const [isConnected, setIsConnected] = useState<boolean | null>(null)
 	const { value: hideBadgeCookie, updateCookie, deleteCookie } = useCookie('hide-alpha-badge')
 	const hasHeroCookie = hideBadgeCookie === 'true'
+	const [isAdmin, setIsAdmin] = useState(false)
 
 	// New states for user/cron management
 	const [users, setUsers] = useState<UserInfo[]>([])
@@ -186,6 +188,7 @@ export function DevWidget() {
 				const data = await res.json()
 				setStats(data.stats)
 				if (data.provider) setProvider(data.provider)
+				if (data.isAdmin) setIsAdmin(data.isAdmin)
 				setIsConnected(true)
 			} else {
 				setIsConnected(false)
@@ -499,6 +502,12 @@ export function DevWidget() {
 									)}
 								>
 									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
+								</div>
+							)}
+							{isAdmin && (
+								<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium bg-purple-500/10 border-purple-500/20 text-purple-600">
+									<Shield className="h-3 w-3" />
+									ADMIN
 								</div>
 							)}
 						</div>
