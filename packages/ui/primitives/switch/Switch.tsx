@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState, useEffect } from 'react'
 import { cn } from '@skriuw/shared'
-import { SwitchProps, SwitchState } from './types'
+import { SwitchProps } from './types'
 import { switchAnimations, switchSizes } from './variants'
 import { Loader2 } from 'lucide-react'
 
