@@ -1,8 +1,6 @@
-import { env } from '@skriuw/env/client'
+import { env } from './env'
 
 type LogCategory = 'auth' | 'shortcuts' | 'general'
-
-type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 
 interface LoggerConfig {
 	enableAuth: boolean

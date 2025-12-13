@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase, schema } from '@skriuw/db'
 import { eq, and, lt, inArray } from 'drizzle-orm'
-import { Env as env } from '../../../../lib/env'
+import { env } from '@/lib/env'
 
 export const dynamic = 'force-dynamic'
 

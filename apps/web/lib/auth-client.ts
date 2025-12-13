@@ -1,8 +1,7 @@
 import { createAuthClient } from 'better-auth/react'
 import { anonymousClient } from 'better-auth/client/plugins'
-import { env } from '@skriuw/env/server'
 
-const AUTH_CLIENT_ENABLED = Boolean(env.NEXT_PUBLIC_APP_URL)
+const AUTH_CLIENT_ENABLED = Boolean(process.env.NEXT_PUBLIC_APP_URL)
 
 function createDisabledAuthClient() {
 	const error = new Error(
@@ -23,16 +22,16 @@ function createDisabledAuthClient() {
 			isPending: false,
 			isRefetching: false,
 			error,
-			refetch: async () => {}
+			refetch: async () => { }
 		})
 	}
 }
 
 export const authClient = AUTH_CLIENT_ENABLED
 	? createAuthClient({
-			baseURL: env.NEXT_PUBLIC_APP_URL,
-			plugins: [anonymousClient()]
-		})
+		baseURL: process.env.NEXT_PUBLIC_APP_URL,
+		plugins: [anonymousClient()]
+	})
 	: createDisabledAuthClient()
 
 export const { signIn, signUp, useSession, signOut } = authClient
