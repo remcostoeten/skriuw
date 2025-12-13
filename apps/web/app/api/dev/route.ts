@@ -14,7 +14,7 @@ import { generateId } from '@skriuw/core-logic'
 import { Env as env } from '../../../lib/env'
 
 export async function POST(request: NextRequest) {
-	if (env.NODE_ENV !== 'development') {
+	if (process.env.NODE_ENV !== 'development') {
 		return NextResponse.json(
 			{ error: 'Dev endpoints are only available in development mode' },
 			{ status: 403 }
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
 
 // GET /api/dev - Get database stats
 export async function GET() {
-	if (env.NODE_ENV !== 'development') {
+	if (process.env.NODE_ENV !== 'development') {
 		return NextResponse.json(
 			{ error: 'Dev endpoints are only available in development mode' },
 			{ status: 403 }
@@ -309,7 +309,7 @@ export async function GET() {
 				anonymousUsers,
 				anonymousUsersOld
 			},
-			environment: env.NODE_ENV,
+			environment: process.env.NODE_ENV,
 			timestamp: new Date().toISOString(),
 			provider:
 				env.DATABASE_PROVIDER ||

@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 // Don't add NODE_ENV into T3 Env, it changes the tree-shaking behavior
 export const Env = createEnv({
+    clientPrefix: 'NEXT_PUBLIC_',
     server: {
         CLERK_SECRET_KEY: z.string().min(1),
         DATABASE_URL: z.string().min(1),

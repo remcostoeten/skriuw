@@ -32,6 +32,7 @@
         "@skriuw/core-logic": "workspace:*",
         "@skriuw/crud": "workspace:*",
         "@skriuw/db": "workspace:*",
+        "@skriuw/env": "workspace:*",
         "@skriuw/shared": "workspace:*",
         "@skriuw/ui": "workspace:*",
         "@t3-oss/env-core": "^0.13.8",

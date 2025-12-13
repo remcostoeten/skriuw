@@ -8,7 +8,7 @@ import { env } from '@skriuw/env/server'
 // Development flags for debugging
 const DEV_FLAGS = {
 	// Set to true to disable auto-sign-in (useful for debugging)
-	DISABLE_AUTO_SIGNIN: env.NEXT_PUBLIC_DISABLE_AUTO_SIGNIN
+	DISABLE_AUTO_SIGNIN: process.env.NEXT_PUBLIC_DISABLE_AUTO_SIGNIN === 'true'
 }
 
 export function AutoSignIn() {
