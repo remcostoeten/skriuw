@@ -1,9 +1,11 @@
 import type { NextConfig } from 'next'
 import path from 'path'
 
+const isTauriBuild = process.env.TAURI_BUILD === 'true'
+
 const nextConfig: NextConfig = {
-	// Enable React strict mode for better development experience
-	reactStrictMode: true,
+        // Enable React strict mode for better development experience
+        reactStrictMode: true,
 
 	// Transpile packages if needed
 	transpilePackages: ['@skriuw/ui', '@skriuw/core-logic', '@skriuw/db'],
@@ -20,8 +22,12 @@ const nextConfig: NextConfig = {
 	// Disable source maps in production to reduce bundle size
 	productionBrowserSourceMaps: false,
 
-	// Optimize for Docker and Vercel deployments by only including necessary files
-	output: 'standalone',
+        // Optimize for Docker and Vercel deployments by only including necessary files
+        output: isTauriBuild ? 'export' : 'standalone',
+
+        images: {
+                unoptimized: isTauriBuild,
+        },
 
 	// Configure headers to handle large headers in development
 	headers: async () => {

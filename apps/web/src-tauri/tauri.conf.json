@@ -3,14 +3,17 @@
 	"productName": "newskriuw",
 	"version": "0.1.0",
 	"identifier": "com.skriuw.app",
-	"build": {
-		"frontendDist": "../out",
-		"devUrl": "http://localhost:3000"
-	},
-	"app": {
-		"windows": [
-			{
-				"title": "newskriuw",
+        "build": {
+                "beforeDevCommand": "bun run dev",
+                "beforeBuildCommand": "TAURI_BUILD=true bun run build",
+                "frontendDist": "../out",
+                "devUrl": "http://localhost:3000"
+        },
+        "app": {
+                "withGlobalTauri": true,
+                "windows": [
+                        {
+                                "title": "newskriuw",
 				"width": 1200,
 				"height": 800,
 				"minWidth": 800,
@@ -23,12 +26,12 @@
 			"csp": null
 		}
 	},
-	"bundle": {
-		"active": true,
-		"targets": "all",
-		"icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
-		"resources": [],
-		"externalBin": [],
+        "bundle": {
+                "active": true,
+                "targets": ["app", "dmg", "deb", "appimage"],
+                "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+                "resources": [],
+                "externalBin": [],
 		"copyright": "",
 		"category": "Productivity",
 		"shortDescription": "A modern note-taking application",
