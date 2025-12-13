@@ -31,7 +31,8 @@ function normalizeConfig(definition: StorageConnectorDefinition, config: Record<
 
 function findMissingFields(definition: StorageConnectorDefinition, config: Record<string, string>) {
 	return definition.fields
-		.filter((field) => field.required && !config[field.name]?.trim())
+		// Skip OAuth2 fields - they use oauth2Tokens, not config values
+		.filter((field) => field.type !== 'oauth2' && field.required && !config[field.name]?.trim())
 		.map((field) => field.label)
 }
 
@@ -120,6 +121,12 @@ export function useStorageConnectors() {
 
 				if (missing.length > 0) {
 					throw new Error(`Missing required fields: ${missing.join(', ')}`)
+				}
+
+				// Check if OAuth is required but no tokens are provided
+				const hasOAuth2Field = definition.fields.some((f) => f.type === 'oauth2' && f.required)
+				if (hasOAuth2Field && !oauth2Tokens?.access_token) {
+					throw new Error('Please connect via OAuth first using the "Connect" button')
 				}
 
 				// Real handshake call

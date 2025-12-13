@@ -160,7 +160,6 @@ export function StorageAdaptersPanel({
 		testConnector,
 		disconnectConnector,
 		removeConnector,
-		connectWithOAuth2,
 		testingConnector,
 	} = useStorageConnectors()
 
@@ -245,23 +244,33 @@ export function StorageAdaptersPanel({
 				// Clear URL parameters and hash
 				window.history.replaceState({}, '', '/archive')
 
-				// Save connector with OAuth2 tokens
-				connectWithOAuth2(
+				// Test connector with OAuth2 tokens to validate and set 'connected' status
+				testConnector(
 					type,
-					nameState[type] || definitionMap[type]?.label || type,
 					formState[type] || {},
+					nameState[type] || definitionMap[type]?.label || type,
 					tokens
 				)
-
-				setFeedback((prev) => ({
-					...prev,
-					[type]: { type: 'success', message: 'OAuth2 connection successful!' },
-				}))
+					.then(() => {
+						setFeedback((prev) => ({
+							...prev,
+							[type]: { type: 'success', message: 'OAuth2 connection verified!' },
+						}))
+					})
+					.catch((error) => {
+						setFeedback((prev) => ({
+							...prev,
+							[type]: {
+								type: 'error',
+								message: error instanceof Error ? error.message : 'OAuth2 validation failed',
+							},
+						}))
+					})
 			}
 		}
 
 		handleOAuth2Callback()
-	}, [connectWithOAuth2, nameState, formState, definitionMap])
+	}, [testConnector, nameState, formState, definitionMap])
 
 	function handleFieldChange(type: StorageConnectorType, field: string, value: string) {
 		setFormState((prev) => ({
@@ -286,8 +295,12 @@ export function StorageAdaptersPanel({
 
 		setFeedback((prev) => ({ ...prev, [type]: null }))
 
+		// Get existing OAuth tokens if any (for re-validation)
+		const existingConnector = connectors.find((c) => c.type === type)
+		const existingTokens = existingConnector?.oauth2Tokens
+
 		try {
-			await testConnector(type, formState[type] || {}, nameState[type])
+			await testConnector(type, formState[type] || {}, nameState[type], existingTokens)
 			setFeedback((prev) => ({
 				...prev,
 				[type]: { type: 'success', message: 'Connection saved and validated.' },
