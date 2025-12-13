@@ -1,4 +1,0 @@
-CONTAINER ID   IMAGE                              COMMAND                  CREATED          STATUS          PORTS     NAMES
-5e44f221c645   ghcr.io/github/github-mcp-server   "/server/github-mcp-…"   47 minutes ago   Up 47 minutes             exciting_galois
-c253d0a143ff   ghcr.io/github/github-mcp-server   "/server/github-mcp-…"   18 hours ago     Up 18 hours               intelligent_poincare
-285ccf8a145f   ghcr.io/github/github-mcp-server   "/server/github-mcp-…"   24 hours ago     Up 24 hours               laughing_cori
