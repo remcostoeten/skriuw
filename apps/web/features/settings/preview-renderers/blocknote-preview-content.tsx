@@ -141,24 +141,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 		[instanceId] // Depend on instanceId to prevent duplicate instances
 	)
 
-	// Load BlockNote CSS only on client side to avoid SSR issues
-	useEffect(() => {
-		if (typeof window !== 'undefined') {
-			// Dynamically inject BlockNote CSS
-			const link1 = document.createElement('link')
-			link1.rel = 'stylesheet'
-			link1.href = 'https://cdn.jsdelivr.net/npm/@blocknote/core@1.18.1/style.css'
-			document.head.appendChild(link1)
-
-			return () => {
-				// Clean up the CSS when component unmounts
-				if (document.head.contains(link1)) {
-					document.head.removeChild(link1)
-				}
-			}
-		}
-	}, [])
-
+	
 	// Prevent duplicate editor initialization
 	useEffect(() => {
 		if (editor && !editorInitializedRef.current) {

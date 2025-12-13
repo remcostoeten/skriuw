@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { anonymous } from 'better-auth/plugins'
 import { getDatabase } from '@skriuw/db'
-import { env } from '@skriuw/env/server'
+import { env } from './env'
 
 type AuthInstance = ReturnType<typeof betterAuth> | null
 
@@ -41,11 +41,11 @@ function createAuth(): AuthInstance {
 		},
 		socialProviders: hasGithub
 			? {
-					github: {
-						clientId: env.GITHUB_CLIENT_ID!,
-						clientSecret: env.GITHUB_CLIENT_SECRET!
-					}
+				github: {
+					clientId: env.GITHUB_CLIENT_ID!,
+					clientSecret: env.GITHUB_CLIENT_SECRET!
 				}
+			}
 			: undefined,
 		secret: env.BETTER_AUTH_SECRET,
 		plugins: [anonymous()]
