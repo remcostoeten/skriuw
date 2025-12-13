@@ -3,7 +3,6 @@
   "buildCommand": "turbo build --filter=web",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "outputDirectory": "apps/web/.next",
   "build": {
     "env": {
       "NEXT_TELEMETRY_DISABLED": "1"

@@ -1,20 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getDatabase, schema } from '@skriuw/db'
 import { eq, and, lt, inArray } from 'drizzle-orm'
+import { env } from '@skriuw/env/server'
 
 export const dynamic = 'force-dynamic'
-
-function isDev() {
-    return process.env.NODE_ENV === 'development'
-}
 
 export async function GET(request: Request) {
     try {
         // Verify authorization via Bearer token or Vercel Cron header
         const authHeader = request.headers.get('authorization')
         const isVercelCron = request.headers.get('vercel-cron') === 'true'
-        const isValidBearer = authHeader === `Bearer ${process.env.CRON_SECRET}`
-        const isDevBearer = isDev() && authHeader === `Bearer dev-cleanup-secret`
+        const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
+        const isDevBearer = env.NODE_ENV === 'development' && authHeader === `Bearer dev-cleanup-secret`
 
         if (!isVercelCron && !isValidBearer && !isDevBearer) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -35,8 +32,8 @@ export async function POST(request: Request) {
         // Verify authorization via Bearer token or Vercel Cron header
         const authHeader = request.headers.get('authorization')
         const isVercelCron = request.headers.get('vercel-cron') === 'true'
-        const isValidBearer = authHeader === `Bearer ${process.env.CRON_SECRET}`
-        const isDevBearer = isDev() && authHeader === `Bearer dev-cleanup-secret`
+        const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
+        const isDevBearer = env.NODE_ENV === 'development' && authHeader === `Bearer dev-cleanup-secret`
 
         if (!isVercelCron && !isValidBearer && !isDevBearer) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -62,7 +59,6 @@ async function cleanupProcess(dryRun: boolean) {
         const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
         // Find anonymous users created more than 24 hours ago
-        // We check for isAnonymous = true and createdAt < 24h ago
         const usersToDelete = await db.query.user.findMany({
             where: and(
                 eq(schema.user.isAnonymous, true),
@@ -83,8 +79,6 @@ async function cleanupProcess(dryRun: boolean) {
         }
 
         // Delete users - cascading deletes will handle related data
-        // We do this in a transaction or batch if possible, but for now simple loop or IN clause
-        // Drizzle delete with IN clause:
         const ids = usersToDelete.map(u => u.id)
         let deletedCount = 0
 

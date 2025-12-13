@@ -3,13 +3,10 @@ import { getDatabase, notes, folders, tasks, settings, shortcuts, schema, getSaf
 import { sampleNotes, sampleFolders } from './seeds'
 import { generateId } from '@skriuw/core-logic'
 import { eq, lt } from 'drizzle-orm'
-
-function isDev() {
-	return process.env.NODE_ENV === 'development'
-}
+import { env } from '@skriuw/env/server'
 
 export async function POST(request: NextRequest) {
-	if (!isDev()) {
+	if (env.NODE_ENV !== 'development') {
 		return NextResponse.json(
 			{ error: 'Dev endpoints are only available in development mode' },
 			{ status: 403 }
@@ -222,7 +219,7 @@ export async function POST(request: NextRequest) {
 
 // GET /api/dev - Get database stats
 export async function GET() {
-	if (!isDev()) {
+	if (env.NODE_ENV !== 'development') {
 		return NextResponse.json(
 			{ error: 'Dev endpoints are only available in development mode' },
 			{ status: 403 }
@@ -264,9 +261,10 @@ export async function GET() {
 				anonymousUsers,
 				anonymousUsersOld,
 			},
-			environment: process.env.NODE_ENV,
+			environment: env.NODE_ENV,
 			timestamp: new Date().toISOString(),
-			provider: process.env.DATABASE_PROVIDER || (process.env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres')
+			provider: env.DATABASE_PROVIDER || (env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres'),
+			cronConfigured: !!env.CRON_SECRET
 		})
 	} catch (error) {
 		console.error('Dev API error:', error)
