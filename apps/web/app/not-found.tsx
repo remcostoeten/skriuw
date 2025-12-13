@@ -5,6 +5,9 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { EmptyState } from '../components/ui/empty-state'
 
+// Force this page to be dynamically rendered
+export const dynamic = 'force-dynamic'
+
 export default function NotFound() {
 	const pathname = usePathname()
 	const router = useRouter()

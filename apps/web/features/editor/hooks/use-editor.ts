@@ -3,8 +3,7 @@
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
-import { createAIExtension } from '@blocknote/xl-ai'
-import type { ChatTransport, UIMessage } from 'ai'
+
 
 import { useNotesContext } from '@/features/notes/context/notes-context'
 
@@ -165,64 +164,13 @@ export function useEditor({
 		return getDefaultContent()
 	}, [note?.content])
 
-	// Custom transport for server-side API
-	const customTransport: ChatTransport<UIMessage> = {
-		sendMessages: async ({ messages }) => {
-			const response = await fetch('/api/ai/chat', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ messages }),
-			})
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`)
-			}
 
-			const reader = response.body?.getReader()
-			if (!reader) {
-				throw new Error('No response body')
-			}
 
-			return new ReadableStream({
-				start(controller) {
-					const pump = async () => {
-						try {
-							while (true) {
-								const { done, value } = await reader.read()
-								if (done) break
-
-								const text = new TextDecoder().decode(value)
-								controller.enqueue({
-									type: 'text-delta',
-									textDelta: text,
-								} as any)
-							}
-							controller.close()
-						} catch (error) {
-							controller.error(error)
-						}
-					}
-					pump()
-				},
-			})
-		},
-		reconnectToStream: async () => {
-			// Reconnection logic - for now return null as we don't have a reconnection mechanism
-			return null
-		},
-	}
-
-	// @ts-ignore // Suppress type mismatch for AIExtension
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
-		extensions: [
-			createAIExtension({
-				transport: customTransport,
-			}),
-		],
+
 	})
 
 	useEffect(() => {
@@ -321,7 +269,7 @@ export function useEditor({
 	}, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave])
 
 	return {
-		editor: readOnly ? null : editor,
+		editor: readOnly ? null : (editor as any),
 		note,
 		noteName,
 		isLoading,
