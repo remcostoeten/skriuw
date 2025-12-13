@@ -55,14 +55,16 @@ function processOAuth2Tokens(
 ): OAuth2Tokens | undefined {
 	if (!oauth2Tokens) return undefined
 
-	const processed: Record<string, string> = {}
+	const processed: Record<string, string | number> = {}
 	for (const [key, value] of Object.entries(oauth2Tokens)) {
-		if (value) {
+		if (value !== undefined && value !== null) {
+			const asString = typeof value === 'string' ? value : String(value)
 			if (direction === 'encrypt') {
-				processed[key] = encryptSecret(value)
+				processed[key] = encryptSecret(asString)
 			} else {
 				try {
-					processed[key] = decryptSecret(value)
+					const decrypted = decryptSecret(value as unknown as string)
+					processed[key] = key === 'expires_in' ? Number(decrypted) : decrypted
 				} catch (error) {
 					logger.warn(
 						'general',
