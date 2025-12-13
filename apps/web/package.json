@@ -9,7 +9,11 @@
         "lint": "next lint",
         "check-types": "tsc --noEmit",
         "start": "next start",
-        "test": "bun test --preload ./test-setup.ts"
+        "test": "bun test --preload ./test-setup.ts",
+        "tauri:dev": "bunx --bun tauri dev",
+        "tauri:build": "TAURI_BUILD=true bunx --bun tauri build",
+        "tauri:build:mac": "TAURI_BUILD=true bunx --bun tauri build --target universal-apple-darwin",
+        "tauri:build:deb": "TAURI_BUILD=true bunx --bun tauri build -b deb"
     },
     "dependencies": {
         "@ai-sdk/google": "^2.0.44",
@@ -27,7 +31,7 @@
         "@skriuw/db": "workspace:*",
         "@skriuw/shared": "workspace:*",
         "@skriuw/ui": "workspace:*",
-        "@tauri-apps/api": "^1.5.0",
+        "@tauri-apps/api": "^2.0.0",
         "ai": "^5.0.108",
         "better-auth": "^1.4.5",
         "class-variance-authority": "^0.7.1",
@@ -55,6 +59,7 @@
         "@skriuw/typescript-config": "workspace:*",
         "@tailwindcss/postcss": "^4.1.17",
         "@tailwindcss/typography": "^0.5.16",
+        "@tauri-apps/cli": "^2.0.0",
         "@types/node": "^24.2.1",
         "@types/prismjs": "^1.26.5",
         "@types/react": "^19.2.0",
