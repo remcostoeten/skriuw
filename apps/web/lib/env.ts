@@ -18,10 +18,11 @@ export const env = createEnv({
         DROPBOX_CLIENT_SECRET: z.string().optional(),
         GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
         DEBUG: z.string().optional(),
+        ADMIN_EMAILS: z.string().optional(),
     },
     client: {
         NEXT_PUBLIC_APP_URL: z.string().optional(),
-            NEXT_PUBLIC_DROPBOX_CLIENT_ID: z.string().optional(),
+        NEXT_PUBLIC_DROPBOX_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
         NEXT_PUBLIC_ENABLE_AUTH_LOGGING: z
@@ -53,6 +54,7 @@ export const env = createEnv({
         DROPBOX_CLIENT_SECRET: process.env.DROPBOX_CLIENT_SECRET,
         GOOGLE_DRIVE_CLIENT_SECRET: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
         DEBUG: process.env.DEBUG,
+        ADMIN_EMAILS: process.env.ADMIN_EMAILS,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
             process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
