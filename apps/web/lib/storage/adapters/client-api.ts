@@ -13,6 +13,14 @@ import type {
     BaseEntity
 } from '@skriuw/crud'
 
+export class AuthRequiredError extends Error {
+    status: number
+    constructor(message: string, status: number) {
+        super(message)
+        this.status = status
+    }
+}
+
 /** Storage key mappings to API endpoints */
 const ENDPOINT_MAP: Record<string, string> = {
     notes: '/api/notes',
@@ -82,6 +90,16 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
                 message = json.message ?? json.error ?? message
             } catch {
                 if (text) message = `${response.status} - ${text.substring(0, 200)}`
+            }
+
+            if ([401, 403, 503].includes(response.status)) {
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('skriuw:auth-required', {
+                        detail: { status: response.status, message },
+                    })
+                    window.dispatchEvent(event)
+                }
+                throw new AuthRequiredError(message, response.status)
             }
             throw new Error(message)
         }
@@ -205,4 +223,3 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
         },
     }
 }
-
