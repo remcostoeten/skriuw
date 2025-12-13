@@ -24,8 +24,11 @@ import {
 	Trash,
 	UserCheck,
 	Grip,
+	RotateCcw,
+	AlertTriangle,
+	Server
 } from 'lucide-react'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { cn } from '@skriuw/shared'
 import {
@@ -37,6 +40,7 @@ import {
 import { useNotesContext } from '@/features/notes'
 import { useDraggable } from '@/hooks/use-draggable'
 import { useCookie } from '@/hooks/use-cookie'
+import { HintPopover } from './ui/hint-popover'
 
 type DbStats = {
 	notes: number
@@ -58,8 +62,8 @@ type DevApiResponse = {
 	stats?: DbStats
 	restartRequired?: boolean
 	provider?: 'neon' | 'postgres'
-	cronConfigured?: boolean
 	isAdmin?: boolean
+	inSync?: boolean
 }
 
 type UserInfo = {
@@ -88,16 +92,16 @@ type TabType = 'database' | 'users' | 'cron' | 'health' | 'config'
 export function DevWidget() {
 	const { items, refreshItems } = useNotesContext()
 	const [isOpen, setIsOpen] = useState(false)
-	const [cronConfigured, setCronConfigured] = useState<boolean>(false)
+	const [isVisible, setIsVisible] = useState(false)
 	const [activeTab, setActiveTab] = useState<TabType>('database')
 	const [stats, setStats] = useState<DbStats | null>(null)
 	const [provider, setProvider] = useState<'neon' | 'postgres' | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 	const [isConnected, setIsConnected] = useState<boolean | null>(null)
+	const [schemaStatus, setSchemaStatus] = useState<{ checked: boolean, inSync: boolean, message?: string } | null>(null)
 	const { value: hideBadgeCookie, updateCookie, deleteCookie } = useCookie('hide-alpha-badge')
 	const hasHeroCookie = hideBadgeCookie === 'true'
-	const [isAdmin, setIsAdmin] = useState(false)
 
 	// New states for user/cron management
 	const [users, setUsers] = useState<UserInfo[]>([])
@@ -108,6 +112,7 @@ export function DevWidget() {
 	})
 	const [usersLoading, setUsersLoading] = useState(false)
 	const [cleanupLoading, setCleanupLoading] = useState(false)
+	const [userActionLoading, setUserActionLoading] = useState<string | null>(null)
 
 	// Resize state
 	const [size, setSize] = useState({ width: 450, height: 500 })
@@ -171,26 +176,58 @@ export function DevWidget() {
 		handleTouchStart,
 		resetPosition,
 	} = useDraggable({
-		initialPosition: { x: 50, y: 100 }, // Simple default position
+		initialPosition: { x: window.innerWidth - 100, y: window.innerHeight - 100 },
 		storageKey: 'dev-widget-position',
 		bounds: {
-			// Keep within viewport with some margin
-			left: -320, // Allow to be mostly off-screen left
-			top: -100, // Allow to be mostly off-screen top
+			// Restrict closer to viewport edges
+			left: 0,
+			top: 0,
+			right: 0,
+			bottom: 0,
 		},
 	})
+
+	// Ensure widget stays in viewport on resize
+	useEffect(() => {
+		const handleResize = () => {
+			if (position.x > window.innerWidth - 50) {
+				// reset to safe position if lost
+				resetPosition()
+			}
+		}
+		window.addEventListener('resize', handleResize)
+		return () => window.removeEventListener('resize', handleResize)
+	}, [position, resetPosition])
+
 
 	const fetchStats = useCallback(async () => {
 		setLoading(true)
 		try {
 			const res = await fetch('/api/dev')
 			if (res.ok) {
-				const data = await res.json()
-				setStats(data.stats)
+				const data: DevApiResponse = await res.json()
+				setStats(data.stats || null)
 				if (data.provider) setProvider(data.provider)
-				if (data.isAdmin) setIsAdmin(data.isAdmin)
 				setIsConnected(true)
+				// If we get a 200 OK, we are authorized (either dev or admin)
+				setIsVisible(true)
+
+				// Ping DB to be sure of connection health
+				try {
+					const pingRes = await fetch('/api/dev', {
+						method: 'POST',
+						body: JSON.stringify({ action: 'ping-db' }),
+						headers: { 'Content-Type': 'application/json' }
+					})
+					if (!pingRes.ok) throw new Error('DB Ping failed')
+				} catch (e) {
+					setIsConnected(false)
+				}
+
 			} else {
+				if (res.status === 403) {
+					setIsVisible(false)
+				}
 				setIsConnected(false)
 			}
 		} catch (error) {
@@ -200,6 +237,11 @@ export function DevWidget() {
 			setLoading(false)
 		}
 	}, [])
+
+	// Initial fetch to determine visibility
+	useEffect(() => {
+		fetchStats()
+	}, [fetchStats])
 
 	const fetchUsers = useCallback(async () => {
 		setUsersLoading(true)
@@ -216,6 +258,47 @@ export function DevWidget() {
 			setUsersLoading(false)
 		}
 	}, [])
+
+	const resetUser = useCallback(async (userId: string) => {
+		if (!confirm('Reset this user? All their notes, folders, tasks, and settings will be deleted.')) return
+
+		setUserActionLoading(`reset-${userId}`)
+		try {
+			const res = await fetch(`/api/dev/users/${userId}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'reset' }),
+			})
+			const data = await res.json()
+			if (!res.ok) throw new Error(data.error || 'Reset failed')
+			toast.success(data.message)
+			await fetchStats()
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Reset failed')
+		} finally {
+			setUserActionLoading(null)
+		}
+	}, [fetchStats])
+
+	const deleteUser = useCallback(async (userId: string) => {
+		if (!confirm('Delete this user entirely? This action cannot be undone.')) return
+
+		setUserActionLoading(`delete-${userId}`)
+		try {
+			const res = await fetch(`/api/dev/users/${userId}`, {
+				method: 'DELETE',
+			})
+			const data = await res.json()
+			if (!res.ok) throw new Error(data.error || 'Delete failed')
+			toast.success(data.message)
+			await fetchUsers()
+			await fetchStats()
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Delete failed')
+		} finally {
+			setUserActionLoading(null)
+		}
+	}, [fetchUsers, fetchStats])
 
 	const runCleanup = useCallback(async (dryRun = false) => {
 		setCleanupLoading(true)
@@ -281,6 +364,13 @@ export function DevWidget() {
 		}
 	}, [fetchStats, fetchUsers])
 
+	// Fetch stats when widget opens to update connection status
+	useEffect(() => {
+		if (isOpen) {
+			fetchStats()
+		}
+	}, [isOpen, fetchStats])
+
 	useEffect(() => {
 		if (isOpen && activeTab === 'users') {
 			fetchUsers()
@@ -325,6 +415,15 @@ export function DevWidget() {
 	const executeAction = async (action: string, confirmMsg?: string) => {
 		if (confirmMsg && !confirm(confirmMsg)) return
 		setActionLoading(action)
+
+		// Special handling for reset-database
+		if (action === 'reset-database') {
+			if (!confirm('EXTREMELY DANGEROUS: This will drop ALL tables and lose ALL data. Type "DELETE" to confirm.')) {
+				setActionLoading(null)
+				return
+			}
+		}
+
 		try {
 			const res = await fetch('/api/dev', {
 				method: 'POST',
@@ -335,29 +434,33 @@ export function DevWidget() {
 
 			if (!res.ok) throw new Error(data.error || 'Action failed')
 
+			if (action === 'check-schema') {
+				setSchemaStatus({
+					checked: true,
+					inSync: !!data.inSync,
+					message: data.message
+				})
+			}
+
 			toast.success(data.message || 'Action completed')
 
 			if (data.restartRequired) {
-				toast.info('Server is restarting. Page will reload automatically.')
-
-				const pollServer = setInterval(async () => {
-					try {
-						const healthCheck = await fetch(window.location.origin)
-						if (healthCheck.ok) {
-							clearInterval(pollServer)
-							toast.success('Server is back online. Reloading page...')
-							setTimeout(() => window.location.reload(), 1000) // Give toast time to show
-						}
-					} catch (e) {
-						// Server is not ready yet, do nothing.
-					}
-				}, 2000) // Poll every 2 seconds
+				toast.info('Restart required. Reloading page...')
+				setTimeout(() => window.location.reload(), 2000)
 			} else {
 				await fetchStats()
 				await refreshItems()
 			}
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Action failed')
+			if (action === 'check-schema') {
+				setSchemaStatus({
+					checked: true,
+					inSync: false,
+					message: err instanceof Error ? err.message : 'Check failed'
+				})
+			}
+		} finally {
 			setActionLoading(null)
 		}
 	}
@@ -410,7 +513,8 @@ export function DevWidget() {
 		input.click()
 	}
 
-	if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') return null
+	// Don't render anything if not visible (authorization check failed)
+	if (!isVisible) return null
 
 	return (
 		<>
@@ -444,8 +548,8 @@ export function DevWidget() {
 						isDragging && 'cursor-grabbing'
 					)}
 					style={{
-						left: position.x + 8, // Center the button in the widget area
-						top: position.y + 8,
+						left: position.x,
+						top: position.y,
 						right: 'auto',
 						bottom: 'auto',
 					}}
@@ -456,7 +560,7 @@ export function DevWidget() {
 
 			{isOpen && (
 				<div
-					ref={dragRef}
+					ref={dragRef as any}
 					className={cn(
 						'fixed z-50 rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-2xl duration-0 flex flex-col overflow-hidden',
 						isDragging && 'cursor-grabbing'
@@ -473,7 +577,7 @@ export function DevWidget() {
 					onTouchStart={handleTouchStart}
 				>
 					{/* Header */}
-					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm	 cursor-grab active:cursor-grabbing">
+					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm cursor-grab active:cursor-grabbing">
 						<div className="flex items-center gap-2">
 							<GripVertical className="h-4 w-4 text-muted-foreground" />
 							<div
@@ -490,7 +594,13 @@ export function DevWidget() {
 										isConnected ? 'bg-emerald-500' : 'bg-red-500'
 									)}
 								/>
-								{isConnected ? 'DB CONNECTED' : 'DB DOWN'}
+								{isConnected ? 'ACTIVE' : 'DOWN'}
+								{!isConnected && provider === 'neon' && (
+									<HintPopover hint="Neon URL is most likely wrong or database is down." />
+								)}
+								{!isConnected && provider !== 'neon' && (
+									<HintPopover hint="Docker is not active, please start it." />
+								)}
 							</div>
 							{provider && (
 								<div
@@ -501,13 +611,8 @@ export function DevWidget() {
 											: 'bg-blue-500/10 border-blue-500/20 text-blue-600'
 									)}
 								>
-									{provider === 'neon' ? 'NEON CLOUD' : 'LOCAL DOCKER'}
-								</div>
-							)}
-							{isAdmin && (
-								<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium bg-purple-500/10 border-purple-500/20 text-purple-600">
-									<Shield className="h-3 w-3" />
-									ADMIN
+									<Server className="h-2 w-2" />
+									{provider === 'neon' ? 'NEON' : 'DOCKER'}
 								</div>
 							)}
 						</div>
@@ -524,27 +629,31 @@ export function DevWidget() {
 					</div>
 
 					{/* Tab Navigation */}
-					<div className="flex border-b bg-muted/30 overflow-x-auto">
+					<div className="flex border-b bg-muted/30 overflow-x-auto scrollbar-hide">
 						{[
-							{ id: 'database' as TabType, icon: Database, label: 'Database' },
-							{ id: 'users' as TabType, icon: Users, label: 'Users' },
-							{ id: 'cron' as TabType, icon: Clock, label: 'Cron' },
-							{ id: 'health' as TabType, icon: Activity, label: 'Health' },
-							{ id: 'config' as TabType, icon: Settings, label: 'Config' },
+							{ id: 'database' as TabType, icon: Database, label: 'Database', shortcut: '1' },
+							{ id: 'users' as TabType, icon: Users, label: 'Users', shortcut: '2' },
+							{ id: 'cron' as TabType, icon: Clock, label: 'Cron', shortcut: '3' },
+							{ id: 'health' as TabType, icon: Activity, label: 'Health', shortcut: '4' },
+							{ id: 'config' as TabType, icon: Settings, label: 'Config', shortcut: '5' },
 						].map((tab) => (
 							<button
 								key={tab.id}
 								onClick={() => setActiveTab(tab.id)}
 								className={cn(
-									'flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap min-w-fit flex-1 justify-center',
+									'flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap min-w-fit flex-1 justify-center relative group',
 									activeTab === tab.id
 										? 'border-primary text-primary bg-background/50'
-										: 'border-transparent text-muted-foreground hover:text-foreground hover:bg-background/30'
+										: 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
 								)}
+								title={`Shortcut: ${tab.shortcut}`}
 								onMouseDown={(e) => e.stopPropagation()}
 							>
 								<tab.icon className="h-3.5 w-3.5" />
 								{tab.label}
+								<span className="ml-1 text-[9px] opacity-50 group-hover:opacity-100 transition-opacity font-mono">
+									{tab.shortcut}
+								</span>
 							</button>
 						))}
 					</div>
@@ -562,6 +671,57 @@ export function DevWidget() {
 									<StatCard label="Notes" value={stats?.notes ?? '-'} loading={loading} />
 									<StatCard label="Folders" value={stats?.folders ?? '-'} loading={loading} />
 									<StatCard label="Tasks" value={stats?.tasks ?? '-'} loading={loading} />
+								</div>
+
+								<div className="space-y-2">
+									<SectionLabel>Schema Manager</SectionLabel>
+									<div className="bg-muted/30 border rounded-lg p-3 space-y-3">
+										<div className="flex items-center justify-between">
+											<span className="text-xs text-muted-foreground">Sync Status</span>
+											{schemaStatus?.checked ? (
+												<div className={cn(
+													"flex items-center gap-1.5 text-xs font-medium",
+													schemaStatus.inSync ? "text-emerald-600" : "text-amber-600"
+												)}>
+													{schemaStatus.inSync ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+													{schemaStatus.inSync ? "Synced" : "Out of sync"}
+												</div>
+											) : (
+												<span className="text-xs text-muted-foreground italic">Not checked</span>
+											)}
+										</div>
+
+										{!schemaStatus?.inSync && schemaStatus?.checked && (
+											<div className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
+												{schemaStatus.message || "Database schema schema does not match code schema."}
+											</div>
+										)}
+
+										<div className="grid grid-cols-2 gap-2">
+											<ActionButton
+												icon={Activity}
+												label="Check Sync"
+												onClick={() => executeAction('check-schema')}
+												loading={actionLoading === 'check-schema'}
+											/>
+											{schemaStatus?.checked && !schemaStatus.inSync && (
+												<ActionButton
+													icon={Upload}
+													label="Push Schema"
+													onClick={() => executeAction('push-schema')}
+													loading={actionLoading === 'push-schema'}
+												/>
+											)}
+											<ActionButton
+												icon={RotateCcw}
+												label="Reset DB"
+												variant="destructive"
+												onClick={() => executeAction('reset-database', 'reset-database')}
+												loading={actionLoading === 'reset-database'}
+												title="Drops all tables and re-pushes schema"
+											/>
+										</div>
+									</div>
 								</div>
 
 								{/* Actions Section */}
@@ -634,76 +794,6 @@ export function DevWidget() {
 								</div>
 
 								<div className="space-y-2">
-									<SectionLabel>Database Schema</SectionLabel>
-									<div className="bg-muted/30 border rounded-lg p-2 space-y-2 text-xs">
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-blue-600">notes</div>
-												<div className="text-blue-600 font-bold">
-													{loading ? '-' : (stats?.notes ?? 0)}
-												</div>
-											</div>
-											<div className="text-muted-foreground">
-												id, name, content, parentFolderId, pinned, pinnedAt, favorite, deletedAt,
-												createdAt, updatedAt, type
-											</div>
-										</div>
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-green-600">folders</div>
-												<div className="text-green-600 font-bold">
-													{loading ? '-' : (stats?.folders ?? 0)}
-												</div>
-											</div>
-											<div className="text-muted-foreground">
-												id, name, parentFolderId, pinned, pinnedAt, deletedAt, createdAt, updatedAt,
-												type
-											</div>
-										</div>
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-purple-600">tasks</div>
-												<div className="text-purple-600 font-bold">
-													{loading ? '-' : (stats?.tasks ?? 0)}
-												</div>
-											</div>
-											<div className="text-muted-foreground">
-												id, noteId, blockId, content, description, checked, dueDate, parentTaskId,
-												position, createdAt, updatedAt
-											</div>
-										</div>
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-orange-600">settings</div>
-												<div className="text-orange-600 font-bold">
-													{loading ? '-' : (stats?.settings ?? 0)}
-												</div>
-											</div>
-											<div className="text-muted-foreground">id, key, value, createdAt, updatedAt</div>
-										</div>
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-pink-600">shortcuts</div>
-												<div className="text-pink-600 font-bold">
-													{loading ? '-' : (stats?.shortcuts ?? 0)}
-												</div>
-											</div>
-											<div className="text-muted-foreground">
-												id, keys, customizedAt, createdAt, updatedAt
-											</div>
-										</div>
-										<div className="font-mono">
-											<div className="flex items-center justify-between">
-												<div className="font-semibold text-gray-600">total</div>
-												<div className="text-gray-600 font-bold">
-													{loading ? '-' : (stats?.total ?? 0)}
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-
-								<div className="space-y-2">
 									<SectionLabel>System</SectionLabel>
 									<div className="grid grid-cols-2 gap-2">
 										<ActionButton
@@ -746,22 +836,50 @@ export function DevWidget() {
 											<div className="text-muted-foreground text-center py-4">No users found</div>
 										) : (
 											users.map((user) => (
-												<div key={user.id} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50">
-													<div className="flex items-center gap-2">
+												<div key={user.id} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 group">
+													<div className="flex items-center gap-2 flex-1 min-w-0">
 														{user.isAnonymous ? (
-															<div className="h-2 w-2 rounded-full bg-orange-500" />
+															<div className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0" />
 														) : (
-															<div className="h-2 w-2 rounded-full bg-green-500" />
+															<div className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
 														)}
-														<div className="font-mono text-[10px]">{user.id.slice(-8)}</div>
-														{user.email && <div className="text-muted-foreground">{user.email}</div>}
+														<div className="font-mono text-[10px] flex-shrink-0">{user.id.slice(-8)}</div>
+														{user.email && <div className="text-muted-foreground truncate text-[10px]">{user.email}</div>}
 													</div>
-													<div className="text-right">
-														<div className="text-[10px] text-muted-foreground">
-															{new Date(user.createdAt).toLocaleDateString()}
+													<div className="flex items-center gap-1">
+														<div className="text-right mr-2">
+															<div className="text-[10px] text-muted-foreground">
+																{new Date(user.createdAt).toLocaleDateString()}
+															</div>
+															<div className="text-[9px] text-muted-foreground">
+																{new Date(user.createdAt).toLocaleTimeString()}
+															</div>
 														</div>
-														<div className="text-[9px] text-muted-foreground">
-															{new Date(user.createdAt).toLocaleTimeString()}
+														<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+															<button
+																onClick={() => resetUser(user.id)}
+																disabled={userActionLoading === `reset-${user.id}`}
+																className="p-1 rounded hover:bg-orange-500/20 text-orange-600 disabled:opacity-50"
+																title="Reset user data"
+															>
+																{userActionLoading === `reset-${user.id}` ? (
+																	<Loader2 className="h-3 w-3 animate-spin" />
+																) : (
+																	<RotateCcw className="h-3 w-3" />
+																)}
+															</button>
+															<button
+																onClick={() => deleteUser(user.id)}
+																disabled={userActionLoading === `delete-${user.id}`}
+																className="p-1 rounded hover:bg-red-500/20 text-red-600 disabled:opacity-50"
+																title="Delete user"
+															>
+																{userActionLoading === `delete-${user.id}` ? (
+																	<Loader2 className="h-3 w-3 animate-spin" />
+																) : (
+																	<Trash2 className="h-3 w-3" />
+																)}
+															</button>
 														</div>
 													</div>
 												</div>
@@ -900,9 +1018,9 @@ export function DevWidget() {
 												<span className="text-xs font-medium">Cron Secret</span>
 												<div className={cn(
 													'px-2 py-1 rounded-full text-[10px] font-medium',
-													cronConfigured ? 'bg-emerald-500/10 text-emerald-600' : 'bg-orange-500/10 text-orange-600'
+													process.env.CRON_SECRET ? 'bg-emerald-500/10 text-emerald-600' : 'bg-orange-500/10 text-orange-600'
 												)}>
-													{cronConfigured ? 'CONFIGURED' : 'NOT SET'}
+													{process.env.CRON_SECRET ? 'CONFIGURED' : 'NOT SET'}
 												</div>
 											</div>
 										</div>
@@ -1002,8 +1120,9 @@ export function DevWidget() {
 					>
 						<Grip className="h-4 w-4 text-muted-foreground/50" />
 					</div>
-				</div>
-			)}
+				</div >
+			)
+			}
 		</>
 	)
 }
