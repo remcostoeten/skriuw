@@ -73,13 +73,14 @@ export async function runBackup({
 	const chunked = chunkBuffer(payload.bytes, chunkSize)
 
 	for (const { chunk, meta } of chunked) {
-		const checksum = await toHexSha256(chunk)
-		meta.checksum = checksum
 		const chunkId = meta.id
 
 		const encryptedChunk = encryption
 			? await encryption.encrypt(chunk, { manifestId, chunkId })
 			: chunk
+
+		const checksum = await toHexSha256(encryptedChunk)
+		meta.checksum = checksum
 
 		await driver.putChunk(manifestId, meta, encryptedChunk)
 		manifestChunks.push(meta)
