@@ -1,6 +1,16 @@
 'use client'
 
-import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, Sparkles } from 'lucide-react'
+import {
+	Pencil,
+	Hand,
+	Keyboard,
+	Settings,
+	Palette,
+	Sliders,
+	Search,
+	X,
+	Sparkles,
+} from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 
 import {
@@ -18,7 +28,7 @@ import {
 } from '@skriuw/ui/dialog-drawer'
 import { Input } from '@skriuw/ui/input'
 
-import { useSettings, SettingsGroup } from '../features/settings'
+import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
 import { AI_SETTINGS_GROUPS } from '../features/settings/ai-settings'
 import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
@@ -187,7 +197,11 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 
 		if (settingsGroup) {
 			return (
-				<SettingsGroup group={settingsGroup} values={settings} onChange={handleSettingChange} />
+				<SettingsGroupComponent
+					group={settingsGroup}
+					values={settings}
+					onChange={handleSettingChange}
+				/>
 			)
 		}
 
@@ -257,9 +271,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 								Configure Skriuw synchronization settings.
 							</p>
 						</div>
-						<div className="text-sm text-muted-foreground">
-							Sync functionality coming soon...
-						</div>
+						<div className="text-sm text-muted-foreground">Sync functionality coming soon...</div>
 					</div>
 				)
 			case 'Skriuw':
@@ -300,9 +312,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					</DialogAside>
 
 					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background">
-						<div className="max-w-2xl mx-auto w-full">
-							{renderSettingsContent()}
-						</div>
+						<div className="max-w-2xl mx-auto w-full">{renderSettingsContent()}</div>
 					</DialogContentArea>
 				</div>
 			</DrawerContent>

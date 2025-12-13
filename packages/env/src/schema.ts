@@ -146,13 +146,6 @@ export const apiKeysSchema = z.object({
 })
 
 /**
- * v0 AI configuration schema.
- */
-export const v0Schema = z.object({
-    V0_API_KEY: z.string().optional(),
-})
-
-/**
  * Vercel-specific configuration schema.
  */
 export const vercelSchema = z.object({
@@ -170,7 +163,6 @@ export const serverSchema = z.object({
     ...databaseSchema.shape,
     ...authSchema.shape,
     ...aiSchema.shape,
-    ...v0Schema.shape,
     ...oauthStorageSchema.shape,
     ...apiKeysSchema.shape,
     ...vercelSchema.shape,
@@ -234,7 +226,6 @@ export const clientSchema = z.object({
 export type DatabaseEnv = z.infer<typeof databaseSchema>
 export type AuthEnv = z.infer<typeof authSchema>
 export type AIEnv = z.infer<typeof aiSchema>
-export type V0Env = z.infer<typeof v0Schema>
 export type OAuthStorageEnv = z.infer<typeof oauthStorageSchema>
 export type APIKeysEnv = z.infer<typeof apiKeysSchema>
 export type VercelEnv = z.infer<typeof vercelSchema>
