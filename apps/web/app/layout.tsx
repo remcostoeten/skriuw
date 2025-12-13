@@ -8,6 +8,7 @@ import { AutoSignIn } from '@/components/auth/auto-sign-in'
 import { AuthStatus } from '@/components/auth/auth-status'
 import { AuthGuardListener } from '@/components/auth/auth-guard-listener'
 
+import { CommandPaletteWrapper } from '@/components/command-palette/wrapper'
 // Force dynamic rendering to avoid SSR issues with BlockNote
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<AutoSignIn />
 					<AuthGuardListener />
 					<AuthStatus />
+					<CommandPaletteWrapper />
 					{children}
 				</Providers>
 			</body>
