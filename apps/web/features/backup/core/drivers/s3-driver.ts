@@ -21,7 +21,7 @@ async function s3Fetch(
     let payloadHash = 'UNSIGNED-PAYLOAD'
     if (body instanceof Uint8Array) {
         if (typeof crypto !== 'undefined' && crypto.subtle) {
-            const digest = await crypto.subtle.digest('SHA-256', body)
+            const digest = await crypto.subtle.digest('SHA-256', body.buffer as ArrayBuffer)
             payloadHash = Array.from(new Uint8Array(digest))
                 .map((b) => b.toString(16).padStart(2, '0'))
                 .join('')
@@ -110,10 +110,10 @@ async function s3Fetch(
     async function hmacSha256(key: string | Uint8Array, data: string): Promise<Uint8Array> {
         const enc = new TextEncoder();
         const algorithm = { name: "HMAC", hash: "SHA-256" };
-        const keyData = typeof key === 'string' ? enc.encode(key) : key;
+        const keyData = typeof key === 'string' ? enc.encode(key) : new Uint8Array(key);
 
         const cryptoKey = await crypto.subtle.importKey(
-            "raw", keyData, algorithm, false, ["sign"]
+            "raw", keyData.buffer as ArrayBuffer, algorithm, false, ["sign"]
         );
         const signature = await crypto.subtle.sign(
             algorithm.name, cryptoKey, enc.encode(data)
@@ -139,7 +139,7 @@ async function s3Fetch(
             'x-amz-content-sha256': payloadHash,
             Authorization: authorization,
         },
-        body: body,
+        body: body instanceof Uint8Array ? new Blob([body.buffer as ArrayBuffer]) : body,
     })
 }
 

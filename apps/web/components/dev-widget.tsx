@@ -35,7 +35,7 @@ import {
 	downloadJsonExport,
 	downloadMarkdownExport,
 	importFromJson,
-	importFromMarkdown,
+	importFromMarkdown
 } from '@/features/backup'
 import { useNotesContext } from '@/features/notes'
 import { useDraggable } from '@/hooks/use-draggable'
@@ -99,8 +99,16 @@ export function DevWidget() {
 	const [loading, setLoading] = useState(false)
 	const [actionLoading, setActionLoading] = useState<string | null>(null)
 	const [isConnected, setIsConnected] = useState<boolean | null>(null)
-	const [schemaStatus, setSchemaStatus] = useState<{ checked: boolean, inSync: boolean, message?: string } | null>(null)
-	const { value: hideBadgeCookie, updateCookie, deleteCookie } = useCookie('hide-alpha-badge')
+	const [schemaStatus, setSchemaStatus] = useState<{
+		checked: boolean
+		inSync: boolean
+		message?: string
+	} | null>(null)
+	const {
+		value: hideBadgeCookie,
+		updateCookie,
+		deleteCookie
+	} = useCookie('hide-alpha-badge')
 	const hasHeroCookie = hideBadgeCookie === 'true'
 
 	// New states for user/cron management
@@ -112,11 +120,18 @@ export function DevWidget() {
 	})
 	const [usersLoading, setUsersLoading] = useState(false)
 	const [cleanupLoading, setCleanupLoading] = useState(false)
-	const [userActionLoading, setUserActionLoading] = useState<string | null>(null)
+	const [userActionLoading, setUserActionLoading] = useState<string | null>(
+		null
+	)
 
 	// Resize state
 	const [size, setSize] = useState({ width: 450, height: 500 })
-	const [resizeStart, setResizeStart] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+	const [resizeStart, setResizeStart] = useState<{
+		x: number
+		y: number
+		w: number
+		h: number
+	} | null>(null)
 
 	// Load saved size
 	useEffect(() => {
@@ -146,7 +161,7 @@ export function DevWidget() {
 			const deltaY = e.clientY - resizeStart.y
 			setSize({
 				width: Math.max(320, resizeStart.w + deltaX),
-				height: Math.max(300, resizeStart.h + deltaY),
+				height: Math.max(300, resizeStart.h + deltaY)
 			})
 		}
 
@@ -164,7 +179,10 @@ export function DevWidget() {
 	}, [resizeStart])
 
 	// Click vs drag detection
-	const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
+	const [dragStartPos, setDragStartPos] = useState<{
+		x: number
+		y: number
+	} | null>(null)
 	const [hasMoved, setHasMoved] = useState(false)
 
 	// Draggable functionality
@@ -174,17 +192,20 @@ export function DevWidget() {
 		isDragging,
 		handleMouseDown,
 		handleTouchStart,
-		resetPosition,
+		resetPosition
 	} = useDraggable({
-		initialPosition: { x: window.innerWidth - 100, y: window.innerHeight - 100 },
+		initialPosition: {
+			x: window.innerWidth - 100,
+			y: window.innerHeight - 100
+		},
 		storageKey: 'dev-widget-position',
 		bounds: {
 			// Restrict closer to viewport edges
 			left: 0,
 			top: 0,
 			right: 0,
-			bottom: 0,
-		},
+			bottom: 0
+		}
 	})
 
 	// Ensure widget stays in viewport on resize
@@ -198,7 +219,6 @@ export function DevWidget() {
 		window.addEventListener('resize', handleResize)
 		return () => window.removeEventListener('resize', handleResize)
 	}, [position, resetPosition])
-
 
 	const fetchStats = useCallback(async () => {
 		setLoading(true)
@@ -223,7 +243,6 @@ export function DevWidget() {
 				} catch (e) {
 					setIsConnected(false)
 				}
-
 			} else {
 				if (res.status === 403) {
 					setIsVisible(false)
@@ -259,110 +278,137 @@ export function DevWidget() {
 		}
 	}, [])
 
-	const resetUser = useCallback(async (userId: string) => {
-		if (!confirm('Reset this user? All their notes, folders, tasks, and settings will be deleted.')) return
+	const resetUser = useCallback(
+		async (userId: string) => {
+			if (
+				!confirm(
+					'Reset this user? All their notes, folders, tasks, and settings will be deleted.'
+				)
+			)
+				return
 
-		setUserActionLoading(`reset-${userId}`)
-		try {
-			const res = await fetch(`/api/dev/users/${userId}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'reset' }),
-			})
-			const data = await res.json()
-			if (!res.ok) throw new Error(data.error || 'Reset failed')
-			toast.success(data.message)
-			await fetchStats()
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : 'Reset failed')
-		} finally {
-			setUserActionLoading(null)
-		}
-	}, [fetchStats])
-
-	const deleteUser = useCallback(async (userId: string) => {
-		if (!confirm('Delete this user entirely? This action cannot be undone.')) return
-
-		setUserActionLoading(`delete-${userId}`)
-		try {
-			const res = await fetch(`/api/dev/users/${userId}`, {
-				method: 'DELETE',
-			})
-			const data = await res.json()
-			if (!res.ok) throw new Error(data.error || 'Delete failed')
-			toast.success(data.message)
-			await fetchUsers()
-			await fetchStats()
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : 'Delete failed')
-		} finally {
-			setUserActionLoading(null)
-		}
-	}, [fetchUsers, fetchStats])
-
-	const runCleanup = useCallback(async (dryRun = false) => {
-		setCleanupLoading(true)
-		try {
-			const res = await fetch('/api/cron/cleanup', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					// For development, we'll use a simple auth that can be bypassed
-					'Authorization': `Bearer dev-cleanup-secret`
-				},
-				body: JSON.stringify({ dryRun })
-			})
-
-			const data = await res.json()
-
-			if (!res.ok) {
-				throw new Error(data.error || 'Cleanup failed')
+			setUserActionLoading(`reset-${userId}`)
+			try {
+				const res = await fetch(`/api/dev/users/${userId}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action: 'reset' })
+				})
+				const data = await res.json()
+				if (!res.ok) throw new Error(data.error || 'Reset failed')
+				toast.success(data.message)
+				await fetchStats()
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : 'Reset failed'
+				)
+			} finally {
+				setUserActionLoading(null)
 			}
+		},
+		[fetchStats]
+	)
 
-			toast.success(data.message || (dryRun ? 'Dry run completed' : 'Cleanup completed'))
+	const deleteUser = useCallback(
+		async (userId: string) => {
+			if (
+				!confirm(
+					'Delete this user entirely? This action cannot be undone.'
+				)
+			)
+				return
 
-			// Update cron status
-			setCronStatus(prev => ({
-				...prev,
-				lastRun: new Date().toISOString(),
-				status: 'success',
-				totalDeleted: prev.totalDeleted + (data.deletedCount || 0),
-				runHistory: [
-					{
-						timestamp: new Date().toISOString(),
-						status: 'success',
-						usersDeleted: data.deletedCount || 0
+			setUserActionLoading(`delete-${userId}`)
+			try {
+				const res = await fetch(`/api/dev/users/${userId}`, {
+					method: 'DELETE'
+				})
+				const data = await res.json()
+				if (!res.ok) throw new Error(data.error || 'Delete failed')
+				toast.success(data.message)
+				await fetchUsers()
+				await fetchStats()
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : 'Delete failed'
+				)
+			} finally {
+				setUserActionLoading(null)
+			}
+		},
+		[fetchUsers, fetchStats]
+	)
+
+	const runCleanup = useCallback(
+		async (dryRun = false) => {
+			setCleanupLoading(true)
+			try {
+				const res = await fetch('/api/cron/cleanup', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						// For development, we'll use a simple auth that can be bypassed
+						Authorization: `Bearer dev-cleanup-secret`
 					},
-					...prev.runHistory.slice(0, 9) // Keep last 10 runs
-				]
-			}))
+					body: JSON.stringify({ dryRun })
+				})
 
-			// Refresh stats and users
-			await fetchStats()
-			await fetchUsers()
-		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : 'Cleanup failed'
-			toast.error(errorMsg)
+				const data = await res.json()
 
-			// Update cron status with failure
-			setCronStatus(prev => ({
-				...prev,
-				lastRun: new Date().toISOString(),
-				status: 'failed',
-				runHistory: [
-					{
-						timestamp: new Date().toISOString(),
-						status: 'failed',
-						usersDeleted: 0,
-						error: errorMsg
-					},
-					...prev.runHistory.slice(0, 9)
-				]
-			}))
-		} finally {
-			setCleanupLoading(false)
-		}
-	}, [fetchStats, fetchUsers])
+				if (!res.ok) {
+					throw new Error(data.error || 'Cleanup failed')
+				}
+
+				toast.success(
+					data.message ||
+						(dryRun ? 'Dry run completed' : 'Cleanup completed')
+				)
+
+				// Update cron status
+				setCronStatus((prev) => ({
+					...prev,
+					lastRun: new Date().toISOString(),
+					status: 'success',
+					totalDeleted: prev.totalDeleted + (data.deletedCount || 0),
+					runHistory: [
+						{
+							timestamp: new Date().toISOString(),
+							status: 'success',
+							usersDeleted: data.deletedCount || 0
+						},
+						...prev.runHistory.slice(0, 9) // Keep last 10 runs
+					]
+				}))
+
+				// Refresh stats and users
+				await fetchStats()
+				await fetchUsers()
+			} catch (error) {
+				const errorMsg =
+					error instanceof Error ? error.message : 'Cleanup failed'
+				toast.error(errorMsg)
+
+				// Update cron status with failure
+				setCronStatus((prev) => ({
+					...prev,
+					lastRun: new Date().toISOString(),
+					status: 'failed',
+					runHistory: [
+						{
+							timestamp: new Date().toISOString(),
+							status: 'failed',
+							usersDeleted: 0,
+							error: errorMsg
+						},
+						...prev.runHistory.slice(0, 9)
+					]
+				}))
+			} finally {
+				setCleanupLoading(false)
+			}
+		},
+		[fetchStats, fetchUsers]
+	)
 
 	// Fetch stats when widget opens to update connection status
 	useEffect(() => {
@@ -418,7 +464,11 @@ export function DevWidget() {
 
 		// Special handling for reset-database
 		if (action === 'reset-database') {
-			if (!confirm('EXTREMELY DANGEROUS: This will drop ALL tables and lose ALL data. Type "DELETE" to confirm.')) {
+			if (
+				!confirm(
+					'EXTREMELY DANGEROUS: This will drop ALL tables and lose ALL data. Type "DELETE" to confirm.'
+				)
+			) {
 				setActionLoading(null)
 				return
 			}
@@ -428,7 +478,7 @@ export function DevWidget() {
 			const res = await fetch('/api/dev', {
 				method: 'POST',
 				body: JSON.stringify({ action }),
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json' }
 			})
 			const data: DevApiResponse = await res.json()
 
@@ -482,7 +532,10 @@ export function DevWidget() {
 					importResult = await importFromJson(await files[0].text())
 				} else {
 					const contents = await Promise.all(
-						Array.from(files).map(async (f) => ({ name: f.name, content: await f.text() }))
+						Array.from(files).map(async (f) => ({
+							name: f.name,
+							content: await f.text()
+						}))
 					)
 					importResult = await importFromMarkdown(contents)
 				}
@@ -495,7 +548,7 @@ export function DevWidget() {
 				const res = await fetch('/api/import', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ items: importResult.items }),
+					body: JSON.stringify({ items: importResult.items })
 				})
 
 				if (!res.ok) {
@@ -507,7 +560,10 @@ export function DevWidget() {
 				await refreshItems()
 				fetchStats()
 			} catch (err) {
-				toast.error(err instanceof Error ? err.message : 'Import failed', { id: toastId })
+				toast.error(
+					err instanceof Error ? err.message : 'Import failed',
+					{ id: toastId }
+				)
 			}
 		}
 		input.click()
@@ -551,7 +607,7 @@ export function DevWidget() {
 						left: position.x,
 						top: position.y,
 						right: 'auto',
-						bottom: 'auto',
+						bottom: 'auto'
 					}}
 				>
 					<Bug className="h-5 w-5" />
@@ -571,7 +627,7 @@ export function DevWidget() {
 						width: size.width,
 						height: size.height,
 						right: 'auto',
-						bottom: 'auto',
+						bottom: 'auto'
 					}}
 					onMouseDown={handleMouseDown}
 					onTouchStart={handleTouchStart}
@@ -591,7 +647,9 @@ export function DevWidget() {
 								<div
 									className={cn(
 										'h-1.5 w-1.5 rounded-full animate-pulse',
-										isConnected ? 'bg-emerald-500' : 'bg-red-500'
+										isConnected
+											? 'bg-emerald-500'
+											: 'bg-red-500'
 									)}
 								/>
 								{isConnected ? 'ACTIVE' : 'DOWN'}
@@ -631,11 +689,36 @@ export function DevWidget() {
 					{/* Tab Navigation */}
 					<div className="flex border-b bg-muted/30 overflow-x-auto scrollbar-hide">
 						{[
-							{ id: 'database' as TabType, icon: Database, label: 'Database', shortcut: '1' },
-							{ id: 'users' as TabType, icon: Users, label: 'Users', shortcut: '2' },
-							{ id: 'cron' as TabType, icon: Clock, label: 'Cron', shortcut: '3' },
-							{ id: 'health' as TabType, icon: Activity, label: 'Health', shortcut: '4' },
-							{ id: 'config' as TabType, icon: Settings, label: 'Config', shortcut: '5' },
+							{
+								id: 'database' as TabType,
+								icon: Database,
+								label: 'Database',
+								shortcut: '1'
+							},
+							{
+								id: 'users' as TabType,
+								icon: Users,
+								label: 'Users',
+								shortcut: '2'
+							},
+							{
+								id: 'cron' as TabType,
+								icon: Clock,
+								label: 'Cron',
+								shortcut: '3'
+							},
+							{
+								id: 'health' as TabType,
+								icon: Activity,
+								label: 'Health',
+								shortcut: '4'
+							},
+							{
+								id: 'config' as TabType,
+								icon: Settings,
+								label: 'Config',
+								shortcut: '5'
+							}
 						].map((tab) => (
 							<button
 								key={tab.id}
@@ -668,57 +751,107 @@ export function DevWidget() {
 							<>
 								{/* Stats Grid */}
 								<div className="grid grid-cols-3 gap-2">
-									<StatCard label="Notes" value={stats?.notes ?? '-'} loading={loading} />
-									<StatCard label="Folders" value={stats?.folders ?? '-'} loading={loading} />
-									<StatCard label="Tasks" value={stats?.tasks ?? '-'} loading={loading} />
+									<StatCard
+										label="Notes"
+										value={stats?.notes ?? '-'}
+										loading={loading}
+									/>
+									<StatCard
+										label="Folders"
+										value={stats?.folders ?? '-'}
+										loading={loading}
+									/>
+									<StatCard
+										label="Tasks"
+										value={stats?.tasks ?? '-'}
+										loading={loading}
+									/>
 								</div>
 
 								<div className="space-y-2">
 									<SectionLabel>Schema Manager</SectionLabel>
 									<div className="bg-muted/30 border rounded-lg p-3 space-y-3">
 										<div className="flex items-center justify-between">
-											<span className="text-xs text-muted-foreground">Sync Status</span>
+											<span className="text-xs text-muted-foreground">
+												Sync Status
+											</span>
 											{schemaStatus?.checked ? (
-												<div className={cn(
-													"flex items-center gap-1.5 text-xs font-medium",
-													schemaStatus.inSync ? "text-emerald-600" : "text-amber-600"
-												)}>
-													{schemaStatus.inSync ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-													{schemaStatus.inSync ? "Synced" : "Out of sync"}
+												<div
+													className={cn(
+														'flex items-center gap-1.5 text-xs font-medium',
+														schemaStatus.inSync
+															? 'text-emerald-600'
+															: 'text-amber-600'
+													)}
+												>
+													{schemaStatus.inSync ? (
+														<CheckCircle className="h-3 w-3" />
+													) : (
+														<AlertTriangle className="h-3 w-3" />
+													)}
+													{schemaStatus.inSync
+														? 'Synced'
+														: 'Out of sync'}
 												</div>
 											) : (
-												<span className="text-xs text-muted-foreground italic">Not checked</span>
+												<span className="text-xs text-muted-foreground italic">
+													Not checked
+												</span>
 											)}
 										</div>
 
-										{!schemaStatus?.inSync && schemaStatus?.checked && (
-											<div className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
-												{schemaStatus.message || "Database schema schema does not match code schema."}
-											</div>
-										)}
+										{!schemaStatus?.inSync &&
+											schemaStatus?.checked && (
+												<div className="text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
+													{schemaStatus.message ||
+														'Database schema schema does not match code schema.'}
+												</div>
+											)}
 
 										<div className="grid grid-cols-2 gap-2">
 											<ActionButton
 												icon={Activity}
 												label="Check Sync"
-												onClick={() => executeAction('check-schema')}
-												loading={actionLoading === 'check-schema'}
+												onClick={() =>
+													executeAction(
+														'check-schema'
+													)
+												}
+												loading={
+													actionLoading ===
+													'check-schema'
+												}
 											/>
-											{schemaStatus?.checked && !schemaStatus.inSync && (
-												<ActionButton
-													icon={Upload}
-													label="Push Schema"
-													onClick={() => executeAction('push-schema')}
-													loading={actionLoading === 'push-schema'}
-												/>
-											)}
+											{schemaStatus?.checked &&
+												!schemaStatus.inSync && (
+													<ActionButton
+														icon={Upload}
+														label="Push Schema"
+														onClick={() =>
+															executeAction(
+																'push-schema'
+															)
+														}
+														loading={
+															actionLoading ===
+															'push-schema'
+														}
+													/>
+												)}
 											<ActionButton
 												icon={RotateCcw}
 												label="Reset DB"
 												variant="destructive"
-												onClick={() => executeAction('reset-database', 'reset-database')}
-												loading={actionLoading === 'reset-database'}
-												title="Drops all tables and re-pushes schema"
+												onClick={() =>
+													executeAction(
+														'reset-database',
+														'reset-database'
+													)
+												}
+												loading={
+													actionLoading ===
+													'reset-database'
+												}
 											/>
 										</div>
 									</div>
@@ -731,15 +864,24 @@ export function DevWidget() {
 										<ActionButton
 											icon={Sprout}
 											label="Seed Data"
-											onClick={() => executeAction('seed')}
+											onClick={() =>
+												executeAction('seed')
+											}
 											loading={actionLoading === 'seed'}
 										/>
 										<ActionButton
 											icon={Trash2}
 											label="Clear Data"
 											variant="destructive"
-											onClick={() => executeAction('clear-all', 'Delete ALL data?')}
-											loading={actionLoading === 'clear-all'}
+											onClick={() =>
+												executeAction(
+													'clear-all',
+													'Delete ALL data?'
+												)
+											}
+											loading={
+												actionLoading === 'clear-all'
+											}
 										/>
 									</div>
 								</div>
@@ -751,24 +893,34 @@ export function DevWidget() {
 											<ActionButton
 												icon={Download}
 												label="Export JSON"
-												onClick={() => downloadJsonExport(items)}
+												onClick={() =>
+													downloadJsonExport(items)
+												}
 											/>
 											<ActionButton
 												icon={Download}
 												label="Export MD"
-												onClick={() => downloadMarkdownExport(items)}
+												onClick={() =>
+													downloadMarkdownExport(
+														items
+													)
+												}
 											/>
 										</div>
 										<div className="flex flex-col gap-1">
 											<ActionButton
 												icon={Upload}
 												label="Import JSON"
-												onClick={() => handleImport('json')}
+												onClick={() =>
+													handleImport('json')
+												}
 											/>
 											<ActionButton
 												icon={Upload}
 												label="Import MD"
-												onClick={() => handleImport('md')}
+												onClick={() =>
+													handleImport('md')
+												}
 											/>
 										</div>
 									</div>
@@ -778,19 +930,26 @@ export function DevWidget() {
 									<SectionLabel>Cookies</SectionLabel>
 									<ActionButton
 										icon={Cookie}
-										label={hasHeroCookie ? 'Show Hero Badge' : 'Hide Hero Badge'}
+										label={
+											hasHeroCookie
+												? 'Show Hero Badge'
+												: 'Hide Hero Badge'
+										}
 										fullWidth
 										onClick={() => {
 											if (hasHeroCookie) {
 												deleteCookie()
-												toast.success('Hero badge is now visible')
+												toast.success(
+													'Hero badge is now visible'
+												)
 											} else {
 												updateCookie('true')
-												toast.success('Hero badge is now hidden')
+												toast.success(
+													'Hero badge is now hidden'
+												)
 											}
 										}}
 									/>
-
 								</div>
 
 								<div className="space-y-2">
@@ -799,8 +958,12 @@ export function DevWidget() {
 										<ActionButton
 											icon={RefreshCw}
 											label="Clear Cache"
-											onClick={() => executeAction('clear-cache')}
-											loading={actionLoading === 'clear-cache'}
+											onClick={() =>
+												executeAction('clear-cache')
+											}
+											loading={
+												actionLoading === 'clear-cache'
+											}
 										/>
 										<ActionButton
 											icon={Download}
@@ -819,10 +982,22 @@ export function DevWidget() {
 								<div className="space-y-2">
 									<SectionLabel>User Statistics</SectionLabel>
 									<div className="grid grid-cols-2 gap-2">
-										<StatCard label="Total Users" value={stats?.users ?? '-'} loading={loading} />
-										<StatCard label="Anonymous" value={stats?.anonymousUsers ?? '-'} loading={loading} />
+										<StatCard
+											label="Total Users"
+											value={stats?.users ?? '-'}
+											loading={loading}
+										/>
+										<StatCard
+											label="Anonymous"
+											value={stats?.anonymousUsers ?? '-'}
+											loading={loading}
+										/>
 									</div>
-									<StatCard label="Pending Deletion" value={stats?.anonymousUsersOld ?? '-'} loading={loading} />
+									<StatCard
+										label="Pending Deletion"
+										value={stats?.anonymousUsersOld ?? '-'}
+										loading={loading}
+									/>
 								</div>
 
 								<div className="space-y-2">
@@ -833,48 +1008,79 @@ export function DevWidget() {
 												<Loader2 className="h-4 w-4 animate-spin" />
 											</div>
 										) : users.length === 0 ? (
-											<div className="text-muted-foreground text-center py-4">No users found</div>
+											<div className="text-muted-foreground text-center py-4">
+												No users found
+											</div>
 										) : (
 											users.map((user) => (
-												<div key={user.id} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 group">
+												<div
+													key={user.id}
+													className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 group"
+												>
 													<div className="flex items-center gap-2 flex-1 min-w-0">
 														{user.isAnonymous ? (
 															<div className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0" />
 														) : (
 															<div className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
 														)}
-														<div className="font-mono text-[10px] flex-shrink-0">{user.id.slice(-8)}</div>
-														{user.email && <div className="text-muted-foreground truncate text-[10px]">{user.email}</div>}
+														<div className="font-mono text-[10px] flex-shrink-0">
+															{user.id.slice(-8)}
+														</div>
+														{user.email && (
+															<div className="text-muted-foreground truncate text-[10px]">
+																{user.email}
+															</div>
+														)}
 													</div>
 													<div className="flex items-center gap-1">
 														<div className="text-right mr-2">
 															<div className="text-[10px] text-muted-foreground">
-																{new Date(user.createdAt).toLocaleDateString()}
+																{new Date(
+																	user.createdAt
+																).toLocaleDateString()}
 															</div>
 															<div className="text-[9px] text-muted-foreground">
-																{new Date(user.createdAt).toLocaleTimeString()}
+																{new Date(
+																	user.createdAt
+																).toLocaleTimeString()}
 															</div>
 														</div>
 														<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
 															<button
-																onClick={() => resetUser(user.id)}
-																disabled={userActionLoading === `reset-${user.id}`}
+																onClick={() =>
+																	resetUser(
+																		user.id
+																	)
+																}
+																disabled={
+																	userActionLoading ===
+																	`reset-${user.id}`
+																}
 																className="p-1 rounded hover:bg-orange-500/20 text-orange-600 disabled:opacity-50"
 																title="Reset user data"
 															>
-																{userActionLoading === `reset-${user.id}` ? (
+																{userActionLoading ===
+																`reset-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<RotateCcw className="h-3 w-3" />
 																)}
 															</button>
 															<button
-																onClick={() => deleteUser(user.id)}
-																disabled={userActionLoading === `delete-${user.id}`}
+																onClick={() =>
+																	deleteUser(
+																		user.id
+																	)
+																}
+																disabled={
+																	userActionLoading ===
+																	`delete-${user.id}`
+																}
 																className="p-1 rounded hover:bg-red-500/20 text-red-600 disabled:opacity-50"
 																title="Delete user"
 															>
-																{userActionLoading === `delete-${user.id}` ? (
+																{userActionLoading ===
+																`delete-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<Trash2 className="h-3 w-3" />
@@ -906,29 +1112,56 @@ export function DevWidget() {
 									<SectionLabel>Cleanup Status</SectionLabel>
 									<div className="bg-muted/30 border rounded-lg p-3 space-y-3">
 										<div className="flex items-center justify-between">
-											<span className="text-xs font-medium">Status</span>
-											<div className={cn(
-												'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium',
-												cronStatus.status === 'success' ? 'bg-emerald-500/10 text-emerald-600' :
-													cronStatus.status === 'failed' ? 'bg-red-500/10 text-red-600' :
-														'bg-gray-500/10 text-gray-600'
-											)}>
-												{cronStatus.status === 'success' && <CheckCircle className="h-3 w-3" />}
-												{cronStatus.status === 'failed' && <XCircle className="h-3 w-3" />}
-												{cronStatus.status === 'never' && <Clock className="h-3 w-3" />}
+											<span className="text-xs font-medium">
+												Status
+											</span>
+											<div
+												className={cn(
+													'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium',
+													cronStatus.status ===
+														'success'
+														? 'bg-emerald-500/10 text-emerald-600'
+														: cronStatus.status ===
+															  'failed'
+															? 'bg-red-500/10 text-red-600'
+															: 'bg-gray-500/10 text-gray-600'
+												)}
+											>
+												{cronStatus.status ===
+													'success' && (
+													<CheckCircle className="h-3 w-3" />
+												)}
+												{cronStatus.status ===
+													'failed' && (
+													<XCircle className="h-3 w-3" />
+												)}
+												{cronStatus.status ===
+													'never' && (
+													<Clock className="h-3 w-3" />
+												)}
 												{cronStatus.status.toUpperCase()}
 											</div>
 										</div>
 
 										<div className="flex items-center justify-between">
-											<span className="text-xs font-medium">Total Deleted</span>
-											<span className="text-xs font-bold">{cronStatus.totalDeleted}</span>
+											<span className="text-xs font-medium">
+												Total Deleted
+											</span>
+											<span className="text-xs font-bold">
+												{cronStatus.totalDeleted}
+											</span>
 										</div>
 
 										{cronStatus.lastRun && (
 											<div className="flex items-center justify-between">
-												<span className="text-xs font-medium">Last Run</span>
-												<span className="text-xs">{new Date(cronStatus.lastRun).toLocaleString()}</span>
+												<span className="text-xs font-medium">
+													Last Run
+												</span>
+												<span className="text-xs">
+													{new Date(
+														cronStatus.lastRun
+													).toLocaleString()}
+												</span>
 											</div>
 										)}
 									</div>
@@ -958,19 +1191,32 @@ export function DevWidget() {
 									<div className="space-y-2">
 										<SectionLabel>Run History</SectionLabel>
 										<div className="bg-muted/30 border rounded-lg p-2 space-y-1 text-xs max-h-40 overflow-y-auto">
-											{cronStatus.runHistory.map((run, index) => (
-												<div key={index} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50">
-													<div className="flex items-center gap-2">
-														{run.status === 'success' ? (
-															<CheckCircle className="h-3 w-3 text-emerald-500" />
-														) : (
-															<XCircle className="h-3 w-3 text-red-500" />
-														)}
-														<span>{new Date(run.timestamp).toLocaleString()}</span>
+											{cronStatus.runHistory.map(
+												(run, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50"
+													>
+														<div className="flex items-center gap-2">
+															{run.status ===
+															'success' ? (
+																<CheckCircle className="h-3 w-3 text-emerald-500" />
+															) : (
+																<XCircle className="h-3 w-3 text-red-500" />
+															)}
+															<span>
+																{new Date(
+																	run.timestamp
+																).toLocaleString()}
+															</span>
+														</div>
+														<span className="font-medium">
+															{run.usersDeleted}{' '}
+															deleted
+														</span>
 													</div>
-													<span className="font-medium">{run.usersDeleted} deleted</span>
-												</div>
-											))}
+												)
+											)}
 										</div>
 									</div>
 								)}
@@ -985,16 +1231,28 @@ export function DevWidget() {
 									<div className="space-y-3">
 										<div className="bg-muted/30 border rounded-lg p-3">
 											<div className="flex items-center justify-between">
-												<span className="text-xs font-medium">Database</span>
-												<div className={cn(
-													'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium',
-													isConnected ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'
-												)}>
-													<div className={cn(
-														'h-1.5 w-1.5 rounded-full animate-pulse',
-														isConnected ? 'bg-emerald-500' : 'bg-red-500'
-													)} />
-													{isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+												<span className="text-xs font-medium">
+													Database
+												</span>
+												<div
+													className={cn(
+														'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium',
+														isConnected
+															? 'bg-emerald-500/10 text-emerald-600'
+															: 'bg-red-500/10 text-red-600'
+													)}
+												>
+													<div
+														className={cn(
+															'h-1.5 w-1.5 rounded-full animate-pulse',
+															isConnected
+																? 'bg-emerald-500'
+																: 'bg-red-500'
+														)}
+													/>
+													{isConnected
+														? 'CONNECTED'
+														: 'DISCONNECTED'}
 												</div>
 											</div>
 										</div>
@@ -1002,12 +1260,20 @@ export function DevWidget() {
 										{provider && (
 											<div className="bg-muted/30 border rounded-lg p-3">
 												<div className="flex items-center justify-between">
-													<span className="text-xs font-medium">Provider</span>
-													<div className={cn(
-														'px-2 py-1 rounded-full text-[10px] font-medium',
-														provider === 'neon' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'
-													)}>
-														{provider === 'neon' ? 'NEON' : 'POSTGRES'}
+													<span className="text-xs font-medium">
+														Provider
+													</span>
+													<div
+														className={cn(
+															'px-2 py-1 rounded-full text-[10px] font-medium',
+															provider === 'neon'
+																? 'bg-orange-500/10 text-orange-600'
+																: 'bg-blue-500/10 text-blue-600'
+														)}
+													>
+														{provider === 'neon'
+															? 'NEON'
+															: 'POSTGRES'}
 													</div>
 												</div>
 											</div>
@@ -1015,12 +1281,20 @@ export function DevWidget() {
 
 										<div className="bg-muted/30 border rounded-lg p-3">
 											<div className="flex items-center justify-between">
-												<span className="text-xs font-medium">Cron Secret</span>
-												<div className={cn(
-													'px-2 py-1 rounded-full text-[10px] font-medium',
-													process.env.CRON_SECRET ? 'bg-emerald-500/10 text-emerald-600' : 'bg-orange-500/10 text-orange-600'
-												)}>
-													{process.env.CRON_SECRET ? 'CONFIGURED' : 'NOT SET'}
+												<span className="text-xs font-medium">
+													Cron Secret
+												</span>
+												<div
+													className={cn(
+														'px-2 py-1 rounded-full text-[10px] font-medium',
+														process.env.CRON_SECRET
+															? 'bg-emerald-500/10 text-emerald-600'
+															: 'bg-orange-500/10 text-orange-600'
+													)}
+												>
+													{process.env.CRON_SECRET
+														? 'CONFIGURED'
+														: 'NOT SET'}
 												</div>
 											</div>
 										</div>
@@ -1042,22 +1316,36 @@ export function DevWidget() {
 						{activeTab === 'config' && (
 							<>
 								<div className="space-y-2">
-									<SectionLabel>Cron Configuration</SectionLabel>
+									<SectionLabel>
+										Cron Configuration
+									</SectionLabel>
 									<div className="bg-muted/30 border rounded-lg p-3 space-y-2 text-xs">
 										<div className="flex items-center justify-between">
-											<span className="font-medium">Schedule</span>
-											<code className="bg-background px-1.5 py-0.5 rounded">0 2 * * *</code>
+											<span className="font-medium">
+												Schedule
+											</span>
+											<code className="bg-background px-1.5 py-0.5 rounded">
+												0 2 * * *
+											</code>
 										</div>
 										<div className="flex items-center justify-between">
-											<span className="font-medium">Endpoint</span>
-											<code className="bg-background px-1.5 py-0.5 rounded text-[9px]">/api/cron/cleanup</code>
+											<span className="font-medium">
+												Endpoint
+											</span>
+											<code className="bg-background px-1.5 py-0.5 rounded text-[9px]">
+												/api/cron/cleanup
+											</code>
 										</div>
 										<div className="flex items-center justify-between">
-											<span className="font-medium">Deletion Threshold</span>
+											<span className="font-medium">
+												Deletion Threshold
+											</span>
 											<span>24 hours</span>
 										</div>
 										<div className="flex items-center justify-between">
-											<span className="font-medium">Batch Size</span>
+											<span className="font-medium">
+												Batch Size
+											</span>
 											<span>100 users</span>
 										</div>
 									</div>
@@ -1085,15 +1373,24 @@ export function DevWidget() {
 									<SectionLabel>Environment</SectionLabel>
 									<div className="bg-muted/30 border rounded-lg p-3 space-y-2 text-xs">
 										<div className="flex items-center justify-between">
-											<span className="font-medium">NODE_ENV</span>
-											<span className="px-1.5 py-0.5 rounded bg-background">{process.env.NODE_ENV || 'development'}</span>
+											<span className="font-medium">
+												NODE_ENV
+											</span>
+											<span className="px-1.5 py-0.5 rounded bg-background">
+												{process.env.NODE_ENV ||
+													'development'}
+											</span>
 										</div>
 										<div className="flex items-center justify-between">
-											<span className="font-medium">Widget Position</span>
+											<span className="font-medium">
+												Widget Position
+											</span>
 											<button
 												onClick={resetPosition}
 												className="text-blue-600 hover:underline"
-												onMouseDown={(e) => e.stopPropagation()}
+												onMouseDown={(e) =>
+													e.stopPropagation()
+												}
 											>
 												Reset
 											</button>
@@ -1114,15 +1411,14 @@ export function DevWidget() {
 								x: e.clientX,
 								y: e.clientY,
 								w: size.width,
-								h: size.height,
+								h: size.height
 							})
 						}}
 					>
 						<Grip className="h-4 w-4 text-muted-foreground/50" />
 					</div>
-				</div >
-			)
-			}
+				</div>
+			)}
 		</>
 	)
 }
@@ -1130,7 +1426,7 @@ export function DevWidget() {
 function StatCard({
 	label,
 	value,
-	loading,
+	loading
 }: {
 	label: string
 	value: number | string
@@ -1142,7 +1438,11 @@ function StatCard({
 				{label}
 			</div>
 			<div className="text-lg font-bold tabular-nums text-foreground">
-				{loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto my-1" /> : value}
+				{loading ? (
+					<Loader2 className="h-4 w-4 animate-spin mx-auto my-1" />
+				) : (
+					value
+				)}
 			</div>
 		</div>
 	)
@@ -1162,7 +1462,7 @@ function ActionButton({
 	onClick,
 	loading,
 	variant = 'default',
-	fullWidth,
+	fullWidth
 }: {
 	icon: any
 	label: string
