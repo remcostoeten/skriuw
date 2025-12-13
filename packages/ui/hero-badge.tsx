@@ -48,7 +48,7 @@ export function HeroBadge({
 	const controls = useAnimation()
 	const [isClosed, setIsClosed] = useState(false)
 
-	const BadgeWrapper = href ? Link : motion.button
+	const BadgeWrapper = (href ? Link : motion.button) as any
 	const wrapperProps: { href?: string; onClick?: () => void } = href ? { href } : { onClick }
 
 	const baseClassName = cn(

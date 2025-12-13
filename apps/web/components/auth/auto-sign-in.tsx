@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { AUTH_CLIENT_ENABLED, signIn, useSession } from '@/lib/auth-client'
 import { logger } from '@/lib/logger'
-import { env } from '@skriuw/env/server'
 
 // Development flags for debugging
 const DEV_FLAGS = {

@@ -9,7 +9,6 @@ async function main() {
 
         // Test simple query
         console.log('Running SELECT 1...');
-        // @ts-expect-error Drizzle client execute not typed for raw SQL in this test
         const result = await db.execute('SELECT 1');
         console.log('SELECT 1 success:', result);
 
