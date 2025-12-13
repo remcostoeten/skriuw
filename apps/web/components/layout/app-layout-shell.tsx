@@ -152,7 +152,7 @@ export function AppLayoutShell({
 						marginLeft: !isMobile && !isDesktopSidebarOpen ? '-210px' : undefined,
 					}}
 				>
-					<div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+					<div className="sticky z-[1] top-0 eg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
 						{topToolbar}
 					</div>
 					<div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))]">

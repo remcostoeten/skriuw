@@ -31,17 +31,14 @@ import { Input } from '@skriuw/ui/input'
 import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
 import { AI_SETTINGS_GROUPS } from '../features/settings/ai-settings'
+import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
 import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
 import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
 import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
 import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
 import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
-import {
-	ShortcutId,
-	shortcutDefinitions,
-	KeyCombo,
-} from '../features/shortcuts/shortcut-definitions'
-import type { SettingsGroup } from '../features/settings/types'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
+import type { SettingsGroup as SettingsGroupDefinition } from '../features/settings/types'
 
 type props = {
 	open: boolean
@@ -177,7 +174,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	}
 
 	const renderSettingsContent = () => {
-		const animationSetting: SettingsGroup = {
+		const animationSetting: SettingsGroupDefinition = {
 			category: 'appearance',
 			title: 'UI Preferences',
 			description: 'Global interface preferences',
@@ -275,6 +272,18 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 							</p>
 						</div>
 						<div className="text-sm text-muted-foreground">Sync functionality coming soon...</div>
+					</div>
+				)
+			case 'Skriuw':
+				return (
+					<div className="space-y-4">
+						<div className="pb-4 mb-2 border-b border-border">
+							<h3 className="text-xl font-semibold text-foreground">Skriuw Sync</h3>
+							<p className="text-sm text-muted-foreground mt-1">
+								Connect a cloud destination for backups and syncing.
+							</p>
+						</div>
+						<StorageAdaptersPanel />
 					</div>
 				)
 			default:

@@ -1,3 +1,5 @@
+'use client'
+
 import React, { Suspense } from 'react'
 
 import { Label } from '@skriuw/ui/label'
@@ -8,14 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { SettingsGroup, UserSetting } from '../types'
 import { getPreviewRenderer } from '../preview-renderers'
 
-interface SettingsGroupProps {
+type props = {
 	group: SettingsGroup
 	values: Record<string, any>
 	onChange: (key: string, value: any) => void
 	disabled?: boolean
 }
 
-// Preview wrapper with suspense fallback
 function SettingPreview({
 	componentKey,
 	value,
@@ -49,11 +50,10 @@ function SettingPreview({
 	)
 }
 
-export function SettingsGroup({ group, values, onChange, disabled = false }: SettingsGroupProps) {
+export function SettingsGroup({ group, values, onChange, disabled = false }: props) {
 	const renderSetting = (setting: UserSetting, isLast: boolean) => {
 		const currentValue = values[setting.key] ?? setting.defaultValue
 
-		// check condition if present
 		if (setting.condition && !setting.condition(values)) {
 			return null
 		}
@@ -62,7 +62,6 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: Set
 			onChange(setting.key, value)
 		}
 
-		// Disable setting if it's not implemented or explicitly disabled
 		const isSettingDisabled = disabled || setting.implemented === false || setting.disabled === true
 
 		const renderPreview = () => {

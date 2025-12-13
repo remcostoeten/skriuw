@@ -30,7 +30,6 @@ import { env, database, auth, ai } from '@skriuw/env/server'
 
 // Direct access - fully typed!
 const dbUrl = env.DATABASE_URL
-const v0Key = env.V0_API_KEY
 const provider = env.DATABASE_PROVIDER
 
 // Convenience getters
@@ -64,7 +63,6 @@ const currentUrl = getAppUrl()
 
 ### Required Variables
 
-- `V0_API_KEY` - v0.dev API key
 - `DATABASE_URL` or `POSTGRES_URL` - PostgreSQL connection string
 
 ### Optional Variables
@@ -99,7 +97,6 @@ const currentUrl = getAppUrl()
 ```
 ❌ Invalid environment variables:
 
-V0_API_KEY: V0_API_KEY is required
 DATABASE_URL: ❌ DATABASE_URL is required
 
 💡 Check your .env.local file or environment configuration.
