@@ -49,7 +49,7 @@ export function HeroBadge({
 	const [isClosed, setIsClosed] = useState(false)
 
 	const BadgeWrapper = href ? Link : motion.button
-	const wrapperProps = href ? { href } : ({ onClick } as any)
+	const wrapperProps: { href?: string; onClick?: () => void } = href ? { href } : { onClick }
 
 	const baseClassName = cn(
 		'inline-flex items-center -z-10 rounded-full border transition-colors',

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Calendar as CalendarRAC, CalendarProps as CalendarRACProps } from "./calendar-rac"
 
-export interface CalendarProps extends CalendarRACProps { }
+export type CalendarProps = CalendarRACProps
 
 const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(
 	({ className, ...props }, ref) => {
