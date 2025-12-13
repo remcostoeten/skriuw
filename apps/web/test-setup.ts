@@ -1,7 +1,7 @@
 import { mock } from "bun:test";
 
-// Native Bun mock for @skriuw/env/server
-mock.module("@skriuw/env/server", () => ({
+// Native Bun mock for local env
+mock.module("../env", () => ({
     env: {
         DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test_db',
         DATABASE_PROVIDER: 'postgres',
@@ -14,6 +14,21 @@ mock.module("@skriuw/env/server", () => ({
         NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: 'true',
         NODE_ENV: 'test',
         DEBUG: 'true'
+    },
+    database: {
+        url: 'postgresql://postgres:postgres@localhost:5432/test_db',
+        provider: 'postgres',
+        isNeon: false
+    },
+    auth: {
+        github: {
+            clientId: undefined,
+            clientSecret: undefined,
+            isConfigured: false
+        }
+    },
+    ai: {
+        geminiKey: undefined
     },
     isProduction: false,
     isDevelopment: false,
