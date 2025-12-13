@@ -26,19 +26,18 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "dev": "bun tools/check-db.ts && echo \"\\n🚀 Starting Skriuw...\\n📦 Database: ${DATABASE_PROVIDER:-postgres} (Check .env to switch)\\n\" && turbo dev",
+    "dev": "bun scripts/dev.ts",
     "start": "turbo start",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo check-types",
     "test": "turbo test",
-    "db": "./bin/db-cli",
     "validate-env": "cd packages/env && bun run check-env-usage",
     "gen": "cd packages/db && bun drizzle-kit generate",
     "migrate": "cd packages/db && bun drizzle-kit migrate",
     "dbpush": "cd packages/db && bun drizzle-kit push",
     "studio": "cd packages/db && bun drizzle-kit studio",
-    "validate": "turbo lint check-types test build"
+    "validate": "turbo lint check-types test build validate-env"
   },
   "workspaces": [
     "apps/*",
