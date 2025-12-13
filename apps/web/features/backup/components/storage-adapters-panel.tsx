@@ -32,13 +32,26 @@ const inputClass =
 	'bg-background/50 border-border/70 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:border-primary/70 text-sm'
 
 function connectionDot(status?: string) {
-	const color =
-		status === 'connected'
-			? 'bg-green-500/80'
-			: status === 'error'
-				? 'bg-amber-500/80'
-				: 'bg-border'
-	return <span className={cn('h-2.5 w-2.5 rounded-full inline-block', color)} />
+	const isConnected = status === 'connected'
+	const isError = status === 'error'
+
+	return (
+		<span className="relative inline-flex h-3 w-3">
+			{isConnected && (
+				<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+			)}
+			<span
+				className={cn(
+					'relative inline-flex h-3 w-3 rounded-full',
+					isConnected
+						? 'bg-green-500'
+						: isError
+							? 'bg-red-500'
+							: 'bg-muted-foreground/40'
+				)}
+			/>
+		</span>
+	)
 }
 
 type StorageAdaptersPanelProps = {
@@ -306,35 +319,39 @@ export function StorageAdaptersPanel({
 	}
 
 	function statusBadge(status: string | undefined) {
-		const tone =
-			status === 'connected'
-				? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30'
-				: status === 'error'
-					? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30'
-					: 'bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30'
+		const isConnected = status === 'connected'
+		const isError = status === 'error'
+		const isConfigured = status === 'configured'
 
-		const label =
-			status === 'connected'
-				? 'Connected'
-				: status === 'error'
-					? 'Needs attention'
-					: status === 'configured'
-						? 'Configured'
-						: 'Not connected'
+		const tone = isConnected
+			? 'bg-green-500/20 text-green-500 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
+			: isError
+				? 'bg-red-500/15 text-red-500 border-red-500/40'
+				: isConfigured
+					? 'bg-amber-500/15 text-amber-500 border-amber-500/40'
+					: 'bg-muted/50 text-muted-foreground border-border/60'
+
+		const label = isConnected
+			? 'Connected'
+			: isError
+				? 'Needs attention'
+				: isConfigured
+					? 'Configured'
+					: 'Not connected'
 
 		return (
 			<span
 				className={cn(
-					'text-xs px-2.5 py-1 rounded-full border inline-flex items-center gap-1 font-medium',
+					'text-xs px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 font-medium transition-all',
 					tone
 				)}
 			>
-				{status === 'connected' ? (
+				{isConnected ? (
 					<CheckCircle2 className="h-3.5 w-3.5" />
-				) : status === 'error' ? (
+				) : isError ? (
 					<AlertCircle className="h-3.5 w-3.5" />
 				) : (
-					<RefreshCcw className="h-3.5 w-3.5" />
+					<Cloud className="h-3.5 w-3.5 opacity-50" />
 				)}
 				{label}
 			</span>
@@ -393,13 +410,22 @@ export function StorageAdaptersPanel({
 										{Icon ? <Icon className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
 										{definition.label}
 									</span>
-									<span className="flex items-center gap-1 text-xs text-muted-foreground">
+									<span
+										className={cn(
+											'flex items-center gap-1.5 text-xs font-medium',
+											connector?.status === 'connected'
+												? 'text-green-500'
+												: connector?.status === 'error'
+													? 'text-red-500'
+													: 'text-muted-foreground/60'
+										)}
+									>
 										{connectionDot(connector?.status)}
 										<span className="hidden sm:inline">
 											{connector?.status === 'connected'
 												? 'Connected'
 												: connector?.status === 'error'
-													? 'Needs attention'
+													? 'Error'
 													: connector?.status === 'configured'
 														? 'Configured'
 														: 'Not connected'}
@@ -617,16 +643,16 @@ export function StorageAdaptersPanel({
 										)}
 									</Button>
 
-									<Button
-										variant="outline"
-										onClick={() => disconnectConnector(currentType)}
-										disabled={connector?.status !== 'connected'}
-									>
-										Disconnect
-									</Button>
-									<Button variant="ghost" onClick={() => removeConnector(currentType)}>
-										Remove
-									</Button>
+									{connector?.status === 'connected' && (
+										<Button variant="outline" onClick={() => disconnectConnector(currentType)}>
+											Disconnect
+										</Button>
+									)}
+									{connector && (
+										<Button variant="ghost" onClick={() => removeConnector(currentType)}>
+											Remove
+										</Button>
+									)}
 								</div>
 							</CardContent>
 						</Card>

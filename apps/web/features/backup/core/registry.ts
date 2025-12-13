@@ -1,5 +1,8 @@
 import { createDownloadDriver } from './drivers/download-driver'
 import { createMemoryDriver } from './drivers/memory-driver'
+import { DropboxDriver } from './drivers/dropbox-driver'
+import { GoogleDriveDriver } from './drivers/google-drive-driver'
+import { S3Driver } from './drivers/s3-driver'
 import type {
 	DestinationConfig,
 	DestinationSchema,
@@ -41,6 +44,27 @@ export const DESTINATION_DEFINITIONS: DestinationDefinition[] = [
 				filenamePrefix: String(config.config.filenamePrefix || 'skriuw-backup'),
 			}),
 		notes: 'Uses existing file-export flow; good for manual backups before providers are added.',
+	},
+	{
+		type: 's3',
+		label: 'Amazon S3',
+		description: 'Backup directly to an S3 bucket or compatible provider.',
+		fields: [], // Fields are handled by the connector config UI
+		createDriver: () => new S3Driver(),
+	},
+	{
+		type: 'dropbox',
+		label: 'Dropbox',
+		description: 'Backup to your Dropbox App folder.',
+		fields: [],
+		createDriver: () => new DropboxDriver(),
+	},
+	{
+		type: 'google-drive',
+		label: 'Google Drive',
+		description: 'Backup to a folder in your Google Drive.',
+		fields: [],
+		createDriver: () => new GoogleDriveDriver(),
 	},
 ]
 
