@@ -6,9 +6,9 @@ Allows admins to create template notes and folders that are automatically copied
 
 ## Changelog
 
-### v1.0.0 (2025-12-13)
+### v0.0.1 (Alpha)
 
-**Initial Release**
+**Initial Implementation**
 
 - Added `ADMIN_EMAILS` environment variable for admin identification
 - Created `seedTemplateNotes` and `seedTemplateFolders` database tables
