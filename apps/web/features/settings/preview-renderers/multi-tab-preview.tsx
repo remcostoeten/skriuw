@@ -1,8 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { Layout } from 'lucide-react'
-import type { PreviewProps } from './index'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import type { PreviewProps } from '../types'
 
 // Mock tab data for preview
 const mockTabs = [
@@ -103,13 +102,13 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 	const getDemoHint = () => {
 		switch (currentDemo) {
 			case 'switch':
-				return '🔄 Click tabs to switch between notes'
+				return 'Click tabs to switch between notes'
 			case 'close':
-				return '❌ Click × to close tabs'
+				return 'Click × to close tabs'
 			case 'new':
-				return '➕ Open multiple notes at once'
+				return 'Open multiple notes at once'
 			default:
-				return '💡 Keep multiple notes open simultaneously'
+				return 'Keep multiple notes open simultaneously'
 		}
 	}
 
@@ -252,9 +251,6 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 					</div>
 				) : (
 					<div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3">
-						<div className="p-3 rounded-full bg-muted/50 ring-1 ring-border/50">
-							<Layout className="w-8 h-8 opacity-50" />
-						</div>
 						<div className="text-center space-y-1">
 							<div className="text-sm font-medium text-foreground">Multi-Tabs Disabled</div>
 							<div className="text-xs text-muted-foreground max-w-[180px]">
@@ -264,8 +260,6 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 					</div>
 				)}
 			</div>
-
-			{/* Feature highlights removed for simpler preview */}
 		</div>
 	)
 }
