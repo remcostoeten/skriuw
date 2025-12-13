@@ -4,7 +4,7 @@ import {
 	buildMentionCandidates,
 	searchNoteMentions,
 	type NoteMentionCandidate,
-} from './note-mention-search'
+} from '../../features/editor/utils/note-mention-search'
 
 describe('note mention search utilities', () => {
 	it('builds mention candidates from nested folders', () => {

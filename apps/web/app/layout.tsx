@@ -8,6 +8,9 @@ import { AutoSignIn } from '@/components/auth/auto-sign-in'
 import { AuthStatus } from '@/components/auth/auth-status'
 import { AuthGuardListener } from '@/components/auth/auth-guard-listener'
 
+// Force dynamic rendering to avoid SSR issues with BlockNote
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
 	title: 'Skriuw',
 	description: 'A blazingly fast, privacy-focused note-taking app',

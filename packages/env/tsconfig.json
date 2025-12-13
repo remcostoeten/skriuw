@@ -1,5 +1,5 @@
 {
-    "extends": "@skriuw/typescript-config/base.json",
+    "extends": "@skriuw/config/typescript/base",
     "compilerOptions": {
         "outDir": "./dist",
         "rootDir": "./src"

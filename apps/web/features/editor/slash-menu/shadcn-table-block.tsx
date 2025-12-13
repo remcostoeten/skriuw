@@ -20,7 +20,7 @@ import { cn } from '@skriuw/shared'
  * Stores table data in the `rows` prop as a JSON string for simplicity in BlockNote's prop system.
  * Structure: Array<Array<string>> representing rows and their cell string values.
  */
-export const shadcnTableBlockSpec = createReactBlockSpec(
+export const shadcnTableBlockSpec: any = createReactBlockSpec(
     {
         type: 'shadcnTable',
         propSchema: {

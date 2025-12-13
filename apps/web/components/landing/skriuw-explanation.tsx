@@ -11,6 +11,20 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 		<div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-6 py-12">
 			<div className="flex flex-col items-center gap-6 mb-8">
 				<div className="flex flex-col items-center gap-3">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 390 513"
+						width="120"
+						height="120"
+						preserveAspectRatio="xMidYMid meet"
+						className="text-foreground mb-4"
+					>
+						<g fill="currentColor">
+							<path d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z" />
+							<path d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z" />
+							<path d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z" />
+						</g>
+					</svg>
 					<h1 className="text-4xl font-bold text-foreground font-brand">Skriuw</h1>
 					<div className="flex flex-col items-center gap-1 text-muted-foreground">
 						<p className="text-sm italic">

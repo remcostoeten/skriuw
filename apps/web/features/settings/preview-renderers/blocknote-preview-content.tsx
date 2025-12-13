@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { PartialBlock } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
-import '@blocknote/core/style.css'
 import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
 import { generateId } from '@skriuw/core-logic'
 
@@ -121,7 +120,13 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 	const [currentDemo, setCurrentDemo] = useState<'idle' | 'typing' | 'slash' | 'drag'>('idle')
 	const demoTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const editorInitializedRef = useRef(false)
+	const [isClient, setIsClient] = useState(false)
 	const instanceId = useMemo(() => generateId('blocknote-'), [])
+
+	// Ensure we only render on client side
+	useEffect(() => {
+		setIsClient(true)
+	}, [])
 
 	// Create a read-only editor for preview with stable reference
 	// Use a stable key to prevent duplicate instances in React Strict Mode
@@ -133,8 +138,26 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 				return Promise.resolve('/placeholder.png')
 			},
 		},
-		[]
+		[instanceId] // Depend on instanceId to prevent duplicate instances
 	)
+
+	// Load BlockNote CSS only on client side to avoid SSR issues
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			// Dynamically inject BlockNote CSS
+			const link1 = document.createElement('link')
+			link1.rel = 'stylesheet'
+			link1.href = 'https://cdn.jsdelivr.net/npm/@blocknote/core@1.18.1/style.css'
+			document.head.appendChild(link1)
+
+			return () => {
+				// Clean up the CSS when component unmounts
+				if (document.head.contains(link1)) {
+					document.head.removeChild(link1)
+				}
+			}
+		}
+	}, [])
 
 	// Prevent duplicate editor initialization
 	useEffect(() => {
@@ -218,7 +241,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 					pointerEvents: value ? 'auto' : ('none' as const),
 				}}
 			>
-				{value && editor ? (
+				{value && editor && isClient ? (
 					<div className="h-full overflow-hidden">
 						<BlockNoteView
 							key={instanceId}

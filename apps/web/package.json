@@ -16,13 +16,8 @@
         "tauri:build:deb": "TAURI_BUILD=true bunx --bun tauri build -b deb"
     },
     "dependencies": {
-        "@ai-sdk/google": "^2.0.44",
-        "@ai-sdk/openai": "^2.0.79",
-        "@blocknote/code-block": "^0.42.3",
-        "@blocknote/core": "^0.42.3",
-        "@blocknote/mantine": "^0.44.0",
+        "@blocknote/core": "^0.44.2",
         "@blocknote/react": "^0.42.3",
-        "@blocknote/xl-ai": "0.42.3",
         "@hookform/resolvers": "^5.2.2",
         "@internationalized/date": "^3.10.0",
         "@monaco-editor/react": "^4.7.0",
@@ -32,7 +27,6 @@
         "@skriuw/shared": "workspace:*",
         "@skriuw/ui": "workspace:*",
         "@tauri-apps/api": "^2.0.0",
-        "ai": "^5.0.108",
         "better-auth": "^1.4.5",
         "class-variance-authority": "^0.7.1",
         "cmdk": "^1.1.1",
@@ -55,8 +49,7 @@
         "zustand": "^5.0.8"
     },
     "devDependencies": {
-        "@skriuw/eslint-config": "workspace:*",
-        "@skriuw/typescript-config": "workspace:*",
+        "@skriuw/config": "workspace:*",
         "@tailwindcss/postcss": "^4.1.17",
         "@tailwindcss/typography": "^0.5.16",
         "@tauri-apps/cli": "^2.0.0",

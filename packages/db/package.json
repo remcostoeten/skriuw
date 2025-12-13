@@ -20,8 +20,7 @@
         "postgres": "^3.4.5"
     },
     "devDependencies": {
-        "@skriuw/eslint-config": "workspace:*",
-        "@skriuw/typescript-config": "workspace:*",
+        "@skriuw/config": "workspace:*",
         "dotenv": "^17.2.3",
         "drizzle-kit": "^0.30.6",
         "tsup": "^8.0.0",

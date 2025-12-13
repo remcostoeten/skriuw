@@ -8,13 +8,13 @@ import type { PreviewProps } from '../types'
 
 // Lazy load heavy components
 const EditorThemePreview = React.lazy(() => import('./editor-theme-preview'))
+const BlockNotePreview = React.lazy(() => import('./blocknote-preview'))
 
 // Import lightweight components directly
 import WordWrapPreview from './word-wrap-preview'
 import TypographyPreview from './typography-preview'
 import LayoutPreview from './layout-preview'
 import SearchPreview from './search-preview'
-import BlockNotePreview from './blocknote-preview'
 import MultiTabPreview from './multi-tab-preview'
 
 // Registry of all preview renderers

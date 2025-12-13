@@ -145,7 +145,7 @@ export function TaskDescriptionEditor({
 
     return (
         <div className="h-full flex-1 relative overflow-y-auto">
-            <EditorWrapper editor={editor} className="bg-transparent" />
+            <EditorWrapper editor={editor as any} className="bg-transparent" />
         </div>
     )
 }
