@@ -117,13 +117,6 @@ export const serverSchema = z.object({
 
 
 
-    // Node environment
-    NODE_ENV: z
-        .enum(['development', 'test', 'production'])
-        .optional()
-        .default('development'),
-
-    // Server configuration
     PORT: z
         .string()
         .transform(Number)

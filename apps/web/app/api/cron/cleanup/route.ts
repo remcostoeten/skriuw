@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 		const isVercelCron = request.headers.get('vercel-cron') === 'true'
 		const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
 		const isDevBearer =
-			env.NODE_ENV === 'development' &&
+			process.env.NODE_ENV === 'development' &&
 			authHeader === `Bearer dev-cleanup-secret`
 
 		if (!isVercelCron && !isValidBearer && !isDevBearer) {
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 		const isVercelCron = request.headers.get('vercel-cron') === 'true'
 		const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
 		const isDevBearer =
-			env.NODE_ENV === 'development' &&
+			process.env.NODE_ENV === 'development' &&
 			authHeader === `Bearer dev-cleanup-secret`
 
 		if (!isVercelCron && !isValidBearer && !isDevBearer) {

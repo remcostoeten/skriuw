@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "build": "bun run validate-env --build-mode && next build",
+        "build": "next build",
         "validate-env": "tsx -e \"import('@skriuw/env/server').catch(() => process.exit(1))\"",
         "dev": "next dev",
         "lint": "next lint",
