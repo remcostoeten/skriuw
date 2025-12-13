@@ -5,19 +5,25 @@ interface KbdProps {
 	children?: React.ReactNode
 	className?: string
 	shortcut?: {
-		sequences: Array<Array<any>>
+		sequences: Array<Array<ShortcutKey | string | { maxDelay?: number }>>
 	}
+}
+
+type ShortcutKey = {
+	key: string
+	modifiers?: string[]
 }
 
 export function Kbd({ children, className, shortcut }: KbdProps) {
 	if (shortcut && shortcut.sequences && shortcut.sequences.length > 0) {
 		const firstSequence = shortcut.sequences[0]
 		const keyCombo = firstSequence.find(
-			(item) => typeof item === 'object' && item.key
+			(item): item is ShortcutKey =>
+				typeof item === 'object' && item !== null && 'key' in item
 		)
 
 		if (keyCombo) {
-			const keys = []
+			const keys: string[] = []
 			if (keyCombo.modifiers) {
 				keys.push(...keyCombo.modifiers)
 			}
@@ -30,7 +36,7 @@ export function Kbd({ children, className, shortcut }: KbdProps) {
 						className
 					)}
 				>
-					{keys.map((key: any, index: number) => (
+					{keys.map((key, index) => (
 						<React.Fragment key={index}>
 							{index > 0 && (
 								<span className="text-muted-foreground">+</span>

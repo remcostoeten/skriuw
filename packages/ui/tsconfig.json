@@ -1,9 +1,17 @@
 {
-  "extends": "@skriuw/typescript-config/react-library.json",
+  "extends": "@skriuw/config/typescript/react-library",
   "compilerOptions": {
     "outDir": "./dist",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

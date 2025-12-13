@@ -329,7 +329,7 @@ export function AppLayoutManager({
 						activeNoteId={sidebarActiveNoteId || undefined}
 						contentType={sidebarContentType}
 						customContent={sidebarCustomContent}
-						openTabIds={multiNoteTabs ? new Set(tabs.map((t) => t.noteId)) : undefined}
+						openTabIds={multiNoteTabs ? tabs.map((t) => t.noteId) : undefined}
 						ruler={{
 							enabled: false,
 							style: 'solid',

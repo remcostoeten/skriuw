@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { requireAuth } from '@/lib/api-auth'
-import { env } from '@skriuw/env/server'
+import { env } from '../../../../../../lib/env'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,26 +10,29 @@ export const OAUTH2_CONFIGS = {
 	dropbox: {
 		authUrl: 'https://www.dropbox.com/oauth2/authorize',
 		tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-		clientId: env.NEXT_PUBLIC_DROPBOX_CLIENT_ID!,
+		clientId: process.env.NEXT_PUBLIC_DROPBOX_CLIENT_ID!,
 		clientSecret: env.DROPBOX_CLIENT_SECRET!,
-		redirectUri: `${env.NEXT_PUBLIC_APP_URL}/api/storage/oauth2/callback/dropbox`,
-		scope: '',
+		redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/storage/oauth2/callback/dropbox`,
+		scope: ''
 	},
 	'google-drive': {
 		authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
 		tokenUrl: 'https://oauth2.googleapis.com/token',
-		clientId: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+		clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
 		clientSecret: env.GOOGLE_DRIVE_CLIENT_SECRET!,
-		redirectUri: `${env.NEXT_PUBLIC_APP_URL}/api/storage/oauth2/callback/google-drive`,
-		scope: 'https://www.googleapis.com/auth/drive.file',
-	},
+		redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/storage/oauth2/callback/google-drive`,
+		scope: 'https://www.googleapis.com/auth/drive.file'
+	}
 }
 
 function jsonError(message: string, status = 400) {
 	return NextResponse.json({ ok: false, message }, { status })
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ type: string }> }) {
+export async function GET(
+	request: NextRequest,
+	{ params }: { params: Promise<{ type: string }> }
+) {
 	try {
 		const auth = await requireAuth()
 		if (!auth.authenticated) return auth.response
@@ -55,8 +58,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 				...(config.scope && { scope: config.scope }),
 				...(type === 'google-drive' && {
 					access_type: 'offline',
-					prompt: 'consent',
-				}),
+					prompt: 'consent'
+				})
 			})
 		)
 
@@ -65,12 +68,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
 			sameSite: 'lax',
-			maxAge: 60 * 10, // 10 minutes
+			maxAge: 60 * 10 // 10 minutes
 		})
 
 		return response
 	} catch (error) {
-		const message = error instanceof Error ? error.message : 'OAuth2 initiation failed'
+		const message =
+			error instanceof Error ? error.message : 'OAuth2 initiation failed'
 		console.error('OAuth2 initiation failed:', message)
 		return jsonError(message, 500)
 	}

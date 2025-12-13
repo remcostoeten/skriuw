@@ -1,3 +1,3 @@
-export * from './db'
-export * from './db/timestamps'
+export * from './src'
+export * from './src/timestamps'
 export { default as drizzleConfig } from './drizzle.config'

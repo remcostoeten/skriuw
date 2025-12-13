@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState, useEffect } from 'react'
 import { cn } from '@skriuw/shared'
-import { SwitchProps, SwitchState } from './types'
+import { SwitchProps } from './types'
 import { switchAnimations, switchSizes } from './variants'
 import { Loader2 } from 'lucide-react'
 
@@ -89,8 +89,6 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 			setWasIndeterminate(indeterminate)
 		}
 	}, [indeterminate, wasIndeterminate, onIndeterminateChange])
-
-	const state: SwitchState = indeterminate ? 'indeterminate' : checked ? 'on' : 'off'
 
 	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		if (disabled || readOnly || loading) return

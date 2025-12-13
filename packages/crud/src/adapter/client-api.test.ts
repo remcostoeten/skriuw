@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from 'vitest'
-import { BaseEntity } from '../types'
+import { BaseEntity, StorageAdapter } from '../types'
 // Inline implementation of the client-api adapter for testing
 // This mirrors the actual implementation in apps/web/lib/storage/adapters/client-api.ts
 
@@ -87,6 +87,7 @@ describe('Client API Adapter', () => {
     describe('Mock Fetch Adapter', () => {
         let mockFetch: ReturnType<typeof vi.fn>
         let originalFetch: typeof globalThis.fetch
+        type NoteEntity = BaseEntity & { name: string; type: string; content: unknown[] }
 
         beforeAll(() => {
             originalFetch = globalThis.fetch
@@ -99,7 +100,7 @@ describe('Client API Adapter', () => {
 
         beforeEach(() => {
             mockFetch = vi.fn()
-            globalThis.fetch = mockFetch
+            globalThis.fetch = mockFetch as unknown as typeof globalThis.fetch
         })
 
         function createAdapter(baseUrl: string = ''): StorageAdapter {
@@ -291,7 +292,7 @@ describe('Client API Adapter', () => {
             })
 
             const adapter = createAdapter('http://localhost:3000')
-            await adapter.create('Skriuw_notes', {
+            await adapter.create<NoteEntity>('Skriuw_notes', {
                 name: 'New Note',
                 type: 'note',
                 content: []
@@ -314,7 +315,7 @@ describe('Client API Adapter', () => {
             })
 
             const adapter = createAdapter('http://localhost:3000')
-            await adapter.update('Skriuw_notes', 'note-123', { name: 'Updated Note' })
+            await adapter.update<NoteEntity>('Skriuw_notes', 'note-123', { name: 'Updated Note' })
 
             expect(mockFetch).toHaveBeenCalledWith(
                 'http://localhost:3000/api/notes',

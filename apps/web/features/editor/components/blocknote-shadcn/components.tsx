@@ -610,9 +610,9 @@ const MenuButton = ({
 
 const PopoverRoot = ({
 	children,
-	opened,
+	open,
 }: BlockNoteComponentProps['Generic']['Popover']['Root']) => (
-	<Popover open={opened}>{children}</Popover>
+	<Popover open={open}>{children}</Popover>
 )
 
 const PopoverTriggerWrapper = ({

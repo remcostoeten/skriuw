@@ -27,7 +27,7 @@ export const LANGUAGES = [
 	{ value: 'text', label: 'Plain Text' },
 ] as const
 
-export const customCodeBlockSpec = createReactBlockSpec(
+export const customCodeBlockSpec: any = createReactBlockSpec(
 	{
 		type: 'codeBlock',
 		propSchema: {
