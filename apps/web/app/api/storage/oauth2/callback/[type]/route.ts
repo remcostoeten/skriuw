@@ -67,7 +67,7 @@ export async function GET(
 		// Handle OAuth2 errors
 		if (error) {
 			return NextResponse.redirect(
-				`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
+				`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(error)}`
 			)
 		}
 
@@ -86,7 +86,7 @@ export async function GET(
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(`${env.NEXT_PUBLIC_APP_URL}/archive`)
+		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,
@@ -111,7 +111,7 @@ export async function GET(
 		console.error('OAuth2 callback failed:', message)
 
 		return NextResponse.redirect(
-			`${env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
+			`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
 		)
 	}
 }
