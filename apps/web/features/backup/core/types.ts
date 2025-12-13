@@ -92,7 +92,7 @@ export interface BackupJob {
 // Storage connector configuration (S3, Dropbox, Google Drive)
 export type StorageConnectorType = 's3' | 'dropbox' | 'google-drive'
 
-export type StorageConnectorStatus = 'disconnected' | 'connected' | 'error'
+export type StorageConnectorStatus = 'disconnected' | 'configured' | 'connected' | 'error'
 
 export interface StorageConnectorField {
 	name: string

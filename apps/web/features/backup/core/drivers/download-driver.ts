@@ -1,4 +1,9 @@
-import type { BackupManifest, DestinationConfig, StorageDriver, BackupVerificationResult } from '../types'
+import type {
+	BackupManifest,
+	DestinationConfig,
+	StorageDriver,
+	BackupVerificationResult,
+} from '../types'
 
 interface DownloadArchive {
 	manifest: BackupManifest | null
@@ -40,8 +45,10 @@ function triggerDownload(content: string, filename: string, mimeType: string): v
 	link.download = filename
 	document.body.appendChild(link)
 	link.click()
-	document.body.removeChild(link)
-	URL.revokeObjectURL(url)
+	setTimeout(() => {
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
+	}, 500)
 }
 
 /**
@@ -60,8 +67,7 @@ export function createDownloadDriver(options?: { filenamePrefix?: string }): Sto
 		},
 
 		async putChunk(manifestId, chunkMeta, data) {
-			const archive: DownloadArchive =
-				archives.get(manifestId) ?? { manifest: null, chunks: [] }
+			const archive: DownloadArchive = archives.get(manifestId) ?? { manifest: null, chunks: [] }
 			archive.chunks.push({ id: chunkMeta.id, data: toBase64(data) })
 			archives.set(manifestId, archive)
 		},

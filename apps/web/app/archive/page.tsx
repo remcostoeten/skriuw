@@ -213,10 +213,12 @@ export default function DataBackupPage() {
 														<strong>Export as JSON:</strong> Complete backup with all formatting
 													</p>
 													<p>
-														<strong>Export as Markdown:</strong> Plain text files, great for reading anywhere
+														<strong>Export as Markdown:</strong> Plain text files, great for reading
+														anywhere
 													</p>
 													<p>
-														<strong>When to export:</strong> Before switching devices or after important changes
+														<strong>When to export:</strong> Before switching devices or after
+														important changes
 													</p>
 												</div>
 												<ExportPanel />
@@ -256,10 +258,12 @@ export default function DataBackupPage() {
 														<strong>Import JSON:</strong> Restore a previous backup from this app
 													</p>
 													<p>
-														<strong>Import Markdown:</strong> Bring in notes from other apps or text files
+														<strong>Import Markdown:</strong> Bring in notes from other apps or text
+														files
 													</p>
 													<p>
-														<strong>Non-destructive:</strong> Importing creates new notes and won't overwrite existing ones
+														<strong>Non-destructive:</strong> Importing creates new notes and won't
+														overwrite existing ones
 													</p>
 												</div>
 												<ImportPanel />
@@ -279,7 +283,9 @@ export default function DataBackupPage() {
 												custom={tabDirection}
 												className="space-y-1.5"
 											>
-												<CardTitle className="flex items-center gap-2">Cloud storage adapters</CardTitle>
+												<CardTitle className="flex items-center gap-2">
+													Cloud storage adapters
+												</CardTitle>
 												<CardDescription>
 													One place for credentials: Manage S3, Dropbox, or Google Drive
 												</CardDescription>
@@ -341,7 +347,7 @@ export default function DataBackupPage() {
 												<div className="relative">
 													<StorageAdaptersPanel
 														activeType={storageProvider}
-														onTypeChange={(val) => handleStorageProviderChange(val as StorageConnectorType)}
+														onTypeChange={(val) => handleStorageProviderChange(val)}
 														showHeader={false}
 														showTabs={false}
 														direction={providerDirection}

@@ -87,7 +87,7 @@ export function useStorageConnectors() {
 				id: existing?.id ?? generateConnectorId(type),
 				type,
 				name: name || definition.label,
-				status: 'connected',
+				status: 'configured',
 				lastValidatedAt: now,
 				lastError: null,
 				config: normalizedConfig,
