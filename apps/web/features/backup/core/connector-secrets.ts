@@ -1,5 +1,7 @@
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secret'
 
+import { logger } from '@/lib/logger'
+
 import { STORAGE_CONNECTOR_DEFINITIONS } from './connectors'
 import type {
 	StorageConnectorDefinition,
@@ -17,7 +19,8 @@ function getDefinition(type: StorageConnectorType): StorageConnectorDefinition |
 function processConfig(
 	config: Record<string, string>,
 	definition: StorageConnectorDefinition,
-	direction: 'encrypt' | 'decrypt'
+	direction: 'encrypt' | 'decrypt',
+	connectorId?: string
 ): Record<string, string> {
 	const next: Record<string, string> = {}
 	for (const field of definition.fields) {
@@ -29,8 +32,13 @@ function processConfig(
 			} else {
 				try {
 					next[field.name] = decryptSecret(value)
-				} catch {
-					next[field.name] = ''
+				} catch (error) {
+					logger.warn(
+						'general',
+						`Failed to decrypt field '${field.name}' for connector ${connectorId}: ${error}`,
+						{ error }
+					)
+					next[field.name] = '__DECRYPTION_FAILED__'
 				}
 			}
 		} else {
@@ -42,7 +50,8 @@ function processConfig(
 
 function processOAuth2Tokens(
 	oauth2Tokens: OAuth2Tokens | undefined,
-	direction: 'encrypt' | 'decrypt'
+	direction: 'encrypt' | 'decrypt',
+	connectorId?: string
 ): OAuth2Tokens | undefined {
 	if (!oauth2Tokens) return undefined
 
@@ -54,8 +63,13 @@ function processOAuth2Tokens(
 			} else {
 				try {
 					processed[key] = decryptSecret(value)
-				} catch {
-					processed[key] = ''
+				} catch (error) {
+					logger.warn(
+						'general',
+						`Failed to decrypt OAuth2 token '${key}' for connector ${connectorId}: ${error}`,
+						{ error }
+					)
+					processed[key] = '__DECRYPTION_FAILED__'
 				}
 			}
 		}
@@ -71,8 +85,8 @@ export function encryptConnectorStates(
 		if (!definition) return connector
 		return {
 			...connector,
-			config: processConfig(connector.config, definition, 'encrypt'),
-			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'encrypt'),
+			config: processConfig(connector.config, definition, 'encrypt', connector.id),
+			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'encrypt', connector.id),
 		}
 	})
 }
@@ -83,8 +97,8 @@ export function decryptConnectorStates(connectors: MaybeEncrypted[]): StorageCon
 		if (!definition) return connector
 		return {
 			...connector,
-			config: processConfig(connector.config, definition, 'decrypt'),
-			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'decrypt'),
+			config: processConfig(connector.config, definition, 'decrypt', connector.id),
+			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'decrypt', connector.id),
 		}
 	})
 }
