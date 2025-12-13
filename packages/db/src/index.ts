@@ -16,7 +16,7 @@ type DatabaseProvider = 'neon' | 'postgres'
 
 function detectProvider(url: string): DatabaseProvider {
 	// Check explicit provider first
-	const explicitProvider = process.env.DATABASE_PROVIDER as DatabaseProvider | undefined // eslint-disable-next-line
+	const explicitProvider = process.env.DATABASE_PROVIDER as DatabaseProvider | undefined
 	if (explicitProvider && (explicitProvider === 'neon' || explicitProvider === 'postgres')) {
 		return explicitProvider
 	}
@@ -52,11 +52,12 @@ export function getDatabase() {
 
 	try {
 		// Dynamic import to avoid validation at build time
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const { database } = require('@skriuw/env/server')
 		url = database.url
 	} catch {
 		// Fallback for drizzle-kit commands that use dotenv
-		url = process.env.DATABASE_URL || '' // eslint-disable-next-line
+		url = process.env.DATABASE_URL || ''
 	}
 
 	if (!url) {
@@ -80,4 +81,3 @@ export function getDatabase() {
 
 	return _dbClient
 }
-
