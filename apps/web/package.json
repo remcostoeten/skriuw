@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "build": "bun run validate-env && next build",
+        "build": "bun run validate-env --build-mode && next build",
         "validate-env": "tsx ../../packages/env/src/validate-build.ts",
         "dev": "next dev",
         "lint": "next lint",
