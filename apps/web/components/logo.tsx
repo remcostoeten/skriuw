@@ -7,16 +7,18 @@ import { useEffect, useState } from 'react'
 const LogoIcon = () => {
 	return (
 		<svg
-			viewBox="0 0 390 513"
+			viewBox="0 0 40 40"
 			fill="currentColor"
 			xmlns="http://www.w3.org/2000/svg"
 			className="h-5 w-5 text-primary transition-all duration-300"
-			preserveAspectRatio="xMidYMid meet"
 		>
-			<g fill="currentColor">
-				<path d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z" />
-				<path d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z" />
-				<path d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z" />
+			<g className="fill-current">
+				{/* First bar - leftmost */}
+				<rect x="4" y="8" width="8" height="24" rx="1" />
+				{/* Second bar - middle */}
+				<rect x="16" y="4" width="8" height="32" rx="1" />
+				{/* Third bar - rightmost */}
+				<rect x="28" y="12" width="8" height="16" rx="1" />
 			</g>
 		</svg>
 	)
