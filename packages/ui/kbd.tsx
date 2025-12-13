@@ -5,7 +5,7 @@ interface KbdProps {
 	children?: React.ReactNode
 	className?: string
 	shortcut?: {
-		sequences: Array<Array<ShortcutKey | string>>
+		sequences: Array<Array<ShortcutKey | string | { maxDelay?: number }>>
 	}
 }
 
