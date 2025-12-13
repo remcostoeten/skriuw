@@ -90,8 +90,6 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 		}
 	}, [indeterminate, wasIndeterminate, onIndeterminateChange])
 
-	const state: SwitchState = indeterminate ? 'indeterminate' : checked ? 'on' : 'off'
-
 	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		if (disabled || readOnly || loading) return
 
