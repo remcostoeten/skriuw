@@ -1,8 +1,29 @@
 'use client'
 
 import { Trash2 } from 'lucide-react'
-
+import { motion } from 'framer-motion'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
 import { TrashPanel } from '@/features/backup/components/trash-panel'
+
+const snappyEase = [0.34, 1.8, 0.64, 1]
+
+const contentVariants = {
+    initial: {
+        opacity: 0,
+        y: 20,
+        scale: 0.96,
+    },
+    animate: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: {
+            duration: 0.25,
+            ease: snappyEase as any,
+            delay: 0.05,
+        },
+    },
+}
 
 export default function TrashPage() {
     return (
@@ -18,10 +39,27 @@ export default function TrashPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-lg mx-auto">
-                    <TrashPanel />
+                <div className="max-w-5xl mx-auto w-full">
+                    <motion.div
+                        variants={contentVariants}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        <Card className="border-border/70 shadow-sm w-full overflow-hidden">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">Deleted Items</CardTitle>
+                                <CardDescription>
+                                    Manage your deleted notes and folders. You can restore them or delete them forever.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <TrashPanel />
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 </div>
             </div>
         </div>
     )
 }
+

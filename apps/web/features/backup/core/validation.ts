@@ -2,7 +2,10 @@ import { z } from 'zod'
 
 import type { StorageConnectorType } from './types'
 
-const nonEmpty = z.string().trim().min(1, 'Required')
+const nonEmpty = z
+	.string({ message: 'Required' })
+	.trim()
+	.min(1, 'Required')
 const optionalUrlish = z
 	.string()
 	.trim()
@@ -17,7 +20,7 @@ export const connectorSchemas: Record<StorageConnectorType, z.ZodTypeAny> = {
 		accessKeyId: nonEmpty,
 		secretAccessKey: nonEmpty,
 		region: z
-			.string()
+			.string({ message: 'Required' })
 			.trim()
 			.regex(regionPattern, 'Invalid region format'),
 		bucket: nonEmpty,

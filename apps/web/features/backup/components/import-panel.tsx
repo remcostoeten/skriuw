@@ -1,7 +1,5 @@
-'use client'
-
-import { useState, useCallback, useRef } from 'react'
-import { Upload, FileJson, FileText, Check, Loader2, AlertCircle, X } from 'lucide-react'
+import { useState, useCallback, useRef, useMemo } from 'react'
+import { Upload, FileJson, FileText, Check, Loader2, AlertCircle, X, Cloud, Clock } from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
 import { cn } from '@skriuw/shared'
@@ -9,16 +7,27 @@ import { cn } from '@skriuw/shared'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { processImportFiles, type ImportResult } from '../utils/import-notes'
 import { FormatInfoCard, StatCard } from './shared/import-export-ui'
+import { useStorageConnectors } from '../hooks/use-storage-connectors'
+import type { BackupManifest } from '../core/types'
 
-type TImportStep = 'select' | 'preview' | 'importing' | 'complete'
+type TImportStep = 'select' | 'preview' | 'importing' | 'complete' | 'cloud-select'
 
 export function ImportPanel() {
 	const { createNote, createFolder, refreshItems } = useNotesContext()
+	const { connectors } = useStorageConnectors()
 	const [step, setStep] = useState<TImportStep>('select')
 	const [isDragging, setIsDragging] = useState(false)
 	const [importResult, setImportResult] = useState<ImportResult | null>(null)
 	const [isImporting, setIsImporting] = useState(false)
+
+	// Cloud Restore State
+	const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+	const [availableBackups, setAvailableBackups] = useState<BackupManifest[]>([])
+	const [isLoadingBackups, setIsLoadingBackups] = useState(false)
+
 	const fileInputRef = useRef<HTMLInputElement>(null)
+
+	const connectedProviders = useMemo(() => connectors.filter(c => c.status === 'connected'), [connectors])
 
 	const handleDragOver = useCallback(function (e: React.DragEvent) {
 		e.preventDefault()
@@ -105,8 +114,115 @@ export function ImportPanel() {
 	function handleReset() {
 		setStep('select')
 		setImportResult(null)
+		setSelectedProvider(null)
+		setAvailableBackups([])
 		if (fileInputRef.current) {
 			fileInputRef.current.value = ''
+		}
+	}
+
+	async function handleProviderSelect(type: string) {
+		setSelectedProvider(type)
+		setStep('cloud-select')
+		setIsLoadingBackups(true)
+		setAvailableBackups([])
+
+		try {
+			const connector = connectors.find(c => c.type === type)
+			if (!connector) throw new Error('Provider not found')
+
+			let driver: any
+			const { S3Driver } = await import('../core/drivers/s3-driver')
+			const { DropboxDriver } = await import('../core/drivers/dropbox-driver')
+			const { GoogleDriveDriver } = await import('../core/drivers/google-drive-driver')
+
+			if (type === 's3') driver = new S3Driver()
+			else if (type === 'dropbox') driver = new DropboxDriver()
+			else if (type === 'google-drive') driver = new GoogleDriveDriver()
+
+			await driver.init({
+				config: connector.config as any
+			})
+
+			const manifests = await driver.listManifests()
+			setAvailableBackups(manifests)
+		} catch (error) {
+			console.error('Failed to list backups:', error)
+		} finally {
+			setIsLoadingBackups(false)
+		}
+	}
+
+	async function handleRestoreBackup(manifest: BackupManifest) {
+		setIsImporting(true)
+		setStep('importing')
+
+		try {
+			const connector = connectors.find(c => c.type === selectedProvider)
+			if (!connector) throw new Error('Provider not found')
+
+			let driver: any
+			const { S3Driver } = await import('../core/drivers/s3-driver')
+			const { DropboxDriver } = await import('../core/drivers/dropbox-driver')
+			const { GoogleDriveDriver } = await import('../core/drivers/google-drive-driver')
+
+			if (connector.type === 's3') driver = new S3Driver()
+			else if (connector.type === 'dropbox') driver = new DropboxDriver()
+			else if (connector.type === 'google-drive') driver = new GoogleDriveDriver()
+
+			await driver.init({ config: connector.config as any })
+
+			// Fetch all chunks and reassemble
+			const { restoreChunk } = await import('../core/engine')
+
+			const chunks: Uint8Array[] = []
+
+			// Sort chunks by index just in case
+			const sortedMeta = [...manifest.chunks].sort((a, b) => a.index - b.index)
+
+			for (const chunkMeta of sortedMeta) {
+				const chunkData = await restoreChunk(driver, manifest.id, chunkMeta.id)
+				chunks.push(chunkData)
+			}
+
+			// Combine chunks
+			const totalLength = chunks.reduce((acc, c) => acc + c.length, 0)
+			const result = new Uint8Array(totalLength)
+			let offset = 0
+			for (const chunk of chunks) {
+				result.set(chunk, offset)
+				offset += chunk.length
+			}
+
+			// Decode JSON
+			const decoder = new TextDecoder()
+			const jsonStr = decoder.decode(result)
+			const backupData = JSON.parse(jsonStr)
+
+			// Transform to ImportResult format
+			// BackupData has .items same as ImportResult logic expects
+			setImportResult({
+				success: true,
+				importedNotes: backupData.metadata?.totalNotes || 0,
+				importedFolders: backupData.metadata?.totalFolders || 0,
+				items: backupData.items,
+				errors: []
+			})
+
+			// Proceed to import those items
+			for (const item of backupData.items) {
+				await importItem(item)
+			}
+
+			await refreshItems()
+			setStep('complete')
+
+		} catch (error) {
+			console.error('Restore failed:', error)
+			// Fallback to select to show error
+			setStep('select')
+		} finally {
+			setIsImporting(false)
 		}
 	}
 
@@ -145,6 +261,29 @@ export function ImportPanel() {
 						<p className="text-xs text-muted-foreground">or click to browse</p>
 					</div>
 
+					{connectedProviders.length > 0 && (
+						<div className="space-y-3 pt-2">
+							<div className="flex items-center gap-2">
+								<div className="h-px bg-border flex-1" />
+								<span className="text-xs text-muted-foreground font-medium uppercase">Or restore from cloud</span>
+								<div className="h-px bg-border flex-1" />
+							</div>
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+								{connectedProviders.map(p => (
+									<Button
+										key={p.type}
+										variant="outline"
+										className="justify-start"
+										onClick={() => handleProviderSelect(p.type)}
+									>
+										<Cloud className="h-4 w-4 mr-2" />
+										{p.name}
+									</Button>
+								))}
+							</div>
+						</div>
+					)}
+
 					<div className="space-y-3">
 						<h3 className="text-sm font-medium text-muted-foreground">Supported Formats</h3>
 						<div className="grid gap-2">
@@ -161,6 +300,53 @@ export function ImportPanel() {
 						</div>
 					</div>
 				</>
+			)}
+
+			{step === 'cloud-select' && (
+				<div className="space-y-4">
+					<div className="flex items-center justify-between">
+						<h3 className="font-medium flex items-center gap-2">
+							<Cloud className="h-4 w-4" />
+							Select Backup
+						</h3>
+						<Button variant="ghost" size="sm" onClick={handleReset}>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+
+					{isLoadingBackups ? (
+						<div className="py-8 flex justify-center">
+							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+						</div>
+					) : availableBackups.length === 0 ? (
+						<div className="text-center py-8 text-muted-foreground space-y-2">
+							<p>No backups found.</p>
+							<Button variant="link" onClick={handleReset}>Go back</Button>
+						</div>
+					) : (
+						<div className="grid gap-2 max-h-[300px] overflow-y-auto">
+							{availableBackups.map(backup => (
+								<div
+									key={backup.id}
+									className="flex items-center justify-between p-3 rounded-md border border-border hover:bg-muted/50 transition-colors"
+								>
+									<div className="space-y-1">
+										<div className="font-medium text-sm flex items-center gap-2">
+											<Clock className="h-3 w-3 text-muted-foreground" />
+											{new Date(backup.createdAt).toLocaleString()}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{backup.totalBytes ? `${(backup.totalBytes / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'} • v{backup.version}
+										</div>
+									</div>
+									<Button size="sm" onClick={() => handleRestoreBackup(backup)}>
+										Restore
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
 			)}
 
 			{step === 'preview' && importResult && (
