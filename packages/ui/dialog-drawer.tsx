@@ -28,10 +28,10 @@ type DialogContextValue = {
 
 const DialogContext = createContext<DialogContextValue | undefined>(undefined)
 
-// Centralized z-index tiers for app overlays
+// Centralized z-index tiersdd for app overlays
 const Z_INDEX = {
-	overlay: 20000,
-	dialog: 20001,
+	overlay: 10,
+	dialog: 20,
 } as const
 
 function useDialogContext(): DialogContextValue {
@@ -126,7 +126,7 @@ function DrawerDialogOverlay({
 							duration: 0.3,
 							ease: [0.25, 0.46, 0.45, 0.94]
 						}}
-						className={`fixed inset-0 z-[${Z_INDEX.overlay}] bg-black/70 backdrop-blur-sm`}
+						className={`fixed inset-0 z-${Z_INDEX.overlay} bg-black/70 backdrop-blur-sm`}
 						onClick={handleClick}
 						aria-hidden="true"
 					/>
@@ -206,7 +206,7 @@ export function DrawerContent({
 		return (
 			<Portal>
 				<div
-					className={`fixed inset-0 z-[${Z_INDEX.dialog}] flex flex-col pointer-events-none`}
+					className={`fixed inset-0 z-${Z_INDEX.dialog} flex flex-col pointer-events-none`}
 					style={{ top: `${dragOffset}px` }}
 				>
 					<div className="flex-1 pointer-events-auto" />
@@ -247,7 +247,7 @@ export function DrawerContent({
 		<AnimatePresence>
 			{open && (
 				<Portal>
-					<div className={`fixed inset-0 z-[${Z_INDEX.dialog}] flex items-center justify-center p-6`}>
+					<div className={`fixed inset-0 z-${Z_INDEX.dialog} flex items-center justify-center p-6`}>
 						<motion.div
 							ref={contentRef}
 							role="dialog"
@@ -564,13 +564,12 @@ export function DialogNavGroup({
 							}
 						}, 0)
 					}}
-					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-ring ${
-						item.disabled
-							? 'text-muted-foreground/60 cursor-not-allowed opacity-70'
-							: item.active
-								? 'text-accent-foreground bg-accent'
-								: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
-					}`}
+					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-ring ${item.disabled
+						? 'text-muted-foreground/60 cursor-not-allowed opacity-70'
+						: item.active
+							? 'text-accent-foreground bg-accent'
+							: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
+						}`}
 					title={item.disabled ? item.disabledReason || 'Disabled' : undefined}
 					aria-disabled={item.disabled ? true : undefined}
 				>

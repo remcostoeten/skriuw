@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css3?family=Ubuntu+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css3?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Georgia:wght@400;700&display=swap');
 @import 'tailwindcss';
@@ -147,6 +147,18 @@
 	.font-brand {
 		font-family: Georgia, 'Playfair Display', 'Times New Roman', serif;
 	}
+}
+
+.z-20 {
+	z-index: 20;
+}
+
+.z-10 {
+	z-index: 10;
+}
+
+.z-30 {
+	z-index: 30;
 }
 
 /* Screen reader only - for accessibility */

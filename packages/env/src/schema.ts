@@ -92,6 +92,36 @@ export const aiSchema = z.object({
 })
 
 /**
+ * OAuth Storage configuration schema.
+ * ⚠️ WARNING: These keys are required for cloud storage backup features.
+ */
+export const oauthStorageSchema = z.object({
+    // Dropbox OAuth
+    DROPBOX_CLIENT_ID: z
+        .string({
+            description: '⚠️ WARNING: DROPBOX_CLIENT_ID is required for Dropbox storage integration',
+        })
+        .optional(),
+    DROPBOX_CLIENT_SECRET: z
+        .string({
+            description: '⚠️ WARNING: DROPBOX_CLIENT_SECRET is required for Dropbox storage integration',
+        })
+        .optional(),
+
+    // Google Drive OAuth
+    GOOGLE_DRIVE_CLIENT_ID: z
+        .string({
+            description: '⚠️ WARNING: GOOGLE_DRIVE_CLIENT_ID is required for Google Drive storage integration',
+        })
+        .optional(),
+    GOOGLE_DRIVE_CLIENT_SECRET: z
+        .string({
+            description: '⚠️ WARNING: GOOGLE_DRIVE_CLIENT_SECRET is required for Google Drive storage integration',
+        })
+        .optional(),
+})
+
+/**
  * Other API Keys and services.
  */
 export const apiKeysSchema = z.object({
@@ -133,7 +163,7 @@ export const serverSchema = z.object({
     ...databaseSchema.shape,
     ...authSchema.shape,
     ...aiSchema.shape,
-    ...v0Schema.shape,
+    ...oauthStorageSchema.shape,
     ...apiKeysSchema.shape,
     ...vercelSchema.shape,
 
@@ -165,6 +195,28 @@ export const serverSchema = z.object({
 export const clientSchema = z.object({
     NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
+
+    // Feature Flags & Logging
+    NEXT_PUBLIC_ENABLE_AUTH_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
+    NEXT_PUBLIC_DISABLE_AUTO_SIGNIN: z
+        .string()
+        .transform((val) => val === 'true')
+        .optional()
+        .default('false'),
 })
 
 // ============================================================================
@@ -174,6 +226,7 @@ export const clientSchema = z.object({
 export type DatabaseEnv = z.infer<typeof databaseSchema>
 export type AuthEnv = z.infer<typeof authSchema>
 export type AIEnv = z.infer<typeof aiSchema>
+export type OAuthStorageEnv = z.infer<typeof oauthStorageSchema>
 export type APIKeysEnv = z.infer<typeof apiKeysSchema>
 export type VercelEnv = z.infer<typeof vercelSchema>
 export type ServerEnv = z.infer<typeof serverSchema>

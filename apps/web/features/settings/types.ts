@@ -46,3 +46,11 @@ export interface SettingsConfig {
 	options?: any[]
 	validation?: (value: any) => boolean | string
 }
+
+// Props passed to all preview components
+export interface PreviewProps<T = any> {
+	value: T
+	settingKey: string
+	options?: T[]
+	allSettings?: Record<string, any>
+}

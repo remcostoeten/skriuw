@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import type { Monaco } from '@monaco-editor/react'
-import type { PreviewProps } from './index'
+import type { PreviewProps } from '../types'
 import { EDITOR_THEMES, type EditorTheme } from '../../editor/components/raw-mdx-editor'
 
 // Dynamically import Monaco for preview - even smaller footprint
