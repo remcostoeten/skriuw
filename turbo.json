@@ -1,6 +1,22 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "DATABASE_URL",
+    "DATABASE_PROVIDER",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "AUTH_TRUST_HOST",
+    "GEMINI_API_KEY",
+    "GEMINI_BACKUP_KEY",
+    "CONNECTOR_ENCRYPTION_KEY",
+    "CRON_SECRET",
+    "DROPBOX_CLIENT_SECRET",
+    "GOOGLE_DRIVE_CLIENT_SECRET",
+    "NODE_ENV",
+    "PORT",
+    "DEBUG"
+  ],
   "tasks": {
     "build": {
       "dependsOn": [
