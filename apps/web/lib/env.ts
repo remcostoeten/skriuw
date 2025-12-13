@@ -37,7 +37,6 @@ export const env = createEnv({
             .string()
             .optional()
             .transform((s) => s === 'true'),
-        NEXT_PUBLIC_DISABLE_AUTO_SIGNIN: z.string().optional(),
     },
     // You need to destructure all the keys manually
     runtimeEnv: {
@@ -65,6 +64,5 @@ export const env = createEnv({
         NEXT_PUBLIC_ENABLE_AUTH_LOGGING: process.env.NEXT_PUBLIC_ENABLE_AUTH_LOGGING,
         NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING: process.env.NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING,
         NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: process.env.NEXT_PUBLIC_ENABLE_GENERAL_LOGGING,
-        NEXT_PUBLIC_DISABLE_AUTO_SIGNIN: process.env.NEXT_PUBLIC_DISABLE_AUTO_SIGNIN,
     }
 })

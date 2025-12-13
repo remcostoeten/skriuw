@@ -44,13 +44,12 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 			</div>
 			<div>
 				<ul>
-					<li>todo: tabs settings remove emojis en show reorder gif</li>
-					<li>todo: better empty state with search (21st.dev</li>
-					<li>User menu tyling</li>
-					<li>login flow</li>
-					<li>DISABLE_AUTO_SIGNIN env validation </li>
-				</ul>
-			</div>
+                                        <li>todo: tabs settings remove emojis en show reorder gif</li>
+                                        <li>todo: better empty state with search (21st.dev</li>
+                                        <li>User menu tyling</li>
+                                        <li>login flow</li>
+                                </ul>
+                        </div>
 			<EmptyState
 				actions={[
 					{

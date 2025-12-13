@@ -1,27 +1,15 @@
 # Development Flags
 
-## Auto Sign-In Control
+Skriuw exposes a small set of development flags to help with debugging authentication flows and observing visitor tracking.
 
-The application includes development flags to control auto-sign-in behavior and enable detailed logging for debugging.
+## Zero-session tracking
 
-### Available Flags
+Every visitor now receives a "zero session" identifier that is stored in a cookie/localStorage to support anonymous analytics without logging them in. The identifier is created client-side, so there is no flag to enable it—it always runs.
 
-#### `NEXT_PUBLIC_DISABLE_AUTO_SIGNIN`
-Disables automatic anonymous user sign-in on app load.
+## Auth logging
 
-**Usage:**
-```bash
-# In .env.local
-NEXT_PUBLIC_DISABLE_AUTO_SIGNIN=true
-```
-
-**When to use:**
-- Debugging authentication flows
-- Testing without automatic session creation
-- Development scenarios where you want manual control
-
-#### `NEXT_PUBLIC_ENABLE_AUTH_LOGGING`
-Enables detailed console logging for authentication operations.
+### `NEXT_PUBLIC_ENABLE_AUTH_LOGGING`
+Enables detailed console logging for authentication operations and zero-session lifecycle.
 
 **Usage:**
 ```bash
@@ -39,22 +27,12 @@ NEXT_PUBLIC_ENABLE_AUTH_LOGGING=true
 Create or update `.env.local`:
 
 ```bash
-# Disable auto-sign-in for debugging
-NEXT_PUBLIC_DISABLE_AUTO_SIGNIN=true
-
 # Enable auth logging
 NEXT_PUBLIC_ENABLE_AUTH_LOGGING=true
 ```
 
 ### Implementation
 
-Flags are defined in `/components/auth/auto-sign-in.tsx`:
-
-```typescript
-const DEV_FLAGS = {
-  DISABLE_AUTO_SIGNIN: process.env.NEXT_PUBLIC_DISABLE_AUTO_SIGNIN === 'true',
-  ENABLE_AUTH_LOGGING: process.env.NEXT_PUBLIC_ENABLE_AUTH_LOGGING === 'true',
-}
-```
+Flags are read from `process.env` inside `/components/auth/auto-sign-in.tsx`.
 
 **Note:** After changing environment variables, you must restart the Next.js development server.

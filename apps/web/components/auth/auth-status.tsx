@@ -15,12 +15,12 @@ export function AuthStatus() {
 	if (dismissed) return null
 
 	const statusLabel = (() => {
-		if (!AUTH_CLIENT_ENABLED) return 'Auth disabled: missing NEXT_PUBLIC_APP_URL'
-		if (error) return 'Auth error — running in local-only mode'
-		if (isPending) return 'Signing in...'
-		if (session) return session.user?.email || 'Signed in'
-		return 'Not signed in'
-	})()
+                if (!AUTH_CLIENT_ENABLED) return 'Auth disabled: missing NEXT_PUBLIC_APP_URL'
+                if (error) return 'Auth error — running in local-only mode'
+                if (isPending) return 'Checking session...'
+                if (session) return session.user?.email || 'Signed in'
+                return 'Not signed in'
+        })()
 
 	const showWarning = !AUTH_CLIENT_ENABLED || Boolean(error)
 
