@@ -123,11 +123,21 @@ export function useStorageConnectors() {
 				}
 
 				// Real handshake call
-				const res = await fetch('/api/storage/connectors/test', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ type, config: normalized, oauth2Tokens }),
-				})
+				const controller = new AbortController()
+				const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+				let res: Response
+				try {
+					res = await fetch('/api/storage/connectors/test', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ type, config: normalized, oauth2Tokens }),
+						signal: controller.signal,
+					})
+				} finally {
+					clearTimeout(timeoutId)
+				}
+
 				if (!res.ok) {
 					const data = await res.json().catch(() => ({}))
 					throw new Error(data?.message || `Handshake failed (${res.status})`)
@@ -150,19 +160,25 @@ export function useStorageConnectors() {
 
 				return success
 			} catch (error) {
-				const message = error instanceof Error ? error.message : 'Failed to validate connector'
-				const existing = connectors.find((connector) => connector.type === type)
-				const fallback: StorageConnectorState = {
-					id: existing?.id ?? generateConnectorId(type),
-					type,
-					name: name || existing?.name || definitionsMap[type]?.label || type,
-					status: 'error',
-					lastValidatedAt: existing?.lastValidatedAt,
-					lastError: message,
-					config: existing?.config ?? {},
-					oauth2Tokens: existing?.oauth2Tokens,
+				let message = error instanceof Error ? error.message : 'Failed to validate connector'
+				if (error instanceof Error && error.name === 'AbortError') {
+					message = 'Connection timed out after 10s'
 				}
-				persist([...connectors.filter((connector) => connector.type !== type), fallback])
+				const existing = connectors.find((connector) => connector.type === type)
+				// Only persist error state for existing connectors to avoid creating new ones on failure
+				if (existing) {
+					const fallback: StorageConnectorState = {
+						id: existing.id,
+						type,
+						name: existing.name,
+						status: 'error',
+						lastValidatedAt: existing.lastValidatedAt,
+						lastError: message,
+						config: existing.config,
+						oauth2Tokens: existing.oauth2Tokens,
+					}
+					persist([...connectors.filter((connector) => connector.type !== type), fallback])
+				}
 				throw new Error(message)
 			} finally {
 				setTestingConnector(null)
