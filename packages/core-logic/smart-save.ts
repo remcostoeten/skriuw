@@ -1,10 +1,16 @@
 
 // Minimal interface for BlockNote blocks to avoid hard dependency
+type InlineContent = {
+    type?: string;
+    text?: string;
+    [key: string]: unknown;
+};
+
 export interface BlockContent {
     type: string;
-    content?: string | any[];
+    content?: string | InlineContent[];
     children?: BlockContent[];
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 /**
@@ -41,7 +47,9 @@ function normalizeContent(blocks: BlockContent[], ignoreWhitespace: boolean): st
         if (Array.isArray(block.content)) {
             // BlockNote content is an array of inline content objects
             text = block.content
-                .map((c: any) => (c.type === 'text' || !c.type ? c.text : ''))
+                .map((c: InlineContent) =>
+                    c.type === 'text' || !c.type ? c.text ?? '' : ''
+                )
                 .join('');
         } else if (typeof block.content === 'string') {
             text = block.content;
