@@ -220,7 +220,7 @@ function TreeNode({
     )
 }
 
-export const fileTreeBlockSpec = createReactBlockSpec(
+export const fileTreeBlockSpec: any = createReactBlockSpec(
     {
         type: 'fileTree',
         propSchema: {

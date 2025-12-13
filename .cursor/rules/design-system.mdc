@@ -1,0 +1,23 @@
+---
+description: Design system, styling, and aesthetic guidelines.
+globs: "**/*.{tsx,css}"
+priority: medium
+version: 1.0.0
+---
+
+# Design System & Aesthetics
+
+## Core Aesthetic
+- **Premium Feel**: Avoid default browser styles. Use custom fonts, refined colors, and subtle shadows.
+- **Vibrant**: Use the defined color palette. Avoid "generic gray" interfaces.
+- **Fluid**: Animations should be used for state changes (entering, exiting, hovering).
+
+## Tailwind CSS Rules
+1. **Utility First**: Use Tailwind utilities for 99% of styling.
+2. **Configuration**: Use `tailwind.config.ts` for custom colors and animations. Do not hardcode magic values (e.g., `w-[357px]`).
+3. **Dark Mode**: All components must support dark mode (`dark:` modifier).
+
+## UX Guidelines
+- **Optimistic UI**: When a user performs an action (e.g., "Like"), update the UI *immediately* before the server responds.
+- **Feedback**: Always provide feedback for actions (loading spinners, toast notifications, success states).
+- **Empty States**: Never leave a blank screen. Design beautiful empty states for lists/data.
