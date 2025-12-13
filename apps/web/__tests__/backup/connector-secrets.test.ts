@@ -50,13 +50,17 @@ describe('connector-secrets', () => {
 
 	it('encrypts and decrypts secret fields while preserving non-secret fields', () => {
 		const encrypted = encryptConnectorStates(baseConnectors as any)
-		encrypted.forEach((c, idx) => {
-			const definition = STORAGE_CONNECTOR_DEFINITIONS[idx]
-			definition.fields
+		encrypted.forEach((c) => {
+			const definition = STORAGE_CONNECTOR_DEFINITIONS.find(d => d.type === c.type)
+			const base = baseConnectors.find(b => b.id === c.id)
+			expect(definition).toBeDefined()
+			expect(base).toBeDefined()
+			definition!.fields
 				.filter((f) => f.secret)
 				.forEach((f) => {
-					expect(c.config[f.name]).not.toBe((baseConnectors[idx] as any).config[f.name])
+					expect(c.config[f.name]).not.toBe((base as any).config[f.name])
 				})
+		})
 		})
 
 		const decrypted = decryptConnectorStates(encrypted as any)

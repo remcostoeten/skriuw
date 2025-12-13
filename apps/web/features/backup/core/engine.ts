@@ -13,21 +13,13 @@ const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024 // 8 MB
 
 async function toHexSha256(data: Uint8Array): Promise<string> {
 	if (typeof crypto !== 'undefined' && crypto.subtle) {
-		const digest = await crypto.subtle.digest('SHA-256', data)
-		return Array.from(new Uint8Array(digest))
-		const digest = await crypto.subtle.digest('SHA-256', buffer)
+		const digest = await crypto.subtle.digest('SHA-256', data as any)
 		return Array.from(new Uint8Array(digest))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('')
 	}
 
-	// Fallback when WebCrypto is unavailable; not cryptographically strong.
-	let hash = 0
-	for (let i = 0; i < data.length; i++) {
-		hash = (hash << 5) - hash + data[i]
-		hash |= 0
-	}
-	return `len-${data.length}-hash-${Math.abs(hash)}`
+	throw new Error('WebCrypto unavailable: cannot compute SHA-256 chunk checksum')
 }
 
 function chunkBuffer(payload: Uint8Array, chunkSize: number): Array<{ chunk: Uint8Array; meta: BackupChunkMeta }> {

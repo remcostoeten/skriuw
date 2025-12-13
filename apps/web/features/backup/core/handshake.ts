@@ -22,7 +22,7 @@ async function testS3(config: Record<string, string>): Promise<HandshakeResult> 
 	const amzDate = formatAmzDate(new Date())
 	const dateStamp = amzDate.slice(0, 8)
 
-	const canonicalUri = '/'
+	const canonicalUri = endpoint ? `/${bucket}` : '/'
 	const canonicalQuery = ''
 	const canonicalHeaders =
 		`host:${host}\n` + `x-amz-content-sha256:UNSIGNED-PAYLOAD\n` + `x-amz-date:${amzDate}\n`
@@ -136,7 +136,7 @@ async function testDrive(
 	}
 
 	const aboutRes = await fetch(
-		'https://www.googleapis.com/drive/v3/about?fields=user,emailAddress',
+		'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',
 		{
 			headers: { Authorization: `Bearer ${accessToken}` },
 		}

@@ -46,14 +46,12 @@ type StorageAdaptersPanelProps = {
 	onTypeChange?: (type: StorageConnectorType) => void
 	showHeader?: boolean
 	showTabs?: boolean
-	direction?: number // 1 for right, -1 for left
+	direction?: number
 }
 
-// Snappy ease-out-back style bezier for poppy feel
-const snappyEase = [0.34, 1.56, 0.64, 1] // Overshoots slightly then settles
-const smoothEase = [0.22, 1, 0.36, 1] // Fast start, smooth deceleration
+const snappyEase: [number, number, number, number] = [0.34, 1.56, 0.64, 1]
+const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
-// Staggered content animation variants - main form content
 const contentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
@@ -67,7 +65,7 @@ const contentVariants = {
 		transition: {
 			duration: 0.35,
 			ease: snappyEase,
-			delay: 0.08, // Comes in last
+			delay: 0.08,
 		},
 	},
 	exit: (direction: number) => ({
@@ -81,7 +79,6 @@ const contentVariants = {
 	}),
 }
 
-// Left side - icon, title, description (enters first)
 const leftContentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
@@ -95,7 +92,7 @@ const leftContentVariants = {
 		transition: {
 			duration: 0.32,
 			ease: snappyEase,
-			delay: 0, // First to animate
+			delay: 0,
 		},
 	},
 	exit: (direction: number) => ({
@@ -105,12 +102,10 @@ const leftContentVariants = {
 		transition: {
 			duration: 0.18,
 			ease: smoothEase,
-			delay: 0.06, // Exits after right
+			delay: 0.06,
 		},
 	}),
 }
-
-// Right side - status badge (enters second, exits first)
 const rightContentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
@@ -134,7 +129,7 @@ const rightContentVariants = {
 		transition: {
 			duration: 0.15,
 			ease: smoothEase,
-			delay: 0, // Exits first
+			delay: 0,
 		},
 	}),
 }
@@ -323,7 +318,9 @@ export function StorageAdaptersPanel({
 				? 'Connected'
 				: status === 'error'
 					? 'Needs attention'
-					: 'Not connected'
+					: status === 'configured'
+						? 'Configured'
+						: 'Not connected'
 
 		return (
 			<span
@@ -403,7 +400,9 @@ export function StorageAdaptersPanel({
 												? 'Connected'
 												: connector?.status === 'error'
 													? 'Needs attention'
-													: 'Not connected'}
+													: connector?.status === 'configured'
+														? 'Configured'
+														: 'Not connected'}
 										</span>
 									</span>
 								</TabsTrigger>
@@ -430,7 +429,7 @@ export function StorageAdaptersPanel({
 									<motion.div
 										key={`left-${currentType}`}
 										className="flex items-start gap-3"
-										variants={leftContentVariants}
+										variants={leftContentVariants as any}
 										initial="initial"
 										animate="animate"
 										exit="exit"
@@ -459,7 +458,7 @@ export function StorageAdaptersPanel({
 									<motion.div
 										key={`right-${currentType}`}
 										className="flex flex-col items-end gap-2"
-										variants={rightContentVariants}
+										variants={rightContentVariants as any}
 										initial="initial"
 										animate="animate"
 										exit="exit"
