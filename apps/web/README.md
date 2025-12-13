@@ -28,6 +28,7 @@ Edit `.env` and add your database URL:
 
 ```
 DATABASE_URL=postgresql://user:password@host:port/database
+BETTER_AUTH_SECRET=... # (Required) Generate with `openssl rand -base64 32`
 ```
 
 3. Push the database schema:
