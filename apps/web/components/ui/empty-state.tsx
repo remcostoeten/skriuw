@@ -42,16 +42,33 @@ export function EmptyState({
 			{isError && <p className="text- mb-4">{submessage}</p>}
 			{submessage && <p className="text-muted-foreground mb-4">{submessage}</p>}
 			{actions && (
-				<div className="flex flex-col gap-2 mt-4">
-					{actions.map((action, index) => (
-						<button
-							key={index}
-							onClick={action.onClick}
-							className="px-4 py-2 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
-						>
-							{action.label}
-						</button>
-					))}
+				<div className="flex flex-col sm:flex-row gap-3 mt-6 w-full sm:w-auto">
+					{actions.map((action, index) => {
+						// Extract shortcut info if available
+						// Assuming standard structure for simple shortcuts: sequences[0][0]
+						const combo = action.shortcut?.sequences?.[0]?.[0]
+
+						return (
+							<button
+								key={index}
+								onClick={action.onClick}
+								className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg transition-colors w-full sm:w-auto sm:min-w-[140px] text-muted-foreground hover:text-secondary-foreground hover:bg-accent border border-transparent hover:border-border/50"
+							>
+								{combo && (
+									<span className="inline-flex items-center gap-1">
+										<kbd className="pointer-events-none inline-flex h-6 min-w-[24px] tracking-wider select-none items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground shadow-sm">
+											{combo.modifiers?.map((mod: string) => (
+												<span key={mod}>{mod}</span>
+											))}
+											{combo.modifiers?.length > 0 && <span className="text-muted-foreground/60">+</span>}
+											<span>{combo.key}</span>
+										</kbd>
+									</span>
+								)}
+								<span className="text-sm font-medium">{action.label}</span>
+							</button>
+						)
+					})}
 				</div>
 			)}
 			{children}

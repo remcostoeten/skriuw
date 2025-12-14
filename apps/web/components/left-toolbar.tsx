@@ -55,7 +55,7 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 					onClick={() => navigate('/')}
 				/>
 				<IconButton
-					icon={<FolderIcon closedVariant />}
+					icon={isOnArchive ? <FolderIcon /> : <FolderIcon closedVariant />}
 					hoverIcon={<FolderIcon />}
 					tooltip="Data & Backup"
 					active={isOnArchive}
