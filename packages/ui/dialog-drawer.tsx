@@ -87,6 +87,21 @@ export function DrawerDialog({
 		}
 	}, [open])
 
+	// Apply inert to main content when dialog is open
+	useEffect(() => {
+		const mainContent = document.getElementById('main-content')
+		if (mainContent) {
+			if (open) {
+				mainContent.setAttribute('inert', '')
+			} else {
+				mainContent.removeAttribute('inert')
+			}
+		}
+		return () => {
+			mainContent?.removeAttribute('inert')
+		}
+	}, [open])
+
 	return (
 		<DialogContext.Provider
 			value={{ open, onOpenChange, isMobile, fullscreen }}

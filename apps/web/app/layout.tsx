@@ -6,7 +6,10 @@ import 'prismjs/themes/prism-tomorrow.css'
 import { Providers } from './providers'
 import { AutoSignIn } from '@/components/auth/auto-sign-in'
 
+<<<<<<< HEAD
 import { AuthGuardListener } from '@/components/auth/auth-guard-listener'
+=======
+>>>>>>> 7be620a (feat: Implement new authentication flow with dedicated login page, password input, and auth layout, alongside database migrations and UI improvements.)
 
 import { CommandPaletteWrapper } from '@/components/command-palette/wrapper'
 // Force dynamic rendering to avoid SSR issues with BlockNote
@@ -47,13 +50,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				/>
 			</head>
 			<body className="font-sans antialiased dark bg-background">
-				<Providers>
-					<AutoSignIn />
-					<AuthGuardListener />
+				<div id="main-content">
+					<Providers>
+						<AutoSignIn />
 
-					<CommandPaletteWrapper />
-					{children}
-				</Providers>
+						{children}
+					</Providers>
+				</div>
+				<CommandPaletteWrapper />
 			</body>
 		</html>
 	)
