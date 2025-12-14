@@ -45,7 +45,8 @@
 		"**/*.ts",
 		"**/*.tsx",
 		".next/types/**/*.ts",
-		".next/dev/types/**/*.ts"
+		".next/dev/types/**/*.ts",
+		"app/(auth)/d"
 	],
 	"exclude": [
 		"node_modules",

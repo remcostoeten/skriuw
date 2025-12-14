@@ -116,6 +116,27 @@ export const shortcuts = pgTable(
 	})
 )
 
+export const storageConnectors = pgTable(
+	'storage_connectors',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+		type: text('type').notNull(), // 's3' | 'dropbox' | 'google-drive'
+		name: text('name').notNull(),
+		status: text('status').notNull().default('configured'),
+		config: text('config').notNull(), // JSON, encrypted sensitive fields
+		oauth2Tokens: text('oauth2_tokens'), // JSON, encrypted
+		lastValidatedAt: bigint('last_validated_at', { mode: 'number' }),
+		lastError: text('last_error'),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	},
+	(table) => ({
+		userIdx: createUserIndex('storage_connectors', table.userId),
+		userTypeIdx: createUserCompositeIndex('storage_connectors', 'type', table.userId, table.type)
+	})
+)
+
 
 
 // Type exports for use in app
@@ -126,6 +147,8 @@ export type NewFolder = typeof folders.$inferInsert
 export type Setting = typeof settings.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type Shortcut = typeof shortcuts.$inferSelect
+export type StorageConnector = typeof storageConnectors.$inferSelect
+export type NewStorageConnector = typeof storageConnectors.$inferInsert
 
 
 export const user = pgTable("user", {

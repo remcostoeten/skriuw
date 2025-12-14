@@ -5,7 +5,7 @@
  * Supports user-scoped queries via userId parameter.
  */
 
-import { getDatabase, notes, folders, tasks, settings, shortcuts } from '@skriuw/db'
+import { getDatabase, notes, folders, tasks, settings, shortcuts, storageConnectors } from '@skriuw/db'
 import { eq, inArray, and } from 'drizzle-orm'
 
 type TableConfig = { table: any; jsonFields: string[]; hasUserId: boolean }
@@ -20,6 +20,7 @@ const TABLES: Record<string, TableConfig> = {
     tasks: { table: tasks, jsonFields: [], hasUserId: true },
     settings: { table: settings, jsonFields: ['value'], hasUserId: true },
     shortcuts: { table: shortcuts, jsonFields: ['keys'], hasUserId: true },
+    storageConnectors: { table: storageConnectors, jsonFields: ['config', 'oauth2Tokens'], hasUserId: true },
 }
 
 function serialize(data: any, jsonFields: string[]) {

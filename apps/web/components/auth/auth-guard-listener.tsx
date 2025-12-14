@@ -1,18 +1,23 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ShieldAlert } from 'lucide-react'
 
 export function AuthGuardListener() {
-	const lastShownRef = useRef<number>(0)
+	// Use a ref to track the last toast time to prevent flood
+	const lastToastTime = useRef(0)
+	const TOAST_COOLDOWN = 2000 // 2 seconds
 
 	useEffect(() => {
 		function handleAuthRequired(event: Event) {
-			// Prevent spamming toasts (debounce for 2 seconds)
 			const now = Date.now()
-			if (now - lastShownRef.current < 2000) return
-			lastShownRef.current = now
+			if (now - lastToastTime.current < TOAST_COOLDOWN) {
+				return
+			}
+
+			lastToastTime.current = now
 
 			const detail = (event as CustomEvent<{ status: number; message: string }>).detail
 			const status = detail?.status

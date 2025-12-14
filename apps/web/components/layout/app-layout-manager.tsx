@@ -12,6 +12,7 @@ import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 
 import { useSettings, useUserPreferences } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
+import { useSession } from '@/lib/auth-client'
 
 import { useSplitViewStore } from '../../features/notes/split-view/store'
 
@@ -54,6 +55,19 @@ export function AppLayoutManager({
 	const showSidebar = !pathname.startsWith('/archive') && !pathname.startsWith('/trash')
 	const { items, isInitialLoading, createNote, renameItem, deleteItem, pinItem, favoriteNote } =
 		useNotesContext()
+
+	// Auth check logic
+	const { data: session, isPending } = useSession()
+
+	useEffect(() => {
+		// List of public paths that don't require auth
+		const publicPaths = ['/login', '/register', '/auth/callback']
+		const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
+
+		if (!isPending && !session && !isPublicPath) {
+			router.replace('/login')
+		}
+	}, [session, isPending, pathname, router])
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const isNoteRoute = pathname.startsWith('/note/')
@@ -317,6 +331,18 @@ export function AppLayoutManager({
 		e.preventDefault()
 		setOrientation('horizontal', currentNoteId)
 	})
+
+	// Check if we are on an auth page (like login)
+	const isAuthPage = pathname.startsWith('/login')
+
+	if (isAuthPage) {
+		return (
+			<>
+				{children}
+				{process.env.NODE_ENV === 'development' && <DevWidget />}
+			</>
+		)
+	}
 
 	return (
 		<AppLayoutShell

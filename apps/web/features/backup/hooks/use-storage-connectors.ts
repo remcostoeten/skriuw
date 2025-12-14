@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 
-import { useSettingsContext } from '../../settings/settings-provider'
 import { STORAGE_CONNECTOR_DEFINITIONS } from '../core/connectors'
 import type {
 	StorageConnectorDefinition,
@@ -37,10 +36,9 @@ function findMissingFields(definition: StorageConnectorDefinition, config: Recor
 }
 
 export function useStorageConnectors() {
-	const { settings, updateSetting } = useSettingsContext()
+	const [connectors, setConnectors] = useState<StorageConnectorState[]>([])
 	const [testingConnector, setTestingConnector] = useState<StorageConnectorType | null>(null)
-
-	const connectors = (settings.storageConnectors as StorageConnectorState[] | undefined) ?? []
+	const [loading, setLoading] = useState(true)
 
 	const definitions = STORAGE_CONNECTOR_DEFINITIONS
 
@@ -54,12 +52,49 @@ export function useStorageConnectors() {
 		)
 	}, [definitions])
 
-	const persist = useCallback(
-		(next: StorageConnectorState[]) => {
-			updateSetting('storageConnectors', next)
-		},
-		[updateSetting]
-	)
+	// Fetch connectors from API on mount
+	useEffect(() => {
+		async function fetchConnectors() {
+			try {
+				const res = await fetch('/api/storage/connectors')
+				if (res.ok) {
+					const data = await res.json()
+					setConnectors(data.connectors || [])
+				}
+			} catch (error) {
+				console.error('Failed to fetch connectors:', error)
+			} finally {
+				setLoading(false)
+			}
+		}
+		fetchConnectors()
+	}, [])
+
+	const persist = useCallback(async (connector: StorageConnectorState) => {
+		try {
+			const res = await fetch('/api/storage/connectors', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(connector),
+			})
+			if (!res.ok) {
+				throw new Error('Failed to save connector')
+			}
+			// Update local state
+			setConnectors((prev) => {
+				const existing = prev.findIndex((c) => c.type === connector.type)
+				if (existing >= 0) {
+					const updated = [...prev]
+					updated[existing] = connector
+					return updated
+				}
+				return [...prev, connector]
+			})
+		} catch (error) {
+			console.error('Failed to persist connector:', error)
+			throw error
+		}
+	}, [])
 
 	const saveConnector = useCallback(
 		async (
@@ -95,9 +130,7 @@ export function useStorageConnectors() {
 				oauth2Tokens,
 			}
 
-			const nextConnectors = [...connectors.filter((connector) => connector.type !== type), updated]
-
-			persist(nextConnectors)
+			await persist(updated)
 			return updated
 		},
 		[connectors, definitionsMap, persist]
@@ -151,20 +184,20 @@ export function useStorageConnectors() {
 				}
 
 				const existing = connectors.find((c) => c.type === type)
+				const now = new Date().toISOString()
 
 				const success: StorageConnectorState = {
 					id: existing?.id ?? generateConnectorId(type),
 					type,
 					name: name || existing?.name || definition.label,
 					status: 'connected',
-					lastValidatedAt: new Date().toISOString(),
+					lastValidatedAt: now,
 					lastError: null,
 					config: normalized,
 					oauth2Tokens,
 				}
 
-				persist([...connectors.filter((connector) => connector.type !== type), success])
-
+				await persist(success)
 				return success
 			} catch (error) {
 				let message = error instanceof Error ? error.message : 'Failed to validate connector'
@@ -174,19 +207,15 @@ export function useStorageConnectors() {
 				const existing = connectors.find((connector) => connector.type === type)
 				// Only persist error state for existing connectors to avoid creating new ones on failure
 				if (existing) {
-					const fallback: StorageConnectorState = {
-						id: existing.id,
-						type,
-						name: existing.name,
+					const errorState: StorageConnectorState = {
+						...existing,
 						status: 'error',
-						lastValidatedAt: existing.lastValidatedAt,
 						lastError: message,
-						config: existing.config,
-						oauth2Tokens: existing.oauth2Tokens,
+						lastValidatedAt: new Date().toISOString(),
 					}
-					persist([...connectors.filter((connector) => connector.type !== type), fallback])
+					await persist(errorState).catch(() => { })
 				}
-				throw new Error(message)
+				throw error
 			} finally {
 				setTestingConnector(null)
 			}
@@ -195,30 +224,34 @@ export function useStorageConnectors() {
 	)
 
 	const disconnectConnector = useCallback(
-		(type: StorageConnectorType) => {
-			const existing = connectors.find((connector) => connector.type === type)
+		async (type: StorageConnectorType) => {
+			const existing = connectors.find((c) => c.type === type)
 			if (!existing) return
 
-			const now = new Date().toISOString()
 			const updated: StorageConnectorState = {
 				...existing,
 				status: 'disconnected',
-				lastValidatedAt: now,
-				lastError: null,
+				lastValidatedAt: new Date().toISOString(),
 			}
-
-			persist([...connectors.filter((connector) => connector.type !== type), updated])
+			await persist(updated)
 		},
 		[connectors, persist]
 	)
 
-	const removeConnector = useCallback(
-		(type: StorageConnectorType) => {
-			const next = connectors.filter((connector) => connector.type !== type)
-			persist(next)
-		},
-		[connectors, persist]
-	)
+	const removeConnector = useCallback(async (type: StorageConnectorType) => {
+		try {
+			const res = await fetch(`/api/storage/connectors?type=${type}`, {
+				method: 'DELETE',
+			})
+			if (!res.ok) {
+				throw new Error('Failed to delete connector')
+			}
+			setConnectors((prev) => prev.filter((c) => c.type !== type))
+		} catch (error) {
+			console.error('Failed to remove connector:', error)
+			throw error
+		}
+	}, [])
 
 	const connectWithOAuth2 = useCallback(
 		async (
@@ -227,19 +260,38 @@ export function useStorageConnectors() {
 			config: Record<string, string>,
 			oauth2Tokens: OAuth2Tokens
 		) => {
-			return saveConnector(type, name, config, oauth2Tokens)
+			const definition = definitionsMap[type]
+			if (!definition) throw new Error(`Unknown connector: ${type}`)
+
+			const existing = connectors.find((c) => c.type === type)
+			const now = new Date().toISOString()
+
+			const updated: StorageConnectorState = {
+				id: existing?.id ?? generateConnectorId(type),
+				type,
+				name: name || definition.label,
+				status: 'configured',
+				lastValidatedAt: now,
+				lastError: null,
+				config: normalizeConfig(definition, config),
+				oauth2Tokens,
+			}
+
+			await persist(updated)
+			return updated
 		},
-		[saveConnector]
+		[connectors, definitionsMap, persist]
 	)
 
 	return {
 		definitions,
 		connectors,
+		loading,
+		testingConnector,
 		saveConnector,
 		testConnector,
 		disconnectConnector,
 		removeConnector,
 		connectWithOAuth2,
-		testingConnector,
 	}
 }

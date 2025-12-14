@@ -44,23 +44,54 @@ export function CommandPalette({ isOpen, onClose }: { isOpen?: boolean; onClose?
         if (!open && onClose) onClose()
     }, [open, onClose])
 
+    // Apply inert to main content when palette is open
+    useEffect(() => {
+        const mainContent = document.getElementById('main-content')
+        if (mainContent) {
+            if (open) {
+                mainContent.setAttribute('inert', '')
+            } else {
+                mainContent.removeAttribute('inert')
+            }
+        }
+        return () => {
+            mainContent?.removeAttribute('inert')
+        }
+    }, [open])
+
     if (!open) return null
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]">
+        <div
+            className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
+        >
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-background/80 backdrop-blur-sm"
                 onClick={() => setOpen(false)}
+                aria-hidden="true"
             />
 
             {/* Content */}
             <div className="relative w-full max-w-[640px] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200 mx-4">
-                <Command label="Command Menu" loop className="flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground">
+                <Command
+                    label="Command Menu"
+                    loop
+                    className="flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            setOpen(false)
+                        }
+                    }}
+                >
                     <div className="flex items-center border-b px-3">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                         <Command.Input
-                            className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            autoFocus
+                            className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none border-0 ring-0 focus:outline-none focus:ring-0 focus:border-0 focus-visible:ring-0 focus-visible:outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             placeholder="Type a command or search..."
                         />
                     </div>

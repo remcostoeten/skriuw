@@ -104,3 +104,13 @@ export function decryptConnectorStates(connectors: MaybeEncrypted[]): StorageCon
 		}
 	})
 }
+
+// Single connector versions for API routes
+export function encryptConnectorState(connector: StorageConnectorState): StorageConnectorState {
+	return encryptConnectorStates([connector])[0]
+}
+
+export function decryptConnectorState(connector: MaybeEncrypted): StorageConnectorState {
+	return decryptConnectorStates([connector])[0]
+}
+

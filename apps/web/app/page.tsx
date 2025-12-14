@@ -1,9 +1,8 @@
 'use client'
 
-import { Suspense, lazy, useMemo, useEffect } from 'react'
+import { Suspense, lazy, useMemo, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-2
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut, shortcut } from '../features/shortcuts'
@@ -33,6 +32,12 @@ export default function Index() {
 	const { items, createNote, isInitialLoading } = useNotesContext()
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const { lastActiveNoteId, setLastActiveNote } = useUIStore()
+
+	// Prevent hydration flash by waiting for client mount
+	const [hasMounted, setHasMounted] = useState(false)
+	useEffect(() => {
+		setHasMounted(true)
+	}, [])
 
 	const isNoteRoute = pathname.startsWith('/note/')
 	const isBaseNoteRoute = pathname === '/note'
@@ -116,7 +121,11 @@ export default function Index() {
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
+<<<<<<< HEAD
 					{isInitialLoading || allNotes.length > 0 ? (
+=======
+					{!hasMounted || isInitialLoading ? (
+>>>>>>> 7be620a (feat: Implement new authentication flow with dedicated login page, password input, and auth layout, alongside database migrations and UI improvements.)
 						<IndexSkeleton />
 					) : (
 						<SkriuwExplanation
