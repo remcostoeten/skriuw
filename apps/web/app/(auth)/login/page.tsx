@@ -1,11 +1,9 @@
 'use client'
 
-import SkriuwEffect from "@/features/authentication/components/effects/skriuw-effect";
+import GhostCursor from "@/features/authentication/components/effects/ghost-cursor";
 import { LoginForm } from "@/features/authentication/components/login-form";
 import { useState, useEffect } from "react";
 import AuthLayout from "../auth-layout";
-
-const ActiveEffect = SkriuwEffect;
 
 const Index = () => {
     const [isDark, setIsDark] = useState(false);
@@ -29,14 +27,31 @@ const Index = () => {
 
     return (
         <AuthLayout
-            visualPanel={<ActiveEffect />}
+            effectLayer={
+                <div className="w-full h-full bg-[hsl(225,25%,8%)]">
+                    <GhostCursor
+                        color="#4A6FE3"
+                        brightness={2.2}
+                        edgeIntensity={0}
+                        trailLength={80}
+                        inertia={0.5}
+                        grainIntensity={0.03}
+                        bloomStrength={0.7}
+                        bloomRadius={2.0}
+                        bloomThreshold={0.01}
+                        fadeDelayMs={1500}
+                        fadeDurationMs={2000}
+                        mixBlendMode="screen"
+                        trackGlobally={true}
+                    />
+                </div>
+            }
             formPanel={
                 <LoginForm
                     isDark={isDark}
                     onToggleTheme={toggleTheme}
                 />
             }
-            reversed={false}
         />
     );
 };

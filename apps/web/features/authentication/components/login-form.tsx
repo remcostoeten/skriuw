@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Moon, Sun, User, Loader2 } from "lucide-react";
 import { Button } from "@skriuw/ui";
@@ -6,6 +6,7 @@ import EmailAutocomplete from "./email-auocomplete";
 import { PasswordInput } from "./password-input";
 import { signIn, signUp } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Props = {
     title?: string;
@@ -34,10 +35,41 @@ export function LoginForm({
     const [passwordError, setPasswordError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [generalError, setGeneralError] = useState("");
+    const [rememberMe, setRememberMe] = useState(false);
 
     // Derived state: if user is anonymous, disable guest login and highlight other methods
     const disableGuestLogin = isAnonymousUser;
     const highlightOtherLoginMethods = isAnonymousUser;
+
+    // Load remembered credentials on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const rememberedEmail = localStorage.getItem('rememberedEmail');
+            const rememberedPassword = localStorage.getItem('rememberedPassword');
+            const shouldRemember = localStorage.getItem('rememberMe') === 'true';
+            
+            if (rememberedEmail && rememberedPassword && shouldRemember) {
+                setEmail(rememberedEmail);
+                setPassword(rememberedPassword);
+                setRememberMe(true);
+            }
+        }
+    }, []);
+
+    // Save/remove remembered credentials
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (rememberMe && email) {
+                localStorage.setItem('rememberedEmail', email);
+                localStorage.setItem('rememberedPassword', password);
+                localStorage.setItem('rememberMe', 'true');
+            } else {
+                localStorage.removeItem('rememberedEmail');
+                localStorage.removeItem('rememberedPassword');
+                localStorage.setItem('rememberMe', 'false');
+            }
+        }
+    }, [rememberMe, email, password]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -131,17 +163,7 @@ export function LoginForm({
     };
 
     return (
-        <div className="w-full max-w-md space-y-8 relative">
-            {/* Theme toggle */}
-            {onToggleTheme && (
-                <button
-                    onClick={onToggleTheme}
-                    className="absolute -top-12 right-0 p-3 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    aria-label="Toggle theme"
-                >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-            )}
+        <div className="w-full max-w-md relative flex flex-col min-h-[600px] space-y-8">
 
             {/* Header */}
             <div className="text-center space-y-2">
@@ -238,6 +260,32 @@ export function LoginForm({
                                 {passwordError && (
                                     <p className="text-sm text-destructive">{passwordError}</p>
                                 )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Remember me checkbox - only in login mode */}
+                <AnimatePresence initial={false}>
+                    {!isRegisterMode && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                            className="overflow-hidden"
+                        >
+                            <div className="flex items-center space-x-2 pt-2">
+                                <input
+                                    id="remember-me"
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0"
+                                />
+                                <label htmlFor="remember-me" className="text-sm font-medium text-foreground cursor-pointer">
+                                    Remember me
+                                </label>
                             </div>
                         </motion.div>
                     )}
@@ -351,9 +399,9 @@ export function LoginForm({
                                 </Button>
                                 {/* Anonymous / Demo */}
                                 <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={handleAnonymousLogin}
-                                    className="w-full h-12 justify-center gap-3 text-sm font-medium text-muted-foreground hover:text-foreground"
+                                    className="w-full h-12 justify-center gap-3 text-sm font-medium"
                                     disabled={disableGuestLogin || isLoading}
                                 >
                                     <User className="w-[18px] h-[18px]" />
@@ -366,16 +414,16 @@ export function LoginForm({
             </div>
 
             {/* Footer */}
-            <div className="pt-16 text-center">
-                <p className="text-xs text-muted-foreground">
+            <div className="flex-1 flex items-end">
+                <p className="text-xs text-muted-foreground text-center w-full">
                     By signing in you agree to our{" "}
-                    <a href="#" className="underline hover:text-foreground transition-colors">
+                    <Link href="/terms" className="underline hover:text-foreground transition-colors">
                         Terms of service
-                    </a>{" "}
+                    </Link>{" "}
                     &{" "}
-                    <a href="#" className="underline hover:text-foreground transition-colors">
+                    <Link href="/privacy" className="underline hover:text-foreground transition-colors">
                         Privacy policy
-                    </a>
+                    </Link>
                 </p>
             </div>
         </div>

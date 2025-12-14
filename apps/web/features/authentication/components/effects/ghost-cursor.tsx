@@ -26,6 +26,7 @@ type GhostCursorProps = {
   fadeDelayMs?: number;
   fadeDurationMs?: number;
   zIndex?: number;
+  trackGlobally?: boolean;
 };
 
 const GhostCursor: React.FC<GhostCursorProps> = ({
@@ -48,7 +49,8 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
 
   fadeDelayMs,
   fadeDurationMs,
-  zIndex = 10
+  zIndex = 10,
+  trackGlobally = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -434,9 +436,16 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
       ensureLoop();
     };
 
-    parent.addEventListener('pointermove', onPointerMove, { passive: true });
-    parent.addEventListener('pointerenter', onPointerEnter, { passive: true });
-    parent.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    // Use window for global tracking, parent for local tracking
+    const eventTarget = trackGlobally ? window : parent;
+    eventTarget.addEventListener('pointermove', onPointerMove as EventListener, { passive: true });
+    if (!trackGlobally) {
+      parent.addEventListener('pointerenter', onPointerEnter, { passive: true });
+      parent.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    } else {
+      // For global tracking, always keep pointer active
+      pointerActiveRef.current = true;
+    }
 
     ensureLoop();
 
@@ -445,9 +454,11 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
       runningRef.current = false;
       rafRef.current = null;
 
-      parent.removeEventListener('pointermove', onPointerMove);
-      parent.removeEventListener('pointerenter', onPointerEnter);
-      parent.removeEventListener('pointerleave', onPointerLeave);
+      eventTarget.removeEventListener('pointermove', onPointerMove as EventListener);
+      if (!trackGlobally) {
+        parent.removeEventListener('pointerenter', onPointerEnter);
+        parent.removeEventListener('pointerleave', onPointerLeave);
+      }
       resizeObsRef.current?.disconnect();
 
       scene.clear();
@@ -477,7 +488,8 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
     color,
     brightness,
     mixBlendMode,
-    edgeIntensity
+    edgeIntensity,
+    trackGlobally
   ]);
 
   useEffect(() => {
