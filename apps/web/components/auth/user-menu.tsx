@@ -2,10 +2,14 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from '@/lib/auth-client'
-import { User, LogOut, UserRoundCog, X } from 'lucide-react'
-import { useState } from 'react'
+import { User, LogOut, UserRoundCog } from 'lucide-react'
 
 import { Button } from '@skriuw/ui/button'
+import {
+        Dialog,
+        DialogContent,
+        DialogTrigger,
+} from '@skriuw/ui/dialog'
 import {
         DropdownMenu,
         DropdownMenuContent,
@@ -18,7 +22,7 @@ import { SignInView } from './sign-in-view'
 
 export function UserMenu() {
         const { data: session, isPending } = useSession()
-        const [isOpen, setIsOpen] = useState(false)
+        // UserMenu handles its own simple state for the dropdown, but for the dialog we can rely on Radix's internal state
 
         if (isPending) {
                 return <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
@@ -27,24 +31,19 @@ export function UserMenu() {
         if (!session) {
                 return (
                         <>
-                                <Button onClick={() => setIsOpen(true)}>Sign In</Button>
-
-                                {isOpen && (
-                                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                                                <div className="relative w-full max-w-md">
-                                                        <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => setIsOpen(false)}
-                                                                className="absolute right-4 top-4 z-10 h-8 w-8 rounded-full"
-                                                        >
-                                                                <X className="h-4 w-4" />
-                                                                <span className="sr-only">Close</span>
-                                                        </Button>
-                                                        <SignInView />
-                                                </div>
-                                        </div>
-                                )}
+                                <Dialog>
+                                        <DialogTrigger asChild>
+                                                <Button
+                                                        variant="ghost"
+                                                        className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                                >
+                                                        Sign In
+                                                </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-md sm:max-w-md">
+                                                <SignInView />
+                                        </DialogContent>
+                                </Dialog>
                         </>
                 )
         }

@@ -67,6 +67,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			hoverScale,
 			onClick,
 			children,
+			// Exclude Framer Motion conflicting props to avoid type errors
+			onDrag: _onDrag,
+			onDragStart: _onDragStart,
+			onDragEnd: _onDragEnd,
+			onAnimationStart: _onAnimationStart,
+			onAnimationEnd: _onAnimationEnd,
 			...restProps
 		},
 		ref
@@ -105,7 +111,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			: {}
 
 		if (asChild) {
-			return <Slot {...restProps} />
+			return <Slot ref={ref} onClick={onClick} {...restProps} />
 		}
 
 		return (
@@ -117,30 +123,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				ref={ref}
 				{...motionProps}
 				onClick={handleClick}
-				disabled={restProps.disabled}
-				form={restProps.form}
-				formAction={restProps.formAction}
-				formEncType={restProps.formEncType}
-				formMethod={restProps.formMethod}
-				formNoValidate={restProps.formNoValidate}
-				formTarget={restProps.formTarget}
-				name={restProps.name}
-				type={restProps.type}
-				value={restProps.value}
-				autoFocus={restProps.autoFocus}
-				onBlur={restProps.onBlur}
-				onChange={restProps.onChange}
-				onFocus={restProps.onFocus}
-				onKeyDown={restProps.onKeyDown}
-				onKeyPress={restProps.onKeyPress}
-				onKeyUp={restProps.onKeyUp}
-				onMouseDown={restProps.onMouseDown}
-				onMouseEnter={restProps.onMouseEnter}
-				onMouseLeave={restProps.onMouseLeave}
-				onMouseMove={restProps.onMouseMove}
-				onMouseOut={restProps.onMouseOut}
-				onMouseOver={restProps.onMouseOver}
-				onMouseUp={restProps.onMouseUp}
+				{...restProps}
 			>
 				<span className="relative z-10 flex items-center gap-1">
 					{children}

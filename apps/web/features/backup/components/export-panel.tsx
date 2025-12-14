@@ -197,8 +197,8 @@ export function ExportPanel() {
 							className={cn(
 								"flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
 								selectedDestination === dest.id
-									? "border-primary bg-primary/5 ring-1 ring-primary"
-									: "border-border hover:bg-muted/50"
+									? "border primary/55	"
+									: "border hover:bg-muted/50"
 							)}
 						>
 							<div className={cn("p-2 rounded-md", selectedDestination === dest.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
