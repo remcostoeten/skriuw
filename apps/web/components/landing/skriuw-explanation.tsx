@@ -35,18 +35,18 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 					variant="secondary"
 					size="lg"
 					onClick={onOpenCollection}
-					className="gap-3 pr-2"
+					className="flex items-center justify-between gap-3"
 				>
-					Open Collection
+					<span>Open Collection</span>
 					<Kbd>⌘O</Kbd>
 				</Button>
 				<Button
 					variant="default"
 					size="lg"
 					onClick={onCreateNote}
-					className="gap-3 pr-2"
+					className="flex items-center justify-between gap-3"
 				>
-					Create Note
+					<span>Create Note</span>
 					<Kbd className="bg-primary-foreground/20 text-primary-foreground">⌘N</Kbd>
 				</Button>
 			</div>

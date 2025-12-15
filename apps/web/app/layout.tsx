@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 	manifest: '/manifest.json',
 	icons: {
 		icon: [
-			{ url: '/favicon.svg', type: 'image/svg+xml' },
-			{ url: '/favicon.ico', sizes: 'any' },
+			{ url: '/favicon.svg', media: '(prefers-color-scheme: light)' },
+			{ url: '/favicon-dark.svg', media: '(prefers-color-scheme: dark)' },
 		],
 		apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
 	},
