@@ -14,7 +14,7 @@ import {
 
 import { Button } from '@skriuw/ui/button'
 import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
-import { EmptyState } from '@/components/ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 import { cn } from '@skriuw/shared'
 
 import {
