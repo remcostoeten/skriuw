@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 
 import { useShortcut } from '../../shortcuts/use-shortcut'
 import { useEditor } from '../hooks/use-editor'
-import { EmptyState } from '../../../components/ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 
 import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
 

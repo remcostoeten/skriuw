@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { EmptyState } from '../components/ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 
 // Force this page to be dynamically rendered
 export const dynamic = 'force-dynamic'

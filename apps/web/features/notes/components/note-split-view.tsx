@@ -14,7 +14,7 @@ import {
 
 import { cn } from '@skriuw/shared'
 
-import { EmptyState } from '../../../components/ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 import { useShortcut } from '../../shortcuts'
 import { NoteEditor } from '../../editor/components/note-editor'
 import { useNotesContext } from '@/features/notes/context/notes-context'

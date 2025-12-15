@@ -121,11 +121,7 @@ export default function Index() {
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
-<<<<<<< HEAD
 					{isInitialLoading || allNotes.length > 0 ? (
-=======
-					{!hasMounted || isInitialLoading ? (
->>>>>>> 7be620a (feat: Implement new authentication flow with dedicated login page, password input, and auth layout, alongside database migrations and UI improvements.)
 						<IndexSkeleton />
 					) : (
 						<SkriuwExplanation

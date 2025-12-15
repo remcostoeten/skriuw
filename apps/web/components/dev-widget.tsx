@@ -40,7 +40,7 @@ import {
 import { useNotesContext } from '@/features/notes'
 import { useDraggable } from '@/hooks/use-draggable'
 import { useCookie } from '@/hooks/use-cookie'
-import { HintPopover } from './ui/hint-popover'
+import { HintPopover } from '@skriuw/ui'
 
 type DbStats = {
 	notes: number
@@ -361,7 +361,7 @@ export function DevWidget() {
 
 				toast.success(
 					data.message ||
-						(dryRun ? 'Dry run completed' : 'Cleanup completed')
+					(dryRun ? 'Dry run completed' : 'Cleanup completed')
 				)
 
 				// Update cron status
@@ -1060,7 +1060,7 @@ export function DevWidget() {
 																title="Reset user data"
 															>
 																{userActionLoading ===
-																`reset-${user.id}` ? (
+																	`reset-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<RotateCcw className="h-3 w-3" />
@@ -1080,7 +1080,7 @@ export function DevWidget() {
 																title="Delete user"
 															>
 																{userActionLoading ===
-																`delete-${user.id}` ? (
+																	`delete-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<Trash2 className="h-3 w-3" />
@@ -1122,23 +1122,23 @@ export function DevWidget() {
 														'success'
 														? 'bg-emerald-500/10 text-emerald-600'
 														: cronStatus.status ===
-															  'failed'
+															'failed'
 															? 'bg-red-500/10 text-red-600'
 															: 'bg-gray-500/10 text-gray-600'
 												)}
 											>
 												{cronStatus.status ===
 													'success' && (
-													<CheckCircle className="h-3 w-3" />
-												)}
+														<CheckCircle className="h-3 w-3" />
+													)}
 												{cronStatus.status ===
 													'failed' && (
-													<XCircle className="h-3 w-3" />
-												)}
+														<XCircle className="h-3 w-3" />
+													)}
 												{cronStatus.status ===
 													'never' && (
-													<Clock className="h-3 w-3" />
-												)}
+														<Clock className="h-3 w-3" />
+													)}
 												{cronStatus.status.toUpperCase()}
 											</div>
 										</div>
@@ -1199,7 +1199,7 @@ export function DevWidget() {
 													>
 														<div className="flex items-center gap-2">
 															{run.status ===
-															'success' ? (
+																'success' ? (
 																<CheckCircle className="h-3 w-3 text-emerald-500" />
 															) : (
 																<XCircle className="h-3 w-3 text-red-500" />

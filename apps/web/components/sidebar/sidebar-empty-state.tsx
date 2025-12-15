@@ -1,6 +1,6 @@
 import React from 'react'
 import { FilePlus, Search } from 'lucide-react'
-import { EmptyState } from '../ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 
 interface SidebarEmptyStateProps {
 	hasSearchQuery?: boolean

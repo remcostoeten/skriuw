@@ -1,5 +1,4 @@
-import { shortcut } from "@/features/shortcuts"
-import { EmptyState } from "./ui/empty-state"
+import { EmptyState } from '@skriuw/ui'
 
 type Props = {
     onCreateNote: () => void
@@ -47,13 +46,13 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
                 actions={[
                     {
                         label: 'Open Collection',
-                        shortcut: shortcut().modifiers('Cmd').key('O'),
+                        shortcut: { modifiers: ['Cmd'], key: 'O' },
                         separator: true,
                         onClick: onOpenCollection,
                     },
                     {
                         label: 'Create Note',
-                        shortcut: shortcut().modifiers('Cmd').key('N'),
+                        shortcut: { modifiers: ['Cmd'], key: 'N' },
                         separator: true,
                         onClick: onCreateNote,
                     },
