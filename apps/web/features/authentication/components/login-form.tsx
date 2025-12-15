@@ -10,8 +10,7 @@ import { useRouter } from "next/navigation";
 type Props = {
     title?: string;
     subtitle?: string;
-    isDark?: boolean;
-    onToggleTheme?: () => void;
+
     isAnonymousUser?: boolean;
     anonymousDisplayName?: string;
 }
@@ -19,8 +18,7 @@ type Props = {
 export function LoginForm({
     title = "Welcome to skriuw",
     subtitle = "New here or coming back? Choose how you want to continue",
-    isDark = false,
-    onToggleTheme,
+
     isAnonymousUser = false,
     anonymousDisplayName = "Guest",
 }: Props) {
@@ -133,15 +131,7 @@ export function LoginForm({
     return (
         <div className="w-full max-w-md space-y-8 relative">
             {/* Theme toggle */}
-            {onToggleTheme && (
-                <button
-                    onClick={onToggleTheme}
-                    className="absolute -top-12 right-0 p-3 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    aria-label="Toggle theme"
-                >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-            )}
+
 
             {/* Header */}
             <div className="text-center space-y-2">
@@ -351,7 +341,7 @@ export function LoginForm({
                                 </Button>
                                 {/* Anonymous / Demo */}
                                 <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={handleAnonymousLogin}
                                     className="w-full h-12 justify-center gap-3 text-sm font-medium text-muted-foreground hover:text-foreground"
                                     disabled={disableGuestLogin || isLoading}

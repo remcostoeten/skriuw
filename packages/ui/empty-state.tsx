@@ -47,8 +47,8 @@ export function EmptyState({
             {description && <p className="text-muted-foreground mb-4">{description}</p>}
             {isError && <p className="text- mb-4">{submessage}</p>}
             {submessage && <p className="text-muted-foreground mb-4">{submessage}</p>}
-            {actions && (
-                <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full sm:w-auto">
+            {actions && actions.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
                     {actions.map((action, index) => {
                         const { shortcut } = action
 
@@ -56,20 +56,18 @@ export function EmptyState({
                             <button
                                 key={index}
                                 onClick={action.onClick}
-                                className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg transition-colors w-full sm:w-auto sm:min-w-[140px] text-muted-foreground hover:text-secondary-foreground hover:bg-accent border border-transparent hover:border-border/50"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent border border-border/50 hover:border-border"
                             >
+                                <span>{action.label}</span>
                                 {shortcut && (
-                                    <span className="inline-flex items-center gap-1">
-                                        <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] tracking-wider select-none items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground shadow-sm">
-                                            {shortcut.modifiers?.map((mod: string) => (
-                                                <span key={mod}>{mod}</span>
-                                            ))}
-                                            {shortcut.modifiers && shortcut.modifiers.length > 0 && <span className="text-muted-foreground/60">+</span>}
-                                            <span>{shortcut.key}</span>
-                                        </kbd>
-                                    </span>
+                                    <kbd className="pointer-events-none inline-flex h-5 min-w-[20px] select-none items-center justify-center gap-0.5 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground shadow-sm">
+                                        {shortcut.modifiers?.map((mod: string, i: number) => (
+                                            <span key={i}>{mod}</span>
+                                        ))}
+                                        {shortcut.modifiers && shortcut.modifiers.length > 0 && <span className="text-muted-foreground/60">+</span>}
+                                        <span>{shortcut.key}</span>
+                                    </kbd>
                                 )}
-                                <span className="text-sm font-medium">{action.label}</span>
                             </button>
                         )
                     })}
