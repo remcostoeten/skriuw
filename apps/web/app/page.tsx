@@ -121,14 +121,12 @@ export default function Index() {
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
-					{isInitialLoading || allNotes.length > 0 ? (
-						<IndexSkeleton />
-					) : (
+					{allNotes.length === 0 ? (
 						<SkriuwExplanation
 							onCreateNote={handleCreateNote}
 							onOpenCollection={handleOpenCollection}
 						/>
-					)}
+					) : null}
 				</div>
 			) : (
 				<Suspense

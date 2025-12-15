@@ -111,7 +111,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			: {}
 
 		if (asChild) {
-			return <Slot ref={ref} onClick={onClick} {...restProps} />
+			return (
+				<Slot
+					ref={ref}
+					onClick={onClick}
+					className={cn(buttonVariants({ variant, size, className }))}
+					{...restProps}
+				/>
+			)
 		}
 
 		return (

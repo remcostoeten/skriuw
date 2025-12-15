@@ -49,6 +49,14 @@ export function useEditorConfig() {
 		const config: Record<string, any> = {
 			schema,
 			theme: 'dark' as const,
+			// Add placeholder text configuration
+			placeholders: {
+				default: 'Enter text or type / for commands',
+				heading: 'Heading',
+				bulletListItem: 'List item',
+				numberedListItem: 'List item',
+				checkListItem: 'To-do',
+			},
 			editorProps: {
 				attributes: {
 					class: 'prose prose-lg max-w-none focus:outline-none',

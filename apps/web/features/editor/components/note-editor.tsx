@@ -36,6 +36,14 @@ export function NoteEditor({
 	const hasFocusedRef = useRef(false)
 
 	useShortcut('editor-focus', (event: KeyboardEvent) => {
+		const target = event.target as HTMLElement
+		const isInput =
+			target.tagName === 'INPUT' ||
+			target.tagName === 'TEXTAREA' ||
+			target.isContentEditable
+
+		if (isInput) return
+
 		event.preventDefault()
 		editorRef.current?.focusEditor()
 	})

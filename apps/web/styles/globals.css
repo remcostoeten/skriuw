@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css3?family=Ubuntu+Sans:wght@400;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css3?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Georgia:wght@400;700&display=swap');
 @import 'tailwindcss';
@@ -218,10 +218,10 @@
 	color: inherit;
 }
 
-/* Softer focus rings */
+/* Softer focus rings - exclude editor areas */
 input:focus,
 textarea:focus,
-[contenteditable]:focus,
+[contenteditable]:not(.bn-editor):not(.bn-inline-content):focus,
 button:focus,
 [tabindex]:focus {
 	outline: none;
@@ -230,15 +230,24 @@ button:focus,
 
 input:focus-visible,
 textarea:focus-visible,
-button:focus-visible,
-[tabindex]:focus-visible {
+button:not(.bn-toolbar button):focus-visible,
+[tabindex]:not(.editor-container *):not(.bn-editor *):focus-visible {
 	outline: none !important;
-	box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 0 3px hsl(var(--primary) / 0.12) !important;
+	box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
 	/* Disable Tailwind ring utilities */
 	--tw-ring-offset-width: 0px !important;
 	--tw-ring-offset-color: transparent !important;
 	--tw-ring-color: transparent !important;
 	--tw-ring-shadow: none !important;
+}
+
+/* Ensure BlockNote editor never gets the global focus ring */
+.editor-container *:focus,
+.editor-container *:focus-visible,
+.bn-editor *:focus,
+.bn-editor *:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
 }
 
 /* Keep Tailwind focus utilities intact */
