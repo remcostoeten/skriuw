@@ -3,6 +3,7 @@
 import { AlertCircle } from 'lucide-react'
 import { useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from '@/lib/auth-client'
 
 import { useShortcut } from '../../shortcuts/use-shortcut'
 import { useEditor } from '../hooks/use-editor'
@@ -25,10 +26,12 @@ export function NoteEditor({
 	autoSave = true,
 	autoSaveDelay = 1000,
 }: Props) {
+	const { data: session } = useSession()
 	const { editor, note, isLoading, error } = useEditor({
 		noteId,
 		autoSave,
 		autoSaveDelay,
+		readOnly: !session,
 	})
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)

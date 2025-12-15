@@ -10,17 +10,18 @@ import { useRouter } from "next/navigation";
 type Props = {
     title?: string;
     subtitle?: string;
-
     isAnonymousUser?: boolean;
     anonymousDisplayName?: string;
+    /** Called on successful authentication - use to close modal */
+    onSuccess?: () => void;
 }
 
 export function LoginForm({
     title = "Welcome to skriuw",
     subtitle = "New here or coming back? Choose how you want to continue",
-
     isAnonymousUser = false,
     anonymousDisplayName = "Guest",
+    onSuccess,
 }: Props) {
     const router = useRouter();
     const [email, setEmail] = useState("");
@@ -36,6 +37,20 @@ export function LoginForm({
     // Derived state: if user is anonymous, disable guest login and highlight other methods
     const disableGuestLogin = isAnonymousUser;
     const highlightOtherLoginMethods = isAnonymousUser;
+
+    const handleAuthSuccess = async () => {
+        try {
+            await fetch('/api/user/seed', { method: 'POST' });
+        } catch (e) {
+            console.error('Seeding failed', e);
+        }
+
+        if (onSuccess) {
+            onSuccess();
+        } else {
+            router.push("/");
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -56,9 +71,7 @@ export function LoginForm({
                     password,
                     name: name || email.split('@')[0], // Fallback name
                 }, {
-                    onSuccess: () => {
-                        router.push("/");
-                    },
+                    onSuccess: handleAuthSuccess,
                     onError: (ctx) => {
                         setPasswordError(ctx.error.message);
                         setIsLoading(false);
@@ -70,7 +83,7 @@ export function LoginForm({
                     password,
                 }, {
                     onSuccess: () => {
-                        router.push("/");
+                        onSuccess ? onSuccess() : router.push("/");
                     },
                     onError: (ctx) => {
                         if (ctx.error.status === 401 || ctx.error.status === 403) {
@@ -115,7 +128,7 @@ export function LoginForm({
         try {
             await signIn.anonymous({}, {
                 onSuccess: () => {
-                    router.push("/");
+                    onSuccess ? onSuccess() : router.push("/");
                 },
                 onError: (ctx) => {
                     setGeneralError(ctx.error.message);

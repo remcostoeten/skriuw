@@ -6,11 +6,6 @@ import { User, LogOut, UserRoundCog } from 'lucide-react'
 
 import { Button, buttonVariants } from '@skriuw/ui/button'
 import {
-        Dialog,
-        DialogContent,
-        DialogTrigger,
-} from '@skriuw/ui/dialog'
-import {
         DropdownMenu,
         DropdownMenuContent,
         DropdownMenuItem,
@@ -20,10 +15,11 @@ import {
 } from '@skriuw/ui/dropdown-menu'
 import { SignInView } from './sign-in-view'
 import { cn } from '@skriuw/shared'
+import { useAuthModal } from './auth-modal-provider'
 
 export function UserMenu() {
         const { data: session, isPending } = useSession()
-        // UserMenu handles its own simple state for the dropdown, but for the dialog we can rely on Radix's internal state
+        const { open: openAuthModal } = useAuthModal()
 
         if (isPending) {
                 return <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
@@ -31,25 +27,16 @@ export function UserMenu() {
 
         if (!session) {
                 return (
-                        <>
-                                <Dialog>
-                                        <DialogTrigger asChild>
-                                                <button
-                                                        className={cn(
-                                                                buttonVariants({ variant: 'ghost' }),
-                                                                'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                                                        )}
-                                                >
-                                                        Sign In
-                                                </button>
-                                        </DialogTrigger>
-                                        <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-md sm:max-w-md">
-                                                <SignInView />
-                                        </DialogContent>
-                                </Dialog>
-                        </>
+                        <Button
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                onClick={openAuthModal}
+                        >
+                                Sign In
+                        </Button>
                 )
         }
+
 
         return (
                 <DropdownMenu>

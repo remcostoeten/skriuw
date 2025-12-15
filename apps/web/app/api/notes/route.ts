@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../lib/storage/adapters/server-db'
-import { requireAuth } from '../../../lib/api-auth'
+import { requireMutation, allowReadAccess, GUEST_USER_ID } from '../../../lib/api-auth'
 import type { Item, Note, Folder } from '@/features/notes/types/index'
 
 function sortItems(items: Item[]): Item[] {
@@ -46,20 +46,20 @@ function buildTree(notes: Note[], folders: Folder[]): Item[] {
 
 export async function GET(request: NextRequest) {
 	try {
-		// Require authentication
-		const auth = await requireAuth()
-		if (!auth.authenticated) return auth.response
-		const { userId } = auth
+		// Allow read access for everyone (guests get GUEST_USER_ID)
+		const { userId, isGuest } = await allowReadAccess()
 
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
 
-		// Pass userId to scope queries to current user
+		// For guests, return demo/seed data (scoped to GUEST_USER_ID)
+		// For authenticated users, return their own data
 		const [notes, folders] = await Promise.all([
 			db.findAll<Note>('notes', userId),
 			db.findAll<Folder>('folders', userId)
 		])
 
+		// If guest and no data exists, they'll see empty - seed data should be pre-created
 		if (id) {
 			const item = [...notes, ...folders].find(i => i.id === id)
 			if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
@@ -75,8 +75,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 	try {
-		// Require authentication
-		const auth = await requireAuth()
+		// Require authentication for mutations
+		const auth = await requireMutation()
 		if (!auth.authenticated) return auth.response
 		const { userId } = auth
 
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
 	try {
-		// Require authentication
-		const auth = await requireAuth()
+		// Require authentication for mutations
+		const auth = await requireMutation()
 		if (!auth.authenticated) return auth.response
 		const { userId } = auth
 
@@ -130,8 +130,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
 	try {
-		// Require authentication
-		const auth = await requireAuth()
+		// Require authentication for mutations
+		const auth = await requireMutation()
 		if (!auth.authenticated) return auth.response
 		const { userId } = auth
 
