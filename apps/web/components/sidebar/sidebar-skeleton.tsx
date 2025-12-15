@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@skriuw/ui/skeleton'
+import { FolderPlus, Maximize2, Plus, Search } from 'lucide-react'
 
 interface SidebarSkeletonProps {
 	itemCount?: number
@@ -16,12 +17,20 @@ export function SidebarSkeleton({ itemCount = 8, hasNestedItems = true }: Sideba
 		<div className="hidden lg:flex w-[210px] h-full bg-sidebar-background flex-col border-r border-sidebar-border">
 			{/* Action Bar - static placeholder since buttons don't need loading state */}
 			<div className="h-10 border-b border-sidebar-border bg-sidebar-background flex items-center justify-center">
-				<div className="flex items-center gap-2 opacity-30">
-					{/* Static icon placeholders - not loading indicators */}
-					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
-					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
-					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
-					<div className="w-4 h-4 bg-muted-foreground/20 rounded-sm" />
+				<div className="flex items-center gap-1 opacity-50">
+					{/* Static icons - no loading state needed */}
+					<div className="p-1">
+						<Plus className="h-4 w-4" />
+					</div>
+					<div className="p-1">
+						<FolderPlus className="h-4 w-4" />
+					</div>
+					<div className="p-1">
+						<Maximize2 className="h-4 w-4" />
+					</div>
+					<div className="p-1">
+						<Search className="h-4 w-4" />
+					</div>
 				</div>
 			</div>
 

@@ -22,14 +22,14 @@ import { Label } from '@skriuw/ui/label'
 import { Separator } from '@skriuw/ui/separator'
 import { Textarea } from '@skriuw/ui/textarea'
 import {
-	CheckSquare,
-	Flame,
-	NotebookPen,
 	Shield,
-	UserRound
-	, ShieldAlert
+	UserRound,
+	ShieldAlert,
+	Cloud,
+	Trash2
 } from 'lucide-react'
 import { DeleteAccountDialog } from '../../components/profile/delete-account-dialog'
+import { useStorageConnectors } from '@/features/backup/hooks/use-storage-connectors'
 
 type Status = {
 	type: 'success' | 'info'
@@ -55,35 +55,11 @@ export default function ProfilePage() {
 	const [isSaving, setIsSaving] = useState(false)
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [isEditing, setIsEditing] = useState(false)
+	const { connectors, disconnectConnector } = useStorageConnectors()
 
 	const user = session?.user
 
-	const overviewStats = useMemo(
-		() => [
-			{
-				label: 'Notes',
-				value: '128',
-				hint: '12 drafted this month',
-				accent: 'text-primary',
-				icon: NotebookPen
-			},
-			{
-				label: 'Tasks',
-				value: '42',
-				hint: '6 due this week',
-				accent: 'text-emerald-500',
-				icon: CheckSquare
-			},
-			{
-				label: 'Focus streak',
-				value: '7 days',
-				hint: 'We’ll track the real streak soon',
-				accent: 'text-orange-500',
-				icon: Flame
-			}
-		],
-		[]
-	)
+
 
 	useEffect(() => {
 		if (!user) return
@@ -201,48 +177,7 @@ export default function ProfilePage() {
 				</Alert>
 			)}
 
-			<Card className="border-dashed bg-muted/40">
-				<CardHeader className="pb-4">
-					<CardTitle className="text-lg">
-						Workspace overview
-					</CardTitle>
-					<CardDescription>
-						A snapshot of your notes and tasks while we connect to
-						live workspace metrics.
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className="grid gap-3 sm:grid-cols-3">
-						{overviewStats.map((stat) => (
-							<div
-								key={stat.label}
-								className="flex items-start justify-between rounded-lg border bg-background p-3 shadow-sm"
-							>
-								<div className="space-y-1">
-									<p className="text-xs uppercase tracking-wide text-muted-foreground">
-										{stat.label}
-									</p>
-									<p className="text-2xl font-semibold leading-tight">
-										{stat.value}
-									</p>
-									<p className="text-xs text-muted-foreground">
-										{stat.hint}
-									</p>
-								</div>
-								<div
-									className={`rounded-full bg-muted p-2 ${stat.accent}`}
-								>
-									<stat.icon className="h-4 w-4" />
-								</div>
-							</div>
-						))}
-					</div>
-					<p className="mt-4 text-xs text-muted-foreground">
-						Real-time stats will show here once account syncing is
-						available.
-					</p>
-				</CardContent>
-			</Card>
+
 
 			<Card>
 				<CardHeader className="pb-4">
@@ -387,6 +322,57 @@ export default function ProfilePage() {
 							</div>
 						</div>
 					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader className="pb-4">
+					<CardTitle className="flex items-center gap-2 text-xl">
+						<Cloud className="h-5 w-5 text-muted-foreground" />
+						Connected Accounts
+					</CardTitle>
+					<CardDescription>
+						Manage your connections to external storage providers.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-4">
+						{connectors.length === 0 ? (
+							<div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+								No accounts connected yet. Go to the <a href="/archive" className="text-primary hover:underline">Archive</a> page to connect.
+							</div>
+						) : (
+							<div className="grid gap-4 sm:grid-cols-2">
+								{connectors.map((connector) => (
+									<div
+										key={connector.id}
+										className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+									>
+										<div className="flex items-center gap-3">
+											<div className="h-8 w-8 rounded-full bg-background border flex items-center justify-center">
+												<Cloud className="h-4 w-4 text-muted-foreground" />
+											</div>
+											<div>
+												<div className="font-medium text-sm">{connector.name}</div>
+												<div className="text-xs text-muted-foreground capitalize">
+													{connector.type} • {connector.status}
+												</div>
+											</div>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+											onClick={() => disconnectConnector(connector.type)}
+											title="Disconnect"
+										>
+											<Trash2 className="h-4 w-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
 				</CardContent>
 			</Card>
 
