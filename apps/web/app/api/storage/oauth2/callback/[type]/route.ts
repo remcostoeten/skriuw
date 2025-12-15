@@ -109,9 +109,10 @@ export async function GET(
 		const message =
 			error instanceof Error ? error.message : 'OAuth2 callback failed'
 		console.error('OAuth2 callback failed:', message)
-
-		return NextResponse.redirect(
-			`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
-		)
+		// Return JSON error for debugging visibility
+		return jsonError(message, 500)
+		/* 		return NextResponse.redirect(
+					`${process.env.NEXT_PUBLIC_APP_URL}/archive?error=${encodeURIComponent(message)}`
+				) */
 	}
 }

@@ -308,11 +308,32 @@ export function useNotes() {
 
 	const updateNote = useCallback(
 		async (id: string, content: Block[], name?: string) => {
+			// Update the note on the server - no need to refresh items
+			// since the editor already has the updated content in its state
+			// and the sidebar doesn't need to know about content changes
 			await updateNoteMutation(id, { content, name })
-			// Non-blocking refresh
-			refreshItems()
+
+			// Only update the item name in local state if name changed
+			if (name !== undefined) {
+				startTransition(() => {
+					setItems((prevItems) => {
+						const updateName = (itemList: Item[]): Item[] => {
+							return itemList.map((item) => {
+								if (item.id === id) {
+									return { ...item, name, updatedAt: Date.now() }
+								}
+								if (item.type === 'folder') {
+									return { ...item, children: updateName(item.children) }
+								}
+								return item
+							})
+						}
+						return updateName(prevItems)
+					})
+				})
+			}
 		},
-		[refreshItems]
+		[]
 	)
 
 	const renameItem = useCallback(

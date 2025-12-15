@@ -12,7 +12,6 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { cn } from '@skriuw/shared'
 
 import { EmptyState } from '@skriuw/ui'
 import { useShortcut } from '../../shortcuts'
@@ -22,6 +21,7 @@ import { useNoteSlug } from '../hooks/use-note-slug'
 import { NOTE_TAB_DRAG_TYPE } from '../constants'
 import type { NoteTabDragPayload } from '../types'
 import { useSplitViewStore } from '../split-view/store'
+import { cn } from '@skriuw/shared'
 
 type NoteSplitViewProps = {
 	noteId: string

@@ -64,9 +64,7 @@ export function AppLayoutManager({
 		const publicPaths = ['/login', '/register', '/auth/callback']
 		const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
-		if (!isPending && !session && !isPublicPath) {
-			router.replace('/login')
-		}
+		// Removed forced redirect logic to allow public browsing
 	}, [session, isPending, pathname, router])
 
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)

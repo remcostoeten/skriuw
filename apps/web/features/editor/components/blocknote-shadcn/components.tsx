@@ -18,15 +18,54 @@ const ToolbarRoot = forwardRef<
 	HTMLDivElement,
 	BlockNoteComponentProps['FormattingToolbar']['Root']
 >(({ className, children, onMouseEnter, onMouseLeave }, ref) => {
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		const toolbar = event.currentTarget
+		const buttons = Array.from(
+			toolbar.querySelectorAll('button:not([disabled])')
+		) as HTMLButtonElement[]
+
+		if (buttons.length === 0) return
+
+		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement)
+		let nextIndex = currentIndex
+
+		switch (event.key) {
+			case 'ArrowRight':
+			case 'ArrowDown':
+				event.preventDefault()
+				nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % buttons.length
+				break
+			case 'ArrowLeft':
+			case 'ArrowUp':
+				event.preventDefault()
+				nextIndex = currentIndex === -1 ? buttons.length - 1 : (currentIndex - 1 + buttons.length) % buttons.length
+				break
+			case 'Home':
+				event.preventDefault()
+				nextIndex = 0
+				break
+			case 'End':
+				event.preventDefault()
+				nextIndex = buttons.length - 1
+				break
+			default:
+				return
+		}
+
+		buttons[nextIndex]?.focus()
+	}
+
 	return (
 		<div
 			ref={ref}
 			role="toolbar"
+			aria-label="Formatting options"
 			onMouseEnter={onMouseEnter}
 			onMouseLeave={onMouseLeave}
+			onKeyDown={handleKeyDown}
 			className={cn(
-				'bn-toolbar flex flex-wrap items-center gap-0.5 rounded-md border border-border bg-background/90 px-1 py-1 shadow-md backdrop-blur max-w-full',
-				'max-sm:w-full max-sm:justify-center max-sm:gap-2 max-sm:px-2 max-sm:py-2 max-sm:rounded-lg',
+				'bn-toolbar flex flex-wrap items-center gap-px rounded-lg border border-border/40 bg-popover/95 px-1 py-0.5 shadow-lg backdrop-blur-md max-w-full',
+				'max-sm:w-full max-sm:justify-center max-sm:gap-1 max-sm:px-1.5 max-sm:py-1',
 				className
 			)}
 		>
@@ -34,6 +73,7 @@ const ToolbarRoot = forwardRef<
 		</div>
 	)
 })
+
 
 const ToolbarButton = ({
 	className,
@@ -49,18 +89,29 @@ const ToolbarButton = ({
 	return (
 		<button
 			type="button"
+			tabIndex={0}
 			className={cn(
-				'bn-toolbar-button inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90 transition hover:bg-muted',
-				'max-sm:h-11 max-sm:min-w-11 max-sm:px-3 max-sm:text-sm max-sm:rounded-lg',
-				isSelected && 'bg-primary/20 text-primary border-primary/40 shadow-sm',
+				'bn-toolbar-button inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+				'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover',
+				'max-sm:h-8 max-sm:min-w-8 max-sm:px-2',
+				isSelected && 'bg-accent text-foreground',
 				isDisabled && 'cursor-not-allowed opacity-40',
 				className
 			)}
 			disabled={isDisabled}
+			aria-pressed={isSelected}
 			title={secondaryTooltip || mainTooltip || label}
 			onClick={(event) => {
 				if (isDisabled) return
 				onClick?.(event as any)
+			}}
+			onKeyDown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault()
+					if (!isDisabled) {
+						onClick?.(event as any)
+					}
+				}
 			}}
 		>
 			{icon}
@@ -82,8 +133,8 @@ const ToolbarSelect = ({
 				<button
 					type="button"
 					className={cn(
-						'bn-toolbar-select inline-flex h-9 items-center justify-between rounded-md border border-border/60 bg-muted/60 px-2 text-xs font-medium text-foreground/90',
-						'max-sm:h-11 max-sm:px-3 max-sm:text-sm max-sm:rounded-lg',
+						'bn-toolbar-select inline-flex h-7 items-center justify-between rounded px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground',
+						'max-sm:h-8 max-sm:px-2',
 						isDisabled && 'cursor-not-allowed opacity-40',
 						className
 					)}
@@ -122,8 +173,8 @@ const ToolbarSelect = ({
 const SideMenuRoot = ({ className, children }: BlockNoteComponentProps['SideMenu']['Root']) => (
 	<div
 		className={cn(
-			'bn-side-menu flex flex-col items-center gap-2 rounded-md bg-background/80 p-1 shadow ring-1 ring-border/60',
-			'max-sm:flex-row max-sm:w-full max-sm:justify-center max-sm:gap-3 max-sm:rounded-lg max-sm:p-2',
+			'bn-side-menu flex flex-col items-center gap-0.5 rounded bg-transparent p-0',
+			'max-sm:flex-row max-sm:gap-1',
 			className
 		)}
 	>
@@ -140,8 +191,8 @@ const SideMenuButton = forwardRef<HTMLButtonElement, BlockNoteComponentProps['Si
 			onDragStart={onDragStart}
 			onDragEnd={onDragEnd}
 			className={cn(
-				'bn-side-menu-button flex h-7 w-7 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition hover:bg-muted',
-				'max-sm:h-10 max-sm:w-10 max-sm:rounded-lg',
+				'bn-side-menu-button flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-muted-foreground hover:bg-accent/50',
+				'max-sm:h-6 max-sm:w-6',
 				className
 			)}
 			onClick={onClick}
