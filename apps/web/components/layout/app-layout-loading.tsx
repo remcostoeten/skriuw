@@ -23,7 +23,7 @@ function TopToolbarSkeleton() {
 
 function EditorPaneSkeleton() {
 	return (
-		<div className="flex-1 overflow-hidden bg-background">
+		<div className="flex-1 overflow-hidden bg-background h-full">
 			<div className="h-full w-full overflow-y-auto p-6 sm:p-10 space-y-6">
 				<div className="space-y-2">
 					<Skeleton className="h-5 w-32" />

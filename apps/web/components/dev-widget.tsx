@@ -195,8 +195,8 @@ export function DevWidget() {
 		resetPosition
 	} = useDraggable({
 		initialPosition: {
-			x: window.innerWidth - 100,
-			y: window.innerHeight - 100
+			x: typeof window !== 'undefined' ? window.innerWidth - 100 : 0,
+			y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0
 		},
 		storageKey: 'dev-widget-position',
 		bounds: {

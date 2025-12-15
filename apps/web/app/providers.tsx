@@ -8,7 +8,7 @@ import { EmptyState } from '@skriuw/ui'
 
 import { TooltipProvider } from '@skriuw/ui'
 
-import { initializeAppStorage } from './storage'
+import { ensureStorageInitialized } from './storage'
 
 import { EditorTabsProvider } from '../features/editor/tabs'
 import { NotesProvider } from '@/features/notes/context/notes-context'
@@ -16,7 +16,6 @@ import { SettingsProvider } from '../features/settings'
 import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
-import { AppLayoutLoadingSkeleton } from '../components/layout/app-layout-loading'
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
 
 type props = {
@@ -24,49 +23,16 @@ type props = {
 }
 
 function StorageInitializer({ children }: props) {
-	const [isInitialized, setIsInitialized] = useState(false)
-	const [error, setError] = useState<Error | null>(null)
-
-	useEffect(() => {
-		let isMounted = true
-		const timeoutId = setTimeout(() => {
-			if (isMounted && !isInitialized) {
-				console.warn('Storage initialization taking too long, showing app anyway')
-				setIsInitialized(true)
-			}
-		}, 5000)
-
-		initializeAppStorage()
-			.then(() => {
-				if (isMounted) {
-					console.log('✅ Storage initialized successfully')
-					clearTimeout(timeoutId)
-					setIsInitialized(true)
-					setError(null)
-				}
-			})
-			.catch((err) => {
-				if (isMounted) {
-					console.error('Failed to initialize storage:', err)
-					clearTimeout(timeoutId)
-					setError(err instanceof Error ? err : new Error(String(err)))
-					// Still show app even if storage fails
-					setIsInitialized(true)
-				}
-			})
-
-		return () => {
-			isMounted = false
-			clearTimeout(timeoutId)
-		}
-	}, [])
-
-	if (error) {
+	// Initialize storage synchronously
+	try {
+		ensureStorageInitialized()
+	} catch (error) {
+		console.error('Failed to initialize storage:', error)
 		return (
 			<div className="flex-1 flex items-center justify-center min-h-screen bg-background">
 				<EmptyState
 					message="Storage initialization failed"
-					submessage={error.message}
+					submessage={error instanceof Error ? error.message : String(error)}
 					icon={<AlertCircle className="h-8 w-8 text-destructive" />}
 					actions={[
 						{
@@ -79,7 +45,7 @@ function StorageInitializer({ children }: props) {
 		)
 	}
 
-	return <>{isInitialized ? children : <AppLayoutLoadingSkeleton />}</>
+	return <>{children}</>
 }
 
 export function Providers({ children }: props) {
