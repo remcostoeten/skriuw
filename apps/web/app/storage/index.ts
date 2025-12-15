@@ -7,7 +7,7 @@ let initializationPromise: Promise<void> | null = null
  * Ensures the @skriuw/crud adapter is initialized.
  * Safe to call multiple times - will only initialize once.
  */
-function ensureStorageInitialized(): void {
+export function ensureStorageInitialized(): void {
 	if (hasAdapter()) return
 	setAdapter(createClientApiAdapter())
 }

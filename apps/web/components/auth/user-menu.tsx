@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useSession, signOut } from '@/lib/auth-client'
 import { User, LogOut, UserRoundCog } from 'lucide-react'
 
-import { Button } from '@skriuw/ui/button'
+import { Button, buttonVariants } from '@skriuw/ui/button'
 import {
         Dialog,
         DialogContent,
@@ -19,6 +19,7 @@ import {
         DropdownMenuTrigger,
 } from '@skriuw/ui/dropdown-menu'
 import { SignInView } from './sign-in-view'
+import { cn } from '@skriuw/shared'
 
 export function UserMenu() {
         const { data: session, isPending } = useSession()
@@ -33,12 +34,14 @@ export function UserMenu() {
                         <>
                                 <Dialog>
                                         <DialogTrigger asChild>
-                                                <Button
-                                                        variant="ghost"
-                                                        className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                                <button
+                                                        className={cn(
+                                                                buttonVariants({ variant: 'ghost' }),
+                                                                'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                                                        )}
                                                 >
                                                         Sign In
-                                                </Button>
+                                                </button>
                                         </DialogTrigger>
                                         <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-md sm:max-w-md">
                                                 <SignInView />
