@@ -25,12 +25,19 @@ export interface Session {
 }
 
 /**
+ * Special user ID for guest/public access.
+ * Used to scope demo/seed data visible to unauthenticated users.
+ */
+export const GUEST_USER_ID = '__guest__'
+
+/**
  * Authentication result for API routes
  */
 export interface AuthResult {
     authenticated: true
     userId: string
     session: Session
+    isGuest?: boolean
 }
 
 export interface AuthError {
@@ -138,6 +145,45 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
         authEnabled: authEnabled && Boolean(auth),
         disabledReason: authDisabledReason || undefined,
     })
+}
+
+/**
+ * For read-only endpoints: returns userId if authenticated, or GUEST_USER_ID for guests.
+ * Never rejects - allows all users to read.
+ * 
+ * @returns userId string (real user ID or GUEST_USER_ID)
+ */
+export async function allowReadAccess(): Promise<{ userId: string; isGuest: boolean }> {
+    const userId = await getCurrentUserId()
+    if (userId) {
+        return { userId, isGuest: false }
+    }
+    return { userId: GUEST_USER_ID, isGuest: true }
+}
+
+/**
+ * Requires authentication for mutation (POST/PUT/DELETE) endpoints.
+ * Returns a 401 error with a special flag indicating login is required for this action.
+ * 
+ * @returns AuthResult with userId, or AuthError with error response
+ */
+export async function requireMutation(): Promise<AuthResult | AuthError> {
+    const result = await requireAuth()
+    if (!result.authenticated) {
+        // Override response with mutation-specific message
+        return {
+            authenticated: false,
+            response: NextResponse.json(
+                {
+                    error: 'Login required',
+                    message: 'You need an account to perform this action',
+                    action: 'mutation_blocked'
+                },
+                { status: 401 }
+            ),
+        }
+    }
+    return result
 }
 
 /**

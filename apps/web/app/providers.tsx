@@ -17,6 +17,7 @@ import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
+import { AuthModalProvider } from '../components/auth/auth-modal-provider'
 
 type props = {
 	children: ReactNode
@@ -52,19 +53,21 @@ export function Providers({ children }: props) {
 	return (
 		<TooltipProvider delayDuration={0}>
 			<SonnerToaster />
-			<StorageInitializer>
-				<SettingsProvider>
-					<NotesProvider>
-						<ShortcutProvider>
-							<ContextMenuProvider>
-								<EditorTabsProvider>
-									<AppLayoutManager>{children}</AppLayoutManager>
-								</EditorTabsProvider>
-							</ContextMenuProvider>
-						</ShortcutProvider>
-					</NotesProvider>
-				</SettingsProvider>
-			</StorageInitializer>
+			<AuthModalProvider>
+				<StorageInitializer>
+					<SettingsProvider>
+						<NotesProvider>
+							<ShortcutProvider>
+								<ContextMenuProvider>
+									<EditorTabsProvider>
+										<AppLayoutManager>{children}</AppLayoutManager>
+									</EditorTabsProvider>
+								</ContextMenuProvider>
+							</ShortcutProvider>
+						</NotesProvider>
+					</SettingsProvider>
+				</StorageInitializer>
+			</AuthModalProvider>
 		</TooltipProvider>
 	)
 }
