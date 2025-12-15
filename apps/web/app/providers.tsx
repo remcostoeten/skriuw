@@ -4,7 +4,7 @@ import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
 
-import { EmptyState } from '../components/ui/empty-state'
+import { EmptyState } from '@skriuw/ui'
 
 import { TooltipProvider } from '@skriuw/ui'
 

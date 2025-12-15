@@ -25,7 +25,7 @@ export function BrandLogo({
             scale: 1,
             transition: {
                 duration: 0.5,
-                ease: [0.4, 0, 0.2, 1],
+                ease: [0.4, 0, 0.2, 1] as any,
                 staggerChildren: 0.1,
             },
         },
@@ -44,12 +44,12 @@ export function BrandLogo({
             opacity: [1, 0.5, 1],
             transition: {
                 duration: 0.6,
-                ease: [0.4, 0, 0.2, 1], // Bezier curve
+                ease: [0.4, 0, 0.2, 1] as any, // Bezier curve
             },
         },
     }
 
-    const Wrapper = animated ? motion.svg : 'svg'
+    const Wrapper = (animated ? motion.svg : 'svg') as any
     // @ts-ignore - Dynamic component type safety is tricky here, but valid at runtime
     const Path = animated ? motion.path : 'path'
     // @ts-ignore
