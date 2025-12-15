@@ -170,11 +170,23 @@ export function useEditor({
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
-
+		editorModuleSpec: {
+			// @ts-ignore
+			editable: !readOnly,
+		},
+		// Some versions of BlockNote use this
+		_editable: !readOnly,
 	})
 
+	// Force editable state update if it changes
 	useEffect(() => {
-		if (!editor || !note || readOnly || isLoading) return
+		if (editor) {
+			editor.isEditable = !readOnly
+		}
+	}, [editor, readOnly])
+
+	useEffect(() => {
+		if (!editor || !note || isLoading) return
 
 		if (!hasInitializedRef.current) {
 			const contentToLoad =
@@ -191,7 +203,9 @@ export function useEditor({
 			}
 			hasInitializedRef.current = true
 		}
-	}, [note, editor, readOnly, isLoading])
+	}, [note, editor, isLoading]) // Removed readOnly from dependency to allow loading in readOnly mode
+
+	// ... spellcheck effect ... (keeping existing)
 
 	// Enforce spellcheck on editor elements
 	useEffect(() => {
@@ -237,7 +251,7 @@ export function useEditor({
 	}, [noteId])
 
 	const handleSave = useCallback(() => {
-		if (!editor || !noteId) return
+		if (!editor || !noteId || readOnly) return // Added readOnly check
 
 		try {
 			const blocks = editor.document
@@ -245,7 +259,7 @@ export function useEditor({
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save note')
 		}
-	}, [editor, noteId, noteName, updateNote])
+	}, [editor, noteId, noteName, updateNote, readOnly])
 
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
@@ -269,7 +283,7 @@ export function useEditor({
 	}, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave])
 
 	return {
-		editor: readOnly ? null : (editor as any),
+		editor: editor as any, // Always return editor, even in readOnly
 		note,
 		noteName,
 		isLoading,

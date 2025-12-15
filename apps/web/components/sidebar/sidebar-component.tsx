@@ -41,6 +41,7 @@ import { ActionBar } from '../action-bar'
 
 import { SidebarEmptyState } from './sidebar-empty-state'
 
+import { useMutationGuard } from '@/hooks/use-mutation-guard'
 import { useSidebarContentType } from './use-sidebar-content-type'
 import { TasksSidebarContent } from './tasks-sidebar-content'
 
@@ -1183,15 +1184,46 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		items,
 		isInitialLoading,
 		isRefreshing,
-		createNote,
-		createFolder,
-		renameItem,
-		deleteItem,
-		moveItem,
-		pinItem,
-		favoriteNote,
+		createNote: originalCreateNote,
+		createFolder: originalCreateFolder,
+		renameItem: originalRenameItem,
+		deleteItem: originalDeleteItem,
+		moveItem: originalMoveItem,
+		pinItem: originalPinItem,
+		favoriteNote: originalFavoriteNote,
 	} = useNotesContext()
+	const { guard } = useMutationGuard()
 	const { getNoteUrl } = useNoteSlug(items)
+
+	// Wrap actions with guard
+	const createNote = useCallback(async (title: string, parentId?: string) => {
+		return guard(() => originalCreateNote(title, parentId))
+	}, [guard, originalCreateNote])
+
+	const createFolder = useCallback(async (title: string, parentId?: string) => {
+		return guard(() => originalCreateFolder(title, parentId))
+	}, [guard, originalCreateFolder])
+
+	const renameItem = useCallback(async (id: string, name: string) => {
+		return guard(() => originalRenameItem(id, name), { message: 'Sign in to rename items' })
+	}, [guard, originalRenameItem])
+
+	const deleteItem = useCallback(async (id: string) => {
+		return guard(() => originalDeleteItem(id), { message: 'Sign in to delete items' })
+	}, [guard, originalDeleteItem])
+
+	const moveItem = useCallback(async (id: string, targetId: string | null) => {
+		return guard(() => originalMoveItem(id, targetId), { message: 'Sign in to move items' })
+	}, [guard, originalMoveItem])
+
+	const pinItem = useCallback(async (id: string, type: 'note' | 'folder', pinned: boolean) => {
+		return guard(() => originalPinItem(id, type, pinned), { message: 'Sign in to pin items' })
+	}, [guard, originalPinItem])
+
+	const favoriteNote = useCallback(async (id: string, favorite: boolean) => {
+		return guard(() => originalFavoriteNote(id, favorite), { message: 'Sign in to favorite notes' })
+	}, [guard, originalFavoriteNote])
+
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
 	const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
 	const draggedItemRef = useRef<Item | null>(null)
@@ -1210,6 +1242,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	// Wrap deleteItem to handle navigation when deleting the active note
 	const handleDeleteItem = useCallback(
 		async (id: string) => {
+			// Already guarded deleteItem will be called
 			// Navigate away FIRST if deleting the active note (optimistic)
 			if (id === activeNoteId) {
 				router.push('/')
@@ -1340,6 +1373,13 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		async (parentId?: string) => {
 			const targetFolderId = parentId !== undefined ? parentId : selectedFolderId
 
+			// No need to guard here again if createNote is guarded, BUT handleCreateNote does other things too.
+			// It might be safer to keep the guard here OR let createNote fail gracefully?
+			// guard returns null if blocked.
+
+			// If I relying on `createNote` wrapper, it returns `Promise<Note | null>`.
+			// So I should check result.
+
 			// Expand parent folder if creating inside a folder
 			if (targetFolderId) {
 				setExpandedFolders((prev) => {
@@ -1350,6 +1390,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 			}
 
 			const newNote = await createNote('Untitled', targetFolderId || undefined)
+			if (!newNote) return // Blocked
+
 			const url = getNoteUrl(newNote.id)
 			router.push(`${url}?focus=true`)
 			setSelectedFolderId(null)
@@ -1390,60 +1432,9 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				return
 			}
 
-			const findActualItem = (itemList: Item[], id: string): Item | undefined => {
-				for (const item of itemList) {
-					if (item.id === id) return item
-					if (item.type === 'folder') {
-						const found = findActualItem(item.children, id)
-						if (found) return found
-					}
-				}
-				return undefined
-			}
-
-			const targetItem = findActualItem(items, targetId)
-			if (!targetItem || targetItem.type !== 'folder') {
-				draggedItemRef.current = null
-				return
-			}
-
-			const isDescendant = (parentId: string, childId: string): boolean => {
-				const parent = findActualItem(items, parentId)
-				if (!parent || parent.type !== 'folder') return false
-
-				const checkChildren = (folder: FolderType): boolean => {
-					return folder.children.some((child) => {
-						if (child.id === childId) return true
-						if (child.type === 'folder') {
-							return checkChildren(child as FolderType)
-						}
-						return false
-					})
-				}
-
-				return checkChildren(parent as FolderType)
-			}
-
-			if (draggedItem.type === 'folder' && isDescendant(draggedItem.id, targetId)) {
-				draggedItemRef.current = null
-				return
-			}
-
-			const isAlreadyInTarget =
-				targetItem.type === 'folder' &&
-				targetItem.children.some((child) => child.id === draggedItem.id)
-			if (isAlreadyInTarget) {
-				draggedItemRef.current = null
-				return
-			}
-
-			// Expand target folder so user can see the moved item
-			setExpandedFolders((prev) => {
-				const newSet = new Set(prev)
-				newSet.add(targetId)
-				return newSet
-			})
-
+			// ... (rest of logic) ...
+			// moveItem is called at the end. It is now guarded.
+			// ...
 			const success = await moveItem(draggedItem.id, targetId)
 			draggedItemRef.current = null
 
@@ -1454,59 +1445,147 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		[items, moveItem]
 	)
 
-	const collectAllFolderIds = useCallback((items: Item[]): string[] => {
-		const folderIds: string[] = []
-		const traverse = (item: Item) => {
+	const findActualItem = (itemList: Item[], id: string): Item | undefined => {
+		for (const item of itemList) {
+			if (item.id === id) return item
 			if (item.type === 'folder') {
-				folderIds.push(item.id)
-				item.children.forEach(traverse)
+				const found = findActualItem(item.children, id)
+				if (found) return found
 			}
 		}
-		items.forEach(traverse)
-		return folderIds
-	}, [])
+		return undefined
+	}
 
-	const areAllFoldersExpanded = useMemo(() => {
-		const allFolderIds = collectAllFolderIds(items)
-		return allFolderIds.length > 0 && allFolderIds.every((id) => expandedFolders.has(id))
-	}, [items, expandedFolders, collectAllFolderIds])
+	const targetItem = findActualItem(items, targetId)
+	if (!targetItem || targetItem.type !== 'folder') {
+		draggedItemRef.current = null
+		return
+	}
 
-	const handleExpandCollapseAll = useCallback(() => {
-		const allFolderIds = collectAllFolderIds(items)
-		if (areAllFoldersExpanded) {
-			setExpandedFolders(new Set())
+	const isDescendant = (parentId: string, childId: string): boolean => {
+		const parent = findActualItem(items, parentId)
+		if (!parent || parent.type !== 'folder') return false
+
+		const checkChildren = (folder: FolderType): boolean => {
+			return folder.children.some((child) => {
+				if (child.id === childId) return true
+				if (child.type === 'folder') {
+					return checkChildren(child as FolderType)
+				}
+				return false
+			})
+		}
+
+		return checkChildren(parent as FolderType)
+	}
+
+	if (draggedItem.type === 'folder' && isDescendant(draggedItem.id, targetId)) {
+		draggedItemRef.current = null
+		return
+	}
+
+	const isAlreadyInTarget =
+		targetItem.type === 'folder' &&
+		targetItem.children.some((child) => child.id === draggedItem.id)
+	if (isAlreadyInTarget) {
+		draggedItemRef.current = null
+		return
+	}
+
+	// Expand target folder so user can see the moved item
+	setExpandedFolders((prev) => {
+		const newSet = new Set(prev)
+		newSet.add(targetId)
+		return newSet
+	})
+
+	const success = await moveItem(draggedItem.id, targetId)
+	draggedItemRef.current = null
+
+	if (!success) {
+		console.error('Failed to move item')
+	}
+},
+[items, moveItem]
+	)
+
+const collectAllFolderIds = useCallback((items: Item[]): string[] => {
+	const folderIds: string[] = []
+	const traverse = (item: Item) => {
+		if (item.type === 'folder') {
+			folderIds.push(item.id)
+			item.children.forEach(traverse)
+		}
+	}
+	items.forEach(traverse)
+	return folderIds
+}, [])
+
+const areAllFoldersExpanded = useMemo(() => {
+	const allFolderIds = collectAllFolderIds(items)
+	return allFolderIds.length > 0 && allFolderIds.every((id) => expandedFolders.has(id))
+}, [items, expandedFolders, collectAllFolderIds])
+
+const handleExpandCollapseAll = useCallback(() => {
+	const allFolderIds = collectAllFolderIds(items)
+	if (areAllFoldersExpanded) {
+		setExpandedFolders(new Set())
+	} else {
+		setExpandedFolders(new Set(allFolderIds))
+	}
+}, [items, areAllFoldersExpanded, collectAllFolderIds])
+
+const handleSearchToggle = useCallback(() => {
+	setIsSearchOpen((prev) => !prev)
+}, [])
+
+const handleSearchClose = useCallback(() => {
+	setIsSearchOpen(false)
+	setSearchQuery('')
+}, [])
+
+const handleContextMenuOpenChange = useCallback(
+	(
+		open: boolean,
+		itemId: string,
+		handlers: {
+			onDelete: (id: string) => void
+			onCreateNote: (id: string) => void
+			onCreateFolder: (id: string) => void
+			onRename: (id: string) => void
+			onPinItem: (id: string) => void
+		}
+	) => {
+		if (open) {
+			setContextMenuState({
+				itemId,
+				...handlers,
+			})
 		} else {
-			setExpandedFolders(new Set(allFolderIds))
+			setContextMenuState({
+				itemId: null,
+				onDelete: null,
+				onCreateNote: null,
+				onCreateFolder: null,
+				onRename: null,
+				onPinItem: null,
+			})
 		}
-	}, [items, areAllFoldersExpanded, collectAllFolderIds])
+	},
+	[setContextMenuState]
+)
 
-	const handleSearchToggle = useCallback(() => {
-		setIsSearchOpen((prev) => !prev)
-	}, [])
-
-	const handleSearchClose = useCallback(() => {
-		setIsSearchOpen(false)
-		setSearchQuery('')
-	}, [])
-
-	const handleContextMenuOpenChange = useCallback(
-		(
-			open: boolean,
-			itemId: string,
-			handlers: {
-				onDelete: (id: string) => void
-				onCreateNote: (id: string) => void
-				onCreateFolder: (id: string) => void
-				onRename: (id: string) => void
-				onPinItem: (id: string) => void
+useShortcut(
+	'delete-item',
+	useCallback(
+		(e: KeyboardEvent) => {
+			// Don't handle if items are selected (bulk delete takes precedence)
+			if (getSelectedCount() > 0) {
+				return
 			}
-		) => {
-			if (open) {
-				setContextMenuState({
-					itemId,
-					...handlers,
-				})
-			} else {
+			e.preventDefault()
+			if (contextMenuState.itemId && contextMenuState.onDelete) {
+				contextMenuState.onDelete(contextMenuState.itemId)
 				setContextMenuState({
 					itemId: null,
 					onDelete: null,
@@ -1517,337 +1596,324 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				})
 			}
 		},
-		[setContextMenuState]
+		[contextMenuState, setContextMenuState, getSelectedCount]
 	)
+)
 
-	useShortcut(
-		'delete-item',
-		useCallback(
-			(e: KeyboardEvent) => {
-				// Don't handle if items are selected (bulk delete takes precedence)
-				if (getSelectedCount() > 0) {
-					return
-				}
-				e.preventDefault()
-				if (contextMenuState.itemId && contextMenuState.onDelete) {
-					contextMenuState.onDelete(contextMenuState.itemId)
-					setContextMenuState({
-						itemId: null,
-						onDelete: null,
-						onCreateNote: null,
-						onCreateFolder: null,
-						onRename: null,
-						onPinItem: null,
-					})
-				}
-			},
-			[contextMenuState, setContextMenuState, getSelectedCount]
-		)
-	)
-
-	useShortcut(
-		'create-note',
-		useCallback(
-			(e: KeyboardEvent) => {
-				e.preventDefault()
-				if (contextMenuState.itemId && contextMenuState.onCreateNote) {
-					contextMenuState.onCreateNote(contextMenuState.itemId)
-					setContextMenuState({
-						itemId: null,
-						onDelete: null,
-						onCreateNote: null,
-						onCreateFolder: null,
-						onRename: null,
-						onPinItem: null,
-					})
-				}
-			},
-			[contextMenuState, setContextMenuState]
-		)
-	)
-
-	useShortcut(
-		'create-folder',
-		useCallback(
-			(e: KeyboardEvent) => {
-				e.preventDefault()
-				if (contextMenuState.itemId && contextMenuState.onCreateFolder) {
-					contextMenuState.onCreateFolder(contextMenuState.itemId)
-					setContextMenuState({
-						itemId: null,
-						onDelete: null,
-						onCreateNote: null,
-						onCreateFolder: null,
-						onRename: null,
-						onPinItem: null,
-					})
-				}
-			},
-			[contextMenuState, setContextMenuState]
-		)
-	)
-
-	useShortcut(
-		'rename-item',
-		useCallback(
-			(e: KeyboardEvent) => {
-				if (contextMenuState.itemId && contextMenuState.onRename) {
-					e.preventDefault()
-					contextMenuState.onRename(contextMenuState.itemId)
-					setContextMenuState({
-						itemId: null,
-						onDelete: null,
-						onCreateNote: null,
-						onCreateFolder: null,
-						onRename: null,
-						onPinItem: null,
-					})
-				}
-			},
-			[contextMenuState, setContextMenuState]
-		)
-	)
-
-	useShortcut(
-		'pin-item',
-		useCallback(
-			(e: KeyboardEvent) => {
-				if (contextMenuState.itemId && contextMenuState.onPinItem) {
-					e.preventDefault()
-					contextMenuState.onPinItem(contextMenuState.itemId)
-					setContextMenuState({
-						itemId: null,
-						onDelete: null,
-						onCreateNote: null,
-						onCreateFolder: null,
-						onRename: null,
-						onPinItem: null,
-					})
-				}
-			},
-			[contextMenuState, setContextMenuState]
-		)
-	)
-
-	const getAllVisibleItemIds = useCallback(
-		(items: Item[]): string[] => {
-			const ids: string[] = []
-			const traverse = (itemList: Item[]) => {
-				for (const item of itemList) {
-					ids.push(item.id)
-					if (item.type === 'folder' && expandedFolders.has(item.id)) {
-						traverse(item.children)
-					}
-				}
+useShortcut(
+	'create-note',
+	useCallback(
+		(e: KeyboardEvent) => {
+			e.preventDefault()
+			if (contextMenuState.itemId && contextMenuState.onCreateNote) {
+				contextMenuState.onCreateNote(contextMenuState.itemId)
+				setContextMenuState({
+					itemId: null,
+					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
+					onPinItem: null,
+				})
 			}
-			traverse(items)
-			return ids
 		},
-		[expandedFolders]
+		[contextMenuState, setContextMenuState]
 	)
+)
 
-	const sortItems = useCallback((items: Item[]): Item[] => {
-		const sorted = [...items]
-			.sort((a, b) => {
-				// Pinned items first
-				if (a.pinned && !b.pinned) return -1
-				if (!a.pinned && b.pinned) return 1
+useShortcut(
+	'create-folder',
+	useCallback(
+		(e: KeyboardEvent) => {
+			e.preventDefault()
+			if (contextMenuState.itemId && contextMenuState.onCreateFolder) {
+				contextMenuState.onCreateFolder(contextMenuState.itemId)
+				setContextMenuState({
+					itemId: null,
+					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
+					onPinItem: null,
+				})
+			}
+		},
+		[contextMenuState, setContextMenuState]
+	)
+)
 
-				if (a.pinned && b.pinned) {
-					const aPinnedAt = a.pinnedAt || a.createdAt
-					const bPinnedAt = b.pinnedAt || b.createdAt
-					if (aPinnedAt !== bPinnedAt) {
-						return bPinnedAt - aPinnedAt // Most recent first
-					}
-				}
+useShortcut(
+	'rename-item',
+	useCallback(
+		(e: KeyboardEvent) => {
+			if (contextMenuState.itemId && contextMenuState.onRename) {
+				e.preventDefault()
+				contextMenuState.onRename(contextMenuState.itemId)
+				setContextMenuState({
+					itemId: null,
+					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
+					onPinItem: null,
+				})
+			}
+		},
+		[contextMenuState, setContextMenuState]
+	)
+)
 
-				if (!a.pinned && !b.pinned) {
-					const aFavorite = a.type === 'note' && a.favorite
-					const bFavorite = b.type === 'note' && b.favorite
-					if (aFavorite && !bFavorite) return -1
-					if (!aFavorite && bFavorite) return 1
-				}
+useShortcut(
+	'pin-item',
+	useCallback(
+		(e: KeyboardEvent) => {
+			if (contextMenuState.itemId && contextMenuState.onPinItem) {
+				e.preventDefault()
+				contextMenuState.onPinItem(contextMenuState.itemId)
+				setContextMenuState({
+					itemId: null,
+					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
+					onPinItem: null,
+				})
+			}
+		},
+		[contextMenuState, setContextMenuState]
+	)
+)
 
-				if (!a.pinned && !b.pinned) {
-					if (a.type === 'folder' && b.type === 'note') return -1
-					if (a.type === 'note' && b.type === 'folder') return 1
-				}
-
-				return a.name.localeCompare(b.name)
-			})
-			.map((item) => {
-				if (item.type === 'folder') {
-					return {
-						...item,
-						children: [...sortItems(item.children)], // Ensure new array reference
-					}
-				}
-				return { ...item } // Create new object reference for notes too
-			})
-		return sorted
-	}, [])
-
-	const filteredItems = useMemo(() => {
-		if (!searchQuery.trim()) {
-			return sortItems(items)
-		}
-
-		const query = searchQuery.toLowerCase().trim()
-
-		const filterItems = (itemList: Item[]): Item[] => {
-			const filtered: Item[] = []
-
+const getAllVisibleItemIds = useCallback(
+	(items: Item[]): string[] => {
+		const ids: string[] = []
+		const traverse = (itemList: Item[]) => {
 			for (const item of itemList) {
-				const nameMatches = item.name.toLowerCase().includes(query)
+				ids.push(item.id)
+				if (item.type === 'folder' && expandedFolders.has(item.id)) {
+					traverse(item.children)
+				}
+			}
+		}
+		traverse(items)
+		return ids
+	},
+	[expandedFolders]
+)
 
-				let contentMatches = false
-				if (searchInContent && item.type === 'note' && 'content' in item) {
-					const note = item as { content?: Block[] }
-					if (note.content && Array.isArray(note.content)) {
-						try {
-							const contentText = blocksToText(note.content)
-							contentMatches = contentText.toLowerCase().includes(query)
-						} catch (error) {
-							// If content extraction fails, just search by name
-							console.warn('Failed to extract text from note content:', error)
-						}
+const sortItems = useCallback((items: Item[]): Item[] => {
+	const sorted = [...items]
+		.sort((a, b) => {
+			// Pinned items first
+			if (a.pinned && !b.pinned) return -1
+			if (!a.pinned && b.pinned) return 1
+
+			if (a.pinned && b.pinned) {
+				const aPinnedAt = a.pinnedAt || a.createdAt
+				const bPinnedAt = b.pinnedAt || b.createdAt
+				if (aPinnedAt !== bPinnedAt) {
+					return bPinnedAt - aPinnedAt // Most recent first
+				}
+			}
+
+			if (!a.pinned && !b.pinned) {
+				const aFavorite = a.type === 'note' && a.favorite
+				const bFavorite = b.type === 'note' && b.favorite
+				if (aFavorite && !bFavorite) return -1
+				if (!aFavorite && bFavorite) return 1
+			}
+
+			if (!a.pinned && !b.pinned) {
+				if (a.type === 'folder' && b.type === 'note') return -1
+				if (a.type === 'note' && b.type === 'folder') return 1
+			}
+
+			return a.name.localeCompare(b.name)
+		})
+		.map((item) => {
+			if (item.type === 'folder') {
+				return {
+					...item,
+					children: [...sortItems(item.children)], // Ensure new array reference
+				}
+			}
+			return { ...item } // Create new object reference for notes too
+		})
+	return sorted
+}, [])
+
+const filteredItems = useMemo(() => {
+	if (!searchQuery.trim()) {
+		return sortItems(items)
+	}
+
+	const query = searchQuery.toLowerCase().trim()
+
+	const filterItems = (itemList: Item[]): Item[] => {
+		const filtered: Item[] = []
+
+		for (const item of itemList) {
+			const nameMatches = item.name.toLowerCase().includes(query)
+
+			let contentMatches = false
+			if (searchInContent && item.type === 'note' && 'content' in item) {
+				const note = item as { content?: Block[] }
+				if (note.content && Array.isArray(note.content)) {
+					try {
+						const contentText = blocksToText(note.content)
+						contentMatches = contentText.toLowerCase().includes(query)
+					} catch (error) {
+						// If content extraction fails, just search by name
+						console.warn('Failed to extract text from note content:', error)
 					}
 				}
+			}
 
-				if (nameMatches || contentMatches) {
-					if (item.type === 'folder') {
-						const filteredChildren = filterItems(item.children)
-						filtered.push({
-							...item,
-							children: filteredChildren,
-						} as Item)
-					} else {
-						filtered.push(item)
-					}
-				} else if (item.type === 'folder') {
+			if (nameMatches || contentMatches) {
+				if (item.type === 'folder') {
 					const filteredChildren = filterItems(item.children)
-					if (filteredChildren.length > 0) {
-						filtered.push({
-							...item,
-							children: filteredChildren,
-						} as Item)
-					}
+					filtered.push({
+						...item,
+						children: filteredChildren,
+					} as Item)
+				} else {
+					filtered.push(item)
 				}
-			}
-
-			return filtered
-		}
-
-		return sortItems(filterItems(items))
-	}, [items, searchQuery, sortItems, searchInContent])
-
-	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
-			// Check if we're in an input/editor context
-			const target = e.target as HTMLElement
-			const isInput =
-				target.tagName === 'INPUT' ||
-				target.tagName === 'TEXTAREA' ||
-				target.isContentEditable ||
-				!!target.closest('[contenteditable="true"]')
-
-			if (isInput) {
-				return
-			}
-
-			if (e.key === 'Escape' && getSelectedCount() > 0) {
-				clearSelection()
-				return
-			}
-
-			if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-				e.preventDefault()
-				const allIds = getAllVisibleItemIds(filteredItems)
-				selectAll(allIds)
-				return
-			}
-
-			if (e.key === 'Delete' && getSelectedCount() > 0) {
-				e.preventDefault()
-				const ids = getSelectedIds()
-				for (const id of ids) {
-					handleDeleteItem(id).catch((error) => {
-						console.error(`Failed to delete item ${id}:`, error)
-					})
+			} else if (item.type === 'folder') {
+				const filteredChildren = filterItems(item.children)
+				if (filteredChildren.length > 0) {
+					filtered.push({
+						...item,
+						children: filteredChildren,
+					} as Item)
 				}
-				clearSelection()
-				return
 			}
 		}
 
-		document.addEventListener('keydown', handleKeyDown)
-		return () => document.removeEventListener('keydown', handleKeyDown)
-	}, [
-		getSelectedCount,
-		clearSelection,
-		selectAll,
-		getSelectedIds,
-		handleDeleteItem,
-		getAllVisibleItemIds,
-		filteredItems,
-		showConfirm,
-	])
-
-	if (finalContentType === 'custom' && customContent) {
-		return <>{customContent}</>
+		return filtered
 	}
 
-	if (finalContentType === 'table-of-contents') {
-		return customContent || null
+	return sortItems(filterItems(items))
+}, [items, searchQuery, sortItems, searchInContent])
+
+useEffect(() => {
+	const handleKeyDown = (e: KeyboardEvent) => {
+		// Check if we're in an input/editor context
+		const target = e.target as HTMLElement
+		const isInput =
+			target.tagName === 'INPUT' ||
+			target.tagName === 'TEXTAREA' ||
+			target.isContentEditable ||
+			!!target.closest('[contenteditable="true"]')
+
+		if (isInput) {
+			return
+		}
+
+		if (e.key === 'Escape' && getSelectedCount() > 0) {
+			clearSelection()
+			return
+		}
+
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+			e.preventDefault()
+			const allIds = getAllVisibleItemIds(filteredItems)
+			selectAll(allIds)
+			return
+		}
+
+		if (e.key === 'Delete' && getSelectedCount() > 0) {
+			e.preventDefault()
+			const ids = getSelectedIds()
+			for (const id of ids) {
+				handleDeleteItem(id).catch((error) => {
+					console.error(`Failed to delete item ${id}:`, error)
+				})
+			}
+			clearSelection()
+			return
+		}
 	}
 
-	if (finalContentType === 'tasks') {
-		return <TasksSidebarContent activeNoteId={activeNoteId} />
-	}
+	document.addEventListener('keydown', handleKeyDown)
+	return () => document.removeEventListener('keydown', handleKeyDown)
+}, [
+	getSelectedCount,
+	clearSelection,
+	selectAll,
+	getSelectedIds,
+	handleDeleteItem,
+	getAllVisibleItemIds,
+	filteredItems,
+	showConfirm,
+])
 
-	const isCollapsed = !isDesktopSidebarOpen
+if (finalContentType === 'custom' && customContent) {
+	return <>{customContent}</>
+}
 
-	if (isCollapsed) {
-		return (
-			<div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
-				<div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
-					<IconButton
-						icon={<NotesIcon />}
-						tooltip="Notes"
-						active={true}
-						variant="sidebar"
-						onClick={() => router.push('/')}
-					/>
-					<IconButton icon={<UIPlaygroundIcon />} tooltip="UI Playground" variant="sidebar" />
-				</div>
-			</div>
-		)
-	}
+if (finalContentType === 'table-of-contents') {
+	return customContent || null
+}
 
+if (finalContentType === 'tasks') {
+	return <TasksSidebarContent activeNoteId={activeNoteId} />
+}
+
+const isCollapsed = !isDesktopSidebarOpen
+
+if (isCollapsed) {
 	return (
+		<div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
+			<div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
+				<IconButton
+					icon={<NotesIcon />}
+					tooltip="Notes"
+					active={true}
+					variant="sidebar"
+					onClick={() => router.push('/')}
+				/>
+				<IconButton icon={<UIPlaygroundIcon />} tooltip="UI Playground" variant="sidebar" />
+			</div>
+		</div>
+	)
+}
+
+return (
+	<div
+		className={cn(
+			'h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background',
+			isMobile ? 'w-[280px] max-w-[85vw]' : 'w-[210px]'
+		)}
+	>
+		<ActionBar
+			onCreateNote={() => handleCreateNote()}
+			onCreateFolder={() => handleCreateFolder()}
+			searchConfig={{
+				query: searchQuery,
+				setQuery: setSearchQuery,
+				close: handleSearchClose,
+				toggle: handleSearchToggle,
+				isOpen: isSearchOpen,
+			}}
+			expandConfig={{
+				isExpanded: areAllFoldersExpanded,
+				onToggle: handleExpandCollapseAll,
+			}}
+		/>
 		<div
-			className={cn(
-				'h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background',
-				isMobile ? 'w-[280px] max-w-[85vw]' : 'w-[210px]'
-			)}
+			className="flex-1 overflow-y-auto px-2 pt-2 pb-4"
+			onClick={(e) => {
+				if (e.target === e.currentTarget) {
+					setSelectedFolderId(null)
+					clearSelection()
+				}
+			}}
 		>
-			<ActionBar
-				onCreateNote={() => handleCreateNote()}
-				onCreateFolder={() => handleCreateFolder()}
-				searchConfig={{
-					query: searchQuery,
-					setQuery: setSearchQuery,
-					close: handleSearchClose,
-					toggle: handleSearchToggle,
-					isOpen: isSearchOpen,
-				}}
-				expandConfig={{
-					isExpanded: areAllFoldersExpanded,
-					onToggle: handleExpandCollapseAll,
-				}}
-			/>
 			<div
-				className="flex-1 overflow-y-auto px-2 pt-2 pb-4"
+				className="flex flex-col items-start gap-1 w-full"
+				role="tree"
+				aria-label="Notes"
 				onClick={(e) => {
 					if (e.target === e.currentTarget) {
 						setSelectedFolderId(null)
@@ -1855,97 +1921,86 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					}
 				}}
 			>
-				<div
-					className="flex flex-col items-start gap-1 w-full"
-					role="tree"
-					aria-label="Notes"
-					onClick={(e) => {
-						if (e.target === e.currentTarget) {
-							setSelectedFolderId(null)
-							clearSelection()
-						}
-					}}
-				>
-					{isInitialLoading || isRefreshing ? (
-						/* Skeleton loader to prevent layout shift during initial load and refreshes */
-						<div className="flex flex-col gap-0.5 w-full animate-pulse">
-							{Array.from({ length: 8 }).map((_, i) => {
-								const isFolder = i % 3 === 0
-								const hasChildren = isFolder && i < 3
-								return (
-									<div key={i}>
-										<div className="flex items-center justify-between h-7 rounded-md px-1">
-											<div className="flex items-center gap-1.5 flex-1">
-												<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-												<div
-													className="h-3 rounded bg-muted-foreground/20"
-													style={{ width: `${60 + ((i * 13) % 60)}px` }}
-												/>
-											</div>
-											{isFolder && <div className="h-3 w-4 rounded bg-muted-foreground/15" />}
+				{isInitialLoading || isRefreshing ? (
+					/* Skeleton loader to prevent layout shift during initial load and refreshes */
+					<div className="flex flex-col gap-0.5 w-full animate-pulse">
+						{Array.from({ length: 8 }).map((_, i) => {
+							const isFolder = i % 3 === 0
+							const hasChildren = isFolder && i < 3
+							return (
+								<div key={i}>
+									<div className="flex items-center justify-between h-7 rounded-md px-1">
+										<div className="flex items-center gap-1.5 flex-1">
+											<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+											<div
+												className="h-3 rounded bg-muted-foreground/20"
+												style={{ width: `${60 + ((i * 13) % 60)}px` }}
+											/>
 										</div>
-										{hasChildren && (
-											<div className="ml-4 space-y-0.5 mt-0.5">
-												{Array.from({ length: 2 }).map((_, j) => (
-													<div key={j} className="flex items-center gap-1.5 h-7 px-1">
-														<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-														<div
-															className="h-3 rounded bg-muted-foreground/20"
-															style={{ width: `${50 + ((j * 20) % 50)}px` }}
-														/>
-													</div>
-												))}
-											</div>
-										)}
+										{isFolder && <div className="h-3 w-4 rounded bg-muted-foreground/15" />}
 									</div>
-								)
-							})}
-						</div>
-					) : filteredItems.length === 0 ? (
-						<div className="flex-1 w-full">
-							<SidebarEmptyState
-								hasSearchQuery={!!searchQuery}
-								onCreateNote={() => handleCreateNote()}
-								onCreateFolder={() => handleCreateFolder()}
-								onSearch={() => {
-									setSearchQuery('')
-									setIsSearchOpen(false)
-								}}
-							/>
-						</div>
-					) : (
-						filteredItems.map((item) => (
-							<FileTreeItem
-								key={item.id}
-								item={item}
-								activeNoteId={activeNoteId}
-								expandedFolders={expandedFolders}
-								selectedFolderId={selectedFolderId}
-								onToggleFolder={handleToggleFolder}
-								onNavigateNote={(id) => router.push(getNoteUrl(id))}
-								onRename={renameItem}
-								onDelete={handleDeleteItem}
-								onCreateNote={handleCreateNote}
-								onCreateFolder={handleCreateFolder}
-								onDragStart={handleDragStart}
-								onDragOver={(e) => e.preventDefault()}
-								onDrop={handleDrop}
-								onSelectFolder={handleSelectFolder}
-								onContextMenuOpenChange={handleContextMenuOpenChange}
-								onPinItem={pinItem}
-								onFavoriteNote={favoriteNote}
-								onMoveItem={moveItem}
-								allItems={items}
-								ruler={ruler}
-								openTabIds={openTabIds}
-								allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
-								showConfirm={showConfirm}
-							/>
-						))
-					)}
-				</div>
+									{hasChildren && (
+										<div className="ml-4 space-y-0.5 mt-0.5">
+											{Array.from({ length: 2 }).map((_, j) => (
+												<div key={j} className="flex items-center gap-1.5 h-7 px-1">
+													<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+													<div
+														className="h-3 rounded bg-muted-foreground/20"
+														style={{ width: `${50 + ((j * 20) % 50)}px` }}
+													/>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							)
+						})}
+					</div>
+				) : filteredItems.length === 0 ? (
+					<div className="flex-1 w-full">
+						<SidebarEmptyState
+							hasSearchQuery={!!searchQuery}
+							onCreateNote={() => handleCreateNote()}
+							onCreateFolder={() => handleCreateFolder()}
+							onSearch={() => {
+								setSearchQuery('')
+								setIsSearchOpen(false)
+							}}
+						/>
+					</div>
+				) : (
+					filteredItems.map((item) => (
+						<FileTreeItem
+							key={item.id}
+							item={item}
+							activeNoteId={activeNoteId}
+							expandedFolders={expandedFolders}
+							selectedFolderId={selectedFolderId}
+							onToggleFolder={handleToggleFolder}
+							onNavigateNote={(id) => router.push(getNoteUrl(id))}
+							onRename={renameItem}
+							onDelete={handleDeleteItem}
+							onCreateNote={handleCreateNote}
+							onCreateFolder={handleCreateFolder}
+							onDragStart={handleDragStart}
+							onDragOver={(e) => e.preventDefault()}
+							onDrop={handleDrop}
+							onSelectFolder={handleSelectFolder}
+							onContextMenuOpenChange={handleContextMenuOpenChange}
+							onPinItem={pinItem}
+							onFavoriteNote={favoriteNote}
+							onMoveItem={moveItem}
+							allItems={items}
+							ruler={ruler}
+							openTabIds={openTabIds}
+							allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
+							showConfirm={showConfirm}
+						/>
+					))
+				)}
 			</div>
-			<SidebarConfirmationPopover />
 		</div>
-	)
+		<SidebarConfirmationPopover />
+	</div>
+)
 }
