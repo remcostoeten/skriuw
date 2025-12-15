@@ -1,5 +1,4 @@
-import { Button } from '../ui/button'
-import { Kbd } from '../ui/kbd'
+import { Button, Kbd } from '@skriuw/ui'
 import { BrandLogo } from '../brand-logo'
 
 type Props = {
