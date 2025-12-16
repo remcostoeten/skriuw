@@ -24,13 +24,8 @@ export function SignInView() {
                     name,
                 }, {
                     onError: (ctx) => setError(ctx.error.message),
-                    onSuccess: async () => {
-                        // Seed the new user with template notes
-                        try {
-                            await fetch('/api/user/seed', { method: 'POST' })
-                        } catch (e) {
-                            console.error('Failed to seed user:', e)
-                        }
+                    onSuccess: () => {
+                        // Handle success (e.g., redirect or close modal)
                     }
                 });
             } else {

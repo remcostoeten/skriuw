@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import type { PreviewProps } from '../types'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import type { PreviewProps } from './index'
 
 // Mock tab data for preview
 const mockTabs = [
@@ -102,13 +102,13 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 	const getDemoHint = () => {
 		switch (currentDemo) {
 			case 'switch':
-				return 'Click tabs to switch between notes'
+				return '🔄 Click tabs to switch between notes'
 			case 'close':
-				return 'Click × to close tabs'
+				return '❌ Click × to close tabs'
 			case 'new':
-				return 'Open multiple notes at once'
+				return '➕ Open multiple notes at once'
 			default:
-				return 'Keep multiple notes open simultaneously'
+				return '💡 Keep multiple notes open simultaneously'
 		}
 	}
 
@@ -132,7 +132,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 
 	return (
 		<div
-			className="mt-3 rounded-md overflow-hidden border border-border"
+			className="mt-3 rounded-md overflow-hidden border border-border transition-all duration-200"
 			onMouseEnter={() => setIsHovering(true)}
 			onMouseLeave={() => setIsHovering(false)}
 		>
@@ -143,14 +143,18 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 
 			{/* Demo hints */}
 			<div
-				className="text-xs px-3 py-1 bg-muted/30 border-b border-border/50 text-muted-foreground"
+				className="text-xs px-3 py-1 bg-muted/30 border-b border-border/50 text-muted-foreground transition-all duration-500"
+				style={{
+					opacity: isHovering && value ? 1 : 0.7,
+					transform: isHovering && value ? 'translateY(0)' : 'translateY(-2px)',
+				}}
 			>
 				{getDemoHint()}
 			</div>
 
 			{/* Tab interface preview */}
 			<div
-				className="relative bg-background-secondary"
+				className="relative bg-background-secondary transition-all duration-300"
 				style={{
 					height: value ? '200px' : '120px',
 					opacity: value ? 1 : 0.3,
@@ -164,9 +168,12 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 							{tabs.map((tab, index) => (
 								<div
 									key={tab.id}
-									className={`group relative flex items-center px-3 py-2 text-xs font-medium border-r border-border/50 cursor-pointer ${tab.id === activeTab
-										? 'bg-accent text-accent-foreground border-b-2 border-b-accent'
-										: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+									className={`group relative flex items-center px-3 py-2 text-xs font-medium border-r border-border/50 cursor-pointer transition-all duration-200 ${tab.id === activeTab
+											? 'bg-accent text-accent-foreground border-b-2 border-b-accent'
+											: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+										} ${currentDemo === 'switch' && tab.id === activeTab ? 'animate-pulse' : ''
+										} ${currentDemo === 'close' && tab.id !== activeTab ? 'animate-pulse opacity-50' : ''
+										} ${currentDemo === 'new' && tab.id === 'temp' ? 'animate-pulse bg-muted/30' : ''
 										}`}
 									onClick={() => handleTabClick(tab.id)}
 									style={{
@@ -174,7 +181,12 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 										maxWidth: '150px',
 									}}
 								>
-									<span className="mr-2 text-[10px] text-muted-foreground">•</span>
+									{/* File icon */}
+									<span className="mr-2 text-[10px]">
+										{tab.title.endsWith('.md') ? '📝' :
+											tab.title.endsWith('.txt') ? '📄' :
+												tab.title.endsWith('.task') ? '✅' : '📄'}
+									</span>
 
 									{/* Tab title */}
 									<span className="truncate flex-1 text-left">
@@ -197,7 +209,10 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 							))}
 
 							{/* New tab button */}
-							<div className="px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer border-r border-border/50">
+							<div
+								className={`px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-all duration-200 border-r border-border/50 ${currentDemo === 'new' ? 'animate-pulse bg-muted/30' : ''
+									}`}
+							>
 								<span className="text-[12px]">+</span>
 							</div>
 
@@ -211,7 +226,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 						<div className="flex-1 p-4 overflow-hidden">
 							<div className="h-full bg-background rounded border border-border/30 p-3">
 								{/* Simulated content based on active tab */}
-								<div>
+								<div className="animate-fadeIn">
 									{tabs.find(t => t.id === activeTab)?.title.endsWith('.md') ? (
 										<div className="space-y-2">
 											<div className="font-semibold text-sm"># {tabs.find(t => t.id === activeTab)?.title}</div>
@@ -223,7 +238,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 										</div>
 									) : tabs.find(t => t.id === activeTab)?.title.endsWith('.task') ? (
 										<div className="space-y-2">
-											<div className="font-semibold text-sm">{tabs.find(t => t.id === activeTab)?.title}</div>
+											<div className="font-semibold text-sm">📋 {tabs.find(t => t.id === activeTab)?.title}</div>
 											<div className="space-y-1">
 												<div className="flex items-center gap-2 text-xs">
 													<span>☐</span>
@@ -250,16 +265,48 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 						</div>
 					</div>
 				) : (
-					<div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3">
-						<div className="text-center space-y-1">
-							<div className="text-sm font-medium text-foreground">Multi-Tabs Disabled</div>
-							<div className="text-xs text-muted-foreground max-w-[180px]">
-								Enable to work on multiple notes at once
-							</div>
+					<div className="h-full flex items-center justify-center text-muted-foreground">
+						<div className="text-center">
+							<div className="text-4xl mb-2">📑</div>
+							<div className="text-sm">Multi-Tabs Disabled</div>
 						</div>
 					</div>
 				)}
 			</div>
+
+			{/* Feature highlights */}
+			{isHovering && value && (
+				<div className="px-3 py-2 bg-muted/20 border-t border-border/50 grid grid-cols-3 gap-2 text-xs">
+					<div className="flex items-center gap-1 text-muted-foreground">
+						<span className="font-medium">🔄</span>
+						<span>Quick Switch</span>
+					</div>
+					<div className="flex items-center gap-1 text-muted-foreground">
+						<span className="font-medium">💾</span>
+						<span>Auto Save</span>
+					</div>
+					<div className="flex items-center gap-1 text-muted-foreground">
+						<span className="font-medium">⚡</span>
+						<span>Instant Access</span>
+					</div>
+				</div>
+			)}
+
+			<style jsx>{`
+				@keyframes fadeIn {
+					from {
+						opacity: 0;
+						transform: translateY(5px);
+					}
+					to {
+						opacity: 1;
+						transform: translateY(0);
+					}
+				}
+				.animate-fadeIn {
+					animation: fadeIn 0.3s ease-out;
+				}
+			`}</style>
 		</div>
 	)
 }

@@ -6,7 +6,7 @@
 
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth, authEnabled, authDisabledReason } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 
 /**
  * Session result from Better Auth
@@ -25,19 +25,12 @@ export interface Session {
 }
 
 /**
- * Special user ID for guest/public access.
- * Used to scope demo/seed data visible to unauthenticated users.
- */
-export const GUEST_USER_ID = '__guest__'
-
-/**
  * Authentication result for API routes
  */
 export interface AuthResult {
     authenticated: true
     userId: string
     session: Session
-    isGuest?: boolean
 }
 
 export interface AuthError {
@@ -56,11 +49,6 @@ export interface AuthError {
  * @returns Session or null if not authenticated
  */
 export async function getSession(): Promise<Session | null> {
-    if (!authEnabled || !auth) {
-        console.warn(authDisabledReason || 'Auth disabled')
-        return null
-    }
-
     try {
         const session = await auth.api.getSession({
             headers: await headers(),
@@ -87,42 +75,6 @@ export async function getCurrentUserId(): Promise<string | null> {
 // API ROUTE HELPERS
 // ============================================================================
 
-export async function evaluateAuthGuard(
-    getSessionFn: () => Promise<Session | null>,
-    options: { authEnabled: boolean; disabledReason?: string }
-): Promise<AuthResult | AuthError> {
-    if (!options.authEnabled) {
-        return {
-            authenticated: false,
-            response: NextResponse.json(
-                {
-                    error: 'Service unavailable',
-                    message: options.disabledReason || 'Authentication is disabled',
-                },
-                { status: 503 }
-            ),
-        }
-    }
-
-    const session = await getSessionFn()
-
-    if (!session?.user?.id) {
-        return {
-            authenticated: false,
-            response: NextResponse.json(
-                { error: 'Unauthorized', message: 'Authentication required' },
-                { status: 401 }
-            ),
-        }
-    }
-
-    return {
-        authenticated: true,
-        userId: session.user.id,
-        session,
-    }
-}
-
 /**
  * Requires authentication for an API route.
  * Returns an error response if not authenticated.
@@ -141,49 +93,23 @@ export async function evaluateAuthGuard(
  * ```
  */
 export async function requireAuth(): Promise<AuthResult | AuthError> {
-    return evaluateAuthGuard(getSession, {
-        authEnabled: authEnabled && Boolean(auth),
-        disabledReason: authDisabledReason || undefined,
-    })
-}
+    const session = await getSession()
 
-/**
- * For read-only endpoints: returns userId if authenticated, or GUEST_USER_ID for guests.
- * Never rejects - allows all users to read.
- * 
- * @returns userId string (real user ID or GUEST_USER_ID)
- */
-export async function allowReadAccess(): Promise<{ userId: string; isGuest: boolean }> {
-    const userId = await getCurrentUserId()
-    if (userId) {
-        return { userId, isGuest: false }
-    }
-    return { userId: GUEST_USER_ID, isGuest: true }
-}
-
-/**
- * Requires authentication for mutation (POST/PUT/DELETE) endpoints.
- * Returns a 401 error with a special flag indicating login is required for this action.
- * 
- * @returns AuthResult with userId, or AuthError with error response
- */
-export async function requireMutation(): Promise<AuthResult | AuthError> {
-    const result = await requireAuth()
-    if (!result.authenticated) {
-        // Override response with mutation-specific message
+    if (!session?.user?.id) {
         return {
             authenticated: false,
             response: NextResponse.json(
-                {
-                    error: 'Login required',
-                    message: 'You need an account to perform this action',
-                    action: 'mutation_blocked'
-                },
+                { error: 'Unauthorized', message: 'Authentication required' },
                 { status: 401 }
             ),
         }
     }
-    return result
+
+    return {
+        authenticated: true,
+        userId: session.user.id,
+        session,
+    }
 }
 
 /**

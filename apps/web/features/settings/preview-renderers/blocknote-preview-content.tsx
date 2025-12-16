@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { PartialBlock } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
+import '@blocknote/core/style.css'
 import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
-import { generateId } from '@skriuw/core-logic'
 
 // Sample content for BlockNote preview
 const SAMPLE_BLOCKS: PartialBlock[] = [
@@ -120,13 +120,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 	const [currentDemo, setCurrentDemo] = useState<'idle' | 'typing' | 'slash' | 'drag'>('idle')
 	const demoTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const editorInitializedRef = useRef(false)
-	const [isClient, setIsClient] = useState(false)
-	const instanceId = useMemo(() => generateId('blocknote-'), [])
-
-	// Ensure we only render on client side
-	useEffect(() => {
-		setIsClient(true)
-	}, [])
+	const instanceId = useMemo(() => `blocknote-${Date.now()}-${Math.random()}`, [])
 
 	// Create a read-only editor for preview with stable reference
 	// Use a stable key to prevent duplicate instances in React Strict Mode
@@ -138,10 +132,9 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 				return Promise.resolve('/placeholder.png')
 			},
 		},
-		[instanceId] // Depend on instanceId to prevent duplicate instances
+		[]
 	)
 
-	
 	// Prevent duplicate editor initialization
 	useEffect(() => {
 		if (editor && !editorInitializedRef.current) {
@@ -224,7 +217,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 					pointerEvents: value ? 'auto' : ('none' as const),
 				}}
 			>
-				{value && editor && isClient ? (
+				{value && editor ? (
 					<div className="h-full overflow-hidden">
 						<BlockNoteView
 							key={instanceId}

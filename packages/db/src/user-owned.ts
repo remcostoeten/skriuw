@@ -5,7 +5,7 @@
  */
 
 import { text, index } from 'drizzle-orm/pg-core'
-import type { AnyPgColumn } from 'drizzle-orm/pg-core'
+import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 
 /**
  * Standard columns for user-owned entities.
@@ -20,9 +20,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core'
  * })
  * ```
  */
-export function createUserOwnershipColumn(
-    userTable: { id: AnyPgColumn }
-) {
+export function createUserOwnershipColumn(userTable: PgTableWithColumns<any>) {
     return {
         userId: text('user_id').references(() => userTable.id),
     }
@@ -35,7 +33,7 @@ export function createUserOwnershipColumn(
  * @param tableName - The name of the table (used for index naming)
  * @param userIdColumn - The userId column reference
  */
-export function createUserIndex(tableName: string, userIdColumn: AnyPgColumn) {
+export function createUserIndex(tableName: string, userIdColumn: any) {
     return index(`${tableName}_user_id_idx`).on(userIdColumn)
 }
 
@@ -51,8 +49,8 @@ export function createUserIndex(tableName: string, userIdColumn: AnyPgColumn) {
 export function createUserCompositeIndex(
     tableName: string,
     indexSuffix: string,
-    userIdColumn: AnyPgColumn,
-    secondColumn: AnyPgColumn
+    userIdColumn: any,
+    secondColumn: any
 ) {
     return index(`${tableName}_user_${indexSuffix}_idx`).on(userIdColumn, secondColumn)
 }
