@@ -7,7 +7,7 @@ type Position = {
 	y: number
 }
 
-type Options = {
+type UseDraggableOptions = {
 	initialPosition?: Position
 	storageKey?: string
 	disabled?: boolean
@@ -24,7 +24,7 @@ export function useDraggable({
 	storageKey,
 	disabled = false,
 	bounds = {},
-}: Options) {
+}: UseDraggableOptions = {}) {
 	const [position, setPosition] = useState<Position>(initialPosition)
 	const [isDragging, setIsDragging] = useState(false)
 	const dragRef = useRef<HTMLDivElement>(null)
