@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic'
-import type { PreviewProps } from '../types'
+import type { PreviewProps } from './index'
 
 // Dynamically import BlockNote to prevent SSR issues
 // ProseMirror plugins cause "Duplicate use of selection JSON ID" errors during SSR
