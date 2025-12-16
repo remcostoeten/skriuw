@@ -1,8 +1,9 @@
 import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import type { Note } from '../../types'
 
+import type { Note } from '../../types'
+import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function favoriteNote(noteId: string, favorite: boolean): Promise<Note | undefined> {
@@ -11,6 +12,16 @@ export async function favoriteNote(noteId: string, favorite: boolean): Promise<N
 			favorite,
 		})
 		invalidateItemsCache()
+
+		if (result.data) {
+			trackActivity({
+				entityType: 'note',
+				entityId: noteId,
+				action: favorite ? 'favorited' : 'unfavorited',
+				entityName: result.data.name || 'Untitled'
+			})
+		}
+
 		return result.data as Note | undefined
 	} catch (error) {
 		throw new Error(

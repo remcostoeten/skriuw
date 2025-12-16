@@ -5,6 +5,8 @@ import { getInitialNoteContent } from '../../utils/get-initial-note-content'
 
 import type { Note, CreateNoteData } from '../../types'
 import type { SettingsEntity } from '@/features/settings/api/types'
+import { trackActivity } from '@/features/activity'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 const SETTINGS_STORAGE_KEY = 'skriuw:settings'
 
@@ -14,8 +16,6 @@ async function getSettings(): Promise<SettingsEntity | null> {
 	const items = Array.isArray(result.data) ? result.data : []
 	return items[0] ?? null
 }
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function createNote(data: CreateNoteData): Promise<Note> {
 	try {
@@ -45,6 +45,13 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 		// But getItems wraps it with specific logic, so we keep this calls for now
 		// to ensure the UI updates (even though getItems now just invalidates storage key)
 		invalidateItemsCache()
+
+		trackActivity({
+			entityType: 'note',
+			entityId: result.data.id,
+			action: 'created',
+			entityName: data.name
+		})
 
 		return result.data
 	} catch (error) {
