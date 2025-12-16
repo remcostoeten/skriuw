@@ -1,10 +1,10 @@
-import { update } from '@skriuw/crud'
+import { update, readOne } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
 import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
-
+import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 /**
@@ -13,6 +13,11 @@ import { STORAGE_KEYS } from '@/lib/storage-keys'
  */
 export async function deleteItem(id: string): Promise<boolean> {
 	try {
+		// Get item name before deletion for activity tracking
+		const itemResult = await readOne<Item>(STORAGE_KEYS.NOTES, id)
+		const itemName = itemResult.success && itemResult.data ? itemResult.data.name : 'Unknown'
+		const entityType = itemResult.success && itemResult.data?.type === 'folder' ? 'folder' : 'note'
+
 		const result = await update(STORAGE_KEYS.NOTES, id, {
 			deletedAt: Date.now(),
 		} as Partial<Item>)
@@ -20,6 +25,14 @@ export async function deleteItem(id: string): Promise<boolean> {
 		if (result.success && result.data) {
 			invalidateItemsCache()
 			invalidatePrefetchedNote(id)
+
+			trackActivity({
+				entityType,
+				entityId: id,
+				action: 'deleted',
+				entityName: itemName
+			})
+
 			return true
 		}
 		return false

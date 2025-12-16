@@ -1,8 +1,9 @@
 import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import type { Note, Folder, Item } from '../../types'
 
+import type { Note, Folder, Item } from '../../types'
+import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function pinItem(
@@ -23,6 +24,16 @@ export async function pinItem(
 
 		const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData)
 		invalidateItemsCache()
+
+		if (result.data) {
+			trackActivity({
+				entityType: itemType,
+				entityId: itemId,
+				action: pinned ? 'pinned' : 'unpinned',
+				entityName: result.data.name || 'Untitled'
+			})
+		}
+
 		return result.data as Note | Folder | undefined
 	} catch (error) {
 		throw new Error(
