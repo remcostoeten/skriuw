@@ -11,6 +11,7 @@ let _dbClient: NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schem
 export * from './schema'
 export { schema }
 export * from './user-owned'
+export * from './activity-events'
 
 type DatabaseProvider = 'neon' | 'postgres'
 

@@ -399,7 +399,7 @@ export function useNotes() {
 	)
 
 	const moveItem = useCallback(
-		async (itemId: string, targetFolderId: string | null) => {
+		async (itemId: string, targetFolderId: string | null | undefined) => {
 			// Optimistic update: move item in UI immediately
 			const previousItems = items
 			let movedItem: Item | null = null
@@ -446,7 +446,7 @@ export function useNotes() {
 
 			// Perform actual move in background
 			try {
-				const success = await moveItemMutation(itemId, targetFolderId)
+				const success = await moveItemMutation(itemId, targetFolderId ?? undefined)
 				if (!success) {
 					setItems(previousItems)
 					return false

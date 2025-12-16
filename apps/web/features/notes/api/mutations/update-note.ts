@@ -4,6 +4,7 @@ import type { Note, UpdateNoteData } from '../../types'
 import { update } from '@skriuw/crud'
 import { syncTasksToDatabase } from '../../../tasks'
 import { extractTasksFromBlocks } from '../../utils/extract-tasks'
+import { trackActivity } from '@/features/activity'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
@@ -30,6 +31,15 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 				// Log error but don't fail the note update
 				console.error('Failed to sync tasks to database:', taskError)
 			}
+		}
+
+		if (result.data) {
+			trackActivity({
+				entityType: 'note',
+				entityId: id,
+				action: 'updated',
+				entityName: result.data.name || 'Untitled'
+			})
 		}
 
 		return result.data ?? undefined
