@@ -3,7 +3,7 @@ import { create } from '@skriuw/crud'
 import { invalidateItemsCache } from '../queries/get-items'
 
 import type { Folder, CreateFolderData } from '../../types'
-
+import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
@@ -20,6 +20,14 @@ export async function createFolder(data: CreateFolderData): Promise<Folder> {
 		}
 
 		invalidateItemsCache()
+
+		trackActivity({
+			entityType: 'folder',
+			entityId: result.data.id,
+			action: 'created',
+			entityName: data.name
+		})
+
 		return result.data
 	} catch (error) {
 		throw new Error(
