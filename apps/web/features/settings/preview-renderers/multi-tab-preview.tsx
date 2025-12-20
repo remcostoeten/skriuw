@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import type { PreviewProps } from './index'
+import type { PreviewProps } from '../types'
 
 // Mock tab data for preview
 const mockTabs = [

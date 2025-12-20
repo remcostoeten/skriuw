@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Moon, Sun, User, Loader2 } from "lucide-react";
 import { Button } from "@skriuw/ui";
-import EmailAutocomplete from "./email-auocomplete";
+import EmailAutocomplete from "./email-autocomplete";
 import { PasswordInput } from "./password-input";
 import { signIn, signUp } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
