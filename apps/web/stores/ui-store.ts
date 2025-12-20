@@ -28,6 +28,11 @@ type UIState = {
 	// Last Active Note Tracking
 	lastActiveNoteId: string | null
 	setLastActiveNote: (noteId: string | null) => void
+
+	// Right Sidebar for Notes
+	isRightSidebarOpen: boolean
+	toggleRightSidebar: () => void
+	setRightSidebarOpen: (open: boolean) => void
 }
 
 const safeStorage = () => {
@@ -93,6 +98,14 @@ export const useUIStore = create<UIState>()(
 			// Last Active Note Tracking
 			lastActiveNoteId: null,
 			setLastActiveNote: (noteId) => set({ lastActiveNoteId: noteId }),
+
+			// Right Sidebar for Notes
+			isRightSidebarOpen: false,
+			toggleRightSidebar: () =>
+				set((state) => ({
+					isRightSidebarOpen: !state.isRightSidebarOpen,
+				})),
+			setRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
 		}),
 		{
 			name: 'ui-storage',

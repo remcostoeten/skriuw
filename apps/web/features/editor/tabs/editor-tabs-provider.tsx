@@ -34,17 +34,17 @@ const readPersistedState = (): PersistedState => {
 		const parsed = JSON.parse(raw) as PersistedState
 		const deduped = Array.isArray(parsed.tabs)
 			? parsed.tabs.reduce<EditorTab[]>((acc, tab) => {
-					if (!tab?.noteId) return acc
-					if (acc.some((existing) => existing.noteId === tab.noteId)) {
-						return acc
-					}
-					acc.push({
-						noteId: tab.noteId,
-						title: tab.title ?? 'Untitled',
-						lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
-					})
+				if (!tab?.noteId) return acc
+				if (acc.some((existing) => existing.noteId === tab.noteId)) {
 					return acc
-				}, [])
+				}
+				acc.push({
+					noteId: tab.noteId,
+					title: tab.title ?? 'Untitled',
+					lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
+				})
+				return acc
+			}, [])
 			: []
 		return {
 			tabs: deduped.slice(-MAX_TABS),
@@ -71,10 +71,10 @@ type EditorTabsProviderProps = {
 }
 
 export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
-	const [tabs, setTabs] = useState<EditorTab[]>(() => readPersistedState().tabs)
-	const [activeNoteId, setActiveNoteId] = useState<string | null>(
-		() => readPersistedState().activeNoteId
-	)
+	// Read persisted state only once to ensure consistent hydration
+	const [{ tabs: initialTabs, activeNoteId: initialActiveNoteId }] = useState(() => readPersistedState())
+	const [tabs, setTabs] = useState<EditorTab[]>(initialTabs)
+	const [activeNoteId, setActiveNoteId] = useState<string | null>(initialActiveNoteId)
 
 	useEffect(() => {
 		persistState({ tabs, activeNoteId })
