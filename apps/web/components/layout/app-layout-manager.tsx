@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useCallback, useEffect, useState, useRef } from 'react'
+import { ReactNode, useMemo, useCallback, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
@@ -33,6 +33,7 @@ import type { SidebarContentType } from '../sidebar/types'
 import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
+import { RightSidebar } from '../right-sidebar'
 
 type AppLayoutManagerProps = {
 	children: ReactNode
@@ -60,9 +61,9 @@ export function AppLayoutManager({
 	const { data: session, isPending } = useSession()
 
 	useEffect(() => {
-		// List of public paths that don't require auth
-		const publicPaths = ['/login', '/register', '/auth/callback']
-		const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
+		// List of public paths that don't require auth (kept for reference)
+		// const publicPaths = ['/login', '/register', '/auth/callback']
+		// const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
 		// Removed forced redirect logic to allow public browsing
 	}, [session, isPending, pathname, router])
@@ -100,8 +101,8 @@ export function AppLayoutManager({
 		toggleSettings,
 		setSettingsOpen,
 		taskStack,
-		closeAllTasks,
 		setLastActiveNote,
+		toggleRightSidebar,
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
@@ -134,8 +135,26 @@ export function AppLayoutManager({
 		return notesInOrder.findIndex((note) => note.id === sidebarActiveNoteId)
 	}, [sidebarActiveNoteId, notesInOrder])
 
-	// Compute title based on titleDisplayMode setting
+	// Compute title based on current page and titleDisplayMode setting
 	const computedTitle = useMemo(() => {
+		// Handle special pages that should show breadcrumbs instead of note titles
+		if (pathname.startsWith('/trash')) {
+			return 'Trash'
+		}
+		if (pathname.startsWith('/archive')) {
+			return 'Data & Backup'
+		}
+		if (pathname.startsWith('/profile')) {
+			return 'Profile'
+		}
+		if (pathname.startsWith('/activity')) {
+			return 'Activity'
+		}
+		if (pathname.startsWith('/tasks')) {
+			return 'Tasks'
+		}
+
+		// For note pages, use the existing logic
 		if (!currentNote) {
 			return 'Untitled'
 		}
@@ -152,7 +171,7 @@ export function AppLayoutManager({
 			default:
 				return currentNote.name || 'Untitled'
 		}
-	}, [currentNote, titleDisplayMode])
+	}, [currentNote, titleDisplayMode, pathname])
 
 	const handleNavigatePrevious = useCallback(() => {
 		if (currentNoteIndex > 0) {
@@ -188,11 +207,15 @@ export function AppLayoutManager({
 		}
 	}, [sidebarActiveNoteId, setLastActiveNote])
 
+	// Open/activate tab when navigating to a note
+	// Note: We intentionally exclude computedTitle from dependencies to avoid re-render loops
+	// since openTab updates lastVisitedAt. Title updates happen separately when the tab bar renders.
 	useEffect(() => {
 		if (!multiNoteTabs || !currentNoteId) return
 		openTab({ noteId: currentNoteId, title: computedTitle })
 		setActiveTab(currentNoteId)
-	}, [multiNoteTabs, currentNoteId, computedTitle, openTab, setActiveTab])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [multiNoteTabs, currentNoteId, openTab, setActiveTab])
 
 	useEffect(() => {
 		if (!multiNoteTabs || !tabs.length) return
@@ -369,15 +392,17 @@ export function AppLayoutManager({
 					noteName={computedTitle}
 					onToggleSidebar={toggleMobileSidebar}
 					onToggleDesktopSidebar={toggleDesktopSidebar}
-					onNavigatePrevious={handleNavigatePrevious}
-					onNavigateNext={handleNavigateNext}
+					onToggleRightSidebar={toggleRightSidebar}
+					// Navigation arrows - only show for note pages when navigation functions are available
+					onNavigatePrevious={sidebarActiveNoteId ? handleNavigatePrevious : undefined}
+					onNavigateNext={sidebarActiveNoteId ? handleNavigateNext : undefined}
 					canNavigatePrevious={canNavigatePrevious}
 					canNavigateNext={canNavigateNext}
 					isRawMDXMode={hasRawMDXMode}
 					onToggleEditorMode={handleToggleEditorMode}
 					showSidebar={showSidebar}
 					showEditorModeToggle={!!sidebarActiveNoteId}
-					// Wiring up split toggles
+					// Wire up split toggles - only show for note pages
 					showSplitToggle={!!sidebarActiveNoteId}
 					isSplitViewActive={orientation !== 'single'}
 					onSplitToggle={() => toggleSplit(currentNoteId)}
@@ -424,6 +449,7 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
+					<RightSidebar noteId={sidebarActiveNoteId || undefined} content={currentNote?.content} />
 
 					{/* <AlphaBanner
 						href="/docs"

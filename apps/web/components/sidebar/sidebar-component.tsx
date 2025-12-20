@@ -1,15 +1,25 @@
 'use client'
 
 import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type TouchEvent
+} from 'react'
 import { useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
+import {
+	useMediaQuery,
+	MOBILE_BREAKPOINT
+} from '@skriuw/core-logic/use-media-query'
 
 import { IconButton, NotesIcon, UIPlaygroundIcon } from '@skriuw/ui/icons'
 import {
 	useConfirmationPopover,
-	type ConfirmationPopoverOptions,
+	type ConfirmationPopoverOptions
 } from '@skriuw/ui/confirmation-popover'
 
 import { cn } from '@skriuw/shared'
@@ -34,7 +44,7 @@ import {
 	ContextMenuSub,
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
-	ContextMenuTrigger,
+	ContextMenuTrigger
 } from '@skriuw/ui'
 
 import { ActionBar } from '../action-bar'
@@ -58,11 +68,14 @@ function MoveFolderMenu({
 	onMoveItem,
 	isMobile,
 	selectedIds,
-	onClearSelection,
+	onClearSelection
 }: {
 	currentFolderId: string
 	allItems: Item[]
-	onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>
+	onMoveItem: (
+		itemId: string,
+		targetFolderId: string | null
+	) => Promise<boolean>
 	isMobile: boolean
 	selectedIds?: string[]
 	onClearSelection?: () => void
@@ -71,7 +84,9 @@ function MoveFolderMenu({
 
 	const checkIsDescendant = useCallback(
 		(folderId: string, ancestorIds: string[], items: Item[]): boolean => {
-			return ancestorIds.some((ancestorId) => isDescendant(items, ancestorId, folderId))
+			return ancestorIds.some((ancestorId) =>
+				isDescendant(items, ancestorId, folderId)
+			)
 		},
 		[]
 	)
@@ -130,7 +145,10 @@ function MoveFolderMenu({
 		<>
 			<ContextMenuItem
 				onClick={handleMoveToRoot}
-				className={cn('text-xs min-h-[36px]', isMobile && 'text-sm h-12 px-4')}
+				className={cn(
+					'text-xs min-h-[36px]',
+					isMobile && 'text-sm h-12 px-4'
+				)}
 			>
 				Root folder
 			</ContextMenuItem>
@@ -139,9 +157,17 @@ function MoveFolderMenu({
 				<ContextMenuItem
 					key={folder.id}
 					onClick={() => handleMoveToFolder(folder.id)}
-					className={cn('text-xs min-h-[36px]', isMobile && 'text-sm h-12 px-4')}
+					className={cn(
+						'text-xs min-h-[36px]',
+						isMobile && 'text-sm h-12 px-4'
+					)}
 				>
-					<FolderOpen className={cn('w-3.5 h-3.5 mr-2', isMobile && 'w-5 h-5')} />
+					<FolderOpen
+						className={cn(
+							'w-3.5 h-3.5 mr-2',
+							isMobile && 'w-5 h-5'
+						)}
+					/>
 					{folder.name}
 				</ContextMenuItem>
 			))}
@@ -151,7 +177,12 @@ function MoveFolderMenu({
 
 // Folder closed SVG
 const FolderClosedIcon = () => (
-	<svg className="w-[18px] h-[18px] shrink-0" width="1em" height="1em" viewBox="0 0 20 20">
+	<svg
+		className="w-[18px] h-[18px] shrink-0"
+		width="1em"
+		height="1em"
+		viewBox="0 0 20 20"
+	>
 		<path
 			fillRule="evenodd"
 			clipRule="evenodd"
@@ -163,7 +194,12 @@ const FolderClosedIcon = () => (
 
 // Folder open SVG
 const FolderOpenIcon = () => (
-	<svg className="w-[18px] h-[18px] shrink-0" width="1em" height="1em" viewBox="0 0 20 20">
+	<svg
+		className="w-[18px] h-[18px] shrink-0"
+		width="1em"
+		height="1em"
+		viewBox="0 0 20 20"
+	>
 		<path
 			fillRule="evenodd"
 			clipRule="evenodd"
@@ -190,7 +226,9 @@ type props = {
 
 // Helper function to format shortcut keys for display
 // Prefers single-key shortcuts for context menu display
-const formatShortcut = (shortcutId: keyof typeof shortcutDefinitions): string | null => {
+const formatShortcut = (
+	shortcutId: keyof typeof shortcutDefinitions
+): string | null => {
 	const definition = shortcutDefinitions[shortcutId]
 	if (!definition || !definition.enabled) return null
 
@@ -246,7 +284,7 @@ function FileTreeItem({
 	ruler,
 	openTabIds,
 	allVisibleItemIds,
-	showConfirm,
+	showConfirm
 }: {
 	item: Item
 	level?: number
@@ -274,9 +312,16 @@ function FileTreeItem({
 			onPinItem: (id: string) => void
 		}
 	) => void
-	onPinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => void
+	onPinItem: (
+		itemId: string,
+		itemType: 'note' | 'folder',
+		pinned: boolean
+	) => void
 	onFavoriteNote: (noteId: string, favorite: boolean) => void
-	onMoveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>
+	onMoveItem: (
+		itemId: string,
+		targetFolderId: string | null
+	) => Promise<boolean>
 	allItems: Item[]
 	ruler?: RulerProps
 	openTabIds?: string[]
@@ -300,7 +345,8 @@ function FileTreeItem({
 	const isActive = !isFolder && activeNoteId === item.id
 	const isFolderSelected = isFolder && selectedFolderId === item.id
 	const hasOpenTab = !isFolder && openTabIds?.includes(item.id)
-	const hasChildren = isFolder && item.type === 'folder' && item.children.length > 0
+	const hasChildren =
+		isFolder && item.type === 'folder' && item.children.length > 0
 
 	// Selection store
 	const {
@@ -313,7 +359,7 @@ function FileTreeItem({
 		setAnchor,
 		selectRange,
 		anchorId,
-		lastSelectedId,
+		lastSelectedId
 	} = useSelectionStore()
 	const isItemSelected = isSelected(item.id)
 
@@ -330,7 +376,7 @@ function FileTreeItem({
 						inputRef.current.scrollIntoView({
 							behavior: 'smooth',
 							block: 'nearest',
-							inline: 'nearest',
+							inline: 'nearest'
 						})
 					}
 				})
@@ -496,7 +542,10 @@ function FileTreeItem({
 		}
 
 		// Don't select if clicking on the folder icon area (check if the click originated from the icon)
-		if (isFolder && (e.target as HTMLElement).closest('[data-folder-icon]')) {
+		if (
+			isFolder &&
+			(e.target as HTMLElement).closest('[data-folder-icon]')
+		) {
 			return
 		}
 
@@ -580,7 +629,15 @@ function FileTreeItem({
 				}
 			}
 		},
-		[isRenaming, isFolder, onToggleFolder, item.id, onNavigateNote, isExpanded, hasChildren]
+		[
+			isRenaming,
+			isFolder,
+			onToggleFolder,
+			item.id,
+			onNavigateNote,
+			isExpanded,
+			hasChildren
+		]
 	)
 
 	const handleContextMenuOpenChange = useCallback(
@@ -602,7 +659,7 @@ function FileTreeItem({
 					},
 					onPinItem: (id: string) => {
 						onPinItem(id, item.type, !item.pinned)
-					},
+					}
 				})
 			}
 		},
@@ -615,7 +672,7 @@ function FileTreeItem({
 			onCreateFolder,
 			onRename,
 			onPinItem,
-			onContextMenuOpenChange,
+			onContextMenuOpenChange
 		]
 	)
 
@@ -697,7 +754,7 @@ function FileTreeItem({
 					bubbles: true,
 					cancelable: true,
 					clientX: touch.clientX,
-					clientY: touch.clientY,
+					clientY: touch.clientY
 				})
 				button.dispatchEvent(contextMenuEvent)
 				// Haptic feedback if available
@@ -802,16 +859,22 @@ function FileTreeItem({
 									isActive && !isItemSelected
 										? 'bg-accent text-foreground'
 										: 'text-secondary-foreground/80 hover:text-foreground',
-									isItemSelected && !isActive ? 'bg-accent/50 text-foreground' : ''
+									isItemSelected && !isActive
+										? 'bg-accent/50 text-foreground'
+										: ''
 								)}
-								style={{ paddingLeft: `${0.75 + level * 0.75}rem` }}
+								style={{
+									paddingLeft: `${0.75 + level * 0.75}rem`
+								}}
 								draggable={true}
 								onDragStart={(e) => {
 									if (isMobile) {
 										// On mobile, only allow drag if we've been holding for a bit
 										if (
 											!touchDragStartTimeRef.current ||
-											Date.now() - touchDragStartTimeRef.current < 200
+											Date.now() -
+												touchDragStartTimeRef.current <
+												200
 										) {
 											e.preventDefault()
 											return
@@ -824,7 +887,9 @@ function FileTreeItem({
 								onKeyDown={handleKeyDown}
 								tabIndex={0}
 								role="treeitem"
-								aria-expanded={isFolder ? isExpanded : undefined}
+								aria-expanded={
+									isFolder ? isExpanded : undefined
+								}
 								aria-selected={isItemSelected}
 							>
 								<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
@@ -833,14 +898,22 @@ function FileTreeItem({
 											<div
 												data-folder-icon
 												onClick={handleFolderToggle}
-												onMouseEnter={() => setIsHovering(true)}
-												onMouseLeave={() => setIsHovering(false)}
+												onMouseEnter={() =>
+													setIsHovering(true)
+												}
+												onMouseLeave={() =>
+													setIsHovering(false)
+												}
 												className={cn(
 													'shrink-0',
-													hasChildren ? 'cursor-pointer' : 'cursor-default'
+													hasChildren
+														? 'cursor-pointer'
+														: 'cursor-default'
 												)}
 											>
-												{isExpanded || isFolderSelected || (isHovering && hasChildren) ? (
+												{isExpanded ||
+												isFolderSelected ||
+												(isHovering && hasChildren) ? (
 													<FolderOpenIcon />
 												) : (
 													<FolderClosedIcon />
@@ -864,7 +937,11 @@ function FileTreeItem({
 												// Delay blur handling to prevent premature completion
 												// when context menu closes or other UI interactions occur
 												setTimeout(() => {
-													if (inputRef.current && document.activeElement !== inputRef.current) {
+													if (
+														inputRef.current &&
+														document.activeElement !==
+															inputRef.current
+													) {
 														handleRenameComplete()
 													}
 												}, 200)
@@ -917,12 +994,18 @@ function FileTreeItem({
 											{!isFolder && item.favorite && (
 												<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
 											)}
-											<span className="truncate">{item.name}</span>
+											<span className="truncate">
+												{item.name}
+											</span>
 										</span>
 									)}
 								</div>
 
-								{isFolder && <span className="text-xs text-foreground/40">{childCount}</span>}
+								{isFolder && (
+									<span className="text-xs text-foreground/40">
+										{childCount}
+									</span>
+								)}
 							</button>
 						</div>
 					</div>
@@ -931,7 +1014,8 @@ function FileTreeItem({
 				<ContextMenuContent
 					className={cn(
 						'w-44 max-w-[90vw]',
-						isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+						isMobile &&
+							'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 					)}
 				>
 					<ContextMenuItem
@@ -939,12 +1023,22 @@ function FileTreeItem({
 							e.stopPropagation()
 							onCreateNote(isFolder ? item.id : undefined)
 						}}
-						className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+						className={cn(
+							'h-8 text-xs font-base min-h-[36px]',
+							isMobile && 'h-12 text-sm px-4'
+						)}
 					>
-						<FilePlus className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+						<FilePlus
+							className={cn(
+								'w-4 h-4 mr-3 shrink-0',
+								isMobile && 'w-5 h-5'
+							)}
+						/>
 						New note
 						{!isMobile && (
-							<ContextMenuShortcut>{formatShortcut('create-note') || '⌘N'}</ContextMenuShortcut>
+							<ContextMenuShortcut>
+								{formatShortcut('create-note') || '⌘N'}
+							</ContextMenuShortcut>
 						)}
 					</ContextMenuItem>
 					{isFolder && (
@@ -953,12 +1047,22 @@ function FileTreeItem({
 								e.stopPropagation()
 								onCreateFolder(item.id)
 							}}
-							className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+							className={cn(
+								'h-8 text-xs font-base min-h-[36px]',
+								isMobile && 'h-12 text-sm px-4'
+							)}
 						>
-							<FolderOpen className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+							<FolderOpen
+								className={cn(
+									'w-4 h-4 mr-3 shrink-0',
+									isMobile && 'w-5 h-5'
+								)}
+							/>
 							New folder
 							{!isMobile && (
-								<ContextMenuShortcut>{formatShortcut('create-folder') || '⌘F'}</ContextMenuShortcut>
+								<ContextMenuShortcut>
+									{formatShortcut('create-folder') || '⌘F'}
+								</ContextMenuShortcut>
 							)}
 						</ContextMenuItem>
 					)}
@@ -975,12 +1079,22 @@ function FileTreeItem({
 								}
 							}, 50)
 						}}
-						className={cn(' text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+						className={cn(
+							' text-xs font-base min-h-[36px]',
+							isMobile && 'h-12 text-sm px-4'
+						)}
 					>
-						<Edit className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+						<Edit
+							className={cn(
+								'w-4 h-4 mr-3 shrink-0',
+								isMobile && 'w-5 h-5'
+							)}
+						/>
 						Rename
 						{!isMobile && (
-							<ContextMenuShortcut>{formatShortcut('rename-item') || '⌘R'}</ContextMenuShortcut>
+							<ContextMenuShortcut>
+								{formatShortcut('rename-item') || '⌘R'}
+							</ContextMenuShortcut>
 						)}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
@@ -989,16 +1103,29 @@ function FileTreeItem({
 							e.stopPropagation()
 							onPinItem(item.id, item.type, !item.pinned)
 						}}
-						className={cn('h-8 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+						className={cn(
+							'h-8 text-xs font-base min-h-[36px]',
+							isMobile && 'h-12 text-sm px-4'
+						)}
 					>
 						{item.pinned ? (
 							<>
-								<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								<Pin
+									className={cn(
+										'w-4 h-4 mr-3 shrink-0',
+										isMobile && 'w-5 h-5'
+									)}
+								/>
 								Unpin from top
 							</>
 						) : (
 							<>
-								<Pin className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								<Pin
+									className={cn(
+										'w-4 h-4 mr-3 shrink-0',
+										isMobile && 'w-5 h-5'
+									)}
+								/>
 								Pin to top
 							</>
 						)}
@@ -1015,7 +1142,12 @@ function FileTreeItem({
 									isMobile && 'h-12 text-sm px-4'
 								)}
 							>
-								<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+								<Star
+									className={cn(
+										'w-4 h-4 mr-3 shrink-0',
+										isMobile && 'w-5 h-5'
+									)}
+								/>
 								Add to favorites
 							</ContextMenuItem>
 							<ContextMenuItem
@@ -1061,7 +1193,12 @@ function FileTreeItem({
 									</>
 								) : (
 									<>
-										<Star className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
+										<Star
+											className={cn(
+												'w-4 h-4 mr-3 shrink-0',
+												isMobile && 'w-5 h-5'
+											)}
+										/>
 										Add to favorites
 									</>
 								)}
@@ -1070,9 +1207,17 @@ function FileTreeItem({
 					)}
 					<ContextMenuSub>
 						<ContextMenuSubTrigger
-							className={cn('h-7 text-xs font-base min-h-[36px]', isMobile && 'h-12 text-sm px-4')}
+							className={cn(
+								'h-7 text-xs font-base min-h-[36px]',
+								isMobile && 'h-12 text-sm px-4'
+							)}
 						>
-							<FolderOpen className={cn('w-3.5 h-3.5 mr-2', isMobile && 'w-5 h-5')} />
+							<FolderOpen
+								className={cn(
+									'w-3.5 h-3.5 mr-2',
+									isMobile && 'w-5 h-5'
+								)}
+							/>
 							{getSelectedCount() > 1
 								? `Move ${getSelectedCount()} items to...`
 								: isFolder
@@ -1081,7 +1226,8 @@ function FileTreeItem({
 						</ContextMenuSubTrigger>
 						<ContextMenuSubContent
 							className={cn(
-								isMobile && 'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+								isMobile &&
+									'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 							)}
 						>
 							<MoveFolderMenu
@@ -1089,8 +1235,16 @@ function FileTreeItem({
 								allItems={allItems}
 								onMoveItem={onMoveItem}
 								isMobile={isMobile}
-								selectedIds={getSelectedCount() > 1 ? getSelectedIds() : undefined}
-								onClearSelection={getSelectedCount() > 1 ? clearSelection : undefined}
+								selectedIds={
+									getSelectedCount() > 1
+										? getSelectedIds()
+										: undefined
+								}
+								onClearSelection={
+									getSelectedCount() > 1
+										? clearSelection
+										: undefined
+								}
 							/>
 						</ContextMenuSubContent>
 					</ContextMenuSub>
@@ -1113,10 +1267,19 @@ function FileTreeItem({
 							isMobile && 'h-12 text-sm px-4'
 						)}
 					>
-						<Trash2 className={cn('w-4 h-4 mr-3 shrink-0', isMobile && 'w-5 h-5')} />
-						{getSelectedCount() > 1 ? `Delete ${getSelectedCount()} items` : 'Delete'}
+						<Trash2
+							className={cn(
+								'w-4 h-4 mr-3 shrink-0',
+								isMobile && 'w-5 h-5'
+							)}
+						/>
+						{getSelectedCount() > 1
+							? `Delete ${getSelectedCount()} items`
+							: 'Delete'}
 						{!isMobile && (
-							<ContextMenuShortcut>{formatShortcut('delete-item') || 'Del'}</ContextMenuShortcut>
+							<ContextMenuShortcut>
+								{formatShortcut('delete-item') || 'Del'}
+							</ContextMenuShortcut>
 						)}
 					</ContextMenuItem>
 				</ContextMenuContent>
@@ -1131,7 +1294,7 @@ function FileTreeItem({
 									borderLeft: `1px ${ruler.style === 'dashed' ? 'dashed' : 'solid'}`,
 									borderColor: ruler.color || 'currentColor',
 									opacity: ruler.opacity || 0.25,
-									zIndex: 1,
+									zIndex: 1
 								}}
 							/>
 						)}
@@ -1153,7 +1316,9 @@ function FileTreeItem({
 								onDragOver={onDragOver}
 								onDrop={onDrop}
 								onSelectFolder={onSelectFolder}
-								onContextMenuOpenChange={onContextMenuOpenChange}
+								onContextMenuOpenChange={
+									onContextMenuOpenChange
+								}
 								onPinItem={onPinItem}
 								onFavoriteNote={onFavoriteNote}
 								onMoveItem={onMoveItem}
@@ -1170,14 +1335,22 @@ function FileTreeItem({
 	)
 }
 
-export function Sidebar({ activeNoteId, contentType, customContent, ruler, openTabIds }: props) {
+export function Sidebar({
+	activeNoteId,
+	contentType,
+	customContent,
+	ruler,
+	openTabIds
+}: props) {
 	const router = useRouter()
 	const detectedContentType = useSidebarContentType()
 	const finalContentType = contentType || detectedContentType
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 
 	// Access sidebar state
-	const isDesktopSidebarOpen = useUIStore((state) => state.isDesktopSidebarOpen)
+	const isDesktopSidebarOpen = useUIStore(
+		(state) => state.isDesktopSidebarOpen
+	)
 
 	// All hooks must be called before any conditional returns
 	const {
@@ -1190,42 +1363,78 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		deleteItem: originalDeleteItem,
 		moveItem: originalMoveItem,
 		pinItem: originalPinItem,
-		favoriteNote: originalFavoriteNote,
+		favoriteNote: originalFavoriteNote
 	} = useNotesContext()
 	const { guard } = useMutationGuard()
 	const { getNoteUrl } = useNoteSlug(items)
 
 	// Wrap actions with guard
-	const createNote = useCallback(async (title: string, parentId?: string) => {
-		return guard(() => originalCreateNote(title, parentId))
-	}, [guard, originalCreateNote])
+	const createNote = useCallback(
+		async (title: string, parentId?: string) => {
+			return guard(() => originalCreateNote(title, parentId))
+		},
+		[guard, originalCreateNote]
+	)
 
-	const createFolder = useCallback(async (title: string, parentId?: string) => {
-		return guard(() => originalCreateFolder(title, parentId))
-	}, [guard, originalCreateFolder])
+	const createFolder = useCallback(
+		async (title: string, parentId?: string) => {
+			return guard(() => originalCreateFolder(title, parentId))
+		},
+		[guard, originalCreateFolder]
+	)
 
-	const renameItem = useCallback(async (id: string, name: string) => {
-		return guard(() => originalRenameItem(id, name), { message: 'Sign in to rename items' })
-	}, [guard, originalRenameItem])
+	const renameItem = useCallback(
+		async (id: string, name: string) => {
+			return guard(() => originalRenameItem(id, name), {
+				message: 'Sign in to rename items'
+			})
+		},
+		[guard, originalRenameItem]
+	)
 
-	const deleteItem = useCallback(async (id: string) => {
-		return guard(() => originalDeleteItem(id), { message: 'Sign in to delete items' })
-	}, [guard, originalDeleteItem])
+	const deleteItem = useCallback(
+		async (id: string) => {
+			return guard(() => originalDeleteItem(id), {
+				message: 'Sign in to delete items'
+			})
+		},
+		[guard, originalDeleteItem]
+	)
 
-	const moveItem = useCallback(async (id: string, targetId: string | null) => {
-		return guard(() => originalMoveItem(id, targetId), { message: 'Sign in to move items' })
-	}, [guard, originalMoveItem])
+	const moveItem = useCallback(
+		async (id: string, targetId: string | null): Promise<boolean> => {
+			const result = await guard(() => originalMoveItem(id, targetId), {
+				message: 'Sign in to move items'
+			})
+			return result ?? false
+		},
+		[guard, originalMoveItem]
+	)
 
-	const pinItem = useCallback(async (id: string, type: 'note' | 'folder', pinned: boolean) => {
-		return guard(() => originalPinItem(id, type, pinned), { message: 'Sign in to pin items' })
-	}, [guard, originalPinItem])
+	const pinItem = useCallback(
+		async (id: string, type: 'note' | 'folder', pinned: boolean) => {
+			return guard(() => originalPinItem(id, type, pinned), {
+				message: 'Sign in to pin items'
+			})
+		},
+		[guard, originalPinItem]
+	)
 
-	const favoriteNote = useCallback(async (id: string, favorite: boolean) => {
-		return guard(() => originalFavoriteNote(id, favorite), { message: 'Sign in to favorite notes' })
-	}, [guard, originalFavoriteNote])
+	const favoriteNote = useCallback(
+		async (id: string, favorite: boolean) => {
+			return guard(() => originalFavoriteNote(id, favorite), {
+				message: 'Sign in to favorite notes'
+			})
+		},
+		[guard, originalFavoriteNote]
+	)
 
-	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
-	const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+		new Set()
+	)
+	const [selectedFolderId, setSelectedFolderId] = useState<string | null>(
+		null
+	)
 	const draggedItemRef = useRef<Item | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -1234,10 +1443,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	const searchInContent = getSetting('searchInContent') ?? false
 
 	// Selection store
-	const { selectAll, clearSelection, getSelectedCount, getSelectedIds } = useSelectionStore()
+	const { selectAll, clearSelection, getSelectedCount, getSelectedIds } =
+		useSelectionStore()
 
 	// Confirmation popover for keyboard-triggered bulk delete
-	const { showConfirm, ConfirmationPopover: SidebarConfirmationPopover } = useConfirmationPopover()
+	const { showConfirm, ConfirmationPopover: SidebarConfirmationPopover } =
+		useConfirmationPopover()
 
 	// Wrap deleteItem to handle navigation when deleting the active note
 	const handleDeleteItem = useCallback(
@@ -1267,7 +1478,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	}, [])
 
 	useEffect(() => {
-		localStorage.setItem(EXPANDED_FOLDERS_KEY, JSON.stringify(Array.from(expandedFolders)))
+		localStorage.setItem(
+			EXPANDED_FOLDERS_KEY,
+			JSON.stringify(Array.from(expandedFolders))
+		)
 	}, [expandedFolders])
 
 	const handleToggleFolder = useCallback(
@@ -1280,15 +1494,27 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					newSet.delete(id)
 				} else {
 					// If folder is collapsed, expand it smartly to show first file
-					const findFirstNotePath = (items: Item[], targetId: string): string[] | null => {
+					const findFirstNotePath = (
+						items: Item[],
+						targetId: string
+					): string[] | null => {
 						// Find the target folder first
-						const findFolder = (itemList: Item[], folderId: string): Item | null => {
+						const findFolder = (
+							itemList: Item[],
+							folderId: string
+						): Item | null => {
 							for (const item of itemList) {
-								if (item.id === folderId && item.type === 'folder') {
+								if (
+									item.id === folderId &&
+									item.type === 'folder'
+								) {
 									return item
 								}
 								if (item.type === 'folder') {
-									const found = findFolder(item.children, folderId)
+									const found = findFolder(
+										item.children,
+										folderId
+									)
 									if (found) return found
 								}
 							}
@@ -1299,7 +1525,9 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						if (!targetFolder) return null
 
 						// Find the first note in this folder's hierarchy
-						const findFirstNoteInHierarchy = (folder: Item): string[] | null => {
+						const findFirstNoteInHierarchy = (
+							folder: Item
+						): string[] | null => {
 							if (folder.type !== 'folder') return null
 
 							// Check direct children for notes first
@@ -1312,7 +1540,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 							// If no direct notes, check subfolders recursively
 							for (const child of folder.children) {
 								if (child.type === 'folder') {
-									const subPath = findFirstNoteInHierarchy(child)
+									const subPath =
+										findFirstNoteInHierarchy(child)
 									if (subPath) {
 										return [folder.id, ...subPath]
 									}
@@ -1351,7 +1580,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	useEffect(() => {
 		if (selectedFolderId) {
-			const findActualItem = (itemList: Item[], id: string): Item | undefined => {
+			const findActualItem = (
+				itemList: Item[],
+				id: string
+			): Item | undefined => {
 				for (const item of itemList) {
 					if (item.id === id) return item
 					if (item.type === 'folder') {
@@ -1371,7 +1603,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	const handleCreateNote = useCallback(
 		async (parentId?: string) => {
-			const targetFolderId = parentId !== undefined ? parentId : selectedFolderId
+			const targetFolderId =
+				parentId !== undefined ? parentId : selectedFolderId
 
 			// No need to guard here again if createNote is guarded, BUT handleCreateNote does other things too.
 			// It might be safer to keep the guard here OR let createNote fail gracefully?
@@ -1389,7 +1622,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				})
 			}
 
-			const newNote = await createNote('Untitled', targetFolderId || undefined)
+			const newNote = await createNote(
+				'Untitled',
+				targetFolderId || undefined
+			)
 			if (!newNote) return // Blocked
 
 			const url = getNoteUrl(newNote.id)
@@ -1401,7 +1637,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 
 	const handleCreateFolder = useCallback(
 		async (parentId?: string) => {
-			const targetFolderId = parentId !== undefined ? parentId : selectedFolderId
+			const targetFolderId =
+				parentId !== undefined ? parentId : selectedFolderId
 
 			if (targetFolderId) {
 				setExpandedFolders((prev) => {
@@ -1432,9 +1669,69 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				return
 			}
 
-			// ... (rest of logic) ...
-			// moveItem is called at the end. It is now guarded.
-			// ...
+			const findActualItem = (
+				itemList: Item[],
+				id: string
+			): Item | undefined => {
+				for (const item of itemList) {
+					if (item.id === id) return item
+					if (item.type === 'folder') {
+						const found = findActualItem(item.children, id)
+						if (found) return found
+					}
+				}
+				return undefined
+			}
+
+			const targetItem = findActualItem(items, targetId)
+			if (!targetItem || targetItem.type !== 'folder') {
+				draggedItemRef.current = null
+				return
+			}
+
+			const isDescendant = (
+				parentId: string,
+				childId: string
+			): boolean => {
+				const parent = findActualItem(items, parentId)
+				if (!parent || parent.type !== 'folder') return false
+
+				const checkChildren = (folder: FolderType): boolean => {
+					return folder.children.some((child) => {
+						if (child.id === childId) return true
+						if (child.type === 'folder') {
+							return checkChildren(child as FolderType)
+						}
+						return false
+					})
+				}
+
+				return checkChildren(parent as FolderType)
+			}
+
+			if (
+				draggedItem.type === 'folder' &&
+				isDescendant(draggedItem.id, targetId)
+			) {
+				draggedItemRef.current = null
+				return
+			}
+
+			const isAlreadyInTarget =
+				targetItem.type === 'folder' &&
+				targetItem.children.some((child) => child.id === draggedItem.id)
+			if (isAlreadyInTarget) {
+				draggedItemRef.current = null
+				return
+			}
+
+			// Expand target folder so user can see the moved item
+			setExpandedFolders((prev) => {
+				const newSet = new Set(prev)
+				newSet.add(targetId)
+				return newSet
+			})
+
 			const success = await moveItem(draggedItem.id, targetId)
 			draggedItemRef.current = null
 
@@ -1445,475 +1742,422 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		[items, moveItem]
 	)
 
-	const findActualItem = (itemList: Item[], id: string): Item | undefined => {
-		for (const item of itemList) {
-			if (item.id === id) return item
+	const collectAllFolderIds = useCallback((items: Item[]): string[] => {
+		const folderIds: string[] = []
+		const traverse = (item: Item) => {
 			if (item.type === 'folder') {
-				const found = findActualItem(item.children, id)
-				if (found) return found
+				folderIds.push(item.id)
+				item.children.forEach(traverse)
 			}
 		}
-		return undefined
-	}
+		items.forEach(traverse)
+		return folderIds
+	}, [])
 
-	const targetItem = findActualItem(items, targetId)
-	if (!targetItem || targetItem.type !== 'folder') {
-		draggedItemRef.current = null
-		return
-	}
+	const areAllFoldersExpanded = useMemo(() => {
+		const allFolderIds = collectAllFolderIds(items)
+		return (
+			allFolderIds.length > 0 &&
+			allFolderIds.every((id) => expandedFolders.has(id))
+		)
+	}, [items, expandedFolders, collectAllFolderIds])
 
-	const isDescendant = (parentId: string, childId: string): boolean => {
-		const parent = findActualItem(items, parentId)
-		if (!parent || parent.type !== 'folder') return false
-
-		const checkChildren = (folder: FolderType): boolean => {
-			return folder.children.some((child) => {
-				if (child.id === childId) return true
-				if (child.type === 'folder') {
-					return checkChildren(child as FolderType)
-				}
-				return false
-			})
-		}
-
-		return checkChildren(parent as FolderType)
-	}
-
-	if (draggedItem.type === 'folder' && isDescendant(draggedItem.id, targetId)) {
-		draggedItemRef.current = null
-		return
-	}
-
-	const isAlreadyInTarget =
-		targetItem.type === 'folder' &&
-		targetItem.children.some((child) => child.id === draggedItem.id)
-	if (isAlreadyInTarget) {
-		draggedItemRef.current = null
-		return
-	}
-
-	// Expand target folder so user can see the moved item
-	setExpandedFolders((prev) => {
-		const newSet = new Set(prev)
-		newSet.add(targetId)
-		return newSet
-	})
-
-	const success = await moveItem(draggedItem.id, targetId)
-	draggedItemRef.current = null
-
-	if (!success) {
-		console.error('Failed to move item')
-	}
-},
-[items, moveItem]
-	)
-
-const collectAllFolderIds = useCallback((items: Item[]): string[] => {
-	const folderIds: string[] = []
-	const traverse = (item: Item) => {
-		if (item.type === 'folder') {
-			folderIds.push(item.id)
-			item.children.forEach(traverse)
-		}
-	}
-	items.forEach(traverse)
-	return folderIds
-}, [])
-
-const areAllFoldersExpanded = useMemo(() => {
-	const allFolderIds = collectAllFolderIds(items)
-	return allFolderIds.length > 0 && allFolderIds.every((id) => expandedFolders.has(id))
-}, [items, expandedFolders, collectAllFolderIds])
-
-const handleExpandCollapseAll = useCallback(() => {
-	const allFolderIds = collectAllFolderIds(items)
-	if (areAllFoldersExpanded) {
-		setExpandedFolders(new Set())
-	} else {
-		setExpandedFolders(new Set(allFolderIds))
-	}
-}, [items, areAllFoldersExpanded, collectAllFolderIds])
-
-const handleSearchToggle = useCallback(() => {
-	setIsSearchOpen((prev) => !prev)
-}, [])
-
-const handleSearchClose = useCallback(() => {
-	setIsSearchOpen(false)
-	setSearchQuery('')
-}, [])
-
-const handleContextMenuOpenChange = useCallback(
-	(
-		open: boolean,
-		itemId: string,
-		handlers: {
-			onDelete: (id: string) => void
-			onCreateNote: (id: string) => void
-			onCreateFolder: (id: string) => void
-			onRename: (id: string) => void
-			onPinItem: (id: string) => void
-		}
-	) => {
-		if (open) {
-			setContextMenuState({
-				itemId,
-				...handlers,
-			})
+	const handleExpandCollapseAll = useCallback(() => {
+		const allFolderIds = collectAllFolderIds(items)
+		if (areAllFoldersExpanded) {
+			setExpandedFolders(new Set())
 		} else {
-			setContextMenuState({
-				itemId: null,
-				onDelete: null,
-				onCreateNote: null,
-				onCreateFolder: null,
-				onRename: null,
-				onPinItem: null,
+			setExpandedFolders(new Set(allFolderIds))
+		}
+	}, [items, areAllFoldersExpanded, collectAllFolderIds])
+
+	const handleSearchToggle = useCallback(() => {
+		setIsSearchOpen((prev) => !prev)
+	}, [])
+
+	const handleSearchClose = useCallback(() => {
+		setIsSearchOpen(false)
+		setSearchQuery('')
+	}, [])
+
+	const handleContextMenuOpenChange = useCallback(
+		(
+			open: boolean,
+			itemId: string,
+			handlers: {
+				onDelete: (id: string) => void
+				onCreateNote: (id: string) => void
+				onCreateFolder: (id: string) => void
+				onRename: (id: string) => void
+				onPinItem: (id: string) => void
+			}
+		) => {
+			if (open) {
+				setContextMenuState({
+					itemId,
+					...handlers
+				})
+			} else {
+				setContextMenuState({
+					itemId: null,
+					onDelete: null,
+					onCreateNote: null,
+					onCreateFolder: null,
+					onRename: null,
+					onPinItem: null
+				})
+			}
+		},
+		[setContextMenuState]
+	)
+
+	useShortcut(
+		'delete-item',
+		useCallback(
+			(e: KeyboardEvent) => {
+				// Don't handle if items are selected (bulk delete takes precedence)
+				if (getSelectedCount() > 0) {
+					return
+				}
+				e.preventDefault()
+				if (contextMenuState.itemId && contextMenuState.onDelete) {
+					contextMenuState.onDelete(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState, getSelectedCount]
+		)
+	)
+
+	useShortcut(
+		'create-note',
+		useCallback(
+			(e: KeyboardEvent) => {
+				e.preventDefault()
+				if (contextMenuState.itemId && contextMenuState.onCreateNote) {
+					contextMenuState.onCreateNote(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	useShortcut(
+		'create-folder',
+		useCallback(
+			(e: KeyboardEvent) => {
+				e.preventDefault()
+				if (
+					contextMenuState.itemId &&
+					contextMenuState.onCreateFolder
+				) {
+					contextMenuState.onCreateFolder(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	useShortcut(
+		'rename-item',
+		useCallback(
+			(e: KeyboardEvent) => {
+				if (contextMenuState.itemId && contextMenuState.onRename) {
+					e.preventDefault()
+					contextMenuState.onRename(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	useShortcut(
+		'pin-item',
+		useCallback(
+			(e: KeyboardEvent) => {
+				if (contextMenuState.itemId && contextMenuState.onPinItem) {
+					e.preventDefault()
+					contextMenuState.onPinItem(contextMenuState.itemId)
+					setContextMenuState({
+						itemId: null,
+						onDelete: null,
+						onCreateNote: null,
+						onCreateFolder: null,
+						onRename: null,
+						onPinItem: null
+					})
+				}
+			},
+			[contextMenuState, setContextMenuState]
+		)
+	)
+
+	const getAllVisibleItemIds = useCallback(
+		(items: Item[]): string[] => {
+			const ids: string[] = []
+			const traverse = (itemList: Item[]) => {
+				for (const item of itemList) {
+					ids.push(item.id)
+					if (
+						item.type === 'folder' &&
+						expandedFolders.has(item.id)
+					) {
+						traverse(item.children)
+					}
+				}
+			}
+			traverse(items)
+			return ids
+		},
+		[expandedFolders]
+	)
+
+	const sortItems = useCallback((items: Item[]): Item[] => {
+		const sorted = [...items]
+			.sort((a, b) => {
+				// Pinned items first
+				if (a.pinned && !b.pinned) return -1
+				if (!a.pinned && b.pinned) return 1
+
+				if (a.pinned && b.pinned) {
+					const aPinnedAt = a.pinnedAt || a.createdAt
+					const bPinnedAt = b.pinnedAt || b.createdAt
+					if (aPinnedAt !== bPinnedAt) {
+						return bPinnedAt - aPinnedAt // Most recent first
+					}
+				}
+
+				if (!a.pinned && !b.pinned) {
+					const aFavorite = a.type === 'note' && a.favorite
+					const bFavorite = b.type === 'note' && b.favorite
+					if (aFavorite && !bFavorite) return -1
+					if (!aFavorite && bFavorite) return 1
+				}
+
+				if (!a.pinned && !b.pinned) {
+					if (a.type === 'folder' && b.type === 'note') return -1
+					if (a.type === 'note' && b.type === 'folder') return 1
+				}
+
+				return a.name.localeCompare(b.name)
 			})
+			.map((item) => {
+				if (item.type === 'folder') {
+					return {
+						...item,
+						children: [...sortItems(item.children)] // Ensure new array reference
+					}
+				}
+				return { ...item } // Create new object reference for notes too
+			})
+		return sorted
+	}, [])
+
+	const filteredItems = useMemo(() => {
+		if (!searchQuery.trim()) {
+			return sortItems(items)
 		}
-	},
-	[setContextMenuState]
-)
 
-useShortcut(
-	'delete-item',
-	useCallback(
-		(e: KeyboardEvent) => {
-			// Don't handle if items are selected (bulk delete takes precedence)
-			if (getSelectedCount() > 0) {
-				return
-			}
-			e.preventDefault()
-			if (contextMenuState.itemId && contextMenuState.onDelete) {
-				contextMenuState.onDelete(contextMenuState.itemId)
-				setContextMenuState({
-					itemId: null,
-					onDelete: null,
-					onCreateNote: null,
-					onCreateFolder: null,
-					onRename: null,
-					onPinItem: null,
-				})
-			}
-		},
-		[contextMenuState, setContextMenuState, getSelectedCount]
-	)
-)
+		const query = searchQuery.toLowerCase().trim()
 
-useShortcut(
-	'create-note',
-	useCallback(
-		(e: KeyboardEvent) => {
-			e.preventDefault()
-			if (contextMenuState.itemId && contextMenuState.onCreateNote) {
-				contextMenuState.onCreateNote(contextMenuState.itemId)
-				setContextMenuState({
-					itemId: null,
-					onDelete: null,
-					onCreateNote: null,
-					onCreateFolder: null,
-					onRename: null,
-					onPinItem: null,
-				})
-			}
-		},
-		[contextMenuState, setContextMenuState]
-	)
-)
+		const filterItems = (itemList: Item[]): Item[] => {
+			const filtered: Item[] = []
 
-useShortcut(
-	'create-folder',
-	useCallback(
-		(e: KeyboardEvent) => {
-			e.preventDefault()
-			if (contextMenuState.itemId && contextMenuState.onCreateFolder) {
-				contextMenuState.onCreateFolder(contextMenuState.itemId)
-				setContextMenuState({
-					itemId: null,
-					onDelete: null,
-					onCreateNote: null,
-					onCreateFolder: null,
-					onRename: null,
-					onPinItem: null,
-				})
-			}
-		},
-		[contextMenuState, setContextMenuState]
-	)
-)
-
-useShortcut(
-	'rename-item',
-	useCallback(
-		(e: KeyboardEvent) => {
-			if (contextMenuState.itemId && contextMenuState.onRename) {
-				e.preventDefault()
-				contextMenuState.onRename(contextMenuState.itemId)
-				setContextMenuState({
-					itemId: null,
-					onDelete: null,
-					onCreateNote: null,
-					onCreateFolder: null,
-					onRename: null,
-					onPinItem: null,
-				})
-			}
-		},
-		[contextMenuState, setContextMenuState]
-	)
-)
-
-useShortcut(
-	'pin-item',
-	useCallback(
-		(e: KeyboardEvent) => {
-			if (contextMenuState.itemId && contextMenuState.onPinItem) {
-				e.preventDefault()
-				contextMenuState.onPinItem(contextMenuState.itemId)
-				setContextMenuState({
-					itemId: null,
-					onDelete: null,
-					onCreateNote: null,
-					onCreateFolder: null,
-					onRename: null,
-					onPinItem: null,
-				})
-			}
-		},
-		[contextMenuState, setContextMenuState]
-	)
-)
-
-const getAllVisibleItemIds = useCallback(
-	(items: Item[]): string[] => {
-		const ids: string[] = []
-		const traverse = (itemList: Item[]) => {
 			for (const item of itemList) {
-				ids.push(item.id)
-				if (item.type === 'folder' && expandedFolders.has(item.id)) {
-					traverse(item.children)
+				const nameMatches = item.name.toLowerCase().includes(query)
+
+				let contentMatches = false
+				if (
+					searchInContent &&
+					item.type === 'note' &&
+					'content' in item
+				) {
+					const note = item as { content?: Block[] }
+					if (note.content && Array.isArray(note.content)) {
+						try {
+							const contentText = blocksToText(note.content)
+							contentMatches = contentText
+								.toLowerCase()
+								.includes(query)
+						} catch (error) {
+							// If content extraction fails, just search by name
+							console.warn(
+								'Failed to extract text from note content:',
+								error
+							)
+						}
+					}
 				}
-			}
-		}
-		traverse(items)
-		return ids
-	},
-	[expandedFolders]
-)
 
-const sortItems = useCallback((items: Item[]): Item[] => {
-	const sorted = [...items]
-		.sort((a, b) => {
-			// Pinned items first
-			if (a.pinned && !b.pinned) return -1
-			if (!a.pinned && b.pinned) return 1
-
-			if (a.pinned && b.pinned) {
-				const aPinnedAt = a.pinnedAt || a.createdAt
-				const bPinnedAt = b.pinnedAt || b.createdAt
-				if (aPinnedAt !== bPinnedAt) {
-					return bPinnedAt - aPinnedAt // Most recent first
-				}
-			}
-
-			if (!a.pinned && !b.pinned) {
-				const aFavorite = a.type === 'note' && a.favorite
-				const bFavorite = b.type === 'note' && b.favorite
-				if (aFavorite && !bFavorite) return -1
-				if (!aFavorite && bFavorite) return 1
-			}
-
-			if (!a.pinned && !b.pinned) {
-				if (a.type === 'folder' && b.type === 'note') return -1
-				if (a.type === 'note' && b.type === 'folder') return 1
-			}
-
-			return a.name.localeCompare(b.name)
-		})
-		.map((item) => {
-			if (item.type === 'folder') {
-				return {
-					...item,
-					children: [...sortItems(item.children)], // Ensure new array reference
-				}
-			}
-			return { ...item } // Create new object reference for notes too
-		})
-	return sorted
-}, [])
-
-const filteredItems = useMemo(() => {
-	if (!searchQuery.trim()) {
-		return sortItems(items)
-	}
-
-	const query = searchQuery.toLowerCase().trim()
-
-	const filterItems = (itemList: Item[]): Item[] => {
-		const filtered: Item[] = []
-
-		for (const item of itemList) {
-			const nameMatches = item.name.toLowerCase().includes(query)
-
-			let contentMatches = false
-			if (searchInContent && item.type === 'note' && 'content' in item) {
-				const note = item as { content?: Block[] }
-				if (note.content && Array.isArray(note.content)) {
-					try {
-						const contentText = blocksToText(note.content)
-						contentMatches = contentText.toLowerCase().includes(query)
-					} catch (error) {
-						// If content extraction fails, just search by name
-						console.warn('Failed to extract text from note content:', error)
+				if (nameMatches || contentMatches) {
+					if (item.type === 'folder') {
+						const filteredChildren = filterItems(item.children)
+						filtered.push({
+							...item,
+							children: filteredChildren
+						} as Item)
+					} else {
+						filtered.push(item)
+					}
+				} else if (item.type === 'folder') {
+					const filteredChildren = filterItems(item.children)
+					if (filteredChildren.length > 0) {
+						filtered.push({
+							...item,
+							children: filteredChildren
+						} as Item)
 					}
 				}
 			}
 
-			if (nameMatches || contentMatches) {
-				if (item.type === 'folder') {
-					const filteredChildren = filterItems(item.children)
-					filtered.push({
-						...item,
-						children: filteredChildren,
-					} as Item)
-				} else {
-					filtered.push(item)
+			return filtered
+		}
+
+		return sortItems(filterItems(items))
+	}, [items, searchQuery, sortItems, searchInContent])
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			// Check if we're in an input/editor context
+			const target = e.target as HTMLElement
+			const isInput =
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable ||
+				!!target.closest('[contenteditable="true"]')
+
+			if (isInput) {
+				return
+			}
+
+			if (e.key === 'Escape' && getSelectedCount() > 0) {
+				clearSelection()
+				return
+			}
+
+			if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+				e.preventDefault()
+				const allIds = getAllVisibleItemIds(filteredItems)
+				selectAll(allIds)
+				return
+			}
+
+			if (e.key === 'Delete' && getSelectedCount() > 0) {
+				e.preventDefault()
+				const ids = getSelectedIds()
+				for (const id of ids) {
+					handleDeleteItem(id).catch((error) => {
+						console.error(`Failed to delete item ${id}:`, error)
+					})
 				}
-			} else if (item.type === 'folder') {
-				const filteredChildren = filterItems(item.children)
-				if (filteredChildren.length > 0) {
-					filtered.push({
-						...item,
-						children: filteredChildren,
-					} as Item)
-				}
+				clearSelection()
+				return
 			}
 		}
 
-		return filtered
+		document.addEventListener('keydown', handleKeyDown)
+		return () => document.removeEventListener('keydown', handleKeyDown)
+	}, [
+		getSelectedCount,
+		clearSelection,
+		selectAll,
+		getSelectedIds,
+		handleDeleteItem,
+		getAllVisibleItemIds,
+		filteredItems,
+		showConfirm
+	])
+
+	if (finalContentType === 'custom' && customContent) {
+		return <>{customContent}</>
 	}
 
-	return sortItems(filterItems(items))
-}, [items, searchQuery, sortItems, searchInContent])
-
-useEffect(() => {
-	const handleKeyDown = (e: KeyboardEvent) => {
-		// Check if we're in an input/editor context
-		const target = e.target as HTMLElement
-		const isInput =
-			target.tagName === 'INPUT' ||
-			target.tagName === 'TEXTAREA' ||
-			target.isContentEditable ||
-			!!target.closest('[contenteditable="true"]')
-
-		if (isInput) {
-			return
-		}
-
-		if (e.key === 'Escape' && getSelectedCount() > 0) {
-			clearSelection()
-			return
-		}
-
-		if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-			e.preventDefault()
-			const allIds = getAllVisibleItemIds(filteredItems)
-			selectAll(allIds)
-			return
-		}
-
-		if (e.key === 'Delete' && getSelectedCount() > 0) {
-			e.preventDefault()
-			const ids = getSelectedIds()
-			for (const id of ids) {
-				handleDeleteItem(id).catch((error) => {
-					console.error(`Failed to delete item ${id}:`, error)
-				})
-			}
-			clearSelection()
-			return
-		}
+	if (finalContentType === 'table-of-contents') {
+		return customContent || null
 	}
 
-	document.addEventListener('keydown', handleKeyDown)
-	return () => document.removeEventListener('keydown', handleKeyDown)
-}, [
-	getSelectedCount,
-	clearSelection,
-	selectAll,
-	getSelectedIds,
-	handleDeleteItem,
-	getAllVisibleItemIds,
-	filteredItems,
-	showConfirm,
-])
+	if (finalContentType === 'tasks') {
+		return <TasksSidebarContent activeNoteId={activeNoteId} />
+	}
 
-if (finalContentType === 'custom' && customContent) {
-	return <>{customContent}</>
-}
+	const isCollapsed = !isDesktopSidebarOpen
 
-if (finalContentType === 'table-of-contents') {
-	return customContent || null
-}
-
-if (finalContentType === 'tasks') {
-	return <TasksSidebarContent activeNoteId={activeNoteId} />
-}
-
-const isCollapsed = !isDesktopSidebarOpen
-
-if (isCollapsed) {
-	return (
-		<div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
-			<div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
-				<IconButton
-					icon={<NotesIcon />}
-					tooltip="Notes"
-					active={true}
-					variant="sidebar"
-					onClick={() => router.push('/')}
-				/>
-				<IconButton icon={<UIPlaygroundIcon />} tooltip="UI Playground" variant="sidebar" />
+	if (isCollapsed) {
+		return (
+			<div className="w-12 h-full bg-sidebar-background flex flex-col border-r border-sidebar-border">
+				<div className="flex flex-col items-center gap-2 pt-1.5 flex-1">
+					<IconButton
+						icon={<NotesIcon />}
+						tooltip="Notes"
+						active={true}
+						variant="sidebar"
+						onClick={() => router.push('/')}
+					/>
+					<IconButton
+						icon={<UIPlaygroundIcon />}
+						tooltip="UI Playground"
+						variant="sidebar"
+					/>
+				</div>
 			</div>
-		</div>
-	)
-}
+		)
+	}
 
-return (
-	<div
-		className={cn(
-			'h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background',
-			isMobile ? 'w-[280px] max-w-[85vw]' : 'w-[210px]'
-		)}
-	>
-		<ActionBar
-			onCreateNote={() => handleCreateNote()}
-			onCreateFolder={() => handleCreateFolder()}
-			searchConfig={{
-				query: searchQuery,
-				setQuery: setSearchQuery,
-				close: handleSearchClose,
-				toggle: handleSearchToggle,
-				isOpen: isSearchOpen,
-			}}
-			expandConfig={{
-				isExpanded: areAllFoldersExpanded,
-				onToggle: handleExpandCollapseAll,
-			}}
-		/>
+	return (
 		<div
-			className="flex-1 overflow-y-auto px-2 pt-2 pb-4"
-			onClick={(e) => {
-				if (e.target === e.currentTarget) {
-					setSelectedFolderId(null)
-					clearSelection()
-				}
-			}}
+			className={cn(
+				'h-full bg-sidebar-background flex flex-col border-r border-sidebar-border bg-background',
+				isMobile ? 'w-[280px] max-w-[85vw]' : 'w-[210px]'
+			)}
 		>
+			<ActionBar
+				onCreateNote={() => handleCreateNote()}
+				onCreateFolder={() => handleCreateFolder()}
+				searchConfig={{
+					query: searchQuery,
+					setQuery: setSearchQuery,
+					close: handleSearchClose,
+					toggle: handleSearchToggle,
+					isOpen: isSearchOpen
+				}}
+				expandConfig={{
+					isExpanded: areAllFoldersExpanded,
+					onToggle: handleExpandCollapseAll
+				}}
+			/>
 			<div
-				className="flex flex-col items-start gap-1 w-full"
-				role="tree"
-				aria-label="Notes"
+				className="flex-1 overflow-y-auto px-2 pt-2 pb-4"
 				onClick={(e) => {
 					if (e.target === e.currentTarget) {
 						setSelectedFolderId(null)
@@ -1921,86 +2165,106 @@ return (
 					}
 				}}
 			>
-				{isInitialLoading || isRefreshing ? (
-					/* Skeleton loader to prevent layout shift during initial load and refreshes */
-					<div className="flex flex-col gap-0.5 w-full animate-pulse">
-						{Array.from({ length: 8 }).map((_, i) => {
-							const isFolder = i % 3 === 0
-							const hasChildren = isFolder && i < 3
-							return (
-								<div key={i}>
-									<div className="flex items-center justify-between h-7 rounded-md px-1">
-										<div className="flex items-center gap-1.5 flex-1">
-											<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-											<div
-												className="h-3 rounded bg-muted-foreground/20"
-												style={{ width: `${60 + ((i * 13) % 60)}px` }}
-											/>
+				<div
+					className="flex flex-col items-start gap-1 w-full"
+					role="tree"
+					aria-label="Notes"
+					onClick={(e) => {
+						if (e.target === e.currentTarget) {
+							setSelectedFolderId(null)
+							clearSelection()
+						}
+					}}
+				>
+					{isInitialLoading || isRefreshing ? (
+						/* Skeleton loader to prevent layout shift during initial load and refreshes */
+						<div className="flex flex-col gap-0.5 w-full animate-pulse">
+							{Array.from({ length: 8 }).map((_, i) => {
+								const isFolder = i % 3 === 0
+								const hasChildren = isFolder && i < 3
+								return (
+									<div key={i}>
+										<div className="flex items-center justify-between h-7 rounded-md px-1">
+											<div className="flex items-center gap-1.5 flex-1">
+												<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+												<div
+													className="h-3 rounded bg-muted-foreground/20"
+													style={{
+														width: `${60 + ((i * 13) % 60)}px`
+													}}
+												/>
+											</div>
+											{isFolder && (
+												<div className="h-3 w-4 rounded bg-muted-foreground/15" />
+											)}
 										</div>
-										{isFolder && <div className="h-3 w-4 rounded bg-muted-foreground/15" />}
+										{hasChildren && (
+											<div className="ml-4 space-y-0.5 mt-0.5">
+												{Array.from({ length: 2 }).map(
+													(_, j) => (
+														<div
+															key={j}
+															className="flex items-center gap-1.5 h-7 px-1"
+														>
+															<div className="h-4 w-4 rounded bg-muted-foreground/20" />
+															<div
+																className="h-3 rounded bg-muted-foreground/20"
+																style={{
+																	width: `${50 + ((j * 20) % 50)}px`
+																}}
+															/>
+														</div>
+													)
+												)}
+											</div>
+										)}
 									</div>
-									{hasChildren && (
-										<div className="ml-4 space-y-0.5 mt-0.5">
-											{Array.from({ length: 2 }).map((_, j) => (
-												<div key={j} className="flex items-center gap-1.5 h-7 px-1">
-													<div className="h-4 w-4 rounded bg-muted-foreground/20" />
-													<div
-														className="h-3 rounded bg-muted-foreground/20"
-														style={{ width: `${50 + ((j * 20) % 50)}px` }}
-													/>
-												</div>
-											))}
-										</div>
-									)}
-								</div>
-							)
-						})}
-					</div>
-				) : filteredItems.length === 0 ? (
-					<div className="flex-1 w-full">
-						<SidebarEmptyState
-							hasSearchQuery={!!searchQuery}
-							onCreateNote={() => handleCreateNote()}
-							onCreateFolder={() => handleCreateFolder()}
-							onSearch={() => {
-								setSearchQuery('')
-								setIsSearchOpen(false)
-							}}
-						/>
-					</div>
-				) : (
-					filteredItems.map((item) => (
-						<FileTreeItem
-							key={item.id}
-							item={item}
-							activeNoteId={activeNoteId}
-							expandedFolders={expandedFolders}
-							selectedFolderId={selectedFolderId}
-							onToggleFolder={handleToggleFolder}
-							onNavigateNote={(id) => router.push(getNoteUrl(id))}
-							onRename={renameItem}
-							onDelete={handleDeleteItem}
-							onCreateNote={handleCreateNote}
-							onCreateFolder={handleCreateFolder}
-							onDragStart={handleDragStart}
-							onDragOver={(e) => e.preventDefault()}
-							onDrop={handleDrop}
-							onSelectFolder={handleSelectFolder}
-							onContextMenuOpenChange={handleContextMenuOpenChange}
-							onPinItem={pinItem}
-							onFavoriteNote={favoriteNote}
-							onMoveItem={moveItem}
-							allItems={items}
-							ruler={ruler}
-							openTabIds={openTabIds}
-							allVisibleItemIds={getAllVisibleItemIds(filteredItems)}
-							showConfirm={showConfirm}
-						/>
-					))
-				)}
+								)
+							})}
+						</div>
+					) : filteredItems.length === 0 ? (
+						<div className="flex-1 w-full">
+							<SidebarEmptyState hasSearchQuery={!!searchQuery} />
+						</div>
+					) : (
+						filteredItems.map((item) => (
+							<FileTreeItem
+								key={item.id}
+								item={item}
+								activeNoteId={activeNoteId}
+								expandedFolders={expandedFolders}
+								selectedFolderId={selectedFolderId}
+								onToggleFolder={handleToggleFolder}
+								onNavigateNote={(id) =>
+									router.push(getNoteUrl(id))
+								}
+								onRename={renameItem}
+								onDelete={handleDeleteItem}
+								onCreateNote={handleCreateNote}
+								onCreateFolder={handleCreateFolder}
+								onDragStart={handleDragStart}
+								onDragOver={(e) => e.preventDefault()}
+								onDrop={handleDrop}
+								onSelectFolder={handleSelectFolder}
+								onContextMenuOpenChange={
+									handleContextMenuOpenChange
+								}
+								onPinItem={pinItem}
+								onFavoriteNote={favoriteNote}
+								onMoveItem={moveItem}
+								allItems={items}
+								ruler={ruler}
+								openTabIds={openTabIds}
+								allVisibleItemIds={getAllVisibleItemIds(
+									filteredItems
+								)}
+								showConfirm={showConfirm}
+							/>
+						))
+					)}
+				</div>
 			</div>
+			<SidebarConfirmationPopover />
 		</div>
-		<SidebarConfirmationPopover />
-	</div>
-)
+	)
 }

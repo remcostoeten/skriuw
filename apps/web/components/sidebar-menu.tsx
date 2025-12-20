@@ -9,7 +9,6 @@ import {
 	Sliders,
 	Search,
 	X,
-	Sparkles,
 } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 
@@ -30,7 +29,7 @@ import { Input } from '@skriuw/ui/input'
 
 import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
 import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
-import { AI_SETTINGS_GROUPS } from '../features/settings/ai-settings'
+
 import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
 import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
 import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
@@ -134,15 +133,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			active: activeItem === 'appearance',
 			onClick: () => setActiveItem('appearance'),
 		},
-		{
-			id: 'ai',
-			label: 'AI Features',
-			icon: <Sparkles className="w-4 h-4" />,
-			active: activeItem === 'ai',
-			onClick: () => setActiveItem('ai'),
-			disabled: true,
-			disabledReason: 'AI settings are disabled for now.',
-		},
+
 		{
 			id: 'advanced',
 			label: 'Advanced',
@@ -192,7 +183,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			],
 		}
 
-		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, animationSetting, ...AI_SETTINGS_GROUPS]
+		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, animationSetting]
 		const settingsGroup = allSettingsGroups.find((group) => group.category === activeItem)
 
 		if (settingsGroup) {

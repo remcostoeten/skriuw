@@ -1,6 +1,7 @@
 import {
 	Menu,
 	PanelLeftClose,
+	PanelRightClose,
 	ChevronLeft,
 	ChevronRight,
 	Code,
@@ -20,6 +21,7 @@ type props = {
 	noteName: string
 	onToggleSidebar: () => void
 	onToggleDesktopSidebar?: () => void
+	onToggleRightSidebar?: () => void
 	onNavigatePrevious?: () => void
 	onNavigateNext?: () => void
 	canNavigatePrevious?: boolean
@@ -38,6 +40,7 @@ export function TopToolbar({
 	noteName,
 	onToggleSidebar,
 	onToggleDesktopSidebar,
+	onToggleRightSidebar,
 	onNavigatePrevious,
 	onNavigateNext,
 	canNavigatePrevious = false,
@@ -164,6 +167,14 @@ export function TopToolbar({
 						variant="toolbar"
 						shortcut="Ctrl+M / Meta+M"
 						onClick={onToggleEditorMode}
+					/>
+				)}
+				{onToggleRightSidebar && (
+					<IconButton
+						icon={<PanelRightClose className="w-4 h-4 text-muted-foreground" />}
+						tooltip="Toggle note details"
+						variant="toolbar"
+						onClick={onToggleRightSidebar}
 					/>
 				)}
 				<UserMenu />
