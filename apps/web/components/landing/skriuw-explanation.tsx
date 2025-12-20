@@ -25,11 +25,7 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 		visible: {
 			opacity: 1,
 			y: 0,
-			filter: 'blur(0px)',
-			transition: {
-				duration: 0.8,
-				ease: [0.2, 0.65, 0.3, 0.9]
-			}
+			filter: 'blur(0px)'
 		}
 	}
 
@@ -57,21 +53,31 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 					>
 						<p className="text-sm italic">
 							<span className="font-mono">/skrɪu̯/</span> —{' '}
-							<span className="font-medium">Frisian, &quot;to write.&quot;</span>
+							<span className="font-medium">
+								Frisian, &quot;to write.&quot;
+							</span>
 						</p>
 					</motion.div>
 				</div>
 
-				<motion.div variants={itemVariants} className="max-w-lg text-center">
+				<motion.div
+					variants={itemVariants}
+					className="max-w-lg text-center"
+				>
 					<p className="text-sm text-muted-foreground leading-relaxed">
-						A blazingly fast, privacy-focused note-taking app built for everyone. Providing an
-						opt-in system for all features (yes, AI is included) rather than the usual opt-out
-						system. The tools are here, you just need to opt-in.
+						A blazingly fast, privacy-focused note-taking app built
+						for everyone. Providing an opt-in system for all
+						features (yes, AI is included) rather than the usual
+						opt-out system. The tools are here, you just need to
+						opt-in.
 					</p>
 				</motion.div>
 			</div>
 
-			<motion.div variants={itemVariants} className="flex flex-row items-center gap-4 mt-8">
+			<motion.div
+				variants={itemVariants}
+				className="flex flex-row items-center gap-4 mt-8"
+			>
 				<Button
 					variant="secondary"
 					size="lg"
@@ -88,7 +94,9 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 					className="flex items-center justify-between gap-3"
 				>
 					<span>Create Note</span>
-					<Kbd className="bg-primary-foreground/20 text-primary-foreground">⌘N</Kbd>
+					<Kbd className="bg-primary-foreground/20 text-primary-foreground">
+						⌘N
+					</Kbd>
 				</Button>
 			</motion.div>
 		</motion.div>

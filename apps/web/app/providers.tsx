@@ -24,7 +24,6 @@ type props = {
 }
 
 function StorageInitializer({ children }: props) {
-	// Initialize storage synchronously
 	try {
 		ensureStorageInitialized()
 	} catch (error) {
