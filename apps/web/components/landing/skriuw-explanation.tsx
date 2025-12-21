@@ -79,22 +79,24 @@ export function SkriuwExplanation({ onCreateNote, onOpenCollection }: Props) {
 				className="flex flex-row items-center gap-4 mt-8"
 			>
 				<Button
-					variant="secondary"
+					variant="outline"
 					size="lg"
 					onClick={onOpenCollection}
-					className="flex items-center justify-between gap-3"
+					hoverScale={1.02}
+					className="px-6 py-3 gap-3 bg-secondary/50 backdrop-blur-sm border border-border/50 hover:border-border hover:bg-secondary/80 transition-all duration-200"
 				>
 					<span>Open Collection</span>
-					<Kbd>⌘O</Kbd>
+					<Kbd className="ml-2">⌘O</Kbd>
 				</Button>
 				<Button
 					variant="default"
 					size="lg"
 					onClick={onCreateNote}
-					className="flex items-center justify-between gap-3"
+					hoverScale={1.02}
+					className="px-6 py-3 gap-3 shadow-lg shadow-primary/25 hover:shadow-primary/30 transition-all duration-200"
 				>
 					<span>Create Note</span>
-					<Kbd className="bg-primary-foreground/20 text-primary-foreground">
+					<Kbd className="ml-2 bg-primary-foreground/20 text-primary-foreground border border-primary-foreground/10">
 						⌘N
 					</Kbd>
 				</Button>

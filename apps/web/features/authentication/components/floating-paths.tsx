@@ -19,6 +19,7 @@ export function FloatingPaths({ position }: { position: number }) {
                 className="h-full w-full text-slate-950 dark:text-white"
                 fill="none"
                 viewBox="0 0 696 316"
+                preserveAspectRatio="xMidYMid slice"
             >
                 <title>Background Paths</title>
                 {paths.map((path) => (
