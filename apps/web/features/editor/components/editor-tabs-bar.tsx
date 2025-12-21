@@ -10,7 +10,7 @@ import {
 	Star,
 	Trash2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 import {
 	ContextMenu,
@@ -71,7 +71,7 @@ export function EditorTabsBar({
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
-	function handleDragStart(e: React.DragEvent, index: number) {
+	const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
 		// Only allow dragging if not clicking on a button
 		const target = e.target as HTMLElement
 		if (target.tagName === 'BUTTON' || target.closest('button')) {
@@ -93,31 +93,90 @@ export function EditorTabsBar({
 				})
 			)
 		}
-	}
-	function handleDragOver(e: React.DragEvent, index: number) {
+	}, [tabs, dragSourcePaneId])
+
+	const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
 		e.preventDefault()
 		if (draggedIndex !== null && draggedIndex !== index) {
 			setDragOverIndex(index)
 		}
-	}
+	}, [draggedIndex])
 
-	function handleDragLeave() {
+	const handleDragLeave = useCallback(() => {
 		setDragOverIndex(null)
-	}
+	}, [])
 
-	function handleDrop(e: React.DragEvent, dropIndex: number) {
+	const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
 		e.preventDefault()
 		if (draggedIndex !== null && draggedIndex !== dropIndex && onReorder) {
 			onReorder(draggedIndex, dropIndex)
 		}
 		setDraggedIndex(null)
 		setDragOverIndex(null)
-	}
+	}, [draggedIndex, onReorder])
 
-	function handleDragEnd() {
+	const handleDragEnd = useCallback(() => {
 		setDraggedIndex(null)
 		setDragOverIndex(null)
-	}
+	}, [])
+
+	// Memoized handlers for tab actions
+	const handleTabSelect = useCallback((noteId: string) => {
+		onSelect(noteId)
+	}, [onSelect])
+
+	const handleTabClose = useCallback((noteId: string) => {
+		onClose(noteId)
+	}, [onClose])
+
+	const handleMouseDownStop = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleDuplicateTab = useCallback((noteId: string) => {
+		onDuplicateTab?.(noteId)
+	}, [onDuplicateTab])
+
+	const handleRenameNote = useCallback((noteId: string) => {
+		onRenameNote?.(noteId)
+	}, [onRenameNote])
+
+	const handlePinNote = useCallback((noteId: string, pinned: boolean) => {
+		onPinNote?.(noteId, pinned)
+	}, [onPinNote])
+
+	const handleFavoriteNote = useCallback((noteId: string, favorite: boolean) => {
+		onFavoriteNote?.(noteId, favorite)
+	}, [onFavoriteNote])
+
+	const handleMoveTabLeft = useCallback((noteId: string) => {
+		onMoveTabLeft?.(noteId)
+	}, [onMoveTabLeft])
+
+	const handleMoveTabRight = useCallback((noteId: string) => {
+		onMoveTabRight?.(noteId)
+	}, [onMoveTabRight])
+
+	const handleCloseTabsToLeft = useCallback((noteId: string) => {
+		onCloseTabsToLeft?.(noteId)
+	}, [onCloseTabsToLeft])
+
+	const handleCloseTabsToRight = useCallback((noteId: string) => {
+		onCloseTabsToRight?.(noteId)
+	}, [onCloseTabsToRight])
+
+	const handleCloseOtherTabs = useCallback((noteId: string) => {
+		onCloseOtherTabs?.(noteId)
+	}, [onCloseOtherTabs])
+
+	const handleCloseAllTabs = useCallback(() => {
+		onCloseAllTabs?.()
+	}, [onCloseAllTabs])
+
+	const handleDeleteAndClose = useCallback((noteId: string) => {
+		onDeleteNote?.(noteId)
+		onClose(noteId)
+	}, [onDeleteNote, onClose])
 
 	return (
 		<div className="border-b border-border/70 bg-muted/40 backdrop-blur-sm h-10">
@@ -139,6 +198,20 @@ export function EditorTabsBar({
 					const noteData = getNoteData ? getNoteData(tab.noteId) : null
 					const isPinned = noteData?.pinned ?? false
 					const isFavorite = noteData?.favorite ?? false
+
+					// Create memoized handlers specific to this tab
+					const handleSelectTab = () => handleTabSelect(tab.noteId)
+					const handleCloseTab = () => handleTabClose(tab.noteId)
+					const handleDuplicate = () => handleDuplicateTab(tab.noteId)
+					const handleRename = () => handleRenameNote(tab.noteId)
+					const handlePin = () => handlePinNote(tab.noteId, !isPinned)
+					const handleFavorite = () => handleFavoriteNote(tab.noteId, !isFavorite)
+					const handleMoveLeft = () => handleMoveTabLeft(tab.noteId)
+					const handleMoveRight = () => handleMoveTabRight(tab.noteId)
+					const handleCloseLeft = () => handleCloseTabsToLeft(tab.noteId)
+					const handleCloseRight = () => handleCloseTabsToRight(tab.noteId)
+					const handleCloseOther = () => handleCloseOtherTabs(tab.noteId)
+					const handleDeleteClose = () => handleDeleteAndClose(tab.noteId)
 
 					return (
 						<ContextMenu key={tab.noteId}>
@@ -164,8 +237,8 @@ export function EditorTabsBar({
 									<button
 										type="button"
 										className="flex-1 truncate text-left cursor-pointer"
-										onClick={() => onSelect(tab.noteId)}
-										onMouseDown={(e) => e.stopPropagation()}
+										onClick={handleSelectTab}
+										onMouseDown={handleMouseDownStop}
 										draggable={false}
 									>
 										{tab.title}
@@ -174,8 +247,8 @@ export function EditorTabsBar({
 										type="button"
 										className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
 										aria-label={`Close ${tab.title}`}
-										onClick={() => onClose(tab.noteId)}
-										onMouseDown={(e) => e.stopPropagation()}
+										onClick={handleCloseTab}
+										onMouseDown={handleMouseDownStop}
 										draggable={false}
 									>
 										<X className="h-3.5 w-3.5" />
@@ -184,33 +257,27 @@ export function EditorTabsBar({
 							</ContextMenuTrigger>
 							<ContextMenuContent className="w-56">
 								{onDuplicateTab && (
-									<ContextMenuItem onClick={() => onDuplicateTab(tab.noteId)} className="text-xs">
+									<ContextMenuItem onClick={handleDuplicate} className="text-xs">
 										<Copy className="w-4 h-4 mr-2" />
 										Duplicate tab
 									</ContextMenuItem>
 								)}
 								{(onDuplicateTab || onRenameNote) && <ContextMenuSeparator />}
 								{onRenameNote && (
-									<ContextMenuItem onClick={() => onRenameNote(tab.noteId)} className="text-xs">
+									<ContextMenuItem onClick={handleRename} className="text-xs">
 										<Edit className="w-4 h-4 mr-2" />
 										Rename
 									</ContextMenuItem>
 								)}
 								<ContextMenuSeparator />
 								{onPinNote && (
-									<ContextMenuItem
-										onClick={() => onPinNote(tab.noteId, !isPinned)}
-										className="text-xs"
-									>
+									<ContextMenuItem onClick={handlePin} className="text-xs">
 										<Pin className="w-4 h-4 mr-2" />
 										{isPinned ? 'Unpin from top' : 'Pin to top'}
 									</ContextMenuItem>
 								)}
 								{onFavoriteNote && (
-									<ContextMenuItem
-										onClick={() => onFavoriteNote(tab.noteId, !isFavorite)}
-										className="text-xs"
-									>
+									<ContextMenuItem onClick={handleFavorite} className="text-xs">
 										<Star
 											className={cn(
 												'w-4 h-4 mr-2',
@@ -222,50 +289,41 @@ export function EditorTabsBar({
 								)}
 								{(onPinNote || onFavoriteNote) && <ContextMenuSeparator />}
 								{canMoveLeft && (
-									<ContextMenuItem onClick={() => onMoveTabLeft(tab.noteId)} className="text-xs">
+									<ContextMenuItem onClick={handleMoveLeft} className="text-xs">
 										<ChevronLeft className="w-4 h-4 mr-2" />
 										Move left
 									</ContextMenuItem>
 								)}
 								{canMoveRight && (
-									<ContextMenuItem onClick={() => onMoveTabRight(tab.noteId)} className="text-xs">
+									<ContextMenuItem onClick={handleMoveRight} className="text-xs">
 										<ChevronRight className="w-4 h-4 mr-2" />
 										Move right
 									</ContextMenuItem>
 								)}
 								{(canMoveLeft || canMoveRight) && <ContextMenuSeparator />}
-								<ContextMenuItem onClick={() => onClose(tab.noteId)} className="text-xs">
+								<ContextMenuItem onClick={handleCloseTab} className="text-xs">
 									<X className="w-4 h-4 mr-2" />
 									Close tab
 								</ContextMenuItem>
 								{hasTabsToLeft && onCloseTabsToLeft && (
-									<ContextMenuItem
-										onClick={() => onCloseTabsToLeft(tab.noteId)}
-										className="text-xs"
-									>
+									<ContextMenuItem onClick={handleCloseLeft} className="text-xs">
 										Close tabs to the left
 									</ContextMenuItem>
 								)}
 								{hasTabsToRight && onCloseTabsToRight && (
-									<ContextMenuItem
-										onClick={() => onCloseTabsToRight(tab.noteId)}
-										className="text-xs"
-									>
+									<ContextMenuItem onClick={handleCloseRight} className="text-xs">
 										Close tabs to the right
 									</ContextMenuItem>
 								)}
 								{hasOtherTabs && onCloseOtherTabs && (
-									<ContextMenuItem onClick={() => onCloseOtherTabs(tab.noteId)} className="text-xs">
+									<ContextMenuItem onClick={handleCloseOther} className="text-xs">
 										Close other tabs
 									</ContextMenuItem>
 								)}
 								{onCloseAllTabs && tabs.length > 1 && (
 									<>
 										<ContextMenuSeparator />
-										<ContextMenuItem
-											onClick={() => onCloseAllTabs()}
-											className="text-xs text-destructive focus:text-destructive"
-										>
+										<ContextMenuItem onClick={handleCloseAllTabs} className="text-xs text-destructive focus:text-destructive">
 											<XCircle className="w-4 h-4 mr-2" />
 											Close all tabs
 										</ContextMenuItem>
@@ -274,13 +332,7 @@ export function EditorTabsBar({
 								{onDeleteNote && (
 									<>
 										<ContextMenuSeparator />
-										<ContextMenuItem
-											onClick={() => {
-												onDeleteNote(tab.noteId)
-												onClose(tab.noteId)
-											}}
-											className="text-xs text-destructive focus:text-destructive"
-										>
+										<ContextMenuItem onClick={handleDeleteClose} className="text-xs text-destructive focus:text-destructive">
 											<Trash2 className="w-4 h-4 mr-2" />
 											Delete note
 										</ContextMenuItem>
