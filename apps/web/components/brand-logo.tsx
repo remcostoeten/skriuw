@@ -81,7 +81,7 @@ export function BrandLogo({
             scale: 1,
             transition: {
                 duration: 0.5,
-                ease: [0.4, 0, 0.2, 1] as any,
+                ease: [0.4, 0, 0.2, 1] as const,
                 staggerChildren: 0.1,
             },
         },
@@ -101,14 +101,14 @@ export function BrandLogo({
             transition: {
                 duration: 0.4,
                 delay: i * 0.15,
-                ease: [0.4, 0, 0.2, 1],
+                ease: [0.4, 0, 0.2, 1] as const,
             },
         }),
         hover: {
             opacity: [1, 0.5, 1],
             transition: {
                 duration: 0.6,
-                ease: [0.4, 0, 0.2, 1] as any,
+                ease: [0.4, 0, 0.2, 1] as const,
             },
         },
     }

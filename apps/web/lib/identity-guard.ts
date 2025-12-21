@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from '@/lib/auth-client'
+import { useSession } from './auth-client'
 import { useCallback, useRef } from 'react'
 
 // ============================================================================

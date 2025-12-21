@@ -29,7 +29,7 @@ export async function seedUserWithIdentityGuide(userId: string): Promise<boolean
     await db.insert(notes).values({
       id: noteId,
       name: 'Identity Guard Pattern',
-      content: identityGuardNoteContent,
+      content: JSON.stringify(identityGuardNoteContent),
       userId,
       parentFolderId: null, // Root level note
       pinned: 1, // Pin it so it's visible

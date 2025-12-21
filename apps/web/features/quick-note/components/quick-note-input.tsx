@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 
-import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNotesContext } from '../../notes/context/notes-context'
 
 export function QuickNoteInput() {
 	const [noteTitle, setNoteTitle] = useState('')

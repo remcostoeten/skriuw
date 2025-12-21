@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react'
 
-import { useSettings } from '@/features/settings'
+import { useSettings } from '../features/settings'
 
 export function usePrefersAnimations(defaultOn = true) {
 	const { settings } = useSettings()

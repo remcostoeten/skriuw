@@ -14,7 +14,9 @@ describe('tree-helpers', () => {
 					name: 'Note 1',
 					type: 'note',
 					content: [],
-				} as Note,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				} as unknown as Note,
 				{
 					id: 'folder-2',
 					name: 'Folder 2',

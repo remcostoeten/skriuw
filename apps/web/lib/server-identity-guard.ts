@@ -6,7 +6,7 @@
 'use server'
 
 import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
+import { auth } from './auth'
 
 /**
  * Session result from Better Auth

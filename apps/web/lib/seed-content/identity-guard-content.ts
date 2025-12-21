@@ -5,7 +5,7 @@ import { generateId } from '@skriuw/shared'
  * BlockNote content for Identity Guard knowledge documentation
  * This content explains the unified identity guard pattern implemented in the app
  */
-export const identityGuardNoteContent: Block[] = [
+export const identityGuardNoteContent: any[] = [
   {
     id: generateId(),
     type: 'heading',
@@ -92,6 +92,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -118,6 +119,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -144,6 +146,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -205,13 +208,12 @@ export const identityGuardNoteContent: Block[] = [
     type: 'codeBlock',
     props: {
       language: 'typescript',
-      backgroundColor: 'default',
-      textColor: 'default',
     },
     content: [
       {
         type: 'text',
         text: "import { useWithIdentity } from '@/lib/identity-guard'\n\nfunction MyComponent() {\n  const withIdentity = useWithIdentity()\n  \n  const safeCreateNote = withIdentity(createNote, {\n    action: 'create-note',\n    errorMessage: 'Please sign in to create notes'\n  })\n  \n  // Call safeCreateNote() - will show auth modal if needed\n}",
+        styles: {},
       },
     ],
     children: [],
@@ -239,13 +241,12 @@ export const identityGuardNoteContent: Block[] = [
     type: 'codeBlock',
     props: {
       language: 'typescript',
-      backgroundColor: 'default',
-      textColor: 'default',
     },
     content: [
       {
         type: 'text',
         text: "import { withIdentity } from '@/lib/identity-guard'\n\nconst safeUpdateNote = withIdentity(updateNote, {\n  action: 'update-note',\n  showModal: true\n})\n\n// Use safeUpdateNote() directly",
+        styles: {},
       },
     ],
     children: [],
@@ -273,13 +274,12 @@ export const identityGuardNoteContent: Block[] = [
     type: 'codeBlock',
     props: {
       language: 'typescript',
-      backgroundColor: 'default',
-      textColor: 'default',
     },
     content: [
       {
         type: 'text',
         text: "import { createCrudGuard } from '@/lib/identity-guard'\n\nconst notesApi = createCrudGuard({\n  create: createNote,\n  update: updateNote,\n  delete: deleteNote\n}, { showModal: true })\n\n// Use notesApi.create(), notesApi.update(), etc.",
+        styles: {},
       },
     ],
     children: [],
@@ -307,13 +307,12 @@ export const identityGuardNoteContent: Block[] = [
     type: 'codeBlock',
     props: {
       language: 'typescript',
-      backgroundColor: 'default',
-      textColor: 'default',
     },
     content: [
       {
         type: 'text',
         text: "import { withServerIdentity } from '@/lib/server-identity-guard'\n\nexport async function createNote(data: NoteData) {\n  return withServerIdentity(async () => {\n    // Your existing logic here\n    // Only runs if user has identity (auth or anon)\n    return await db.insert(notes).values(data)\n  })\n}",
+        styles: {},
       },
     ],
     children: [],
@@ -342,6 +341,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -368,6 +368,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -394,6 +395,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -420,6 +422,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -446,6 +449,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -505,13 +509,16 @@ export const identityGuardNoteContent: Block[] = [
     id: generateId(),
     type: 'numberedListItem',
     props: {
+      start: 1,
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
         type: 'text',
         text: 'Check if user has any session (authenticated or anonymous)',
+        styles: {},
       },
     ],
     children: [],
@@ -520,13 +527,16 @@ export const identityGuardNoteContent: Block[] = [
     id: generateId(),
     type: 'numberedListItem',
     props: {
+      start: 1,
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
         type: 'text',
         text: 'If identity exists → proceed with operation',
+        styles: {},
       },
     ],
     children: [],
@@ -535,13 +545,16 @@ export const identityGuardNoteContent: Block[] = [
     id: generateId(),
     type: 'numberedListItem',
     props: {
+      start: 1,
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
         type: 'text',
         text: 'If no identity → dispatch auth modal event',
+        styles: {},
       },
     ],
     children: [],
@@ -550,13 +563,16 @@ export const identityGuardNoteContent: Block[] = [
     id: generateId(),
     type: 'numberedListItem',
     props: {
+      start: 1,
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
         type: 'text',
         text: 'AuthModalProvider listens and opens modal with context',
+        styles: {},
       },
     ],
     children: [],
@@ -565,13 +581,16 @@ export const identityGuardNoteContent: Block[] = [
     id: generateId(),
     type: 'numberedListItem',
     props: {
+      start: 1,
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
         type: 'text',
         text: 'After auth → retry operation automatically',
+        styles: {},
       },
     ],
     children: [],
@@ -600,6 +619,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -626,6 +646,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -652,6 +673,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -663,7 +685,7 @@ export const identityGuardNoteContent: Block[] = [
         type: 'text',
         text: 'isIdentityError()',
         styles: { bold: true, code: true },
-      ],
+      },
       {
         type: 'text',
         text: ' to distinguish auth errors',
@@ -678,6 +700,7 @@ export const identityGuardNoteContent: Block[] = [
     props: {
       backgroundColor: 'default',
       textColor: 'default',
+      textAlignment: 'left',
     },
     content: [
       {
@@ -738,13 +761,12 @@ export const identityGuardNoteContent: Block[] = [
     type: 'codeBlock',
     props: {
       language: 'typescript',
-      backgroundColor: 'default',
-      textColor: 'default',
     },
     content: [
       {
         type: 'text',
         text: "// Component example\nfunction NoteEditor() {\n  const withIdentity = useWithIdentity()\n  const [result, setResult] = useState('')\n  \n  const handleCreate = async () => {\n    try {\n      await withIdentity(createNote, {\n        action: 'create-note'\n      })({ name: 'New Note', content: 'Hello' })\n      setResult('✅ Note created!')\n    } catch (error) {\n      if (isIdentityError(error)) {\n        setResult('🔐 Please sign in')\n      } else {\n        setResult(`❌ Error: ${error.message}`)\n      }\n    }\n  }\n  \n  return <button onClick={handleCreate}>Create Note</button>\n}",
+        styles: {},
       },
     ],
     children: [],

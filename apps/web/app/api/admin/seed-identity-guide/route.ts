@@ -59,7 +59,7 @@ export async function POST() {
         await db.insert(notes).values({
           id: noteId,
           name: 'Identity Guard Pattern',
-          content: identityGuardNoteContent,
+          content: JSON.stringify(identityGuardNoteContent),
           userId: currentUser.id,
           parentFolderId: null, // Root level note
           pinned: 1, // Pin it so it's visible

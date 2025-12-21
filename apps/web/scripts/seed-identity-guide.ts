@@ -104,3 +104,5 @@ if (command === 'stats') {
   console.log('  stats - Show seeding statistics')
   process.exit(1)
 }
+
+export { }

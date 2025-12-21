@@ -6,7 +6,7 @@
 
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth } from './auth'
 
 /**
  * Session result from Better Auth
@@ -185,6 +185,15 @@ export function isAuthenticated(
 	result: AuthResult | AuthError
 ): result is AuthResult {
 	return result.authenticated
+}
+
+/**
+ * Alias for isAuthenticated - evaluate if auth guard passes
+ */
+export function evaluateAuthGuard(
+	result: AuthResult | AuthError
+): result is AuthResult {
+	return isAuthenticated(result)
 }
 
 // ============================================================================
