@@ -46,7 +46,6 @@ export function ShortcutsReference() {
 		const customShortcuts = await getShortcuts()
 
 		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
-			.filter(([, definition]) => definition.enabled !== false)
 			.map(([id, definition]) => {
 				const shortcutId = id as ShortcutId
 				const customKeys = customShortcuts[shortcutId]

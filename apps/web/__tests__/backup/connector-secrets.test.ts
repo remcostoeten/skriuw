@@ -73,7 +73,7 @@ describe('connector-secrets', () => {
 				})
 			if (base?.oauth2Tokens) {
 				Object.keys(base.oauth2Tokens).forEach((tokenKey) => {
-					expect(c.oauth2Tokens?.[tokenKey]).not.toBe(
+					expect(c.oauth2Tokens?.[tokenKey as keyof typeof c.oauth2Tokens]).not.toBe(
 						(base as any).oauth2Tokens[tokenKey]
 					)
 				})

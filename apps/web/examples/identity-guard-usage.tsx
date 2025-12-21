@@ -116,7 +116,7 @@ export function IdentityGuardExample() {
     setResult('')
 
     try {
-      const note = await notesApi.create({
+      const note = await notesApi.createNote({
         name: 'Note via CRUD API',
         content: 'Created using the createCrudGuard wrapper'
       })
