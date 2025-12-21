@@ -13,7 +13,9 @@
     "tauri:dev": "bunx --bun tauri dev",
     "tauri:build": "TAURI_BUILD=true bunx --bun tauri build",
     "tauri:build:mac": "TAURI_BUILD=true bunx --bun tauri build --target universal-apple-darwin",
-    "tauri:build:deb": "TAURI_BUILD=true bunx --bun tauri build -b deb"
+    "tauri:build:deb": "TAURI_BUILD=true bunx --bun tauri build -b deb",
+    "seed:identity-guide": "bun scripts/seed-identity-guide.ts",
+    "seed:identity-guide:stats": "bun scripts/seed-identity-guide.ts stats"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.49",
