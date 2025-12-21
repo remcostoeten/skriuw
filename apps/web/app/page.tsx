@@ -124,7 +124,6 @@ export default function Index() {
 					{allNotes.length === 0 ? (
 						<SkriuwExplanation
 							onCreateNote={handleCreateNote}
-							onOpenCollection={handleOpenCollection}
 						/>
 					) : null}
 				</div>

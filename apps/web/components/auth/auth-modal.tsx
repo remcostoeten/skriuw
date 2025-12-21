@@ -14,9 +14,10 @@ import {
 type AuthModalProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
+    action?: string // The action that triggered auth
 }
 
-export function AuthModal({ open, onOpenChange }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
     const { data: session } = useSession()
 
     // Auto-close when user becomes authenticated
@@ -61,7 +62,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                     <div className="flex-1 md:flex-none md:w-[480px] flex items-center justify-center p-8 overflow-y-auto bg-background">
                         <LoginForm
                             title="Welcome to skriuw"
-                            subtitle="Sign in to continue to your notes"
+                            subtitle={action ? `Sign in to ${action.replace('-', ' ')}` : "Sign in to continue to your notes"}
                             onSuccess={() => onOpenChange(false)}
                         />
                     </div>
