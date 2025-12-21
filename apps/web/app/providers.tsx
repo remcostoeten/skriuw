@@ -18,6 +18,7 @@ import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider
 
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
 import { AuthModalProvider } from '../components/auth/auth-modal-provider'
+import { CommandExecutor } from '../components/command-executor'
 
 type props = {
 	children: ReactNode
@@ -62,6 +63,7 @@ export function Providers({ children }: props) {
 										<AppLayoutManager>{children}</AppLayoutManager>
 									</EditorTabsProvider>
 								</ContextMenuProvider>
+								<CommandExecutor />
 							</ShortcutProvider>
 						</NotesProvider>
 					</SettingsProvider>
