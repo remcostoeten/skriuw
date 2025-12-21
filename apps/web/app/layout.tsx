@@ -48,11 +48,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<div id="main-content">
 					<Providers>
 						<AutoSignIn />
-
 						{children}
+						<CommandExecutor />
 					</Providers>
 				</div>
-				<CommandExecutor />
 			</body>
 		</html>
 	)
