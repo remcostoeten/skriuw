@@ -52,7 +52,7 @@ export function Providers({ children }: props) {
 	return (
 		<TooltipProvider delayDuration={0}>
 			<SonnerToaster />
-			<AuthModalProvider>
+			<AuthModalProvider disabled>
 				<StorageInitializer>
 					<SettingsProvider>
 						<NotesProvider>
