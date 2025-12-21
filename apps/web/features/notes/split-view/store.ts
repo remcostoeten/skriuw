@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import { generateId } from '@skriuw/core-logic/generate-id'
+import { generateId } from '@skriuw/shared'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 type Orientation = 'single' | 'vertical' | 'horizontal'

@@ -23,7 +23,7 @@ export default defineConfig({
     'cmdk',
     'lucide-react',
     'vaul',
-    '@skriuw/core-logic',
+    '@skriuw/shared',
     '@skriuw/shared',
   ],
   // Mark esbuild as external to avoid require.resolve issues

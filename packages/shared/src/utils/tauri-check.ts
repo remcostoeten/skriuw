@@ -12,8 +12,8 @@ type TauriWin = {
 }
 
 export function isTauriAvailable(): boolean {
-	if (typeof window === 'undefined') return false
+	if (typeof globalThis === 'undefined') return false
 
-	const w = window as unknown as TauriWin
+	const w = globalThis as unknown as TauriWin
 	return Boolean(w.__TAURI__ || w.__TAURI_INTERNALS__)
 }

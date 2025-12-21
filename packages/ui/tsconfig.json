@@ -2,6 +2,7 @@
   "extends": "@skriuw/config/typescript/react-library",
   "compilerOptions": {
     "outDir": "./dist",
+    "moduleResolution": "bundler",
     "types": [
       "node"
     ]

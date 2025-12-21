@@ -12,9 +12,8 @@ import {
 
 import { IconButton } from '@skriuw/ui/icons'
 import { WindowControls } from './window-controls'
-import { isTauriAvailable } from '@skriuw/core-logic/tauri-check'
-import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
-import { cn } from '@skriuw/shared'
+import { isTauriAvailable, cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
 import { UserMenu } from '../auth/user-menu'
 
 type props = {

@@ -1,5 +1,5 @@
 import { createReactBlockSpec } from '@blocknote/react'
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 import { FolderTree, Trash2, Edit2, Check, X, ChevronRight, ChevronDown, Folder, File, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 

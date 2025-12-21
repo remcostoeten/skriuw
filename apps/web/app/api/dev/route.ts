@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, notes, folders, tasks, settings, shortcuts, schema, getSafeTimestamp } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 import { eq, lt } from 'drizzle-orm'
 import { env } from '@/lib/env'
 import { getSession } from '@/lib/api-auth'
