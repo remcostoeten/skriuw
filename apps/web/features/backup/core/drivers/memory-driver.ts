@@ -1,4 +1,4 @@
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 
 import type {
 	BackupManifest,

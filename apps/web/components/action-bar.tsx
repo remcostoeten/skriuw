@@ -14,8 +14,8 @@ import {
 } from 'react'
 
 import { IconButton } from '@skriuw/ui/icons'
-import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
 import { cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
 
 type ActionButton = {
 	icon: ReactNode

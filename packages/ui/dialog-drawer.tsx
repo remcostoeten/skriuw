@@ -17,7 +17,7 @@ import {
 	Portal,
 	useMediaQuery,
 	MOBILE_BREAKPOINT
-} from '@skriuw/core-logic'
+} from '@skriuw/shared/client'
 
 type DialogContextValue = {
 	open: boolean

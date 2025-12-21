@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation'
 import {
 	useMediaQuery,
 	MOBILE_BREAKPOINT
-} from '@skriuw/core-logic/use-media-query'
+} from '@skriuw/shared/client'
 
 import { IconButton, NotesIcon, UIPlaygroundIcon } from '@skriuw/ui/icons'
 import {

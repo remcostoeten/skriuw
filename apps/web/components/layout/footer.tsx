@@ -7,7 +7,7 @@ import { useShortcut } from '../../features/shortcuts/use-shortcut'
 
 import { SidebarMenu } from '../sidebar-menu'
 import { Kbd, ThemeToggle, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
-import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
+import { useIsTouchDevice } from '@skriuw/shared/client'
 
 export function Footer() {
         const [activeMenu, setActiveMenu] = useState<string | null>(null)

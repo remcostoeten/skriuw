@@ -1,7 +1,7 @@
 import { X, Search } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-import { createFocusTrap } from '@skriuw/core-logic/focus-trap'
+import { createFocusTrap } from '@skriuw/shared/client'
 
 import { Input } from '@skriuw/ui/input'
 

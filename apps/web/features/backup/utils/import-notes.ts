@@ -1,7 +1,7 @@
 import type { Item, Note, Folder } from '@/features/notes/types'
 import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
 import type { SkriuwExportData } from './export-notes'
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 
 export type ImportFormat = 'json' | 'markdown'
 

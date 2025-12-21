@@ -3,7 +3,7 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from './tooltip'
 
 import { cn } from '@skriuw/shared'
-import { useIsTouchDevice } from '@skriuw/core-logic/use-is-touch-device'
+import { useIsTouchDevice } from '@skriuw/shared/client'
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 

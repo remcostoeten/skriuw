@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { slugify, generateNoteSlug } from '@skriuw/core-logic/slug'
+import { slugify, generateNoteSlug } from '@skriuw/shared'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
 import type { Item } from '@/features/notes/types'
 

@@ -39,7 +39,6 @@
         "@hookform/resolvers": "^5.2.2",
         "@internationalized/date": "^3.10.0",
         "@monaco-editor/react": "^4.7.0",
-        "@skriuw/core-logic": "workspace:*",
         "@skriuw/crud": "workspace:*",
         "@skriuw/db": "workspace:*",
         "@skriuw/shared": "workspace:*",
@@ -100,25 +99,6 @@
         "typescript": "^5.0.0",
       },
     },
-    "packages/core-logic": {
-      "name": "@skriuw/core-logic",
-      "version": "0.0.0",
-      "dependencies": {
-        "clsx": "^2.1.1",
-        "tailwind-merge": "^2.6.0",
-      },
-      "devDependencies": {
-        "@skriuw/config": "workspace:*",
-        "@types/react": "^19.2.0",
-        "@types/react-dom": "^19.2.0",
-        "tsup": "^8.0.0",
-        "typescript": "^5.9.3",
-      },
-      "peerDependencies": {
-        "react": "^19.2.0",
-        "react-dom": "^19.2.0",
-      },
-    },
     "packages/crud": {
       "name": "@skriuw/crud",
       "version": "0.0.1",
@@ -172,8 +152,14 @@
       },
       "devDependencies": {
         "@skriuw/config": "workspace:*",
+        "@types/react": "^19.2.0",
+        "@types/react-dom": "^19.2.0",
         "tsup": "latest",
         "typescript": "latest",
+      },
+      "peerDependencies": {
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
       },
     },
     "packages/ui": {
@@ -199,7 +185,6 @@
         "@radix-ui/react-toast": "^1.2.15",
         "@radix-ui/react-toggle": "^1.1.10",
         "@radix-ui/react-tooltip": "^1.2.8",
-        "@skriuw/core-logic": "workspace:*",
         "@skriuw/shared": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -826,8 +811,6 @@
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
 
     "@skriuw/config": ["@skriuw/config@workspace:packages/config"],
-
-    "@skriuw/core-logic": ["@skriuw/core-logic@workspace:packages/core-logic"],
 
     "@skriuw/crud": ["@skriuw/crud@workspace:packages/crud"],
 
