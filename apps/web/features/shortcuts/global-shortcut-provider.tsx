@@ -1,10 +1,7 @@
 'use client'
 
 import { createContext, useEffect, useRef } from 'react'
-import { logger } from '@/lib/logger'
-import { initializeCommands } from '../commands/definitions'
-import { initializeKeybindings, handleKeyboardEvent } from '../keybindings/manager'
-import { ShortcutId } from './shortcut-definitions'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from './shortcut-definitions'
 
 type ShortcutHandler = (event: KeyboardEvent) => void
 type ShortcutRegistry = Map<ShortcutId, ShortcutHandler>
@@ -16,13 +13,71 @@ export type ShortcutContextValue = {
 
 export const ShortcutContext = createContext<ShortcutContextValue | null>(null)
 
+/**
+ * Check if the current target is an input field where we should NOT trigger shortcuts
+ */
+function isInputField(target: EventTarget | null): boolean {
+	if (!target || !(target instanceof HTMLElement)) return false
+
+	const tagName = target.tagName.toLowerCase()
+	const isContentEditable = target.isContentEditable
+
+	return (
+		tagName === 'input' ||
+		tagName === 'textarea' ||
+		tagName === 'select' ||
+		isContentEditable ||
+		target.closest('[contenteditable="true"]') !== null ||
+		target.closest('.ProseMirror') !== null || // TipTap/ProseMirror editor
+		target.closest('.bn-editor') !== null // BlockNote editor
+	)
+}
+
+/**
+ * Check if a keyboard event matches a key combination
+ */
+function matchesKeyCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
+	const pressed = {
+		ctrl: event.ctrlKey,
+		meta: event.metaKey,
+		alt: event.altKey,
+		shift: event.shiftKey,
+		key: event.key,
+	}
+
+	// Check if all keys in the combo are pressed
+	const hasCtrl = combo.includes('Ctrl')
+	const hasMeta = combo.includes('Meta')
+	const hasAlt = combo.includes('Alt')
+	const hasShift = combo.includes('Shift')
+	const regularKeys = combo.filter((k) => !['Ctrl', 'Meta', 'Alt', 'Shift'].includes(k))
+
+	// Modifiers must match exactly
+	if (hasCtrl && !pressed.ctrl) return false
+	if (hasMeta && !pressed.meta) return false
+	if (hasAlt && !pressed.alt) return false
+	if (hasShift && !pressed.shift) return false
+
+	// If combo has no modifiers, pressed event shouldn't have modifiers either
+	// (except for special keys like Delete, Backspace, etc.)
+	if (!hasCtrl && !hasMeta && !hasAlt && !hasShift) {
+		const isSpecialKey = ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
+			event.key
+		)
+		if (!isSpecialKey && (pressed.ctrl || pressed.meta || pressed.alt)) {
+			return false
+		}
+	}
+
+	// Check if the regular key matches
+	return regularKeys.length === 0 || regularKeys.some((k) => k === pressed.key)
+}
+
 export const ShortcutProvider = ({ children }: { children: React.ReactNode }) => {
 	const shortcuts = useRef<ShortcutRegistry>(new Map())
-	const initialized = useRef(false)
 
 	const registryManager = useRef<ShortcutContextValue>({
 		register: (id: ShortcutId, handler: ShortcutHandler) => {
-			// logger.info('shortcuts', `📝 Registering legacy shortcut: ${id}`)
 			shortcuts.current.set(id, handler)
 		},
 		unregister: (id: ShortcutId) => {
@@ -30,43 +85,34 @@ export const ShortcutProvider = ({ children }: { children: React.ReactNode }) =>
 		},
 	})
 
-	// Initialize new command system
 	useEffect(() => {
-		if (!initialized.current) {
-			initializeCommands()
-			initializeKeybindings()
-			initialized.current = true
-		}
-
 		const handleKeyDown = (event: KeyboardEvent) => {
-			// New system handles the event
-			handleKeyboardEvent(event)
+			// Don't trigger shortcuts in input fields (unless they have modifiers)
+			const hasModifiers = event.ctrlKey || event.metaKey || event.altKey
+			if (!hasModifiers && isInputField(event.target)) {
+				return
+			}
+
+			// Check each registered shortcut
+			for (const [id, handler] of shortcuts.current.entries()) {
+				const definition = shortcutDefinitions[id]
+				if (!definition || !definition.enabled) continue
+
+				// Check if any of the key combinations match
+				const matches = definition.keys.some((combo) => matchesKeyCombo(event, combo))
+
+				if (matches) {
+					event.preventDefault()
+					event.stopPropagation()
+					handler(event)
+					break // Only trigger the first matching shortcut
+				}
+			}
 		}
 
 		window.addEventListener('keydown', handleKeyDown, true)
 		return () => window.removeEventListener('keydown', handleKeyDown, true)
 	}, [])
 
-	// Listen for commands triggered by the new system that target legacy handlers
-	useEffect(() => {
-		const handleCommand = (e: Event) => {
-			const customEvent = e as CustomEvent
-			const { id, context } = customEvent.detail
-			const handler = shortcuts.current.get(id)
-
-			if (handler) {
-				logger.info('shortcuts', `✅ Executing legacy handler for: ${id}`)
-				// Pass original event if available, otherwise mock or cast
-				const originalEvent = context?.originalEvent as KeyboardEvent || new KeyboardEvent('keydown')
-				handler(originalEvent)
-			}
-		}
-
-		window.addEventListener('skriuw:command', handleCommand)
-		return () => window.removeEventListener('skriuw:command', handleCommand)
-	}, [])
-
-	return (
-		<ShortcutContext.Provider value={registryManager.current}>{children}</ShortcutContext.Provider>
-	)
+	return <ShortcutContext.Provider value={registryManager.current}>{children}</ShortcutContext.Provider>
 }
