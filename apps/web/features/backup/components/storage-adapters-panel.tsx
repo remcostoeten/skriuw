@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef, type ComponentType } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback, type ComponentType } from 'react'
 import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -272,7 +272,7 @@ export function StorageAdaptersPanel({
 		handleOAuth2Callback()
 	}, [testConnector, nameState, formState, definitionMap])
 
-	function handleFieldChange(type: StorageConnectorType, field: string, value: string) {
+	const handleFieldChange = useCallback((type: StorageConnectorType, field: string, value: string) => {
 		setFormState((prev) => ({
 			...prev,
 			[type]: {
@@ -280,16 +280,16 @@ export function StorageAdaptersPanel({
 				[field]: value,
 			},
 		}))
-	}
+	}, [])
 
-	function handleNameChange(type: StorageConnectorType, value: string) {
+	const handleNameChange = useCallback((type: StorageConnectorType, value: string) => {
 		setNameState((prev) => ({
 			...prev,
 			[type]: value,
 		}))
-	}
+	}, [])
 
-	async function handleConnect(type: StorageConnectorType) {
+	const handleConnect = useCallback(async (type: StorageConnectorType) => {
 		const definition = definitionMap[type]
 		if (!definition) return
 
@@ -314,9 +314,9 @@ export function StorageAdaptersPanel({
 				},
 			}))
 		}
-	}
+	}, [definitionMap, testConnector, formState, nameState])
 
-	async function handleOAuth2Connect(type: StorageConnectorType) {
+	const handleOAuth2Connect = useCallback(async (type: StorageConnectorType) => {
 		try {
 			const authUrl = initiateOAuth2Flow(type)
 			window.location.href = authUrl
@@ -329,7 +329,7 @@ export function StorageAdaptersPanel({
 				},
 			}))
 		}
-	}
+	}, [])
 
 	function statusBadge(status: string | undefined) {
 		const isConnected = status === 'connected'
@@ -372,10 +372,35 @@ export function StorageAdaptersPanel({
 	}
 
 	const currentType = controlledType ?? internalType
-	const handleTypeChange = (next: StorageConnectorType) => {
+	const handleTypeChange = useCallback((next: StorageConnectorType) => {
 		if (onTypeChange) onTypeChange(next)
 		else setInternalType(next)
-	}
+	}, [onTypeChange])
+
+	// Additional memoized handlers for form inputs
+	const handleFormNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		handleNameChange(currentType, e.target.value)
+	}, [currentType, handleNameChange])
+
+	const handleFormInputChange = useCallback((field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+		handleFieldChange(currentType, field, e.target.value)
+	}, [currentType, handleFieldChange])
+
+	const handleConnectClick = useCallback(() => {
+		handleConnect(currentType)
+	}, [currentType, handleConnect])
+
+	const handleOAuth2ConnectClick = useCallback(() => {
+		handleOAuth2Connect(currentType)
+	}, [currentType, handleOAuth2Connect])
+
+	const handleDisconnectClick = useCallback(() => {
+		disconnectConnector(currentType)
+	}, [currentType, disconnectConnector])
+
+	const handleRemoveClick = useCallback(() => {
+		removeConnector(currentType)
+	}, [currentType, removeConnector])
 
 	return (
 		<div className="space-y-5 w-full max-w-5xl mx-auto">
@@ -405,7 +430,7 @@ export function StorageAdaptersPanel({
 
 			<Tabs
 				value={currentType}
-				onValueChange={(value) => handleTypeChange(value as StorageConnectorType)}
+				onValueChange={handleTypeChange}
 				className="space-y-4"
 			>
 				{showTabs && (
@@ -559,7 +584,7 @@ export function StorageAdaptersPanel({
 											<Label className="text-xs text-muted-foreground">Connection name</Label>
 											<Input
 												value={friendlyName}
-												onChange={(e) => handleNameChange(currentType, e.target.value)}
+												onChange={handleFormNameChange}
 												placeholder={`${definition.label} backup`}
 												className={inputClass}
 											/>
@@ -579,7 +604,7 @@ export function StorageAdaptersPanel({
 																)}
 															</div>
 															<Button
-																onClick={() => handleOAuth2Connect(currentType)}
+																onClick={handleOAuth2ConnectClick}
 																variant="outline"
 																className="w-full justify-start"
 															>
@@ -605,9 +630,7 @@ export function StorageAdaptersPanel({
 															<Input
 																type={field.secret ? 'password' : 'text'}
 																value={formValues[field.name] || ''}
-																onChange={(e) =>
-																	handleFieldChange(currentType, field.name, e.target.value)
-																}
+																onChange={handleFormInputChange(field.name)}
 																placeholder={field.placeholder}
 																className={inputClass}
 															/>
@@ -639,7 +662,7 @@ export function StorageAdaptersPanel({
 
 								<div className="flex flex-wrap gap-3 pt-2">
 									<Button
-										onClick={() => handleConnect(currentType)}
+										onClick={handleConnectClick}
 										disabled={isTesting}
 										className="flex items-center gap-2"
 									>
@@ -657,12 +680,12 @@ export function StorageAdaptersPanel({
 									</Button>
 
 									{connector?.status === 'connected' && (
-										<Button variant="outline" onClick={() => disconnectConnector(currentType)}>
+										<Button variant="outline" onClick={handleDisconnectClick}>
 											Disconnect
 										</Button>
 									)}
 									{connector && (
-										<Button variant="ghost" onClick={() => removeConnector(currentType)}>
+										<Button variant="ghost" onClick={handleRemoveClick}>
 											Remove
 										</Button>
 									)}
