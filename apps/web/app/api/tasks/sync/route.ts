@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import type { Task } from '@/features/notes/types/index'
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 import { db } from '@/lib/storage/adapters/server-db'
 
 type SyncPayload = {

@@ -23,7 +23,6 @@
     "@hookform/resolvers": "^5.2.2",
     "@internationalized/date": "^3.10.0",
     "@monaco-editor/react": "^4.7.0",
-    "@skriuw/core-logic": "workspace:*",
     "@skriuw/crud": "workspace:*",
     "@skriuw/db": "workspace:*",
     "@skriuw/shared": "workspace:*",
