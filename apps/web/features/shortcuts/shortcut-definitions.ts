@@ -3,10 +3,11 @@ export type KeyCombo = string[]
 export type ShortcutDefinition = {
 	keys: KeyCombo[]
 	description?: string
-	enabled?: boolean // If false, shortcut is disabled and won't be registered
+	enabled?: boolean
 }
 
 export const shortcutDefinitions = {
+	// ==================== Navigation ====================
 	'editor-focus': {
 		keys: [['/']],
 		description: 'Focus the active note editor',
@@ -20,8 +21,34 @@ export const shortcutDefinitions = {
 		description: 'Open shortcuts panel',
 		enabled: true,
 	},
+	'toggle-sidebar': {
+		keys: [
+			['Ctrl', 'b'],
+			['Meta', 'b'],
+		],
+		description: 'Toggle sidebar visibility',
+		enabled: true,
+	},
+	'open-settings': {
+		keys: [
+			['Ctrl', ','],
+			['Meta', ','],
+		],
+		description: 'Open settings',
+		enabled: true,
+	},
+	'open-collection': {
+		keys: [
+			['Ctrl', 'o'],
+			['Meta', 'o'],
+		],
+		description: 'Open Archive & Collections page',
+		enabled: true,
+	},
+
+	// ==================== File Operations ====================
 	'create-note': {
-		keys: [['Ctrl', 'n'], ['Meta', 'n'], ['n']],
+		keys: [['Ctrl', 'n'], ['Meta', 'n']],
 		description: 'Create a new note',
 		enabled: true,
 	},
@@ -34,57 +61,8 @@ export const shortcutDefinitions = {
 		enabled: true,
 	},
 	'rename-item': {
-		keys: [['Ctrl', 'r'], ['Meta', 'r'], ['r']],
+		keys: [['Ctrl', 'r'], ['Meta', 'r']],
 		description: 'Rename selected file/folder',
-		enabled: true,
-	},
-	'open-collection': {
-		keys: [
-			['Ctrl', 'o'],
-			['Meta', 'o'],
-		],
-		description: 'Open Archive & Collections page',
-		enabled: true,
-	},
-	'toggle-sidebar': {
-		keys: [
-			['Ctrl', 'b'],
-			['Meta', 'b'],
-		],
-		description: 'Toggle sidebar visibility',
-		enabled: true,
-	},
-	'save-note': {
-		keys: [
-			['Ctrl', 's'],
-			['Meta', 's'],
-		],
-		description: 'Save the current note',
-		enabled: false, // Not implemented yet
-	},
-
-	'toggle-split-view': {
-		keys: [
-			['Ctrl', '`'],
-			['Meta', '`'],
-		],
-		description: 'Toggle split view (single ↔ split)',
-		enabled: true,
-	},
-	'swap-split-panes': {
-		keys: [
-			['Ctrl', 'Shift', '\\'],
-			['Meta', 'Shift', '\\'],
-		],
-		description: 'Swap split panes',
-		enabled: true,
-	},
-	'cycle-split-orientation': {
-		keys: [
-			['Ctrl', 'Alt', '\\'],
-			['Meta', 'Alt', '\\'],
-		],
-		description: 'Toggle vertical/horizontal split orientation',
 		enabled: true,
 	},
 	'delete-item': {
@@ -97,19 +75,8 @@ export const shortcutDefinitions = {
 		description: 'Pin/unpin selected file/folder when context menu is open',
 		enabled: true,
 	},
-	'open-settings': {
-		keys: [
-			['Ctrl', ','],
-			['Meta', ','],
-		],
-		description: 'Open settings',
-		enabled: true,
-	},
-	'toggle-theme': {
-		keys: [['Alt', 't']],
-		description: 'Toggle theme',
-		enabled: true,
-	},
+
+	// ==================== Split View ====================
 	'split.toggle': {
 		keys: [
 			['Ctrl', '\\'],
@@ -123,7 +90,7 @@ export const shortcutDefinitions = {
 			['Ctrl', 'Shift', '\\'],
 			['Meta', 'Shift', '\\'],
 		],
-		description: 'Swap panes',
+		description: 'Swap split panes',
 		enabled: true,
 	},
 	'split.orientation.next': {
@@ -131,7 +98,7 @@ export const shortcutDefinitions = {
 			['Ctrl', 'Alt', 'o'],
 			['Meta', 'Alt', 'o'],
 		],
-		description: 'Cycle split orientation',
+		description: 'Cycle split orientation (vertical ↔ horizontal)',
 		enabled: true,
 	},
 	'split.focus.left': {
@@ -158,25 +125,24 @@ export const shortcutDefinitions = {
 		description: 'Close active pane',
 		enabled: true,
 	},
-	'toggle-panes': {
+	'split.cycle': {
 		keys: [['`']],
 		description: 'Cycle between split panes (clockwise)',
 		enabled: true,
 	},
-	'split.vertical': {
+
+	// ==================== Other ====================
+	'command-executor': {
 		keys: [
-			['Ctrl', 'Alt', 'v'],
-			['Meta', 'Alt', 'v'],
+			['Ctrl', 'p'],
+			['Meta', 'p'],
 		],
-		description: 'Force vertical split',
+		description: 'Open command executor',
 		enabled: true,
 	},
-	'split.horizontal': {
-		keys: [
-			['Ctrl', 'Alt', 'h'],
-			['Meta', 'Alt', 'h'],
-		],
-		description: 'Force horizontal split',
+	'toggle-theme': {
+		keys: [['Alt', 't']],
+		description: 'Toggle theme',
 		enabled: true,
 	},
 } satisfies Record<string, ShortcutDefinition>

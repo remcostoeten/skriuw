@@ -339,7 +339,7 @@ export function AppLayoutManager({
 		toggleSettings()
 	})
 
-	useShortcut('toggle-panes', (e) => {
+	useShortcut('split.cycle', (e) => {
 		e.preventDefault()
 		toggleActivePane()
 	})

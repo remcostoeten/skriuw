@@ -19,18 +19,30 @@ export function useAuthModal() {
     return context
 }
 
+type AuthModalProviderProps = {
+    children: ReactNode
+    /** When true, the auth modal will never open */
+    disabled?: boolean
+}
+
 /**
  * Provider that manages the global auth modal state.
  * Listens for 'skriuw:auth-required' events and opens the modal.
  */
-export function AuthModalProvider({ children }: { children: ReactNode }) {
+export function AuthModalProvider({ children, disabled = false }: AuthModalProviderProps) {
     const [isOpen, setIsOpen] = useState(false)
 
-    const open = useCallback(() => setIsOpen(true), [])
+    const open = useCallback(() => {
+        if (!disabled) {
+            setIsOpen(true)
+        }
+    }, [disabled])
     const close = useCallback(() => setIsOpen(false), [])
 
     // Listen for auth-required events to auto-open modal
     useEffect(() => {
+        if (disabled) return
+
         function handleAuthRequired(event: Event) {
             const detail = (event as CustomEvent<{ status: number; action?: string }>).detail
             // Only auto-open for mutation blocks (not 503 service disabled)
@@ -41,12 +53,12 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
 
         window.addEventListener('skriuw:auth-required', handleAuthRequired as EventListener)
         return () => window.removeEventListener('skriuw:auth-required', handleAuthRequired as EventListener)
-    }, [])
+    }, [disabled])
 
     return (
         <AuthModalContext.Provider value={{ isOpen, open, close }}>
             {children}
-            <AuthModal open={isOpen} onOpenChange={setIsOpen} />
+            {!disabled && <AuthModal open={isOpen} onOpenChange={setIsOpen} />}
         </AuthModalContext.Provider>
     )
 }
