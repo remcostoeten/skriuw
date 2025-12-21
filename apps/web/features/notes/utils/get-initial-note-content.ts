@@ -1,5 +1,5 @@
 import type { Block } from '@blocknote/core'
-import { generateId } from '@skriuw/core-logic'
+import { generateId } from '@skriuw/shared'
 
 /**
  * Get initial content for a new note based on the default note template setting

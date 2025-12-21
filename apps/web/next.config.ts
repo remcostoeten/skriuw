@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 
 	// Transpile packages if needed
-	transpilePackages: ['@skriuw/ui', '@skriuw/core-logic', '@skriuw/db'],
+	transpilePackages: ['@skriuw/ui', '@skriuw/shared', '@skriuw/db'],
 
 	// Configure external packages for server components
 	serverExternalPackages: ['postgres'],

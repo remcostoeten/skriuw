@@ -1,7 +1,7 @@
 {
 	"name": "@skriuw/shared",
 	"version": "0.1.0",
-	"description": "Shared utilities and types for the Skriuw monorepo",
+	"description": "Shared utilities, hooks, and components for the Skriuw monorepo",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
 	"types": "dist/index.d.ts",
@@ -10,6 +10,11 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.mjs",
+			"require": "./dist/client.js"
 		}
 	},
 	"files": [
@@ -20,8 +25,14 @@
 		"dev": "tsup --watch",
 		"type-check": "tsc --noEmit"
 	},
+	"peerDependencies": {
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
 	"devDependencies": {
 		"@skriuw/config": "workspace:*",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
 		"tsup": "latest",
 		"typescript": "latest"
 	},

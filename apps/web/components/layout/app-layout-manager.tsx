@@ -1,7 +1,8 @@
 import { ReactNode, useMemo, useCallback, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/core-logic/use-media-query'
+import { MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { useMediaQuery } from '@skriuw/shared/client'
 
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
 import { useEditorTabs } from '../../features/editor/tabs'
