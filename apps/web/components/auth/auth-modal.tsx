@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useSession } from '@/lib/auth-client'
 import { BrandLogo } from '@/components/brand-logo'
 import { FloatingPaths } from '@/features/authentication/components/floating-paths'
@@ -19,6 +19,10 @@ type AuthModalProps = {
 
 export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
     const { data: session } = useSession()
+
+    const handleSuccess = useCallback(() => {
+        onOpenChange(false)
+    }, [onOpenChange])
 
     // Auto-close when user becomes authenticated
     useEffect(() => {
@@ -63,7 +67,7 @@ export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
                         <LoginForm
                             title="Welcome to skriuw"
                             subtitle={action ? `Sign in to ${action.replace('-', ' ')}` : "Sign in to continue to your notes"}
-                            onSuccess={() => onOpenChange(false)}
+                            onSuccess={handleSuccess}
                         />
                     </div>
                 </div>
