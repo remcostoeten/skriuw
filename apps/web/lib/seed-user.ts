@@ -1,5 +1,6 @@
 import { getDatabase, notes, folders, seedTemplateNotes, seedTemplateFolders } from '@skriuw/db'
 import { eq } from 'drizzle-orm'
+import { seedUserWithIdentityGuide } from './seed-user-with-identity-guide'
 
 /**
  * Seeds a new user with the template notes and folders defined by admins.
@@ -61,6 +62,9 @@ export async function seedNewUser(userId: string): Promise<void> {
             type: 'note',
         })
     }
+
+    // Seed the Identity Guard knowledge note for all new users
+    await seedUserWithIdentityGuide(userId)
 }
 
 /**

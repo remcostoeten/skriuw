@@ -14,9 +14,10 @@ import {
 type AuthModalProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
+    action?: string // The action that triggered auth
 }
 
-export function AuthModal({ open, onOpenChange }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
     const { data: session } = useSession()
 
     // Auto-close when user becomes authenticated
@@ -30,9 +31,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         <DrawerDialog open={open} onOpenChange={onOpenChange}>
             <DrawerContent className="flex flex-col p-0 overflow-hidden">
                 <DrawerClose aria-label="Close authentication" />
-                <div className="flex flex-row flex-1 min-h-0 max-w-5xl mx-auto w-full h-full">
+                <div className="flex flex-row flex-1 min-h-0 mx-auto w-full h-full">
                     {/* Left decorative panel - hidden on mobile */}
-                    <aside className="relative hidden md:flex flex-col min-w-[350px] max-w-[350px] border-r border-border/50 bg-secondary/20 p-10 overflow-hidden">
+                    <aside className="relative hidden md:flex flex-col flex-1 border-r border-border/50 bg-secondary/20 p-10 overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background z-10 pointer-events-none" />
 
                         <div className="z-20">
@@ -58,10 +59,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                     </aside>
 
                     {/* Right content area with login form */}
-                    <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto bg-background">
+                    <div className="flex-1 md:flex-none md:w-[480px] flex items-center justify-center p-8 overflow-y-auto bg-background">
                         <LoginForm
                             title="Welcome to skriuw"
-                            subtitle="Sign in to continue to your notes"
+                            subtitle={action ? `Sign in to ${action.replace('-', ' ')}` : "Sign in to continue to your notes"}
                             onSuccess={() => onOpenChange(false)}
                         />
                     </div>

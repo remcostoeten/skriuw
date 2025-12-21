@@ -5,8 +5,8 @@ import 'prismjs/themes/prism-tomorrow.css'
 
 import { Providers } from './providers'
 import { AutoSignIn } from '@/components/auth/auto-sign-in'
+import { CommandExecutor } from '@/components/command-executor'
 
-import { CommandPaletteWrapper } from '@/components/command-palette/wrapper'
 // Force dynamic rendering to avoid SSR issues with BlockNote
 export const dynamic = 'force-dynamic'
 
@@ -48,12 +48,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<div id="main-content">
 					<Providers>
 						<AutoSignIn />
-
 						{children}
+						<CommandExecutor />
 					</Providers>
 				</div>
-				<CommandPaletteWrapper />
 			</body>
 		</html>
 	)
 }
+
