@@ -12,6 +12,7 @@ export * from './schema'
 export { schema }
 export * from './user-owned'
 export * from './activity-events'
+export * from './timestamps'
 
 type DatabaseProvider = 'neon' | 'postgres'
 
