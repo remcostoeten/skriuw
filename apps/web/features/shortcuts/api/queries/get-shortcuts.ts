@@ -36,6 +36,8 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'split.toggle': [],
 			'split.swap': [],
 			'split.orientation.next': [],
+			'split.vertical': [],
+			'split.horizontal': [],
 			'split.focus.left': [],
 			'split.focus.right': [],
 			'split.close': [],
