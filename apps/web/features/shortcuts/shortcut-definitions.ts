@@ -101,6 +101,22 @@ export const shortcutDefinitions = {
 		description: 'Cycle split orientation (vertical ↔ horizontal)',
 		enabled: true,
 	},
+	'split.vertical': {
+		keys: [
+			['Ctrl', 'Alt', 'v'],
+			['Meta', 'Alt', 'v'],
+		],
+		description: 'Set split orientation to vertical',
+		enabled: true,
+	},
+	'split.horizontal': {
+		keys: [
+			['Ctrl', 'Alt', 'h'],
+			['Meta', 'Alt', 'h'],
+		],
+		description: 'Set split orientation to horizontal',
+		enabled: true,
+	},
 	'split.focus.left': {
 		keys: [
 			['Ctrl', 'Alt', 'ArrowLeft'],

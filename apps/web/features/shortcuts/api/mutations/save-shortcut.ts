@@ -12,11 +12,9 @@ import { STORAGE_KEYS } from '@/lib/storage-keys'
  */
 export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<CustomShortcut> {
 	try {
-		// Check if shortcut already exists
 		const result = await readOne<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, id)
 
 		if (result.success && result.data) {
-			// Update existing shortcut
 			const updated = await update<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, id, {
 				keys,
 				customizedAt: new Date().toISOString(),
@@ -26,11 +24,9 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 				throw new Error('Failed to update shortcut')
 			}
 
-			// Invalidate cache when shortcut changes
 			invalidateShortcutsCache()
 			return updated.data
 		} else {
-			// Create new shortcut
 			const newShortcut = await create<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, {
 				id,
 				keys,
@@ -41,7 +37,6 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 				throw new Error('Failed to create shortcut')
 			}
 
-			// Invalidate cache when shortcut changes
 			invalidateShortcutsCache()
 			return newShortcut.data
 		}
