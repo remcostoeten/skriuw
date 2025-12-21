@@ -74,8 +74,8 @@ export function SkriuwExplanation({ onCreateNote }: Props) {
 					</motion.div>
 				</div>
 
-				<motion.div variants={itemVariants} className="max-w-lg text-center">
-					<p className="text-base text-muted-foreground leading-relaxed">
+				<motion.div variants={itemVariants} className="prose prose-sm dark:prose-invert max-w-lg text-center prose-p:text-muted-foreground">
+					<p>
 						A blazingly fast, privacy-focused note-taking app built for everyone. Providing an opt-in
 						system for all features (yes, AI is included) rather than the usual opt-out system. The
 						tools are here, you just need to opt-in.
