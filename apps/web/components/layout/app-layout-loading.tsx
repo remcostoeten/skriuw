@@ -12,11 +12,13 @@ function LeftToolbarSkeleton() {
 }
 
 function TopToolbarSkeleton() {
+	const handleToggleSidebarSkeleton = useCallback(() => { }, [])
+	const handleToggleDesktopSidebarSkeleton = useCallback(() => { }, [])
 	return (
 		<TopToolbar
 			noteName=""
-			onToggleSidebar={() => { }}
-			onToggleDesktopSidebar={() => { }}
+			onToggleSidebar={handleToggleSidebarSkeleton}
+			onToggleDesktopSidebar={handleToggleDesktopSidebarSkeleton}
 		/>
 	)
 }
