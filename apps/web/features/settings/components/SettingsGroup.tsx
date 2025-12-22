@@ -58,13 +58,13 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 			return null
 		}
 
-		const handleChange = (value: any) => {
+		function handleChange(value: any) {
 			onChange(setting.key, value)
 		}
 
 		const isSettingDisabled = disabled || setting.implemented === false || setting.disabled === true
 
-		const renderPreview = () => {
+		function renderPreview() {
 			if (!setting.preview) return null
 
 			return (

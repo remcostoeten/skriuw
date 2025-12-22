@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, lazy, useMemo, useEffect, useState } from 'react'
+import { Suspense, lazy, useMemo, useEffect, useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
@@ -83,7 +83,7 @@ export default function Index() {
 		}
 	}, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
 
-	async function handleCreateNote() {
+	const handleCreateNote = async () => {
 		const newNote = await createNote('Untitled')
 		if (newNote) {
 			const url = getNoteUrl(newNote.id)
@@ -92,8 +92,12 @@ export default function Index() {
 		}
 	}
 
-	function handleOpenCollection() {
+	const handleOpenCollection = () => {
 		router.push('/archive')
+	}
+
+	const handleHideBadge = () => {
+		updateCookie('true')
 	}
 
 	useShortcut('create-note', (e) => {
@@ -115,7 +119,7 @@ export default function Index() {
 						text="Bugs will occur! Still in alpha"
 						icon={<Icons.logo className="h-4 w-4" />}
 						endIcon={<Icons.close className="h-4 w-4" />}
-						onCancel={hideBadge}
+						onCancel={handleHideBadge}
 					/>
 				</div>
 			)}

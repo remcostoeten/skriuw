@@ -32,7 +32,7 @@ export function DeleteAccountDialog({
     const REQUIRED_PHRASE = 'delete my account'
     const isConfirmed = confirmPhrase.toLowerCase() === REQUIRED_PHRASE
 
-    const handleConfirm = () => {
+    function handleConfirm() {
         if (isConfirmed) {
             onConfirm()
         }
