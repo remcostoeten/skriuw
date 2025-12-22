@@ -215,12 +215,20 @@ Add to your `.eslintrc`:
 ### 2. TypeScript Type Helpers
 ```typescript
 // helpers/performance.ts
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 export const useEventCallback = <T extends (...args: any[]) => any>(
   callback: T
 ): T => {
-  return useCallback(callback, []) as T;
+  const callbackRef = useRef(callback);
+
+  // Update the ref on each render to always have the latest callback
+  callbackRef.current = callback;
+
+  // Return a stable wrapper that calls ref.current
+  return useCallback((...args: Parameters<T>): ReturnType<T> => {
+    return callbackRef.current(...args);
+  }, []) as T;
 };
 ```
 

@@ -23,23 +23,19 @@ export function useAuthModal() {
 
 type AuthModalProviderProps = {
     children: ReactNode
-    /** When true, the auth modal will never open */
-    disabled?: boolean
 }
 
 /**
  * Provider that manages the global auth modal state.
  * Listens for 'skriuw:auth-required' events and opens the modal.
  */
-export function AuthModalProvider({ children, disabled = false }: AuthModalProviderProps) {
+export function AuthModalProvider({ children }: AuthModalProviderProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [lastAction, setLastAction] = useState<string>()
 
     const open = useCallback(() => {
-        if (!disabled) {
-            setIsOpen(true)
-        }
-    }, [disabled])
+        setIsOpen(true)
+    }, [])
     const close = useCallback(() => {
         setIsOpen(false)
         setLastAction(undefined)
@@ -47,8 +43,6 @@ export function AuthModalProvider({ children, disabled = false }: AuthModalProvi
 
     // Listen for identity-required events to auto-open modal
     useEffect(() => {
-        if (disabled) return
-
         function handleIdentityRequired(event: Event) {
             const detail = (event as CustomEvent<{ status: number; action?: string }>).detail
 
@@ -69,18 +63,16 @@ export function AuthModalProvider({ children, disabled = false }: AuthModalProvi
             window.removeEventListener(IDENTITY_REQUIRED_EVENT, handleIdentityRequired as EventListener)
             window.removeEventListener('skriuw:auth-required', handleIdentityRequired as EventListener)
         }
-    }, [disabled])
+    }, [])
 
     return (
         <AuthModalContext.Provider value={{ isOpen, open, close, lastAction }}>
             {children}
-            {!disabled && (
-                <AuthModal
-                    open={isOpen}
-                    onOpenChange={setIsOpen}
-                    action={lastAction}
-                />
-            )}
+            <AuthModal
+                open={isOpen}
+                onOpenChange={setIsOpen}
+                action={lastAction}
+            />
         </AuthModalContext.Provider>
     )
 }
