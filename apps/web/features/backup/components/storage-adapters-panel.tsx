@@ -372,9 +372,10 @@ export function StorageAdaptersPanel({
 	}
 
 	const currentType = controlledType ?? internalType
-	const handleTypeChange = useCallback((next: StorageConnectorType) => {
-		if (onTypeChange) onTypeChange(next)
-		else setInternalType(next)
+	const handleTypeChange = useCallback((next: string) => {
+		const type = next as StorageConnectorType
+		if (onTypeChange) onTypeChange(type)
+		else setInternalType(type)
 	}, [onTypeChange])
 
 	// Additional memoized handlers for form inputs

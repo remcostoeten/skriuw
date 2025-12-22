@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { Skeleton } from '@skriuw/ui/skeleton'
 
 import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
