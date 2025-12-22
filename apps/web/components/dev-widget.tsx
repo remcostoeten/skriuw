@@ -585,6 +585,60 @@ export function DevWidget() {
 		downloadMarkdownExport(items)
 	}, [items])
 
+	const handleImport = useCallback((type: 'json' | 'md') => {
+		const input = document.createElement('input')
+		input.type = 'file'
+		input.accept = type === 'json' ? '.json' : '.md'
+		input.multiple = type === 'md'
+
+		input.onchange = async (e) => {
+			const files = (e.target as HTMLInputElement).files
+			if (!files?.length) return
+
+			const toastId = toast.loading('Importing...')
+			try {
+				let importResult
+				if (type === 'json') {
+					importResult = await importFromJson(await files[0].text())
+				} else {
+					const contents = await Promise.all(
+						Array.from(files).map(async (f) => ({
+							name: f.name,
+							content: await f.text()
+						}))
+					)
+					importResult = await importFromMarkdown(contents)
+				}
+
+				if (!importResult.success) {
+					throw new Error(importResult.errors.join(', '))
+				}
+
+				// Send to API
+				const res = await fetch('/api/import', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ items: importResult.items })
+				})
+
+				if (!res.ok) {
+					const data = await res.json()
+					throw new Error(data.error || 'Import failed on server')
+				}
+
+				toast.success('Import successful', { id: toastId })
+				await refreshItems()
+				fetchStats()
+			} catch (err) {
+				toast.error(
+					err instanceof Error ? err.message : 'Import failed',
+					{ id: toastId }
+				)
+			}
+		}
+		input.click()
+	}, [refreshItems, fetchStats])
+
 	const handleImportJson = useCallback(() => {
 		handleImport('json')
 	}, [handleImport])
@@ -669,59 +723,7 @@ export function DevWidget() {
 		})
 	}, [size.width, size.height])
 
-	const handleImport = useCallback((type: 'json' | 'md') => {
-		const input = document.createElement('input')
-		input.type = 'file'
-		input.accept = type === 'json' ? '.json' : '.md'
-		input.multiple = type === 'md'
 
-		input.onchange = async (e) => {
-			const files = (e.target as HTMLInputElement).files
-			if (!files?.length) return
-
-			const toastId = toast.loading('Importing...')
-			try {
-				let importResult
-				if (type === 'json') {
-					importResult = await importFromJson(await files[0].text())
-				} else {
-					const contents = await Promise.all(
-						Array.from(files).map(async (f) => ({
-							name: f.name,
-							content: await f.text()
-						}))
-					)
-					importResult = await importFromMarkdown(contents)
-				}
-
-				if (!importResult.success) {
-					throw new Error(importResult.errors.join(', '))
-				}
-
-				// Send to API
-				const res = await fetch('/api/import', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ items: importResult.items })
-				})
-
-				if (!res.ok) {
-					const data = await res.json()
-					throw new Error(data.error || 'Import failed on server')
-				}
-
-				toast.success('Import successful', { id: toastId })
-				await refreshItems()
-				fetchStats()
-			} catch (err) {
-				toast.error(
-					err instanceof Error ? err.message : 'Import failed',
-					{ id: toastId }
-				)
-			}
-		}
-		input.click()
-	}
 
 	// Don't render anything if not visible (authorization check failed)
 	if (!isVisible) return null

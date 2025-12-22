@@ -136,7 +136,7 @@ export default function ProfilePage() {
 		})
 
 		setTimeout(() => setIsDeleting(false), 600)
-	}
+	}, [])
 
 	if (!hasSession) {
 		return (

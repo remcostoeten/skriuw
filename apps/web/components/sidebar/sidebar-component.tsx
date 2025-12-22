@@ -963,9 +963,11 @@ function FileTreeItem({
 	const handleFavoriteToggleFromContextMenu = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation()
-			onFavoriteNote(item.id, !item.favorite)
+			if (item.type === 'note') {
+				onFavoriteNote(item.id, !item.favorite)
+			}
 		},
-		[onFavoriteNote, item.id, item.favorite]
+		[onFavoriteNote, item]
 	)
 
 	const handleDeleteFromContextMenu = useCallback(
