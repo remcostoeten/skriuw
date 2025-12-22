@@ -423,9 +423,9 @@ export function DevWidget() {
 
 	// Track mouse movement to detect click vs drag
 	useEffect(() => {
-		if (!dragStartPos) return
 
 		function handleMouseMove(e: MouseEvent) {
+			if (!dragStartPos) return
 			const deltaX = Math.abs(e.clientX - dragStartPos.x)
 			const deltaY = Math.abs(e.clientY - dragStartPos.y)
 			const threshold = 5 // 5px threshold to distinguish click from drag

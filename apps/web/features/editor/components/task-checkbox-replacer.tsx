@@ -56,7 +56,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 							variant="default"
 							onChange={(checked) => {
 								// Use BlockNote's API to toggle the task
-								if (existing.blockId) {
+								if (existing.blockId && editor) {
 									const block = editor.getBlock(existing.blockId)
 									if (block && block.type === 'bulletListItem') {
 										editor.updateBlock(block, {
@@ -125,7 +125,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 						variant="default"
 						onChange={(checked) => {
 							// Use BlockNote's API to toggle the task
-							if (blockId) {
+							if (blockId && editor) {
 								try {
 									const block = editor.getBlock(blockId)
 									if (block && block.type === 'bulletListItem') {
