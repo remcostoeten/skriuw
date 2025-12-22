@@ -198,7 +198,8 @@ export function useNotes() {
 
 			// Optimistically add to UI immediately
 			const previousItems = items
-			const addItem = (itemList: Item[], item: Item, targetFolderId?: string): Item[] => {
+			function addItem(itemList: Item[], item: Item, targetFolderId?: string): Item[] {
+
 				if (!targetFolderId) {
 					return [...itemList, item]
 				}
@@ -219,7 +220,7 @@ export function useNotes() {
 				const newNote = await createNoteMutation({ name, parentFolderId })
 
 				// Replace temp note with real note
-				const replaceItem = (itemList: Item[]): Item[] => {
+				function replaceItem(itemList: Item[]): Item[] {
 					return itemList.map((i) => {
 						if (i.id === tempId) {
 							return newNote
@@ -262,7 +263,7 @@ export function useNotes() {
 
 			// Optimistically add to UI immediately
 			const previousItems = items
-			const addItem = (itemList: Item[], item: Item, targetFolderId?: string): Item[] => {
+			function addItem(itemList: Item[], item: Item, targetFolderId?: string): Item[] {
 				if (!targetFolderId) {
 					return [...itemList, item]
 				}
@@ -283,7 +284,7 @@ export function useNotes() {
 				const newFolder = await createFolderMutation({ name, parentFolderId })
 
 				// Replace temp folder with real folder (preserving children structure)
-				const replaceItem = (itemList: Item[]): Item[] => {
+				function replaceItem(itemList: Item[]): Item[] {
 					return itemList.map((i) => {
 						if (i.id === tempId) {
 							return { ...newFolder, children: [] }
@@ -340,7 +341,7 @@ export function useNotes() {
 		async (id: string, newName: string) => {
 			// Optimistic update: rename item immediately
 			const previousItems = items
-			const updateName = (itemList: Item[]): Item[] => {
+			function updateName(itemList: Item[]): Item[] {
 				return itemList.map((item) => {
 					if (item.id === id) {
 						return { ...item, name: newName }
@@ -367,7 +368,7 @@ export function useNotes() {
 		async (id: string) => {
 			// Optimistic update: remove item from UI immediately
 			const previousItems = items
-			const removeItemById = (itemList: Item[]): Item[] => {
+			function removeItemById(itemList: Item[]): Item[] {
 				return itemList
 					.filter((item) => item.id !== id)
 					.map((item) => {
@@ -405,7 +406,7 @@ export function useNotes() {
 			let movedItem: Item | null = null
 
 			// Find and remove the item from its current location
-			const removeItem = (itemList: Item[]): Item[] => {
+			function removeItem(itemList: Item[]): Item[] {
 				return itemList
 					.filter((item) => {
 						if (item.id === itemId) {
@@ -423,7 +424,7 @@ export function useNotes() {
 			}
 
 			// Add item to target folder
-			const addToTarget = (itemList: Item[]): Item[] => {
+			function addToTarget(itemList: Item[]): Item[] {
 				if (!movedItem) return itemList
 				if (targetFolderId === null) {
 					return [...itemList, movedItem]
@@ -478,7 +479,7 @@ export function useNotes() {
 		async (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => {
 			// Optimistic update: update pin status immediately
 			const previousItems = items
-			const updatePinStatus = (itemList: Item[]): Item[] => {
+			function updatePinStatus(itemList: Item[]): Item[] {
 				return itemList.map((item) => {
 					if (item.id === itemId) {
 						return { ...item, pinned, pinnedAt: pinned ? Date.now() : undefined }
@@ -505,7 +506,7 @@ export function useNotes() {
 		async (noteId: string, favorite: boolean) => {
 			// Optimistic update: update favorite status immediately
 			const previousItems = items
-			const updateFavoriteStatus = (itemList: Item[]): Item[] => {
+			function updateFavoriteStatus(itemList: Item[]): Item[] {
 				return itemList.map((item) => {
 					if (item.id === noteId && item.type === 'note') {
 						return { ...item, favorite }

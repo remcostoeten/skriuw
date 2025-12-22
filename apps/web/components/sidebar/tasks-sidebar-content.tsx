@@ -52,7 +52,7 @@ export function TasksSidebarContent({ className, activeNoteId }: props) {
         fetchTasks()
     }, [fetchTasks])
 
-    const handleTaskClick = (task: TaskItem) => {
+    function handleTaskClick(task: TaskItem) {
         // Navigate to the task detail page
         router.push(`/tasks/${task.id}`)
     }

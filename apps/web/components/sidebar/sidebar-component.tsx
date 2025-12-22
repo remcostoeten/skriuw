@@ -101,7 +101,7 @@ function MoveFolderMenu({
 			return item?.type === 'folder'
 		})
 
-		const collectFolders = (itemList: Item[]) => {
+		function collectFolders(itemList: Item[]) {
 			for (const item of itemList) {
 				if (
 					item.type === 'folder' &&
@@ -405,7 +405,7 @@ function FileTreeItem({
 		setIsRenaming(true)
 	}, [])
 
-	const handleNameClick = (e: React.MouseEvent) => {
+	function handleNameClick(e: React.MouseEvent) {
 		if (isRenaming) return
 
 		// Stop propagation so clicking name doesn't trigger folder toggle
@@ -464,7 +464,7 @@ function FileTreeItem({
 		}, 200)
 	}
 
-	const handleRowClick = (e: React.MouseEvent) => {
+	function handleRowClick(e: React.MouseEvent) {
 		// Don't handle if renaming
 		if (isRenaming) return
 
@@ -571,7 +571,7 @@ function FileTreeItem({
 		setAnchor(item.id)
 	}
 
-	const handleRenameComplete = () => {
+	function handleRenameComplete() {
 		if (renameValue.trim()) {
 			onRename(item.id, renameValue.trim())
 		} else {
@@ -580,7 +580,7 @@ function FileTreeItem({
 		setIsRenaming(false)
 	}
 
-	const handleFolderToggle = (e: React.MouseEvent) => {
+	function handleFolderToggle(e: React.MouseEvent) {
 		e.stopPropagation()
 		e.preventDefault()
 		if (!hasChildren) return
@@ -987,7 +987,7 @@ function FileTreeItem({
 	)
 
 	// Recursively count all items in a folder (including nested folders and their children)
-	const countAllItems = (folder: FolderType): number => {
+	function countAllItems(folder: FolderType): number {
 		let count = 0
 		for (const child of folder.children) {
 			count += 1 // Count the child itself
@@ -1800,7 +1800,7 @@ export function Sidebar({
 				const parent = findActualItem(items, parentId)
 				if (!parent || parent.type !== 'folder') return false
 
-				const checkChildren = (folder: FolderType): boolean => {
+				function checkChildren(folder: FolderType): boolean {
 					return folder.children.some((child) => {
 						if (child.id === childId) return true
 						if (child.type === 'folder') {
@@ -1848,7 +1848,7 @@ export function Sidebar({
 
 	const collectAllFolderIds = useCallback((items: Item[]): string[] => {
 		const folderIds: string[] = []
-		const traverse = (item: Item) => {
+		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
 				item.children.forEach(traverse)
@@ -2030,7 +2030,7 @@ export function Sidebar({
 	const getAllVisibleItemIds = useCallback(
 		(items: Item[]): string[] => {
 			const ids: string[] = []
-			const traverse = (itemList: Item[]) => {
+			function traverse(itemList: Item[]) {
 				for (const item of itemList) {
 					ids.push(item.id)
 					if (
@@ -2095,7 +2095,7 @@ export function Sidebar({
 
 		const query = searchQuery.toLowerCase().trim()
 
-		const filterItems = (itemList: Item[]): Item[] => {
+		function filterItems(itemList: Item[]): Item[] {
 			const filtered: Item[] = []
 
 			for (const item of itemList) {

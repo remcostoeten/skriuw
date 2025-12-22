@@ -7,7 +7,7 @@ import {
 } from '@blocknote/react'
 import { getCustomSlashMenuItems } from '../hooks/useCustomSlashMenu'
 
-const SlashMenuList = ({ items, selectedIndex, onItemClick }: SuggestionMenuProps<DefaultReactSuggestionItem>) => {
+function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProps<DefaultReactSuggestionItem>) {
 	const activeOptionId =
 		selectedIndex !== undefined && selectedIndex >= 0 ? `slash-menu-${selectedIndex}` : undefined
 

@@ -21,7 +21,7 @@ export function QuickNoteInput() {
 		}
 	}
 
-	const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+	function handleKeyPress(e: React.KeyboardEvent<HTMLInputElement>) {
 		if (e.key === 'Enter') {
 			handleCreateQuickNote()
 		}

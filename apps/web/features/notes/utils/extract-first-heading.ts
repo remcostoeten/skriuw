@@ -11,7 +11,7 @@ export function extractFirstHeading(blocks: Block[]): string | null {
 	}
 
 	// Recursively search through blocks and their children
-	const findFirstHeading = (blockList: Block[]): string | null => {
+	function findFirstHeading(blockList: Block[]): string | null {
 		for (const block of blockList) {
 			// Check if this block is a heading (level 1 or 2)
 			if (block.type === 'heading' && (block.props?.level === 1 || block.props?.level === 2)) {

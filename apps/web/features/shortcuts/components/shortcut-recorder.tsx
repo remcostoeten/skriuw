@@ -35,7 +35,7 @@ export function ShortcutRecorder({
 			return
 		}
 
-		const saveCurrentCombo = () => {
+		function saveCurrentCombo() {
 			const currentKeys = pressedKeysRef.current
 			if (currentKeys.size > 0) {
 				// Sort keys: modifiers first (in consistent order), then the actual key
@@ -53,7 +53,7 @@ export function ShortcutRecorder({
 			}
 		}
 
-		const handleKeyDown = (e: KeyboardEvent) => {
+		function handleKeyDown(e: KeyboardEvent) {
 			e.preventDefault()
 			e.stopPropagation()
 
@@ -125,7 +125,7 @@ export function ShortcutRecorder({
 			setPressedKeys(keys)
 		}
 
-		const handleKeyUp = (e: KeyboardEvent) => {
+		function handleKeyUp(e: KeyboardEvent) {
 			// Only save when a non-modifier key is released
 			// This ensures we capture the complete combination
 			const isModifierKey = ['Control', 'Meta', 'Shift', 'Alt'].includes(e.key)
@@ -152,7 +152,7 @@ export function ShortcutRecorder({
 		}
 	}, [isRecording, onChange, onStopRecording])
 
-	const formatKeyCombo = (combo: KeyCombo): string => {
+	function formatKeyCombo(combo: KeyCombo): string {
 		// Debug for backquote combos
 		if (combo.some((key) => key === '`' || key === 'Backquote')) {
 			console.log('Formatting backquote combo:', combo)
@@ -160,19 +160,19 @@ export function ShortcutRecorder({
 		return combo.join(' + ')
 	}
 
-	const formatShortcut = (keyCombos: KeyCombo[]): string => {
+	function formatShortcut(keyCombos: KeyCombo[]): string {
 		if (keyCombos.length === 0) return 'Not set'
 		return keyCombos.map(formatKeyCombo).join(' or ')
 	}
 
-	const handleClick = () => {
+	function handleClick() {
 		if (!isRecording) {
 			onStartRecording()
 			inputRef.current?.focus()
 		}
 	}
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+	function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
 		// Only handle Enter key when not recording and focused
 		if (!isRecording && e.key === 'Enter') {
 			e.preventDefault()

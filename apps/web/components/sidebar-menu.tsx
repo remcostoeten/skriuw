@@ -159,11 +159,11 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		},
 	]
 
-	const handleSettingChange = (key: string, value: unknown) => {
+	function handleSettingChange(key: string, value: unknown) {
 		updateMultipleSettings({ [key]: value })
 	}
 
-	const renderSettingsContent = () => {
+	function renderSettingsContent() {
 		const animationSetting: SettingsGroupDefinition = {
 			category: 'appearance',
 			title: 'UI Preferences',
