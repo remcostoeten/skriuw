@@ -56,7 +56,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
         setEditorContent(editor.document)
 
         function handleContentChange() {
-          setEditorContent(editor.document)
+          if (editor) {
+            setEditorContent(editor.document)
+          }
         }
 
         editor.onEditorContentChange(handleContentChange)
