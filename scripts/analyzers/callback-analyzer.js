@@ -559,7 +559,7 @@ ${c('bold', 'Select an action:')}
       await new CallbackAnalyzer({}).analyzeDirectory(webAppDir);
       break;
 
-    case '2':
+    case '2': {
       const scopePath = await question(`\n${c('cyan', '📂')} Enter path pattern (e.g., features/editor): `);
       if (scopePath.trim()) {
         console.log('');
@@ -569,12 +569,14 @@ ${c('bold', 'Select an action:')}
         await new CallbackAnalyzer({}).analyzeDirectory(webAppDir);
       }
       break;
+    }
 
-    case '3':
+    case '3': {
       console.log('');
       const quickAnalyzer = new CallbackAnalyzer({ highPriorityOnly: true });
       await quickAnalyzer.analyzeDirectory(webAppDir);
       break;
+    }
 
     case '0':
       console.log(`${c('dim', 'Goodbye!')}`);
