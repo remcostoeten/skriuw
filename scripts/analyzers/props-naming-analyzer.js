@@ -530,7 +530,7 @@ ${c('bold', 'Select an action:')}
             console.log('');
             await new PropsNamingAnalyzer({ dryRun: true }).analyzeDirectory(webAppDir);
             break;
-        case '3':
+        case '3': {
             const confirm = await question(`\n${c('yellow', '⚠️')}  This will modify files. Continue? (y/N): `);
             if (confirm.toLowerCase() === 'y') {
                 console.log('');
@@ -539,15 +539,17 @@ ${c('bold', 'Select an action:')}
                 console.log(`${c('dim', 'Cancelled.')}`);
             }
             break;
+        }
         case '4':
             console.log('');
             new PropsNamingAnalyzer({}).revertBackups();
             break;
-        case '5':
+        case '5': {
             const scopePath = await question(`\n${c('cyan', '📂')} Enter path pattern (e.g., features/editor): `);
             console.log('');
             await new PropsNamingAnalyzer({ scope: scopePath.trim() || undefined }).analyzeDirectory(webAppDir);
             break;
+        }
         case '0':
             console.log(`${c('dim', 'Goodbye!')}`);
             break;

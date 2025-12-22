@@ -153,6 +153,8 @@ export function DevWidget() {
 	}, [size, resizeStart])
 
 	useEffect(() => {
+		if (!resizeStart) return
+
 		function handleMouseMove(e: MouseEvent) {
 			if (!resizeStart) return
 			const deltaX = e.clientX - resizeStart.x
@@ -423,6 +425,7 @@ export function DevWidget() {
 
 	// Track mouse movement to detect click vs drag
 	useEffect(() => {
+		if (!dragStartPos) return
 
 		function handleMouseMove(e: MouseEvent) {
 			if (!dragStartPos) return
@@ -440,15 +443,15 @@ export function DevWidget() {
 			// This prevents race condition between mouseup and click events
 			// Reset after a short delay to handle cases where click doesn't fire
 			setTimeout(() => {
-				setDragStartPos(null)
-				setHasMoved(false)
+				if (dragStartPos) {
+					setDragStartPos(null)
+					setHasMoved(false)
+				}
 			}, 100)
 		}
 
-		if (dragStartPos) {
-			document.addEventListener('mousemove', handleMouseMove)
-			document.addEventListener('mouseup', handleMouseUp)
-		}
+		document.addEventListener('mousemove', handleMouseMove)
+		document.addEventListener('mouseup', handleMouseUp)
 
 		return () => {
 			document.removeEventListener('mousemove', handleMouseMove)
