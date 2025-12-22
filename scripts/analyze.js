@@ -160,7 +160,7 @@ async function interactiveMode() {
     switch (choice.trim()) {
         case '1':
         case '2':
-        case '3':
+        case '3': {
             const selectedKey = analyzerKeys[parseInt(choice) - 1];
             console.log('');
 
@@ -171,7 +171,7 @@ async function interactiveMode() {
                 case '2':
                     args = ['--dry-run'];
                     break;
-                case '3':
+                case '3': {
                     const confirm = await question(`${c('yellow', '⚠️')}  This will modify files. Continue? (y/N): `);
                     if (confirm.toLowerCase() !== 'y') {
                         console.log(`${c('dim', 'Cancelled.')}`);
@@ -180,17 +180,20 @@ async function interactiveMode() {
                     }
                     args = ['--fix'];
                     break;
-                case '4':
+                }
+                case '4': {
                     const scope = await question(`${c('cyan', '📂')} Enter path pattern: `);
                     if (scope.trim()) {
                         args = [`--scope=${scope.trim()}`];
                     }
                     break;
+                }
             }
 
             rl.close();
             await runAnalyzer(selectedKey, args);
             break;
+        }
 
         case '4':
             console.log(`\n${c('cyan', '🚀')} Running all analyzers...\n`);

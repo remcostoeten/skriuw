@@ -155,15 +155,15 @@ export function LoginForm({
     }, [])
 
     const handleToggleMode = useCallback(() => {
-        setIsRegisterMode(!isRegisterMode);
+        setIsRegisterMode(prev => !prev);
         setPasswordError("");
         setConfirmPassword("");
         setGeneralError("");
-    }, [isRegisterMode])
+    }, [])
 
     const handleToggleOtherOptions = useCallback(() => {
-        setShowOtherOptions(!showOtherOptions)
-    }, [showOtherOptions])
+        setShowOtherOptions(prev => !prev)
+    }, [])
 
     const handleGitHubLogin = useCallback(() => {
         handleSocialLogin("github")

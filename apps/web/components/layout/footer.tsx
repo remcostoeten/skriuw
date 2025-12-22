@@ -32,6 +32,9 @@ export function Footer() {
 		if (!open) setActiveMenu(null)
 	}, [])
 
+	const handleThemeClick = useCallback(() => {
+		setActiveMenu('theme')
+	}, [])
 	const handleOfflineClick = useCallback(() => setActiveMenu('offline'), [])
 	const handleLanguageClick = useCallback(() => setActiveMenu('language'), [])
 	const handlePerformanceClick = useCallback(() => setActiveMenu('performance'), [])
@@ -47,19 +50,27 @@ export function Footer() {
 			<footer className="fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]">
 				<div className="flex items-center gap-1.5">
 					{isTouchDevice ? (
-						<div className="w-6 h-6 flex items-center justify-center" aria-label="Toggle theme">
+						<button
+							onClick={handleThemeClick}
+							className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors"
+							aria-label="Theme settings"
+						>
 							<ThemeToggle size={24} isDark={isDark} onChange={handleThemeToggle} />
-						</div>
+						</button>
 					) : (
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<div className="w-6 h-6 flex items-center justify-center">
+								<button
+									onClick={handleThemeClick}
+									className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors"
+									aria-label="Theme settings"
+								>
 									<ThemeToggle size={24} isDark={isDark} onChange={handleThemeToggle} />
-								</div>
+								</button>
 							</TooltipTrigger>
 							<TooltipContent side="top" align="center">
 								<div className="flex items-center gap-2">
-									<span>Toggle theme</span>
+									<span>Theme settings</span>
 									<Kbd shortcut={createShortcut('Alt', 't')} />
 								</div>
 							</TooltipContent>

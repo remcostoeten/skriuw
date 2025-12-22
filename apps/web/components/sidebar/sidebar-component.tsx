@@ -571,14 +571,14 @@ function FileTreeItem({
 		setAnchor(item.id)
 	}
 
-	function handleRenameComplete() {
+	const handleRenameComplete = useCallback(() => {
 		if (renameValue.trim()) {
 			onRename(item.id, renameValue.trim())
 		} else {
 			setRenameValue(item.name)
 		}
 		setIsRenaming(false)
-	}
+	}, [renameValue, item.id, item.name, onRename])
 
 	function handleFolderToggle(e: React.MouseEvent) {
 		e.stopPropagation()
@@ -794,7 +794,7 @@ function FileTreeItem({
 			// For all other keys, stop propagation but allow typing
 			e.stopPropagation()
 		}
-	}, [item.name, handleRenameComplete])
+	}, [item.name, handleRenameComplete, setRenameValue, setIsRenaming])
 
 	const handleRenameInputClick = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation()
@@ -823,7 +823,7 @@ function FileTreeItem({
 				handleRenameComplete()
 			}
 		}, 200)
-	}, [handleRenameComplete])
+	}, [handleRenameComplete, inputRef])
 
 	const handleNameDoubleClick = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation()

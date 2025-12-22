@@ -83,33 +83,32 @@ export default function Index() {
 		}
 	}, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
 
-	const handleCreateNote = useCallback(async () => {
+	const handleCreateNote = async () => {
 		const newNote = await createNote('Untitled')
 		if (newNote) {
 			const url = getNoteUrl(newNote.id)
 			router.push(`${url}?focus=true`)
 			toast.success('Note created')
 		}
-	}, [createNote, getNoteUrl, router])
+	}
 
-	const handleOpenCollection = useCallback(() => {
+	const handleOpenCollection = () => {
 		router.push('/archive')
-	}, [router])
+	}
 
-	// Memoize the hideBadge function as well
-	const handleHideBadge = useCallback(() => {
+	const handleHideBadge = () => {
 		updateCookie('true')
-	}, [updateCookie])
+	}
 
-	useShortcut('create-note', useCallback((e) => {
+	useShortcut('create-note', (e) => {
 		e.preventDefault()
 		handleCreateNote()
-	}, [handleCreateNote]))
+	})
 
-	useShortcut('open-collection', useCallback((e) => {
+	useShortcut('open-collection', (e) => {
 		e.preventDefault()
 		handleOpenCollection()
-	}, [handleOpenCollection]))
+	})
 
 	return (
 		<>
