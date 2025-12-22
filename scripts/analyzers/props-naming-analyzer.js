@@ -284,10 +284,17 @@ class PropsNamingAnalyzer {
 
                     // Also replace all usages of the old name in the file
                     if (!dryRun) {
-                        content = content.replace(
-                            new RegExp(`\\b${issue.currentName}\\b`, 'g'),
-                            'Props'
-                        );
+                        // Only replace type annotation contexts
+                        const typeContextPatterns = [
+                            new RegExp(`:\\s*${issue.currentName}\\b`, 'g'),      // : TypeName
+                            new RegExp(`<${issue.currentName}\\b`, 'g'),          // <TypeName
+                            new RegExp(`as\\s+${issue.currentName}\\b`, 'g'),     // as TypeName
+                        ];
+                        for (const pattern of typeContextPatterns) {
+                            content = content.replace(pattern, (match) => 
+                                match.replace(issue.currentName, 'Props')
+                            );
+                        }
                     }
                 } else if (issue.type === 'interface_to_type') {
                     // Convert: interface Props { -> type Props = {
