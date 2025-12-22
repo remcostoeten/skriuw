@@ -243,7 +243,7 @@ function extractLanguage(
 
 				if (blockId) {
 					// Find the block in the editor document
-					const findBlock = (blocks: BlockNoteBlock[]): BlockNoteBlock | null => {
+					function findBlock(blocks: BlockNoteBlock[]): BlockNoteBlock | null {
 						for (const block of blocks) {
 							if (block.id === blockId && block.type === 'codeBlock') {
 								return block

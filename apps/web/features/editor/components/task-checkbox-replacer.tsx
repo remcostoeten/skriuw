@@ -27,7 +27,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 	useEffect(() => {
 		if (!editor || !editorContainerRef.current) return
 
-		const replaceTaskCheckboxes = () => {
+		function replaceTaskCheckboxes() {
 			if (!editorContainerRef.current) return
 
 			// Find all bullet list items that are tasks (have a checkbox)
@@ -170,7 +170,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 		let debounceTimeout: NodeJS.Timeout | null = null
 
 		// Debounced replacement function to prevent infinite loops
-		const debouncedReplace = () => {
+		function debouncedReplace() {
 			if (isReplacing) return
 
 			if (debounceTimeout) {

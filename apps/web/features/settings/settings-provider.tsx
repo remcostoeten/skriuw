@@ -103,13 +103,13 @@ export function SettingsProvider({
 		}
 	}
 
-	const updateSetting = (key: string, value: any) => {
+	function updateSetting(key: string, value: any) {
 		const newSettings = { ...settings, [key]: value }
 		setSettings(newSettings)
 		saveSettingsToStorage(newSettings)
 	}
 
-	const resetSettings = () => {
+	function resetSettings() {
 		setSettings(defaultSettings)
 		saveSettingsToStorage(defaultSettings)
 	}

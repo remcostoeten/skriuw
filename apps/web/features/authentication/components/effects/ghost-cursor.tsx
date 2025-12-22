@@ -322,7 +322,7 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
 
     composer.addPass(UnpremultiplyPass);
 
-    const resize = () => {
+    function resize() {
       const rect = host.getBoundingClientRect();
       const cssW = Math.max(1, Math.floor(rect.width));
       const cssH = Math.max(1, Math.floor(rect.height));
@@ -355,7 +355,7 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
     ro.observe(host);
 
     const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const animate = () => {
+    function animate() {
       const now = performance.now();
       const t = (now - start) / 1000;
 
@@ -408,14 +408,14 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
       rafRef.current = requestAnimationFrame(animate);
     };
 
-    const ensureLoop = () => {
+    function ensureLoop() {
       if (!runningRef.current) {
         runningRef.current = true;
         rafRef.current = requestAnimationFrame(animate);
       }
     };
 
-    const onPointerMove = (e: PointerEvent) => {
+    function onPointerMove(e: PointerEvent) {
       const rect = parent.getBoundingClientRect();
       const x = THREE.MathUtils.clamp((e.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
       const y = THREE.MathUtils.clamp(1 - (e.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
@@ -424,11 +424,11 @@ const GhostCursor: React.FC<GhostCursorProps> = ({
       lastMoveTimeRef.current = performance.now();
       ensureLoop();
     };
-    const onPointerEnter = () => {
+    function onPointerEnter() {
       pointerActiveRef.current = true;
       ensureLoop();
     };
-    const onPointerLeave = () => {
+    function onPointerLeave() {
       pointerActiveRef.current = false;
       lastMoveTimeRef.current = performance.now();
       ensureLoop();

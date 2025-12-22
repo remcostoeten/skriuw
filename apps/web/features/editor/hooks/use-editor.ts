@@ -212,7 +212,7 @@ export function useEditor({
 		if (!editor) return
 
 		// Wait for DOM to be ready, then enforce spellcheck
-		const enforceSpellcheckWithDelay = () => {
+		function enforceSpellcheckWithDelay() {
 			setTimeout(() => {
 				const editorElement = document.querySelector('.bn-editor')
 				if (editorElement && hasSpellCheck) {
@@ -231,7 +231,7 @@ export function useEditor({
 		enforceSpellcheckWithDelay()
 
 		// Also enforce when editor content changes
-		const handleContentChange = () => {
+		function handleContentChange() {
 			enforceSpellcheckWithDelay()
 		}
 

@@ -23,7 +23,7 @@ const createDefaultState = (): PersistedState => ({
 	activeNoteId: null,
 })
 
-const readPersistedState = (): PersistedState => {
+function readPersistedState(): PersistedState {
 	if (typeof window === 'undefined') {
 		return createDefaultState()
 	}
@@ -55,7 +55,7 @@ const readPersistedState = (): PersistedState => {
 	}
 }
 
-const persistState = (state: PersistedState) => {
+function persistState(state: PersistedState) {
 	if (typeof window === 'undefined') return
 	try {
 		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))

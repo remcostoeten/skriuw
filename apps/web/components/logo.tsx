@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const LogoIcon = () => {
+function LogoIcon() {
 	return (
 		<svg
 			viewBox="0 0 40 40"

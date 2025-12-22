@@ -73,7 +73,7 @@ function matchesKeyCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
 	return regularKeys.length === 0 || regularKeys.some((k) => k === pressed.key)
 }
 
-export const ShortcutProvider = ({ children }: { children: React.ReactNode }) => {
+export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 	const shortcuts = useRef<ShortcutRegistry>(new Map())
 
 	const registryManager = useRef<ShortcutContextValue>({

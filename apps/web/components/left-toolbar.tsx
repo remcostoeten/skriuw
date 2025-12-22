@@ -20,7 +20,7 @@ type LeftToolbarProps = {
 	onSettingsClick?: () => void
 }
 
-const handleNonExistentRoute = (target: string) => {
+function handleNonExistentRoute(target: string) {
 	if (typeof window !== 'undefined') {
 		console.info(`Route "${target}" is not available yet.`)
 	}
@@ -35,7 +35,7 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 	const isOnArchive = pathname === '/archive'
 	const isOnTrash = pathname === '/trash'
 
-	const navigate = (href: string) => {
+	function navigate(href: string) {
 		if (pathname !== href) {
 			router.push(href)
 		}

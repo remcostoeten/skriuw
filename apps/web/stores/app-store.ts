@@ -26,7 +26,7 @@ type AppState = {
   setCurrentPage: (page: PageType) => void
 }
 
-const safeStorage = () => {
+function safeStorage() {
   if (typeof window === 'undefined') {
     const noopStorage: Storage = {
       getItem: () => null,

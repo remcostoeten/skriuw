@@ -93,11 +93,11 @@ export default function TaskDetailPage() {
         }
     }
 
-    const handleBack = () => {
+    function handleBack() {
         router.back()
     }
 
-    const handleGoToNote = () => {
+    function handleGoToNote() {
         if (task) {
             router.push(`/note/${task.noteId}?blockId=${task.blockId}`)
         }

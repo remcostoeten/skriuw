@@ -92,7 +92,7 @@ export const EDITOR_THEMES = {
 export type EditorTheme = keyof typeof EDITOR_THEMES
 
 // Define all custom themes in Monaco
-const defineAllThemes = (monaco: Monaco) => {
+function defineAllThemes(monaco: Monaco) {
 	Object.entries(EDITOR_THEMES).forEach(([themeName, themeConfig]) => {
 		if (Object.keys(themeConfig.colors).length > 0) {
 			monaco.editor.defineTheme(themeName, {
@@ -127,7 +127,7 @@ export function RawMDXEditor({
 	// Get theme from user settings, default to skriuw-dark
 	const editorTheme = (settings.editorTheme as EditorTheme) || 'skriuw-dark'
 
-	const handleChange = (val: string | undefined) => {
+	function handleChange(val: string | undefined) {
 		onChange(val ?? '')
 	}
 

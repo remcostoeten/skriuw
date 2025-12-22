@@ -4,7 +4,7 @@ interface SkriuwEffectProps {
     className?: string;
 }
 
-export const SkriuwEffect = ({ className = "" }: SkriuwEffectProps) => {
+export function SkriuwEffect({ className = "" }: SkriuwEffectProps) {
     return (
         <div className={`relative w-full h-full overflow-hidden bg-[hsl(225,25%,8%)] rounded-2xl ${className}`}>
             {/* Ghost cursor effect */}

@@ -27,7 +27,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 			let index = 0
 			let demoIndex = 0
 
-			const cycleDemos = () => {
+			function cycleDemos() {
 				demoIndex = index
 				setCurrentDemo(demos[index])
 
@@ -99,7 +99,7 @@ export default function MultiTabPreview({ value }: PreviewProps<boolean>) {
 		}
 	}, [isHovering, value])
 
-	const getDemoHint = () => {
+	function getDemoHint() {
 		switch (currentDemo) {
 			case 'switch':
 				return '🔄 Click tabs to switch between notes'

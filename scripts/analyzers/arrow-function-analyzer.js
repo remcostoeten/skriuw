@@ -193,8 +193,7 @@ class ArrowFunctionAnalyzer {
         const lines = content.split('\n');
 
         const arrowConstPattern = /^(\s*)(export\s+)?(const|let)\s+(\w+)\s*=\s*(<[^>]+>\s*)?\(([^)]*)\)\s*(?::\s*[^=]+)?\s*=>\s*\{/;
-        const arrowConstSimplePattern = /^(\s*)(export\s+)?(const|let)\s+(\w+)\s*=\s*(<[^>]+>\s*)?\(([^)]*)\)\s*(?::\s*[^=]+)?\s*=>\s*\(/;
-        const arrowSingleParamPattern = /^(\s*)(export\s+)?(const|let)\s+(\w+)\s*=\s*(<[^>]+>\s*)?(\w+)\s*=>\s*[\{\(]/;
+        const arrowSingleParamPattern = /^(\s*)(export\s+)?(const|let)\s+(\w+)\s*=\s*(<[^>]+>\s*)?(\w+)\s*=>\s*\{/;
 
         const allowedPatterns = [
             /=\s*useCallback\s*\(/,
@@ -223,7 +222,6 @@ class ArrowFunctionAnalyzer {
             if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue;
 
             let match = line.match(arrowConstPattern) ||
-                line.match(arrowConstSimplePattern) ||
                 line.match(arrowSingleParamPattern);
 
             if (match) {
