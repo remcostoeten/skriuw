@@ -188,7 +188,7 @@ export function CommandExecutor() {
     useEffect(() => {
         if (!isOpen) return
 
-        const handleKeyDown = (e: KeyboardEvent) => {
+        function handleKeyDown(e: KeyboardEvent) {
             // Ignore if we're typing in the search input and it's not a navigation key
             const isTypingInSearch = document.activeElement === searchInputRef.current
             const isNavigationKey = ['Escape', 'ArrowDown', 'ArrowUp', 'Enter', '/'].includes(e.key)

@@ -47,7 +47,7 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 			const [isCollapsed, setIsCollapsed] = useState(false)
 
 			// Initialize from existing content if available
-			const getBlockContent = () => {
+			function getBlockContent() {
 				if (Array.isArray(block.content)) {
 					return block.content.map((c: any) => c.text || '').join('')
 				}
@@ -68,7 +68,7 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 				return Prism.highlight(localText || '', grammar, lang)
 			}, [localText, block.props.language])
 
-			const handleBlur = () => {
+			function handleBlur() {
 				setIsEditing(false)
 				editor.updateBlock(block.id, {
 					content: localText,
@@ -82,14 +82,14 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 				setTimeout(() => setIsCopied(false), 2000)
 			}
 
-			const handleMaxHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+			function handleMaxHeightChange(e: React.ChangeEvent<HTMLInputElement>) {
 				const newHeight = parseInt(e.target.value) || 400
 				editor.updateBlock(block.id, {
 					props: { maxHeight: newHeight },
 				})
 			}
 
-			const toggleCollapse = () => {
+			function toggleCollapse() {
 				setIsCollapsed(!isCollapsed)
 			}
 
