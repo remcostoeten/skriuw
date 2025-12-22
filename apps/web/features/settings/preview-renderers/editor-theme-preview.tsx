@@ -23,7 +23,7 @@ console.log(greeting);
 \`\`\``
 
 // Define all custom themes in Monaco
-const defineAllThemes = (monaco: Monaco) => {
+function defineAllThemes(monaco: Monaco) {
     Object.entries(EDITOR_THEMES).forEach(([themeName, themeConfig]) => {
         if (Object.keys(themeConfig.colors).length > 0) {
             monaco.editor.defineTheme(themeName, {
@@ -42,7 +42,7 @@ export default function EditorThemePreview({ value }: PreviewProps<EditorTheme>)
     const theme = value || 'skriuw-dark'
     const themeConfig = EDITOR_THEMES[theme]
 
-    const handleEditorDidMount = (_editor: any, monaco: Monaco) => {
+    function handleEditorDidMount(_editor: any, monaco: Monaco) {
         monacoRef.current = monaco
         defineAllThemes(monaco)
 

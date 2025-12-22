@@ -3,7 +3,7 @@ import type { Folder as FolderType, Item } from '../types'
 /**
  * Recursively finds an item by its ID in a tree of items.
  */
-export const findItemById = (items: Item[], id: string): Item | undefined => {
+export function findItemById(items: Item[], id: string): Item | undefined {
     for (const item of items) {
         if (item.id === id) return item
         if (item.type === 'folder') {
@@ -18,7 +18,7 @@ export const findItemById = (items: Item[], id: string): Item | undefined => {
  * Recursively finds a folder by its ID in a tree of items.
  * Returns null if not found or if found item is not a folder.
  */
-export const findFolderById = (items: Item[], id: string): FolderType | null => {
+export function findFolderById(items: Item[], id: string): FolderType | null {
     const item = findItemById(items, id)
     return item?.type === 'folder' ? (item as FolderType) : null
 }
@@ -26,11 +26,11 @@ export const findFolderById = (items: Item[], id: string): FolderType | null => 
 /**
  * Checks if a child item is a descendant of a parent folder.
  */
-export const isDescendant = (items: Item[], parentId: string, childId: string): boolean => {
+export function isDescendant(items: Item[], parentId: string, childId: string): boolean {
     const parent = findFolderById(items, parentId)
     if (!parent) return false
 
-    const checkChildren = (folder: FolderType): boolean => {
+    function checkChildren(folder: FolderType): boolean {
         return folder.children.some((child) => {
             if (child.id === childId) return true
             if (child.type === 'folder') {

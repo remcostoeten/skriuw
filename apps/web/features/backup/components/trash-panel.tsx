@@ -90,7 +90,7 @@ export function TrashPanel() {
 		}
 	}
 
-	const handlePermanentDelete = (id: string, name: string) => {
+	function handlePermanentDelete(id: string, name: string) {
 		showConfirm({
 			title: `Permanently delete "${name}"?`,
 			description:
@@ -116,7 +116,7 @@ export function TrashPanel() {
 		})
 	}
 
-	const handleEmptyTrash = () => {
+	function handleEmptyTrash() {
 		showConfirm({
 			title: 'Empty trash?',
 			description: `This will permanently delete ${trashItems.length} item${trashItems.length !== 1 ? 's' : ''}. This action cannot be undone.`,

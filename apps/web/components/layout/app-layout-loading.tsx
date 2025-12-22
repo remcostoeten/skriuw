@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { Skeleton } from '@skriuw/ui/skeleton'
 
 import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
@@ -12,11 +13,13 @@ function LeftToolbarSkeleton() {
 }
 
 function TopToolbarSkeleton() {
+	const handleToggleSidebarSkeleton = useCallback(() => { }, [])
+	const handleToggleDesktopSidebarSkeleton = useCallback(() => { }, [])
 	return (
 		<TopToolbar
 			noteName=""
-			onToggleSidebar={() => { }}
-			onToggleDesktopSidebar={() => { }}
+			onToggleSidebar={handleToggleSidebarSkeleton}
+			onToggleDesktopSidebar={handleToggleDesktopSidebarSkeleton}
 		/>
 	)
 }
