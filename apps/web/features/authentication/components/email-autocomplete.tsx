@@ -96,7 +96,7 @@ export function EmailAutocomplete({
   );
 
   // Handle keyboard navigation
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     switch (e.key) {
       case "ArrowDown":
         if (isOpen && filteredDomains.length > 0) {
@@ -142,12 +142,12 @@ export function EmailAutocomplete({
   };
 
   // Handle input change
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
     onChange(e.target.value);
   };
 
   // Handle blur - close dropdown with delay to allow click
-  const handleBlur = () => {
+  function handleBlur() {
     setTimeout(() => {
       setIsOpen(false);
       setActiveIndex(-1);

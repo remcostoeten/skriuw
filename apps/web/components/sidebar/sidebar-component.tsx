@@ -101,7 +101,7 @@ function MoveFolderMenu({
 			return item?.type === 'folder'
 		})
 
-		const collectFolders = (itemList: Item[]) => {
+		function collectFolders(itemList: Item[]) {
 			for (const item of itemList) {
 				if (
 					item.type === 'folder' &&
@@ -405,7 +405,7 @@ function FileTreeItem({
 		setIsRenaming(true)
 	}, [])
 
-	const handleNameClick = (e: React.MouseEvent) => {
+	function handleNameClick(e: React.MouseEvent) {
 		if (isRenaming) return
 
 		// Stop propagation so clicking name doesn't trigger folder toggle
@@ -464,7 +464,7 @@ function FileTreeItem({
 		}, 200)
 	}
 
-	const handleRowClick = (e: React.MouseEvent) => {
+	function handleRowClick(e: React.MouseEvent) {
 		// Don't handle if renaming
 		if (isRenaming) return
 
@@ -571,16 +571,16 @@ function FileTreeItem({
 		setAnchor(item.id)
 	}
 
-	const handleRenameComplete = () => {
+	const handleRenameComplete = useCallback(() => {
 		if (renameValue.trim()) {
 			onRename(item.id, renameValue.trim())
 		} else {
 			setRenameValue(item.name)
 		}
 		setIsRenaming(false)
-	}
+	}, [renameValue, item.id, item.name, onRename])
 
-	const handleFolderToggle = (e: React.MouseEvent) => {
+	function handleFolderToggle(e: React.MouseEvent) {
 		e.stopPropagation()
 		e.preventDefault()
 		if (!hasChildren) return
@@ -766,6 +766,94 @@ function FileTreeItem({
 		[isMobile]
 	)
 
+	// Additional memoized handlers
+	const handleFolderIconMouseEnter = useCallback(() => {
+		setIsHovering(true)
+	}, [])
+
+	const handleFolderIconMouseLeave = useCallback(() => {
+		setIsHovering(false)
+	}, [])
+
+	const handleRenameInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setRenameValue(e.target.value)
+		e.stopPropagation()
+	}, [])
+
+	const handleRenameInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Enter') {
+			e.preventDefault()
+			e.stopPropagation()
+			handleRenameComplete()
+		} else if (e.key === 'Escape') {
+			e.preventDefault()
+			e.stopPropagation()
+			setRenameValue(item.name)
+			setIsRenaming(false)
+		} else {
+			// For all other keys, stop propagation but allow typing
+			e.stopPropagation()
+		}
+	}, [item.name, handleRenameComplete, setRenameValue, setIsRenaming])
+
+	const handleRenameInputClick = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+		e.preventDefault()
+	}, [])
+
+	const handleRenameInputMouseDown = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+		e.preventDefault()
+	}, [])
+
+	const handleRenameInputFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+		e.stopPropagation()
+		// Select all text when focused
+		e.currentTarget.select()
+	}, [])
+
+	const handleRenameInputBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+		// Delay blur handling to prevent premature completion
+		// when context menu closes or other UI interactions occur
+		setTimeout(() => {
+			if (
+				inputRef.current &&
+				document.activeElement !== inputRef.current
+			) {
+				handleRenameComplete()
+			}
+		}, 200)
+	}, [handleRenameComplete, inputRef])
+
+	const handleNameDoubleClick = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+		handleDoubleClick()
+	}, [handleDoubleClick])
+
+	const handleContextMenu = useCallback((e: React.MouseEvent) => {
+		if (isMobile) {
+			e.preventDefault()
+		}
+	}, [isMobile])
+
+	const handleDragStartElement = useCallback((e: React.DragEvent) => {
+		if (isMobile) {
+			// On mobile, only allow drag if we've been holding for a bit
+			if (
+				!touchDragStartTimeRef.current ||
+				Date.now() - touchDragStartTimeRef.current < 200
+			) {
+				e.preventDefault()
+				return
+			}
+		}
+		onDragStart(item, e)
+	}, [isMobile, onDragStart, item])
+
+	const handleDropElement = useCallback((e: React.DragEvent) => {
+		onDrop(item.id, e)
+	}, [onDrop, item.id])
+
 	const handleTouchMove = useCallback(
 		(e: TouchEvent<HTMLButtonElement>) => {
 			if (!isMobile || !touchStartPosRef.current) return
@@ -817,8 +905,89 @@ function FileTreeItem({
 		touchDragStartTimeRef.current = null
 	}, [])
 
+	const handleCreateNoteFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			onCreateNote(isFolder ? item.id : undefined)
+		},
+		[onCreateNote, isFolder, item.id]
+	)
+
+	const handleCreateFolderFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			onCreateFolder(item.id)
+		},
+		[onCreateFolder, item.id]
+	)
+
+	const handleRenameFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			setIsRenaming(true)
+			// Close context menu after a small delay to allow state update
+			setTimeout(() => {
+				if (inputRef.current) {
+					inputRef.current.focus()
+					inputRef.current.select()
+				}
+			}, 50)
+		},
+		[setIsRenaming, inputRef]
+	)
+
+	const handlePinUnpinFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			onPinItem(item.id, item.type, !item.pinned)
+		},
+		[onPinItem, item.id, item.type, item.pinned]
+	)
+
+	const handleBulkFavoriteFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			handleBulkFavorite()
+		},
+		[handleBulkFavorite]
+	)
+
+	const handleBulkUnfavoriteFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			handleBulkUnfavorite()
+		},
+		[handleBulkUnfavorite]
+	)
+
+	const handleFavoriteToggleFromContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			if (item.type === 'note') {
+				onFavoriteNote(item.id, !item.favorite)
+			}
+		},
+		[onFavoriteNote, item]
+	)
+
+	const handleDeleteFromContextMenu = useCallback(
+		async (e: React.MouseEvent) => {
+			const selectedCount = getSelectedCount()
+			if (selectedCount > 1) {
+				const selectedIds = getSelectedIds()
+				for (const id of selectedIds) {
+					await onDelete(id)
+				}
+				clearSelection()
+			} else {
+				onDelete(item.id)
+			}
+		},
+		[getSelectedCount, getSelectedIds, onDelete, clearSelection, item.id]
+	)
+
 	// Recursively count all items in a folder (including nested folders and their children)
-	const countAllItems = (folder: FolderType): number => {
+	function countAllItems(folder: FolderType): number {
 		let count = 0
 		for (const child of folder.children) {
 			count += 1 // Count the child itself
@@ -849,11 +1018,7 @@ function FileTreeItem({
 								onTouchMove={handleTouchMove}
 								onTouchEnd={handleTouchEnd}
 								onTouchCancel={handleTouchEnd}
-								onContextMenu={(e) => {
-									if (isMobile) {
-										e.preventDefault()
-									}
-								}}
+								onContextMenu={handleContextMenu}
 								className={cn(
 									'font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative',
 									isActive && !isItemSelected
@@ -867,23 +1032,9 @@ function FileTreeItem({
 									paddingLeft: `${0.75 + level * 0.75}rem`
 								}}
 								draggable={true}
-								onDragStart={(e) => {
-									if (isMobile) {
-										// On mobile, only allow drag if we've been holding for a bit
-										if (
-											!touchDragStartTimeRef.current ||
-											Date.now() -
-												touchDragStartTimeRef.current <
-												200
-										) {
-											e.preventDefault()
-											return
-										}
-									}
-									onDragStart(item, e)
-								}}
+								onDragStart={handleDragStartElement}
 								onDragOver={onDragOver}
-								onDrop={(e) => onDrop(item.id, e)}
+								onDrop={handleDropElement}
 								onKeyDown={handleKeyDown}
 								tabIndex={0}
 								role="treeitem"
@@ -898,12 +1049,8 @@ function FileTreeItem({
 											<div
 												data-folder-icon
 												onClick={handleFolderToggle}
-												onMouseEnter={() =>
-													setIsHovering(true)
-												}
-												onMouseLeave={() =>
-													setIsHovering(false)
-												}
+												onMouseEnter={handleFolderIconMouseEnter}
+												onMouseLeave={handleFolderIconMouseLeave}
 												className={cn(
 													'shrink-0',
 													hasChildren
@@ -929,61 +1076,19 @@ function FileTreeItem({
 											}}
 											type="text"
 											value={renameValue}
-											onChange={(e) => {
-												setRenameValue(e.target.value)
-												e.stopPropagation()
-											}}
-											onBlur={(e) => {
-												// Delay blur handling to prevent premature completion
-												// when context menu closes or other UI interactions occur
-												setTimeout(() => {
-													if (
-														inputRef.current &&
-														document.activeElement !==
-															inputRef.current
-													) {
-														handleRenameComplete()
-													}
-												}, 200)
-											}}
-											onKeyDown={(e) => {
-												if (e.key === 'Enter') {
-													e.preventDefault()
-													e.stopPropagation()
-													handleRenameComplete()
-												} else if (e.key === 'Escape') {
-													e.preventDefault()
-													e.stopPropagation()
-													setRenameValue(item.name)
-													setIsRenaming(false)
-												} else {
-													// For all other keys, stop propagation but allow typing
-													e.stopPropagation()
-												}
-											}}
-											onClick={(e) => {
-												e.stopPropagation()
-												e.preventDefault()
-											}}
-											onMouseDown={(e) => {
-												e.stopPropagation()
-												e.preventDefault()
-											}}
-											onFocus={(e) => {
-												e.stopPropagation()
-												// Select all text when focused
-												e.currentTarget.select()
-											}}
+											onChange={handleRenameInputChange}
+											onBlur={handleRenameInputBlur}
+											onKeyDown={handleRenameInputKeyDown}
+											onClick={handleRenameInputClick}
+											onMouseDown={handleRenameInputMouseDown}
+											onFocus={handleRenameInputFocus}
 											className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
 											autoFocus
 										/>
 									) : (
 										<span
 											onClick={handleNameClick}
-											onDoubleClick={(e) => {
-												e.stopPropagation()
-												handleDoubleClick()
-											}}
+											onDoubleClick={handleNameDoubleClick}
 											className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
 											title={item.name}
 											data-item-name
@@ -1019,10 +1124,7 @@ function FileTreeItem({
 					)}
 				>
 					<ContextMenuItem
-						onClick={(e) => {
-							e.stopPropagation()
-							onCreateNote(isFolder ? item.id : undefined)
-						}}
+						onClick={handleCreateNoteFromContextMenu}
 						className={cn(
 							'h-8 text-xs font-base min-h-[36px]',
 							isMobile && 'h-12 text-sm px-4'
@@ -1043,10 +1145,7 @@ function FileTreeItem({
 					</ContextMenuItem>
 					{isFolder && (
 						<ContextMenuItem
-							onClick={(e) => {
-								e.stopPropagation()
-								onCreateFolder(item.id)
-							}}
+							onClick={handleCreateFolderFromContextMenu}
 							className={cn(
 								'h-8 text-xs font-base min-h-[36px]',
 								isMobile && 'h-12 text-sm px-4'
@@ -1068,17 +1167,7 @@ function FileTreeItem({
 					)}
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onClick={(e) => {
-							e.stopPropagation()
-							setIsRenaming(true)
-							// Close context menu after a small delay to allow state update
-							setTimeout(() => {
-								if (inputRef.current) {
-									inputRef.current.focus()
-									inputRef.current.select()
-								}
-							}, 50)
-						}}
+						onClick={handleRenameFromContextMenu}
 						className={cn(
 							' text-xs font-base min-h-[36px]',
 							isMobile && 'h-12 text-sm px-4'
@@ -1099,10 +1188,7 @@ function FileTreeItem({
 					</ContextMenuItem>
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onClick={(e) => {
-							e.stopPropagation()
-							onPinItem(item.id, item.type, !item.pinned)
-						}}
+						onClick={handlePinUnpinFromContextMenu}
 						className={cn(
 							'h-8 text-xs font-base min-h-[36px]',
 							isMobile && 'h-12 text-sm px-4'
@@ -1133,10 +1219,7 @@ function FileTreeItem({
 					{hasMultipleSelections && hasNotesInSelection ? (
 						<>
 							<ContextMenuItem
-								onClick={(e) => {
-									e.stopPropagation()
-									handleBulkFavorite()
-								}}
+								onClick={handleBulkFavoriteFromContextMenu}
 								className={cn(
 									'h-8 text-xs font-base min-h-[36px]',
 									isMobile && 'h-12 text-sm px-4'
@@ -1151,10 +1234,7 @@ function FileTreeItem({
 								Add to favorites
 							</ContextMenuItem>
 							<ContextMenuItem
-								onClick={(e) => {
-									e.stopPropagation()
-									handleBulkUnfavorite()
-								}}
+								onClick={handleBulkUnfavoriteFromContextMenu}
 								className={cn(
 									'h-8 text-xs font-base min-h-[36px]',
 									isMobile && 'h-12 text-sm px-4'
@@ -1172,10 +1252,7 @@ function FileTreeItem({
 					) : (
 						!isFolder && (
 							<ContextMenuItem
-								onClick={(e) => {
-									e.stopPropagation()
-									onFavoriteNote(item.id, !item.favorite)
-								}}
+								onClick={handleFavoriteToggleFromContextMenu}
 								className={cn(
 									'h-8 text-xs font-base min-h-[36px]',
 									isMobile && 'h-12 text-sm px-4'
@@ -1250,18 +1327,7 @@ function FileTreeItem({
 					</ContextMenuSub>
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onClick={async (e) => {
-							const selectedCount = getSelectedCount()
-							if (selectedCount > 1) {
-								const selectedIds = getSelectedIds()
-								for (const id of selectedIds) {
-									await onDelete(id)
-								}
-								clearSelection()
-							} else {
-								onDelete(item.id)
-							}
-						}}
+						onClick={handleDeleteFromContextMenu}
 						className={cn(
 							'h-8 text-xs font-base text-destructive focus:text-destructive min-h-[36px]',
 							isMobile && 'h-12 text-sm px-4'
@@ -1658,6 +1724,44 @@ export function Sidebar({
 		e.dataTransfer.effectAllowed = 'move'
 	}, [])
 
+	const handleNavigateToRoot = useCallback(() => {
+		router.push('/')
+	}, [router])
+
+	const handleNavigateToUIPlayground = useCallback(() => {
+		// No navigation needed for UI playground - it's already handled
+	}, [])
+
+	const handleActionBarNoteCreate = useCallback(() => {
+		handleCreateNote()
+	}, [handleCreateNote])
+
+	const handleActionBarFolderCreate = useCallback(() => {
+		handleCreateFolder()
+	}, [handleCreateFolder])
+
+	const handleSidebarClick = useCallback((e: React.MouseEvent) => {
+		if (e.target === e.currentTarget) {
+			setSelectedFolderId(null)
+			clearSelection()
+		}
+	}, [clearSelection])
+
+	const handleTreeClick = useCallback((e: React.MouseEvent) => {
+		if (e.target === e.currentTarget) {
+			setSelectedFolderId(null)
+			clearSelection()
+		}
+	}, [clearSelection])
+
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault()
+	}, [])
+
+	const handleNoteNavigation = useCallback((id: string) => {
+		router.push(getNoteUrl(id))
+	}, [router, getNoteUrl])
+
 	const handleDrop = useCallback(
 		async (targetId: string, e: React.DragEvent) => {
 			e.preventDefault()
@@ -1696,7 +1800,7 @@ export function Sidebar({
 				const parent = findActualItem(items, parentId)
 				if (!parent || parent.type !== 'folder') return false
 
-				const checkChildren = (folder: FolderType): boolean => {
+				function checkChildren(folder: FolderType): boolean {
 					return folder.children.some((child) => {
 						if (child.id === childId) return true
 						if (child.type === 'folder') {
@@ -1744,7 +1848,7 @@ export function Sidebar({
 
 	const collectAllFolderIds = useCallback((items: Item[]): string[] => {
 		const folderIds: string[] = []
-		const traverse = (item: Item) => {
+		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
 				item.children.forEach(traverse)
@@ -1926,7 +2030,7 @@ export function Sidebar({
 	const getAllVisibleItemIds = useCallback(
 		(items: Item[]): string[] => {
 			const ids: string[] = []
-			const traverse = (itemList: Item[]) => {
+			function traverse(itemList: Item[]) {
 				for (const item of itemList) {
 					ids.push(item.id)
 					if (
@@ -1991,7 +2095,7 @@ export function Sidebar({
 
 		const query = searchQuery.toLowerCase().trim()
 
-		const filterItems = (itemList: Item[]): Item[] => {
+		function filterItems(itemList: Item[]): Item[] {
 			const filtered: Item[] = []
 
 			for (const item of itemList) {
@@ -2122,7 +2226,7 @@ export function Sidebar({
 						tooltip="Notes"
 						active={true}
 						variant="sidebar"
-						onClick={() => router.push('/')}
+						onClick={handleNavigateToRoot}
 					/>
 					<IconButton
 						icon={<UIPlaygroundIcon />}
@@ -2142,8 +2246,8 @@ export function Sidebar({
 			)}
 		>
 			<ActionBar
-				onCreateNote={() => handleCreateNote()}
-				onCreateFolder={() => handleCreateFolder()}
+				onCreateNote={handleActionBarNoteCreate}
+				onCreateFolder={handleActionBarFolderCreate}
 				searchConfig={{
 					query: searchQuery,
 					setQuery: setSearchQuery,
@@ -2158,23 +2262,13 @@ export function Sidebar({
 			/>
 			<div
 				className="flex-1 overflow-y-auto px-2 pt-2 pb-4"
-				onClick={(e) => {
-					if (e.target === e.currentTarget) {
-						setSelectedFolderId(null)
-						clearSelection()
-					}
-				}}
+				onClick={handleSidebarClick}
 			>
 				<div
 					className="flex flex-col items-start gap-1 w-full"
 					role="tree"
 					aria-label="Notes"
-					onClick={(e) => {
-						if (e.target === e.currentTarget) {
-							setSelectedFolderId(null)
-							clearSelection()
-						}
-					}}
+					onClick={handleTreeClick}
 				>
 					{isInitialLoading || isRefreshing ? (
 						/* Skeleton loader to prevent layout shift during initial load and refreshes */
@@ -2235,15 +2329,13 @@ export function Sidebar({
 								expandedFolders={expandedFolders}
 								selectedFolderId={selectedFolderId}
 								onToggleFolder={handleToggleFolder}
-								onNavigateNote={(id) =>
-									router.push(getNoteUrl(id))
-								}
+								onNavigateNote={handleNoteNavigation}
 								onRename={renameItem}
 								onDelete={handleDeleteItem}
 								onCreateNote={handleCreateNote}
 								onCreateFolder={handleCreateFolder}
 								onDragStart={handleDragStart}
-								onDragOver={(e) => e.preventDefault()}
+								onDragOver={handleDragOver}
 								onDrop={handleDrop}
 								onSelectFolder={handleSelectFolder}
 								onContextMenuOpenChange={

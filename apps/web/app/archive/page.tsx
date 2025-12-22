@@ -1,7 +1,7 @@
 'use client'
 
 import { Download, Upload, HardDrive, Cloud } from 'lucide-react'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import { Tabs, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
@@ -106,7 +106,7 @@ export default function DataBackupPage() {
 		}
 	}, [connectorTypes])
 
-	function handleTabChange(value: string) {
+	const handleTabChange = useCallback((value: string) => {
 		const tabOrder = ['export', 'import', 'storage']
 		const currentIndex = tabOrder.indexOf(activeTab)
 		const nextIndex = tabOrder.indexOf(value)
@@ -116,9 +116,9 @@ export default function DataBackupPage() {
 		setActiveTab(value)
 		localStorage.setItem('archive-active-tab', value)
 		setHasInteracted(true) // Enable animations after first user interaction
-	}
+	}, [activeTab])
 
-	function handleStorageProviderChange(next: StorageConnectorType) {
+	const handleStorageProviderChange = useCallback((next: StorageConnectorType) => {
 		const currentIndex = definitions.findIndex((d) => d.type === storageProvider)
 		const nextIndex = definitions.findIndex((d) => d.type === next)
 		if (currentIndex !== -1 && nextIndex !== -1) {
@@ -127,7 +127,7 @@ export default function DataBackupPage() {
 		setStorageProvider(next)
 		lastProviderRef.current = next
 		localStorage.setItem('archive-storage-provider', next)
-	}
+	}, [definitions, storageProvider])
 
 	return (
 		<div className="flex flex-col h-full">
@@ -314,11 +314,13 @@ export default function DataBackupPage() {
 														{definitions.map((definition) => {
 															const connector = connectors.find((c) => c.type === definition.type)
 															const isActive = storageProvider === definition.type
+															const handleProviderClick = () => handleStorageProviderChange(definition.type)
+
 															return (
 																<button
 																	key={definition.type}
 																	type="button"
-																	onClick={() => handleStorageProviderChange(definition.type)}
+																	onClick={handleProviderClick}
 																	className={cn(
 																		'flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-md border',
 																		'transition-colors',
@@ -347,7 +349,7 @@ export default function DataBackupPage() {
 												<div className="relative">
 													<StorageAdaptersPanel
 														activeType={storageProvider}
-														onTypeChange={(val) => handleStorageProviderChange(val)}
+														onTypeChange={handleStorageProviderChange}
 														showHeader={false}
 														showTabs={false}
 														direction={providerDirection}

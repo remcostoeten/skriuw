@@ -7,7 +7,7 @@ import type { Item, Note } from '../types'
 export function flattenNotes(items: Item[]): Note[] {
 	const notes: Note[] = []
 
-	const traverse = (itemList: Item[]) => {
+	function traverse(itemList: Item[]) {
 		for (const item of itemList) {
 			if (item.type === 'note') {
 				notes.push(item)

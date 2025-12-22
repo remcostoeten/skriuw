@@ -101,7 +101,7 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
     }
 
     // Calculate panel width based on position
-    const getPanelWidth = () => {
+    function getPanelWidth() {
         if (isActive) return 'w-full sm:w-[480px] lg:w-[560px]'
         // Collapsed panels are thinner
         return 'w-[60px] sm:w-[80px]'

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Moon, Sun, User, Loader2 } from "lucide-react";
 import { Button } from "@skriuw/ui";
@@ -38,7 +38,7 @@ export function LoginForm({
     const disableGuestLogin = isAnonymousUser;
     const highlightOtherLoginMethods = isAnonymousUser;
 
-    const handleAuthSuccess = async () => {
+    const handleAuthSuccess = useCallback(async () => {
         try {
             await fetch('/api/user/seed', { method: 'POST' });
         } catch (e) {
@@ -50,9 +50,9 @@ export function LoginForm({
         } else {
             router.push("/");
         }
-    };
+    }, [onSuccess, router]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setPasswordError("");
         setGeneralError("");
@@ -99,9 +99,9 @@ export function LoginForm({
             setGeneralError("An unexpected error occurred. Please try again.");
             setIsLoading(false);
         }
-    };
+    }, [isRegisterMode, password, confirmPassword, email, name, onSuccess, router, handleAuthSuccess]);
 
-    const handleSocialLogin = async (provider: "github" | "google") => {
+    const handleSocialLogin = useCallback(async (provider: "github" | "google") => {
         setGeneralError("");
         setIsLoading(true);
         try {
@@ -120,9 +120,9 @@ export function LoginForm({
             setGeneralError("Failed to initiate social login");
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const handleAnonymousLogin = async () => {
+    const handleAnonymousLogin = useCallback(async () => {
         setGeneralError("");
         setIsLoading(true);
         try {
@@ -139,7 +139,39 @@ export function LoginForm({
             setGeneralError("Failed to sign in anonymously");
             setIsLoading(false);
         }
-    };
+    }, [onSuccess, router]);
+
+    // Additional memoized handlers
+    const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setName(e.target.value)
+    }, [])
+
+    const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setPassword(e.target.value)
+    }, [])
+
+    const handleConfirmPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setConfirmPassword(e.target.value)
+    }, [])
+
+    const handleToggleMode = useCallback(() => {
+        setIsRegisterMode(prev => !prev);
+        setPasswordError("");
+        setConfirmPassword("");
+        setGeneralError("");
+    }, [])
+
+    const handleToggleOtherOptions = useCallback(() => {
+        setShowOtherOptions(prev => !prev)
+    }, [])
+
+    const handleGitHubLogin = useCallback(() => {
+        handleSocialLogin("github")
+    }, [handleSocialLogin])
+
+    const handleGoogleLogin = useCallback(() => {
+        handleSocialLogin("google")
+    }, [handleSocialLogin])
 
     return (
         <div className="w-full max-w-md space-y-8 relative">
@@ -182,7 +214,7 @@ export function LoginForm({
                                     id="name-input"
                                     type="text"
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={handleNameChange}
                                     placeholder="Enter your name"
                                     className="flex h-12 w-full rounded-md border border-border bg-background px-4 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
                                 />
@@ -212,7 +244,7 @@ export function LoginForm({
                     <PasswordInput
                         id="password-input"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={handlePasswordChange}
                         placeholder="Enter your password"
                     />
                 </div>
@@ -234,7 +266,7 @@ export function LoginForm({
                                 <PasswordInput
                                     id="confirm-password-input"
                                     value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    onChange={handleConfirmPasswordChange}
                                     placeholder="Confirm your password"
                                     autoComplete="new-password"
                                 />
@@ -258,12 +290,7 @@ export function LoginForm({
                 {/* Toggle between login and register */}
                 <button
                     type="button"
-                    onClick={() => {
-                        setIsRegisterMode(!isRegisterMode);
-                        setPasswordError("");
-                        setConfirmPassword("");
-                        setGeneralError("");
-                    }}
+                    onClick={handleToggleMode}
                     disabled={isLoading}
                     className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -283,7 +310,7 @@ export function LoginForm({
             {/* Other options toggle */}
             <div className="space-y-4">
                 <button
-                    onClick={() => setShowOtherOptions(!showOtherOptions)}
+                    onClick={handleToggleOtherOptions}
                     className="w-full flex items-center justify-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
                 >
                     Other options
@@ -333,7 +360,7 @@ export function LoginForm({
                                 {/* GitHub - Primary */}
                                 <Button
                                     variant="secondary"
-                                    onClick={() => handleSocialLogin("github")}
+                                    onClick={handleGitHubLogin}
                                     disabled={isLoading}
                                     className={`w-full h-12 justify-center gap-3 text-sm font-medium ${highlightOtherLoginMethods ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
                                         }`}
@@ -344,7 +371,7 @@ export function LoginForm({
                                 {/* Google */}
                                 <Button
                                     variant="secondary"
-                                    onClick={() => handleSocialLogin("google")}
+                                    onClick={handleGoogleLogin}
                                     disabled={isLoading}
                                     className={`w-full h-12 justify-center gap-3 text-sm font-medium ${highlightOtherLoginMethods ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
                                         }`}

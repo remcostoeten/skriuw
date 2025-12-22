@@ -13,7 +13,7 @@ export function blocksToText(blocks: Block[]): string {
 
 	const textParts: string[] = []
 
-	const extractText = (block: Block) => {
+	function extractText(block: Block) {
 		// Extract text from block content
 		if (block.content && Array.isArray(block.content)) {
 			for (const contentItem of block.content) {

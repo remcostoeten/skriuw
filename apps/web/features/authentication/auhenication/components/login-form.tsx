@@ -33,7 +33,7 @@ export function LoginForm({
     const disableGuestLogin = isAnonymousUser;
     const highlightOtherLoginMethods = isAnonymousUser;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setPasswordError("");
 

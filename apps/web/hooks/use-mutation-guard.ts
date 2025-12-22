@@ -10,7 +10,6 @@ type MutationGuardOptions = {
     /** Whether to automatically trigger the auth modal */
     triggerModal?: boolean
 }
-
 type MutationGuardResult = {
     /** Whether the user is authenticated */
     isAuthenticated: boolean

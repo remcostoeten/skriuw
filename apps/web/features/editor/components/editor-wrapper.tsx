@@ -55,8 +55,10 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
       if (editor) {
         setEditorContent(editor.document)
 
-        const handleContentChange = () => {
-          setEditorContent(editor.document)
+        function handleContentChange() {
+          if (editor) {
+            setEditorContent(editor.document)
+          }
         }
 
         editor.onEditorContentChange(handleContentChange)
@@ -83,7 +85,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
         }
       }
 
-      const debouncedHighlight = () => {
+      function debouncedHighlight() {
         if (debounceTimeout) {
           clearTimeout(debounceTimeout)
         }

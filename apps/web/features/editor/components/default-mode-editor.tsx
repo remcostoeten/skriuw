@@ -169,7 +169,7 @@ export function DualModeEditor({
 			setSplitRatio(clampedRatio)
 		}
 
-		const handleMouseUp = () => {
+		function handleMouseUp() {
 			if (!isDraggingRef.current) return
 			isDraggingRef.current = false
 			document.body.style.cursor = ''

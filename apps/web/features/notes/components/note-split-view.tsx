@@ -133,7 +133,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 			}
 			setIsResizing(true)
 
-			const handlePointerMove = (moveEvent: PointerEvent) => {
+			function handlePointerMove(moveEvent: PointerEvent) {
 				if (!containerRef.current || !dragStartRef.current) return
 				const containerSize =
 					orientation === 'vertical'
@@ -150,7 +150,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 				setSizes(nextSizes)
 			}
 
-			const handlePointerUp = () => {
+			function handlePointerUp() {
 				setIsResizing(false)
 				dragStartRef.current = null
 				window.removeEventListener('pointermove', handlePointerMove)

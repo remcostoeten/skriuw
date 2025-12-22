@@ -70,7 +70,7 @@ export function SplitEditorLayout({
 			const containerSize = orientation === 'vertical' ? containerRect.width : containerRect.height
 			const startRatio = clampedRatio
 
-			const handleMove = (moveEvent: PointerEvent) => {
+			function handleMove(moveEvent: PointerEvent) {
 				const delta =
 					orientation === 'vertical'
 						? moveEvent.clientX - startPosition
@@ -79,7 +79,7 @@ export function SplitEditorLayout({
 				onResize(Math.min(0.8, Math.max(0.2, nextRatio)))
 			}
 
-			const handleUp = () => {
+			function handleUp() {
 				setIsDragging(false)
 				window.removeEventListener('pointermove', handleMove)
 				window.removeEventListener('pointerup', handleUp)

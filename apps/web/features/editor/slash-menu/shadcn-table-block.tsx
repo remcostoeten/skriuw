@@ -53,7 +53,7 @@ export const shadcnTableBlockSpec: any = createReactBlockSpec(
                 }
             }, [block.props.tableData])
 
-            const updateTableData = (newData: string[][]) => {
+            function updateTableData(newData: string[][]) {
                 setData(newData)
                 editor.updateBlock(block.id, {
                     props: {
@@ -62,7 +62,7 @@ export const shadcnTableBlockSpec: any = createReactBlockSpec(
                 })
             }
 
-            const updateCell = (rowIndex: number, colIndex: number, value: string) => {
+            function updateCell(rowIndex: number, colIndex: number, value: string) {
                 const newData = [...data]
                 if (newData[rowIndex]) {
                     newData[rowIndex] = [...newData[rowIndex]]
@@ -71,25 +71,25 @@ export const shadcnTableBlockSpec: any = createReactBlockSpec(
                 }
             }
 
-            const addRow = () => {
+            function addRow() {
                 if (data.length === 0) return
                 const colCount = data[0].length
                 const newRow = Array(colCount).fill('')
                 updateTableData([...data, newRow])
             }
 
-            const removeRow = (index: number) => {
+            function removeRow(index: number) {
                 if (data.length <= 1) return // Keep at least one row
                 const newData = data.filter((_, i) => i !== index)
                 updateTableData(newData)
             }
 
-            const addColumn = () => {
+            function addColumn() {
                 const newData = data.map((row) => [...row, ''])
                 updateTableData(newData)
             }
 
-            const removeColumn = (index: number) => {
+            function removeColumn(index: number) {
                 if (data.length > 0 && data[0].length <= 1) return // Keep at least one col
                 const newData = data.map((row) => row.filter((_, i) => i !== index))
                 updateTableData(newData)

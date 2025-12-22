@@ -73,7 +73,7 @@ export function DueDateButton({ dueDate, onUpdate, className }: DueDateButtonPro
 
     const selectedDate = dueDate ? timestampToCalendarDate(dueDate) : null
 
-    const handleChange = (value: DateValue) => {
+    function handleChange(value: DateValue) {
         if (value) {
             // value can be CalendarDate, CalendarDateTime, or ZonedDateTime.
             // Since we are using simple date picker, it usually returns CalendarDate.
@@ -87,7 +87,7 @@ export function DueDateButton({ dueDate, onUpdate, className }: DueDateButtonPro
         setOpen(false)
     }
 
-    const handleClear = (e: React.MouseEvent) => {
+    function handleClear(e: React.MouseEvent) {
         e.stopPropagation()
         onUpdate(null)
         setOpen(false)

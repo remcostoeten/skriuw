@@ -107,7 +107,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
     }
   }, [currentNote, content])
 
-  const toggleSection = (section: string) => {
+  function toggleSection(section: string) {
     setExpandedSections(prev => {
       const next = new Set(prev)
       if (next.has(section)) {
@@ -119,7 +119,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
     })
   }
 
-  const scrollToHeading = (headingId: string) => {
+  function scrollToHeading(headingId: string) {
     const element = document.querySelector(`[data-content-type="heading"][data-id="${headingId}"]`)
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })

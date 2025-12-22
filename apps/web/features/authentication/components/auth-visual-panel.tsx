@@ -1,9 +1,9 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { motion } from "framer-motion";
 
-export const AuthVisualPanel = () => {
+export function AuthVisualPanel() {
     return (
-        <div className="relative w-full h-full overflow-hidden bg-zinc-900 rounded-2xl flex flex-col items-center justify-center p-8 text-center relative">
+        <div className="relative w-full h-full overflow-hidden bg-zinc-900 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] bg-blue-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '8s' }} />

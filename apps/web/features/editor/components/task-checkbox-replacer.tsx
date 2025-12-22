@@ -27,7 +27,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 	useEffect(() => {
 		if (!editor || !editorContainerRef.current) return
 
-		const replaceTaskCheckboxes = () => {
+		function replaceTaskCheckboxes() {
 			if (!editorContainerRef.current) return
 
 			// Find all bullet list items that are tasks (have a checkbox)
@@ -56,7 +56,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 							variant="default"
 							onChange={(checked) => {
 								// Use BlockNote's API to toggle the task
-								if (existing.blockId) {
+								if (existing.blockId && editor) {
 									const block = editor.getBlock(existing.blockId)
 									if (block && block.type === 'bulletListItem') {
 										editor.updateBlock(block, {
@@ -125,7 +125,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 						variant="default"
 						onChange={(checked) => {
 							// Use BlockNote's API to toggle the task
-							if (blockId) {
+							if (blockId && editor) {
 								try {
 									const block = editor.getBlock(blockId)
 									if (block && block.type === 'bulletListItem') {
@@ -170,7 +170,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 		let debounceTimeout: NodeJS.Timeout | null = null
 
 		// Debounced replacement function to prevent infinite loops
-		const debouncedReplace = () => {
+		function debouncedReplace() {
 			if (isReplacing) return
 
 			if (debounceTimeout) {

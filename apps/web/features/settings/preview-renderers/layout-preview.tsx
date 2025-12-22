@@ -12,7 +12,7 @@ interface LayoutPreviewProps extends PreviewProps {
 export default function LayoutPreview({ value, type }: LayoutPreviewProps) {
     const isCentered = type === 'centeredLayout' ? value : true // Assume centered for maxWidth preview
 
-    const getWidthClass = () => {
+    function getWidthClass() {
         if (type === 'centeredLayout') return 'w-3/4' // Fixed width for centered toggle demo
 
         switch (value) {

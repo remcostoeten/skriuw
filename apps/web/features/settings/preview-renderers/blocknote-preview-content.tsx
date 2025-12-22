@@ -152,7 +152,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 			const demos: Array<'idle' | 'typing' | 'slash' | 'drag'> = ['typing', 'slash', 'drag']
 			let index = 0
 
-			const cycleDemos = () => {
+			function cycleDemos() {
 				setCurrentDemo(demos[index])
 				index = (index + 1) % demos.length
 			}
@@ -173,7 +173,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 		}
 	}, [isHovering])
 
-	const getDemoHint = () => {
+	function getDemoHint() {
 		switch (currentDemo) {
 			case 'typing':
 				return '💡 Type @ anywhere to mention notes'

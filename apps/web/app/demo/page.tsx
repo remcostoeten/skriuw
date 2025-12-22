@@ -2,10 +2,18 @@
 
 import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
 import { IdentityGuardExample } from '@/examples/identity-guard-usage'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 export default function DemoPage() {
     const [showIdentityGuard, setShowIdentityGuard] = useState(false)
+
+    const handleBackToSkriuw = useCallback(() => {
+        setShowIdentityGuard(false)
+    }, [])
+
+    const handleCreateNote = useCallback(() => {
+        setShowIdentityGuard(true)
+    }, [])
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -13,7 +21,7 @@ export default function DemoPage() {
                 <div className="container mx-auto py-8">
                     <div className="mb-8 text-center">
                         <button
-                            onClick={() => setShowIdentityGuard(false)}
+                            onClick={handleBackToSkriuw}
                             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
                             ← Back to Skriuw Intro
@@ -24,7 +32,7 @@ export default function DemoPage() {
             ) : (
                 <div className="flex flex-col items-center justify-center min-h-screen p-6">
                     <SkriuwExplanation
-                        onCreateNote={() => setShowIdentityGuard(true)}
+                        onCreateNote={handleCreateNote}
                     />
                 </div>
             )}
