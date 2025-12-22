@@ -48,13 +48,13 @@ export function AppLayoutShell({
 	const isDraggingRef = useRef(false)
 	const dragThreshold = 100
 
-	const handleBackdropClick = () => {
+	function handleBackdropClick() {
 		if (onSidebarClose && isMobile) {
 			onSidebarClose()
 		}
 	}
 
-	const handleDragStart = (event: TouchEvent | MouseEvent) => {
+	function handleDragStart(event: TouchEvent | MouseEvent) {
 		if (!isMobile || !isSidebarOpen) return
 
 		const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
@@ -62,7 +62,7 @@ export function AppLayoutShell({
 		isDraggingRef.current = true
 	}
 
-	const handleDragMove = (event: TouchEvent | MouseEvent) => {
+	function handleDragMove(event: TouchEvent | MouseEvent) {
 		if (!isDraggingRef.current || startXRef.current === 0 || !isMobile) return
 
 		const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
@@ -73,7 +73,7 @@ export function AppLayoutShell({
 		}
 	}
 
-	const handleDragEnd = () => {
+	function handleDragEnd() {
 		if (!isDraggingRef.current || !isMobile) return
 
 		if (dragOffset > dragThreshold && onSidebarClose) {

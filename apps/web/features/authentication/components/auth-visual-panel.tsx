@@ -1,7 +1,7 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { motion } from "framer-motion";
 
-export const AuthVisualPanel = () => {
+export function AuthVisualPanel() {
     return (
         <div className="relative w-full h-full overflow-hidden bg-zinc-900 rounded-2xl flex flex-col items-center justify-center p-8 text-center relative">
             {/* Background Effects */}

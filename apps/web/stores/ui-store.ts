@@ -35,7 +35,7 @@ type UIState = {
 	setRightSidebarOpen: (open: boolean) => void
 }
 
-const safeStorage = () => {
+function safeStorage() {
 	if (typeof window === 'undefined') {
 		const noopStorage: Storage = {
 			getItem: () => null,

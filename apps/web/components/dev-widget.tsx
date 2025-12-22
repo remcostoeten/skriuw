@@ -156,7 +156,7 @@ export function DevWidget() {
 	useEffect(() => {
 		if (!resizeStart) return
 
-		const handleMouseMove = (e: MouseEvent) => {
+		function handleMouseMove(e: MouseEvent) {
 			const deltaX = e.clientX - resizeStart.x
 			const deltaY = e.clientY - resizeStart.y
 			setSize({
@@ -165,7 +165,7 @@ export function DevWidget() {
 			})
 		}
 
-		const handleMouseUp = () => {
+		function handleMouseUp() {
 			setResizeStart(null)
 		}
 
@@ -427,7 +427,7 @@ export function DevWidget() {
 	useEffect(() => {
 		if (!dragStartPos) return
 
-		const handleMouseMove = (e: MouseEvent) => {
+		function handleMouseMove(e: MouseEvent) {
 			const deltaX = Math.abs(e.clientX - dragStartPos.x)
 			const deltaY = Math.abs(e.clientY - dragStartPos.y)
 			const threshold = 5 // 5px threshold to distinguish click from drag
@@ -437,7 +437,7 @@ export function DevWidget() {
 			}
 		}
 
-		const handleMouseUp = () => {
+		function handleMouseUp() {
 			// Don't reset state here - let click handler handle it
 			// This prevents race condition between mouseup and click events
 			// Reset after a short delay to handle cases where click doesn't fire

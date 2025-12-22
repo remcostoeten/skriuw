@@ -72,7 +72,7 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 	useEffect(() => {
 		if (!isOpen) return
 
-		const handleKeyDown = (e: KeyboardEvent) => {
+		function handleKeyDown(e: KeyboardEvent) {
 			if (recordingId !== null) return
 
 			if (e.key === 'Escape' && document.activeElement !== searchInputRef.current) {

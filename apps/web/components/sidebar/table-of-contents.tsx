@@ -52,7 +52,7 @@ export function TableOfContents({ items, className }: props) {
 		}
 	}, [items, pathname])
 
-	const handleClick = (id: string) => {
+	function handleClick(id: string) {
 		const element = document.getElementById(id)
 		if (element) {
 			// Smooth scroll to element
