@@ -152,11 +152,9 @@ export function DevWidget() {
 		}
 	}, [size, resizeStart])
 
-	// Handle resizing
 	useEffect(() => {
-		if (!resizeStart) return
-
 		function handleMouseMove(e: MouseEvent) {
+			if (!resizeStart) return
 			const deltaX = e.clientX - resizeStart.x
 			const deltaY = e.clientY - resizeStart.y
 			setSize({
