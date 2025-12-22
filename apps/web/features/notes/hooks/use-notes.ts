@@ -199,7 +199,6 @@ export function useNotes() {
 			// Optimistically add to UI immediately
 			const previousItems = items
 			function addItem(itemList: Item[], item: Item, targetFolderId?: string): Item[] {
-
 				if (!targetFolderId) {
 					return [...itemList, item]
 				}
