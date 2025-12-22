@@ -650,7 +650,7 @@ export function DevWidget() {
 			deleteCookie()
 			toast.success('Hero cookie deleted')
 		}
-	}, [hasHeroCookie])
+	}, [hasHeroCookie, deleteCookie])
 
 	const handleClearCache = useCallback(() => {
 		executeAction('clear-cache')
