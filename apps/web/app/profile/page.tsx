@@ -5,7 +5,8 @@ import {
 	type FormEvent,
 	useEffect,
 	useMemo,
-	useState
+	useState,
+	useCallback
 } from 'react'
 import { useSession } from '@/lib/auth-client'
 import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
@@ -76,16 +77,18 @@ export default function ProfilePage() {
 		[user?.email, user?.name]
 	)
 
-	const handleChange =
+	const handleChange = useCallback(
 		(key: keyof FormState) =>
 			(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 				setFormValues((current) => ({
 					...current,
 					[key]: event.target.value
 				}))
-			}
+			},
+		[]
+	)
 
-	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault()
 		setIsSaving(true)
 		setStatus({
@@ -98,15 +101,31 @@ export default function ProfilePage() {
 			setIsSaving(false)
 			setIsEditing(false)
 		}, 300)
-	}
+	}, [])
 
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-	const handleDeleteAccount = () => {
+	const handleDeleteAccount = useCallback(() => {
 		setIsDeleteDialogOpen(true)
-	}
+	}, [])
 
-	const onConfirmDelete = () => {
+	const handleStartEditing = useCallback(() => {
+		setIsEditing(true)
+	}, [])
+
+	const handleCancelEditing = useCallback(() => {
+		setIsEditing(false)
+	}, [])
+
+	const handleDisconnectConnector = useCallback((type: string) => {
+		disconnectConnector(type as any)
+	}, [disconnectConnector])
+
+	const handleCloseDeleteDialog = useCallback(() => {
+		setIsDeleteDialogOpen(false)
+	}, [])
+
+	const onConfirmDelete = useCallback(() => {
 		setIsDeleteDialogOpen(false)
 		setIsDeleting(true)
 
@@ -117,7 +136,7 @@ export default function ProfilePage() {
 		})
 
 		setTimeout(() => setIsDeleting(false), 600)
-	}
+	}, [])
 
 	if (!hasSession) {
 		return (
@@ -197,7 +216,7 @@ export default function ProfilePage() {
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setIsEditing(true)}
+								onClick={handleStartEditing}
 							>
 								Edit
 							</Button>
@@ -264,7 +283,7 @@ export default function ProfilePage() {
 									<Button
 										type="button"
 										variant="outline"
-										onClick={() => setIsEditing(false)}
+										onClick={handleCancelEditing}
 										disabled={isSaving}
 									>
 										Cancel
@@ -363,7 +382,7 @@ export default function ProfilePage() {
 											variant="ghost"
 											size="sm"
 											className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-											onClick={() => disconnectConnector(connector.type)}
+											onClick={() => handleDisconnectConnector(connector.type)}
 											title="Disconnect"
 										>
 											<Trash2 className="h-4 w-4" />
@@ -411,7 +430,7 @@ export default function ProfilePage() {
 
 			<DeleteAccountDialog
 				isOpen={isDeleteDialogOpen}
-				onClose={() => setIsDeleteDialogOpen(false)}
+				onClose={handleCloseDeleteDialog}
 				onConfirm={onConfirmDelete}
 				isDeleting={isDeleting}
 			/>

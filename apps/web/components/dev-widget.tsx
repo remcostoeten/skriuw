@@ -152,11 +152,11 @@ export function DevWidget() {
 		}
 	}, [size, resizeStart])
 
-	// Handle resizing
 	useEffect(() => {
 		if (!resizeStart) return
 
-		const handleMouseMove = (e: MouseEvent) => {
+		function handleMouseMove(e: MouseEvent) {
+			if (!resizeStart) return
 			const deltaX = e.clientX - resizeStart.x
 			const deltaY = e.clientY - resizeStart.y
 			setSize({
@@ -165,7 +165,7 @@ export function DevWidget() {
 			})
 		}
 
-		const handleMouseUp = () => {
+		function handleMouseUp() {
 			setResizeStart(null)
 		}
 
@@ -427,7 +427,8 @@ export function DevWidget() {
 	useEffect(() => {
 		if (!dragStartPos) return
 
-		const handleMouseMove = (e: MouseEvent) => {
+		function handleMouseMove(e: MouseEvent) {
+			if (!dragStartPos) return
 			const deltaX = Math.abs(e.clientX - dragStartPos.x)
 			const deltaY = Math.abs(e.clientY - dragStartPos.y)
 			const threshold = 5 // 5px threshold to distinguish click from drag
@@ -437,20 +438,20 @@ export function DevWidget() {
 			}
 		}
 
-		const handleMouseUp = () => {
+		function handleMouseUp() {
 			// Don't reset state here - let click handler handle it
 			// This prevents race condition between mouseup and click events
 			// Reset after a short delay to handle cases where click doesn't fire
 			setTimeout(() => {
-				setDragStartPos(null)
-				setHasMoved(false)
+				if (dragStartPos) {
+					setDragStartPos(null)
+					setHasMoved(false)
+				}
 			}, 100)
 		}
 
-		if (dragStartPos) {
-			document.addEventListener('mousemove', handleMouseMove)
-			document.addEventListener('mouseup', handleMouseUp)
-		}
+		document.addEventListener('mousemove', handleMouseMove)
+		document.addEventListener('mouseup', handleMouseUp)
 
 		return () => {
 			document.removeEventListener('mousemove', handleMouseMove)
@@ -458,7 +459,7 @@ export function DevWidget() {
 		}
 	}, [dragStartPos])
 
-	const executeAction = async (action: string, confirmMsg?: string) => {
+	const executeAction = useCallback(async (action: string, confirmMsg?: string) => {
 		if (confirmMsg && !confirm(confirmMsg)) return
 		setActionLoading(action)
 
@@ -513,9 +514,79 @@ export function DevWidget() {
 		} finally {
 			setActionLoading(null)
 		}
-	}
+	}, [fetchStats, refreshItems])
 
-	const handleImport = (type: 'json' | 'md') => {
+	// Memoized callbacks for performance optimization
+	const handleToggleWidget = useCallback(() => {
+		// Only toggle if we haven't moved (i.e., it was a click, not a drag)
+		if (!hasMoved && dragStartPos) {
+			setIsOpen(!isOpen)
+		}
+	}, [hasMoved, dragStartPos, isOpen])
+
+	const handleOpenWidget = useCallback(() => {
+		// Only toggle if we haven't moved (i.e., it was a click, not a drag)
+		if (!hasMoved && dragStartPos) {
+			setIsOpen(true)
+		}
+		// Reset drag detection state
+		setHasMoved(false)
+		setDragStartPos(null)
+	}, [hasMoved, dragStartPos])
+
+	const handleWidgetMouseDown = useCallback((e: React.MouseEvent) => {
+		// Track initial position for click vs drag detection
+		setDragStartPos({ x: e.clientX, y: e.clientY })
+		setHasMoved(false)
+		handleMouseDown(e)
+	}, [handleMouseDown])
+
+	const handleWidgetTouchStart = useCallback((e: React.TouchEvent) => {
+		// Track initial position for touch events
+		const touch = e.touches[0]
+		setDragStartPos({ x: touch.clientX, y: touch.clientY })
+		setHasMoved(false)
+		handleTouchStart(e)
+	}, [handleTouchStart])
+
+	const handleCloseWidget = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+		setIsOpen(false)
+	}, [])
+
+	const handleTabChange = useCallback((tabId: TabType) => {
+		setActiveTab(tabId)
+	}, [])
+
+	const handleCheckSchema = useCallback(() => {
+		executeAction('check-schema')
+	}, [executeAction])
+
+	const handlePushSchema = useCallback(() => {
+		executeAction('push-schema')
+	}, [executeAction])
+
+	const handleResetDatabase = useCallback(() => {
+		executeAction('reset-database')
+	}, [executeAction])
+
+	const handleSeedData = useCallback(() => {
+		executeAction('seed')
+	}, [executeAction])
+
+	const handleClearData = useCallback(() => {
+		executeAction('clear-all', 'Clear all data? This will delete everything except users.')
+	}, [executeAction])
+
+	const handleExportJson = useCallback(() => {
+		downloadJsonExport(items)
+	}, [items])
+
+	const handleExportMarkdown = useCallback(() => {
+		downloadMarkdownExport(items)
+	}, [items])
+
+	const handleImport = useCallback((type: 'json' | 'md') => {
 		const input = document.createElement('input')
 		input.type = 'file'
 		input.accept = type === 'json' ? '.json' : '.md'
@@ -567,7 +638,93 @@ export function DevWidget() {
 			}
 		}
 		input.click()
-	}
+	}, [refreshItems, fetchStats])
+
+	const handleImportJson = useCallback(() => {
+		handleImport('json')
+	}, [handleImport])
+
+	const handleImportMarkdown = useCallback(() => {
+		handleImport('md')
+	}, [handleImport])
+
+	const handleDeleteCookie = useCallback(() => {
+		if (hasHeroCookie) {
+			deleteCookie()
+			toast.success('Hero cookie deleted')
+		}
+	}, [hasHeroCookie, deleteCookie])
+
+	const handleClearCache = useCallback(() => {
+		executeAction('clear-cache')
+	}, [executeAction])
+
+	const handleRunCleanup = useCallback((dryRun: boolean) => {
+		runCleanup(dryRun)
+	}, [runCleanup])
+
+	const handleTestAuth = useCallback(() => {
+		runCleanup(true)
+	}, [runCleanup])
+
+	const handleCronStatus = useCallback(() => {
+		fetchStats()
+	}, [fetchStats])
+
+	const handleResetUser = useCallback((userId: string) => {
+		resetUser(userId)
+	}, [resetUser])
+
+	const handleDeleteUser = useCallback((userId: string) => {
+		deleteUser(userId)
+	}, [deleteUser])
+
+	const handleToggleCookieBadge = useCallback(() => {
+		if (hasHeroCookie) {
+			deleteCookie()
+			toast.success('Hero badge is now visible')
+		} else {
+			updateCookie('true')
+			toast.success('Hero badge is now hidden')
+		}
+	}, [hasHeroCookie, deleteCookie, updateCookie])
+
+	const handleRefreshUsersClick = useCallback(() => {
+		fetchUsers()
+	}, [fetchUsers])
+
+	const handleCloseButtonMouseDown = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleTabButtonMouseDown = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleContentMouseDown = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleContentTouchStart = useCallback((e: React.TouchEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleResetPositionButtonMouseDown = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+	}, [])
+
+	const handleWidgetResizeStart = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation()
+		e.preventDefault()
+		setResizeStart({
+			x: e.clientX,
+			y: e.clientY,
+			w: size.width,
+			h: size.height
+		})
+	}, [size.width, size.height])
+
+
 
 	// Don't render anything if not visible (authorization check failed)
 	if (!isVisible) return null
@@ -577,28 +734,9 @@ export function DevWidget() {
 			{!isOpen && (
 				<button
 					ref={dragRef as any}
-					onClick={() => {
-						// Only toggle if we haven't moved (i.e., it was a click, not a drag)
-						if (!hasMoved && dragStartPos) {
-							setIsOpen(true)
-						}
-						// Reset drag detection state
-						setHasMoved(false)
-						setDragStartPos(null)
-					}}
-					onMouseDown={(e) => {
-						// Track initial position for click vs drag detection
-						setDragStartPos({ x: e.clientX, y: e.clientY })
-						setHasMoved(false)
-						handleMouseDown(e)
-					}}
-					onTouchStart={(e) => {
-						// Track initial position for touch events
-						const touch = e.touches[0]
-						setDragStartPos({ x: touch.clientX, y: touch.clientY })
-						setHasMoved(false)
-						handleTouchStart(e)
-					}}
+					onClick={handleOpenWidget}
+					onMouseDown={handleWidgetMouseDown}
+					onTouchStart={handleWidgetTouchStart}
 					className={cn(
 						'fixed z-50 h-10 w-10 rounded-full border border-border bg-background/80 backdrop-blur-sm text-muted-foreground shadow-lg hover:shadow-xl hover:bg-accent hover:text-accent-foreground transition-all flex items-center justify-center animate-in fade-in zoom-in duration-200',
 						isDragging && 'cursor-grabbing'
@@ -675,11 +813,8 @@ export function DevWidget() {
 							)}
 						</div>
 						<button
-							onClick={(e) => {
-								e.stopPropagation()
-								setIsOpen(false)
-							}}
-							onMouseDown={(e) => e.stopPropagation()}
+							onClick={handleCloseWidget}
+							onMouseDown={handleCloseButtonMouseDown}
 							className="hover:bg-muted rounded p-1 transition-colors cursor-pointer"
 						>
 							<X className="h-4 w-4 text-muted-foreground" />
@@ -722,7 +857,7 @@ export function DevWidget() {
 						].map((tab) => (
 							<button
 								key={tab.id}
-								onClick={() => setActiveTab(tab.id)}
+								onClick={() => handleTabChange(tab.id)}
 								className={cn(
 									'flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap min-w-fit flex-1 justify-center relative group',
 									activeTab === tab.id
@@ -730,7 +865,7 @@ export function DevWidget() {
 										: 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
 								)}
 								title={`Shortcut: ${tab.shortcut}`}
-								onMouseDown={(e) => e.stopPropagation()}
+								onMouseDown={handleTabButtonMouseDown}
 							>
 								<tab.icon className="h-3.5 w-3.5" />
 								{tab.label}
@@ -743,8 +878,8 @@ export function DevWidget() {
 
 					<div
 						className="p-3 space-y-4 text-sm flex-1 overflow-y-auto custom-scrollbar"
-						onMouseDown={(e) => e.stopPropagation()}
-						onTouchStart={(e) => e.stopPropagation()}
+						onMouseDown={handleContentMouseDown}
+						onTouchStart={handleContentTouchStart}
 					>
 						{/* Database Tab Content */}
 						{activeTab === 'database' && (
@@ -812,11 +947,7 @@ export function DevWidget() {
 											<ActionButton
 												icon={Activity}
 												label="Check Sync"
-												onClick={() =>
-													executeAction(
-														'check-schema'
-													)
-												}
+												onClick={handleCheckSchema}
 												loading={
 													actionLoading ===
 													'check-schema'
@@ -827,11 +958,7 @@ export function DevWidget() {
 													<ActionButton
 														icon={Upload}
 														label="Push Schema"
-														onClick={() =>
-															executeAction(
-																'push-schema'
-															)
-														}
+														onClick={handlePushSchema}
 														loading={
 															actionLoading ===
 															'push-schema'
@@ -842,12 +969,7 @@ export function DevWidget() {
 												icon={RotateCcw}
 												label="Reset DB"
 												variant="destructive"
-												onClick={() =>
-													executeAction(
-														'reset-database',
-														'reset-database'
-													)
-												}
+												onClick={handleResetDatabase}
 												loading={
 													actionLoading ===
 													'reset-database'
@@ -864,21 +986,14 @@ export function DevWidget() {
 										<ActionButton
 											icon={Sprout}
 											label="Seed Data"
-											onClick={() =>
-												executeAction('seed')
-											}
+											onClick={handleSeedData}
 											loading={actionLoading === 'seed'}
 										/>
 										<ActionButton
 											icon={Trash2}
 											label="Clear Data"
 											variant="destructive"
-											onClick={() =>
-												executeAction(
-													'clear-all',
-													'Delete ALL data?'
-												)
-											}
+											onClick={handleClearData}
 											loading={
 												actionLoading === 'clear-all'
 											}
@@ -893,34 +1008,24 @@ export function DevWidget() {
 											<ActionButton
 												icon={Download}
 												label="Export JSON"
-												onClick={() =>
-													downloadJsonExport(items)
-												}
+												onClick={handleExportJson}
 											/>
 											<ActionButton
 												icon={Download}
 												label="Export MD"
-												onClick={() =>
-													downloadMarkdownExport(
-														items
-													)
-												}
+												onClick={handleExportMarkdown}
 											/>
 										</div>
 										<div className="flex flex-col gap-1">
 											<ActionButton
 												icon={Upload}
 												label="Import JSON"
-												onClick={() =>
-													handleImport('json')
-												}
+												onClick={handleImportJson}
 											/>
 											<ActionButton
 												icon={Upload}
 												label="Import MD"
-												onClick={() =>
-													handleImport('md')
-												}
+												onClick={handleImportMarkdown}
 											/>
 										</div>
 									</div>
@@ -936,19 +1041,7 @@ export function DevWidget() {
 												: 'Hide Hero Badge'
 										}
 										fullWidth
-										onClick={() => {
-											if (hasHeroCookie) {
-												deleteCookie()
-												toast.success(
-													'Hero badge is now visible'
-												)
-											} else {
-												updateCookie('true')
-												toast.success(
-													'Hero badge is now hidden'
-												)
-											}
-										}}
+										onClick={handleToggleCookieBadge}
 									/>
 								</div>
 
@@ -958,9 +1051,7 @@ export function DevWidget() {
 										<ActionButton
 											icon={RefreshCw}
 											label="Clear Cache"
-											onClick={() =>
-												executeAction('clear-cache')
-											}
+											onClick={handleClearCache}
 											loading={
 												actionLoading === 'clear-cache'
 											}
@@ -1048,7 +1139,7 @@ export function DevWidget() {
 														<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
 															<button
 																onClick={() =>
-																	resetUser(
+																	handleResetUser(
 																		user.id
 																	)
 																}
@@ -1068,7 +1159,7 @@ export function DevWidget() {
 															</button>
 															<button
 																onClick={() =>
-																	deleteUser(
+																	handleDeleteUser(
 																		user.id
 																	)
 																}
@@ -1098,7 +1189,7 @@ export function DevWidget() {
 									<ActionButton
 										icon={Users}
 										label="Refresh Users"
-										onClick={fetchUsers}
+										onClick={handleRefreshUsersClick}
 										loading={usersLoading}
 									/>
 								</div>
@@ -1173,14 +1264,14 @@ export function DevWidget() {
 										<ActionButton
 											icon={Play}
 											label="Run Cleanup"
-											onClick={() => runCleanup(false)}
+											onClick={() => handleRunCleanup(false)}
 											loading={cleanupLoading}
 											variant="default"
 										/>
 										<ActionButton
 											icon={Clock}
 											label="Dry Run"
-											onClick={() => runCleanup(true)}
+											onClick={() => handleRunCleanup(true)}
 											loading={cleanupLoading}
 											variant="default"
 										/>
@@ -1305,7 +1396,7 @@ export function DevWidget() {
 									<ActionButton
 										icon={Activity}
 										label="Refresh Health"
-										onClick={fetchStats}
+										onClick={() => fetchStats()}
 										loading={loading}
 									/>
 								</div>
@@ -1357,13 +1448,13 @@ export function DevWidget() {
 										<ActionButton
 											icon={Shield}
 											label="Test Auth"
-											onClick={() => runCleanup(true)}
+											onClick={() => handleTestAuth()}
 											variant="default"
 										/>
 										<ActionButton
 											icon={RefreshCw}
 											label="Cron Status"
-											onClick={fetchStats}
+											onClick={() => handleCronStatus()}
 											loading={loading}
 										/>
 									</div>
@@ -1388,9 +1479,7 @@ export function DevWidget() {
 											<button
 												onClick={resetPosition}
 												className="text-blue-600 hover:underline"
-												onMouseDown={(e) =>
-													e.stopPropagation()
-												}
+												onMouseDown={handleResetPositionButtonMouseDown}
 											>
 												Reset
 											</button>
@@ -1404,16 +1493,7 @@ export function DevWidget() {
 					{/* Resize Handle */}
 					<div
 						className="absolute bottom-0 right-0 p-1 cursor-nwse-resize hover:bg-muted transition-colors rounded-tl z-50"
-						onMouseDown={(e) => {
-							e.stopPropagation()
-							e.preventDefault()
-							setResizeStart({
-								x: e.clientX,
-								y: e.clientY,
-								w: size.width,
-								h: size.height
-							})
-						}}
+						onMouseDown={handleWidgetResizeStart}
 					>
 						<Grip className="h-4 w-4 text-muted-foreground/50" />
 					</div>

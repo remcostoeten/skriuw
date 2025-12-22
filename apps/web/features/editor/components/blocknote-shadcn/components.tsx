@@ -238,7 +238,7 @@ const SuggestionMenuItem = ({
 	const icon = (item as any).icon
 
 	// Determine category based on title for better organization
-	const getCategory = (title: string) => {
+	function getCategory(title: string) {
 		if (
 			title.includes('Heading') ||
 			title.includes('Paragraph') ||

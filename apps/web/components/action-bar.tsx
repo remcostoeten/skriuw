@@ -103,6 +103,16 @@ export function ActionBar({
 		}
 	}, [searchConfig])
 
+	const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		searchConfig?.setQuery(event.target.value)
+	}, [searchConfig])
+
+	const handleSearchKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+		if (event.key === 'Escape') {
+			handleSearchClose()
+		}
+	}, [handleSearchClose])
+
 	const handleSearchBlur = useCallback(
 		(event: FocusEvent<HTMLDivElement>) => {
 			const nextTarget = event.relatedTarget as Node | null
@@ -237,12 +247,8 @@ export function ActionBar({
                                                         autoComplete="off"
                                                         autoCorrect="off"
                                                         value={searchConfig.query}
-                                                        onChange={(event) => searchConfig.setQuery(event.target.value)}
-                                                        onKeyDown={(event) => {
-                                                                if (event.key === 'Escape') {
-                                                                        handleSearchClose()
-                                                                }
-                                                        }}
+                                                        onChange={handleSearchChange}
+                                                        onKeyDown={handleSearchKeyDown}
                                                 />
                                                 <IconButton
                                                         icon={icons.close}

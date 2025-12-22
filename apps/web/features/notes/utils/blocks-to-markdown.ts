@@ -11,7 +11,7 @@ export function blocksToMarkdown(blocks: Block[]): string {
 
 	const markdownLines: string[] = []
 
-	const convertBlock = (block: Block, depth = 0): string[] => {
+	function convertBlock(block: Block, depth = 0): string[] {
 		const lines: string[] = []
 		const indent = '  '.repeat(depth)
 
