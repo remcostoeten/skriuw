@@ -49,6 +49,7 @@ export default function Index() {
 
 		if (allNotes.length === 1) {
 			targetNoteId = allNotes[0].id
+		} else if (allNotes.length > 1 && lastActiveNoteId) {
 		} else if (lastActiveNoteId) {
 			const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
 			if (noteExists) {
