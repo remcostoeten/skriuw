@@ -10,7 +10,7 @@ export function WindowControls() {
 	useEffect(() => {
 		if (!isTauriAvailable()) return
 
-		let cleanup: (() => void)[] = []
+		const cleanup: (() => void)[] = []
 
 		const setup = async () => {
 			try {

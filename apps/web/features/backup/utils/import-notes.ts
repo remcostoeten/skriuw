@@ -288,7 +288,7 @@ export async function importFromMarkdown(
 
 	// Count results
 	let noteCount = 0
-	let folderCount = folderMap.size
+	const folderCount = folderMap.size
 
 	function countNotes(itemList: Item[]) {
 		for (const item of itemList) {

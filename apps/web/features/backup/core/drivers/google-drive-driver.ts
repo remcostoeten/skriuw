@@ -80,7 +80,7 @@ export class GoogleDriveDriver implements StorageDriver {
 		if (this.folderCache.has(manifestId))
 			return this.folderCache.get(manifestId)!
 
-		let targetParentId = this.parentFolderId
+		const targetParentId = this.parentFolderId
 
 		// If we want a clean root folder logic, we just create manifestId folder there
 		// Check if exists
