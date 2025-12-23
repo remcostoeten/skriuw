@@ -14,7 +14,7 @@ import { IndexSkeleton } from '../components/pages/index-skeleton'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({
-		default: mod.NoteEditor,
+		default: mod.NoteEditor
 	}))
 )
 
@@ -23,7 +23,8 @@ import { HeroBadge } from '@skriuw/ui/hero-badge'
 import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
 
 export default function Index() {
-	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
+	const { value: hideBadgeCookie, updateCookie } =
+		useCookie('hide-alpha-badge')
 	const showBadge = hideBadgeCookie !== 'true'
 
 	const hideBadge = () => updateCookie('true')
@@ -41,7 +42,9 @@ export default function Index() {
 
 	const isNoteRoute = pathname.startsWith('/note/')
 	const isBaseNoteRoute = pathname === '/note'
-	const slugOrId = isNoteRoute ? pathname.split('/note/')[1]?.split('?')[0] : null
+	const slugOrId = isNoteRoute
+		? pathname.split('/note/')[1]?.split('?')[0]
+		: null
 	const noteId = useMemo(() => {
 		if (!slugOrId) return null
 		return resolveNoteId(slugOrId)
@@ -69,7 +72,9 @@ export default function Index() {
 				router.replace(getNoteUrl(singleNote.id))
 			} else if (lastActiveNoteId) {
 				// Multiple notes: navigate to last active note if it exists
-				const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
+				const noteExists = allNotes.some(
+					(note) => note.id === lastActiveNoteId
+				)
 				if (noteExists) {
 					router.replace(getNoteUrl(lastActiveNoteId))
 				} else {
@@ -81,7 +86,14 @@ export default function Index() {
 				router.replace(getNoteUrl(allNotes[0].id))
 			}
 		}
-	}, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
+	}, [
+		isBaseNoteRoute,
+		isInitialLoading,
+		allNotes,
+		lastActiveNoteId,
+		router,
+		getNoteUrl
+	])
 
 	async function handleCreateNote() {
 		const newNote = await createNote('Untitled')
@@ -121,11 +133,7 @@ export default function Index() {
 			)}
 			{!noteId ? (
 				<div className="flex-1 flex items-center justify-center translate-y-[30%]">
-<<<<<<< HEAD
-					{isInitialLoading || allNotes.length > 0 ? (
-=======
 					{!hasMounted || isInitialLoading ? (
->>>>>>> 7be620a (feat: Implement new authentication flow with dedicated login page, password input, and auth layout, alongside database migrations and UI improvements.)
 						<IndexSkeleton />
 					) : (
 						<SkriuwExplanation
@@ -138,7 +146,9 @@ export default function Index() {
 				<Suspense
 					fallback={
 						<div className="flex-1 flex items-center justify-center">
-							<div className="text-muted-foreground">Loading editor...</div>
+							<div className="text-muted-foreground">
+								Loading editor...
+							</div>
 						</div>
 					}
 				>
