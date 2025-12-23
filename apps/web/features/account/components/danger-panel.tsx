@@ -44,7 +44,7 @@ export default function DangerPanel() {
 		setIsDeleting(true)
 		setError(null)
 		setStatus(null)
-		soundAlert()
+		try {
 		try {
 			const response = await deleteAccount()
 			setStatus(response.message)
