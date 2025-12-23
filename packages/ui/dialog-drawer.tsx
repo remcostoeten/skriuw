@@ -144,7 +144,8 @@ function DrawerDialogOverlay({
 							duration: 0.3,
 							ease: [0.25, 0.46, 0.45, 0.94]
 						}}
-						className={`fixed inset-0 z-${Z_INDEX.overlay} bg-black/70 backdrop-blur-sm`}
+						className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+						style={{ zIndex: Z_INDEX.overlay }}
 						onClick={handleClick}
 						aria-hidden="true"
 					/>
@@ -154,11 +155,34 @@ function DrawerDialogOverlay({
 	)
 }
 
+// Props that conflict between HTMLAttributes and Framer Motion's motion.div
+type MotionConflictingProps =
+	| 'onAnimationStart'
+	| 'onDragStart'
+	| 'onDragEnd'
+	| 'onDrag'
+	| 'transition'
+
 export interface DrawerContentProps extends HTMLAttributes<HTMLDivElement> {
 	children: ReactNode
 	className?: string
 	enableDragToClose?: boolean
 	dragThreshold?: number
+}
+
+// Filter out props that conflict with Framer Motion
+function filterMotionProps(
+	props: Omit<DrawerContentProps, 'children' | 'className' | 'enableDragToClose' | 'dragThreshold'>
+): Omit<typeof props, MotionConflictingProps> {
+	const {
+		onAnimationStart,
+		onDragStart,
+		onDragEnd,
+		onDrag,
+		transition,
+		...safeProps
+	} = props as any
+	return safeProps
 }
 
 export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
@@ -189,11 +213,11 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 		}, [open])
 
 		const handleDragStart = (event: ReactTouchEvent | ReactMouseEvent) => {
-			// Call external handler if provided
+			// Call external handler if provided with proper type narrowing
 			if ('touches' in event) {
-				; (props.onTouchStart as any)?.(event)
+				props.onTouchStart?.(event as React.TouchEvent<HTMLDivElement>)
 			} else {
-				; (props.onMouseDown as any)?.(event)
+				props.onMouseDown?.(event as React.MouseEvent<HTMLDivElement>)
 			}
 
 			if (!isMobile || !enableDragToClose) return
@@ -205,11 +229,11 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 		}
 
 		const handleDragMove = (event: ReactTouchEvent | ReactMouseEvent) => {
-			// Call external handler if provided
+			// Call external handler if provided with proper type narrowing
 			if ('touches' in event) {
-				; (props.onTouchMove as any)?.(event)
+				props.onTouchMove?.(event as React.TouchEvent<HTMLDivElement>)
 			} else {
-				; (props.onMouseMove as any)?.(event)
+				props.onMouseMove?.(event as React.MouseEvent<HTMLDivElement>)
 			}
 
 			if (!isDraggingRef.current || startYRef.current === 0) return
@@ -224,11 +248,11 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 		}
 
 		const handleDragEnd = (event: ReactTouchEvent | ReactMouseEvent) => {
-			// Call external handler if provided
+			// Call external handler if provided with proper type narrowing
 			if ('touches' in event) {
-				; (props.onTouchEnd as any)?.(event)
+				props.onTouchEnd?.(event as React.TouchEvent<HTMLDivElement>)
 			} else {
-				; (props.onMouseUp as any)?.(event)
+				props.onMouseUp?.(event as React.MouseEvent<HTMLDivElement>)
 			}
 
 			if (!isDraggingRef.current) return
@@ -253,8 +277,8 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 			return (
 				<Portal>
 					<div
-						className={`fixed inset-0 z-${Z_INDEX.dialog} flex flex-col pointer-events-none`}
-						style={{ top: `${dragOffset}px` }}
+						className="fixed inset-0 flex flex-col pointer-events-none"
+						style={{ zIndex: Z_INDEX.dialog, top: `${dragOffset}px` }}
 					>
 						<div className="flex-1 pointer-events-auto" />
 
@@ -279,7 +303,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 							onMouseMove={handleDragMove}
 							onMouseUp={handleDragEnd}
 							onMouseLeave={(e) => {
-								handleDragEnd(e as any)
+								handleDragEnd(e as ReactTouchEvent | ReactMouseEvent)
 								props.onMouseLeave?.(e)
 							}}
 						>
@@ -300,10 +324,11 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 				{open && (
 					<Portal>
 						<div
-							className={`fixed inset-0 z-${Z_INDEX.dialog} flex items-center justify-center p-6`}
+							className="fixed inset-0 flex items-center justify-center p-6"
+							style={{ zIndex: Z_INDEX.dialog }}
 						>
 							<motion.div
-								{...(props as any)}
+								{...filterMotionProps(props)}
 								ref={contentRef}
 								role="dialog"
 								aria-modal="true"
@@ -364,14 +389,19 @@ export interface DrawerCloseProps
 }
 
 export const DrawerClose = forwardRef<HTMLButtonElement, DrawerCloseProps>(
-	({ className = '', children, ...props }, ref) => {
+	({ className = '', children, onClick, ...props }, ref) => {
 		const { onOpenChange } = useDialogContext()
+
+		const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+			onClick?.(e)
+			onOpenChange(false)
+		}
 
 		return (
 			<button
 				type="button"
 				ref={ref}
-				onClick={() => onOpenChange(false)}
+				onClick={handleClick}
 				className={`absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring ${className}`}
 				{...props}
 			>
