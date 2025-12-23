@@ -19,6 +19,7 @@ import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
 import type { Note, Folder, Item } from '../types'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { useSession } from '@/lib/auth-client'
 
 /**
  * Hook for managing notes and folders with optimistic updates and non-blocking state changes.
@@ -106,6 +107,7 @@ export function useNotes() {
 	const [items, setItems] = useState<Item[]>([])
 	const [isInitialLoading, setIsInitialLoading] = useState(true)
 	const [isRefreshing, setIsRefreshing] = useState(false)
+	const { data: session, isPending: isSessionPending } = useSession()
 
 	// Deferred value for non-blocking updates
 	const deferredItems = useDeferredValue(items)
@@ -114,7 +116,17 @@ export function useNotes() {
 	useEffect(() => {
 		let isCancelled = false
 
+		if (isSessionPending) return
+
+		if (!session?.user?.id) {
+			setItems([])
+			setIsInitialLoading(false)
+			return
+		}
+
 		const loadInitialData = async () => {
+			setIsInitialLoading(true)
+			invalidateItemsCache()
 			try {
 				const data = await getItems()
 				if (!isCancelled) {
@@ -134,7 +146,7 @@ export function useNotes() {
 		return () => {
 			isCancelled = true
 		}
-	}, [])
+	}, [isSessionPending, session?.user?.id])
 
 	const refreshItems = useCallback(async () => {
 		setIsRefreshing(true)
@@ -546,4 +558,3 @@ export function useNotes() {
 		refreshItems,
 	}
 }
-

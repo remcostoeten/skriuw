@@ -1,16 +1,14 @@
 'use client'
 
-import { Suspense, lazy, useMemo, useEffect, useState, useCallback } from 'react'
+import { Suspense, lazy, useMemo, useEffect, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
-import { useShortcut, shortcut } from '../features/shortcuts'
+import { useShortcut } from '../features/shortcuts'
 import { useCookie } from '@/hooks/use-cookie'
 import { useUIStore } from '@/stores/ui-store'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-
-import { IndexSkeleton } from '../components/pages/index-skeleton'
 
 const NoteEditor = lazy(() =>
 	import('../features/editor/components/note-editor').then((mod) => ({
@@ -33,12 +31,6 @@ export default function Index() {
 	const { resolveNoteId, getNoteUrl } = useNoteSlug(items)
 	const { lastActiveNoteId, setLastActiveNote } = useUIStore()
 
-	// Prevent hydration flash by waiting for client mount
-	const [hasMounted, setHasMounted] = useState(false)
-	useEffect(() => {
-		setHasMounted(true)
-	}, [])
-
 	const isNoteRoute = pathname.startsWith('/note/')
 	const isBaseNoteRoute = pathname === '/note'
 	const slugOrId = isNoteRoute ? pathname.split('/note/')[1]?.split('?')[0] : null
@@ -50,6 +42,25 @@ export default function Index() {
 	// Get all notes (flattened)
 	const allNotes = useMemo(() => flattenNotes(items), [items])
 
+	const navigateToPreferredNote = useCallback(() => {
+		if (allNotes.length === 0) return false
+
+		let targetNoteId = allNotes[0].id
+
+		if (allNotes.length === 1) {
+			targetNoteId = allNotes[0].id
+		} else if (allNotes.length > 1 && lastActiveNoteId) {
+		} else if (lastActiveNoteId) {
+			const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
+			if (noteExists) {
+				targetNoteId = lastActiveNoteId
+			}
+		}
+
+		router.replace(getNoteUrl(targetNoteId))
+		return true
+	}, [allNotes, lastActiveNoteId, router, getNoteUrl])
+
 	// Track the active note ID
 	useEffect(() => {
 		if (noteId) {
@@ -59,29 +70,15 @@ export default function Index() {
 
 	// Smart navigation when visiting /note
 	useEffect(() => {
-		if (isBaseNoteRoute && !isInitialLoading) {
-			if (allNotes.length === 0) {
-				// No notes: stay on /note to show SkriuwExplanation
-				return
-			} else if (allNotes.length === 1) {
-				// Single note: navigate to it
-				const singleNote = allNotes[0]
-				router.replace(getNoteUrl(singleNote.id))
-			} else if (lastActiveNoteId) {
-				// Multiple notes: navigate to last active note if it exists
-				const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
-				if (noteExists) {
-					router.replace(getNoteUrl(lastActiveNoteId))
-				} else {
-					// Last active note was deleted, navigate to first note
-					router.replace(getNoteUrl(allNotes[0].id))
-				}
-			} else {
-				// Multiple notes but no last active: navigate to first note
-				router.replace(getNoteUrl(allNotes[0].id))
-			}
-		}
-	}, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
+		if (!isBaseNoteRoute || isInitialLoading) return
+		navigateToPreferredNote()
+	}, [isBaseNoteRoute, isInitialLoading, navigateToPreferredNote])
+
+	// Redirect from root to the best available note once data is ready
+	useEffect(() => {
+		if (pathname !== '/' || isInitialLoading || noteId) return
+		navigateToPreferredNote()
+	}, [pathname, isInitialLoading, noteId, navigateToPreferredNote])
 
 	const handleCreateNote = async () => {
 		const newNote = await createNote('Untitled')
