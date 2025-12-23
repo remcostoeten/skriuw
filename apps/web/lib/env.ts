@@ -66,3 +66,11 @@ export const env = createEnv({
         NEXT_PUBLIC_ENABLE_GENERAL_LOGGING: process.env.NEXT_PUBLIC_ENABLE_GENERAL_LOGGING,
     }
 })
+
+// Client-only helpers for public env values.
+// Use this in browser code to avoid pulling in server-only validation.
+export const clientEnv = {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_DROPBOX_CLIENT_ID: process.env.NEXT_PUBLIC_DROPBOX_CLIENT_ID,
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+}

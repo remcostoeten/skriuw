@@ -1,5 +1,5 @@
 import type { OAuth2Config, OAuth2Tokens } from './types'
-import { clientEnv } from '@/lib/env-client'
+import { clientEnv } from '@/lib/env'
 
 export interface OAuth2Provider {
 	getConfig(): OAuth2Config
