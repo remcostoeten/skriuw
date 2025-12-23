@@ -12,6 +12,7 @@ import { moveItem as moveItemMutation } from '../api/mutations/move-item'
 import { pinItem as pinItemMutation } from '../api/mutations/pin-item'
 import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
 import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
+import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
 import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
@@ -540,6 +541,44 @@ export function useNotes() {
 		[items]
 	)
 
+	const setNoteVisibility = useCallback(
+		async (noteId: string, isPublic: boolean) => {
+			const previousItems = items
+			function updateVisibility(
+				itemList: Item[],
+				publicId?: string | null,
+				publicViews?: number
+			): Item[] {
+				return itemList.map((item) => {
+					if (item.id === noteId && item.type === 'note') {
+						return {
+							...item,
+							isPublic,
+							publicId: publicId ?? item.publicId,
+							publicViews: publicViews ?? item.publicViews,
+						}
+					}
+					if (item.type === 'folder') {
+						return { ...item, children: updateVisibility(item.children, publicId, publicViews) }
+					}
+					return item
+				})
+			}
+
+			setItems(updateVisibility(items))
+			try {
+				const updated = await setNoteVisibilityMutation(noteId, isPublic)
+				if (updated) {
+					setItems(updateVisibility(items, updated.publicId ?? null, updated.publicViews))
+				}
+			} catch (error) {
+				setItems(previousItems)
+				console.error('Failed to update visibility:', error)
+			}
+		},
+		[items]
+	)
+
 	return {
 		items: deferredItems,
 		isInitialLoading,
@@ -555,6 +594,7 @@ export function useNotes() {
 		countChildren,
 		pinItem,
 		favoriteNote,
+		setNoteVisibility,
 		refreshItems,
 	}
 }

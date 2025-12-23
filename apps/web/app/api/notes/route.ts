@@ -7,6 +7,15 @@ import {
 } from '../../../lib/api-auth'
 import type { Item, Note, Folder } from '@/features/notes/types/index'
 
+function createPublicId() {
+	return `pub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
+async function hasCloudStorage(userId: string): Promise<boolean> {
+	const connectors = await db.findAll<{ id: string }>('storageConnectors', userId)
+	return connectors.length > 0
+}
+
 function sortItems(items: Item[]): Item[] {
 	const comparator = (a: Item, b: Item) => {
 		if (a.pinned !== b.pinned)
@@ -131,20 +140,45 @@ export async function PUT(request: NextRequest) {
 		if (!auth.authenticated) return auth.response
 		const { userId } = auth
 
-		const body = await request.json()
-		const { id, ...updates } = body
-		if (!id)
+	const body = await request.json()
+	const { id, ...updates } = body
+	if (!id)
+		return NextResponse.json(
+			{ error: 'ID is required' },
+			{ status: 400 }
+		)
+
+	updates.updatedAt = Date.now()
+
+	if (typeof updates.isPublic === 'boolean') {
+		const existing = await db.findById<Note>('notes', id, userId)
+		if (!existing) {
 			return NextResponse.json(
-				{ error: 'ID is required' },
-				{ status: 400 }
+				{ error: 'Item not found' },
+				{ status: 404 }
 			)
+		}
 
-		updates.updatedAt = Date.now()
+		if (updates.isPublic) {
+			const cloudEnabled = await hasCloudStorage(userId)
+			if (!cloudEnabled) {
+				return NextResponse.json(
+					{ error: 'Enable cloud storage to share notes publicly' },
+					{ status: 400 }
+				)
+			}
+			if (!existing.publicId) {
+				updates.publicId = createPublicId()
+			}
+		} else {
+			updates.isPublic = false
+		}
+	}
 
-		// Pass userId to ensure user can only update their own items
-		let result = await db.update('notes', id, updates, userId)
-		if (!result) result = await db.update('folders', id, updates, userId)
-		if (!result)
+	// Pass userId to ensure user can only update their own items
+	let result = await db.update('notes', id, updates, userId)
+	if (!result) result = await db.update('folders', id, updates, userId)
+	if (!result)
 			return NextResponse.json(
 				{ error: 'Item not found' },
 				{ status: 404 }
