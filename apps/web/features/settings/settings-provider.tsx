@@ -46,6 +46,7 @@ const DEFAULT_SETTINGS = {
 
 	// UI preferences
 	'ui.animations': true,
+	sidebarHierarchyGuides: false,
 } as const
 
 export function SettingsProvider({
