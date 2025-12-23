@@ -105,7 +105,8 @@ export function AppLayoutManager({
 		setLastActiveNote,
 		toggleRightSidebar,
 	} = useUIStore()
-	const { titleDisplayMode = 'filename', multiNoteTabs = false } = useSettings()
+	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
+	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
 	const {
 		tabs,
@@ -379,10 +380,10 @@ export function AppLayoutManager({
 						customContent={sidebarCustomContent}
 						openTabIds={multiNoteTabs ? tabs.map((t) => t.noteId) : undefined}
 						ruler={{
-							enabled: false,
+							enabled: sidebarHierarchyGuides,
 							style: 'solid',
 							color: 'hsl(var(--muted-foreground))',
-							opacity: 0.25,
+							opacity: 0.35,
 						}}
 					/>
 				)
