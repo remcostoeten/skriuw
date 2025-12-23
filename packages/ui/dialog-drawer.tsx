@@ -9,7 +9,10 @@ import {
 	useState,
 	type MouseEvent as ReactMouseEvent,
 	type TouchEvent as ReactTouchEvent,
-	type CSSProperties
+	type CSSProperties,
+	forwardRef,
+	useImperativeHandle,
+	type HTMLAttributes
 } from 'react'
 
 import {
@@ -151,190 +154,232 @@ function DrawerDialogOverlay({
 	)
 }
 
-type DrawerContentProps = {
+export interface DrawerContentProps extends HTMLAttributes<HTMLDivElement> {
 	children: ReactNode
 	className?: string
 	enableDragToClose?: boolean
 	dragThreshold?: number
 }
 
-export function DrawerContent({
-	children,
-	className = '',
-	enableDragToClose = true,
-	dragThreshold = 100
-}: DrawerContentProps) {
-	const { open, onOpenChange, isMobile, fullscreen } = useDialogContext()
-	const contentRef = useRef<HTMLDivElement>(null)
-	const [dragOffset, setDragOffset] = useState(0)
-	const startYRef = useRef(0)
-	const isDraggingRef = useRef(false)
+export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
+	(
+		{
+			children,
+			className = '',
+			enableDragToClose = true,
+			dragThreshold = 100,
+			...props
+		},
+		ref
+	) => {
+		const { open, onOpenChange, isMobile, fullscreen } = useDialogContext()
+		const contentRef = useRef<HTMLDivElement>(null)
+		const [dragOffset, setDragOffset] = useState(0)
+		const startYRef = useRef(0)
+		const isDraggingRef = useRef(false)
 
-	useEffect(() => {
-		if (!open || !contentRef.current) return
+		useImperativeHandle(ref, () => contentRef.current!)
 
-		const trap = createFocusTrap(contentRef.current)
-		trap.activate()
-		return () => trap.deactivate()
-	}, [open])
+		useEffect(() => {
+			if (!open || !contentRef.current) return
 
-	const handleDragStart = (event: ReactTouchEvent | ReactMouseEvent) => {
-		if (!isMobile || !enableDragToClose) return
+			const trap = createFocusTrap(contentRef.current)
+			trap.activate()
+			return () => trap.deactivate()
+		}, [open])
 
-		const clientY =
-			'touches' in event ? event.touches[0].clientY : event.clientY
-		startYRef.current = clientY
-		isDraggingRef.current = true
-	}
+		const handleDragStart = (event: ReactTouchEvent | ReactMouseEvent) => {
+			// Call external handler if provided
+			if ('touches' in event) {
+				; (props.onTouchStart as any)?.(event)
+			} else {
+				; (props.onMouseDown as any)?.(event)
+			}
 
-	const handleDragMove = (event: ReactTouchEvent | ReactMouseEvent) => {
-		if (!isDraggingRef.current || startYRef.current === 0) return
+			if (!isMobile || !enableDragToClose) return
 
-		const clientY =
-			'touches' in event ? event.touches[0].clientY : event.clientY
-		const diff = clientY - startYRef.current
-
-		if (diff > 0) {
-			setDragOffset(diff)
-		}
-	}
-
-	const handleDragEnd = () => {
-		if (!isDraggingRef.current) return
-
-		if (dragOffset > dragThreshold) {
-			onOpenChange(false)
+			const clientY =
+				'touches' in event ? event.touches[0].clientY : event.clientY
+			startYRef.current = clientY
+			isDraggingRef.current = true
 		}
 
-		setDragOffset(0)
-		startYRef.current = 0
-		isDraggingRef.current = false
-	}
+		const handleDragMove = (event: ReactTouchEvent | ReactMouseEvent) => {
+			// Call external handler if provided
+			if ('touches' in event) {
+				; (props.onTouchMove as any)?.(event)
+			} else {
+				; (props.onMouseMove as any)?.(event)
+			}
 
-	const handleContentClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-		event.stopPropagation()
-	}
+			if (!isDraggingRef.current || startYRef.current === 0) return
 
-	if (!open) return null
+			const clientY =
+				'touches' in event ? event.touches[0].clientY : event.clientY
+			const diff = clientY - startYRef.current
 
-	if (isMobile) {
-		return (
-			<Portal>
-				<div
-					className={`fixed inset-0 z-${Z_INDEX.dialog} flex flex-col pointer-events-none`}
-					style={{ top: `${dragOffset}px` }}
-				>
-					<div className="flex-1 pointer-events-auto" />
+			if (diff > 0) {
+				setDragOffset(diff)
+			}
+		}
 
-					<div
-						ref={contentRef}
-						role="dialog"
-						aria-modal="true"
-						tabIndex={-1}
-						className={`bg-popover text-popover-foreground border-t border-border rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto max-h-[95vh] transition-transform ${className}`}
-						style={{
-							height: '65vh',
-							transform: `translateY(${dragOffset}px)`,
-							touchAction: 'none'
-						}}
-						onClick={handleContentClick}
-						onTouchStart={handleDragStart}
-						onTouchMove={handleDragMove}
-						onTouchEnd={handleDragEnd}
-						onMouseDown={handleDragStart}
-						onMouseMove={handleDragMove}
-						onMouseUp={handleDragEnd}
-						onMouseLeave={handleDragEnd}
-					>
-						{enableDragToClose && (
-							<div className="flex items-center justify-center pt-2 pb-2">
-								<div className="h-1 w-12 bg-border rounded-full" />
-							</div>
-						)}
-						{children}
-					</div>
-				</div>
-			</Portal>
-		)
-	}
+		const handleDragEnd = (event: ReactTouchEvent | ReactMouseEvent) => {
+			// Call external handler if provided
+			if ('touches' in event) {
+				; (props.onTouchEnd as any)?.(event)
+			} else {
+				; (props.onMouseUp as any)?.(event)
+			}
 
-	return (
-		<AnimatePresence>
-			{open && (
+			if (!isDraggingRef.current) return
+
+			if (dragOffset > dragThreshold) {
+				onOpenChange(false)
+			}
+
+			setDragOffset(0)
+			startYRef.current = 0
+			isDraggingRef.current = false
+		}
+
+		const handleContentClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+			props.onClick?.(event)
+			event.stopPropagation()
+		}
+
+		if (!open) return null
+
+		if (isMobile) {
+			return (
 				<Portal>
-					<div className={`fixed inset-0 z-${Z_INDEX.dialog} flex items-center justify-center p-6`}>
-						<motion.div
+					<div
+						className={`fixed inset-0 z-${Z_INDEX.dialog} flex flex-col pointer-events-none`}
+						style={{ top: `${dragOffset}px` }}
+					>
+						<div className="flex-1 pointer-events-auto" />
+
+						<div
+							{...props}
 							ref={contentRef}
 							role="dialog"
 							aria-modal="true"
 							tabIndex={-1}
-							initial={{ opacity: 0, scale: 0.95 }}
-							animate={{ opacity: 1, scale: 1 }}
-							exit={{ opacity: 0, scale: 0.95 }}
-							transition={{
-								duration: 0.2,
-								ease: [0.4, 0, 0.2, 1]
+							className={`bg-popover text-popover-foreground border-t border-border rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto max-h-[95vh] transition-transform ${className}`}
+							style={{
+								height: '65vh',
+								transform: `translateY(${dragOffset}px)`,
+								touchAction: 'none',
+								...props.style
 							}}
-							className={`${fullscreen ? 'w-full h-full' : 'w-full h-full max-w-[1400px] max-h-[900px]'} bg-popover text-popover-foreground rounded-xl shadow-2xl border border-border/40 flex flex-col overflow-hidden ${className}`}
 							onClick={handleContentClick}
+							onTouchStart={handleDragStart}
+							onTouchMove={handleDragMove}
+							onTouchEnd={handleDragEnd}
+							onMouseDown={handleDragStart}
+							onMouseMove={handleDragMove}
+							onMouseUp={handleDragEnd}
+							onMouseLeave={(e) => {
+								handleDragEnd(e as any)
+								props.onMouseLeave?.(e)
+							}}
 						>
+							{enableDragToClose && (
+								<div className="flex items-center justify-center pt-2 pb-2">
+									<div className="h-1 w-12 bg-border rounded-full" />
+								</div>
+							)}
 							{children}
-						</motion.div>
+						</div>
 					</div>
 				</Portal>
-			)}
-		</AnimatePresence>
-	)
-}
+			)
+		}
 
-type DrawerHeaderProps = {
-	children: ReactNode
-	className?: string
-}
+		return (
+			<AnimatePresence>
+				{open && (
+					<Portal>
+						<div
+							className={`fixed inset-0 z-${Z_INDEX.dialog} flex items-center justify-center p-6`}
+						>
+							<motion.div
+								{...(props as any)}
+								ref={contentRef}
+								role="dialog"
+								aria-modal="true"
+								tabIndex={-1}
+								initial={{ opacity: 0, scale: 0.95 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.95 }}
+								transition={{
+									duration: 0.2,
+									ease: [0.4, 0, 0.2, 1]
+								}}
+								className={`${fullscreen
+									? 'w-full h-full'
+									: 'w-full h-full max-w-[1400px] max-h-[900px]'
+									} bg-popover text-popover-foreground rounded-xl shadow-2xl border border-border/40 flex flex-col overflow-hidden ${className}`}
+								onClick={handleContentClick}
+							>
+								{children}
+							</motion.div>
+						</div>
+					</Portal>
+				)}
+			</AnimatePresence>
+		)
+	}
+)
 
-export function DrawerHeader({ children, className = '' }: DrawerHeaderProps) {
+export function DrawerHeader({
+	children,
+	className = '',
+	...props
+}: HTMLAttributes<HTMLDivElement>) {
 	return (
-		<div className={`flex flex-col gap-1.5 pb-4 ${className}`}>
+		<div className={`flex flex-col gap-1.5 pb-4 ${className}`} {...props}>
 			{children}
 		</div>
 	)
 }
 
-type DrawerTitleProps = {
-	children: ReactNode
-	className?: string
-}
-
-export function DrawerTitle({ children, className = '' }: DrawerTitleProps) {
+export function DrawerTitle({
+	children,
+	className = '',
+	...props
+}: HTMLAttributes<HTMLHeadingElement>) {
 	return (
-		<h2 className={`text-lg font-semibold text-foreground ${className}`}>
+		<h2
+			className={`text-lg font-semibold text-foreground ${className}`}
+			{...props}
+		>
 			{children}
 		</h2>
 	)
 }
 
-type DrawerCloseProps = {
+export interface DrawerCloseProps
+	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	className?: string
-	'aria-label'?: string
 }
 
-export function DrawerClose({
-	className = '',
-	'aria-label': ariaLabel = 'Close dialog'
-}: DrawerCloseProps) {
-	const { onOpenChange } = useDialogContext()
+export const DrawerClose = forwardRef<HTMLButtonElement, DrawerCloseProps>(
+	({ className = '', children, ...props }, ref) => {
+		const { onOpenChange } = useDialogContext()
 
-	return (
-		<button
-			type="button"
-			onClick={() => onOpenChange(false)}
-			aria-label={ariaLabel}
-			className={`absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring ${className}`}
-		>
-			<X className="h-4 w-4 text-muted-foreground" />
-		</button>
-	)
-}
+		return (
+			<button
+				type="button"
+				ref={ref}
+				onClick={() => onOpenChange(false)}
+				className={`absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring ${className}`}
+				{...props}
+			>
+				{children || <X className="h-4 w-4 text-muted-foreground" />}
+			</button>
+		)
+	}
+)
 
 type DrawerFooterProps = {
 	children: ReactNode
