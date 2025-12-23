@@ -44,7 +44,7 @@ export function UserMenu() {
                                                 <img
                                                         src={session.user.image}
                                                         alt={session.user.name || 'User'}
-                                                        className="aspect-square h-full w-full object-cover     "
+                                                        className="aspect-square h-full w-full object-cover"
                                                 />
                                         ) : (
                                                 <div className="flex h-full w-full items-center justify-center rounded-full bg-muted">
