@@ -525,7 +525,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			<DrawerDialog open={open} onOpenChange={onOpenChange}>
 				<DrawerContent
 					className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation"
-					ref={drawerRef}
 					onMouseDown={handleDragStart}
 					onTouchStart={handleDragStart}
 					onMouseMove={handleDragMove}
@@ -533,6 +532,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					onMouseUp={handleDragEnd}
 					onTouchEnd={handleDragEnd}
 				>
+					<div ref={drawerRef} className="flex flex-col h-full">
 					{/* Drag handle for mobile */}
 					<div className="flex justify-center py-2 cursor-grab active:cursor-grabbing">
 						<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
@@ -582,6 +582,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					{/* Content */}
 					<div className="flex-1 overflow-y-auto">
 						{renderSettingsContent()}
+					</div>
 					</div>
 				</DrawerContent>
 			</DrawerDialog>
