@@ -104,7 +104,8 @@ export function NoteEditor({
 		return (
 			<EmptyState
 				message="Note not found"
-				isError="The note you're looking for doesn't exist or may have been deleted"
+				isError
+				description="The note you're looking for doesn't exist or may have been deleted"
 				isFull
 			/>
 		)
