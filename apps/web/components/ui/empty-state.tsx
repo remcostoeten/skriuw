@@ -1,4 +1,5 @@
 import { shortcut } from '@/features/shortcuts'
+import { cn } from '@skriuw/shared'
 import React from 'react'
 
 interface EmptyStateProps {
@@ -39,8 +40,11 @@ export function EmptyState({
 			{message && <h1 className="text-2xl font-bold mb-2">{message}</h1>}
 			{title && <h3 className="text-lg font-medium mb-2">{title}</h3>}
 			{description && <p className="text-muted-foreground mb-4">{description}</p>}
-			{isError && <p className="text- mb-4">{submessage}</p>}
-			{submessage && <p className="text-muted-foreground mb-4">{submessage}</p>}
+			{submessage && (
+				<p className={cn('mb-4', isError ? 'text-destructive' : 'text-muted-foreground')}>
+					{submessage}
+				</p>
+			)}
 			{actions && (
 				<div className="flex flex-col sm:flex-row gap-3 mt-6 w-full sm:w-auto">
 					{actions.map((action, index) => {
