@@ -28,12 +28,17 @@ async function runMigration() {
       ORDER BY table_name;
     `
 
-        console.log(`\n📊 Created ${tables.length} tables:`)
-        tables.forEach((row: any) => console.log(`  ✓ ${row.table_name}`))
-
-    } catch (error: any) {
-        console.error('❌ Migration failed:', error.message)
-    } finally {
+        		interface TableRow {
+        			table_name: string
+        		}
+        		console.log(`\n📊 Created ${tables.length} tables:`)
+        		tables.forEach((row: TableRow) => console.log(`  ✓ ${row.table_name}`))
+    	} catch (error: unknown) {
+    		if (error instanceof Error) {
+    			console.error('❌ Migration failed:', error.message)
+    		} else {
+    			console.error('❌ Migration failed with an unknown error:', error)
+    		}    } finally {
         await sql.end()
     }
 }

@@ -6,7 +6,7 @@
     "build": "next build",
     "validate-env": "tsx -e \"import('../../packages/env/src/server.ts').catch((err) => { console.error(err); process.exit(1); })\"",
     "dev": "next dev",
-    "lint": "next lint --dir .",
+    "lint": "eslint .",
     "check-types": "tsc --noEmit",
     "start": "next start",
     "test": "bun test --preload ./test-setup.ts",

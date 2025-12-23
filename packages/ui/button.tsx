@@ -68,11 +68,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			onClick,
 			children,
 			// Exclude Framer Motion conflicting props to avoid type errors
-			onDrag: _onDrag,
-			onDragStart: _onDragStart,
-			onDragEnd: _onDragEnd,
-			onAnimationStart: _onAnimationStart,
-			onAnimationEnd: _onAnimationEnd,
 			...restProps
 		},
 		ref
