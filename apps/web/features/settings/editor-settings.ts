@@ -71,6 +71,19 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		implemented: true,
 	},
+	{
+		key: 'sidebarHierarchyGuides',
+		label: 'Sidebar Hierarchy Guides',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Show connecting guide lines between folders and notes in the sidebar tree',
+		category: 'appearance',
+		implemented: true,
+		preview: {
+			component: 'sidebar-tree-guides',
+		},
+	},
 
 	{
 		key: 'centeredLayout',
