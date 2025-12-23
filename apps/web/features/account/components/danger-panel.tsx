@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skri
 
 import { deleteAccount } from '../api/account-client'
 import { signOut } from '@/lib/auth-client'
-import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog'
+import { DeleteAccountDialog } from '../components/delete-account-dialog'
 
 function audioContext(): AudioContext | null {
 	if (typeof window === 'undefined') return null
