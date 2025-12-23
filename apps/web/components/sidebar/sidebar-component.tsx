@@ -1904,6 +1904,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					) : filteredItems.length === 0 ? (
 						<div className="flex-1 w-full">
 							<SidebarEmptyState
+								className="!p-2"
 								hasSearchQuery={!!searchQuery}
 								onCreateNote={() => handleCreateNote()}
 								onCreateFolder={() => handleCreateFolder()}

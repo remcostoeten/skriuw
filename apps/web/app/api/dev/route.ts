@@ -4,7 +4,7 @@ import { sampleNotes, sampleFolders } from './seeds'
 import { generateId } from '@skriuw/core-logic'
 import { eq, lt } from 'drizzle-orm'
 import { env } from '@/lib/env'
-import { getSession } from '@/lib/api-auth'
+import { getSession, getCurrentUserId } from '@/lib/api-auth'
 import {
 	checkSchemaSync,
 	pushSchema,
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
 		const db = getDatabase()
 		const body = await request.json()
 		const action = body.action as string
+		const userId = await getCurrentUserId()
 
 		switch (action) {
 			case 'seed': {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
 						id: folderId,
 						name: folderData.name,
 						parentFolderId: null,
+						userId,
 						pinned: 0,
 						pinnedAt: null,
 						createdAt: now,
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
 									},
 								]),
 								parentFolderId: folderId,
+								userId,
 								pinned: 0,
 								pinnedAt: null,
 								favorite: 0,
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
 						name: noteData.name,
 						content: JSON.stringify(noteData.content),
 						parentFolderId: null,
+						userId,
 						pinned: noteData.pinned ? 1 : 0,
 						pinnedAt: noteData.pinned ? now : null,
 						favorite: 0,

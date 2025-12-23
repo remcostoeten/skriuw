@@ -51,7 +51,7 @@ export function UserMenu() {
         return (
                 <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                                <button className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2">
+                                <button className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border ring-offset-background transition-all ">
                                         {session.user.image ? (
                                                 <img
                                                         src={session.user.image}
