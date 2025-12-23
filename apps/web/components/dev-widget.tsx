@@ -842,10 +842,7 @@ export function DevWidget() {
 												label="Reset DB"
 												variant="destructive"
 												onClick={() =>
-													executeAction(
-														'reset-database',
-														'reset-database'
-													)
+													executeAction('reset-database')
 												}
 												loading={
 													actionLoading ===
@@ -873,10 +870,7 @@ export function DevWidget() {
 											label="Clear Data"
 											variant="destructive"
 											onClick={() =>
-												executeAction(
-													'clear-all',
-													'Delete ALL data?'
-												)
+												executeAction('clear-all')
 											}
 											loading={
 												actionLoading === 'clear-all'

@@ -8,7 +8,7 @@ interface EmptyStateProps {
     title?: string
     description?: string
     message?: string
-    isError?: string
+    isError?: boolean
     isFull?: boolean
     submessage?: string
     actions?: Array<{

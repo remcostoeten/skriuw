@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { EmptyState } from '@skriuw/ui'
 
-// Force this page to be dynamically rendered
 export const dynamic = 'force-dynamic'
 
 export default function NotFound() {
@@ -20,7 +19,8 @@ export default function NotFound() {
 		<EmptyState
 			message="404 - Page Not Found"
 			isFull
-			isError={`The route "${pathname}" does not exist.`}
+			isError
+			description={`The route "${pathname}" does not exist.`}
 			actions={[
 				{
 					label: 'Return to Home',
