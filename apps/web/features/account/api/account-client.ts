@@ -44,7 +44,9 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
 async function parseJson<T>(response: Response): Promise<T> {
 	const contentType = response.headers.get('content-type')
 	if (!contentType || !contentType.includes('application/json')) {
-		return {} as T
+		// Return empty object - callers should handle potentially missing fields
+		// or the endpoint should always return JSON
+		return {} as unknown as T
 	}
 	const body = await response.json()
 	return body as T
