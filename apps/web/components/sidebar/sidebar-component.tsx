@@ -1059,8 +1059,8 @@ function FileTreeItem({
 												)}
 											>
 												{isExpanded ||
-												isFolderSelected ||
-												(isHovering && hasChildren) ? (
+													isFolderSelected ||
+													(isHovering && hasChildren) ? (
 													<FolderOpenIcon />
 												) : (
 													<FolderClosedIcon />
@@ -1120,7 +1120,7 @@ function FileTreeItem({
 					className={cn(
 						'w-44 max-w-[90vw]',
 						isMobile &&
-							'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+						'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 					)}
 				>
 					<ContextMenuItem
@@ -1304,7 +1304,7 @@ function FileTreeItem({
 						<ContextMenuSubContent
 							className={cn(
 								isMobile &&
-									'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+								'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 							)}
 						>
 							<MoveFolderMenu

@@ -13,8 +13,6 @@ import {
         DropdownMenuSeparator,
         DropdownMenuTrigger,
 } from '@skriuw/ui/dropdown-menu'
-import { SignInView } from './sign-in-view'
-import { cn } from '@skriuw/shared'
 import { useAuthModal } from './auth-modal-provider'
 
 export function UserMenu() {
@@ -22,7 +20,7 @@ export function UserMenu() {
         const { open: openAuthModal } = useAuthModal()
 
         if (isPending) {
-                return <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
+                return <div className="h-7 w-7 animate-pulse rounded-full bg-muted" />
         }
 
         if (!session) {
@@ -41,7 +39,7 @@ export function UserMenu() {
         return (
                 <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                                <button className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2">
+                                <button className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border ring-offset-background transition-all">
                                         {session.user.image ? (
                                                 <img
                                                         src={session.user.image}
