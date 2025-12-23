@@ -195,16 +195,15 @@ export function DevWidget() {
 		resetPosition
 	} = useDraggable({
 		initialPosition: {
-			x: window.innerWidth - 100,
-			y: window.innerHeight - 100
+			x: typeof window !== 'undefined' ? window.innerWidth - 470 : 0,
+			y: typeof window !== 'undefined' ? window.innerHeight - 520 : 0
 		},
 		storageKey: 'dev-widget-position',
 		bounds: {
-			// Restrict closer to viewport edges
 			left: 0,
 			top: 0,
-			right: 0,
-			bottom: 0
+			right: typeof window !== 'undefined' ? window.innerWidth : 1000,
+			bottom: typeof window !== 'undefined' ? window.innerHeight : 1000
 		}
 	})
 
@@ -361,7 +360,7 @@ export function DevWidget() {
 
 				toast.success(
 					data.message ||
-						(dryRun ? 'Dry run completed' : 'Cleanup completed')
+					(dryRun ? 'Dry run completed' : 'Cleanup completed')
 				)
 
 				// Update cron status
@@ -1060,7 +1059,7 @@ export function DevWidget() {
 																title="Reset user data"
 															>
 																{userActionLoading ===
-																`reset-${user.id}` ? (
+																	`reset-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<RotateCcw className="h-3 w-3" />
@@ -1080,7 +1079,7 @@ export function DevWidget() {
 																title="Delete user"
 															>
 																{userActionLoading ===
-																`delete-${user.id}` ? (
+																	`delete-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<Trash2 className="h-3 w-3" />
@@ -1122,23 +1121,23 @@ export function DevWidget() {
 														'success'
 														? 'bg-emerald-500/10 text-emerald-600'
 														: cronStatus.status ===
-															  'failed'
+															'failed'
 															? 'bg-red-500/10 text-red-600'
 															: 'bg-gray-500/10 text-gray-600'
 												)}
 											>
 												{cronStatus.status ===
 													'success' && (
-													<CheckCircle className="h-3 w-3" />
-												)}
+														<CheckCircle className="h-3 w-3" />
+													)}
 												{cronStatus.status ===
 													'failed' && (
-													<XCircle className="h-3 w-3" />
-												)}
+														<XCircle className="h-3 w-3" />
+													)}
 												{cronStatus.status ===
 													'never' && (
-													<Clock className="h-3 w-3" />
-												)}
+														<Clock className="h-3 w-3" />
+													)}
 												{cronStatus.status.toUpperCase()}
 											</div>
 										</div>
@@ -1199,7 +1198,7 @@ export function DevWidget() {
 													>
 														<div className="flex items-center gap-2">
 															{run.status ===
-															'success' ? (
+																'success' ? (
 																<CheckCircle className="h-3 w-3 text-emerald-500" />
 															) : (
 																<XCircle className="h-3 w-3 text-red-500" />

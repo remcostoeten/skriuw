@@ -46,7 +46,7 @@ export function EmptyState({
 				</p>
 			)}
 			{actions && (
-				<div className="flex flex-col sm:flex-row gap-3 mt-6 w-full sm:w-auto">
+				<div className="flex flex-wrap items-center justify-center gap-3 mt-6 w-full px-4">
 					{actions.map((action, index) => {
 						// Extract shortcut info if available
 						// Assuming standard structure for simple shortcuts: sequences[0][0]
@@ -56,7 +56,7 @@ export function EmptyState({
 							<button
 								key={index}
 								onClick={action.onClick}
-								className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg transition-colors w-full sm:w-auto sm:min-w-[140px] text-muted-foreground hover:text-secondary-foreground hover:bg-accent border border-transparent hover:border-border/50"
+								className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg transition-colors min-w-[120px] max-w-full text-muted-foreground hover:text-secondary-foreground hover:bg-accent border border-transparent hover:border-border/50"
 							>
 								{combo && (
 									<span className="inline-flex items-center gap-1">
