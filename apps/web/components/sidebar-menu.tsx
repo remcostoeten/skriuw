@@ -523,16 +523,17 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	if (isMobile) {
 		return (
 			<DrawerDialog open={open} onOpenChange={onOpenChange}>
-				<DrawerContent
-					className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation"
-					onMouseDown={handleDragStart}
-					onTouchStart={handleDragStart}
-					onMouseMove={handleDragMove}
-					onTouchMove={handleDragMove}
-					onMouseUp={handleDragEnd}
-					onTouchEnd={handleDragEnd}
-				>
-					<div ref={drawerRef} className="flex flex-col h-full">
+				<DrawerContent className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation">
+					<div
+						ref={drawerRef}
+						className="flex flex-col h-full"
+						onMouseDown={handleDragStart}
+						onTouchStart={handleDragStart}
+						onMouseMove={handleDragMove}
+						onTouchMove={handleDragMove}
+						onMouseUp={handleDragEnd}
+						onTouchEnd={handleDragEnd}
+					>
 					{/* Drag handle for mobile */}
 					<div className="flex justify-center py-2 cursor-grab active:cursor-grabbing">
 						<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
