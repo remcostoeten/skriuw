@@ -1,5 +1,5 @@
 import type { OAuth2Config, OAuth2Tokens } from './types'
-import { env } from '@/lib/env'
+import { clientEnv } from '@/lib/env'
 
 export interface OAuth2Provider {
 	getConfig(): OAuth2Config
@@ -10,7 +10,7 @@ export interface OAuth2Provider {
 export class DropboxOAuth2Provider implements OAuth2Provider {
 	getConfig(): OAuth2Config {
 		return {
-			clientId: env.NEXT_PUBLIC_DROPBOX_CLIENT_ID || '',
+			clientId: clientEnv.NEXT_PUBLIC_DROPBOX_CLIENT_ID || '',
 			redirectUri: `${window.location.origin}/backup/oauth/dropbox`,
 			scope: 'account_info.read files.metadata.write files.content.write',
 			authUrl: 'https://www.dropbox.com/oauth2/authorize',
@@ -65,7 +65,7 @@ export class DropboxOAuth2Provider implements OAuth2Provider {
 export class GoogleDriveOAuth2Provider implements OAuth2Provider {
 	getConfig(): OAuth2Config {
 		return {
-			clientId: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+			clientId: clientEnv.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
 			redirectUri: `${window.location.origin}/backup/oauth/google-drive`,
 			scope: 'https://www.googleapis.com/auth/drive.file',
 			authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
