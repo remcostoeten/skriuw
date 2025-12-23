@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, notes, folders, tasks, settings, shortcuts, schema, getSafeTimestamp } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
-import { generateId } from '@skriuw/shared'
-import { eq, lt } from 'drizzle-orm'
 import { env } from '@/lib/env'
-import { getSession } from '@/lib/api-auth'
+import { getSession, getCurrentUserId } from '@/lib/api-auth'
 import {
 	checkSchemaSync,
 	pushSchema,
 	resetDatabase,
 	pingDatabase
 } from '@/lib/schema-utils'
+import { generateId } from '@skriuw/shared'
 
 async function isAdminOrDev() {
 	if (process.env.NODE_ENV === 'development') return true
@@ -36,19 +35,20 @@ export async function POST(request: NextRequest) {
 		const db = getDatabase()
 		const body = await request.json()
 		const action = body.action as string
+		const userId = await getCurrentUserId()
 
 		switch (action) {
 			case 'seed': {
 				const now = getSafeTimestamp()
 				const createdItems: { notes: number; folders: number } = { notes: 0, folders: 0 }
 
-				// Create folders first
 				for (const folderData of sampleFolders) {
 					const folderId = generateId('folder')
 					await db.insert(folders).values({
 						id: folderId,
 						name: folderData.name,
 						parentFolderId: null,
+						userId,
 						pinned: 0,
 						pinnedAt: null,
 						createdAt: now,
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
 					})
 					createdItems.folders++
 
-					// Create child notes if specified
 					if (folderData.children) {
 						for (const childName of folderData.children) {
 							await db.insert(notes).values({
@@ -73,6 +72,7 @@ export async function POST(request: NextRequest) {
 									},
 								]),
 								parentFolderId: folderId,
+								userId,
 								pinned: 0,
 								pinnedAt: null,
 								favorite: 0,
@@ -85,13 +85,13 @@ export async function POST(request: NextRequest) {
 					}
 				}
 
-				// Create root-level sample notes
 				for (const noteData of sampleNotes) {
 					await db.insert(notes).values({
 						id: generateId('note'),
 						name: noteData.name,
 						content: JSON.stringify(noteData.content),
 						parentFolderId: null,
+						userId,
 						pinned: noteData.pinned ? 1 : 0,
 						pinnedAt: noteData.pinned ? now : null,
 						favorite: 0,
@@ -111,11 +111,8 @@ export async function POST(request: NextRequest) {
 			}
 
 			case 'clear-notes': {
-				// Delete all tasks first (foreign key constraint)
 				await db.delete(tasks)
-				// Delete all notes
 				const deletedNotes = await db.delete(notes).returning()
-				// Delete all folders
 				const deletedFolders = await db.delete(folders).returning()
 
 				return NextResponse.json({
