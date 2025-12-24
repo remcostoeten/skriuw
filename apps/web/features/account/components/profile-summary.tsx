@@ -11,7 +11,7 @@ import type { useSession } from '@/lib/auth-client'
 import { updateProfile } from '../api/account-client'
 
 type SessionData = ReturnType<typeof useSession>['data']
-type SessionUser = SessionData extends { user: infer U } ? U : never
+type SessionUser = NonNullable<SessionData>['user']
 
 type Props = {
 	user: SessionUser
@@ -19,7 +19,7 @@ type Props = {
 }
 
 function initialName(user: SessionUser): string {
-	if (typeof user.name === 'string') return user.name
+	if (user && typeof user.name === 'string') return user.name
 	return ''
 }
 

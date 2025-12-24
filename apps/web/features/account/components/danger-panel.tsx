@@ -7,11 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skri
 
 import { deleteAccount } from '../api/account-client'
 import { signOut } from '@/lib/auth-client'
-import { DeleteAccountDialog } from '../components/delete-account-dialog'
 
 function audioContext(): AudioContext | null {
 	if (typeof window === 'undefined') return null
-	const globalWindow = window as Window & { webkitAudioContext?: typeof AudioContext }
+	const globalWindow = window as any
 	const Constructor = globalWindow.AudioContext || globalWindow.webkitAudioContext
 	if (!Constructor) return null
 	return new Constructor()
@@ -45,7 +44,6 @@ export default function DangerPanel() {
 		setError(null)
 		setStatus(null)
 		try {
-		try {
 			const response = await deleteAccount()
 			setStatus(response.message)
 			if (response.success) {
@@ -64,7 +62,6 @@ export default function DangerPanel() {
 			setIsDialogOpen(false)
 		}
 	}
-
 	return (
 		<Card className="border border-destructive/40 bg-destructive/5">
 			<CardHeader className="pb-3">
@@ -106,14 +103,6 @@ export default function DangerPanel() {
 				</Alert>
 			)}
 
-			<DeleteAccountDialog
-				isOpen={isDialogOpen}
-				onClose={function closeDialog() {
-					setIsDialogOpen(false)
-				}}
-				onConfirm={confirmDelete}
-				isDeleting={isDeleting}
-			/>
 		</Card>
 	)
 }

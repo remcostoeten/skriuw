@@ -476,19 +476,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 							<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
 						</div>
 
-						{/* Header */}
-						<DrawerHeader className="px-4 pb-2">
-							<div className="flex items-center justify-between">
-								<DrawerTitle className="text-xl">Settings</DrawerTitle>
-								<DrawerClose
-									ref={firstFocusableRef}
-									className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation"
-									aria-label="Close settings"
-								>
-									<X className="w-5 h-5" />
-								</DrawerClose>
-							</div>
-						</DrawerHeader>
 
 						{/* Navigation */}
 						<div className="border-b border-border">

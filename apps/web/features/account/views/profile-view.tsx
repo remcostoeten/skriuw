@@ -19,7 +19,7 @@ function formatDate(value: Date | string | number | undefined): string {
 }
 
 type SessionData = ReturnType<typeof useSession>['data']
-type SessionUser = SessionData extends { user: infer U } ? U : never
+type SessionUser = NonNullable<SessionData>['user']
 
 type ProfileViewProps = {
 	user?: SessionUser
@@ -28,6 +28,14 @@ type ProfileViewProps = {
 }
 
 function ProfileShell({ user, isPending, onRefresh }: ProfileViewProps) {
+	const createdAt = useMemo(
+		function computeCreatedAt() {
+			if (!user) return 'Unknown'
+			return formatDate((user as { createdAt?: unknown })?.createdAt as Date | string | number | undefined)
+		},
+		[user]
+	)
+
 	if (isPending) {
 		return (
 			<div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -71,38 +79,6 @@ function ProfileShell({ user, isPending, onRefresh }: ProfileViewProps) {
 			</div>
 		)
 	}
-
-function ProfileShell({ user, isPending, onRefresh }: ProfileViewProps) {
-	const createdAt = useMemo(
-		function computeCreatedAt() {
-			if (!user) return 'Unknown'
-			return formatDate((user as { createdAt?: unknown })?.createdAt as Date | string | number | undefined)
-		},
-		[user]
-	)
-
-	if (isPending) {
-		return (
-			<div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
-				{/* loading content */}
-			</div>
-		)
-	}
-
-	if (!user) {
-		return (
-			<div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
-				{/* empty state */}
-			</div>
-		)
-	}
-
-	return (
-		<div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-			{/* profile content */}
-		</div>
-	)
-}
 
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
