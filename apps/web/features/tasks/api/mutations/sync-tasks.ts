@@ -1,5 +1,8 @@
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 
+// Basic in-memory cache to avoid redundant syncs
+const lastSyncedTasksByNote = new Map<string, string>()
+
 /**
  * Syncs tasks from BlockNote blocks to the database through the API
  */
@@ -8,6 +11,11 @@ export async function syncTasksToDatabase(
 	extractedTasks: ExtractedTask[]
 ): Promise<void> {
 	if (!noteId) return
+
+	const tasksJson = JSON.stringify(extractedTasks)
+	if (lastSyncedTasksByNote.get(noteId) === tasksJson) {
+		return
+	}
 
 	try {
 		const response = await fetch('/api/tasks/sync', {
@@ -25,6 +33,8 @@ export async function syncTasksToDatabase(
 			const errorBody = await response.json().catch(() => ({}))
 			throw new Error(errorBody?.error ?? 'Failed to sync tasks')
 		}
+
+		lastSyncedTasksByNote.set(noteId, tasksJson)
 	} catch (error) {
 		console.error('Failed to sync tasks to database:', error)
 		throw error instanceof Error ? error : new Error(`Failed to sync tasks: ${String(error)}`)
