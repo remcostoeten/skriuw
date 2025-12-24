@@ -1,5 +1,5 @@
 
-import { pgTable, text, integer, bigint, index, boolean, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, bigint, index, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 import { createUserIndex, createUserCompositeIndex } from './user-owned'
 
 
@@ -14,6 +14,9 @@ export const notes = pgTable(
 		pinned: integer('pinned').default(0),
 		pinnedAt: bigint('pinned_at', { mode: 'number' }),
 		favorite: integer('favorite').default(0),
+		isPublic: boolean('is_public').default(false).notNull(),
+		publicId: text('public_id'),
+		publicViews: integer('public_views').default(0).notNull(),
 		deletedAt: bigint('deleted_at', { mode: 'number' }),
 		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
@@ -27,7 +30,8 @@ export const notes = pgTable(
 		pinnedIdx: index('notes_pinned_idx').on(table.pinned),
 		updatedAtIdx: index('notes_updated_at_idx').on(table.updatedAt),
 		userIdx: createUserIndex('notes', table.userId),
-		userParentIdx: createUserCompositeIndex('notes', 'parent', table.userId, table.parentFolderId)
+		userParentIdx: createUserCompositeIndex('notes', 'parent', table.userId, table.parentFolderId),
+		publicIdIdx: uniqueIndex('notes_public_id_idx').on(table.publicId)
 	})
 )
 
@@ -137,6 +141,22 @@ export const storageConnectors = pgTable(
 	})
 )
 
+export const noteVisitors = pgTable(
+	'note_visitors',
+	{
+		id: text('id').primaryKey(),
+		noteId: text('note_id').notNull().references(() => notes.id, { onDelete: 'cascade' }),
+		visitorKey: text('visitor_key').notNull(),
+		viewerUserId: text('viewer_user_id'),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+	},
+	(table) => ({
+		noteIdx: index('note_visitors_note_idx').on(table.noteId),
+		noteVisitorIdx: uniqueIndex('note_visitors_note_visitor_idx').on(table.noteId, table.visitorKey),
+		visitorIdx: index('note_visitors_visitor_idx').on(table.visitorKey),
+	})
+)
+
 
 
 // Type exports for use in app
@@ -149,6 +169,8 @@ export type Task = typeof tasks.$inferSelect
 export type Shortcut = typeof shortcuts.$inferSelect
 export type StorageConnector = typeof storageConnectors.$inferSelect
 export type NewStorageConnector = typeof storageConnectors.$inferInsert
+export type NoteVisitor = typeof noteVisitors.$inferSelect
+export type NewNoteVisitor = typeof noteVisitors.$inferInsert
 
 
 export const user = pgTable("user", {
@@ -241,4 +263,3 @@ export type SeedTemplateFolder = typeof seedTemplateFolders.$inferSelect;
 export type NewSeedTemplateFolder = typeof seedTemplateFolders.$inferInsert;
 export type SeedTemplateNote = typeof seedTemplateNotes.$inferSelect;
 export type NewSeedTemplateNote = typeof seedTemplateNotes.$inferInsert;
-

@@ -18,6 +18,12 @@ export type Note = BaseEntity & {
 	pinnedAt?: number
 	/** Whether the note is marked as a favorite */
 	favorite?: boolean
+	/** Whether the note is publicly accessible */
+	isPublic?: boolean
+	/** Public share identifier */
+	publicId?: string | null
+	/** Unique visitor count */
+	publicViews?: number
 	/** Discriminator type literal */
 	type: 'note'
 }
@@ -89,6 +95,8 @@ export type UpdateNoteData = {
 	name?: string
 	/** New content blocks */
 	content?: Block[]
+	/** Toggle public visibility */
+	isPublic?: boolean
 }
 
 /**
