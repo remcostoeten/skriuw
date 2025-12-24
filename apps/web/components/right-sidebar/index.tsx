@@ -1,20 +1,23 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { 
-  FileText, 
-  Calendar, 
-  Clock, 
-  Hash, 
-  HardDrive, 
-  ChevronRight, 
+import {
+  FileText,
+  Calendar,
+  Clock,
+  Hash,
+  HardDrive,
+  ChevronRight,
   ChevronDown,
+  Share2,
+  Eye,
   Tag,
   GitBranch,
   X
 } from 'lucide-react'
 import { cn } from '@skriuw/shared'
 import { IconButton } from '@skriuw/ui/icons'
+import { Switch } from '@skriuw/ui'
 import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { blocksToText } from '@/features/notes/utils/blocks-to-text'
@@ -41,7 +44,7 @@ type RightSidebarProps = {
 
 export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   const { isRightSidebarOpen, toggleRightSidebar } = useUIStore()
-  const { items } = useNotesContext()
+  const { items, setNoteVisibility } = useNotesContext()
   
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['toc', 'metadata'])
@@ -52,6 +55,12 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
     if (!noteId) return null
     return items.find(item => item.id === noteId && item.type === 'note') || null
   }, [noteId, items])
+
+  const shareUrl = useMemo(() => {
+    if (!currentNote?.publicId || typeof window === 'undefined') return ''
+    const origin = window.location.origin
+    return `${origin}/public/${currentNote.publicId}`
+  }, [currentNote?.publicId])
 
   // Generate table of contents from BlockNote content
   const tableOfContents = useMemo((): TOCItem[] => {
@@ -106,6 +115,15 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
       size
     }
   }, [currentNote, content])
+
+  async function toggleVisibility(next: boolean) {
+    if (!currentNote) return
+    try {
+      await setNoteVisibility(currentNote.id, next)
+    } catch (error) {
+      console.error('Failed to toggle visibility', error)
+    }
+  }
 
   function toggleSection(section: string) {
     setExpandedSections(prev => {
@@ -231,6 +249,43 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
                 <span>{metadata.size}</span>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Sharing */}
+        <div className="border border-border rounded-lg">
+          <div className="flex items-center justify-between p-3">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" />
+              <span className="font-medium">Public Share</span>
+            </div>
+            <Switch
+              checked={!!currentNote?.isPublic}
+              onCheckedChange={toggleVisibility}
+              aria-label="Toggle public visibility"
+            />
+          </div>
+          {currentNote?.isPublic ? (
+            <div className="px-3 pb-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Eye className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Unique visitors:</span>
+                <span>{currentNote.publicViews ?? 0}</span>
+              </div>
+              {shareUrl ? (
+                <div className="bg-muted rounded-md p-2 break-all text-xs" aria-label="Share URL">
+                  {shareUrl}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground px-1">
+                  Enable cloud storage to generate a public link.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground px-3 pb-3">
+              Keep notes private by default. Enable sharing to generate a public link.
+            </p>
           )}
         </div>
 
