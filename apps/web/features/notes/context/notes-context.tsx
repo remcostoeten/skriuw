@@ -20,6 +20,7 @@ type NotesContextValue = {
 	countChildren: (folderId: string) => Promise<number>
 	pinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => Promise<void>
 	favoriteNote: (noteId: string, favorite: boolean) => Promise<void>
+	setNoteVisibility: (noteId: string, isPublic: boolean) => Promise<void>
 	refreshItems: () => Promise<void>
 }
 
