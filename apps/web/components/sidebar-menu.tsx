@@ -411,18 +411,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 				return (
 					<div className="space-y-4">
 						<div className="pb-4 mb-2 border-b border-border">
-							<h2 className="text-xl font-semibold text-foreground">Skriuw Sync</h2>
-							<p className="text-sm text-muted-foreground mt-1">
-								Configure Skriuw synchronization settings.
-							</p>
-						</div>
-						<div className="text-sm text-muted-foreground">Sync functionality coming soon...</div>
-					</div>
-				)
-			case 'Skriuw':
-				return (
-					<div className="space-y-4">
-						<div className="pb-4 mb-2 border-b border-border">
 							<h3 className="text-xl font-semibold text-foreground">Skriuw Sync</h3>
 							<p className="text-sm text-muted-foreground mt-1">
 								Connect a cloud destination for backups and syncing.
@@ -511,8 +499,8 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 										type="button"
 										onClick={() => setActiveItem(item.id)}
 										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${activeItem === item.id
-												? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
-												: 'hover:bg-accent/30'
+											? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
+											: 'hover:bg-accent/30'
 											}`}
 										aria-current={activeItem === item.id ? 'page' : undefined}
 									>
