@@ -72,9 +72,8 @@ function MobileSettingsSection({
 			>
 				<div className="flex items-center gap-3 flex-1 text-left">
 					<ChevronRight
-						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${
-							isExpanded ? 'rotate-90' : ''
-						}`}
+						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${isExpanded ? 'rotate-90' : ''
+							}`}
 						aria-hidden="true"
 					/>
 					<div>
@@ -89,9 +88,8 @@ function MobileSettingsSection({
 			</button>
 			<div
 				id={`${sectionId}-content`}
-				className={`overflow-hidden transition-all duration-200 ${
-					isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
-				}`}
+				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
+					}`}
 				aria-hidden={!isExpanded}
 			>
 				<div className="px-4 pb-4 pt-2">
@@ -114,8 +112,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	// Mobile detection and state
 	const [isMobile, setIsMobile] = useState(false)
 	const drawerRef = useRef<HTMLDivElement>(null)
-	const [isDragging, setIsDragging] = useState(false)
-	const [startY, setStartY] = useState(0)
 
 	// Shortcuts state
 	const [shortcuts, setShortcuts] = useState<ShortcutState[]>([])
@@ -251,51 +247,6 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	const handleSettingChange = useCallback((key: string, value: unknown) => {
 		updateMultipleSettings({ [key]: value })
 	}, [updateMultipleSettings])
-
-	// Swipe gesture handling for mobile
-	const handleDragStart = (event: React.MouseEvent | React.TouchEvent) => {
-		if (!isMobile || !drawerRef.current) return
-
-		const rect = drawerRef.current.getBoundingClientRect()
-		let clientY: number
-
-		if ('touches' in event) {
-			clientY = event.touches[0].clientY
-		} else {
-			clientY = event.clientY
-		}
-
-		const startY = clientY - rect.top
-
-		// Only allow drag from top area of drawer
-		if (startY < 50) {
-			setIsDragging(true)
-			setStartY(clientY)
-		}
-	}
-
-	const handleDragMove = (event: React.MouseEvent | React.TouchEvent) => {
-		if (!isDragging || !drawerRef.current) return
-		event.preventDefault()
-
-		let clientY: number
-		if ('touches' in event) {
-			clientY = event.touches[0].clientY
-		} else {
-			clientY = event.clientY
-		}
-
-		const movement = clientY - startY
-		const threshold = 100
-		if (movement > threshold) {
-			onOpenChange(false)
-			setIsDragging(false)
-		}
-	}
-
-	const handleDragEnd = () => {
-		setIsDragging(false)
-	}
 
 	const appItems = [
 		{
@@ -523,67 +474,64 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	if (isMobile) {
 		return (
 			<DrawerDialog open={open} onOpenChange={onOpenChange}>
-				<DrawerContent className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation">
+				<DrawerContent
+					className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation"
+					enableDragToClose
+					dragThreshold={100}
+				>
 					<div
 						ref={drawerRef}
 						className="flex flex-col h-full"
-						onMouseDown={handleDragStart}
-						onTouchStart={handleDragStart}
-						onMouseMove={handleDragMove}
-						onTouchMove={handleDragMove}
-						onMouseUp={handleDragEnd}
-						onTouchEnd={handleDragEnd}
 					>
-					{/* Drag handle for mobile */}
-					<div className="flex justify-center py-2 cursor-grab active:cursor-grabbing">
-						<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
-					</div>
-
-					{/* Header */}
-					<DrawerHeader className="px-4 pb-2">
-						<div className="flex items-center justify-between">
-							<DrawerTitle className="text-xl">Settings</DrawerTitle>
-							<DrawerClose
-								ref={firstFocusableRef}
-								className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation"
-								aria-label="Close settings"
-							>
-								<X className="w-5 h-5" />
-							</DrawerClose>
+						{/* Drag handle for mobile */}
+						<div className="flex justify-center py-2 cursor-grab active:cursor-grabbing">
+							<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
 						</div>
-					</DrawerHeader>
 
-					{/* Navigation */}
-					<div className="border-b border-border">
-						<nav role="navigation" aria-label="Settings sections">
-							{navigationItems.map((item) => (
-								<button
-									key={item.id}
-									type="button"
-									onClick={() => setActiveItem(item.id)}
-									className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
-										activeItem === item.id
-											? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
-											: 'hover:bg-accent/30'
-									}`}
-									aria-current={activeItem === item.id ? 'page' : undefined}
+						{/* Header */}
+						<DrawerHeader className="px-4 pb-2">
+							<div className="flex items-center justify-between">
+								<DrawerTitle className="text-xl">Settings</DrawerTitle>
+								<DrawerClose
+									ref={firstFocusableRef}
+									className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation"
+									aria-label="Close settings"
 								>
-									<span className="flex-shrink-0">{item.icon}</span>
-									<div className="text-left">
-										<div className="font-medium">{item.label}</div>
-										{item.description && (
-											<div className="text-sm text-muted-foreground">{item.description}</div>
-										)}
-									</div>
-								</button>
-							))}
-						</nav>
-					</div>
+									<X className="w-5 h-5" />
+								</DrawerClose>
+							</div>
+						</DrawerHeader>
 
-					{/* Content */}
-					<div className="flex-1 overflow-y-auto">
-						{renderSettingsContent()}
-					</div>
+						{/* Navigation */}
+						<div className="border-b border-border">
+							<nav role="navigation" aria-label="Settings sections">
+								{navigationItems.map((item) => (
+									<button
+										key={item.id}
+										type="button"
+										onClick={() => setActiveItem(item.id)}
+										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${activeItem === item.id
+												? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
+												: 'hover:bg-accent/30'
+											}`}
+										aria-current={activeItem === item.id ? 'page' : undefined}
+									>
+										<span className="flex-shrink-0">{item.icon}</span>
+										<div className="text-left">
+											<div className="font-medium">{item.label}</div>
+											{item.description && (
+												<div className="text-sm text-muted-foreground">{item.description}</div>
+											)}
+										</div>
+									</button>
+								))}
+							</nav>
+						</div>
+
+						{/* Content */}
+						<div className="flex-1 overflow-y-auto">
+							{renderSettingsContent()}
+						</div>
 					</div>
 				</DrawerContent>
 			</DrawerDialog>
