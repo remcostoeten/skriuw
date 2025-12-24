@@ -49,7 +49,13 @@ export default function DangerPanel() {
 			const response = await deleteAccount()
 			setStatus(response.message)
 			if (response.success) {
-				await signOut()
+				try {
+					await signOut()
+				} catch (signOutError) {
+					// Account deleted but signout failed - inform user to re-login
+					setError('Account deleted successfully, but automatic sign-out failed. Please refresh the page.')
+					return
+				}
 			}
 		} catch (deleteError) {
 			setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete account')
