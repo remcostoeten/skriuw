@@ -3,13 +3,20 @@ import { notFound } from 'next/navigation'
 import { PublicNoteView } from '@/features/notes/components/public-note-view'
 
 type PublicNotePageProps = {
-	params: { publicId: string }
+	params: Promise<{ publicId: string }>
 }
 
 async function getPublicNote(publicId: string) {
-	const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/public/notes/${publicId}`, {
+	const baseUrl =
+		process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+			? `https://${process.env.VERCEL_URL}`
+			: `http://localhost:${process.env.PORT || 3000}`
+
+	const url = new URL(`/api/public/notes/${publicId}`, baseUrl)
+
+	const res = await fetch(url.toString(), {
 		next: { revalidate: 0 },
-		cache: 'no-store',
+		cache: 'no-store'
 	})
 	if (!res.ok) {
 		return null
@@ -18,7 +25,8 @@ async function getPublicNote(publicId: string) {
 }
 
 export default async function PublicNotePage({ params }: PublicNotePageProps) {
-	const data = await getPublicNote(params.publicId)
+	const { publicId } = await params
+	const data = await getPublicNote(publicId)
 	if (!data?.note) {
 		notFound()
 	}

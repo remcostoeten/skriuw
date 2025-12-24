@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, sql } from 'drizzle-orm'
 import crypto from 'crypto'
 
-import { getDatabase, notes, user, storageConnectors, noteVisitors } from '@skriuw/db'
+import {
+	getDatabase,
+	notes,
+	user,
+	storageConnectors,
+	noteVisitors
+} from '@skriuw/db'
 import type { Note } from '@/features/notes/types'
 import { auth } from '@/lib/auth'
 
@@ -45,7 +51,9 @@ async function ensureCloudEnabled(ownerId: string): Promise<boolean> {
 	return connectorRows.length > 0
 }
 
-async function findPublicNote(publicId: string): Promise<(Note & { userId?: string | null }) | null> {
+async function findPublicNote(
+	publicId: string
+): Promise<(Note & { userId?: string | null }) | null> {
 	const rows = await getDatabase()
 		.select()
 		.from(notes)
@@ -57,12 +65,20 @@ async function findPublicNote(publicId: string): Promise<(Note & { userId?: stri
 
 async function fetchAuthor(userId: string | null | undefined) {
 	if (!userId) return null
-	const rows = await getDatabase().select().from(user).where(eq(user.id, userId)).limit(1)
+	const rows = await getDatabase()
+		.select()
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1)
 	if (rows.length === 0) return null
 	return rows[0]
 }
 
-async function trackVisitor(noteId: string, visitorKey: string, viewerId?: string | null) {
+async function trackVisitor(
+	noteId: string,
+	visitorKey: string,
+	viewerId?: string | null
+) {
 	const db = getDatabase()
 	try {
 		const inserted = await db
@@ -72,10 +88,10 @@ async function trackVisitor(noteId: string, visitorKey: string, viewerId?: strin
 				noteId,
 				visitorKey,
 				viewerUserId: viewerId ?? null,
-				createdAt: Date.now(),
+				createdAt: Date.now()
 			})
 			.onConflictDoNothing({
-				target: [noteVisitors.noteId, noteVisitors.visitorKey],
+				target: [noteVisitors.noteId, noteVisitors.visitorKey]
 			})
 			.returning()
 
@@ -111,7 +127,9 @@ export async function GET(
 
 	let sessionUserId: string | null = null
 	try {
-		const session = (await auth.api.getSession({ headers: request.headers })) as {
+		const session = (await auth.api.getSession({
+			headers: request.headers
+		})) as {
 			user?: { id?: string | null }
 		} | null
 		sessionUserId = session?.user?.id ?? null
@@ -130,17 +148,20 @@ export async function GET(
 		note: {
 			id: note.id,
 			name: note.name,
-			content: note.content as unknown as string,
+			content:
+				typeof note.content === 'string'
+					? note.content
+					: JSON.stringify(note.content),
 			createdAt: Number(note.createdAt),
 			updatedAt: Number(note.updatedAt),
 			publicViews: Number(note.publicViews ?? 0),
 			author: author
 				? {
 						id: author.id,
-						name: author.name,
+						name: author.name
 					}
-				: undefined,
-		},
+				: undefined
+		}
 	}
 
 	return NextResponse.json(response)

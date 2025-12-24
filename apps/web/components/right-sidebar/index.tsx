@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   FileText,
   Calendar,
@@ -45,10 +46,11 @@ type RightSidebarProps = {
 export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   const { isRightSidebarOpen, toggleRightSidebar } = useUIStore()
   const { items, setNoteVisibility } = useNotesContext()
-  
+
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['toc', 'metadata'])
   )
+  const [isToggling, setIsToggling] = useState(false)
 
   // Find current note
   const currentNote = useMemo(() => {
@@ -118,10 +120,15 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 
   async function toggleVisibility(next: boolean) {
     if (!currentNote) return
+    setIsToggling(true)
     try {
       await setNoteVisibility(currentNote.id, next)
+      toast.success(next ? 'Note is now public' : 'Note is now private')
     } catch (error) {
       console.error('Failed to toggle visibility', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to toggle visibility')
+    } finally {
+      setIsToggling(false)
     }
   }
 
@@ -193,7 +200,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
               <ChevronRight className="w-4 h-4" />
             )}
           </button>
-          
+
           {expandedSections.has('toc') && (
             <div className="px-2 pb-3">
               {tableOfContents.length > 0 ? (
@@ -225,7 +232,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
               <ChevronRight className="w-4 h-4" />
             )}
           </button>
-          
+
           {expandedSections.has('metadata') && metadata && (
             <div className="px-3 pb-3 space-y-3">
               <div className="flex items-center gap-2 text-sm">
@@ -262,6 +269,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
             <Switch
               checked={!!currentNote?.isPublic}
               onCheckedChange={toggleVisibility}
+              disabled={isToggling}
               aria-label="Toggle public visibility"
             />
           </div>
@@ -305,7 +313,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
               <ChevronRight className="w-4 h-4" />
             )}
           </button>
-          
+
           {expandedSections.has('tags') && (
             <div className="px-3 pb-3">
               <p className="text-sm text-muted-foreground">
@@ -331,7 +339,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
               <ChevronRight className="w-4 h-4" />
             )}
           </button>
-          
+
           {expandedSections.has('history') && (
             <div className="px-3 pb-3">
               <p className="text-sm text-muted-foreground">
