@@ -66,7 +66,7 @@ export default function DangerPanel() {
 					<ShieldAlert className="h-5 w-5" />
 					Danger zone
 				</CardTitle>
-				<CardDescription>Delete your account and all related data. This action cannot be undone once enabled.</CardDescription>
+				<CardDescription>Delete your account and all related data. This action cannot be undone once confirmed.</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div className="text-sm text-muted-foreground space-y-1">
