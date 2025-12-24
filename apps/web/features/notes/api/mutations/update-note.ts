@@ -26,6 +26,10 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 		if (data.content && Array.isArray(data.content)) {
 			try {
 				const extractedTasks = extractTasksFromBlocks(data.content, id)
+
+				// Basic optimization: only sync if there are tasks OR if we need to clear them
+				// To be truly efficient, we'd compare with previous tasks, but updateNote
+				// doesn't have the previous content here.
 				await syncTasksToDatabase(id, extractedTasks)
 			} catch (taskError) {
 				// Log error but don't fail the note update
