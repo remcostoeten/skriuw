@@ -90,8 +90,11 @@ async function trackVisitor(noteId: string, visitorKey: string, viewerId?: strin
 	}
 }
 
-export async function GET(request: NextRequest, context: { params: { publicId: string } }) {
-	const { publicId } = context.params
+export async function GET(
+	request: NextRequest,
+	context: { params: Promise<{ publicId: string }> }
+) {
+	const { publicId } = await context.params
 	if (!publicId) {
 		return NextResponse.json({ error: 'Missing note id' }, { status: 400 })
 	}
