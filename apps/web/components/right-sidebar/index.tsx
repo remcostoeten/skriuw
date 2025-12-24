@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   FileText,
@@ -8,163 +8,83 @@ import {
   Clock,
   Hash,
   HardDrive,
-  ChevronRight,
-  ChevronDown,
   Share2,
   Eye,
   Tag,
   GitBranch,
-  X
+  X,
 } from 'lucide-react'
-import { cn } from '@skriuw/shared'
 import { IconButton } from '@skriuw/ui/icons'
 import { Switch } from '@skriuw/ui'
 import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
-import { blocksToText } from '@/features/notes/utils/blocks-to-text'
-import type { Block } from '@blocknote/core'
+import type { Note } from '@/features/notes/types'
+import { CollapsibleSection } from './collapsible-section'
+import { MemoizedTOCItem } from './toc-item'
+import {
+  useTableOfContents,
+  useNoteMetadata,
+  useShareUrl,
+  useScrollToHeading,
+} from './hooks'
+import { SECTION_KEYS, type SectionKey, type RightSidebarProps } from './types'
 
-type TOCItem = {
-  id: string
-  title: string
-  level: number
-  children: TOCItem[]
-}
-
-type NoteMetadata = {
-  createdAt: string
-  updatedAt: string
-  wordCount: number
-  size: string
-}
-
-type RightSidebarProps = {
-  noteId?: string
-  content?: Block[] // BlockNote content blocks
-}
+const DEFAULT_EXPANDED_SECTIONS = new Set<SectionKey>([
+  SECTION_KEYS.TOC,
+  SECTION_KEYS.METADATA,
+])
 
 export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   const { isRightSidebarOpen, toggleRightSidebar } = useUIStore()
   const { items, setNoteVisibility } = useNotesContext()
 
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['toc', 'metadata'])
+  const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(
+    () => new Set(DEFAULT_EXPANDED_SECTIONS)
   )
   const [isToggling, setIsToggling] = useState(false)
 
-  // Find current note
-  const currentNote = useMemo(() => {
+  // Find current note with proper typing
+  const currentNote = useMemo((): Note | null => {
     if (!noteId) return null
-    return items.find(item => item.id === noteId && item.type === 'note') || null
+    const found = items.find((item) => item.id === noteId && item.type === 'note')
+    return (found as Note) ?? null
   }, [noteId, items])
 
-  const shareUrl = useMemo(() => {
-    if (!currentNote?.publicId || typeof window === 'undefined') return ''
-    const origin = window.location.origin
-    return `${origin}/public/${currentNote.publicId}`
-  }, [currentNote?.publicId])
+  // Use extracted hooks
+  const tableOfContents = useTableOfContents(content)
+  const metadata = useNoteMetadata(currentNote, content)
+  const shareUrl = useShareUrl(currentNote?.publicId)
+  const scrollToHeading = useScrollToHeading()
 
-  // Generate table of contents from BlockNote content
-  const tableOfContents = useMemo((): TOCItem[] => {
-    if (!content || content.length === 0) return []
-
-    const toc: TOCItem[] = []
-    const stack: TOCItem[] = []
-
-    content.forEach((block: Block) => {
-      if (block.type === 'heading' && block.props?.level) {
-        const title = blocksToText([block]).trim()
-        if (!title) return
-
-        const item: TOCItem = {
-          id: block.id,
-          title,
-          level: block.props.level,
-          children: []
-        }
-
-        // Find the appropriate parent in the stack
-        while (stack.length > 0 && stack[stack.length - 1].level >= item.level) {
-          stack.pop()
-        }
-
-        if (stack.length === 0) {
-          toc.push(item)
-        } else {
-          stack[stack.length - 1].children.push(item)
-        }
-
-        stack.push(item)
-      }
-    })
-
-    return toc
-  }, [content])
-
-  // Calculate note metadata
-  const metadata = useMemo((): NoteMetadata | null => {
-    if (!currentNote) return null
-
-    const text = blocksToText(content)
-    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length
-    const sizeBytes = new Blob([text]).size
-    const size = sizeBytes < 1024 ? `${sizeBytes} B` : `${(sizeBytes / 1024).toFixed(1)} KB`
-
-    return {
-      createdAt: currentNote.createdAt ? new Date(currentNote.createdAt).toLocaleDateString() : 'Unknown',
-      updatedAt: currentNote.updatedAt ? new Date(currentNote.updatedAt).toLocaleDateString() : 'Unknown',
-      wordCount,
-      size
-    }
-  }, [currentNote, content])
-
-  async function toggleVisibility(next: boolean) {
-    if (!currentNote) return
-    setIsToggling(true)
-    try {
-      await setNoteVisibility(currentNote.id, next)
-      toast.success(next ? 'Note is now public' : 'Note is now private')
-    } catch (error) {
-      console.error('Failed to toggle visibility', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to toggle visibility')
-    } finally {
-      setIsToggling(false)
-    }
-  }
-
-  function toggleSection(section: string) {
-    setExpandedSections(prev => {
+  const toggleSection = useCallback((section: string) => {
+    setExpandedSections((prev) => {
       const next = new Set(prev)
-      if (next.has(section)) {
-        next.delete(section)
+      if (next.has(section as SectionKey)) {
+        next.delete(section as SectionKey)
       } else {
-        next.add(section)
+        next.add(section as SectionKey)
       }
       return next
     })
-  }
+  }, [])
 
-  function scrollToHeading(headingId: string) {
-    const element = document.querySelector(`[data-content-type="heading"][data-id="${headingId}"]`)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
-
-  const renderTOCItem = (item: TOCItem, depth = 0) => (
-    <div key={item.id}>
-      <button
-        onClick={() => scrollToHeading(item.id)}
-        className={cn(
-          'w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md transition-colors',
-          'flex items-center gap-2 text-muted-foreground hover:text-foreground',
-          depth > 0 && 'ml-4'
-        )}
-      >
-        <span className="truncate">{item.title}</span>
-      </button>
-      {item.children.map(child => renderTOCItem(child, depth + 1))}
-    </div>
+  const handleToggleVisibility = useCallback(
+    async (nextState: boolean) => {
+      if (!currentNote) return
+      setIsToggling(true)
+      try {
+        await setNoteVisibility(currentNote.id, nextState)
+        toast.success(nextState ? 'Note is now public' : 'Note is now private')
+      } catch (error) {
+        console.error('Failed to toggle visibility', error)
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to toggle visibility'
+        )
+      } finally {
+        setIsToggling(false)
+      }
+    },
+    [currentNote, setNoteVisibility]
   )
 
   if (!isRightSidebarOpen) return null
@@ -185,79 +105,47 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Table of Contents */}
-        <div className="border border-border rounded-lg">
-          <button
-            onClick={() => toggleSection('toc')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              <span className="font-medium">Table of Contents</span>
+        <CollapsibleSection
+          id={SECTION_KEYS.TOC}
+          title="Table of Contents"
+          icon={<FileText className="w-4 h-4" />}
+          isExpanded={expandedSections.has(SECTION_KEYS.TOC)}
+          onToggle={toggleSection}
+        >
+          {tableOfContents.length > 0 ? (
+            <div className="space-y-1">
+              {tableOfContents.map((item) => (
+                <MemoizedTOCItem
+                  key={item.id}
+                  item={item}
+                  onNavigate={scrollToHeading}
+                />
+              ))}
             </div>
-            {expandedSections.has('toc') ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-
-          {expandedSections.has('toc') && (
-            <div className="px-2 pb-3">
-              {tableOfContents.length > 0 ? (
-                <div className="space-y-1">
-                  {tableOfContents.map(item => renderTOCItem(item))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground px-3 py-2">
-                  No headings found
-                </p>
-              )}
-            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No headings found</p>
           )}
-        </div>
+        </CollapsibleSection>
 
         {/* Metadata */}
-        <div className="border border-border rounded-lg">
-          <button
-            onClick={() => toggleSection('metadata')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              <span className="font-medium">Metadata</span>
+        <CollapsibleSection
+          id={SECTION_KEYS.METADATA}
+          title="Metadata"
+          icon={<Hash className="w-4 h-4" />}
+          isExpanded={expandedSections.has(SECTION_KEYS.METADATA)}
+          onToggle={toggleSection}
+        >
+          {metadata ? (
+            <div className="space-y-3">
+              <MetadataRow icon={Calendar} label="Created" value={metadata.createdAt} />
+              <MetadataRow icon={Clock} label="Updated" value={metadata.updatedAt} />
+              <MetadataRow icon={FileText} label="Words" value={metadata.wordCount} />
+              <MetadataRow icon={HardDrive} label="Size" value={metadata.size} />
             </div>
-            {expandedSections.has('metadata') ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-
-          {expandedSections.has('metadata') && metadata && (
-            <div className="px-3 pb-3 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Created:</span>
-                <span>{metadata.createdAt}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Updated:</span>
-                <span>{metadata.updatedAt}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Words:</span>
-                <span>{metadata.wordCount}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <HardDrive className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Size:</span>
-                <span>{metadata.size}</span>
-              </div>
-            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No note selected</p>
           )}
-        </div>
+        </CollapsibleSection>
 
         {/* Sharing */}
         <div className="border border-border rounded-lg">
@@ -267,9 +155,9 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
               <span className="font-medium">Public Share</span>
             </div>
             <Switch
-              checked={!!currentNote?.isPublic}
-              onCheckedChange={toggleVisibility}
-              disabled={isToggling}
+              checked={currentNote?.isPublic ?? false}
+              onCheckedChange={handleToggleVisibility}
+              disabled={isToggling || !currentNote}
               aria-label="Toggle public visibility"
             />
           </div>
@@ -281,7 +169,10 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
                 <span>{currentNote.publicViews ?? 0}</span>
               </div>
               {shareUrl ? (
-                <div className="bg-muted rounded-md p-2 break-all text-xs" aria-label="Share URL">
+                <div
+                  className="bg-muted rounded-md p-2 break-all text-xs"
+                  aria-label="Share URL"
+                >
                   {shareUrl}
                 </div>
               ) : (
@@ -297,58 +188,49 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
           )}
         </div>
 
-        {/* Tags - Placeholder for future implementation */}
-        <div className="border border-border rounded-lg">
-          <button
-            onClick={() => toggleSection('tags')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              <span className="font-medium">Tags</span>
-            </div>
-            {expandedSections.has('tags') ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
+        {/* Tags - Placeholder */}
+        <CollapsibleSection
+          id={SECTION_KEYS.TAGS}
+          title="Tags"
+          icon={<Tag className="w-4 h-4" />}
+          isExpanded={expandedSections.has(SECTION_KEYS.TAGS)}
+          onToggle={toggleSection}
+        >
+          <p className="text-sm text-muted-foreground">
+            Tagging system coming soon...
+          </p>
+        </CollapsibleSection>
 
-          {expandedSections.has('tags') && (
-            <div className="px-3 pb-3">
-              <p className="text-sm text-muted-foreground">
-                Tagging system coming soon...
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Version History - Placeholder for future implementation */}
-        <div className="border border-border rounded-lg">
-          <button
-            onClick={() => toggleSection('history')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <GitBranch className="w-4 h-4" />
-              <span className="font-medium">Version History</span>
-            </div>
-            {expandedSections.has('history') ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-
-          {expandedSections.has('history') && (
-            <div className="px-3 pb-3">
-              <p className="text-sm text-muted-foreground">
-                Git-like versioning coming soon...
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Version History - Placeholder */}
+        <CollapsibleSection
+          id={SECTION_KEYS.HISTORY}
+          title="Version History"
+          icon={<GitBranch className="w-4 h-4" />}
+          isExpanded={expandedSections.has(SECTION_KEYS.HISTORY)}
+          onToggle={toggleSection}
+        >
+          <p className="text-sm text-muted-foreground">
+            Git-like versioning coming soon...
+          </p>
+        </CollapsibleSection>
       </div>
+    </div>
+  )
+}
+
+// Small helper component to reduce repetition in metadata rows
+type MetadataRowProps = {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string | number
+}
+
+function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Icon className="w-4 h-4 text-muted-foreground" />
+      <span className="text-muted-foreground">{label}:</span>
+      <span>{value}</span>
     </div>
   )
 }
