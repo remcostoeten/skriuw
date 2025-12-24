@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useCreateBlockNote } from '@blocknote/react'
 import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
-import type { Block } from '@blocknote/core'
+import type { Block, PartialBlock } from '@blocknote/core'
 import { Separator, Card } from '@skriuw/ui'
 
 type PublicNoteViewProps = {
@@ -15,15 +15,15 @@ type PublicNoteViewProps = {
 	views: number
 }
 
-function parseContent(raw: string): Block[] {
+function parseContent(raw: string): PartialBlock[] {
 	try {
 		const parsed = JSON.parse(raw)
-		if (Array.isArray(parsed)) {
-			return parsed as Block[]
+		if (Array.isArray(parsed) && parsed.length > 0) {
+			return parsed as PartialBlock[]
 		}
-		return []
+		return [{ type: 'paragraph', content: [] }]
 	} catch {
-		return []
+		return [{ type: 'paragraph', content: [] }]
 	}
 }
 
