@@ -569,10 +569,12 @@ export function useNotes() {
 			try {
 				const updated = await setNoteVisibilityMutation(noteId, isPublic)
 				if (updated) {
-					setItems(updateVisibility(items, updated.publicId ?? null, updated.publicViews))
+					setItems((prevItems) =>
+						updateVisibility(prevItems, updated.publicId ?? null, updated.publicViews)
+					)
 				}
 			} catch (error) {
-				setItems(previousItems)
+				setItems(previousItems) // previousItems is fine here since it's captured before any mutation
 				console.error('Failed to update visibility:', error)
 			}
 		},
