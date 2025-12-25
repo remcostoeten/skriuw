@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, CheckSquare, Clock, Trash2, X, ExternalLink } from 'lucide-react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 
 import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
@@ -84,9 +84,9 @@ export default function TaskDetailPage() {
 
             const updatedTask = await response.json()
             setTask(updatedTask)
-            toast.success('Task updated')
+            notify('Task updated')
         } catch (err) {
-            toast.error('Failed to update task')
+            notify('Failed to update task')
             console.error(err)
         } finally {
             setIsSaving(false)
@@ -146,10 +146,10 @@ export default function TaskDetailPage() {
                 throw new Error('Failed to delete task')
             }
 
-            toast.success('Task deleted')
+            notify('Task deleted')
             router.push('/tasks')
         } catch (err) {
-            toast.error('Failed to delete task')
+            notify('Failed to delete task')
             console.error(err)
         }
     }

@@ -29,7 +29,7 @@ import {
 	Server
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 import { cn } from '@skriuw/shared'
 import {
 	downloadJsonExport,
@@ -271,7 +271,7 @@ export function DevWidget() {
 			}
 		} catch (error) {
 			console.error('Failed to fetch users', error)
-			toast.error('Failed to fetch users')
+			notify('Failed to fetch users')
 		} finally {
 			setUsersLoading(false)
 		}
@@ -295,12 +295,10 @@ export function DevWidget() {
 				})
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.error || 'Reset failed')
-				toast.success(data.message)
+				notify(data.message)
 				await fetchStats()
 			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : 'Reset failed'
-				)
+				notify(error instanceof Error ? error.message : 'Reset failed')
 			} finally {
 				setUserActionLoading(null)
 			}
@@ -324,13 +322,11 @@ export function DevWidget() {
 				})
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.error || 'Delete failed')
-				toast.success(data.message)
+				notify(data.message)
 				await fetchUsers()
 				await fetchStats()
 			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : 'Delete failed'
-				)
+				notify(error instanceof Error ? error.message : 'Delete failed')
 			} finally {
 				setUserActionLoading(null)
 			}
@@ -358,10 +354,7 @@ export function DevWidget() {
 					throw new Error(data.error || 'Cleanup failed')
 				}
 
-				toast.success(
-					data.message ||
-					(dryRun ? 'Dry run completed' : 'Cleanup completed')
-				)
+				notify(data.message || (dryRun ? 'Dry run completed' : 'Cleanup completed'))
 
 				// Update cron status
 				setCronStatus((prev) => ({
@@ -385,7 +378,7 @@ export function DevWidget() {
 			} catch (error) {
 				const errorMsg =
 					error instanceof Error ? error.message : 'Cleanup failed'
-				toast.error(errorMsg)
+				notify(errorMsg)
 
 				// Update cron status with failure
 				setCronStatus((prev) => ({
@@ -491,17 +484,17 @@ export function DevWidget() {
 				})
 			}
 
-			toast.success(data.message || 'Action completed')
+			notify(data.message || 'Action completed')
 
 			if (data.restartRequired) {
-				toast.info('Restart required. Reloading page...')
+				notify('Restart required. Reloading page...')
 				setTimeout(() => window.location.reload(), 2000)
 			} else {
 				await fetchStats()
 				await refreshItems()
 			}
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Action failed')
+			notify(err instanceof Error ? err.message : 'Action failed')
 			if (action === 'check-schema') {
 				setSchemaStatus({
 					checked: true,
@@ -524,7 +517,7 @@ export function DevWidget() {
 			const files = (e.target as HTMLInputElement).files
 			if (!files?.length) return
 
-			const toastId = toast.loading('Importing...')
+			notify('Importing...')
 			try {
 				let importResult
 				if (type === 'json') {
@@ -555,14 +548,11 @@ export function DevWidget() {
 					throw new Error(data.error || 'Import failed on server')
 				}
 
-				toast.success('Import successful', { id: toastId })
+				notify('Import successful')
 				await refreshItems()
 				fetchStats()
 			} catch (err) {
-				toast.error(
-					err instanceof Error ? err.message : 'Import failed',
-					{ id: toastId }
-				)
+				notify(err instanceof Error ? err.message : 'Import failed')
 			}
 		}
 		input.click()
@@ -932,14 +922,10 @@ export function DevWidget() {
 										onClick={() => {
 											if (hasHeroCookie) {
 												deleteCookie()
-												toast.success(
-													'Hero badge is now visible'
-												)
+												notify('Hero badge is now visible')
 											} else {
 												updateCookie('true')
-												toast.success(
-													'Hero badge is now hidden'
-												)
+												notify('Hero badge is now hidden')
 											}
 										}}
 									/>

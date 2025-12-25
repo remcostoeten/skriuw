@@ -2,7 +2,7 @@
 
 import { Suspense, lazy, useMemo, useEffect, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut } from '../features/shortcuts'
@@ -85,7 +85,7 @@ export default function Index() {
 		if (newNote) {
 			const url = getNoteUrl(newNote.id)
 			router.push(`${url}?focus=true`)
-			toast.success('Note created')
+			notify('Note created')
 		}
 	}
 
