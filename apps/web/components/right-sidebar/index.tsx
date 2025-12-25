@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 import {
   FileText,
   Calendar,
@@ -74,10 +74,10 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
       setIsToggling(true)
       try {
         await setNoteVisibility(currentNote.id, nextState)
-        toast.success(nextState ? 'Note is now public' : 'Note is now private')
+        notify(nextState ? 'Note is now public' : 'Note is now private')
       } catch (error) {
         console.error('Failed to toggle visibility', error)
-        toast.error(
+        notify(
           error instanceof Error ? error.message : 'Failed to toggle visibility'
         )
       } finally {

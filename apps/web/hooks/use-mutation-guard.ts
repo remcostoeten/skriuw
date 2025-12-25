@@ -2,7 +2,7 @@
 
 import { useSession } from '@/lib/auth-client'
 import { useState, useCallback } from 'react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 
 type MutationGuardOptions = {
     /** Custom message shown when action is blocked */
@@ -17,7 +17,7 @@ type MutationGuardResult = {
     isLoading: boolean
     /** 
      * Wraps an action to check auth before executing.
-     * If unauthenticated, shows toast and optionally triggers auth modal.
+     * If unauthenticated, shows notification and optionally triggers auth modal.
      * Returns true if action was executed, false if blocked.
      */
     guard: <T>(action: () => T | Promise<T>, options?: MutationGuardOptions) => Promise<T | null>
@@ -69,18 +69,11 @@ export function useMutationGuard(): MutationGuardResult {
         } = options
 
         if (isPending) {
-            // Still loading, wait a bit and retry
             return null
         }
 
         if (!isAuthenticated) {
-            toast.info('Login required', {
-                description: message,
-                action: triggerModal ? {
-                    label: 'Sign in',
-                    onClick: () => requestAuth(message)
-                } : undefined,
-            })
+            notify(message)
 
             if (triggerModal) {
                 requestAuth(message)

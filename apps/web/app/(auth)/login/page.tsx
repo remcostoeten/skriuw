@@ -3,8 +3,9 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@skriuw/ui";
 import { ChevronLeftIcon } from "lucide-react";
-import { FloatingPaths } from "@/features/authentication/components/floating-paths";
+import { MeshBlob } from "@/features/authentication/components/mesh-blob";
 import { LoginForm } from "@/features/authentication/components/login-form";
+// import { FloatingPaths } from "@/features/authentication/components/floating-paths";
 import Link from "next/link";
 
 export default function AuthPage() {
@@ -30,8 +31,7 @@ export default function AuthPage() {
                     </blockquote>
                 </div>
                 <div className="absolute inset-0 z-0">
-                    <FloatingPaths position={1} />
-                    <FloatingPaths position={-1} />
+                    <MeshBlob />
                 </div>
             </div>
 
