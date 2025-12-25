@@ -2,7 +2,8 @@
 
 import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
-import { Toaster as SonnerToaster } from 'sonner'
+
+import { Analytics } from '@vercel/analytics/react'
 
 import { EmptyState } from '@skriuw/ui'
 
@@ -42,7 +43,7 @@ function StorageInitializer({ children }: props) {
 						},
 					]}
 				/>
-			</div>
+			</div >
 		)
 	}
 
@@ -52,7 +53,6 @@ function StorageInitializer({ children }: props) {
 export function Providers({ children }: props) {
 	return (
 		<TooltipProvider delayDuration={0}>
-			<SonnerToaster />
 			<AuthModalProvider>
 				<StorageInitializer>
 					<SettingsProvider>
@@ -69,6 +69,7 @@ export function Providers({ children }: props) {
 					</SettingsProvider>
 				</StorageInitializer>
 			</AuthModalProvider>
+			<Analytics />
 		</TooltipProvider>
 	)
 }

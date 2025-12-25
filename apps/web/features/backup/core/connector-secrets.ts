@@ -1,6 +1,6 @@
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secret'
 
-import { logger } from '@/lib/logger'
+import { logger } from '@/lib/debug'
 
 import { STORAGE_CONNECTOR_DEFINITIONS } from './connectors'
 import type {
@@ -105,7 +105,6 @@ export function decryptConnectorStates(connectors: MaybeEncrypted[]): StorageCon
 	})
 }
 
-// Single connector versions for API routes
 export function encryptConnectorState(connector: StorageConnectorState): StorageConnectorState {
 	return encryptConnectorStates([connector])[0]
 }

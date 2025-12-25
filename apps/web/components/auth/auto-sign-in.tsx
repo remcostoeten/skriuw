@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { AUTH_CLIENT_ENABLED, useSession } from '@/lib/auth-client'
-import { logger } from '@/lib/logger'
+import { logger } from '@/lib/debug'
 
 const ZERO_SESSION_COOKIE = 'skriuw_zero_session'
 const ZERO_SESSION_STORAGE_KEY = 'skriuw_zero_session_id'
@@ -61,8 +61,8 @@ export function AutoSignIn() {
 
         useEffect(() => {
                 if (!AUTH_CLIENT_ENABLED) {
-			logger.info(
-				'auth',
+                        logger.info(
+                                'auth',
                                 'Auth client disabled (missing NEXT_PUBLIC_APP_URL)'
                         )
                 }

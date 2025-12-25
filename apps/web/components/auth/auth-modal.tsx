@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react'
 import { useSession } from '@/lib/auth-client'
 import { BrandLogo } from '@/components/brand-logo'
-import { FloatingPaths } from '@/features/authentication/components/floating-paths'
+import { MeshBlob } from '@/features/authentication/components/mesh-blob'
 import { LoginForm } from '@/features/authentication/components/login-form'
 import {
     DrawerDialog,
@@ -55,10 +55,9 @@ export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
                             </blockquote>
                         </div>
 
-                        {/* Floating paths background */}
+                        {/* MeshBlob background */}
                         <div className="absolute inset-0 z-0">
-                            <FloatingPaths position={1} />
-                            <FloatingPaths position={-1} />
+                            <MeshBlob />
                         </div>
                     </aside>
 
