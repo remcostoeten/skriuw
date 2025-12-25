@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../../lib/storage/adapters/server-db'
 import { seedTemplateNotes, seedTemplateFolders, notes, folders, user } from '@skriuw/db'
-import { sampleNotes, sampleFolders } from '../../dev/seeds'
+import { sampleNotes, sampleFolders } from '@/app/api/(dev)/dev/seeds'
 import { GUEST_USER_ID } from '../../../../lib/api-auth'
 import { eq } from 'drizzle-orm'
 

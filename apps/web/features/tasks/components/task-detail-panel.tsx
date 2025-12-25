@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, memo } from 'react'
 import { Trash2, X, MoreHorizontal, ChevronLeft } from 'lucide-react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import { cn } from '@skriuw/shared'
@@ -85,7 +85,7 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                 setTask((prev) => (prev ? { ...prev, ...updated } : updated))
             }
         } catch {
-            toast.error('Failed to update')
+            notify('Failed to update')
         }
     }
 
@@ -93,10 +93,10 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
         if (!task) return
         try {
             await fetch(`/api/tasks/item/${task.id}`, { method: 'DELETE' })
-            toast.success('Deleted')
+            notify('Deleted')
             onNavigateBack()
         } catch {
-            toast.error('Failed to delete')
+            notify('Failed to delete')
         }
     }
 
