@@ -1,13 +1,12 @@
-export interface Task {
-	id: string
-	noteId: string
+import type { BaseEntity, UUID, Timestamp } from '@skriuw/shared'
+
+export interface Task extends BaseEntity {
+	noteId: UUID
 	blockId: string
 	content: string
 	checked: number // 0 or 1
-	parentTaskId: string | null
+	parentTaskId: UUID | null
 	position: number
-	createdAt: number
-	updatedAt: number
 }
 
 async function request<T>(url: string): Promise<T> {
