@@ -1,11 +1,12 @@
-'use client';
+'use client'
 
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame, extend, ThreeElements } from '@react-three/fiber';
-import { shaderMaterial } from '@react-three/drei';
-import * as THREE from 'three';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
+import { useRef, useMemo } from 'react'
+import { Canvas, useFrame, extend, ThreeElements } from '@react-three/fiber'
+import { shaderMaterial } from '@react-three/drei'
+import * as THREE from 'three'
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { useShaderStore } from '@/lib/shader-store'
 
 // ===================== SHADER =====================
 const vertexShader = `
@@ -14,7 +15,7 @@ const vertexShader = `
     vUv = uv;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
-`;
+`
 
 const fragmentShader = `
   #ifdef GL_ES
@@ -148,82 +149,96 @@ const fragmentShader = `
     vec2 uv = vUv * 2.0 - 1.0; uv.y *= -1.0;
     gl_FragColor = cppn_fn(uv, 0.1 * sin(0.3 * iTime), 0.1 * sin(0.69 * iTime), 0.1 * sin(0.44 * iTime));
   }
-`;
+`
 
 const CPPNShaderMaterial = shaderMaterial(
-    { iTime: 0, iResolution: new THREE.Vector2(1, 1) },
-    vertexShader,
-    fragmentShader
-);
+	{ iTime: 0, iResolution: new THREE.Vector2(1, 1) },
+	vertexShader,
+	fragmentShader
+)
 
-extend({ CPPNShaderMaterial });
+extend({ CPPNShaderMaterial })
 
 function ShaderPlane() {
-    const meshRef = useRef<THREE.Mesh>(null!);
-    const materialRef = useRef<any>(null!);
+	const meshRef = useRef<THREE.Mesh>(null!)
+	const materialRef = useRef<any>(null!)
+	const { speed, position } = useShaderStore()
 
-    useFrame((state) => {
-        if (!materialRef.current) return;
-        materialRef.current.iTime = state.clock.elapsedTime;
-        const { width, height } = state.size;
-        materialRef.current.iResolution.set(width, height);
-    });
+	useFrame((state) => {
+		if (!materialRef.current) return
+		materialRef.current.iTime = state.clock.elapsedTime * speed
+		const { width, height } = state.size
+		materialRef.current.iResolution.set(width, height)
+	})
 
-    return (
-        <mesh ref={meshRef} position={[0, -0.75, -0.5]}>
-            <planeGeometry args={[4, 4]} />
-            <cPPNShaderMaterial ref={materialRef} side={THREE.DoubleSide} />
-        </mesh>
-    );
+	return (
+		<mesh ref={meshRef} position={[position.x, position.y, position.z]}>
+			<planeGeometry args={[4, 4]} />
+			<cPPNShaderMaterial ref={materialRef} side={THREE.DoubleSide} />
+		</mesh>
+	)
 }
 
 export function MeshBlob() {
-    const canvasRef = useRef<HTMLDivElement | null>(null);
+	const canvasRef = useRef<HTMLDivElement | null>(null)
+	const { blur, scale, dpr } = useShaderStore()
 
-    const camera = useMemo(() => ({ position: [0, 0, 1] as [number, number, number], fov: 75, near: 0.1, far: 1000 }), []);
+	const camera = useMemo(
+		() => ({
+			position: [0, 0, 1] as [number, number, number],
+			fov: 75,
+			near: 0.1,
+			far: 1000
+		}),
+		[]
+	)
 
-    useGSAP(
-        () => {
-            if (!canvasRef.current) return;
+	useGSAP(
+		() => {
+			if (!canvasRef.current) return
 
-            gsap.set(canvasRef.current, {
-                filter: 'blur(20px)',
-                scale: 1.1,
-                autoAlpha: 0.7
-            });
+			gsap.set(canvasRef.current, {
+				filter: `blur(${blur}px)`,
+				scale: scale,
+				autoAlpha: 0.7
+			})
 
-            gsap.to(canvasRef.current, {
-                filter: 'blur(0px)',
-                scale: 1,
-                autoAlpha: 1,
-                duration: 1.5,
-                ease: 'power3.out',
-                delay: 0.3
-            });
-        },
-        { scope: canvasRef }
-    );
+			gsap.to(canvasRef.current, {
+				filter: `blur(${blur}px)`,
+				scale: 1,
+				autoAlpha: 1,
+				duration: 1.5,
+				ease: 'power3.out',
+				delay: 0.3
+			})
+		},
+		{ scope: canvasRef, dependencies: [blur, scale] }
+	)
 
-    return (
-        <div ref={canvasRef} className="bg-black absolute inset-0 -z-10 w-full h-full overflow-hidden" aria-hidden>
-            <Canvas
-                camera={camera}
-                gl={{ antialias: true, alpha: false }}
-                dpr={[1, 2]}
-                style={{ width: '100%', height: '100%' }}
-            >
-                <ShaderPlane />
-            </Canvas>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/20" />
-        </div>
-    );
+	return (
+		<div
+			ref={canvasRef}
+			className="bg-black absolute inset-0 -z-10 w-full h-full overflow-hidden"
+			aria-hidden
+		>
+			<Canvas
+				camera={camera}
+				gl={{ antialias: true, alpha: false }}
+				dpr={dpr}
+				style={{ width: '100%', height: '100%' }}
+			>
+				<ShaderPlane />
+			</Canvas>
+			<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/20" />
+		</div>
+	)
 }
 
 declare module '@react-three/fiber' {
-    interface ThreeElements {
-        cPPNShaderMaterial: ThreeElements['shaderMaterial'] & {
-            iTime?: number;
-            iResolution?: THREE.Vector2;
-        };
-    }
+	interface ThreeElements {
+		cPPNShaderMaterial: ThreeElements['shaderMaterial'] & {
+			iTime?: number
+			iResolution?: THREE.Vector2
+		}
+	}
 }
