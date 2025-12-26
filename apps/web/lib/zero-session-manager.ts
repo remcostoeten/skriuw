@@ -3,11 +3,8 @@
  * @description Manages zero-session state, Nth-request tracking, and auth popup logic
  */
 
-import { ZERO_SESSION_COOKIE, ZERO_SESSION_STORAGE_KEY } from './constants'
+import { ZERO_SESSION_COOKIE, ZERO_SESSION_STORAGE_KEY, NTH_REQUEST_THRESHOLD, POPUP_COOLDOWN_MS } from './constants'
 import { dispatchIdentityRequired } from './identity-guard'
-
-const NTH_REQUEST_THRESHOLD = 5
-const POPUP_COOLDOWN_MS = 60 * 60 * 1000 // 1 hour
 
 const POPUP_SHOWN_KEY = 'zero_session:popup_shown'
 const REQUEST_COUNT_KEY = 'zero_session:request_count'

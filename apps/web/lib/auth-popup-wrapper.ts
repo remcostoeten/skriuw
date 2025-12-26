@@ -28,10 +28,12 @@ export function wrapWithAuthPopup<
 	const wrapped = {} as T
 
 	for (const [key, fn] of Object.entries(operations)) {
-		wrapped[key as keyof T] = withAuthPopup(
-			fn as any,
+		const typedKey = key as keyof T
+		const typedFn = fn as T[keyof T]
+		wrapped[typedKey] = withAuthPopup(
+			typedFn,
 			`${actionPrefix ? `${actionPrefix}:` : ''}${key}`
-		) as T[keyof T]
+		)
 	}
 
 	return wrapped

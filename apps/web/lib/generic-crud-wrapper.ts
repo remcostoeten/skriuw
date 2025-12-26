@@ -27,8 +27,8 @@ export function createMutationWrapper<T extends Record<string, MutationFunction>
 ): T {
 	const { feature, shouldWrap = true, actionName: prefixAction } = config
 	
-	// If wrapping is disabled or user is not zero-session, return original mutations
-	if (!shouldWrap || !isZeroSessionUser()) {
+	// If wrapping is disabled, return original mutations
+	if (!shouldWrap) {
 		return mutations
 	}
 
@@ -40,11 +40,17 @@ export function createMutationWrapper<T extends Record<string, MutationFunction>
 			? `${prefixAction}:${functionName}`
 			: `${feature}:${functionName}`
 
-		// Wrap the function with auth popup logic
-		wrapped[functionName as keyof T] = withAuthPopup(
-			originalFunction,
-			actionName
-		) as T[keyof T]
+		// Create runtime wrapper that checks isZeroSessionUser() at invocation time
+		wrapped[functionName as keyof T] = ((...args: any[]) => {
+			// Check session state at runtime
+			if (isZeroSessionUser()) {
+				// User is zero-session, use auth popup flow
+				return withAuthPopup(originalFunction, actionName)(...args)
+			} else {
+				// User has active session, call original function directly
+				return originalFunction(...args)
+			}
+		}) as T[keyof T]
 	}
 
 	return wrapped

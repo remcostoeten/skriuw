@@ -13,8 +13,7 @@ import type {
 	BaseEntity
 } from '@skriuw/crud'
 import { generateId } from '@skriuw/shared'
-
-const ZERO_SESSION_PREFIX = 'zero_session:'
+import { ZERO_SESSION_PREFIX } from '../../constants'
 
 /**
  * Gets the full storage key with zero-session prefix
@@ -86,12 +85,12 @@ export function createLocalStorageAdapter(): StorageAdapter {
 	return {
 		async create<T extends BaseEntity>(
 			storageKey: string,
-			data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>
+			data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
 		): Promise<T> {
 			const now = Date.now()
 			const newItem: T = {
-				...(data as any),
-				id: (data as any).id || generateId(),
+				...data,
+				id: data.id || generateId(),
 				createdAt: now,
 				updatedAt: now
 			} as T

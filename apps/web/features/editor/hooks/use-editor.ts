@@ -287,7 +287,7 @@ export function useEditor({
 	}, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave])
 
 	return {
-		editor: editor as any, // Always return editor, even in readOnly
+		editor: editor, // BlockNoteEditor | null
 		note,
 		noteName,
 		isLoading,

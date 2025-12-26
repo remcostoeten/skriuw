@@ -1,4 +1,5 @@
-	import { Block } from '@blocknote/core'
+	import { NoteContent } from '@skriuw/shared'
+import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
 import { readOne } from '@skriuw/crud'
@@ -338,11 +339,11 @@ export function useNotes() {
 	)
 
 	const updateNote = useCallback(
-		async (id: string, content: Block[], name?: string) => {
+		async (id: string, content: NoteContent, name?: string) => {
 			// Update the note on the server - no need to refresh items
 			// since the editor already has the updated content in its state
 			// and the sidebar doesn't need to know about content changes
-			await updateNoteMutation(id, { content: content as any, name })
+			await updateNoteMutation(id, { content, name })
 
 			// Only update the item name in local state if name changed
 			if (name !== undefined) {

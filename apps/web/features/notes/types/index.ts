@@ -1,5 +1,6 @@
-import type { Block } from '@blocknote/core'
-import type { BaseEntity, UUID } from '@skriuw/shared'
+import type { NoteContent } from '@skriuw/shared'
+import type { BaseEntity, UUID, Timestamp } from '@skriuw/shared'
+import type { Task } from '../../tasks/api/queries/get-tasks'
 
 /**
  * Represents a single note entity in the system.
@@ -9,13 +10,13 @@ export type Note = BaseEntity & {
 	/** Display name or title of the note */
 	name: string
 	/** Rich text content blocks (BlockNote format) */
-	content: Block[]
+	content: NoteContent
 	/** ID of the parent folder, if any */
 	parentFolderId?: UUID
 	/** Whether the note is pinned to the top of lists */
 	pinned?: boolean
 	/** Timestamp when the note was pinned */
-	pinnedAt?: number
+	pinnedAt?: Timestamp
 	/** Whether the note is marked as a favorite */
 	favorite?: boolean
 	/** Whether the note is publicly accessible */
@@ -44,29 +45,7 @@ export type Folder = BaseEntity & {
 	/** Whether the folder is pinned */
 	pinned?: boolean
 	/** Timestamp when the folder was pinned */
-	pinnedAt?: number
-}
-
-/**
- * Represents a task item, typically embedded within a note or standalone.
- */
-export type Task = BaseEntity & {
-	/** ID of the note this task belongs to */
-	noteId: UUID
-	/** ID of the specific block within the note (if applicable) */
-	blockId: string
-	/** The text content of the task */
-	content: string
-	/** Optional detailed description */
-	description?: string | null
-	/** Completion status (0 for unchecked, 1 for checked) */
-	checked: number
-	/** Optional due date timestamp */
-	dueDate?: number | null
-	/** ID of the parent task for nested subtasks */
-	parentTaskId?: UUID | null
-	/** Sort order position */
-	position: number
+	pinnedAt?: Timestamp
 }
 
 /**
@@ -82,7 +61,7 @@ export type CreateNoteData = {
 	/** Title of the new note */
 	name: string
 	/** Optional initial content blocks */
-	content?: Block[]
+	content?: NoteContent
 	/** Optional ID of the parent folder */
 	parentFolderId?: UUID
 }
@@ -94,7 +73,7 @@ export type UpdateNoteData = {
 	/** New title for the note */
 	name?: string
 	/** New content blocks */
-	content?: Block[]
+	content?: NoteContent
 	/** Toggle public visibility */
 	isPublic?: boolean
 }
