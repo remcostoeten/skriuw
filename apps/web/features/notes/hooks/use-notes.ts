@@ -1,4 +1,4 @@
-import { Block } from '@blocknote/core'
+	import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
 import { readOne } from '@skriuw/crud'
@@ -13,17 +13,6 @@ import { pinItem as pinItemMutation } from '../api/mutations/pin-item'
 import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
 import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
 import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
-import {
-	createFolder,
-	createNote,
-	deleteItem,
-	favoriteNote,
-	moveItem,
-	pinItem,
-	renameItem,
-	updateNote,
-	setNoteVisibility
-} from '../api/mutations/wrapped'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
 import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
@@ -258,10 +247,10 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newNote: Note = await createNote({ name, parentFolderId })
+				const newNote: Note = await createNoteMutation({ name, parentFolderId })
 
 				// Replace temp note with real note
-				function replaceItem(itemList: Item[]): Item[] {
+				const replaceItem = (itemList: Item[]): Item[] => {
 					return itemList.map((i) => {
 						if (i.id === tempId) {
 							return newNote
@@ -322,10 +311,10 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newFolder: Folder = await createFolder({ name, parentFolderId })
+				const newFolder: Folder = await createFolderMutation({ name, parentFolderId })
 
 				// Replace temp folder with real folder (preserving children structure)
-				function replaceItem(itemList: Item[]): Item[] {
+				const replaceItem = (itemList: Item[]): Item[] => {
 					return itemList.map((i) => {
 						if (i.id === tempId) {
 							return { ...newFolder, children: [] }
@@ -353,7 +342,7 @@ export function useNotes() {
 			// Update the note on the server - no need to refresh items
 			// since the editor already has the updated content in its state
 			// and the sidebar doesn't need to know about content changes
-			await updateNote(id, { content: content as any, name })
+			await updateNoteMutation(id, { content: content as any, name })
 
 			// Only update the item name in local state if name changed
 			if (name !== undefined) {
@@ -396,7 +385,7 @@ export function useNotes() {
 			setItems(updateName(items))
 
 			try {
-				await renameItem(id, newName)
+				await renameItemMutation(id, newName)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to rename item:', error)
@@ -423,7 +412,7 @@ export function useNotes() {
 
 			// Perform actual deletion in background
 			try {
-				const success = await deleteItem(id)
+				const success = await deleteItemMutation(id)
 				if (!success) {
 					// Rollback on failure
 					setItems(previousItems)
@@ -488,7 +477,7 @@ export function useNotes() {
 
 			// Perform actual move in background
 			try {
-				const success = await moveItem(itemId, targetFolderId ?? undefined)
+				const success = await moveItemMutation(itemId, targetFolderId ?? undefined)
 				if (!success) {
 					setItems(previousItems)
 					return false
@@ -534,7 +523,7 @@ export function useNotes() {
 			setItems(updatePinStatus(items))
 
 			try {
-				await pinItem(itemId, itemType, pinned)
+				await pinItemMutation(itemId, itemType, pinned)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to pin item:', error)
@@ -561,7 +550,7 @@ export function useNotes() {
 			setItems(updateFavoriteStatus(items))
 
 			try {
-				await favoriteNote(noteId, favorite)
+				await favoriteNoteMutation(noteId, favorite)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to favorite note:', error)
@@ -596,7 +585,7 @@ export function useNotes() {
 
 			setItems(updateVisibility(items))
 			try {
-				const updated = await setNoteVisibility(noteId, isPublic)
+				const updated = await setNoteVisibilityMutation(noteId, isPublic)
 				if (updated) {
 					setItems((prevItems) =>
 						updateVisibility(prevItems, updated.publicId ?? null, updated.publicViews)
