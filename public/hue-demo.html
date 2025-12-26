@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Hue Shifter Demo</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			:root {
+				--hue: 220;
+
+				/* Primary color - main brand color */
+				--primary: hsl(var(--hue), 85%, 55%);
+				--primary-light: hsl(var(--hue), 85%, 65%);
+				--primary-dark: hsl(var(--hue), 85%, 45%);
+				--primary-soft: hsl(var(--hue), 60%, 90%);
+
+				/* Secondary color - 60° offset (analogous) */
+				--secondary: hsl(calc(var(--hue) + 60), 75%, 50%);
+				--secondary-soft: hsl(calc(var(--hue) + 60), 50%, 90%);
+
+				/* Accent color - 180° offset (complementary) */
+				--accent: hsl(calc(var(--hue) + 180), 80%, 50%);
+				--accent-soft: hsl(calc(var(--hue) + 180), 60%, 90%);
+
+				/* Tertiary color - 120° offset (triadic) */
+				--tertiary: hsl(calc(var(--hue) + 120), 70%, 50%);
+				--tertiary-soft: hsl(calc(var(--hue) + 120), 50%, 90%);
+
+				/* Backgrounds - more saturated, clearly tinted */
+				--bg-primary: hsl(var(--hue), 25%, 96%);
+				--bg-secondary: hsl(var(--hue), 20%, 92%);
+				--bg-card: hsl(var(--hue), 15%, 98%);
+				--bg-elevated: hsl(var(--hue), 18%, 94%);
+
+				/* Text - subtle hue tint */
+				--text-primary: hsl(var(--hue), 15%, 12%);
+				--text-secondary: hsl(var(--hue), 12%, 35%);
+				--text-muted: hsl(var(--hue), 10%, 55%);
+
+				/* Borders and shadows */
+				--border: hsl(var(--hue), 20%, 80%);
+				--border-light: hsl(var(--hue), 15%, 88%);
+				--shadow: hsl(var(--hue), 30%, 75%);
+				--shadow-strong: hsl(var(--hue), 40%, 65%);
+
+				/* Success, warning, error - also hue-shifted */
+				--success: hsl(calc(var(--hue) + 90), 75%, 45%);
+				--warning: hsl(calc(var(--hue) + 30), 85%, 50%);
+				--error: hsl(calc(var(--hue) - 30), 80%, 50%);
+			}
+
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+					sans-serif;
+				background: var(--bg-primary);
+				color: var(--text-primary);
+				min-height: 100vh;
+				transition: background 0.3s ease;
+			}
+
+			/* Auth Page */
+			.auth-container {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 100vh;
+				background: linear-gradient(
+					135deg,
+					var(--bg-primary) 0%,
+					var(--primary-soft) 50%,
+					var(--secondary-soft) 100%
+				);
+			}
+
+			.auth-box {
+				background: var(--bg-card);
+				padding: 2.5rem;
+				border-radius: 1rem;
+				box-shadow: 0 25px 50px -12px var(--shadow);
+				width: 100%;
+				max-width: 400px;
+				border: 2px solid var(--border);
+				position: relative;
+				overflow: hidden;
+			}
+
+			.auth-box::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 4px;
+				background: linear-gradient(
+					90deg,
+					var(--primary),
+					var(--secondary),
+					var(--tertiary)
+				);
+			}
+
+			.auth-box h1 {
+				font-size: 1.75rem;
+				margin-bottom: 0.5rem;
+				color: var(--primary);
+			}
+
+			.auth-box p {
+				color: var(--text-secondary);
+				margin-bottom: 2rem;
+			}
+
+			.input-group {
+				margin-bottom: 1rem;
+			}
+
+			.input-group label {
+				display: block;
+				font-size: 0.875rem;
+				margin-bottom: 0.5rem;
+				color: var(--text-secondary);
+				font-weight: 500;
+			}
+
+			.input-group input {
+				width: 100%;
+				padding: 0.75rem 1rem;
+				border: 2px solid var(--border);
+				border-radius: 0.5rem;
+				font-size: 1rem;
+				background: var(--bg-primary);
+				color: var(--text-primary);
+				transition: all 0.2s;
+			}
+
+			.input-group input:focus {
+				outline: none;
+				border-color: var(--primary);
+				background: var(--primary-soft);
+				box-shadow: 0 0 0 3px var(--primary-soft);
+			}
+
+			.btn {
+				width: 100%;
+				padding: 0.75rem 1.5rem;
+				border: none;
+				border-radius: 0.5rem;
+				font-size: 1rem;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all 0.2s;
+			}
+
+			.btn-primary {
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--primary-dark)
+				);
+				color: white;
+				box-shadow: 0 4px 12px var(--shadow);
+			}
+
+			.btn-primary:hover {
+				background: linear-gradient(
+					135deg,
+					var(--primary-light),
+					var(--primary)
+				);
+				transform: translateY(-2px);
+				box-shadow: 0 6px 20px var(--shadow-strong);
+			}
+
+			.btn-primary:active {
+				transform: translateY(0);
+			}
+
+			/* Dashboard */
+			.dashboard {
+				display: none;
+				min-height: 100vh;
+			}
+
+			.dashboard.active {
+				display: block;
+			}
+
+			.dashboard-header {
+				background: var(--bg-card);
+				border-bottom: 2px solid var(--border-light);
+				padding: 1rem 2rem;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				box-shadow: 0 2px 8px var(--shadow);
+			}
+
+			.logo {
+				font-size: 1.5rem;
+				font-weight: 700;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.nav-links {
+				display: flex;
+				gap: 2rem;
+			}
+
+			.nav-links a {
+				text-decoration: none;
+				color: var(--text-secondary);
+				font-weight: 500;
+				transition: all 0.2s;
+				padding: 0.5rem 0;
+				border-bottom: 2px solid transparent;
+			}
+
+			.nav-links a:hover,
+			.nav-links a.active {
+				color: var(--primary);
+				border-bottom-color: var(--primary);
+			}
+
+			.dashboard-content {
+				padding: 2rem;
+				max-width: 1200px;
+				margin: 0 auto;
+			}
+
+			.grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+				gap: 1.5rem;
+				margin-bottom: 2rem;
+			}
+
+			.card {
+				background: var(--bg-card);
+				border: 2px solid var(--border-light);
+				border-radius: 1rem;
+				padding: 1.5rem;
+				transition:
+					transform 0.2s,
+					box-shadow 0.2s,
+					border-color 0.2s;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.card::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 3px;
+				background: linear-gradient(
+					90deg,
+					var(--primary),
+					var(--secondary),
+					var(--tertiary)
+				);
+				opacity: 0;
+				transition: opacity 0.2s;
+			}
+
+			.card:hover {
+				transform: translateY(-4px);
+				box-shadow: 0 15px 40px -10px var(--shadow-strong);
+				border-color: var(--primary-soft);
+			}
+
+			.card:hover::before {
+				opacity: 1;
+			}
+
+			.card-title {
+				font-size: 1.125rem;
+				font-weight: 600;
+				margin-bottom: 0.5rem;
+				color: var(--text-primary);
+			}
+
+			.card-subtitle {
+				font-size: 0.875rem;
+				color: var(--text-secondary);
+				margin-bottom: 1rem;
+			}
+
+			.card-value {
+				font-size: 2.5rem;
+				font-weight: 700;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.card-change {
+				font-size: 0.875rem;
+				margin-top: 0.5rem;
+				font-weight: 600;
+			}
+
+			.card-change.positive {
+				color: var(--success);
+			}
+
+			.card-change.negative {
+				color: var(--error);
+			}
+
+			.stat-bar {
+				height: 0.6rem;
+				background: var(--bg-secondary);
+				border-radius: 0.3rem;
+				margin-top: 1rem;
+				overflow: hidden;
+			}
+
+			.stat-bar-fill {
+				height: 100%;
+				background: linear-gradient(
+					90deg,
+					var(--primary),
+					var(--secondary),
+					var(--tertiary)
+				);
+				border-radius: 0.3rem;
+				transition: width 1s ease;
+			}
+
+			.card:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 10px 30px -10px var(--shadow);
+			}
+
+			.card-title {
+				font-size: 1.125rem;
+				font-weight: 600;
+				margin-bottom: 0.5rem;
+				color: var(--text-primary);
+			}
+
+			.card-subtitle {
+				font-size: 0.875rem;
+				color: var(--text-secondary);
+				margin-bottom: 1rem;
+			}
+
+			.card-value {
+				font-size: 2.5rem;
+				font-weight: 700;
+				color: var(--primary);
+			}
+
+			.card-change {
+				font-size: 0.875rem;
+				margin-top: 0.5rem;
+			}
+
+			.card-change.positive {
+				color: #10b981;
+			}
+
+			.card-change.negative {
+				color: #ef4444;
+			}
+
+			.stat-bar {
+				height: 0.5rem;
+				background: var(--bg-secondary);
+				border-radius: 0.25rem;
+				margin-top: 1rem;
+				overflow: hidden;
+			}
+
+			.stat-bar-fill {
+				height: 100%;
+				background: linear-gradient(
+					90deg,
+					var(--primary),
+					var(--accent)
+				);
+				border-radius: 0.25rem;
+				transition: width 1s ease;
+			}
+
+			.section-title {
+				font-size: 1.5rem;
+				font-weight: 700;
+				margin-bottom: 1.5rem;
+				color: var(--text-primary);
+			}
+
+			.list-item {
+				display: flex;
+				align-items: center;
+				padding: 1rem;
+				background: var(--bg-card);
+				border: 2px solid var(--border-light);
+				border-radius: 0.75rem;
+				margin-bottom: 0.75rem;
+				transition: all 0.2s;
+			}
+
+			.list-item:hover {
+				border-color: var(--primary-soft);
+				box-shadow: 0 4px 12px var(--shadow);
+			}
+
+			.list-item-avatar {
+				width: 3rem;
+				height: 3rem;
+				border-radius: 50%;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary),
+					var(--tertiary)
+				);
+				margin-right: 1rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: white;
+				font-weight: 600;
+				box-shadow: 0 4px 8px var(--shadow);
+			}
+
+			.list-item-content {
+				flex: 1;
+			}
+
+			.list-item-title {
+				font-weight: 600;
+				color: var(--text-primary);
+			}
+
+			.list-item-subtitle {
+				font-size: 0.875rem;
+				color: var(--text-secondary);
+			}
+
+			.list-item-action {
+				padding: 0.5rem 1rem;
+				background: var(--primary-soft);
+				border: 2px solid var(--primary-soft);
+				border-radius: 0.5rem;
+				color: var(--primary);
+				font-size: 0.875rem;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all 0.2s;
+			}
+
+			.list-item-action:hover {
+				background: var(--primary);
+				color: white;
+				border-color: var(--primary);
+				transform: translateY(-1px);
+				box-shadow: 0 4px 12px var(--shadow);
+			}
+
+			/* Hue Switcher Widget */
+			.hue-widget {
+				position: fixed;
+				bottom: 1.5rem;
+				right: 1.5rem;
+				background: var(--bg-card);
+				border: 2px solid var(--border-light);
+				border-radius: 1rem;
+				padding: 1.25rem;
+				box-shadow: 0 15px 50px -12px var(--shadow-strong);
+				z-index: 1000;
+				min-width: 300px;
+				transition: box-shadow 0.3s;
+			}
+
+			.hue-widget:hover {
+				box-shadow: 0 20px 60px -12px var(--shadow-strong);
+			}
+
+			.hue-widget-header {
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				margin-bottom: 1.25rem;
+			}
+
+			.hue-widget-title {
+				font-size: 0.875rem;
+				font-weight: 700;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.hue-wheel-container {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+			}
+
+			.hue-wheel {
+				width: 70px;
+				height: 70px;
+				border-radius: 50%;
+				background: conic-gradient(
+					red 0deg,
+					yellow 60deg,
+					lime 120deg,
+					aqua 180deg,
+					blue 240deg,
+					magenta 300deg,
+					red 360deg
+				);
+				position: relative;
+				cursor: pointer;
+				box-shadow: 0 4px 12px var(--shadow);
+				transition: transform 0.2s;
+			}
+
+			.hue-wheel:hover {
+				transform: scale(1.05);
+			}
+
+			.hue-wheel::before {
+				content: '';
+				position: absolute;
+				inset: 5px;
+				background: var(--bg-card);
+				border-radius: 50%;
+			}
+
+			.hue-wheel::after {
+				content: '';
+				position: absolute;
+				inset: 12px;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				border-radius: 50%;
+				border: 3px solid white;
+				box-shadow: 0 2px 8px var(--shadow);
+				transition: background 0.1s;
+			}
+
+			.hue-slider {
+				flex: 1;
+			}
+
+			.hue-slider input {
+				width: 100%;
+				height: 0.6rem;
+				-webkit-appearance: none;
+				appearance: none;
+				background: linear-gradient(
+					to right,
+					red 0%,
+					yellow 17%,
+					lime 33%,
+					aqua 50%,
+					blue 67%,
+					magenta 83%,
+					red 100%
+				);
+				border-radius: 0.3rem;
+				cursor: pointer;
+			}
+
+			.hue-slider input::-webkit-slider-thumb {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 1.4rem;
+				height: 1.4rem;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				border: 3px solid white;
+				border-radius: 50%;
+				cursor: grab;
+				box-shadow: 0 2px 8px var(--shadow);
+				transition: background 0.1s;
+			}
+
+			.hue-slider input::-moz-range-thumb {
+				width: 1.4rem;
+				height: 1.4rem;
+				background: linear-gradient(
+					135deg,
+					var(--primary),
+					var(--secondary)
+				);
+				border: 3px solid white;
+				border-radius: 50%;
+				cursor: grab;
+				box-shadow: 0 2px 8px var(--shadow);
+			}
+
+			.hue-value {
+				font-size: 0.75rem;
+				font-family: monospace;
+				color: var(--text-secondary);
+				text-align: center;
+				margin-top: 0.5rem;
+				font-weight: 500;
+			}
+
+			.preset-colors {
+				display: flex;
+				gap: 0.6rem;
+				margin-top: 1rem;
+				flex-wrap: wrap;
+			}
+
+			.preset-color {
+				width: 2.2rem;
+				height: 2.2rem;
+				border-radius: 50%;
+				cursor: pointer;
+				border: 3px solid transparent;
+				transition: all 0.2s;
+				box-shadow: 0 2px 6px var(--shadow);
+			}
+
+			.preset-color:hover {
+				transform: scale(1.15);
+			}
+
+			.preset-color.active {
+				border-color: var(--primary);
+				transform: scale(1.1);
+			}
+
+			.hidden {
+				display: none !important;
+			}
+
+			.hue-widget-header {
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				margin-bottom: 1rem;
+			}
+
+			.hue-widget-title {
+				font-size: 0.875rem;
+				font-weight: 600;
+				color: var(--text-primary);
+			}
+
+			.hue-wheel-container {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+			}
+
+			.hue-wheel {
+				width: 60px;
+				height: 60px;
+				border-radius: 50%;
+				background: conic-gradient(
+					red 0deg,
+					yellow 60deg,
+					lime 120deg,
+					aqua 180deg,
+					blue 240deg,
+					magenta 300deg,
+					red 360deg
+				);
+				position: relative;
+				cursor: pointer;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			}
+
+			.hue-wheel::before {
+				content: '';
+				position: absolute;
+				inset: 4px;
+				background: var(--bg-card);
+				border-radius: 50%;
+			}
+
+			.hue-wheel::after {
+				content: '';
+				position: absolute;
+				inset: 10px;
+				background: hsl(var(--hue), 70%, 50%);
+				border-radius: 50%;
+				border: 2px solid white;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+				transition: background 0.1s;
+			}
+
+			.hue-slider {
+				flex: 1;
+			}
+
+			.hue-slider input {
+				width: 100%;
+				height: 0.5rem;
+				-webkit-appearance: none;
+				appearance: none;
+				background: linear-gradient(
+					to right,
+					red 0%,
+					yellow 17%,
+					lime 33%,
+					aqua 50%,
+					blue 67%,
+					magenta 83%,
+					red 100%
+				);
+				border-radius: 0.25rem;
+				cursor: pointer;
+			}
+
+			.hue-slider input::-webkit-slider-thumb {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 1.25rem;
+				height: 1.25rem;
+				background: white;
+				border: 3px solid hsl(var(--hue), 70%, 50%);
+				border-radius: 50%;
+				cursor: grab;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+				transition: border-color 0.1s;
+			}
+
+			.hue-slider input::-moz-range-thumb {
+				width: 1.25rem;
+				height: 1.25rem;
+				background: white;
+				border: 3px solid hsl(var(--hue), 70%, 50%);
+				border-radius: 50%;
+				cursor: grab;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+			}
+
+			.hue-value {
+				font-size: 0.75rem;
+				font-family: monospace;
+				color: var(--text-secondary);
+				text-align: center;
+				margin-top: 0.5rem;
+			}
+
+			.preset-colors {
+				display: flex;
+				gap: 0.5rem;
+				margin-top: 1rem;
+			}
+
+			.preset-color {
+				width: 2rem;
+				height: 2rem;
+				border-radius: 50%;
+				cursor: pointer;
+				border: 2px solid transparent;
+				transition:
+					transform 0.2s,
+					border-color 0.2s;
+			}
+
+			.preset-color:hover {
+				transform: scale(1.1);
+			}
+
+			.preset-color.active {
+				border-color: var(--text-primary);
+			}
+
+			.hidden {
+				display: none !important;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Auth Page -->
+		<div id="authPage" class="auth-container">
+			<div class="auth-box">
+				<h1>Welcome Back</h1>
+				<p>Sign in to access your dashboard</p>
+				<form id="loginForm">
+					<div class="input-group">
+						<label for="email">Email</label>
+						<input
+							type="email"
+							id="email"
+							placeholder="you@example.com"
+							value="demo@example.com"
+						/>
+					</div>
+					<div class="input-group">
+						<label for="password">Password</label>
+						<input
+							type="password"
+							id="password"
+							placeholder="••••••••"
+							value="password"
+						/>
+					</div>
+					<button type="submit" class="btn btn-primary">
+						Sign In
+					</button>
+				</form>
+			</div>
+		</div>
+
+		<!-- Dashboard -->
+		<div id="dashboard" class="dashboard">
+			<header class="dashboard-header">
+				<div class="logo">Arc</div>
+				<nav class="nav-links">
+					<a href="#" class="active">Dashboard</a>
+					<a href="#">Analytics</a>
+					<a href="#">Projects</a>
+					<a href="#">Settings</a>
+				</nav>
+				<button
+					onclick="logout()"
+					class="btn"
+					style="
+						width: auto;
+						padding: 0.5rem 1rem;
+						background: var(--bg-elevated);
+						border: 2px solid var(--border);
+						color: var(--text-primary);
+					"
+					onmouseover="
+						this.style.background = 'var(--primary-soft)'
+						this.style.borderColor = 'var(--primary)'
+					"
+					onmouseout="
+						this.style.background = 'var(--bg-elevated)'
+						this.style.borderColor = 'var(--border)'
+					"
+				>
+					Sign Out
+				</button>
+			</header>
+
+			<main class="dashboard-content">
+				<h2 class="section-title">Overview</h2>
+				<div class="grid">
+					<div class="card">
+						<h3 class="card-title">Total Users</h3>
+						<p class="card-subtitle">Active this month</p>
+						<div class="card-value">24,521</div>
+						<p class="card-change positive">
+							+12.5% from last month
+						</p>
+						<div class="stat-bar">
+							<div class="stat-bar-fill" style="width: 75%"></div>
+						</div>
+					</div>
+					<div class="card">
+						<h3 class="card-title">Revenue</h3>
+						<p class="card-subtitle">This month</p>
+						<div class="card-value">$84,320</div>
+						<p class="card-change positive">
+							+8.2% from last month
+						</p>
+						<div class="stat-bar">
+							<div class="stat-bar-fill" style="width: 68%"></div>
+						</div>
+					</div>
+					<div class="card">
+						<h3 class="card-title">Projects</h3>
+						<p class="card-subtitle">Active projects</p>
+						<div class="card-value">142</div>
+						<p class="card-change negative">
+							-3.1% from last month
+						</p>
+						<div class="stat-bar">
+							<div class="stat-bar-fill" style="width: 45%"></div>
+						</div>
+					</div>
+				</div>
+
+				<h2 class="section-title">Recent Activity</h2>
+				<div class="list">
+					<div class="list-item">
+						<div class="list-item-avatar">JD</div>
+						<div class="list-item-content">
+							<div class="list-item-title">John Doe</div>
+							<div class="list-item-subtitle">
+								Created new project "Website Redesign"
+							</div>
+						</div>
+						<button class="list-item-action">View</button>
+					</div>
+					<div class="list-item">
+						<div class="list-item-avatar">AS</div>
+						<div class="list-item-content">
+							<div class="list-item-title">Alice Smith</div>
+							<div class="list-item-subtitle">
+								Updated dashboard settings
+							</div>
+						</div>
+						<button class="list-item-action">View</button>
+					</div>
+					<div class="list-item">
+						<div class="list-item-avatar">MJ</div>
+						<div class="list-item-content">
+							<div class="list-item-title">Mike Johnson</div>
+							<div class="list-item-subtitle">
+								Uploaded 12 files to project
+							</div>
+						</div>
+						<button class="list-item-action">View</button>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<!-- Hue Widget -->
+		<div class="hue-widget">
+			<div class="hue-widget-header">
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<circle cx="12" cy="12" r="10" />
+					<path
+						d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+					/>
+				</svg>
+				<span class="hue-widget-title">Color Theme</span>
+			</div>
+			<div class="hue-wheel-container">
+				<div class="hue-wheel" id="hueWheel"></div>
+				<div class="hue-slider">
+					<input
+						type="range"
+						id="hueSlider"
+						min="0"
+						max="360"
+						value="220"
+					/>
+					<div class="hue-value" id="hueValue">220°</div>
+				</div>
+			</div>
+			<div class="preset-colors">
+				<div
+					class="preset-color active"
+					data-hue="220"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(220, 85%, 55%),
+							hsl(280, 75%, 50%)
+						);
+					"
+				></div>
+				<div
+					class="preset-color"
+					data-hue="340"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(340, 85%, 55%),
+							hsl(20, 75%, 50%)
+						);
+					"
+				></div>
+				<div
+					class="preset-color"
+					data-hue="120"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(120, 85%, 55%),
+							hsl(180, 75%, 50%)
+						);
+					"
+				></div>
+				<div
+					class="preset-color"
+					data-hue="45"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(45, 85%, 55%),
+							hsl(105, 75%, 50%)
+						);
+					"
+				></div>
+				<div
+					class="preset-color"
+					data-hue="270"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(270, 85%, 55%),
+							hsl(330, 75%, 50%)
+						);
+					"
+				></div>
+				<div
+					class="preset-color"
+					data-hue="170"
+					style="
+						background: linear-gradient(
+							135deg,
+							hsl(170, 85%, 55%),
+							hsl(230, 75%, 50%)
+						);
+					"
+				></div>
+			</div>
+
+			<!-- Color Harmony Mode -->
+			<div
+				style="
+					margin-top: 1rem;
+					padding-top: 1rem;
+					border-top: 2px solid var(--border-light);
+				"
+			>
+				<div
+					style="
+						font-size: 0.75rem;
+						font-weight: 600;
+						margin-bottom: 0.5rem;
+						color: var(--text-secondary);
+					"
+				>
+					Color Harmony
+				</div>
+				<div style="display: flex; gap: 0.5rem; flex-wrap: wrap">
+					<button
+						onclick="setHarmony('full')"
+						class="harmony-btn active"
+						data-harmony="full"
+						style="
+							flex: 1;
+							min-width: 60px;
+							padding: 0.5rem;
+							font-size: 0.7rem;
+							border-radius: 0.375rem;
+							border: 2px solid var(--border);
+							background: var(--bg-primary);
+							color: var(--text-primary);
+							cursor: pointer;
+							transition: all 0.2s;
+							font-weight: 600;
+						"
+					>
+						Full
+					</button>
+					<button
+						onclick="setHarmony('mono')"
+						class="harmony-btn"
+						data-harmony="mono"
+						style="
+							flex: 1;
+							min-width: 60px;
+							padding: 0.5rem;
+							font-size: 0.7rem;
+							border-radius: 0.375rem;
+							border: 2px solid var(--border);
+							background: var(--bg-primary);
+							color: var(--text-primary);
+							cursor: pointer;
+							transition: all 0.2s;
+							font-weight: 600;
+						"
+					>
+						Mono
+					</button>
+					<button
+						onclick="setHarmony('analogous')"
+						class="harmony-btn"
+						data-harmony="analogous"
+						style="
+							flex: 1;
+							min-width: 60px;
+							padding: 0.5rem;
+							font-size: 0.7rem;
+							border-radius: 0.375rem;
+							border: 2px solid var(--border);
+							background: var(--bg-primary);
+							color: var(--text-primary);
+							cursor: pointer;
+							transition: all 0.2s;
+							font-weight: 600;
+						"
+					>
+						Analog
+					</button>
+					<button
+						onclick="setHarmony('complementary')"
+						class="harmony-btn"
+						data-harmony="complementary"
+						style="
+							flex: 1;
+							min-width: 60px;
+							padding: 0.5rem;
+							font-size: 0.7rem;
+							border-radius: 0.375rem;
+							border: 2px solid var(--border);
+							background: var(--bg-primary);
+							color: var(--text-primary);
+							cursor: pointer;
+							transition: all 0.2s;
+							font-weight: 600;
+						"
+					>
+						Comp
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<style>
+			.harmony-btn:hover {
+				background: var(--primary-soft) !important;
+				border-color: var(--primary) !important;
+			}
+			.harmony-btn.active {
+				background: var(--primary) !important;
+				color: white !important;
+				border-color: var(--primary) !important;
+			}
+		</style>
+
+		<script>
+			const root = document.documentElement
+			const authPage = document.getElementById('authPage')
+			const dashboard = document.getElementById('dashboard')
+			const loginForm = document.getElementById('loginForm')
+			const hueSlider = document.getElementById('hueSlider')
+			const hueWheel = document.getElementById('hueWheel')
+			const hueValue = document.getElementById('hueValue')
+			const presetColors = document.querySelectorAll('.preset-color')
+			const harmonyBtns = document.querySelectorAll('.harmony-btn')
+
+			let currentHue = 220
+			let currentHarmony = 'full'
+
+			function setHarmony(mode) {
+				currentHarmony = mode
+				harmonyBtns.forEach((btn) => {
+					btn.classList.toggle('active', btn.dataset.harmony === mode)
+				})
+
+				const hue = currentHue
+
+				if (mode === 'full') {
+					// Full spectrum - most dramatic
+					root.style.setProperty(
+						'--secondary',
+						`hsl(${hue + 60}, 75%, 50%)`
+					)
+					root.style.setProperty(
+						'--accent',
+						`hsl(${hue + 180}, 80%, 50%)`
+					)
+					root.style.setProperty(
+						'--tertiary',
+						`hsl(${hue + 120}, 70%, 50%)`
+					)
+				} else if (mode === 'mono') {
+					// Monochromatic - subtle
+					root.style.setProperty(
+						'--secondary',
+						`hsl(${hue}, 60%, 65%)`
+					)
+					root.style.setProperty('--accent', `hsl(${hue}, 55%, 55%)`)
+					root.style.setProperty(
+						'--tertiary',
+						`hsl(${hue}, 50%, 45%)`
+					)
+				} else if (mode === 'analogous') {
+					// Analogous - colors next to each other
+					root.style.setProperty(
+						'--secondary',
+						`hsl(${hue + 30}, 75%, 50%)`
+					)
+					root.style.setProperty(
+						'--accent',
+						`hsl(${hue + 60}, 70%, 50%)`
+					)
+					root.style.setProperty(
+						'--tertiary',
+						`hsl(${hue + 90}, 65%, 50%)`
+					)
+				} else if (mode === 'complementary') {
+					// Complementary - opposite colors
+					root.style.setProperty(
+						'--secondary',
+						`hsl(${hue + 180}, 70%, 50%)`
+					)
+					root.style.setProperty(
+						'--accent',
+						`hsl(${hue + 180}, 80%, 50%)`
+					)
+					root.style.setProperty(
+						'--tertiary',
+						`hsl(${hue + 180}, 60%, 55%)`
+					)
+				}
+			}
+
+			function setHue(hue) {
+				currentHue = hue
+				root.style.setProperty('--hue', hue)
+				hueSlider.value = hue
+				hueValue.textContent = `${hue}°`
+
+				presetColors.forEach((preset) => {
+					preset.classList.toggle(
+						'active',
+						parseInt(preset.dataset.hue) === hue
+					)
+				})
+
+				setHarmony(currentHarmony)
+			}
+
+			hueSlider.addEventListener('input', (e) =>
+				setHue(parseInt(e.target.value))
+			)
+
+			hueWheel.addEventListener('click', (e) => {
+				const rect = hueWheel.getBoundingClientRect()
+				const x = e.clientX - rect.left - rect.width / 2
+				const y = e.clientY - rect.top - rect.height / 2
+				let angle = Math.atan2(y, x) * (180 / Math.PI) + 90
+				if (angle < 0) angle += 360
+				setHue(Math.round(angle))
+			})
+
+			presetColors.forEach((preset) => {
+				preset.addEventListener('click', () =>
+					setHue(parseInt(preset.dataset.hue))
+				)
+			})
+
+			loginForm.addEventListener('submit', (e) => {
+				e.preventDefault()
+				authPage.classList.add('hidden')
+				dashboard.classList.add('active')
+			})
+
+			function logout() {
+				dashboard.classList.remove('active')
+				authPage.classList.remove('hidden')
+			}
+
+			setHue(220)
+		</script>
+	</body>
+</html>
