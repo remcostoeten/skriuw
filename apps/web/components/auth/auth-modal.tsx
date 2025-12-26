@@ -10,6 +10,8 @@ import {
     DrawerContent,
     DrawerClose,
 } from '@skriuw/ui/dialog-drawer'
+import { Logo } from '../logo'
+import { Loader } from '../loader'
 
 type AuthModalProps = {
     open: boolean
@@ -42,6 +44,9 @@ export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
 
                         <div className="z-20">
                             <BrandLogo className="mr-auto h-12 w-auto" size={48} variant="sidebar" />
+                            <Logo />
+
+                            <Loader />
                         </div>
 
                         <div className="z-20 mt-auto">
