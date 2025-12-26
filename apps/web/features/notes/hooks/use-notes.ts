@@ -13,6 +13,17 @@ import { pinItem as pinItemMutation } from '../api/mutations/pin-item'
 import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
 import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
 import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
+import {
+	createFolder,
+	createNote,
+	deleteItem,
+	favoriteNote,
+	moveItem,
+	pinItem,
+	renameItem,
+	updateNote,
+	setNoteVisibility
+} from '../api/mutations/wrapped'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
 import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
@@ -21,6 +32,12 @@ import type { Note, Folder, Item } from '../types'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { useSession } from '@/lib/auth-client'
+import { isZeroSessionUser } from '@/lib/zero-session-manager'
+import {
+	generatePreseededItems,
+	hasPreseededItems,
+	markPreseededItems
+} from '@/lib/preseed-data'
 
 /**
  * Hook for managing notes and folders with optimistic updates and non-blocking state changes.
@@ -119,7 +136,19 @@ export function useNotes() {
 
 		if (isSessionPending) return
 
-		if (!session?.user?.id) {
+		const zeroSession = isZeroSessionUser()
+
+		// Preseed for zero-session users
+		if (zeroSession && !hasPreseededItems()) {
+			const preseeded = generatePreseededItems('zero-session')
+			setItems(preseeded)
+			markPreseededItems()
+			setIsInitialLoading(false)
+			return
+		}
+
+		// Skip loading if no session
+		if (!session?.user?.id && !zeroSession) {
 			setItems([])
 			setIsInitialLoading(false)
 			return
@@ -229,7 +258,7 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newNote = await createNoteMutation({ name, parentFolderId })
+				const newNote: Note = await createNote({ name, parentFolderId })
 
 				// Replace temp note with real note
 				function replaceItem(itemList: Item[]): Item[] {
@@ -293,7 +322,7 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newFolder = await createFolderMutation({ name, parentFolderId })
+				const newFolder: Folder = await createFolder({ name, parentFolderId })
 
 				// Replace temp folder with real folder (preserving children structure)
 				function replaceItem(itemList: Item[]): Item[] {
@@ -324,7 +353,7 @@ export function useNotes() {
 			// Update the note on the server - no need to refresh items
 			// since the editor already has the updated content in its state
 			// and the sidebar doesn't need to know about content changes
-			await updateNoteMutation(id, { content, name })
+			await updateNote(id, { content: content as any, name })
 
 			// Only update the item name in local state if name changed
 			if (name !== undefined) {
@@ -367,7 +396,7 @@ export function useNotes() {
 			setItems(updateName(items))
 
 			try {
-				await renameItemMutation(id, newName)
+				await renameItem(id, newName)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to rename item:', error)
@@ -394,7 +423,7 @@ export function useNotes() {
 
 			// Perform actual deletion in background
 			try {
-				const success = await deleteItemMutation(id)
+				const success = await deleteItem(id)
 				if (!success) {
 					// Rollback on failure
 					setItems(previousItems)
@@ -459,7 +488,7 @@ export function useNotes() {
 
 			// Perform actual move in background
 			try {
-				const success = await moveItemMutation(itemId, targetFolderId ?? undefined)
+				const success = await moveItem(itemId, targetFolderId ?? undefined)
 				if (!success) {
 					setItems(previousItems)
 					return false
@@ -505,7 +534,7 @@ export function useNotes() {
 			setItems(updatePinStatus(items))
 
 			try {
-				await pinItemMutation(itemId, itemType, pinned)
+				await pinItem(itemId, itemType, pinned)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to pin item:', error)
@@ -532,7 +561,7 @@ export function useNotes() {
 			setItems(updateFavoriteStatus(items))
 
 			try {
-				await favoriteNoteMutation(noteId, favorite)
+				await favoriteNote(noteId, favorite)
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to favorite note:', error)
@@ -567,7 +596,7 @@ export function useNotes() {
 
 			setItems(updateVisibility(items))
 			try {
-				const updated = await setNoteVisibilityMutation(noteId, isPublic)
+				const updated = await setNoteVisibility(noteId, isPublic)
 				if (updated) {
 					setItems((prevItems) =>
 						updateVisibility(prevItems, updated.publicId ?? null, updated.publicViews)
