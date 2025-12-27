@@ -99,14 +99,9 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 			return
 		}
 
-		// Debounce URL updates to avoid unmounting/remounting while the slug map settles
-		const timeout = setTimeout(() => {
-			if (pane.noteId) {
-				router.replace(getNoteUrl(pane.noteId))
-			}
-		}, 1500) // 1.5s delay for URL updates
-
-		return () => clearTimeout(timeout)
+		// Update URL immediately when active pane changes
+		const url = getNoteUrl(pane.noteId)
+		router.replace(url)
 	}, [activePaneId, panes, router, getNoteUrl, noteId])
 
 	useEffect(() => {

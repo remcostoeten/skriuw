@@ -62,7 +62,7 @@ export function getZeroSessionId(): string | null {
 		.split('; ')
 		.find((row) => row.startsWith(`${ZERO_SESSION_COOKIE}=`))
 
-	const cookieValue = cookieMatch?.split('=')[1]
+	const cookieValue = cookieMatch?.split('=').slice(1).join('=')
 	if (cookieValue) return cookieValue
 
 	try {

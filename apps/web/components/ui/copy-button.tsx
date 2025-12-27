@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from "@skriuw/ui"
 import { Copy, Check } from 'lucide-react'
 
@@ -12,12 +12,32 @@ interface CopyButtonProps {
 
 export function CopyButton({ text, label = "Copy", className }: CopyButtonProps) {
     const [copied, setCopied] = useState(false)
+    const timeoutRef = useRef<number | null>(null)
+
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current !== null) {
+                clearTimeout(timeoutRef.current)
+                timeoutRef.current = null
+            }
+        }
+    }, [])
 
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(text)
             setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            
+            // Clear any existing timeout
+            if (timeoutRef.current !== null) {
+                clearTimeout(timeoutRef.current)
+            }
+            
+            // Set new timeout and store ID
+            timeoutRef.current = window.setTimeout(() => {
+                setCopied(false)
+                timeoutRef.current = null
+            }, 2000)
         } catch (err) {
             console.error('Failed to copy:', err)
         }

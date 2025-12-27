@@ -43,7 +43,7 @@ function StorageInitializer({ children }: props) {
 						},
 					]}
 				/>
-			</div >
+			</div>
 		)
 	}
 

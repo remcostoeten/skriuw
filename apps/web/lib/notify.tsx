@@ -3,6 +3,7 @@
 import { createRoot } from 'react-dom/client'
 
 type NotificationOptions = {
+    id?: string
     message: string
     duration: number
     revertText?: string
@@ -38,9 +39,9 @@ let updateTimeout: ReturnType<typeof setTimeout> | null = null
 function renderNotifications() {
     const { root } = getContainer()
 
-    const elements = notifications.map((n, i) => (
+    const elements = notifications.map((n) => (
         <div
-            key={i}
+            key={n.id}
             style={{
                 background: 'hsl(var(--background))',
                 border: '1px solid hsl(var(--border))',
@@ -61,7 +62,7 @@ function renderNotifications() {
                 <button
                     onClick={() => {
                         n.onRevert?.()
-                        removeNotification(i)
+                        removeNotification(n.id!)
                     }}
                     style={{
                         background: 'transparent',
@@ -92,19 +93,33 @@ function renderNotifications() {
     )
 }
 
-function removeNotification(index: number) {
+function removeNotification(id: string) {
+    notifications = notifications.filter(n => n.id !== id)
+    renderNotifications()
+}
+
+function removeNotificationByIndex(index: number) {
     notifications = notifications.filter((_, i) => i !== index)
     renderNotifications()
 }
 
+function generateId(): string {
+    return `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
 function showNotification(options: NotificationOptions) {
-    notifications.push(options)
+    const notificationWithId = {
+        ...options,
+        id: options.id || generateId()
+    }
+    
+    notifications.push(notificationWithId)
     renderNotifications()
 
     setTimeout(() => {
-        const idx = notifications.indexOf(options)
+        const idx = notifications.findIndex(n => n.id === notificationWithId.id)
         if (idx > -1) {
-            removeNotification(idx)
+            removeNotification(notificationWithId.id!)
         }
     }, options.duration)
 }
