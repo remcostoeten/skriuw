@@ -46,7 +46,7 @@ export function AuthModal({ open, onOpenChange, action }: AuthModalProps) {
                             <BrandLogo className="mr-auto h-12 w-auto" size={48} variant="sidebar" />
                             <Logo />
 
-                            <Loader />
+                            <Loader inline size={80} />
                         </div>
 
                         <div className="z-20 mt-auto">

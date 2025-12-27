@@ -86,7 +86,7 @@ export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
                                 repeat: Infinity,
                                 ease: 'easeInOut'
                             }}
-                            className="absolute inset-0 bg-white pointer-events-none"
+                            className="absolute inset-0 dark:bg-white/10 bg-black/10 pointer-events-none"
                         />
                     )}
                 </AnimatePresence>

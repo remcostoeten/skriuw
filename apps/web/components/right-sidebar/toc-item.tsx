@@ -2,15 +2,15 @@
 
 import { memo, useCallback } from 'react'
 import { cn } from '@skriuw/shared'
-import type { TOCItem } from './types'
+import type { TOCItem as TOCItemType } from './types'
 
 type TOCItemProps = {
-    item: TOCItem
+    item: TOCItemType
     depth?: number
     onNavigate: (headingId: string) => void
 }
 
-function TOCItemComponent({ item, depth = 0, onNavigate }: TOCItemProps) {
+export const TOCItem = memo(function TOCItem({ item, depth = 0, onNavigate }: TOCItemProps) {
     const handleClick = useCallback(() => {
         onNavigate(item.id)
     }, [item.id, onNavigate])
@@ -31,7 +31,7 @@ function TOCItemComponent({ item, depth = 0, onNavigate }: TOCItemProps) {
             {item.children.length > 0 && (
                 <div className="space-y-0.5">
                     {item.children.map((child) => (
-                        <TOCItemComponent
+                        <TOCItem
                             key={child.id}
                             item={child}
                             depth={depth + 1}
@@ -42,9 +42,4 @@ function TOCItemComponent({ item, depth = 0, onNavigate }: TOCItemProps) {
             )}
         </div>
     )
-}
-
-/**
- * Memoized TOC item to prevent unnecessary re-renders in the recursive tree
- */
-export const MemoizedTOCItem = memo(TOCItemComponent)
+})
