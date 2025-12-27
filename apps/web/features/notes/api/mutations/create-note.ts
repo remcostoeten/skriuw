@@ -40,7 +40,7 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 			})
 
 			if (!result.success || !result.data) {
-				throw new Error(result.error?.message || 'Failed to create note')
+				throw new Error((result as any).error?.message || 'Failed to create note')
 			}
 
 			// Cache invalidation is handled by @skriuw/crud automatically for the storage key

@@ -16,7 +16,7 @@ export async function createFolder(data: CreateFolderData): Promise<Folder> {
 			})
 
 			if (!result.success || !result.data) {
-				throw new Error(result.error?.message || 'Failed to create folder')
+				throw new Error((result as any).error?.message || 'Failed to create folder')
 			}
 
 			invalidateItemsCache()

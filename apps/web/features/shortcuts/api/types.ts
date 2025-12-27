@@ -1,5 +1,13 @@
 import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
-import type { BaseEntity } from '@skriuw/shared'
+
+// Define types locally since shared package has issues
+type BaseEntity = {
+	id: string
+} & {
+	createdAt: number
+	updatedAt: number
+	deletedAt?: number
+}
 
 /**
  * Custom shortcut entity that extends BaseEntity for CRUD operations

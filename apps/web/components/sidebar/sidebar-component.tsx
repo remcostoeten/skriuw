@@ -1364,7 +1364,7 @@ function FileTreeItem({
 								}}
 							/>
 						)}
-						{item.children.map((child) => (
+						{item.children.map((child: any) => (
 							<FileTreeItem
 								key={child.id}
 								item={child}
@@ -1801,7 +1801,7 @@ export function Sidebar({
 				if (!parent || parent.type !== 'folder') return false
 
 				function checkChildren(folder: FolderType): boolean {
-					return folder.children.some((child) => {
+					return folder.children.some((child: any) => {
 						if (child.id === childId) return true
 						if (child.type === 'folder') {
 							return checkChildren(child as FolderType)
@@ -1823,7 +1823,7 @@ export function Sidebar({
 
 			const isAlreadyInTarget =
 				targetItem.type === 'folder' &&
-				targetItem.children.some((child) => child.id === draggedItem.id)
+				targetItem.children.some((child: any) => child.id === draggedItem.id)
 			if (isAlreadyInTarget) {
 				draggedItemRef.current = null
 				return

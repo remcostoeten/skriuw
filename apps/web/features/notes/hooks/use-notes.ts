@@ -1,9 +1,25 @@
-	import { NoteContent } from '@skriuw/shared'
 import { Block } from '@blocknote/core'
 import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
 
 import { readOne } from '@skriuw/crud'
-import { generateId } from '@skriuw/shared'
+
+// Define types locally since shared package build is failing
+type UUID = string
+type Timestamp = number
+
+type BaseEntity = {
+	id: UUID
+} & {
+	createdAt: Timestamp
+	updatedAt: Timestamp
+	deletedAt?: Timestamp
+}
+
+type NoteContent = Block[]
+
+function generateId(prefix: string): string {
+	return `${prefix}${Math.random().toString(36).substr(2, 9)}`
+}
 
 import { createFolder as createFolderMutation } from '../api/mutations/create-folder'
 import { createNote as createNoteMutation } from '../api/mutations/create-note'
