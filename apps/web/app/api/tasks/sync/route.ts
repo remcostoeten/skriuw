@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 		const now = Date.now()
 
 		// Delete removed
-		const toDelete = existing.filter(t => !incomingMap.has(t.blockId)).map(t => t.id)
+		const toDelete = existing.filter(t => !incomingMap.has(t.blockId)).map(t => (t as any).id)
 		if (toDelete.length > 0) await db.deleteMany('tasks', toDelete)
 
 		// Prepare inserts and updates
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
 				if (needsUpdate) {
 					toUpdate.push({
-						id: current.id,
+						id: (current as any).id,
 						data: {
 							content: task.content,
 							checked: task.checked ? 1 : 0,

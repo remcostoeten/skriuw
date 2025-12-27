@@ -1,4 +1,14 @@
-import type { BaseEntity, UUID, Timestamp } from '@skriuw/shared'
+// Define types locally since shared package has issues
+type UUID = string
+type Timestamp = number
+
+type BaseEntity = {
+	id: UUID
+} & {
+	createdAt: Timestamp
+	updatedAt: Timestamp
+	deletedAt?: Timestamp
+}
 
 export interface Task extends BaseEntity {
 	noteId: UUID

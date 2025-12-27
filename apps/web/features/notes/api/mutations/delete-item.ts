@@ -18,7 +18,7 @@ export async function deleteItem(id: string): Promise<boolean> {
 		const itemName = itemResult.success && itemResult.data ? itemResult.data.name : 'Unknown'
 		const entityType = itemResult.success && itemResult.data?.type === 'folder' ? 'folder' : 'note'
 
-		const result = await update(STORAGE_KEYS.NOTES, id, {
+		const result = await update<Item>(STORAGE_KEYS.NOTES, id, {
 			deletedAt: Date.now(),
 		} as Partial<Item>)
 

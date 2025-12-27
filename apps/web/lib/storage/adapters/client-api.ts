@@ -4,14 +4,81 @@
  * Supports user-scoped operations via userId parameter.
  */
 
-import type {
-    StorageAdapter,
-    ReadAdapterOptions,
-    CreateAdapterOptions,
-    UpdateAdapterOptions,
-    DeleteAdapterOptions,
-    BaseEntity
-} from '@skriuw/crud'
+// Define types locally since crud package has issues
+type BaseEntity = {
+    id: string
+} & {
+    createdAt: number
+    updatedAt: number
+    deletedAt?: number
+}
+
+interface ReadAdapterOptions {
+    cache?: {
+        ttl?: number
+        staleWhileRevalidate?: boolean
+        forceRefresh?: boolean
+    }
+    getById?: string
+    userId?: string
+}
+
+interface CreateAdapterOptions {
+    validate?: boolean
+    optimistic?: boolean
+    userId?: string
+}
+
+interface UpdateAdapterOptions {
+    validate?: boolean
+    optimistic?: boolean
+    userId?: string
+}
+
+interface DeleteAdapterOptions {
+    optimistic?: boolean
+    userId?: string
+}
+
+interface BatchReadAdapterOptions {
+    cache?: {
+        ttl?: number
+        staleWhileRevalidate?: boolean
+        forceRefresh?: boolean
+    }
+    userId?: string
+}
+
+interface BatchCreateAdapterOptions {
+    validate?: boolean
+    optimistic?: boolean
+    userId?: string
+}
+
+interface BatchUpdateAdapterOptions {
+    validate?: boolean
+    optimistic?: boolean
+    userId?: string
+}
+
+interface BatchDeleteAdapterOptions {
+    optimistic?: boolean
+    userId?: string
+}
+
+interface StorageAdapter {
+    name: string
+    read<T>(key: string, options?: BatchReadAdapterOptions): Promise<T[] | T | undefined>
+    readOne<T>(key: string, id: string, options?: ReadAdapterOptions): Promise<T | null>
+    readMany<T>(key: string, options?: BatchReadAdapterOptions): Promise<T[]>
+    create<T>(key: string, data: any, options?: CreateAdapterOptions): Promise<T>
+    update<T>(key: string, id: string, data: any, options?: UpdateAdapterOptions): Promise<T | undefined>
+    delete(key: string, id: string, options?: DeleteAdapterOptions): Promise<boolean>
+    batchCreate<T>(key: string, items: any[], options?: BatchCreateAdapterOptions): Promise<T[]>
+    batchRead<T>(key: string, ids: string[], options?: BatchReadAdapterOptions): Promise<T[]>
+    batchUpdate<T>(key: string, updates: { id: string; data: any }[], options?: BatchUpdateAdapterOptions): Promise<T[]>
+    batchDelete(key: string, ids: string[], options?: BatchDeleteAdapterOptions): Promise<number>
+}
 
 export class AuthRequiredError extends Error {
     status: number
@@ -113,9 +180,10 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
     }
 
     return {
-        async create<T extends BaseEntity>(
+        name: 'client-api',
+        async create<T>(
             storageKey: string,
-            data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+            data: any,
             options?: CreateAdapterOptions
         ): Promise<T> {
             const endpoint = getEndpoint(storageKey)
@@ -132,7 +200,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             })
         },
 
-        async read<T extends BaseEntity>(
+        async read<T>(
             storageKey: string,
             options?: ReadAdapterOptions
         ): Promise<T[] | T | undefined> {
@@ -163,10 +231,10 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
             return apiCall<T[]>(url)
         },
 
-        async update<T extends BaseEntity>(
+        async update<T>(
             storageKey: string,
             id: string,
-            data: Partial<T>,
+            data: any,
             options?: UpdateAdapterOptions
         ): Promise<T | undefined> {
             const endpoint = getEndpoint(storageKey)
@@ -217,6 +285,148 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
                 const msg = (error as Error).message?.toLowerCase() ?? ''
                 if (msg.includes('404') || msg.includes('not found')) {
                     return false
+                }
+                throw error
+            }
+        },
+
+        async readOne<T>(
+            storageKey: string,
+            id: string,
+            options?: ReadAdapterOptions
+        ): Promise<T | null> {
+            const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {}
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, `${endpoint}/${id}`, params)
+
+            try {
+                return await apiCall<T>(url)
+            } catch (error) {
+                const msg = (error as Error).message?.toLowerCase() ?? ''
+                if (msg.includes('404') || msg.includes('not found')) {
+                    return null
+                }
+                throw error
+            }
+        },
+
+        async readMany<T>(
+            storageKey: string,
+            options?: BatchReadAdapterOptions
+        ): Promise<T[]> {
+            const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {}
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
+
+            try {
+                return await apiCall<T[]>(url)
+            } catch (error) {
+                const msg = (error as Error).message?.toLowerCase() ?? ''
+                if (msg.includes('404') || msg.includes('not found')) {
+                    return []
+                }
+                throw error
+            }
+        },
+
+        async batchCreate<T>(
+            storageKey: string,
+            items: any[],
+            options?: BatchCreateAdapterOptions
+        ): Promise<T[]> {
+            const endpoint = getEndpoint(storageKey)
+            const body: any = { items }
+
+            if (options?.userId) {
+                body.userId = options.userId
+            }
+
+            return apiCall<T[]>(endpoint, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            })
+        },
+
+        async batchRead<T>(
+            storageKey: string,
+            ids: string[],
+            options?: BatchReadAdapterOptions
+        ): Promise<T[]> {
+            const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {
+                ids: ids.join(','),
+            }
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
+
+            try {
+                return await apiCall<T[]>(url)
+            } catch (error) {
+                const msg = (error as Error).message?.toLowerCase() ?? ''
+                if (msg.includes('404') || msg.includes('not found')) {
+                    return []
+                }
+                throw error
+            }
+        },
+
+        async batchUpdate<T>(
+            storageKey: string,
+            updates: { id: string; data: any }[],
+            options?: BatchUpdateAdapterOptions
+        ): Promise<T[]> {
+            const endpoint = getEndpoint(storageKey)
+            const body: any = { updates }
+
+            if (options?.userId) {
+                body.userId = options.userId
+            }
+
+            return apiCall<T[]>(endpoint, {
+                method: 'PATCH',
+                body: JSON.stringify(body),
+            })
+        },
+
+        async batchDelete(
+            storageKey: string,
+            ids: string[],
+            options?: BatchDeleteAdapterOptions
+        ): Promise<number> {
+            const endpoint = getEndpoint(storageKey)
+            const params: Record<string, string | null | undefined> = {
+                ids: ids.join(','),
+            }
+
+            if (options?.userId) {
+                params.userId = options.userId
+            }
+
+            const url = buildUrl(apiBaseUrl, endpoint, params)
+
+            try {
+                await apiCall(url, {
+                    method: 'DELETE',
+                })
+                return ids.length
+            } catch (error) {
+                const msg = (error as Error).message?.toLowerCase() ?? ''
+                if (msg.includes('404') || msg.includes('not found')) {
+                    return 0
                 }
                 throw error
             }

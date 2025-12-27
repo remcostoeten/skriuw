@@ -11,7 +11,7 @@ export async function setNoteVisibility(noteId: string, isPublic: boolean): Prom
 	invalidatePrefetchedNote(noteId)
 
 	if (!result.success) {
-		throw new Error(result.error?.message ?? 'Failed to update note visibility')
+		throw new Error((result as any).error?.message ?? 'Failed to update note visibility')
 	}
 
 	if (result.data) {
