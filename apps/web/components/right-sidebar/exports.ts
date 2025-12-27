@@ -1,5 +1,5 @@
 export { RightSidebar } from './index'
 export { CollapsibleSection } from './collapsible-section'
-export { MemoizedTOCItem } from './toc-item'
+export { TOCItem } from './toc-item'
 export * from './types'
 export * from './hooks'

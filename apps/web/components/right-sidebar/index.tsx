@@ -20,7 +20,7 @@ import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import type { Note } from '@/features/notes/types'
 import { CollapsibleSection } from './collapsible-section'
-import { MemoizedTOCItem } from './toc-item'
+import { TOCItem } from './toc-item'
 import {
   useTableOfContents,
   useNoteMetadata,
@@ -115,7 +115,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
           {tableOfContents.length > 0 ? (
             <div className="space-y-1">
               {tableOfContents.map((item) => (
-                <MemoizedTOCItem
+                <TOCItem
                   key={item.id}
                   item={item}
                   onNavigate={scrollToHeading}

@@ -4,13 +4,19 @@ import { motion } from 'framer-motion'
 
 type Props = {
     size?: number
+    inline?: boolean
 }
 
 export function Loader(props: Props) {
     const size = props.size ?? 120
+    const isInline = props.inline ?? false
+
+    const wrapperClasses = isInline 
+        ? "flex items-center justify-center" 
+        : "flex h-screen w-screen items-center justify-center bg-neutral-950"
 
     return (
-        <div className="flex h-screen w-screen items-center justify-center bg-neutral-950">
+        <div className={wrapperClasses}>
             <motion.svg
                 width={size}
                 height={size}
