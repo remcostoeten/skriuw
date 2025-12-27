@@ -12,7 +12,7 @@ import { STORAGE_KEYS } from '@/lib/storage-keys'
  */
 export async function restoreItem(id: string): Promise<boolean> {
 	try {
-		const result = await update(STORAGE_KEYS.NOTES, id, {
+		const result = await update<Item>(STORAGE_KEYS.NOTES, id, {
 			deletedAt: undefined,
 		} as Partial<Item>)
 

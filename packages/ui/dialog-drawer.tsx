@@ -61,7 +61,7 @@ export function DrawerDialog({
 	children,
 	open,
 	onOpenChange,
-	mobileBreakpoint = MOBILE_BREAKPOINT,
+	mobileBreakpoint = '(max-width: 767px)',
 	closeOnEscape = true,
 	closeOnOutsideClick = true,
 	fullscreen = false
@@ -135,7 +135,7 @@ function DrawerDialogOverlay({
 	return (
 		<AnimatePresence>
 			{open && (
-				<Portal>
+				<Portal container={typeof window !== 'undefined' ? document.body : undefined}>
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -275,7 +275,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 
 		if (isMobile) {
 			return (
-				<Portal>
+				<Portal container={typeof window !== 'undefined' ? document.body : undefined}>
 					<div
 						className="fixed inset-0 flex flex-col pointer-events-none"
 						style={{ zIndex: Z_INDEX.dialog, top: `${dragOffset}px` }}
@@ -322,7 +322,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 		return (
 			<AnimatePresence>
 				{open && (
-					<Portal>
+					<Portal container={typeof window !== 'undefined' ? document.body : undefined}>
 						<div
 							className="fixed inset-0 flex items-center justify-center p-6"
 							style={{ zIndex: Z_INDEX.dialog }}

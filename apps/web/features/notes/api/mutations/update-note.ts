@@ -16,7 +16,7 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 		})
 
 		if (!result.success) {
-			throw new Error(result.error?.message || 'Failed to update note')
+			throw new Error((result as any).error?.message || 'Failed to update note')
 		}
 
 		invalidateItemsCache()

@@ -24,7 +24,7 @@ export function buildMentionCandidates(items: Item[]): NoteMentionCandidate[] {
 
 	function visit(current: Item, ancestors: string[]) {
 		if (current.type === 'folder') {
-			current.children?.forEach((child) => visit(child, [...ancestors, current.name]))
+			current.children?.forEach((child: any) => visit(child, [...ancestors, current.name]))
 			return
 		}
 
