@@ -43,6 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 						`,
 					}}
 				/>
+				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+				<link rel="apple-touch-icon" sizes="152x152" href="/icons/Square150x150Logo.png" />
+				<link rel="apple-touch-icon" sizes="310x310" href="/icons/Square310x310Logo.png" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+				<meta name="apple-mobile-web-app-title" content="Skriuw" />
 			</head>
 			<body className="font-sans antialiased dark bg-background">
 				<div id="main-content">
