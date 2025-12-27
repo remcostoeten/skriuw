@@ -9,14 +9,14 @@ import {
 	getSafeTimestamp
 } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
-import { env } from '@/lib/env'
-import { getSession, getCurrentUserId } from '@/lib/api-auth'
+import { env } from '../../../../lib/env'
+import { getSession, getCurrentUserId } from '../../../../lib/api-auth'
 import {
 	checkSchemaSync,
 	pushSchema,
 	resetDatabase,
 	pingDatabase
-} from '@/lib/schema-utils'
+} from '../../../../lib/schema-utils'
 import { generateId } from '@skriuw/shared'
 
 async function isAdminOrDev() {
@@ -65,27 +65,28 @@ export async function POST(request: NextRequest) {
 					folders: 0
 				}
 
-				for (const folderData of sampleFolders) {
-					const folderId = generateId('folder')
-					await db.insert(folders).values({
-						id: folderId,
-						name: folderData.name,
-						parentFolderId: null,
-						userId,
-						pinned: 0,
-						pinnedAt: null,
-						createdAt: now,
-						updatedAt: now,
-						type: 'folder'
-					})
-					createdItems.folders++
+				try {
+					for (const folderData of sampleFolders) {
+						const folderId = generateId('folder')
+						await db.insert(folders).values({
+							id: folderId,
+							name: folderData.name,
+							parentFolderId: null,
+							userId,
+							pinned: 0,
+							pinnedAt: null,
+							createdAt: now,
+							updatedAt: now,
+							type: 'folder'
+						})
+						createdItems.folders++
 
-					if (folderData.children) {
-						for (const childName of folderData.children) {
-							await db.insert(notes).values({
-								id: generateId('note'),
-								name: childName,
-								content: JSON.stringify([
+						if (folderData.children) {
+							for (const childName of folderData.children) {
+								await db.insert(notes).values({
+									id: generateId('note'),
+									name: childName,
+									content: JSON.stringify([
 									{
 										id: `p-${Date.now()}`,
 										type: 'paragraph',
@@ -141,6 +142,14 @@ export async function POST(request: NextRequest) {
 					created: createdItems,
 					message: `Created ${createdItems.notes} notes and ${createdItems.folders} folders`
 				})
+			} catch (error) {
+				console.error('Error seeding database:', error)
+				return NextResponse.json({
+					success: false,
+					action: 'seed',
+					error: error instanceof Error ? error.message : 'Unknown error occurred while seeding database'
+				}, { status: 500 })
+			}
 			}
 
 			case 'clear-notes': {
