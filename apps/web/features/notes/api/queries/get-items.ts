@@ -28,9 +28,8 @@ function filterActiveItems(items: Item[]): Item[] {
 async function fetchItems(options?: { forceRefresh?: boolean }): Promise<Item[]> {
 	const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 		cache: {
-			ttl: CACHE_TTL_MS,
-			staleWhileRevalidate: true,
-			forceRefresh: options?.forceRefresh,
+			ttl: 0, // Disable caching to prevent stale data issues
+			forceRefresh: options?.forceRefresh || true, // Always refresh to ensure fresh data
 		},
 	})
 

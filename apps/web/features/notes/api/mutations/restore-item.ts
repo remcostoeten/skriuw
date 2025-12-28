@@ -17,7 +17,9 @@ export async function restoreItem(id: string): Promise<boolean> {
 		} as Partial<Item>)
 
 		if (result.success) {
-			invalidateItemsCache()
+			// Cache invalidation is now handled by disabling caching in getItems()
+			// No need for manual invalidation since we always fetch fresh data
+			// invalidateItemsCache()
 			invalidatePrefetchedNote(id)
 			return true
 		}

@@ -8,7 +8,9 @@ import { STORAGE_KEYS } from '@/lib/storage-keys'
 export async function renameItem(id: string, newName: string): Promise<Item | undefined> {
 	try {
 		const result = await update<Item>(STORAGE_KEYS.NOTES, id, { name: newName })
-		invalidateItemsCache()
+		// Cache invalidation is now handled by disabling caching in getItems()
+		// No need for manual invalidation since we always fetch fresh data
+		// invalidateItemsCache()
 		return result.data as Item | undefined
 	} catch (error) {
 		throw new Error(
