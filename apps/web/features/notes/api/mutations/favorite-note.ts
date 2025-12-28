@@ -11,7 +11,9 @@ export async function favoriteNote(noteId: string, favorite: boolean): Promise<N
 		const result = await update<Note>(STORAGE_KEYS.NOTES, noteId, {
 			favorite,
 		})
-		invalidateItemsCache()
+		// Cache invalidation is now handled by disabling caching in getItems()
+		// No need for manual invalidation since we always fetch fresh data
+		// invalidateItemsCache()
 
 		if (result.data) {
 			trackActivity({

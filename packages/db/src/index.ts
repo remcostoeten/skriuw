@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import { drizzle as drizzleNeon, NeonHttpDatabase } from 'drizzle-orm/neon-http'
-import postgres from 'postgres'
+import * as postgres from 'postgres'
 import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
 

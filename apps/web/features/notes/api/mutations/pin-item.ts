@@ -23,7 +23,9 @@ export async function pinItem(
 			}
 
 		const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData)
-		invalidateItemsCache()
+		// Cache invalidation is now handled by disabling caching in getItems()
+		// No need for manual invalidation since we always fetch fresh data
+		// invalidateItemsCache()
 
 		if (result.data) {
 			trackActivity({

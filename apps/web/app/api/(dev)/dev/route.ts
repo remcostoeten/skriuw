@@ -9,15 +9,10 @@ import {
 	getSafeTimestamp
 } from '@skriuw/db'
 import { sampleNotes, sampleFolders } from './seeds'
-import { env } from '../../../../lib/env'
-import { getSession, getCurrentUserId } from '../../../../lib/api-auth'
-import {
-	checkSchemaSync,
-	pushSchema,
-	resetDatabase,
-	pingDatabase
-} from '../../../../lib/schema-utils'
 import { generateId } from '@skriuw/shared'
+import { env } from '@/lib/env'
+import { getCurrentUserId, getSession } from '@/lib/api-auth'
+import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from '@/lib/schema-utils'
 
 async function isAdminOrDev() {
 	if (process.env.NODE_ENV === 'development') return true

@@ -22,7 +22,9 @@ export async function permanentDeleteItem(id: string): Promise<boolean> {
 
 		const result = await destroy(STORAGE_KEYS.NOTES, id)
 		if (result.success) {
-			invalidateItemsCache()
+			// Cache invalidation is now handled by disabling caching in getItems()
+			// No need for manual invalidation since we always fetch fresh data
+			// invalidateItemsCache()
 			invalidatePrefetchedNote(id)
 		}
 		return result.success

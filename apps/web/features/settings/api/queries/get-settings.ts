@@ -17,9 +17,8 @@ export async function getSettings(options: { forceRefresh?: boolean } = {}): Pro
 	try {
 		const result = await readMany<SettingsEntity>(STORAGE_KEYS.SETTINGS, {
 			cache: {
-				ttl: CACHE_TTL_MS,
-				staleWhileRevalidate: true,
-				forceRefresh: options?.forceRefresh,
+				ttl: 0, // Disable caching to prevent stale data issues
+				forceRefresh: options?.forceRefresh || true, // Always refresh to ensure fresh data
 			},
 		})
 
