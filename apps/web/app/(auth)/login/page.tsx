@@ -3,7 +3,6 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@skriuw/ui";
 import { ChevronLeftIcon } from "lucide-react";
-import { MeshBlob } from "@/features/authentication/components/mesh-blob";
 import { LoginForm } from "@/features/authentication/components/login-form";
 // import { FloatingPaths } from "@/features/authentication/components/floating-paths";
 import Link from "next/link";
@@ -30,9 +29,8 @@ export default function AuthPage() {
                         </footer>
                     </blockquote>
                 </div>
-                <div className="absolute inset-0 z-0">
-                    <MeshBlob />
-                </div>
+                {/* Gradient background instead of MeshBlob */}
+                <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/10 via-secondary/20 to-background" />
             </div>
 
             {/* Right Side */}

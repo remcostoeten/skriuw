@@ -18,7 +18,6 @@ import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
 import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
 
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
-import { AuthModalProvider } from '../components/auth/auth-modal-provider'
 import { CommandExecutor } from '../components/command-executor'
 
 type props = {
@@ -34,13 +33,15 @@ function StorageInitializer({ children }: props) {
 			<div className="flex-1 flex items-center justify-center min-h-screen bg-background">
 				<EmptyState
 					message="Storage initialization failed"
-					submessage={error instanceof Error ? error.message : String(error)}
+					submessage={
+						error instanceof Error ? error.message : String(error)
+					}
 					icon={<AlertCircle className="h-8 w-8 text-destructive" />}
 					actions={[
 						{
 							label: 'Refresh page',
-							onClick: () => window.location.reload(),
-						},
+							onClick: () => window.location.reload()
+						}
 					]}
 				/>
 			</div>
@@ -53,22 +54,22 @@ function StorageInitializer({ children }: props) {
 export function Providers({ children }: props) {
 	return (
 		<TooltipProvider delayDuration={0}>
-			<AuthModalProvider>
-				<StorageInitializer>
-					<SettingsProvider>
-						<NotesProvider>
-							<ShortcutProvider>
-								<ContextMenuProvider>
-									<EditorTabsProvider>
-										<AppLayoutManager>{children}</AppLayoutManager>
-									</EditorTabsProvider>
-								</ContextMenuProvider>
-								<CommandExecutor />
-							</ShortcutProvider>
-						</NotesProvider>
-					</SettingsProvider>
-				</StorageInitializer>
-			</AuthModalProvider>
+			<StorageInitializer>
+				<SettingsProvider>
+					<NotesProvider>
+						<ShortcutProvider>
+							<ContextMenuProvider>
+								<EditorTabsProvider>
+									<AppLayoutManager>
+										{children}
+									</AppLayoutManager>
+								</EditorTabsProvider>
+							</ContextMenuProvider>
+							<CommandExecutor />
+						</ShortcutProvider>
+					</NotesProvider>
+				</SettingsProvider>
+			</StorageInitializer>
 			<Analytics />
 		</TooltipProvider>
 	)

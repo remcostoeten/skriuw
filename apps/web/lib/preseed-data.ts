@@ -1,9 +1,8 @@
 /**
  * @fileoverview Preseed Data for All User Types
- * @description Provides default notes and folders for zero-session, anonymous, and authenticated users
+ * @description Provides default notes and folders for anonymous and authenticated users
  */
 
-import { generateId } from '@skriuw/shared'
 import type { Note, Folder, Item } from '@/features/notes/types'
 
 const PRESEEDED_NOTES: Omit<
@@ -200,6 +199,18 @@ const PRESEEDED_FOLDERS: Array<{
 	}
 ]
 
+/**
+ * Generates a stable/deterministic ID for preseeded items
+ * This ensures the same ID is returned every time for the same name
+ */
+function stableId(prefix: string, name: string): string {
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '')
+	return `${prefix}-preseed-${slug}`
+}
+
 export function generatePreseededItems(userId: string): Item[] {
 	const now = Date.now()
 	const items: Item[] = []
@@ -207,7 +218,7 @@ export function generatePreseededItems(userId: string): Item[] {
 	const folderMap = new Map<string, string>()
 
 	for (const folderData of PRESEEDED_FOLDERS) {
-		const folderId = generateId('folder')
+		const folderId = stableId('folder', folderData.name)
 		folderMap.set(folderData.name, folderId)
 
 		const folder: Folder = {
@@ -225,7 +236,7 @@ export function generatePreseededItems(userId: string): Item[] {
 	}
 
 	for (const noteData of PRESEEDED_NOTES) {
-		const noteId = generateId('note')
+		const noteId = stableId('note', noteData.name)
 
 		const note: Note = {
 			id: noteId,
@@ -248,7 +259,7 @@ export function generatePreseededItems(userId: string): Item[] {
 			if (!folderId) continue
 
 			for (const childName of folderData.children) {
-				const noteId = generateId('note')
+				const noteId = stableId('note', childName)
 
 				const note: Note = {
 					id: noteId,

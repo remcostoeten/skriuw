@@ -17,6 +17,8 @@ interface Options {
 	'auth-tokens'?: string
 	browser?: string
 	port?: string
+	'figma-url'?: string
+	'figma-token'?: string
 }
 
 function parseArguments(): { options: Options; action: string } {
@@ -67,6 +69,12 @@ function parseArguments(): { options: Options; action: string } {
 			case '--port':
 				options.port = args[++i]
 				break
+			case '--figma-url':
+				options['figma-url'] = args[++i]
+				break
+			case '--figma-token':
+				options['figma-token'] = args[++i]
+				break
 			default:
 				if (!arg.startsWith('-')) {
 					action = arg
@@ -82,10 +90,61 @@ async function main() {
 
 	if (action === 'auth') {
 		await handleAuthExtraction(options)
+	} else if (action === 'figma-import') {
+		await handleFigmaImport(options)
 	} else if (action) {
 		await handleAction(action, options)
 	} else {
 		printUsage()
+	}
+}
+
+async function handleFigmaImport(options: Options) {
+	const { 'figma-url': figmaUrl, 'figma-token': figmaToken } = options
+
+	if (!figmaUrl || !figmaToken) {
+		logMessage('Figma URL and token are required for figma-import', 'error')
+		console.log(
+			'Usage: bun run scripts/dev-cli.ts figma-import --figma-url <url> --figma-token <token>'
+		)
+		process.exit(1)
+	}
+
+	logMessage(`Importing from Figma URL: ${figmaUrl}`, 'info')
+
+	try {
+		const fileId = figmaUrl.match(/file\/([^\/]+)/)?.[1]
+		if (!fileId) {
+			logMessage('Invalid Figma URL. Could not extract file ID.', 'error')
+			process.exit(1)
+		}
+
+		const figmaApiUrl = `https://api.figma.com/v1/files/${fileId}`
+		const response = await fetch(figmaApiUrl, {
+			headers: {
+				'X-Figma-Token': figmaToken
+			}
+		})
+
+		if (!response.ok) {
+			const errorText = await response.text()
+			throw new Error(
+				`Figma API request failed with status ${response.status}: ${errorText}`
+			)
+		}
+
+		const figmaData = await response.json()
+
+		// For now, just log the document name.
+		// The "mcp" part can be implemented here.
+		logMessage(`Successfully fetched Figma file: ${figmaData.name}`, 'success')
+		console.log(JSON.stringify(figmaData, null, 2))
+	} catch (error) {
+		logMessage(
+			`Error during Figma import: ${error instanceof Error ? error.message : String(error)}`,
+			'error'
+		)
+		process.exit(1)
 	}
 }
 
@@ -582,6 +641,7 @@ function printUsage() {
 	console.log('  push-schema             Push schema changes')
 	console.log('  reset-database          Reset entire database')
 	console.log('  auth                    Extract auth tokens from browser')
+	console.log('  figma-import            Import component data from a Figma file')
 	console.log('')
 	console.log('Options:')
 	console.log('  -u, --user <userId>         Target specific user ID')
@@ -604,6 +664,8 @@ function printUsage() {
 		'  -b, --browser <browser>     Browser for auth extraction (brave, chrome, firefox)'
 	)
 	console.log('  -p, --port <port>           Dev server port')
+	console.log('  --figma-url <url>         URL of the Figma file')
+	console.log('  --figma-token <token>     Figma API token')
 	console.log('')
 	console.log('Examples:')
 	console.log('  bun run scripts/dev-cli.ts seed --dry-run --snapshot')
