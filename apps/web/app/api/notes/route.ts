@@ -5,6 +5,7 @@ import {
 	allowReadAccess,
 	GUEST_USER_ID
 } from '../../../lib/api-auth'
+import { generatePreseededItems } from '../../../lib/preseed-data'
 import type { Item, Note, Folder } from '@/features/notes/types/index'
 
 function createPublicId() {
@@ -78,7 +79,24 @@ export async function GET(request: NextRequest) {
 			db.findAll<Folder>('folders', userId)
 		])
 
-		// If guest and no data exists, they'll see empty - seed data should be pre-created
+		// If guest/unauthenticated and no data exists, return preseeded items
+		if (isGuest && notes.length === 0 && folders.length === 0) {
+			const preseededItems = generatePreseededItems(GUEST_USER_ID)
+
+			// If looking for a specific ID, search in preseeded items
+			if (id) {
+				const item = preseededItems.find((i) => i.id === id)
+				if (!item)
+					return NextResponse.json(
+						{ error: 'Item not found' },
+						{ status: 404 }
+					)
+				return NextResponse.json(item)
+			}
+
+			return NextResponse.json(sortItems(preseededItems))
+		}
+
 		if (id) {
 			const item = [...notes, ...folders].find((i) => i.id === id)
 			if (!item)
