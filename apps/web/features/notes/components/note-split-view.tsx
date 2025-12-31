@@ -98,7 +98,10 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 		if (!pane?.noteId || pane.noteId === noteId) {
 			return
 		}
-		router.replace(getNoteUrl(pane.noteId))
+
+		// Update URL immediately when active pane changes
+		const url = getNoteUrl(pane.noteId)
+		router.replace(url)
 	}, [activePaneId, panes, router, getNoteUrl, noteId])
 
 	useEffect(() => {

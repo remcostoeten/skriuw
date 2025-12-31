@@ -1,3 +1,4 @@
+'use server'
 import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
@@ -14,15 +15,19 @@ export async function pinItem(
 	try {
 		const updateData: Partial<Note | Folder> = pinned
 			? {
-				pinned: true,
-				pinnedAt: Date.now(),
-			}
+					pinned: true,
+					pinnedAt: Date.now()
+				}
 			: {
-				pinned: false,
-				// Omit pinnedAt when unpinning - let storage layer handle undefined/null
-			}
+					pinned: false
+					// Omit pinnedAt when unpinning - let storage layer handle undefined/null
+				}
 
-		const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData)
+		const result = await update<Item>(
+			STORAGE_KEYS.NOTES,
+			itemId,
+			updateData
+		)
 		invalidateItemsCache()
 
 		if (result.data) {
@@ -37,7 +42,8 @@ export async function pinItem(
 		return result.data as Note | Folder | undefined
 	} catch (error) {
 		throw new Error(
-			`Failed to ${pinned ? 'pin' : 'unpin'} ${itemType}: ${error instanceof Error ? error.message : String(error)
+			`Failed to ${pinned ? 'pin' : 'unpin'} ${itemType}: ${
+				error instanceof Error ? error.message : String(error)
 			}`
 		)
 	}

@@ -1,3 +1,4 @@
+'use server'
 import { deleteTasksForNote } from '@/features/tasks'
 
 import { destroy } from '@skriuw/crud'
