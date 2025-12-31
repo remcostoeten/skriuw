@@ -13,7 +13,7 @@ export async function resetAllShortcuts(): Promise<boolean> {
 		const result = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS)
 
 		if (result.success && result.data && result.data.length > 0) {
-			await Promise.all(result.data.map((shortcut) => destroy(STORAGE_KEYS.SHORTCUTS, shortcut.id)))
+			await Promise.all(result.data.map((shortcut: any) => destroy(STORAGE_KEYS.SHORTCUTS, shortcut.id)))
 			return true
 		}
 

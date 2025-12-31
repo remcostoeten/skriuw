@@ -40,6 +40,7 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@blocknote/core": "^0.44.2",
 		"clsx": "^2.1.1",
 		"tailwind-merge": "^2.5.4",
 		"tailwindcss-animate": "^1.0.7"

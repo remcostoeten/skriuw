@@ -1,7 +1,7 @@
+'use server'
 import { update } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 
@@ -12,13 +12,12 @@ import { STORAGE_KEYS } from '@/lib/storage-keys'
  */
 export async function restoreItem(id: string): Promise<boolean> {
 	try {
-		const result = await update(STORAGE_KEYS.NOTES, id, {
-			deletedAt: undefined,
+		const result = await update<Item>(STORAGE_KEYS.NOTES, id, {
+			deletedAt: undefined
 		} as Partial<Item>)
 
 		if (result.success) {
 			invalidateItemsCache()
-			invalidatePrefetchedNote(id)
 			return true
 		}
 		return false

@@ -1,38 +1,46 @@
+'use server'
 import { create } from '@skriuw/crud'
+
 import { invalidateItemsCache } from '../queries/get-items'
 import type { Folder, CreateFolderData } from '../../types'
 import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { withServerIdentity } from '@/lib/server-identity-guard'
+import { getCurrentUserId } from '@/lib/api-auth'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
-	return withServerIdentity(async () => {
-		try {
-			const result = await create<Folder>(STORAGE_KEYS.NOTES, {
-				type: 'folder',
-				name: data.name,
-				children: [],
-				parentFolderId: data.parentFolderId,
-			})
+	try {
+		const userId = await getCurrentUserId()
+		if (!userId) {
+			throw new Error('User authentication required')
+		}
 
-			if (!result.success || !result.data) {
-				throw new Error(result.error?.message || 'Failed to create folder')
-			}
+		const result = await create<Folder>(STORAGE_KEYS.NOTES, {
+			type: 'folder',
+			name: data.name,
+			children: [],
+			parentFolderId: data.parentFolderId,
+			userId // Explicitly set userId from current session
+		})
 
-			invalidateItemsCache()
-
-			trackActivity({
-				entityType: 'folder',
-				entityId: result.data.id,
-				action: 'created',
-				entityName: data.name
-			})
-
-			return result.data
-		} catch (error) {
+		if (!result.success || !result.data) {
 			throw new Error(
-				`Failed to create folder: ${error instanceof Error ? error.message : String(error)}`
+				(result as any).error?.message || 'Failed to create folder'
 			)
 		}
-	})
+
+		invalidateItemsCache()
+
+		trackActivity({
+			entityType: 'folder',
+			entityId: result.data.id,
+			action: 'created',
+			entityName: data.name
+		})
+
+		return result.data
+	} catch (error) {
+		throw new Error(
+			`Failed to create folder: ${error instanceof Error ? error.message : String(error)}`
+		)
+	}
 }

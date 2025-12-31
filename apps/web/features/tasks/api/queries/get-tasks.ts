@@ -1,13 +1,22 @@
-export interface Task {
-	id: string
-	noteId: string
+// Define types locally since shared package has issues
+type UUID = string
+type Timestamp = number
+
+type BaseEntity = {
+	id: UUID
+} & {
+	createdAt: Timestamp
+	updatedAt: Timestamp
+	deletedAt?: Timestamp
+}
+
+export interface Task extends BaseEntity {
+	noteId: UUID
 	blockId: string
 	content: string
 	checked: number // 0 or 1
-	parentTaskId: string | null
+	parentTaskId: UUID | null
 	position: number
-	createdAt: number
-	updatedAt: number
 }
 
 async function request<T>(url: string): Promise<T> {

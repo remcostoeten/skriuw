@@ -5,8 +5,6 @@ import type { Item } from '../../types'
 
 const CACHE_TTL_MS = 60000
 
-let inflightRequest: Promise<Item[]> | null = null
-
 function normalizeResult(result: unknown): Item[] {
 	return Array.isArray(result) ? (result as Item[]) : []
 }
@@ -25,13 +23,14 @@ function filterActiveItems(items: Item[]): Item[] {
 		})
 }
 
-async function fetchItems(options?: { forceRefresh?: boolean }): Promise<Item[]> {
+async function fetchItems(options?: {
+	forceRefresh?: boolean
+}): Promise<Item[]> {
 	const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 		cache: {
 			ttl: CACHE_TTL_MS,
-			staleWhileRevalidate: true,
-			forceRefresh: options?.forceRefresh,
-		},
+			forceRefresh: options?.forceRefresh
+		}
 	})
 
 	const allItems = result.success ? normalizeResult(result.data) : []
@@ -39,36 +38,25 @@ async function fetchItems(options?: { forceRefresh?: boolean }): Promise<Item[]>
 	return filterActiveItems(allItems)
 }
 
+/**
+ * Invalidate the items cache
+ * Call this after mutations that affect the items list
+ */
 export function invalidateItemsCache(): void {
-	inflightRequest = null
 	invalidateForStorageKey(STORAGE_KEYS.NOTES)
 }
 
 /**
- * Get items using @skriuw/crud's built-in caching and stale-while-revalidate
+ * Get items using CRUD's built-in caching with stale-while-revalidate
  */
-export async function getItems(options: { forceRefresh?: boolean } = {}): Promise<Item[]> {
-	if (options.forceRefresh) {
-		inflightRequest = null
-	}
-
-	if (inflightRequest) {
-		return inflightRequest
-	}
-
-	const request = fetchItems(options)
-	inflightRequest = request
-
+export async function getItems(
+	options: { forceRefresh?: boolean } = {}
+): Promise<Item[]> {
 	try {
-		return await request
+		return await fetchItems(options)
 	} catch (error) {
 		throw new Error(
 			`Failed to get items: ${error instanceof Error ? error.message : String(error)}`
 		)
-	} finally {
-		if (inflightRequest === request) {
-			inflightRequest = null
-		}
 	}
 }
-

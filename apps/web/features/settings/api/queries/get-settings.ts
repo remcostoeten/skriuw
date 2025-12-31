@@ -1,4 +1,3 @@
-
 import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
@@ -13,14 +12,15 @@ export function invalidateSettingsCache(): void {
 /**
  * Get all settings from storage
  */
-export async function getSettings(options: { forceRefresh?: boolean } = {}): Promise<SettingsEntity | null> {
+export async function getSettings(
+	options: { forceRefresh?: boolean } = {}
+): Promise<SettingsEntity | null> {
 	try {
 		const result = await readMany<SettingsEntity>(STORAGE_KEYS.SETTINGS, {
 			cache: {
 				ttl: CACHE_TTL_MS,
-				staleWhileRevalidate: true,
-				forceRefresh: options?.forceRefresh,
-			},
+				forceRefresh: options?.forceRefresh
+			}
 		})
 
 		if (!result.success || !result.data) {

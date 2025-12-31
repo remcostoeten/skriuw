@@ -11,7 +11,7 @@ export interface GetNotesOptions {
 export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
 	try {
 		const result = await readMany<Note>(STORAGE_KEY, {
-			filter: (item) => {
+			filter: (item: any) => {
 				const typedItem = item as any
 				if (typedItem.type !== 'note') return false
 				if (options?.parentFolderId) {
@@ -23,7 +23,7 @@ export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
 
 		if (!result.success || !result.data) return []
 
-		return result.data.filter((item): item is Note => item.type === 'note')
+		return result.data.filter((item: any): item is Note => item.type === 'note')
 	} catch (error) {
 		throw new Error(
 			`Failed to get notes: ${error instanceof Error ? error.message : String(error)}`

@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
 
 	// Configure Turbopack to use explicit root directory
 	turbopack: {
-		root: path.resolve('../..'),
+		root: path.join(__dirname, '..', '..'),
 	},
 
 	// Configure webpack to handle large assets and optional Tauri modules

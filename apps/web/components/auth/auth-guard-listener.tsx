@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
-import { ShieldAlert } from 'lucide-react'
+import { notify } from '@/lib/notify'
 
 export function AuthGuardListener() {
 	// Use a ref to track the last toast time to prevent flood
@@ -22,18 +21,7 @@ export function AuthGuardListener() {
 			const status = detail?.status
 			const isDisabled = status === 503
 
-			toast(isDisabled ? 'Authentication disabled' : 'Sign in required', {
-				description: detail?.message || (isDisabled ? 'Auth config missing' : 'Your session expired'),
-				icon: <ShieldAlert className="h-4 w-4" />,
-				action: isDisabled
-					? undefined
-					: {
-						label: 'Sign in',
-						onClick: () => {
-							window.location.href = '/api/auth'
-						},
-					},
-			})
+			notify(isDisabled ? 'Authentication disabled' : 'Sign in required')
 		}
 
 		window.addEventListener('skriuw:auth-required', handleAuthRequired as EventListener)

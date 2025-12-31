@@ -58,7 +58,7 @@ export {
     setUserContext,
     getUserContext,
     clearUserContext,
-    getCurrentUserId,
+    getCrudUserId,
     withUser,
     withUserSync,
     createScopedContext,

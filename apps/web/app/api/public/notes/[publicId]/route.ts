@@ -31,7 +31,7 @@ function buildFingerprint(request: NextRequest): string {
 	const zeroCookie = request.cookies.get('skriuw_zero_session')?.value
 	if (zeroCookie) return zeroCookie
 
-	const ip = request.headers.get('x-forwarded-for') ?? request.ip ?? ''
+	const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? ''
 	const ua = request.headers.get('user-agent') ?? ''
 	const accept = request.headers.get('accept-language') ?? ''
 	const raw = `${ip}|${ua}|${accept}`
@@ -60,7 +60,7 @@ async function findPublicNote(
 		.where(and(eq(notes.publicId, publicId), eq(notes.isPublic, true)))
 		.limit(1)
 	if (rows.length === 0) return null
-	return rows[0] as Note & { userId?: string | null }
+	return rows[0] as unknown as Note & { userId?: string | null }
 }
 
 async function fetchAuthor(userId: string | null | undefined) {
@@ -157,9 +157,9 @@ export async function GET(
 			publicViews: Number(note.publicViews ?? 0),
 			author: author
 				? {
-						id: author.id,
-						name: author.name
-					}
+					id: author.id,
+					name: author.name
+				}
 				: undefined
 		}
 	}

@@ -1,27 +1,30 @@
-import { readMany } from '@skriuw/crud'
+import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
 import type { CustomShortcut } from '../types'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
-const CACHE_TTL = 60000 // 1 minute cache for shortcuts
-let cachedShortcuts: Record<ShortcutId, KeyCombo[]> | null = null
-let cacheTimestamp = 0
+
+const CACHE_TTL_MS = 60000 // 1 minute cache for shortcuts
+
+export function invalidateShortcutsCache(): void {
+	invalidateForStorageKey(STORAGE_KEYS.SHORTCUTS)
+}
 
 /**
  * Get all custom shortcuts as a record
- * Uses the generic CRUD layer for agnostic storage
- * Includes in-memory caching to reduce storage calls
+ * Uses generic CRUD layer for agnostic storage
  */
 export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
-	const now = Date.now()
-
-	// Return cached shortcuts if still valid
-	if (cachedShortcuts && now - cacheTimestamp < CACHE_TTL) {
-		return cachedShortcuts
-	}
-
 	try {
-		const crudResult = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS)
+		const crudResult = await readMany<CustomShortcut>(
+			STORAGE_KEYS.SHORTCUTS,
+			{
+				cache: {
+					ttl: CACHE_TTL_MS
+				}
+			}
+		)
+
 		const result: Record<ShortcutId, KeyCombo[]> = {
 			'editor-focus': [],
 			'toggle-shortcuts': [],
@@ -43,7 +46,7 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			'split.close': [],
 			'split.cycle': [],
 			'command-executor': [],
-			'toggle-theme': [],
+			'toggle-theme': []
 		}
 
 		if (crudResult.success && crudResult.data) {
@@ -52,19 +55,10 @@ export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 			}
 		}
 
-		// Cache the result
-		cachedShortcuts = result
-		cacheTimestamp = now
-
 		return result
 	} catch (error) {
 		throw new Error(
 			`Failed to get shortcuts: ${error instanceof Error ? error.message : String(error)}`
 		)
 	}
-}
-
-export function invalidateShortcutsCache(): void {
-	cachedShortcuts = null
-	cacheTimestamp = 0
 }

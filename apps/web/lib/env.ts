@@ -22,6 +22,7 @@ export const env = createEnv({
     },
     client: {
         NEXT_PUBLIC_APP_URL: z.string().optional(),
+        NEXT_PUBLIC_DEBUG: z.string().optional(),
         NEXT_PUBLIC_DROPBOX_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
         NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
@@ -55,6 +56,7 @@ export const env = createEnv({
         DEBUG: process.env.DEBUG,
         ADMIN_EMAILS: process.env.ADMIN_EMAILS,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+        NEXT_PUBLIC_DEBUG: process.env.NEXT_PUBLIC_DEBUG,
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
             process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,

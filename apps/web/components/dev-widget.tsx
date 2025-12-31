@@ -26,10 +26,13 @@ import {
 	Grip,
 	RotateCcw,
 	AlertTriangle,
-	Server
+	Server,
+	FastForward,
+	Zap,
+	Sliders
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { toast } from 'sonner'
+import { notify } from '@/lib/notify'
 import { cn } from '@skriuw/shared'
 import {
 	downloadJsonExport,
@@ -39,6 +42,7 @@ import {
 } from '@/features/backup'
 import { useNotesContext } from '@/features/notes'
 import { useDraggable } from '@/hooks/use-draggable'
+import { useShaderStore, type ShaderPreset } from '@/lib/shader-store'
 import { useCookie } from '@/hooks/use-cookie'
 import { HintPopover } from '@skriuw/ui'
 
@@ -87,7 +91,7 @@ type CronStatus = {
 	}>
 }
 
-type TabType = 'database' | 'users' | 'cron' | 'health' | 'config'
+type TabType = 'database' | 'users' | 'cron' | 'health' | 'config' | 'shader'
 
 export function DevWidget() {
 	const { items, refreshItems } = useNotesContext()
@@ -271,7 +275,7 @@ export function DevWidget() {
 			}
 		} catch (error) {
 			console.error('Failed to fetch users', error)
-			toast.error('Failed to fetch users')
+			notify('Failed to fetch users')
 		} finally {
 			setUsersLoading(false)
 		}
@@ -295,12 +299,10 @@ export function DevWidget() {
 				})
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.error || 'Reset failed')
-				toast.success(data.message)
+				notify(data.message)
 				await fetchStats()
 			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : 'Reset failed'
-				)
+				notify(error instanceof Error ? error.message : 'Reset failed')
 			} finally {
 				setUserActionLoading(null)
 			}
@@ -324,13 +326,11 @@ export function DevWidget() {
 				})
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.error || 'Delete failed')
-				toast.success(data.message)
+				notify(data.message)
 				await fetchUsers()
 				await fetchStats()
 			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : 'Delete failed'
-				)
+				notify(error instanceof Error ? error.message : 'Delete failed')
 			} finally {
 				setUserActionLoading(null)
 			}
@@ -358,9 +358,9 @@ export function DevWidget() {
 					throw new Error(data.error || 'Cleanup failed')
 				}
 
-				toast.success(
+				notify(
 					data.message ||
-					(dryRun ? 'Dry run completed' : 'Cleanup completed')
+						(dryRun ? 'Dry run completed' : 'Cleanup completed')
 				)
 
 				// Update cron status
@@ -385,7 +385,7 @@ export function DevWidget() {
 			} catch (error) {
 				const errorMsg =
 					error instanceof Error ? error.message : 'Cleanup failed'
-				toast.error(errorMsg)
+				notify(errorMsg)
 
 				// Update cron status with failure
 				setCronStatus((prev) => ({
@@ -491,17 +491,17 @@ export function DevWidget() {
 				})
 			}
 
-			toast.success(data.message || 'Action completed')
+			notify(data.message || 'Action completed')
 
 			if (data.restartRequired) {
-				toast.info('Restart required. Reloading page...')
+				notify('Restart required. Reloading page...')
 				setTimeout(() => window.location.reload(), 2000)
 			} else {
 				await fetchStats()
 				await refreshItems()
 			}
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Action failed')
+			notify(err instanceof Error ? err.message : 'Action failed')
 			if (action === 'check-schema') {
 				setSchemaStatus({
 					checked: true,
@@ -524,7 +524,7 @@ export function DevWidget() {
 			const files = (e.target as HTMLInputElement).files
 			if (!files?.length) return
 
-			const toastId = toast.loading('Importing...')
+			notify('Importing...')
 			try {
 				let importResult
 				if (type === 'json') {
@@ -555,14 +555,11 @@ export function DevWidget() {
 					throw new Error(data.error || 'Import failed on server')
 				}
 
-				toast.success('Import successful', { id: toastId })
+				notify('Import successful')
 				await refreshItems()
 				fetchStats()
 			} catch (err) {
-				toast.error(
-					err instanceof Error ? err.message : 'Import failed',
-					{ id: toastId }
-				)
+				notify(err instanceof Error ? err.message : 'Import failed')
 			}
 		}
 		input.click()
@@ -717,6 +714,12 @@ export function DevWidget() {
 								icon: Settings,
 								label: 'Config',
 								shortcut: '5'
+							},
+							{
+								id: 'shader' as TabType,
+								icon: Sliders,
+								label: 'Shader',
+								shortcut: '6'
 							}
 						].map((tab) => (
 							<button
@@ -842,7 +845,9 @@ export function DevWidget() {
 												label="Reset DB"
 												variant="destructive"
 												onClick={() =>
-													executeAction('reset-database')
+													executeAction(
+														'reset-database'
+													)
 												}
 												loading={
 													actionLoading ===
@@ -932,12 +937,12 @@ export function DevWidget() {
 										onClick={() => {
 											if (hasHeroCookie) {
 												deleteCookie()
-												toast.success(
+												notify(
 													'Hero badge is now visible'
 												)
 											} else {
 												updateCookie('true')
-												toast.success(
+												notify(
 													'Hero badge is now hidden'
 												)
 											}
@@ -1053,7 +1058,7 @@ export function DevWidget() {
 																title="Reset user data"
 															>
 																{userActionLoading ===
-																	`reset-${user.id}` ? (
+																`reset-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<RotateCcw className="h-3 w-3" />
@@ -1073,7 +1078,7 @@ export function DevWidget() {
 																title="Delete user"
 															>
 																{userActionLoading ===
-																	`delete-${user.id}` ? (
+																`delete-${user.id}` ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />
 																) : (
 																	<Trash2 className="h-3 w-3" />
@@ -1115,23 +1120,23 @@ export function DevWidget() {
 														'success'
 														? 'bg-emerald-500/10 text-emerald-600'
 														: cronStatus.status ===
-															'failed'
+															  'failed'
 															? 'bg-red-500/10 text-red-600'
 															: 'bg-gray-500/10 text-gray-600'
 												)}
 											>
 												{cronStatus.status ===
 													'success' && (
-														<CheckCircle className="h-3 w-3" />
-													)}
+													<CheckCircle className="h-3 w-3" />
+												)}
 												{cronStatus.status ===
 													'failed' && (
-														<XCircle className="h-3 w-3" />
-													)}
+													<XCircle className="h-3 w-3" />
+												)}
 												{cronStatus.status ===
 													'never' && (
-														<Clock className="h-3 w-3" />
-													)}
+													<Clock className="h-3 w-3" />
+												)}
 												{cronStatus.status.toUpperCase()}
 											</div>
 										</div>
@@ -1192,7 +1197,7 @@ export function DevWidget() {
 													>
 														<div className="flex items-center gap-2">
 															{run.status ===
-																'success' ? (
+															'success' ? (
 																<CheckCircle className="h-3 w-3 text-emerald-500" />
 															) : (
 																<XCircle className="h-3 w-3 text-red-500" />
@@ -1392,6 +1397,9 @@ export function DevWidget() {
 								</div>
 							</>
 						)}
+
+						{/* Shader Tab Content */}
+						{activeTab === 'shader' && <ShaderConfigTab />}
 					</div>
 
 					{/* Resize Handle */}
@@ -1483,5 +1491,226 @@ function ActionButton({
 			)}
 			{label}
 		</button>
+	)
+}
+
+function ShaderConfigTab() {
+	const {
+		speed,
+		blur,
+		scale,
+		dpr,
+		position,
+		preset,
+		setConfig,
+		setPreset,
+		reset
+	} = useShaderStore()
+
+	const presets: { id: ShaderPreset; label: string; icon: any }[] = [
+		{ id: 'default', label: 'Default', icon: Settings },
+		{ id: 'slow', label: 'Slow', icon: Clock },
+		{ id: 'fast', label: 'Fast', icon: FastForward },
+		{ id: 'chaotic', label: 'Chaotic', icon: Zap },
+		{ id: 'calm', label: 'Calm', icon: Sprout }
+	]
+
+	return (
+		<>
+			{/* Presets */}
+			<div className="space-y-2">
+				<SectionLabel>Presets</SectionLabel>
+				<div className="grid grid-cols-2 gap-2">
+					{presets.map((p) => (
+						<button
+							key={p.id}
+							onClick={() => setPreset(p.id)}
+							className={cn(
+								'flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all',
+								preset === p.id
+									? 'bg-primary text-primary-foreground border-primary'
+									: 'bg-background hover:bg-muted'
+							)}
+							onMouseDown={(e) => e.stopPropagation()}
+						>
+							<p.icon className="h-3.5 w-3.5" />
+							{p.label}
+						</button>
+					))}
+				</div>
+			</div>
+
+			{/* Speed */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<SectionLabel>Animation Speed</SectionLabel>
+					<span className="text-xs font-mono text-muted-foreground">
+						{speed.toFixed(2)}x
+					</span>
+				</div>
+				<input
+					type="range"
+					min="0.1"
+					max="10"
+					step="0.1"
+					value={speed}
+					onChange={(e) => {
+						setConfig({ speed: parseFloat(e.target.value) })
+						e.stopPropagation()
+					}}
+					className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+					onMouseDown={(e) => e.stopPropagation()}
+				/>
+			</div>
+
+			{/* Blur */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<SectionLabel>Blur Amount</SectionLabel>
+					<span className="text-xs font-mono text-muted-foreground">
+						{blur}px
+					</span>
+				</div>
+				<input
+					type="range"
+					min="0"
+					max="20"
+					step="0.5"
+					value={blur}
+					onChange={(e) => {
+						setConfig({ blur: parseFloat(e.target.value) })
+						e.stopPropagation()
+					}}
+					className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+					onMouseDown={(e) => e.stopPropagation()}
+				/>
+			</div>
+
+			{/* Scale */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<SectionLabel>Initial Scale</SectionLabel>
+					<span className="text-xs font-mono text-muted-foreground">
+						{scale.toFixed(2)}x
+					</span>
+				</div>
+				<input
+					type="range"
+					min="0.8"
+					max="1.5"
+					step="0.05"
+					value={scale}
+					onChange={(e) => {
+						setConfig({ scale: parseFloat(e.target.value) })
+						e.stopPropagation()
+					}}
+					className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+					onMouseDown={(e) => e.stopPropagation()}
+				/>
+			</div>
+
+			{/* DPR */}
+			<div className="space-y-2">
+				<SectionLabel>Pixel Ratio (DPR)</SectionLabel>
+				<div className="grid grid-cols-3 gap-2">
+					{[1, 1.5, 2].map((v) => (
+						<button
+							key={v}
+							onClick={() => {
+								setConfig({ dpr: [1, v] as [number, number] })
+							}}
+							className={cn(
+								'px-3 py-2 rounded-md border text-xs font-medium',
+								dpr[1] === v
+									? 'bg-primary text-primary-foreground border-primary'
+									: 'bg-background hover:bg-muted'
+							)}
+							onMouseDown={(e) => e.stopPropagation()}
+						>
+							{v}x
+						</button>
+					))}
+				</div>
+			</div>
+
+			{/* Position */}
+			<div className="space-y-2">
+				<SectionLabel>Position</SectionLabel>
+				<div className="bg-muted/30 border rounded-lg p-3 space-y-2 text-xs">
+					<div className="grid grid-cols-3 gap-2">
+						<div>
+							<label className="block text-muted-foreground mb-1">
+								X
+							</label>
+							<input
+								type="number"
+								step="0.1"
+								value={position.x}
+								onChange={(e) => {
+									setConfig({
+										position: {
+											...position,
+											x: parseFloat(e.target.value)
+										}
+									})
+								}}
+								className="w-full px-2 py-1 rounded bg-background border"
+								onMouseDown={(e) => e.stopPropagation()}
+							/>
+						</div>
+						<div>
+							<label className="block text-muted-foreground mb-1">
+								Y
+							</label>
+							<input
+								type="number"
+								step="0.1"
+								value={position.y}
+								onChange={(e) => {
+									setConfig({
+										position: {
+											...position,
+											y: parseFloat(e.target.value)
+										}
+									})
+								}}
+								className="w-full px-2 py-1 rounded bg-background border"
+								onMouseDown={(e) => e.stopPropagation()}
+							/>
+						</div>
+						<div>
+							<label className="block text-muted-foreground mb-1">
+								Z
+							</label>
+							<input
+								type="number"
+								step="0.1"
+								value={position.z}
+								onChange={(e) => {
+									setConfig({
+										position: {
+											...position,
+											z: parseFloat(e.target.value)
+										}
+									})
+								}}
+								className="w-full px-2 py-1 rounded bg-background border"
+								onMouseDown={(e) => e.stopPropagation()}
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Reset */}
+			<div className="space-y-2">
+				<ActionButton
+					icon={RotateCcw}
+					label="Reset to Default"
+					onClick={reset}
+					variant="default"
+				/>
+			</div>
+		</>
 	)
 }

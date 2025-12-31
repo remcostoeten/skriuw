@@ -74,7 +74,7 @@ export function clearUserContext(): void {
  *
  * @returns The current user ID or undefined
  */
-export function getCurrentUserId(): string | null | undefined {
+export function getCrudUserId(): string | null | undefined {
     return currentContext.userId
 }
 
