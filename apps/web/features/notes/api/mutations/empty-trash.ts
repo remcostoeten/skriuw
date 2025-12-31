@@ -1,3 +1,4 @@
+'use server'
 import { deleteTasksForNote } from '@/features/tasks'
 
 import { destroy } from '@skriuw/crud'
@@ -30,9 +31,7 @@ export async function emptyTrash(): Promise<number> {
 		}
 
 		if (deletedCount > 0) {
-			// Cache invalidation is now handled by disabling caching in getItems()
-			// No need for manual invalidation since we always fetch fresh data
-			// invalidateItemsCache()
+			invalidateItemsCache()
 		}
 
 		return deletedCount

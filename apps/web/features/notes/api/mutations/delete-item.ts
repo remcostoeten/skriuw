@@ -1,7 +1,7 @@
+'use server'
 import { update, readOne } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import type { Item } from '../../types'
 import { trackActivity } from '@/features/activity'
@@ -15,18 +15,22 @@ export async function deleteItem(id: string): Promise<boolean> {
 	try {
 		// Get item name before deletion for activity tracking
 		const itemResult = await readOne<Item>(STORAGE_KEYS.NOTES, id)
-		const itemName = itemResult.success && itemResult.data ? itemResult.data.name : 'Unknown'
-		const entityType = itemResult.success && itemResult.data?.type === 'folder' ? 'folder' : 'note'
+		const itemName =
+			itemResult.success && itemResult.data
+				? itemResult.data.name
+				: 'Unknown'
+		const entityType =
+			itemResult.success && itemResult.data?.type === 'folder'
+				? 'folder'
+				: 'note'
 
 		const result = await update<Item>(STORAGE_KEYS.NOTES, id, {
-			deletedAt: Date.now(),
+			deletedAt: Date.now()
 		} as Partial<Item>)
 
 		if (result.success && result.data) {
-			// Cache invalidation is now handled by disabling caching in getItems()
-			// No need for manual invalidation since we always fetch fresh data
-			// invalidateItemsCache()
-			invalidatePrefetchedNote(id)
+			// Invalidate cache after deletion
+			invalidateItemsCache()
 
 			trackActivity({
 				entityType,

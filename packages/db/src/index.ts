@@ -1,12 +1,18 @@
 import { neon } from '@neondatabase/serverless'
 import { drizzle as drizzleNeon, NeonHttpDatabase } from 'drizzle-orm/neon-http'
-import * as postgres from 'postgres'
-import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
+import {
+	drizzle as drizzlePostgres,
+	PostgresJsDatabase
+} from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
 
 // Lazy import to avoid build-time validation
 // drizzle.config.ts uses dotenv, runtime uses @skriuw/env
-let _dbClient: NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schema> | null = null
+let _dbClient:
+	| NeonHttpDatabase<typeof schema>
+	| PostgresJsDatabase<typeof schema>
+	| null = null
 
 export * from './schema'
 export { schema }
@@ -18,8 +24,13 @@ type DatabaseProvider = 'neon' | 'postgres'
 
 function detectProvider(url: string): DatabaseProvider {
 	// Check explicit provider first
-	const explicitProvider = process.env.DATABASE_PROVIDER as DatabaseProvider | undefined
-	if (explicitProvider && (explicitProvider === 'neon' || explicitProvider === 'postgres')) {
+	const explicitProvider = process.env.DATABASE_PROVIDER as
+		| DatabaseProvider
+		| undefined
+	if (
+		explicitProvider &&
+		(explicitProvider === 'neon' || explicitProvider === 'postgres')
+	) {
 		return explicitProvider
 	}
 
@@ -56,7 +67,7 @@ export function getDatabase() {
 	if (!url) {
 		throw new Error(
 			'DATABASE_URL environment variable is required.\n' +
-			'Set DATABASE_URL=postgresql://user:password@host:port/database'
+				'Set DATABASE_URL=postgresql://user:password@host:port/database'
 		)
 	}
 
