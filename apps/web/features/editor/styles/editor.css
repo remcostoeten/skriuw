@@ -14,6 +14,16 @@
     min-height: 100%;
 }
 
+/* Scrollbar hide utility for horizontal scroll containers */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
 /* =============================================================================
    Spellcheck Support
    ============================================================================= */
@@ -286,6 +296,23 @@
    Mention Menu
    ============================================================================= */
 
+.skriuw-mention-menu {
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+    max-width: 380px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: hsl(var(--background) / 0.98);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(16px);
+}
+
 .skriuw-mention-menu.empty {
     padding: 1rem 1.25rem;
 }
@@ -296,6 +323,8 @@
     width: 100%;
     gap: 0.875rem;
     padding: 0.75rem;
+    min-height: 48px;
+    /* WCAG touch target */
     border-radius: 0.5rem;
     background: transparent;
     color: inherit;
@@ -472,13 +501,15 @@
    ============================================================================= */
 
 @media (max-width: 767px) {
+
     /* Editor Container Mobile */
     .editor-container .bn-editor {
-        padding: 1rem 1rem 6rem;
+        /* Extra padding: 56px (nav) + 44px (toolbar) + 16px (breathing room) */
+        padding: 1rem 1rem calc(56px + 44px + 16px + env(safe-area-inset-bottom, 0px));
     }
 
     .editor-container.centered-layout .bn-editor {
-        padding: 0 1rem 6rem;
+        padding: 0 1rem calc(56px + 44px + 16px + env(safe-area-inset-bottom, 0px));
     }
 
     /* Hide side menu on mobile - use toolbar instead */

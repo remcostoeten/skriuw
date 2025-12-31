@@ -83,7 +83,7 @@ export function AppLayoutManager({
 	// Track if we've ever loaded to prevent showing skeleton during navigation
 	const hasEverLoadedRef = useRef(false)
 
-	const { toggleSplit, orientation, toggleActivePane, setOrientation } = useSplitViewStore()
+	const { toggleSplit, orientation, toggleActivePane, setOrientation, openSplitWithNote, updatePaneNote, panes } = useSplitViewStore()
 
 	// Update ref when loading completes
 	useEffect(() => {
@@ -331,6 +331,27 @@ export function AppLayoutManager({
 		[notesInOrder]
 	)
 
+	// Handler to open a note in split view (from context menu)
+	const handleOpenInSplit = useCallback(
+		(noteId: string) => {
+			// If already in split mode, put the note in the secondary pane
+			if (panes.length > 1 && panes[1]) {
+				updatePaneNote(panes[1].id, noteId)
+			} else {
+				// Enter split mode with the current note in primary, target in secondary
+				openSplitWithNote(currentNoteId)
+				// After split is created, update the secondary pane with the target note
+				setTimeout(() => {
+					const latestPanes = useSplitViewStore.getState().panes
+					if (latestPanes.length > 1 && latestPanes[1]) {
+						useSplitViewStore.getState().updatePaneNote(latestPanes[1].id, noteId)
+					}
+				}, 0)
+			}
+		},
+		[panes, updatePaneNote, openSplitWithNote, currentNoteId]
+	)
+
 	useShortcut('toggle-shortcuts', (e) => {
 		e.preventDefault()
 		toggleSettings()
@@ -440,6 +461,7 @@ export function AppLayoutManager({
 							onPinNote={handlePinNote}
 							onFavoriteNote={handleFavoriteNote}
 							getNoteData={getNoteData}
+							onOpenInSplit={handleOpenInSplit}
 						/>
 					)}
 					<div
@@ -475,6 +497,7 @@ export function AppLayoutManager({
 			isSidebarOpen={isMobileSidebarOpen}
 			isDesktopSidebarOpen={isDesktopSidebarOpen}
 			onSidebarClose={isMobile ? toggleMobileSidebar : undefined}
+			onSidebarOpen={isMobile ? toggleMobileSidebar : undefined}
 		/>
 	)
 }

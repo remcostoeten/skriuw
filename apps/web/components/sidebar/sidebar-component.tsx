@@ -1,6 +1,7 @@
 'use client'
 
-import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2, ChevronRight, ChevronDown, Folder } from 'lucide-react'
+import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2, ChevronRight, ChevronDown, Folder, SplitSquareHorizontal } from 'lucide-react'
+import { SwipeableItem } from '@/components/ui/swipeable-item'
 import {
 	useCallback,
 	useEffect,
@@ -54,6 +55,7 @@ import { SidebarEmptyState } from './sidebar-empty-state'
 import { useMutationGuard } from '@/hooks/use-mutation-guard'
 import { useSidebarContentType } from './use-sidebar-content-type'
 import { TasksSidebarContent } from './tasks-sidebar-content'
+import { useSplitViewStore } from '@/features/notes/split-view/store'
 
 import type { SidebarContentType } from './types'
 import type { Folder as FolderType, Item } from '@/features/notes/types'
@@ -258,8 +260,8 @@ function FileTreeItem({
 }: {
 	item: Item
 	level?: number
-    isLast?: boolean
-    parentGuides?: boolean[]
+	isLast?: boolean
+	parentGuides?: boolean[]
 	activeNoteId?: string
 	expandedFolders: Set<string>
 	selectedFolderId: string | null
@@ -319,6 +321,33 @@ function FileTreeItem({
 	const hasOpenTab = !isFolder && openTabIds?.includes(item.id)
 	const hasChildren =
 		isFolder && item.type === 'folder' && item.children.length > 0
+
+	// Split view store for "Open in Split View" action
+	const { openSplitWithNote, updatePaneNote, panes } = useSplitViewStore()
+
+	// Handler for opening note in split view
+	const handleOpenInSplitView = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation()
+			if (isFolder) return
+
+			// If already in split mode, put the note in the secondary pane
+			if (panes.length > 1 && panes[1]) {
+				updatePaneNote(panes[1].id, item.id)
+			} else {
+				// Enter split mode with the current note in primary, target in secondary
+				openSplitWithNote(activeNoteId ?? null)
+				// After split is created, update the secondary pane with the target note
+				setTimeout(() => {
+					const latestPanes = useSplitViewStore.getState().panes
+					if (latestPanes.length > 1 && latestPanes[1]) {
+						useSplitViewStore.getState().updatePaneNote(latestPanes[1].id, item.id)
+					}
+				}, 0)
+			}
+		},
+		[isFolder, panes, updatePaneNote, openSplitWithNote, activeNoteId, item.id]
+	)
 
 	// Selection store
 	const {
@@ -1010,6 +1039,11 @@ function FileTreeItem({
 								aria-selected={isItemSelected}
 							>
 								{/* Tree Hierarchy Guides */}
+
+								// ... existing imports
+
+								// ... inside FileTreeItem component
+
 								{ruler?.enabled && (
 									<>
 										{/* Ancestor Vertical Lines */}
@@ -1041,88 +1075,149 @@ function FileTreeItem({
 												<div
 													className={cn(
 														"absolute top-1/2 h-px w-[12px] border-t border-muted-foreground/30 pointer-events-none",
-													    isLast && "rounded-bl-lg" // Optional: if we used borders for curve, but here we just use lines. 
-                                                        // Actually, for a rounded curve, we need a box with border-b and border-l.
-                                                        // Let's implement the Curve properly for Last Item.
+														isLast && "rounded-bl-lg"
 													)}
-                                                    style={{ display: 'none' }} // Placeholder for the actual implementation below
+													style={{ display: 'none' }}
 												/>
-                                                {/* Re-implementing with proper Curve for isLast */}
-                                                {isLast ? (
-                                                    <div
-                                                        className="absolute top-0 w-[12px] h-[50%] border-l border-b border-muted-foreground/30 rounded-bl-lg pointer-events-none"
-                                                        style={{
-                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    // For not last, use simple T-shape (Full vertical already drawn). 
-                                                    // Just draw the horizontal arm.
-                                                    <div
-                                                        className="absolute top-1/2 w-[12px] border-t border-muted-foreground/30 pointer-events-none"
-                                                        style={{
-                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
-                                                        }}
-                                                    />
-                                                )}
+												{/* Re-implementing with proper Curve for isLast */}
+												{isLast ? (
+													<div
+														className="absolute top-0 w-[12px] h-[50%] border-l border-b border-muted-foreground/30 rounded-bl-lg pointer-events-none"
+														style={{
+															left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+														}}
+													/>
+												) : (
+													<div
+														className="absolute top-1/2 w-[12px] border-t border-muted-foreground/30 pointer-events-none"
+														style={{
+															left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+														}}
+													/>
+												)}
 											</>
 										)}
 									</>
 								)}
 
-								<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
-									{isFolder ? (
-										<div
-											data-folder-icon
-											onClick={handleFolderToggle}
-											className={cn(
-												'shrink-0 cursor-default'
-											)}
-										>
-											{isExpanded ? (
-												<FolderOpen className="w-[18px] h-[18px] shrink-0" />
+								{isMobile ? (
+									<SwipeableItem
+										onDelete={() => onDelete(item.id)}
+										onPin={() => onPinItem(item.id, item.type, !item.pinned)}
+										isPinned={item.pinned}
+										className="w-[calc(100%-20px)]"
+									>
+										<div className="flex items-center gap-2 min-w-0 bg-background/0">
+											{isFolder ? (
+												<div
+													data-folder-icon
+													onClick={handleFolderToggle}
+													className={cn(
+														'shrink-0 cursor-default p-1 -ml-1',
+														// Larger touch target for folder icon on mobile
+														'min-w-[32px] min-h-[32px] flex items-center justify-center'
+													)}
+												>
+													{isExpanded ? (
+														<FolderOpen className="w-[18px] h-[18px] shrink-0" />
+													) : (
+														<Folder className="w-[18px] h-[18px] shrink-0" />
+													)}
+												</div>
+											) : null}
+
+											{isRenaming ? (
+												<input
+													ref={(el) => {
+														inputRef.current = el
+													}}
+													type="text"
+													value={renameValue}
+													onChange={handleRenameInputChange}
+													onBlur={handleRenameInputBlur}
+													onKeyDown={handleRenameInputKeyDown}
+													onClick={handleRenameInputClick}
+													onMouseDown={handleRenameInputMouseDown}
+													onFocus={handleRenameInputFocus}
+													className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
+													autoFocus
+												/>
 											) : (
-												<Folder className="w-[18px] h-[18px] shrink-0" />
+												<span
+													onClick={handleNameClick}
+													onDoubleClick={handleNameDoubleClick}
+													className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5 flex-1 py-2"
+													title={item.name}
+													data-item-name
+												>
+													{!isFolder && item.pinned && (
+														<Pin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+													)}
+													{!isFolder && item.favorite && (
+														<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
+													)}
+													<span className="truncate">
+														{item.name}
+													</span>
+												</span>
 											)}
 										</div>
-									) : null}
+									</SwipeableItem>
+								) : (
+									<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
+										{isFolder ? (
+											<div
+												data-folder-icon
+												onClick={handleFolderToggle}
+												className={cn(
+													'shrink-0 cursor-default'
+												)}
+											>
+												{isExpanded ? (
+													<FolderOpen className="w-[18px] h-[18px] shrink-0" />
+												) : (
+													<Folder className="w-[18px] h-[18px] shrink-0" />
+												)}
+											</div>
+										) : null}
 
-									{isRenaming ? (
-										<input
-											ref={(el) => {
-												inputRef.current = el
-											}}
-											type="text"
-											value={renameValue}
-											onChange={handleRenameInputChange}
-											onBlur={handleRenameInputBlur}
-											onKeyDown={handleRenameInputKeyDown}
-											onClick={handleRenameInputClick}
-											onMouseDown={handleRenameInputMouseDown}
-											onFocus={handleRenameInputFocus}
-											className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
-											autoFocus
-										/>
-									) : (
-										<span
-											onClick={handleNameClick}
-											onDoubleClick={handleNameDoubleClick}
-											className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
-											title={item.name}
-											data-item-name
-										>
-											{!isFolder && item.pinned && (
-												<Pin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-											)}
-											{!isFolder && item.favorite && (
-												<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
-											)}
-											<span className="truncate">
-												{item.name}
+										{isRenaming ? (
+											<input
+												ref={(el) => {
+													inputRef.current = el
+												}}
+												type="text"
+												value={renameValue}
+												onChange={handleRenameInputChange}
+												onBlur={handleRenameInputBlur}
+												onKeyDown={handleRenameInputKeyDown}
+												onClick={handleRenameInputClick}
+												onMouseDown={handleRenameInputMouseDown}
+												onFocus={handleRenameInputFocus}
+												className="flex-1 min-w-0 bg-accent text-foreground text-xs px-1 py-0.5 rounded outline-none z-10 relative"
+												autoFocus
+											/>
+										) : (
+											<span
+												onClick={handleNameClick}
+												onDoubleClick={handleNameDoubleClick}
+												className="text-xs truncate outline-none cursor-pointer flex items-center gap-1.5"
+												title={item.name}
+												data-item-name
+											>
+												{!isFolder && item.pinned && (
+													<Pin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+												)}
+												{!isFolder && item.favorite && (
+													<Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
+												)}
+												<span className="truncate">
+													{item.name}
+												</span>
 											</span>
-										</span>
-									)}
-								</div>
+										)}
+									</div>
+								)}
 
 								{isFolder && childCount > 0 && (
 									<span className="text-[10px] text-muted-foreground/50 tabular-nums pr-1">
@@ -1205,6 +1300,23 @@ function FileTreeItem({
 						)}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
+					{!isFolder && (
+						<ContextMenuItem
+							onClick={handleOpenInSplitView}
+							className={cn(
+								'h-8 text-xs font-base min-h-[36px]',
+								isMobile && 'h-12 text-sm px-4'
+							)}
+						>
+							<SplitSquareHorizontal
+								className={cn(
+									'w-4 h-4 mr-3 shrink-0',
+									isMobile && 'w-5 h-5'
+								)}
+							/>
+							Open in Split View
+						</ContextMenuItem>
+					)}
 					{!isFolder && (
 						<ContextMenuItem
 							onClick={handlePinUnpinFromContextMenu}
@@ -1371,8 +1483,8 @@ function FileTreeItem({
 				</ContextMenuContent>
 
 				{isFolder && isExpanded && item.type === 'folder' && (
-						{/* Modern Hierarchy Guides - Recursive Children */}
-						{item.children.map((child: any, index: number, arr: any[]) => (
+					<div>{
+						item.children.map((child: any, index: number, arr: any[]) => (
 							<FileTreeItem
 								key={child.id}
 								item={child}
@@ -1404,10 +1516,11 @@ function FileTreeItem({
 								allVisibleItemIds={allVisibleItemIds}
 								showConfirm={showConfirm}
 							/>
-						))}
+						))
+					}
 					</div>
 				)}
-			</ContextMenu>
+			</ContextMenu >
 		</>
 	)
 }

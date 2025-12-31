@@ -9,6 +9,7 @@ import {
 	Pin,
 	Star,
 	Trash2,
+	SplitSquareHorizontal,
 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 
@@ -45,6 +46,7 @@ type props = {
 	onFavoriteNote?: (noteId: string, favorite: boolean) => void
 	getNoteData?: (noteId: string) => { pinned?: boolean; favorite?: boolean } | null
 	dragSourcePaneId?: string | null
+	onOpenInSplit?: (noteId: string) => void
 }
 
 export function EditorTabsBar({
@@ -67,6 +69,7 @@ export function EditorTabsBar({
 	onFavoriteNote,
 	getNoteData,
 	dragSourcePaneId = null,
+	onOpenInSplit,
 }: props) {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -263,6 +266,12 @@ export function EditorTabsBar({
 									</ContextMenuItem>
 								)}
 								{(onDuplicateTab || onRenameNote) && <ContextMenuSeparator />}
+								{onOpenInSplit && (
+									<ContextMenuItem onClick={() => onOpenInSplit(tab.noteId)} className="text-xs">
+										<SplitSquareHorizontal className="w-4 h-4 mr-2" />
+										Open in Split View
+									</ContextMenuItem>
+								)}
 								{onRenameNote && (
 									<ContextMenuItem onClick={handleRename} className="text-xs">
 										<Edit className="w-4 h-4 mr-2" />

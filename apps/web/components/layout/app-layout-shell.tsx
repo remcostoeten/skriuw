@@ -20,6 +20,7 @@ type props = {
 	isSidebarOpen: boolean
 	isDesktopSidebarOpen: boolean
 	onSidebarClose?: () => void
+	onSidebarOpen?: () => void
 }
 
 /**
@@ -40,6 +41,7 @@ export function AppLayoutShell({
 	isSidebarOpen = false,
 	isDesktopSidebarOpen = true,
 	onSidebarClose,
+	onSidebarOpen,
 }: props) {
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 	const sidebarRef = useRef<HTMLDivElement>(null)
@@ -47,6 +49,11 @@ export function AppLayoutShell({
 	const startXRef = useRef(0)
 	const isDraggingRef = useRef(false)
 	const dragThreshold = 100
+
+	// Edge swipe state
+	const edgeStartXRef = useRef(0)
+	const isEdgeDraggingRef = useRef(false)
+
 
 	function handleBackdropClick() {
 		if (onSidebarClose && isMobile) {
@@ -85,6 +92,32 @@ export function AppLayoutShell({
 		isDraggingRef.current = false
 	}
 
+	// Edge swipe handlers for opening sidebar
+	function handleEdgeTouchStart(event: TouchEvent) {
+		if (!isMobile || isSidebarOpen) return
+		edgeStartXRef.current = event.touches[0].clientX
+		isEdgeDraggingRef.current = true
+	}
+
+	function handleEdgeTouchMove(event: TouchEvent) {
+		if (!isEdgeDraggingRef.current || !isMobile || isSidebarOpen) return
+
+		const currentX = event.touches[0].clientX
+		const diff = currentX - edgeStartXRef.current
+
+		// If dragged right more than threshold, open
+		if (diff > 50 && onSidebarOpen) { // Lower threshold for opening feels snappier
+			onSidebarOpen()
+			isEdgeDraggingRef.current = false
+			edgeStartXRef.current = 0
+		}
+	}
+
+	function handleEdgeTouchEnd() {
+		isEdgeDraggingRef.current = false
+		edgeStartXRef.current = 0
+	}
+
 	return (
 		<div className="h-screen w-screen flex flex-col bg-background overflow-hidden touch-pan-y pt-[env(safe-area-inset-top)]">
 			<div className="flex flex-1 overflow-hidden relative">
@@ -92,6 +125,16 @@ export function AppLayoutShell({
 				{/* Enhanced backdrop for mobile - better z-index and handling */}
 				{isSidebarOpen && isMobile && (
 					<div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={handleBackdropClick} />
+				)}
+
+				{/* Edge Swipe Hit Area - Only active when mobile and sidebar closed */}
+				{isMobile && !isSidebarOpen && (
+					<div
+						className="fixed inset-y-0 left-0 w-5 z-50 md:hidden"
+						onTouchStart={handleEdgeTouchStart}
+						onTouchMove={handleEdgeTouchMove}
+						onTouchEnd={handleEdgeTouchEnd}
+					/>
 				)}
 
 				{leftToolbar && <div className="hidden md:block">{leftToolbar}</div>}

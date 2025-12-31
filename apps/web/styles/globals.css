@@ -115,6 +115,40 @@
 		--brand-500: 167.8 53.25% 54.71%;
 	}
 
+	.oled {
+		--background: 0 0% 0%;
+		--background-secondary: 0 0% 3%;
+		--foreground: 0 0% 90%;
+		--card: 0 0% 0%;
+		--card-foreground: 0 0% 90%;
+		--popover: 0 0% 3%;
+		--popover-foreground: 0 0% 90%;
+		--primary: 0 0% 98%;
+		--primary-20: 0 0% 98% / 0.2;
+		--primary-foreground: 0 0% 0%;
+		--secondary: 0 0% 12%;
+		--secondary-foreground: 0 0% 90%;
+		--muted: 0 0% 12%;
+		--muted-foreground: 0 0% 60%;
+		--accent: 0 0% 12%;
+		--accent-foreground: 0 0% 98%;
+		--destructive: 355.47deg 98.62% 75.48% / 70%;
+		--destructive-foreground: 355.47deg 98.62% 75.48% / 20%;
+		--border: 0 0% 12%;
+		--input: 0 0% 12%;
+		--ring: 0 0% 40%;
+		--sidebar-background: 0 0% 0%;
+		--sidebar-foreground: 0 0% 90%;
+		--sidebar-primary: 0 0% 98%;
+		--sidebar-primary-foreground: 0 0% 0%;
+		--sidebar-accent: 0 0% 12%;
+		--sidebar-accent-foreground: 0 0% 98%;
+		--sidebar-border: 0 0% 12%;
+		--sidebar-ring: 0 0% 90%;
+		--brand-400: 167.8 53.25% 65%;
+		--brand-500: 167.8 53.25% 54.71%;
+	}
+
 	/* Prevent flash of white background */
 	html {
 		color-scheme: dark;
