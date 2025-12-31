@@ -6,11 +6,8 @@ import { Trash2 } from 'lucide-react'
 
 import {
 	NotesIcon,
-	CalendarIcon,
-	TodoIcon,
 	GearIcon,
 	FolderIcon,
-	UIPlaygroundIcon,
 	IconButton,
 } from '@skriuw/ui/icons'
 
@@ -18,12 +15,6 @@ import { Logo } from './logo'
 
 type LeftToolbarProps = {
 	onSettingsClick?: () => void
-}
-
-function handleNonExistentRoute(target: string) {
-	if (typeof window !== 'undefined') {
-		console.info(`Route "${target}" is not available yet.`)
-	}
 }
 
 export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
@@ -61,20 +52,6 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 					active={isOnArchive}
 					variant="sidebar"
 					onClick={() => navigate('/archive')}
-				/>
-				<IconButton
-					icon={<CalendarIcon />}
-					tooltip="Calendar"
-					active={false}
-					variant="sidebar"
-					onClick={() => handleNonExistentRoute('calendar')}
-				/>
-				<IconButton
-					icon={<TodoIcon />}
-					tooltip="Checklist"
-					active={false}
-					variant="sidebar"
-					onClick={() => handleNonExistentRoute('checklist')}
 				/>
 			</div>
 

@@ -23,7 +23,10 @@ function getSettingsKey(userId: string): string {
 export async function GET() {
 	try {
 		const auth = await requireAuth()
-		if (!auth.authenticated) return auth.response
+		// Return empty settings for unauthenticated users instead of 401
+		if (!auth.authenticated) {
+			return NextResponse.json(null)
+		}
 		const { userId } = auth
 
 		const settingsKey = getSettingsKey(userId)

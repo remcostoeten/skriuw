@@ -111,7 +111,11 @@ export function useEditor({
 
 			try {
 				if (!isCancelled) {
-					setIsLoading(true)
+					// Only show loading state if it's a new note being loaded
+					// This prevents the skeleton state from appearing when the same note is refreshed
+					if (note?.id !== noteId) {
+						setIsLoading(true)
+					}
 					setError(null)
 				}
 
@@ -283,7 +287,7 @@ export function useEditor({
 	}, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave])
 
 	return {
-		editor: editor as any, // Always return editor, even in readOnly
+		editor: editor, // BlockNoteEditor | null
 		note,
 		noteName,
 		isLoading,
