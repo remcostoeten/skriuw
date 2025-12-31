@@ -1,3 +1,5 @@
+'use server'
+
 import { create, readMany } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
@@ -20,7 +22,6 @@ async function getSettings(): Promise<SettingsEntity | null> {
 
 export async function createNote(data: CreateNoteData): Promise<Note> {
 	try {
-		// Get current user ID from session (zero-session system handles this)
 		const userId = await getCurrentUserId()
 		if (!userId) {
 			throw new Error('User authentication required')
@@ -31,27 +32,32 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 		if (!initialContent || initialContent.length === 0) {
 			const settingsEntity = await getSettings()
 			const template =
-				(settingsEntity?.settings?.defaultNoteTemplate as 'empty' | 'h1' | 'h2') || 'empty'
+				(settingsEntity?.settings?.defaultNoteTemplate as
+					| 'empty'
+					| 'h1'
+					| 'h2') || 'empty'
 			initialContent = getInitialNoteContent(template)
 		}
 
-		console.info(`[createNote] Creating note "${data.name}" in ${data.parentFolderId || 'root'}`)
+		console.info(
+			`[createNote] Creating note "${data.name}" in ${data.parentFolderId || 'root'}`
+		)
 
 		const result = await create<Note>(STORAGE_KEYS.NOTES, {
 			type: 'note',
 			name: data.name,
 			content: initialContent,
 			parentFolderId: data.parentFolderId,
-			userId, // Explicitly set userId from current session
+			userId // Explicitly set userId from current session
 		})
 
 		if (!result.success || !result.data) {
-			throw new Error((result as any).error?.message || 'Failed to create note')
+			throw new Error(
+				(result as any).error?.message || 'Failed to create note'
+			)
 		}
 
-		// Cache invalidation is now handled by disabling caching in getItems()
-		// No need for manual invalidation since we always fetch fresh data
-		// invalidateItemsCache()
+		invalidateItemsCache()
 
 		trackActivity({
 			entityType: 'note',

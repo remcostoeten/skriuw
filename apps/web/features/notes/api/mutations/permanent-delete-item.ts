@@ -1,9 +1,9 @@
+'use server'
 import { deleteTasksForNote } from '@/features/tasks'
 
 import { destroy } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
-import { invalidatePrefetchedNote } from '../../hooks/use-prefetch'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
@@ -22,10 +22,7 @@ export async function permanentDeleteItem(id: string): Promise<boolean> {
 
 		const result = await destroy(STORAGE_KEYS.NOTES, id)
 		if (result.success) {
-			// Cache invalidation is now handled by disabling caching in getItems()
-			// No need for manual invalidation since we always fetch fresh data
-			// invalidateItemsCache()
-			invalidatePrefetchedNote(id)
+			invalidateItemsCache()
 		}
 		return result.success
 	} catch (error) {
