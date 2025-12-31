@@ -1,3 +1,5 @@
+'use server'
+
 /**
  * @fileoverview Notes Mutations Index
  * @description Exports all note-related mutations

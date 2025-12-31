@@ -1,3 +1,4 @@
+'use server'
 import { create } from '@skriuw/crud'
 
 import { invalidateItemsCache } from '../queries/get-items'
@@ -8,7 +9,6 @@ import { getCurrentUserId } from '@/lib/api-auth'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
 	try {
-		// Get current user ID from session (zero-session system handles this)
 		const userId = await getCurrentUserId()
 		if (!userId) {
 			throw new Error('User authentication required')
@@ -19,16 +19,16 @@ export async function createFolder(data: CreateFolderData): Promise<Folder> {
 			name: data.name,
 			children: [],
 			parentFolderId: data.parentFolderId,
-			userId, // Explicitly set userId from current session
+			userId // Explicitly set userId from current session
 		})
 
 		if (!result.success || !result.data) {
-			throw new Error((result as any).error?.message || 'Failed to create folder')
+			throw new Error(
+				(result as any).error?.message || 'Failed to create folder'
+			)
 		}
 
-		// Cache invalidation is now handled by disabling caching in getItems()
-		// No need for manual invalidation since we always fetch fresh data
-		// invalidateItemsCache()
+		invalidateItemsCache()
 
 		trackActivity({
 			entityType: 'folder',

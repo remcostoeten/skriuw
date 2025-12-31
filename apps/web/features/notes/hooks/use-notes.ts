@@ -1,5 +1,11 @@
 import { Block } from '@blocknote/core'
-import { useState, useCallback, useEffect, startTransition, useDeferredValue } from 'react'
+import {
+	useState,
+	useCallback,
+	useEffect,
+	startTransition,
+	useDeferredValue
+} from 'react'
 
 import { readOne } from '@skriuw/crud'
 
@@ -32,26 +38,19 @@ import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
 import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
-import { getPrefetchedNote, addToPrefetchCache } from './use-prefetch'
 
 import type { Note, Folder, Item } from '../types'
 
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { useSession } from '@/lib/auth-client'
-import { isZeroSessionUser } from '@/lib/zero-session-manager'
-import {
-	generatePreseededItems,
-	hasPreseededItems,
-	markPreseededItems
-} from '@/lib/preseed-data'
 
 /**
  * Hook for managing notes and folders with optimistic updates and non-blocking state changes.
- * 
+ *
  * Provides a complete API for CRUD operations on notes and folders, with built-in
  * optimistic updates for instant UI feedback. Uses React's concurrent features like
  * `startTransition` and `useDeferredValue` to prevent blocking the UI during updates.
- * 
+ *
  * @returns An object containing:
  * - `items`: Array of all notes and folders (deferred for non-blocking updates)
  * - `isInitialLoading`: Boolean indicating if data is being loaded for the first time
@@ -68,15 +67,15 @@ import {
  * - `pinItem`: Function to pin or unpin an item
  * - `favoriteNote`: Function to favorite or unfavorite a note
  * - `refreshItems`: Function to manually refresh the items list
- * 
+ *
  * @example
  * ```tsx
  * // Using directly (creates its own state instance)
  * function MyComponent() {
  *   const { items, createNote, isInitialLoading } = useNotes()
- *   
+ *
  *   if (isInitialLoading) return <div>Loading...</div>
- *   
+ *
  *   return (
  *     <div>
  *       {items.map(item => (
@@ -89,13 +88,13 @@ import {
  *   )
  * }
  * ```
- * 
+ *
  * @example
  * ```tsx
  * // Using via context (shares state across components)
  * function MyComponent() {
  *   const { items, createNote } = useNotesContext()
- *   
+ *
  *   return (
  *     <div>
  *       {items.map(item => (
@@ -105,19 +104,19 @@ import {
  *   )
  * }
  * ```
- * 
+ *
  * @example
  * ```tsx
  * // Optimistic updates example
  * function NoteEditor({ noteId }: { noteId: string }) {
  *   const { updateNote, getNote } = useNotesContext()
  *   const [content, setContent] = useState<Block[]>([])
- *   
+ *
  *   const handleSave = async () => {
  *     // UI updates immediately, server sync happens in background
  *     await updateNote(noteId, content, 'Updated Title')
  *   }
- *   
+ *
  *   return (
  *     <div>
  *       {/ * Editor UI * /}
@@ -136,35 +135,14 @@ export function useNotes() {
 	// Deferred value for non-blocking updates
 	const deferredItems = useDeferredValue(items)
 
-	// Initial load
+	// Initial load - use cache for subsequent loads, force refresh only on session change
 	useEffect(() => {
 		let isCancelled = false
 
-		if (isSessionPending) return
-
-		const zeroSession = isZeroSessionUser()
-
-		// Preseed for zero-session users
-		if (zeroSession && !hasPreseededItems()) {
-			const preseeded = generatePreseededItems('zero-session')
-			setItems(preseeded)
-			markPreseededItems()
-			setIsInitialLoading(false)
-			return
-		}
-
-		// Skip loading if no session
-		if (!session?.user?.id && !zeroSession) {
-			setItems([])
-			setIsInitialLoading(false)
-			return
-		}
-
 		const loadInitialData = async () => {
 			setIsInitialLoading(true)
-			invalidateItemsCache()
 			try {
-				const data = await getItems()
+				const data = await getItems({ forceRefresh: false })
 				if (!isCancelled) {
 					setItems(data)
 					setIsInitialLoading(false)
@@ -182,12 +160,11 @@ export function useNotes() {
 		return () => {
 			isCancelled = true
 		}
-	}, [isSessionPending, session?.user?.id])
+	}, [session?.user?.id])
 
 	const refreshItems = useCallback(async () => {
 		setIsRefreshing(true)
 		try {
-			invalidateItemsCache()
 			const updatedItems = await getItems({ forceRefresh: true })
 			// Use startTransition to make this update non-blocking
 			startTransition(() => {
@@ -200,30 +177,23 @@ export function useNotes() {
 		}
 	}, [])
 
-	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
-		// Check prefetch cache first
-		const cachedNote = getPrefetchedNote(id)
-		if (cachedNote) {
-			return cachedNote
-		}
+	const getNote = useCallback(
+		async (id: string): Promise<Note | undefined> => {
+			return await getNoteQuery(id)
+		},
+		[]
+	)
 
-		// Fetch from API
-		const note = await getNoteQuery(id)
-		if (note) {
-			// Add to shared prefetch cache
-			addToPrefetchCache(id, note)
-		}
-
-		return note
-	}, [])
-
-	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
-		const result = await readOne<Item>(STORAGE_KEYS.NOTES, id)
-		if (result.success && result.data && 'id' in result.data) {
-			return result.data
-		}
-		return undefined
-	}, [])
+	const getItem = useCallback(
+		async (id: string): Promise<Item | undefined> => {
+			const result = await readOne<Item>(STORAGE_KEYS.NOTES, id)
+			if (result.success && result.data && 'id' in result.data) {
+				return result.data
+			}
+			return undefined
+		},
+		[]
+	)
 
 	const createNote = useCallback(
 		async (name: string = 'Untitled', parentFolderId?: string) => {
@@ -241,12 +211,16 @@ export function useNotes() {
 				pinned: false,
 				favorite: false,
 				createdAt: now,
-				updatedAt: now,
+				updatedAt: now
 			}
 
 			// Optimistically add to UI immediately
 			const previousItems = items
-			function addItem(itemList: Item[], item: Item, targetFolderId?: string): Item[] {
+			function addItem(
+				itemList: Item[],
+				item: Item,
+				targetFolderId?: string
+			): Item[] {
 				if (!targetFolderId) {
 					return [...itemList, item]
 				}
@@ -255,7 +229,10 @@ export function useNotes() {
 						return { ...i, children: [...i.children, item] }
 					}
 					if (i.type === 'folder') {
-						return { ...i, children: addItem(i.children, item, targetFolderId) }
+						return {
+							...i,
+							children: addItem(i.children, item, targetFolderId)
+						}
 					}
 					return i
 				})
@@ -264,7 +241,10 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newNote: Note = await createNoteMutation({ name, parentFolderId })
+				const newNote: Note = await createNoteMutation({
+					name,
+					parentFolderId
+				})
 
 				// Replace temp note with real note
 				const replaceItem = (itemList: Item[]): Item[] => {
@@ -305,12 +285,16 @@ export function useNotes() {
 				parentFolderId,
 				pinned: false,
 				createdAt: now,
-				updatedAt: now,
+				updatedAt: now
 			}
 
 			// Optimistically add to UI immediately
 			const previousItems = items
-			function addItem(itemList: Item[], item: Item, targetFolderId?: string): Item[] {
+			function addItem(
+				itemList: Item[],
+				item: Item,
+				targetFolderId?: string
+			): Item[] {
 				if (!targetFolderId) {
 					return [...itemList, item]
 				}
@@ -319,7 +303,10 @@ export function useNotes() {
 						return { ...i, children: [...i.children, item] }
 					}
 					if (i.type === 'folder') {
-						return { ...i, children: addItem(i.children, item, targetFolderId) }
+						return {
+							...i,
+							children: addItem(i.children, item, targetFolderId)
+						}
 					}
 					return i
 				})
@@ -328,7 +315,10 @@ export function useNotes() {
 
 			try {
 				// Create on server
-				const newFolder: Folder = await createFolderMutation({ name, parentFolderId })
+				const newFolder: Folder = await createFolderMutation({
+					name,
+					parentFolderId
+				})
 
 				// Replace temp folder with real folder (preserving children structure)
 				const replaceItem = (itemList: Item[]): Item[] => {
@@ -368,10 +358,17 @@ export function useNotes() {
 						const updateName = (itemList: Item[]): Item[] => {
 							return itemList.map((item) => {
 								if (item.id === id) {
-									return { ...item, name, updatedAt: Date.now() }
+									return {
+										...item,
+										name,
+										updatedAt: Date.now()
+									}
 								}
 								if (item.type === 'folder') {
-									return { ...item, children: updateName(item.children) }
+									return {
+										...item,
+										children: updateName(item.children)
+									}
 								}
 								return item
 							})
@@ -420,7 +417,10 @@ export function useNotes() {
 					.filter((item) => item.id !== id)
 					.map((item) => {
 						if (item.type === 'folder') {
-							return { ...item, children: removeItemById(item.children) }
+							return {
+								...item,
+								children: removeItemById(item.children)
+							}
 						}
 						return item
 					})
@@ -464,7 +464,10 @@ export function useNotes() {
 					})
 					.map((item) => {
 						if (item.type === 'folder') {
-							return { ...item, children: removeItem(item.children) }
+							return {
+								...item,
+								children: removeItem(item.children)
+							}
 						}
 						return item
 					})
@@ -478,7 +481,10 @@ export function useNotes() {
 				}
 				return itemList.map((item) => {
 					if (item.id === targetFolderId && item.type === 'folder') {
-						return { ...item, children: [...item.children, movedItem!] }
+						return {
+							...item,
+							children: [...item.children, movedItem!]
+						}
 					}
 					if (item.type === 'folder') {
 						return { ...item, children: addToTarget(item.children) }
@@ -494,7 +500,10 @@ export function useNotes() {
 
 			// Perform actual move in background
 			try {
-				const success = await moveItemMutation(itemId, targetFolderId ?? undefined)
+				const success = await moveItemMutation(
+					itemId,
+					targetFolderId ?? undefined
+				)
 				if (!success) {
 					setItems(previousItems)
 					return false
@@ -509,30 +518,44 @@ export function useNotes() {
 		[items]
 	)
 
-	const countChildren = useCallback(async (folderId: string): Promise<number> => {
-		const result = await readOne<Folder>(STORAGE_KEYS.NOTES, folderId)
-		if (
-			result.success &&
-			result.data &&
-			'children' in result.data &&
-			Array.isArray(result.data.children)
-		) {
-			return result.data.children.length
-		}
-		return 0
-	}, [])
+	const countChildren = useCallback(
+		async (folderId: string): Promise<number> => {
+			const result = await readOne<Folder>(STORAGE_KEYS.NOTES, folderId)
+			if (
+				result.success &&
+				result.data &&
+				'children' in result.data &&
+				Array.isArray(result.data.children)
+			) {
+				return result.data.children.length
+			}
+			return 0
+		},
+		[]
+	)
 
 	const pinItem = useCallback(
-		async (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => {
+		async (
+			itemId: string,
+			itemType: 'note' | 'folder',
+			pinned: boolean
+		) => {
 			// Optimistic update: update pin status immediately
 			const previousItems = items
 			function updatePinStatus(itemList: Item[]): Item[] {
 				return itemList.map((item) => {
 					if (item.id === itemId) {
-						return { ...item, pinned, pinnedAt: pinned ? Date.now() : undefined }
+						return {
+							...item,
+							pinned,
+							pinnedAt: pinned ? Date.now() : undefined
+						}
 					}
 					if (item.type === 'folder') {
-						return { ...item, children: updatePinStatus(item.children) }
+						return {
+							...item,
+							children: updatePinStatus(item.children)
+						}
 					}
 					return item
 				})
@@ -559,7 +582,10 @@ export function useNotes() {
 						return { ...item, favorite }
 					}
 					if (item.type === 'folder') {
-						return { ...item, children: updateFavoriteStatus(item.children) }
+						return {
+							...item,
+							children: updateFavoriteStatus(item.children)
+						}
 					}
 					return item
 				})
@@ -590,11 +616,18 @@ export function useNotes() {
 							...item,
 							isPublic,
 							publicId: publicId ?? item.publicId,
-							publicViews: publicViews ?? item.publicViews,
+							publicViews: publicViews ?? item.publicViews
 						}
 					}
 					if (item.type === 'folder') {
-						return { ...item, children: updateVisibility(item.children, publicId, publicViews) }
+						return {
+							...item,
+							children: updateVisibility(
+								item.children,
+								publicId,
+								publicViews
+							)
+						}
 					}
 					return item
 				})
@@ -602,10 +635,17 @@ export function useNotes() {
 
 			setItems(updateVisibility(items))
 			try {
-				const updated = await setNoteVisibilityMutation(noteId, isPublic)
+				const updated = await setNoteVisibilityMutation(
+					noteId,
+					isPublic
+				)
 				if (updated) {
 					setItems((prevItems) =>
-						updateVisibility(prevItems, updated.publicId ?? null, updated.publicViews)
+						updateVisibility(
+							prevItems,
+							updated.publicId ?? null,
+							updated.publicViews
+						)
 					)
 				}
 			} catch (error) {
@@ -632,6 +672,6 @@ export function useNotes() {
 		pinItem,
 		favoriteNote,
 		setNoteVisibility,
-		refreshItems,
+		refreshItems
 	}
 }
