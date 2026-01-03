@@ -14,9 +14,6 @@ let container: HTMLDivElement | null = null
 let root: ReturnType<typeof createRoot> | null = null
 
 function getContainer() {
-    if (typeof document === 'undefined') {
-        return { container: null, root: null }
-    }
     if (!container) {
         container = document.createElement('div')
         container.id = 'notification-container'
@@ -33,7 +30,7 @@ function getContainer() {
         document.body.appendChild(container)
         root = createRoot(container)
     }
-    return { container, root: root }
+    return { container, root: root! }
 }
 
 let notifications: NotificationOptions[] = []
@@ -110,12 +107,15 @@ function generateId(): string {
     return `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
+import { haptic } from './haptics'
+
 function showNotification(options: NotificationOptions) {
+    haptic.success()
     const notificationWithId = {
         ...options,
         id: options.id || generateId()
     }
-    
+
     notifications.push(notificationWithId)
     renderNotifications()
 

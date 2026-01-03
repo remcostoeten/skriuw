@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@skriuw/ui/dialog'
+    DrawerDialog,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+} from '@skriuw/ui/dialog-drawer'
 import { Button } from '@skriuw/ui/button'
 import { Input } from '@skriuw/ui/input'
 import { Label } from '@skriuw/ui/label'
@@ -39,20 +39,20 @@ export function DeleteAccountDialog({
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md border-destructive/20">
-                <DialogHeader>
-                    <DialogTitle className="text-destructive flex items-center gap-2">
+        <DrawerDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DrawerContent className="sm:max-w-md border-destructive/20">
+                <DrawerHeader>
+                    <DrawerTitle className="text-destructive flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5" />
                         Delete Account
-                    </DialogTitle>
-                    <DialogDescription>
+                    </DrawerTitle>
+                    <DrawerDescription>
                         This action cannot be undone. This will permanently delete your
                         account and remove your data from our servers.
-                    </DialogDescription>
-                </DialogHeader>
+                    </DrawerDescription>
+                </DrawerHeader>
 
-                <div className="flex flex-col gap-4 py-4">
+                <div className="flex flex-col gap-4 py-4 px-4 sm:px-0">
                     <Alert variant="destructive" className="bg-destructive/5 text-destructive border-destructive/20">
                         <AlertDescription>
                             Unexpected bad things will happen if you don't read this!
@@ -74,7 +74,7 @@ export function DeleteAccountDialog({
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DrawerFooter className="gap-2 sm:gap-0 px-4 pb-6 sm:px-0 sm:pb-0">
                     <Button variant="outline" onClick={onClose} disabled={isDeleting}>
                         Cancel
                     </Button>
@@ -86,8 +86,8 @@ export function DeleteAccountDialog({
                     >
                         {isDeleting ? 'Deleting...' : 'Delete my account'}
                     </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                </DrawerFooter>
+            </DrawerContent>
+        </DrawerDialog>
     )
 }
