@@ -1373,9 +1373,7 @@ export function Sidebar({
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 
 	// Access sidebar state
-	const isDesktopSidebarOpen = useUIStore(
-		(state) => state.isDesktopSidebarOpen
-	)
+	const { isDesktopSidebarOpen, setMobileSidebarOpen } = useUIStore()
 
 	// All hooks must be called before any conditional returns
 	const {
@@ -1656,8 +1654,12 @@ export function Sidebar({
 			const url = getNoteUrl(newNote.id)
 			router.push(`${url}?focus=true`)
 			setSelectedFolderId(null)
+
+			if (isMobile) {
+				setMobileSidebarOpen(false)
+			}
 		},
-		[createNote, router, selectedFolderId, getNoteUrl]
+		[createNote, router, selectedFolderId, getNoteUrl, isMobile, setMobileSidebarOpen]
 	)
 
 	const handleCreateFolder = useCallback(
@@ -1717,9 +1719,15 @@ export function Sidebar({
 		e.preventDefault()
 	}, [])
 
-	const handleNoteNavigation = useCallback((id: string) => {
-		router.push(getNoteUrl(id))
-	}, [router, getNoteUrl])
+	const handleNoteNavigation = useCallback(
+		(id: string) => {
+			router.push(getNoteUrl(id))
+			if (isMobile) {
+				setMobileSidebarOpen(false)
+			}
+		},
+		[router, getNoteUrl, isMobile, setMobileSidebarOpen]
+	)
 
 	const handleDrop = useCallback(
 		async (targetId: string, e: React.DragEvent) => {

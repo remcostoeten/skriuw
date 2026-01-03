@@ -19,7 +19,7 @@ We support three distinct user types with different authentication levels and ca
 - Triggered when user selects "login anonymous"
 - Converts existing zero-session into a proper user record
 - Full application functionality EXCEPT:
-    - All API mutations (write operations) stored exclusively in local storage
+    - All API mutations (write operations) are stored exclusively in local storage
     - Data cleared automatically after configured time period
 - Designed for application testing without commitment
 

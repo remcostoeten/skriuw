@@ -54,3 +54,9 @@ packages/db/.env
 .env.local
 .env.production
 packages/db/.env
+
+# PWA (Serwist)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/workbox-*.js

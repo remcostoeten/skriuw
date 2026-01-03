@@ -4,7 +4,7 @@ Professional CLI tool for Skriuw development operations. Allows triggering dev A
 
 ## Installation
 
-The CLI is bundled with the Skriuw monorepo. No additional installation needed.
+The CLI is bundled with the Skriuw monorepo. No additional installation is needed.
 
 ## Usage
 
@@ -211,7 +211,7 @@ For production-like testing with real authentication:
 
 ### Browser not found
 
-If you get "Browser not found" error:
+If you get a "Browser not found" error:
 
 - Verify browser is installed
 - Use `--browser` to specify a different browser

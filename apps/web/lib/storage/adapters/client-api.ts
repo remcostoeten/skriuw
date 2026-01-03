@@ -70,7 +70,7 @@ interface StorageAdapter {
 	name: string
 	read<T>(
 		key: string,
-		options?: BatchReadAdapterOptions
+		options?: ReadAdapterOptions
 	): Promise<T[] | T | undefined>
 	readOne<T>(
 		key: string,

@@ -75,10 +75,12 @@ export function NoteEditor({
 			const shouldFocus = isNewNote || searchParams.get('focus') === 'true'
 
 			if (shouldFocus) {
+				// Reduced timeout for snappier feel, especially on mobile
+				const focusTimeout = isNewNote ? 50 : 100
 				setTimeout(() => {
 					editorRef.current?.focusEditor()
 					hasFocusedRef.current = true
-				}, 100)
+				}, focusTimeout)
 			}
 		}
 	}, [editor, note, searchParams, noteId])

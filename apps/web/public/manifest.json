@@ -4,8 +4,8 @@
 	"description": "A modern note-taking application",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#ffffff",
-	"theme_color": "#000000",
+	"background_color": "#0a0a0a",
+	"theme_color": "#0a0a0a",
 	"orientation": "portrait-primary",
 	"icons": [
 		{
@@ -17,6 +17,57 @@
 			"src": "/android-chrome-512x512.png",
 			"sizes": "512x512",
 			"type": "image/png"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "New Note",
+			"short_name": "New",
+			"description": "Create a new note immediately",
+			"url": "/?action=new",
+			"icons": [
+				{
+					"src": "/favicon.svg",
+					"sizes": "any"
+				}
+			]
+		},
+		{
+			"name": "My Notes",
+			"short_name": "Notes",
+			"description": "View all your notes",
+			"url": "/",
+			"icons": [
+				{
+					"src": "/favicon.svg",
+					"sizes": "any"
+				}
+			]
+		}
+	],
+	"share_target": {
+		"action": "/share-target",
+		"method": "GET",
+		"params": {
+			"title": "title",
+			"text": "text",
+			"url": "url"
+		}
+	},
+	"screenshots": [
+		{
+			"src": "/screenshots/desktop.png",
+			"sizes": "1280x720",
+			"type": "image/png",
+			"form_factor": "wide",
+			"label": "Skriuw Desktop"
+		},
+		{
+			"src": "/screenshots/mobile.png",
+			"sizes": "390x844",
+			"type": "image/png",
+			"form_factor": "narrow",
+			"label": "Skriuw Mobile"
 		}
 	]
 }
