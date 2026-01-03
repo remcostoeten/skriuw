@@ -1,268 +1,222 @@
+// ============================================================================
+// Block Helpers - Create BlockNote-compatible blocks
+// ============================================================================
+
+let blockIdCounter = 0
+function createId(prefix: string): string {
+    return `${prefix}-${++blockIdCounter}`
+}
+
+function heading(level: 1 | 2 | 3, text: string) {
+    return {
+        id: createId('h'),
+        type: 'heading' as const,
+        props: { level, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+        content: [{ type: 'text' as const, text, styles: {} }],
+        children: [],
+    }
+}
+
+function paragraph(text: string, styles: Record<string, boolean> = {}) {
+    return {
+        id: createId('p'),
+        type: 'paragraph' as const,
+        props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+        content: text ? [{ type: 'text' as const, text, styles }] : [],
+        children: [],
+    }
+}
+
+function bulletItem(text: string) {
+    return {
+        id: createId('li'),
+        type: 'bulletListItem' as const,
+        props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+        content: [{ type: 'text' as const, text, styles: {} }],
+        children: [],
+    }
+}
+
+function numberedItem(text: string) {
+    return {
+        id: createId('ni'),
+        type: 'numberedListItem' as const,
+        props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+        content: [{ type: 'text' as const, text, styles: {} }],
+        children: [],
+    }
+}
+
+function codeBlock(code: string, language = 'text') {
+    return {
+        id: createId('code'),
+        type: 'codeBlock' as const,
+        props: { language },
+        content: [{ type: 'text' as const, text: code, styles: {} }],
+        children: [],
+    }
+}
+
+// ============================================================================
+// Seed Data
+// ============================================================================
+
 export const sampleNotes = [
     {
         name: 'Welcome to Skriuw',
-        content: [
-            {
-                id: 'welcome-h1',
-                type: 'heading',
-                props: { level: 1 },
-                content: [{ type: 'text', text: 'Welcome to Skriuw', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'welcome-p1',
-                type: 'paragraph',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'A blazingly fast, privacy-focused note-taking app.', styles: {} }],
-                children: [],
-            },
-        ],
         pinned: true,
-    },
-    {
-        name: 'Getting Started',
         content: [
-            {
-                id: 'gs-h1',
-                type: 'heading',
-                props: { level: 2 },
-                content: [{ type: 'text', text: 'Getting Started', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'gs-p1',
-                type: 'paragraph',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Create notes and folders using the sidebar or keyboard shortcuts.', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'gs-list',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Press Ctrl+N to create a new note', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'gs-list2',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Press Ctrl+F to create a new folder', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'gs-list3',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Press Ctrl+/ to view all shortcuts', styles: {} }],
-                children: [],
-            },
+            heading(1, '👋 Welcome to Skriuw'),
+            paragraph('A blazingly fast, privacy-focused note-taking app built with modern web technologies.'),
+            paragraph(''),
+            heading(2, '✨ Key Features'),
+            bulletItem('📝 Rich text editor with slash commands and markdown support'),
+            bulletItem('⌨️ Keyboard-first navigation with customizable shortcuts'),
+            bulletItem('📂 Hierarchical folders to organize your notes'),
+            bulletItem('🔍 Fast search across all your notes'),
+            bulletItem('🌓 Dark/light mode with beautiful UI'),
+            bulletItem('☁️ Cloud backup to Google Drive or Dropbox'),
+            bulletItem('🔒 Privacy-focused: your data stays yours'),
+            paragraph(''),
+            heading(2, '🚀 Quick Start'),
+            numberedItem('Press Ctrl+N (or ⌘N on Mac) to create a new note'),
+            numberedItem('Press Ctrl+F to create a new folder'),
+            numberedItem('Type / in the editor to see all block types'),
+            numberedItem('Press Ctrl+/ to view all keyboard shortcuts'),
+            paragraph(''),
+            heading(2, '💡 Tips'),
+            bulletItem('Double-click any note or folder to rename it'),
+            bulletItem('Drag and drop to reorganize your notes'),
+            bulletItem('Use Ctrl+P to open the command palette'),
+            bulletItem('Pin important notes to keep them at the top'),
+            paragraph(''),
+            paragraph('Happy writing! 🎉'),
         ],
     },
     {
-        name: 'Sample Note with Tasks',
+        name: 'Keyboard Shortcuts',
         content: [
-            {
-                id: 'task-h1',
-                type: 'heading',
-                props: { level: 2 },
-                content: [{ type: 'text', text: 'My Todo List', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'task-cb1',
-                type: 'checkListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: false },
-                content: [{ type: 'text', text: 'Learn keyboard shortcuts', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'task-cb2',
-                type: 'checkListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: true },
-                content: [{ type: 'text', text: 'Create first note', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'task-cb3',
-                type: 'checkListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked: false },
-                content: [{ type: 'text', text: 'Organize notes into folders', styles: {} }],
-                children: [],
-            },
+            heading(1, '⌨️ Keyboard Shortcuts'),
+            paragraph('Master Skriuw with these keyboard shortcuts. All shortcuts are customizable in Settings.'),
+            paragraph(''),
+            heading(2, '📋 General'),
+            bulletItem('Ctrl+P / Cmd+K — Open Command Palette'),
+            bulletItem('Ctrl+N — New Note'),
+            bulletItem('Ctrl+F — New Folder'),
+            bulletItem('Ctrl+S — Save Note'),
+            bulletItem('Ctrl+, — Open Settings'),
+            bulletItem('Ctrl+/ — Show All Shortcuts'),
+            paragraph(''),
+            heading(2, '🧭 Navigation'),
+            bulletItem('Ctrl+B — Toggle Sidebar'),
+            bulletItem('Alt+T — Toggle Theme'),
+            bulletItem('/ — Focus Editor'),
+            bulletItem('Escape — Clear Focus'),
+            paragraph(''),
+            heading(2, '📄 Split View'),
+            bulletItem('Ctrl+\\ — Toggle Split View'),
+            bulletItem('Shift+Ctrl+\\ — Swap Panes'),
+            bulletItem('Ctrl+Alt+V — Vertical Split'),
+            bulletItem('Ctrl+Alt+H — Horizontal Split'),
+            bulletItem('Ctrl+Alt+← / → — Focus Left/Right Pane'),
+            bulletItem('Ctrl+Alt+W — Close Active Pane'),
+            paragraph(''),
+            heading(2, '📝 Editor'),
+            bulletItem('/ — Open Slash Menu'),
+            bulletItem('Ctrl+B — Bold'),
+            bulletItem('Ctrl+I — Italic'),
+            bulletItem('Ctrl+U — Underline'),
+            bulletItem('Ctrl+Z — Undo'),
+            bulletItem('Ctrl+Shift+Z — Redo'),
         ],
     },
     {
-        name: 'Recursive Tasks Demo',
+        name: 'Editor Features',
         content: [
-            {
-                id: 'demo-h1',
-                type: 'heading',
-                props: { level: 1 },
-                content: [{ type: 'text', text: 'Recursive Subtasks & Stacked Panels', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-p1',
-                type: 'paragraph',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'This demo showcases the new Recursive Subtask system with Stacked Panels.', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-h2-1',
-                type: 'heading',
-                props: { level: 2 },
-                content: [{ type: 'text', text: 'How to Use', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-list-1',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Type /task or [] to create a task', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-list-2',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Click the arrow icon to open the panel', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-list-3',
-                type: 'bulletListItem',
-                props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-                content: [{ type: 'text', text: 'Create nested tasks inside panels for infinite recursion!', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'demo-h2-2',
-                type: 'heading',
-                props: { level: 2 },
-                content: [{ type: 'text', text: 'Demo List', styles: {} }],
-                children: [],
-            },
-            {
-                id: 'rectask-1',
-                type: 'task',
-                props: { checked: false },
-                content: [{ type: 'text', text: '🚀 Root Task: Click my arrow icon to start!', styles: {} }],
-                children: [
-                    {
-                        id: 'rectask-2',
-                        type: 'task',
-                        props: { checked: false },
-                        content: [{ type: 'text', text: '📅 Due Dates: I have a due date picker in the panel header', styles: {} }],
-                        children: [],
-                    },
-                    {
-                        id: 'rectask-3',
-                        type: 'task',
-                        props: { checked: false },
-                        content: [{ type: 'text', text: '📝 Rich Text: My description supports full rich text', styles: {} }],
-                        children: [],
-                    },
-                    {
-                        id: 'rectask-4',
-                        type: 'task',
-                        props: { checked: false },
-                        content: [{ type: 'text', text: '♾️ Recursion: Create tasks inside me to test nesting!', styles: {} }],
-                        children: [],
-                    },
-                ],
-            },
+            heading(1, '📝 Editor Features'),
+            paragraph('Skriuw uses a powerful block-based editor with rich formatting options.'),
+            paragraph(''),
+            heading(2, '📦 Block Types'),
+            paragraph('Type / in the editor to see all available blocks:'),
+            bulletItem('Headings (H1, H2, H3) — Structure your content'),
+            bulletItem('Paragraphs — Regular text content'),
+            bulletItem('Bullet Lists — Unordered lists'),
+            bulletItem('Numbered Lists — Ordered lists'),
+            bulletItem('Todo Items — Checkboxes for tasks'),
+            bulletItem('Code Blocks — Syntax-highlighted code'),
+            bulletItem('Quotes — Block quotes'),
+            bulletItem('Tables — Structured data'),
+            paragraph(''),
+            heading(2, '✏️ Formatting'),
+            bulletItem('Bold — Ctrl+B or **text**'),
+            bulletItem('Italic — Ctrl+I or *text*'),
+            bulletItem('Underline — Ctrl+U'),
+            bulletItem('Strikethrough — ~~text~~'),
+            bulletItem('Code — `inline code`'),
+            bulletItem('Links — Ctrl+K or [text](url)'),
+            paragraph(''),
+            heading(2, '🔗 Mentions & Links'),
+            bulletItem('Type @ to mention another note'),
+            bulletItem('Mentions create navigable links between notes'),
+            bulletItem('Build your personal knowledge graph'),
         ],
     },
     {
-        name: 'Feature: Authentication',
+        name: 'Architecture Overview',
         content: [
-            { type: 'heading', props: { level: 1 }, content: [{ type: 'text', text: 'Authentication Spec', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Strategy', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Should use Better Auth. To keep development going, implement mock auth first.', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Requirements', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Generate schemas via Better Auth CLI', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Email/password sign up', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Offer GitHub and Google OAuth', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Ideally offer anonymous login for local file storage in Tauri', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Components Needed', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'CRUD components', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Utils', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Get-user', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Sign up', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Auth provider', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'AccountType (anon, normal)', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Sign in', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'UserStoragePreference', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'User dropdown', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Profile pages', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Delete/reset', styles: {} }] },
+            heading(1, '🏗️ Architecture Overview'),
+            paragraph('Skriuw is built with modern web technologies for maximum performance and developer experience.'),
+            paragraph(''),
+            heading(2, '🛠️ Technology Stack'),
+            bulletItem('Next.js 15 — React framework with App Router'),
+            bulletItem('React 18 — UI library with Server Components'),
+            bulletItem('TypeScript — Type-safe development'),
+            bulletItem('PostgreSQL + Drizzle ORM — Database layer'),
+            bulletItem('BlockNote — Rich text editor'),
+            bulletItem('Tailwind CSS — Utility-first styling'),
+            bulletItem('Framer Motion — Smooth animations'),
+            paragraph(''),
+            heading(2, '📊 Data Flow'),
+            codeBlock(
+                `Frontend Components
+      ↓
+React Hooks (useNotes, etc.)
+      ↓
+Storage Adapter
+      ↓
+Next.js API Routes
+      ↓
+Drizzle ORM
+      ↓
+PostgreSQL`,
+                'text'
+            ),
         ],
     },
     {
-        name: 'Feature: Individual Issues',
+        name: 'Storage & Backup',
         content: [
-            { type: 'heading', props: { level: 1 }, content: [{ type: 'text', text: 'Individual Issues & Polish', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Read-only Mode', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Add a read-only option for notes', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Figure out how to do this without auth, or setup mock auth ASAP with roles', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'UI/UX Fixes', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Bulk delete confirmation popover fix', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Ctrl+A fix (currently highlights the file tree)', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Context menu keyboard shortcuts', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Rename file or folder only allows editing first character', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Bubble menu styling', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Categories in / menu', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Settings modal accessibility', styles: {} }] },
-        ],
-    },
-    {
-        name: 'Feature: Editor Strategy',
-        content: [
-            { type: 'heading', props: { level: 1 }, content: [{ type: 'text', text: 'Editor Strategy', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Overview', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Eventually the editor will get types. They will all share the same rich text principles, but each type will be specialized towards a feature.', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'This allows certain schemas and blocks to be predefined which normally wouldn\'t make sense in a document.', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Behavior', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Upon new file creation, a file should be a note by default.', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Creating a different type should be done via context menu or toggle in the top bar.', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Planned Types', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Tasks: Currently being worked on. Will have its own type for more complete task overview (undecided)', styles: { bold: true } }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Monaco editor: Post-MVP for full snippet storage', styles: { bold: true } }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Finance: New type (fully spec\'d in separate document)', styles: { bold: true } }] },
-        ],
-    },
-    {
-        name: 'Feature: Finance Module',
-        content: [
-            { type: 'heading', props: { level: 1 }, content: [{ type: 'text', text: 'Finance Editor Type', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Goal', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Track income, expenses, debt, savings and overall financial status inside the application without losing current aesthetic and easy usage of the Block Note editor.', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'This will require multiple individual components that work together, either pre-inserted in the document or able to be added individually.', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Scope', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'Upon first time using any finance block, user MUST create a wallet or space in which everything gets nested.', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'This way if you call an expense/goal block in a random note, you need to specify which wallet it belongs to.', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Wallet Setup', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Name', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Type of account', styles: {} }] },
-            { type: 'bulletListItem', content: [{ type: 'text', text: 'Current balance (optional)', styles: {} }] },
-            { type: 'heading', props: { level: 2 }, content: [{ type: 'text', text: 'Modules', styles: {} }] },
-            { type: 'paragraph', content: [{ type: 'text', text: 'The following modules will be available: savings, expense, income, debt.', styles: { bold: true } }] },
-            { type: 'heading', props: { level: 3 }, content: [{ type: 'text', text: 'Module Entry Structure', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Create an entry', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Name', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Optional description', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Amount', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Recurring option', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Category', styles: {} }] },
-            { type: 'checkListItem', props: { checked: false }, content: [{ type: 'text', text: 'Total (tlt)', styles: {} }] },
+            heading(1, '☁️ Storage & Backup'),
+            paragraph('Keep your notes safe with cloud backup integration.'),
+            paragraph(''),
+            heading(2, '📦 Backup Providers'),
+            bulletItem('Google Drive — Sync notes to your Google account'),
+            bulletItem('Dropbox — Backup to Dropbox app folder'),
+            bulletItem('Local Storage — For desktop (Tauri) users'),
+            paragraph(''),
+            heading(2, '🔐 Security'),
+            bulletItem('All connections use OAuth2 authentication'),
+            bulletItem('Sensitive tokens are encrypted at rest'),
+            bulletItem('App-only folder access (cannot read other files)'),
         ],
     },
 ]
 
 export const sampleFolders = [
-    { name: 'Projects', children: ['Project Alpha', 'Project Beta'] },
+    { name: 'Getting Started', children: ['Keyboard Shortcuts', 'Editor Features'] },
+    { name: 'Documentation', children: ['Architecture Overview', 'Storage & Backup'] },
     { name: 'Personal' },
+    { name: 'Work', children: ['Project Ideas', 'Meeting Notes'] },
     { name: 'Archive' },
 ]
+
