@@ -297,6 +297,7 @@ export function generatePreseededItems(userId: string): Item[] {
 			pinned: folderDef.pinned ?? false,
 			createdAt: now,
 			updatedAt: now,
+			userId,
 		}
 		items.push(folder)
 	}
@@ -316,6 +317,7 @@ export function generatePreseededItems(userId: string): Item[] {
 			favorite: noteDef.favorite ?? false,
 			createdAt: now,
 			updatedAt: now,
+			userId,
 		}
 		items.push(note)
 	}
