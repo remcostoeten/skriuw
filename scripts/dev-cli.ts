@@ -209,9 +209,15 @@ async function handleAction(action: string, options: Options) {
 				tables || 'notes,folders,tasks,settings,shortcuts'
 			)
 		} else {
-			const curlCmd = buildCurlCommand(url, body)
-			logMessage(`Executing: ${curlCmd}`, verbose ? 'info' : undefined)
-			response = execSync(curlCmd, { encoding: 'utf-8' })
+			logMessage(`Executing request to: ${url}`, verbose ? 'info' : undefined)
+			const res = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body
+			})
+			response = await res.text()
 		}
 
 		const endTime = Date.now()
@@ -333,9 +339,7 @@ function calculateDifferences(pre: any, post: any): Record<string, number> {
 	return differences
 }
 
-function buildCurlCommand(url: string, body: string): string {
-	return `curl -s -X POST ${url} -H "Content-Type: application/json" -d '${body}'`
-}
+
 
 function writeOutput(data: any, format: string, customLogPath?: string) {
 	if (!existsSync(LOG_DIR)) {
