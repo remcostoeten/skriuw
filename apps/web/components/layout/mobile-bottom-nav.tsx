@@ -8,6 +8,7 @@ import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { notify } from '@/lib/notify'
+import { haptic } from '@/lib/haptics'
 
 type MobileBottomNavProps = {
     onSettingsClick?: () => void
@@ -27,12 +28,13 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
 
     async function handleCreateNote() {
         if (isCreating) return
-        
+
         setIsCreating(true)
         try {
             const newNote = await createNote('Untitled')
             if (newNote) {
                 const url = getNoteUrl(newNote.id)
+                haptic.success()
                 notify('Note created successfully').duration(2000)
                 router.push(`${url}?focus=true`)
             } else {
@@ -59,19 +61,28 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
             icon: FileText,
             label: 'Notes',
             active: isOnNotes,
-            onClick: () => router.push('/'),
+            onClick: () => {
+                haptic.light()
+                router.push('/')
+            },
         },
         {
             icon: FolderOpen,
             label: 'Files',
             active: isMobileSidebarOpen,
-            onClick: toggleMobileSidebar,
+            onClick: () => {
+                haptic.light()
+                toggleMobileSidebar()
+            },
         },
         {
             icon: Plus,
             label: isCreating ? 'Creating...' : 'New',
             active: false,
-            onClick: handleCreateNote,
+            onClick: () => {
+                haptic.medium()
+                handleCreateNote()
+            },
             primary: true,
             disabled: isCreating,
         },
@@ -79,13 +90,19 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
             icon: Archive,
             label: 'Archive',
             active: isOnArchive,
-            onClick: () => router.push('/archive'),
+            onClick: () => {
+                haptic.light()
+                router.push('/archive')
+            },
         },
         {
             icon: Trash2,
             label: 'Trash',
             active: isOnTrash,
-            onClick: () => router.push('/trash'),
+            onClick: () => {
+                haptic.light()
+                router.push('/trash')
+            },
         },
     ]
 

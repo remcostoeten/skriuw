@@ -114,7 +114,7 @@ export function NoteEditor({
 	}
 
 	return (
-		<div className={`flex-1 bg-background-secondary overflow-hidden flex flex-col ${className}`}>
+		<div className={`flex-1 bg-background-secondary overflow-hidden flex flex-col touch-pan-y overscroll-none ${className}`}>
 			<div className="flex-1">
 				{isLoading ? (
 					<EmptyState
