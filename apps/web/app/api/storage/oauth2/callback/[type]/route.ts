@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { env } from '../../../../../../lib/env'
 
 import { requireAuth } from '@/lib/api-auth'
-import { OAUTH2_CONFIGS } from '../../authorize/[type]/route'
+import { OAUTH2_CONFIGS } from '@/lib/storage/oauth2'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -86,7 +85,9 @@ export async function GET(
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
+		const redirectUrl = new URL(
+			`${process.env.NEXT_PUBLIC_APP_URL}/archive`
+		)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,

@@ -383,6 +383,18 @@ export function DrawerTitle({
 	)
 }
 
+export function DrawerDescription({
+	children,
+	className = '',
+	...props
+}: HTMLAttributes<HTMLParagraphElement>) {
+	return (
+		<p className={`text-sm text-muted-foreground ${className}`} {...props}>
+			{children}
+		</p>
+	)
+}
+
 export interface DrawerCloseProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	className?: string

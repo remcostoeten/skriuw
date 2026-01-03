@@ -1,7 +1,14 @@
 import type { NextConfig } from 'next'
 import path from 'path'
+import withSerwistInit from '@serwist/next'
 
 const isTauriBuild = process.env.TAURI_BUILD === 'true'
+
+const withSerwist = withSerwistInit({
+	swSrc: 'app/sw.ts',
+	swDest: 'public/sw.js',
+	disable: process.env.NODE_ENV === 'development',
+})
 
 const nextConfig: NextConfig = {
 	// Enable React strict mode for better development experience
@@ -91,4 +98,5 @@ const nextConfig: NextConfig = {
 	},
 }
 
-export default nextConfig
+export default withSerwist(nextConfig)
+

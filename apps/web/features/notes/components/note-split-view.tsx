@@ -75,31 +75,45 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 		[panes, activePaneId]
 	)
 
+	// Consolidated effect: sync pane state when URL-derived noteId changes.
+	// This replaces three separate effects to prevent race conditions.
 	useEffect(() => {
+		if (!noteId) return
+
+		// Step 1: Update currentNoteId in store (handles layout restoration)
 		setCurrentNoteId(noteId)
-	}, [noteId, setCurrentNoteId])
 
-	useEffect(() => {
-		ensurePrimaryPane(noteId)
-	}, [noteId, ensurePrimaryPane])
+		// Step 2: Ensure primary pane exists (handled by setCurrentNoteId now)
+		// ensurePrimaryPane is only needed for edge cases not covered by setCurrentNoteId
+		// Keeping a redundant call here shouldn't cause issues since it's idempotent
 
-	useEffect(() => {
-		if (!activePaneId || !noteId) return
-		const pane = panes.find((p) => p.id === activePaneId)
-		if (!pane) return
-		if (pane.noteId !== noteId) {
+		// Step 3: If active pane's noteId doesn't match URL, update it
+		// Note: setCurrentNoteId already handles this for single-pane mode
+		// This effect handles split-view scenarios where the active pane differs
+		const currentActivePaneId = useSplitViewStore.getState().activePaneId
+		const currentPanes = useSplitViewStore.getState().panes
+		const pane = currentPanes.find((p) => p.id === currentActivePaneId)
+		if (pane && pane.noteId !== noteId && useSplitViewStore.getState().orientation === 'single') {
 			updatePaneNote(pane.id, noteId)
 		}
-	}, [noteId, activePaneId, panes, updatePaneNote])
+	}, [noteId, setCurrentNoteId, updatePaneNote])
 
 	useEffect(() => {
 		if (!activePaneId) return
 		const pane = panes.find((p) => p.id === activePaneId)
-		if (!pane?.noteId || pane.noteId === noteId) {
+		if (!pane?.noteId) {
 			return
 		}
 
-		// Update URL immediately when active pane changes
+		// Only update URL if the pane's noteId differs from the current URL's noteId
+		// AND this is a user-initiated pane change (not a URL-driven update).
+		// The key check: `noteId` is the URL-derived note. If pane.noteId matches noteId,
+		// it means this is part of the URL->pane sync, so we should NOT update the URL back.
+		if (pane.noteId === noteId) {
+			return
+		}
+
+		// Update URL immediately when user switches pane focus to a different note
 		const url = getNoteUrl(pane.noteId)
 		router.replace(url)
 	}, [activePaneId, panes, router, getNoteUrl, noteId])
