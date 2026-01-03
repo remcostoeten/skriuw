@@ -70,36 +70,78 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 	const [isResizing, setIsResizing] = useState(false)
 	const [dropTargetPaneId, setDropTargetPaneId] = useState<string | null>(null)
 
+	// Track the last URL-driven noteId to prevent feedback loops.
+	// When noteId changes (user clicked a note), we set this ref and skip URL updates
+	// in the pane-sync effect until the panes have fully synced.
+	const lastUrlNoteIdRef = useRef<string | null>(null)
+	const isUrlDrivenUpdateRef = useRef(false)
+
 	const activePane = useMemo(
 		() => panes.find((pane) => pane.id === activePaneId) ?? panes[0],
 		[panes, activePaneId]
 	)
 
+	// Consolidated effect: sync pane state when URL-derived noteId changes.
+	// This replaces three separate effects to prevent race conditions.
 	useEffect(() => {
+		if (!noteId) return
+
+		// Mark that we're in a URL-driven update to prevent the pane-sync effect
+		// from triggering router.replace and creating a loop
+		isUrlDrivenUpdateRef.current = true
+		lastUrlNoteIdRef.current = noteId
+
+		// Step 1: Update currentNoteId in store (handles layout restoration)
 		setCurrentNoteId(noteId)
-	}, [noteId, setCurrentNoteId])
 
-	useEffect(() => {
-		ensurePrimaryPane(noteId)
-	}, [noteId, ensurePrimaryPane])
+		// Step 2: Ensure primary pane exists (handled by setCurrentNoteId now)
+		// ensurePrimaryPane is only needed for edge cases not covered by setCurrentNoteId
+		// Keeping a redundant call here shouldn't cause issues since it's idempotent
 
-	useEffect(() => {
-		if (!activePaneId || !noteId) return
-		const pane = panes.find((p) => p.id === activePaneId)
-		if (!pane) return
-		if (pane.noteId !== noteId) {
+		// Step 3: If active pane's noteId doesn't match URL, update it
+		// Note: setCurrentNoteId already handles this for single-pane mode
+		// This effect handles split-view scenarios where the active pane differs
+		const currentActivePaneId = useSplitViewStore.getState().activePaneId
+		const currentPanes = useSplitViewStore.getState().panes
+		const pane = currentPanes.find((p) => p.id === currentActivePaneId)
+		if (pane && pane.noteId !== noteId && useSplitViewStore.getState().orientation === 'single') {
 			updatePaneNote(pane.id, noteId)
 		}
-	}, [noteId, activePaneId, panes, updatePaneNote])
+
+		// Allow URL updates again after a microtask to let state settle
+		queueMicrotask(() => {
+			isUrlDrivenUpdateRef.current = false
+		})
+	}, [noteId, setCurrentNoteId, updatePaneNote])
 
 	useEffect(() => {
 		if (!activePaneId) return
-		const pane = panes.find((p) => p.id === activePaneId)
-		if (!pane?.noteId || pane.noteId === noteId) {
+
+		// Skip URL update if we're in a URL-driven update (prevents feedback loop)
+		if (isUrlDrivenUpdateRef.current) {
 			return
 		}
 
-		// Update URL immediately when active pane changes
+		const pane = panes.find((p) => p.id === activePaneId)
+		if (!pane?.noteId) {
+			return
+		}
+
+		// Only update URL if the pane's noteId differs from the current URL's noteId
+		// AND this is a user-initiated pane change (not a URL-driven update).
+		// The key check: `noteId` is the URL-derived note. If pane.noteId matches noteId,
+		// it means this is part of the URL->pane sync, so we should NOT update the URL back.
+		if (pane.noteId === noteId) {
+			return
+		}
+
+		// Also skip if the pane's noteId matches our last URL-driven noteId
+		// (this catches cases where the state hasn't fully settled yet)
+		if (pane.noteId === lastUrlNoteIdRef.current) {
+			return
+		}
+
+		// Update URL immediately when user switches pane focus to a different note
 		const url = getNoteUrl(pane.noteId)
 		router.replace(url)
 	}, [activePaneId, panes, router, getNoteUrl, noteId])

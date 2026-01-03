@@ -1,57 +1,117 @@
-**Skriuw** _(noun)_
-/skrɪu̯/ — _Frisian, “to write.”_
+<img src="public/icons/icon.png" alt="Skriuw Logo" width="128" height="128">
 
-A local-first desktop application for writing and organizing thoughts. Built with Tauri 2.0 and React, **Skriuw** blends note-taking and task management into a fast, private workspace with Markdown editing and offline access.
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/remcostoeten/skriuw/releases)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/remcostoeten/skriuw)
+[![Web](https://img.shields.io/badge/web-Next.js-black)](https://skriuw.vercel.app)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](package.json)
+[![Bun](https://img.shields.io/badge/Bun-1.3.3-black)](package.json)
 
----
+# Skriuw
 
-## Monorepo Setup
+Lightning-fast note and task manager for desktop and web. A cross-platform productivity application with local-first architecture.
 
-This project uses a modern monorepo setup with Bun workspaces, optimized for Vercel deployment.
+## Features
+
+- Local-first architecture - your data stays on your device
+- Cross-platform support - Web, Linux, macOS, and Windows
+- Markdown editor with real-time preview
+- Task management integrated with note-taking
+- Offline support with cloud sync options
+- Privacy-focused and secure by default
+- Fast and responsive interface
+
+## Installation
+
+### Web
+
+Visit [skriuw.vercel.app](https://skriuw.vercel.app)
+
+### Desktop
+
+Download the latest release for your operating system from the [releases page](https://github.com/remcostoeten/skriuw/releases)
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/remcostoeten/skriuw.git
+cd skriuw
+
+# Install dependencies
+bun install
+
+# Start development server
+bun run dev
+```
+
+## Development
+
+This project uses a monorepo setup with Bun workspaces.
 
 ### Structure
 
 ```
 skriuw/
 ├── apps/
-│   └── web/                 # Next.js web application
+│   ├── desktop/           # Tauri desktop application
+│   └── web/               # Next.js web application
 ├── packages/
-│   ├── db/                  # Database schema and utilities
-│   ├── ui/                  # Shared UI components
-│   └── core-logic/          # Core business logic
-├── turbo.json               # Turborepo configuration
-├── vercel.json              # Vercel deployment configuration
-└── package.json             # Root package.json with workspace scripts
+│   ├── db/                # Database schema and utilities
+│   ├── ui/                # Shared UI components
+│   └── shared/            # Shared utilities and types
+└── scripts/               # Development and build scripts
 ```
 
-### Development
+### Available Scripts
 
-### OAuth2 Setup
+- `bun run dev` - Start development server
+- `bun run build` - Build for production
+- `bun run lint` - Run linter
+- `bun run test` - Run tests
+- `bun run format` - Format code with Prettier
 
-For backup storage connectors, you'll need to set up OAuth2 apps:
+## Preview
 
-**Dropbox:**
+![Skriuw Interface](public/android-chrome-512x512.png)
 
-- Create app at https://www.dropbox.com/developers/apps
-- Get `DROPBOX_CLIENT_ID` and `DROPBOX_CLIENT_SECRET`
-- Required permissions: `account_info.read`, `files.metadata.write`, `files.content.write`
+To capture a programmatic screenshot of the application:
 
-**Google Drive:**
+```bash
+# Start the development server
+bun run dev
 
-- Create OAuth client at https://console.cloud.google.com/
-- Get `GOOGLE_DRIVE_CLIENT_ID` and `GOOGLE_DRIVE_CLIENT_SECRET`
-- Enable Google Drive API
-- Add redirect: `https://your-domain.com/api/storage/oauth2/callback/google-drive`
+# Use a tool like Puppeteer or Playwright to capture screenshots
+# This can be automated in CI/CD pipelines
+```
 
-Also set `NEXT_PUBLIC_APP_URL` to your domain.
+## Use Cases
 
-### Deployment
+- Personal note-taking and documentation
+- Task and project management
+- Knowledge base and research organization
+- Daily journaling and planning
+- Secure personal information storage
 
-This monorepo is configured for Vercel deployment with:
+## Tech Stack
 
-- Bun as the package manager
-- Turborepo for efficient builds
-- Next.js framework detection
-- Proper workspace dependency resolution
+- Frontend: React, Next.js, Tauri 2.0
+- Database: PostgreSQL with Drizzle ORM
+- UI: Custom component library
+- Authentication: Better Auth
+- Package Manager: Bun
+- Build Tool: Turborepo
 
-The root `vercel.json` handles the monorepo configuration, so individual app configurations are not needed.
+## Contributing
+
+Contributions are welcome. Please read our contributing guidelines before submitting pull requests.
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Links
+
+- Homepage: [skriuw.vercel.app](https://skriuw.vercel.app)
+- Repository: [github.com/remcostoeten/skriuw](https://github.com/remcostoeten/skriuw)
+- Issues: [github.com/remcostoeten/skriuw/issues](https://github.com/remcostoeten/skriuw/issues)
