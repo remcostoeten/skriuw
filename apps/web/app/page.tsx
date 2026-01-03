@@ -37,14 +37,29 @@ export default function Index() {
 	}, [])
 
 	// Handlers
-	const handleCreateNote = async () => {
-		const newNote = await createNote('Untitled')
+	const handleCreateNote = useCallback(async (content?: string) => {
+		const newNote = await createNote('Untitled', content)
 		if (newNote) {
 			const url = getNoteUrl(newNote.id)
 			router.push(`${url}?focus=true`)
 			notify('Note created')
 		}
-	}
+	}, [createNote, getNoteUrl, router])
+
+	// Handle PWA Actions (Shortcuts & Share Target)
+	useEffect(() => {
+		if (!hasMounted) return
+
+		const params = new URLSearchParams(window.location.search)
+		const action = params.get('action')
+		const sharedContent = params.get('content')
+
+		if (action === 'new') {
+			// Clear params and create note
+			window.history.replaceState({}, '', '/')
+			handleCreateNote(sharedContent || undefined)
+		}
+	}, [hasMounted, handleCreateNote])
 
 	const handleHideBadge = () => {
 		updateCookie('true')
