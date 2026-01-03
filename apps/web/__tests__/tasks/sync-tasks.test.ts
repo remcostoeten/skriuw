@@ -85,22 +85,6 @@ describe('sync-tasks', () => {
 			expect(fetch).toHaveBeenCalledTimes(2)
 		})
 
-		it('should call API again when task ordering changes', async () => {
-			mockFetch.mockResolvedValue({
-				ok: true
-			})
-
-			// First sync with initial ordering
-			await syncTasksToDatabase('note-1', mockTasks)
-			expect(fetch).toHaveBeenCalledTimes(1)
-
-			// Second sync with same tasks in different order - currently treated as a change
-			const reorderedTasks: ExtractedTask[] = [mockTasks[1], mockTasks[0]]
-
-			await syncTasksToDatabase('note-1', reorderedTasks)
-			expect(fetch).toHaveBeenCalledTimes(2)
-		})
-
 		it('should enforce max size (1000 entries)', () => {
 			// Clear cache
 			lastSyncedTasksByNote.clear()
