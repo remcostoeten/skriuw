@@ -160,6 +160,11 @@ async function handleAction(action: string, options: Options) {
 		'auth-tokens': authTokens
 	} = options
 
+	// Validate action to prevent command injection
+	if (!/^[a-zA-Z0-9-]+$/.test(action)) {
+		throw new Error(`Invalid action: ${action}. Must contain only alphanumeric characters and dashes.`)
+	}
+
 	logMessage(`Starting action: ${action}`, 'info')
 	logMessage(`Dry run: ${dryRun}`, dryRun ? 'warn' : 'info')
 	logMessage(`Target user: ${user || 'current session'}`, 'info')

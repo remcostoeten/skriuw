@@ -4,7 +4,7 @@ Professional CLI tool for Skriuw development operations. Allows triggering dev A
 
 ## Installation
 
-The CLI is bundled with the Skriuw monorepo. No additional installation needed.
+The CLI is bundled with the Skriuw monorepo. No additional installation is needed.
 
 ## Usage
 
