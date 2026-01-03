@@ -73,7 +73,10 @@ export default function RootLayout({
 				/>
 				<meta name="apple-mobile-web-app-title" content="Skriuw" />
 			</head>
-			<body className="font-sans antialiased dark bg-background">
+			<body
+				className="font-sans antialiased dark bg-background"
+				suppressHydrationWarning
+			>
 				<div id="main-content">
 					<Providers>
 						{children}
