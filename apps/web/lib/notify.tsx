@@ -107,12 +107,15 @@ function generateId(): string {
     return `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
+import { haptic } from './haptics'
+
 function showNotification(options: NotificationOptions) {
+    haptic.success()
     const notificationWithId = {
         ...options,
         id: options.id || generateId()
     }
-    
+
     notifications.push(notificationWithId)
     renderNotifications()
 

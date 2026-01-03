@@ -38,6 +38,7 @@ import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
 import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
 import { getItems, invalidateItemsCache } from '../api/queries/get-items'
 import { getNote as getNoteQuery } from '../api/queries/get-note'
+import { stringToBlocks } from '../utils/string-to-blocks'
 
 import type { Note, Folder, Item } from '../types'
 
@@ -196,17 +197,22 @@ export function useNotes() {
 	)
 
 	const createNote = useCallback(
-		async (name: string = 'Untitled', parentFolderId?: string) => {
+		async (name: string = 'Untitled', content?: string | Block[], parentFolderId?: string) => {
 			// Generate temporary ID for optimistic update
 			const tempId = generateId('temp-note-')
 			const now = Date.now()
+
+			// Handle content conversion if string
+			const noteContent: Block[] = typeof content === 'string'
+				? stringToBlocks(content)
+				: content || []
 
 			// Create optimistic note
 			const optimisticNote: Note = {
 				id: tempId,
 				name,
 				type: 'note',
-				content: [],
+				content: noteContent,
 				parentFolderId,
 				pinned: false,
 				favorite: false,
@@ -243,6 +249,7 @@ export function useNotes() {
 				// Create on server
 				const newNote: Note = await createNoteMutation({
 					name,
+					content: noteContent,
 					parentFolderId
 				})
 

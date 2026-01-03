@@ -11,7 +11,7 @@ type NotesContextValue = {
 	isRefreshing: boolean
 	getNote: (id: string) => Promise<Note | undefined>
 	getItem: (id: string) => Promise<Item | undefined>
-	createNote: (name?: string, parentFolderId?: string) => Promise<Note>
+	createNote: (name?: string, content?: string | Block[], parentFolderId?: string) => Promise<Note>
 	createFolder: (name?: string, parentFolderId?: string) => Promise<Folder>
 	updateNote: (id: string, content: Block[], name?: string) => Promise<void>
 	renameItem: (id: string, newName: string) => Promise<void>
