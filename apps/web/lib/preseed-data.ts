@@ -11,11 +11,15 @@ import type { Note, Folder, Item } from '@/features/notes/types'
 
 let blockIdCounter = 0
 
+export function resetBlockIdCounter() {
+	blockIdCounter = 0
+}
+
 function createId(prefix: string): string {
 	return `${prefix}-${++blockIdCounter}`
 }
 
-function heading(level: 1 | 2 | 3, text: string) {
+export function heading(level: 1 | 2 | 3, text: string) {
 	return {
 		id: createId('h'),
 		type: 'heading' as const,
@@ -25,7 +29,7 @@ function heading(level: 1 | 2 | 3, text: string) {
 	}
 }
 
-function paragraph(text: string, styles: Record<string, boolean> = {}) {
+export function paragraph(text: string, styles: Record<string, boolean> = {}) {
 	return {
 		id: createId('p'),
 		type: 'paragraph' as const,
@@ -35,7 +39,7 @@ function paragraph(text: string, styles: Record<string, boolean> = {}) {
 	}
 }
 
-function bulletItem(text: string) {
+export function bulletItem(text: string) {
 	return {
 		id: createId('li'),
 		type: 'bulletListItem' as const,
@@ -45,7 +49,7 @@ function bulletItem(text: string) {
 	}
 }
 
-function numberedItem(text: string) {
+export function numberedItem(text: string) {
 	return {
 		id: createId('ni'),
 		type: 'numberedListItem' as const,
@@ -55,7 +59,7 @@ function numberedItem(text: string) {
 	}
 }
 
-function codeBlock(code: string, language = 'text') {
+export function codeBlock(code: string, language = 'text') {
 	return {
 		id: createId('code'),
 		type: 'codeBlock' as const,
