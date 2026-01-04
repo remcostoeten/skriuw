@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
 	SuggestionMenuController,
 	type SuggestionMenuProps,
@@ -10,6 +10,19 @@ import { getCustomSlashMenuItems } from '../hooks/useCustomSlashMenu'
 function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProps<DefaultReactSuggestionItem>) {
 	const activeOptionId =
 		selectedIndex !== undefined && selectedIndex >= 0 ? `slash-menu-${selectedIndex}` : undefined
+
+	// Ref for the currently selected item
+	const selectedItemRef = useRef<HTMLButtonElement>(null)
+
+	// Scroll selected item into view when selectedIndex changes
+	useEffect(() => {
+		if (selectedItemRef.current) {
+			selectedItemRef.current.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+			})
+		}
+	}, [selectedIndex])
 
 	if (!items.length) {
 		return (
@@ -28,14 +41,16 @@ function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProp
 		>
 			{items.map((item: DefaultReactSuggestionItem, index: number) => {
 				const optionId = `slash-menu-${index}`
+				const isSelected = selectedIndex === index
 				return (
 					<button
 						key={optionId}
 						id={optionId}
+						ref={isSelected ? selectedItemRef : null}
 						type="button"
 						role="option"
-						aria-selected={selectedIndex === index}
-						className={`bn-suggestion-item ${selectedIndex === index ? 'is-selected' : ''}`}
+						aria-selected={isSelected}
+						className={`bn-suggestion-item ${isSelected ? 'is-selected' : ''}`}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={() => onItemClick?.(item)}
 					>
