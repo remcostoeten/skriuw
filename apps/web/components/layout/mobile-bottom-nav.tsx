@@ -8,7 +8,7 @@ import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { notify } from '@/lib/notify'
-import { haptic } from '@/lib/haptics'
+import { haptic } from '@skriuw/shared'
 
 type MobileBottomNavProps = {
     onSettingsClick?: () => void
