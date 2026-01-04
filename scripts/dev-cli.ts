@@ -209,15 +209,19 @@ async function handleAction(action: string, options: Options) {
 				tables || 'notes,folders,tasks,settings,shortcuts'
 			)
 		} else {
-			logMessage(`Executing request to: ${url}`, verbose ? 'info' : undefined)
-			const res = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body
-			})
-			response = await res.text()
+logMessage(`Executing request to: ${url}`, verbose ? 'info' : undefined)
+const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body
+})
+if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(`Request failed with status ${res.status}: ${errorText}`)
+}
+response = await res.text()
 		}
 
 		const endTime = Date.now()
