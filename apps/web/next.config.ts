@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
 	productionBrowserSourceMaps: false,
 
 	// Optimize for Docker and Vercel deployments by only including necessary files
-	output: process.env.TAURI_BUILD === 'true' ? 'standalone' : 'standalone',
+	output: process.env.TAURI_BUILD === 'true' ? 'export' : 'standalone',
 
 	images: {
 		unoptimized: isTauriBuild,
