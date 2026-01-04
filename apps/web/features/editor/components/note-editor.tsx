@@ -102,14 +102,19 @@ export function NoteEditor({
 		)
 	}
 
-	if (!note) {
+	// Show loading skeleton while fetching note data
+	if (isLoading || !note) {
 		return (
-			<EmptyState
-				message="Note not found"
-				isError
-				description="The note you're looking for doesn't exist or may have been deleted"
-				isFull
-			/>
+			<div className={`flex-1 bg-background-secondary overflow-hidden flex flex-col touch-pan-y overscroll-none ${className}`}>
+				<div className="flex-1 p-8 animate-pulse">
+					<div className="h-8 w-48 bg-muted/50 rounded mb-6" />
+					<div className="space-y-3">
+						<div className="h-4 w-full bg-muted/30 rounded" />
+						<div className="h-4 w-5/6 bg-muted/30 rounded" />
+						<div className="h-4 w-4/6 bg-muted/30 rounded" />
+					</div>
+				</div>
+			</div>
 		)
 	}
 
