@@ -25,14 +25,20 @@
 			"@skriuw/ui": [
 				"../../packages/ui"
 			],
-			"@skriuw/core-logic": [
-				"../../packages/core-logic"
+			"@skriuw/crud": [
+				"../../packages/crud"
 			],
 			"@skriuw/db": [
-				"../../packages/src"
+				"../../packages/db"
 			],
 			"@skriuw/shared": [
 				"../../packages/shared"
+			],
+			"@skriuw/config": [
+				"../../packages/config"
+			],
+			"@skriuw/env": [
+				"../../packages/env"
 			],
 			"@skriuw/storage": [
 				"./lib/storage"
