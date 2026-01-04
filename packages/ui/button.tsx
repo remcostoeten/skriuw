@@ -43,6 +43,8 @@ type TRipple = {
 	y: number
 }
 
+import { haptic } from '../../apps/web/lib/haptics'
+
 export interface ButtonProps
 	extends
 	React.ButtonHTMLAttributes<HTMLButtonElement>,
