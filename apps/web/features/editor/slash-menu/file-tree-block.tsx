@@ -176,7 +176,29 @@ function TreeNode({
                     </div>
                 ) : (
                     <>
-                        <span className="flex-1 text-sm select-none">{node.name}</span>
+                        <span className="flex-1 text-sm select-none truncate">
+                            {(() => {
+                                const parts = node.name.split(/(\[[^\]]+\]\([^)]+\))/g)
+                                return parts.map((part, i) => {
+                                    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+                                    if (linkMatch) {
+                                        return (
+                                            <a
+                                                key={i}
+                                                href={linkMatch[2]}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary hover:underline hover:text-primary/80"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {linkMatch[1]}
+                                            </a>
+                                        )
+                                    }
+                                    return <span key={i}>{part}</span>
+                                })
+                            })()}
+                        </span>
                         <div className="opacity-0 group-hover/item:opacity-100 flex items-center gap-1 transition-opacity">
                             {/* Creation buttons removed */}
                             <button
@@ -290,9 +312,7 @@ export const fileTreeBlockSpec: any = createReactBlockSpec(
                 ? 'relative group my-4 rounded-lg border border-border bg-card shadow-sm overflow-hidden'
                 : 'relative group my-4'
 
-            const headerClasses = style === 'card'
-                ? 'flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/40'
-                : 'flex items-center justify-between px-2 py-2 mb-2 border-b border-border/50'
+
 
             const contentClasses = style === 'card'
                 ? 'py-2 max-h-[600px] overflow-y-auto'
@@ -300,21 +320,16 @@ export const fileTreeBlockSpec: any = createReactBlockSpec(
 
             return (
                 <div className={containerClasses}>
-                    <div className={headerClasses}>
-                        <div className="flex items-center gap-2.5">
-                            <FolderTree className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">File Tree</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={toggleStyle}
-                                className="px-2 py-1 text-xs hover:bg-muted rounded transition-colors flex items-center gap-1.5"
-                                title={style === 'card' ? 'Switch to minimal style' : 'Switch to card style'}
-                            >
-                                <Palette className="w-3.5 h-3.5" />
-                                <span>{style === 'card' ? 'Minimal' : 'Card'}</span>
-                            </button>
-                        </div>
+                    {/* Header removed, style toggle moved to hover action */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button
+                            onClick={toggleStyle}
+                            className="p-1.5 text-xs bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm flex items-center gap-1.5"
+                            title={style === 'card' ? 'Switch to minimal style' : 'Switch to card style'}
+                        >
+                            <Palette className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="sr-only">{style === 'card' ? 'Minimal' : 'Card'}</span>
+                        </button>
                     </div>
 
                     <div className={contentClasses}>
