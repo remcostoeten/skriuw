@@ -8,7 +8,7 @@ import {
 	shortcuts,
 	getSafeTimestamp
 } from '@skriuw/db'
-import { sampleNotes, sampleFolders } from './seeds'
+import { getSampleNotes, getSampleFolders } from './seeds'
 import { generateId } from '@skriuw/shared'
 import { env } from '@/lib/env'
 import { getCurrentUserId, getSession } from '@/lib/api-auth'
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
 				}
 
 				try {
+					const sampleFolders = getSampleFolders()
 					for (const folderData of sampleFolders) {
 						const folderId = generateId('folder')
 						await db.insert(folders).values({
@@ -82,69 +83,70 @@ export async function POST(request: NextRequest) {
 									id: generateId('note'),
 									name: childName,
 									content: JSON.stringify([
-									{
-										id: `p-${Date.now()}`,
-										type: 'paragraph',
-										props: {
-											textColor: 'default',
-											backgroundColor: 'default',
-											textAlignment: 'left'
-										},
-										content: [
-											{
-												type: 'text',
-												text: `This is the ${childName} note.`,
-												styles: {}
-											}
-										],
-										children: []
-									}
-								]),
-								parentFolderId: folderId,
-								userId,
-								pinned: 0,
-								pinnedAt: null,
-								favorite: 0,
-								createdAt: now + createdItems.notes,
-								updatedAt: now + createdItems.notes,
-								type: 'note'
-							})
-							createdItems.notes++
+										{
+											id: `p-${Date.now()}`,
+											type: 'paragraph',
+											props: {
+												textColor: 'default',
+												backgroundColor: 'default',
+												textAlignment: 'left'
+											},
+											content: [
+												{
+													type: 'text',
+													text: `This is the ${childName} note.`,
+													styles: {}
+												}
+											],
+											children: []
+										}
+									]),
+									parentFolderId: folderId,
+									userId,
+									pinned: 0,
+									pinnedAt: null,
+									favorite: 0,
+									createdAt: now + createdItems.notes,
+									updatedAt: now + createdItems.notes,
+									type: 'note'
+								})
+								createdItems.notes++
+							}
 						}
 					}
-				}
 
-				for (const noteData of sampleNotes) {
-					await db.insert(notes).values({
-						id: generateId('note'),
-						name: noteData.name,
-						content: JSON.stringify(noteData.content),
-						parentFolderId: null,
-						userId,
-						pinned: noteData.pinned ? 1 : 0,
-						pinnedAt: noteData.pinned ? now : null,
-						favorite: 0,
-						createdAt: now + createdItems.notes,
-						updatedAt: now + createdItems.notes,
-						type: 'note'
+					const sampleNotes = getSampleNotes()
+					for (const noteData of sampleNotes) {
+						await db.insert(notes).values({
+							id: generateId('note'),
+							name: noteData.name,
+							content: JSON.stringify(noteData.content),
+							parentFolderId: null,
+							userId,
+							pinned: noteData.pinned ? 1 : 0,
+							pinnedAt: noteData.pinned ? now : null,
+							favorite: 0,
+							createdAt: now + createdItems.notes,
+							updatedAt: now + createdItems.notes,
+							type: 'note'
+						})
+						createdItems.notes++
+					}
+
+					return NextResponse.json({
+						success: true,
+						action: 'seed',
+						created: createdItems,
+						message: `Created ${createdItems.notes} notes and ${createdItems.folders} folders`
 					})
-					createdItems.notes++
+				} catch (error) {
+					console.error('Error seeding database:', error)
+					return NextResponse.json({
+						success: false,
+						action: 'seed',
+						error: error instanceof Error ? error.message : 'Unknown error occurred while seeding database'
+					}, { status: 500 })
 				}
-
-				return NextResponse.json({
-					success: true,
-					action: 'seed',
-					created: createdItems,
-					message: `Created ${createdItems.notes} notes and ${createdItems.folders} folders`
-				})
-			} catch (error) {
-				console.error('Error seeding database:', error)
-				return NextResponse.json({
-					success: false,
-					action: 'seed',
-					error: error instanceof Error ? error.message : 'Unknown error occurred while seeding database'
-				}, { status: 500 })
-			}
 			}
 
 			case 'clear-notes': {

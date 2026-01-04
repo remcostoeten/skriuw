@@ -11,6 +11,10 @@ import type { Note, Folder, Item } from '@/features/notes/types'
 
 let blockIdCounter = 0
 
+export function resetBlockIdCounter() {
+	blockIdCounter = 0
+}
+
 function createId(prefix: string): string {
 	return `${prefix}-${++blockIdCounter}`
 }
