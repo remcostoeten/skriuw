@@ -66,7 +66,7 @@ export async function create<T extends BaseEntity>(
 
             queueMicrotask(async () => {
                 try {
-                    const actual = await getAdapter().create<T>(storageKey, entityToCreate)
+                    const actual = await getAdapter().create<T>(storageKey, entityToCreate, options)
                     invalidateForStorageKey(storageKey)
                     options.onOptimisticSettled?.(successResult(actual, startTime, { optimistic: true }))
                 } catch (error) {
@@ -78,7 +78,7 @@ export async function create<T extends BaseEntity>(
         }
 
         // Standard create
-        const created = await getAdapter().create<T>(storageKey, entityToCreate)
+        const created = await getAdapter().create<T>(storageKey, entityToCreate, options)
         invalidateForStorageKey(storageKey)
 
         return successResult(created, startTime)

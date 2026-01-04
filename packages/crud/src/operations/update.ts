@@ -59,7 +59,7 @@ export async function update<T extends BaseEntity>(
 
             queueMicrotask(async () => {
                 try {
-                    const actual = await getAdapter().update<T>(storageKey, id, updateData)
+                    const actual = await getAdapter().update<T>(storageKey, id, updateData, options)
                     cache.invalidate(cacheKey)
                     cache.invalidateForStorageKey(storageKey)
                     if (actual) {
@@ -92,7 +92,7 @@ export async function update<T extends BaseEntity>(
         }
 
         // Standard update
-        const updated = await getAdapter().update<T>(storageKey, id, updateData)
+        const updated = await getAdapter().update<T>(storageKey, id, updateData, options)
 
         if (!updated) {
             return errorResult<T>(createNotFoundError(storageKey, id), startTime)
