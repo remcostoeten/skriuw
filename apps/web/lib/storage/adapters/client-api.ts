@@ -220,6 +220,27 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		return response.json()
 	}
 
+	// Helpers for LocalStorage operations
+	const getLocalItems = <T>(key: string): T[] => {
+		if (typeof window === 'undefined') return []
+		try {
+			const item = window.localStorage.getItem(key)
+			return item ? JSON.parse(item) : []
+		} catch (e) {
+			console.warn(`Error reading from localStorage key "${key}":`, e)
+			return []
+		}
+	}
+
+	const setLocalItems = <T>(key: string, items: T[]): void => {
+		if (typeof window === 'undefined') return
+		try {
+			window.localStorage.setItem(key, JSON.stringify(items))
+		} catch (e) {
+			console.warn(`Error writing to localStorage key "${key}":`, e)
+		}
+	}
+
 	return {
 		name: 'client-api',
 		async create<T>(
@@ -227,11 +248,27 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			data: any,
 			options?: CreateAdapterOptions
 		): Promise<T> {
+			// If guest user (explicitly marked), use localStorage
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const timestamp = Date.now()
+				const newItem = {
+					...data,
+					// Ensure ID exists (should be passed in data, but fallback if needed)
+					id: data.id || `local-${Math.random().toString(36).substr(2, 9)}`,
+					createdAt: timestamp,
+					updatedAt: timestamp
+				}
+				items.push(newItem)
+				setLocalItems(storageKey, items)
+				return newItem as T
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const body: any = { ...data }
 
-			// Include userId in the body if provided
-			if (options?.userId) {
+			// Include userId in the body if provided and not 'guest'
+			if (options?.userId && options.userId !== 'guest') {
 				body.userId = options.userId
 			}
 
@@ -245,13 +282,26 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			storageKey: string,
 			options?: ReadAdapterOptions
 		): Promise<T[] | T | undefined> {
+			// If guest user (explicitly marked), use localStorage
+			// Note: If getById is usually for server, we might still want to check local if no userId
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+
+				if (options?.getById) {
+					const item = items.find(i => i.id === options.getById)
+					return item as T | undefined
+				}
+
+				return items as T[]
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {}
 
 			if (options?.getById) {
 				params.id = options.getById
 			}
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -278,10 +328,25 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			data: any,
 			options?: UpdateAdapterOptions
 		): Promise<T | undefined> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const index = items.findIndex(i => i.id === id)
+				if (index === -1) return undefined
+
+				const updatedItem = {
+					...items[index],
+					...data,
+					updatedAt: Date.now()
+				}
+				items[index] = updatedItem
+				setLocalItems(storageKey, items)
+				return updatedItem as T
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {}
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -306,12 +371,20 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			id: string,
 			options?: DeleteAdapterOptions
 		): Promise<boolean> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const newItems = items.filter(i => i.id !== id)
+				if (newItems.length === items.length) return false // Item not found
+				setLocalItems(storageKey, newItems)
+				return true
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {
 				id
 			}
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -336,10 +409,16 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			id: string,
 			options?: ReadAdapterOptions
 		): Promise<T | null> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const item = items.find(i => i.id === id)
+				return (item as T) || null
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {}
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -360,10 +439,14 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			storageKey: string,
 			options?: BatchReadAdapterOptions
 		): Promise<T[]> {
+			if (options?.userId === 'guest') {
+				return getLocalItems<T>(storageKey)
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {}
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -385,10 +468,23 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			items: any[],
 			options?: BatchCreateAdapterOptions
 		): Promise<T[]> {
+			if (options?.userId === 'guest') {
+				const existingItems = getLocalItems<any>(storageKey)
+				const timestamp = Date.now()
+				const newItems = items.map(item => ({
+					...item,
+					id: item.id || `local-${Math.random().toString(36).substr(2, 9)}`,
+					createdAt: timestamp,
+					updatedAt: timestamp
+				}))
+				setLocalItems(storageKey, [...existingItems, ...newItems])
+				return newItems as T[]
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const body: any = { items }
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				body.userId = options.userId
 			}
 
@@ -403,12 +499,17 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			ids: string[],
 			options?: BatchReadAdapterOptions
 		): Promise<T[]> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				return items.filter(i => ids.includes(i.id)) as T[]
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {
 				ids: ids.join(',')
 			}
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				params.userId = options.userId
 			}
 
@@ -430,10 +531,31 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			updates: { id: string; data: any }[],
 			options?: BatchUpdateAdapterOptions
 		): Promise<T[]> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const updatedItems: T[] = []
+				let hasChanges = false
+
+				updates.forEach(({ id, data }) => {
+					const index = items.findIndex(i => i.id === id)
+					if (index !== -1) {
+						items[index] = { ...items[index], ...data, updatedAt: Date.now() }
+						updatedItems.push(items[index] as T)
+						hasChanges = true
+					}
+				})
+
+				if (hasChanges) {
+					setLocalItems(storageKey, items)
+				}
+
+				return updatedItems
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const body: any = { updates }
 
-			if (options?.userId) {
+			if (options?.userId && options.userId !== 'guest') {
 				body.userId = options.userId
 			}
 
@@ -448,6 +570,17 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			ids: string[],
 			options?: BatchDeleteAdapterOptions
 		): Promise<number> {
+			if (options?.userId === 'guest') {
+				const items = getLocalItems<any>(storageKey)
+				const newItems = items.filter(i => !ids.includes(i.id))
+				const deletedCount = items.length - newItems.length
+
+				if (deletedCount > 0) {
+					setLocalItems(storageKey, newItems)
+				}
+				return deletedCount
+			}
+
 			const endpoint = getEndpoint(storageKey)
 			const params: Record<string, string | null | undefined> = {
 				ids: ids.join(',')

@@ -5,12 +5,13 @@ import type { Note } from '../../types'
 
 const CACHE_TTL_MS = 60000
 
-export async function getNote(id: string): Promise<Note | undefined> {
+export async function getNote(id: string, userId?: string): Promise<Note | undefined> {
 	try {
 		const result = await readOne<Note>(STORAGE_KEYS.NOTES, id, {
 			cache: {
 				ttl: CACHE_TTL_MS
-			}
+			},
+			userId
 		})
 		if (result.success && result.data && result.data.type === 'note') {
 			return result.data
@@ -22,3 +23,4 @@ export async function getNote(id: string): Promise<Note | undefined> {
 		)
 	}
 }
+

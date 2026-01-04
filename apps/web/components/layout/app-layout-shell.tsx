@@ -91,10 +91,10 @@ export function AppLayoutShell({
 
 				{/* Enhanced backdrop for mobile - better z-index and handling */}
 				{isSidebarOpen && isMobile && (
-					<div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={handleBackdropClick} />
+					<div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={handleBackdropClick} />
 				)}
 
-				{leftToolbar && <div className="hidden lg:block">{leftToolbar}</div>}
+				{leftToolbar && <div className="hidden md:block">{leftToolbar}</div>}
 
 				{/* Enhanced Sidebar with improved mobile behavior */}
 				{sidebar && (
@@ -102,9 +102,9 @@ export function AppLayoutShell({
 						ref={sidebarRef}
 						className={cn(
 							// Base positioning
-							'fixed lg:static inset-y-0 left-0',
+							'fixed md:static inset-y-0 left-0',
 							// Improved z-index handling
-							'z-50 lg:z-0',
+							'z-50 md:z-0',
 							// Responsive width
 							isMobile ? 'w-[280px] max-w-[80vw]' : 'w-auto',
 							// Smooth transitions (only when not dragging)
@@ -114,9 +114,9 @@ export function AppLayoutShell({
 							isMobile && (isSidebarOpen ? 'translate-x-0' : '-translate-x-full'),
 							// Desktop toggle behavior
 							!isMobile &&
-							(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'),
+							(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'),
 							// Hide on desktop when closed
-							!isMobile && !isDesktopSidebarOpen && 'lg:-translate-x-full',
+							!isMobile && !isDesktopSidebarOpen && 'md:hidden',
 							// Hide via CSS when sidebarVisible is false (SPA-like, stays mounted)
 							!sidebarVisible && 'hidden'
 						)}
@@ -148,10 +148,6 @@ export function AppLayoutShell({
 						isTaskPanelOpen && 'pr-[480px] lg:pr-[560px]',
 						isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
 					)}
-					style={{
-						// On desktop, adjust margin when sidebar is closed to reclaim the 210px space
-						marginLeft: !isMobile && !isDesktopSidebarOpen ? '-210px' : undefined,
-					}}
 				>
 					<div className="sticky z-[60] top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
 						{topToolbar}
