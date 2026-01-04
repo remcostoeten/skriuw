@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Skriuw Desktop App
 
-## Getting Started
+This is the desktop frontend for Skriuw, built with [Next.js](https://nextjs.org) and [Tauri](https://tauri.app).
 
-First, run the development server:
+## Architecture
+
+This application serves as the UI layer for the Tauri desktop application. It mimics the web version but is optimized for desktop usage (local storage, OS integrations).
+
+- **`apps/desktop`**: This Next.js application (UI).
+- **`src-tauri`**: The Rust backend for Tauri (located in the root or parallel directory depending on configuration, check `tauri.conf.json`).
+
+## Development
+
+To run the desktop app in development mode:
+
+1.  Make sure you are in the root of the monorepo.
+2.  Run the Tauri dev command:
 
 ```bash
-npm run dev
+npm run tauri dev
 # or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+yarn tauri dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This will start both the Next.js dev server and the Tauri window.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Building
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To build the application for distribution:
 
-## Learn More
+```bash
+npm run tauri build
+```
 
-To learn more about Next.js, take a look at the following resources:
+This will produce installers for your current operating system.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key Differences from Web
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Storage**: Uses local filesystem capabilities via Tauri APIs instead of pure browser storage or cloud-only adaptations where applicable.
+- **Routing**: Optimized for offline-first usage.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

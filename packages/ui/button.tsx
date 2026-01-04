@@ -43,7 +43,7 @@ type TRipple = {
 	y: number
 }
 
-import { haptic } from '../../apps/web/lib/haptics'
+
 
 export interface ButtonProps
 	extends
@@ -54,7 +54,7 @@ export interface ButtonProps
 	rippleColor?: string
 	rippleScale?: number
 	hoverScale?: number
-	haptic?: boolean
+	onHaptic?: () => void
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -68,7 +68,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 			rippleColor = 'rgba(255, 255, 255, 0.5)',
 			rippleScale = 10,
 			hoverScale,
-			haptic: hapticEnabled = false,
+			onHaptic,
 			onClick,
 			children,
 			// Exclude Framer Motion conflicting props to avoid type errors
@@ -84,9 +84,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		const [ripples, setRipples] = React.useState<TRipple[]>([])
 
 		function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
-			if (hapticEnabled) {
-				haptic.light()
-			}
+			onHaptic?.()
 			if (ripple) {
 				const button = event.currentTarget
 				const rect = button.getBoundingClientRect()
