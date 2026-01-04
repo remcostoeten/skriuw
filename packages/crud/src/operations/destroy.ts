@@ -59,7 +59,7 @@ export async function destroy(
                             updatedAt: Date.now(),
                         } as unknown as Partial<BaseEntity>)
                     } else {
-                        await getAdapter().delete(storageKey, id)
+                        await getAdapter().delete(storageKey, id, options)
                     }
 
                     cache.invalidate(cacheKey)
@@ -93,7 +93,7 @@ export async function destroy(
             } as unknown as Partial<BaseEntity>)
             deleted = !!updated
         } else {
-            deleted = await getAdapter().delete(storageKey, id)
+            deleted = await getAdapter().delete(storageKey, id, options)
         }
 
         if (!deleted) {

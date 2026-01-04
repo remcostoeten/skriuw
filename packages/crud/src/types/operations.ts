@@ -32,6 +32,8 @@ export interface CreateOptions<T extends BaseEntity = BaseEntity> {
     validate?: (data: CreateInput<T>) => ValidationResult
     /** Transform before storage */
     transform?: (data: CreateInput<T>) => CreateInput<T>
+    /** User Context ID */
+    userId?: string
 }
 
 /**
@@ -69,6 +71,8 @@ export interface ReadOptions<T extends BaseEntity = BaseEntity> {
     includeSoftDeleted?: boolean
     /** Field projection */
     select?: (keyof T)[]
+    /** User Context ID */
+    userId?: string
 }
 
 /**
@@ -120,6 +124,8 @@ export interface UpdateOptions<T extends BaseEntity = BaseEntity> {
     transform?: (data: Partial<T>) => Partial<T>
     /** Optimistic locking condition */
     where?: (current: T) => boolean
+    /** User Context ID */
+    userId?: string
 }
 
 /**
@@ -158,6 +164,8 @@ export interface DeleteOptions {
     onOptimisticSettled?: (result: import('./base').CrudResult<boolean>, rolledBack: boolean) => void
     /** Cascade config */
     cascade?: CascadeConfig
+    /** User Context ID */
+    userId?: string
 }
 
 /**
