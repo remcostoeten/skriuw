@@ -25,12 +25,14 @@ function filterActiveItems(items: Item[]): Item[] {
 
 async function fetchItems(options?: {
 	forceRefresh?: boolean
+	userId?: string
 }): Promise<Item[]> {
 	const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 		cache: {
 			ttl: CACHE_TTL_MS,
 			forceRefresh: options?.forceRefresh
-		}
+		},
+		userId: options?.userId
 	})
 
 	const allItems = result.success ? normalizeResult(result.data) : []
@@ -50,7 +52,7 @@ export function invalidateItemsCache(): void {
  * Get items using CRUD's built-in caching with stale-while-revalidate
  */
 export async function getItems(
-	options: { forceRefresh?: boolean } = {}
+	options: { forceRefresh?: boolean; userId?: string } = {}
 ): Promise<Item[]> {
 	try {
 		return await fetchItems(options)

@@ -7,7 +7,7 @@ import {
 	useDeferredValue
 } from 'react'
 
-import { readOne } from '@skriuw/crud'
+import { readOne, create, update, destroy } from '@skriuw/crud'
 
 // Define types locally since shared package build is failing
 type UUID = string
@@ -136,16 +136,59 @@ export function useNotes() {
 	// Deferred value for non-blocking updates
 	const deferredItems = useDeferredValue(items)
 
-	// Initial load - use cache for subsequent loads, force refresh only on session change
+	// localStorage cache key and helpers
+	const CACHE_KEY = 'skriuw:file-tree-cache'
+	const CACHE_TIMESTAMP_KEY = 'skriuw:file-tree-cache-ts'
+	const CACHE_MAX_AGE_MS = 5 * 60 * 1000 // 5 minutes
+
+	const getCachedItems = useCallback((): Item[] | null => {
+		if (typeof window === 'undefined') return null
+		try {
+			const cached = localStorage.getItem(CACHE_KEY)
+			const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY)
+			if (cached && timestamp) {
+				const age = Date.now() - parseInt(timestamp, 10)
+				// Return cache even if stale - we'll refresh in background
+				if (age < CACHE_MAX_AGE_MS * 2) {
+					return JSON.parse(cached)
+				}
+			}
+		} catch (e) {
+			console.warn('[useNotes] Failed to read cache:', e)
+		}
+		return null
+	}, [])
+
+	const setCachedItems = useCallback((data: Item[]) => {
+		if (typeof window === 'undefined') return
+		try {
+			localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+			localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString())
+		} catch (e) {
+			console.warn('[useNotes] Failed to write cache:', e)
+		}
+	}, [])
+
+	// Initial load with stale-while-revalidate pattern
 	useEffect(() => {
 		let isCancelled = false
 
 		const loadInitialData = async () => {
-			setIsInitialLoading(true)
+			// Step 1: Try to render from cache immediately
+			const cachedItems = getCachedItems()
+			if (cachedItems && cachedItems.length > 0) {
+				setItems(cachedItems)
+				setIsInitialLoading(false) // Instant render!
+			}
+
+			// Step 2: Fetch fresh data in background
 			try {
-				const data = await getItems({ forceRefresh: false })
+				const userId = session?.user?.id ?? 'guest'
+				const data = await getItems({ forceRefresh: false, userId })
 				if (!isCancelled) {
+					// Only update if data changed (avoid unnecessary re-renders)
 					setItems(data)
+					setCachedItems(data)
 					setIsInitialLoading(false)
 				}
 			} catch (error) {
@@ -161,15 +204,17 @@ export function useNotes() {
 		return () => {
 			isCancelled = true
 		}
-	}, [session?.user?.id])
+	}, [session?.user?.id, getCachedItems, setCachedItems])
 
 	const refreshItems = useCallback(async () => {
 		setIsRefreshing(true)
 		try {
-			const updatedItems = await getItems({ forceRefresh: true })
+			const userId = session?.user?.id ?? 'guest'
+			const updatedItems = await getItems({ forceRefresh: true, userId })
 			// Use startTransition to make this update non-blocking
 			startTransition(() => {
 				setItems(updatedItems)
+				setCachedItems(updatedItems)
 				setIsRefreshing(false)
 			})
 		} catch (error) {
@@ -180,9 +225,10 @@ export function useNotes() {
 
 	const getNote = useCallback(
 		async (id: string): Promise<Note | undefined> => {
-			return await getNoteQuery(id)
+			const userId = session?.user ? undefined : 'guest'
+			return await getNoteQuery(id, userId)
 		},
-		[]
+		[session?.user]
 	)
 
 	const getItem = useCallback(
@@ -246,6 +292,28 @@ export function useNotes() {
 			setItems(addItem(items, optimisticNote, parentFolderId))
 
 			try {
+				if (!session?.user) {
+					console.log('[createNote] Creating local note for guest user')
+					const result = await create<Note>(STORAGE_KEYS.NOTES, optimisticNote, { userId: 'guest' })
+					if (!result.success || !result.data) throw new Error('Failed to create local note')
+					const newNote = result.data
+
+					// Update the item ID from the real creation (in case it changed)
+					const replaceItem = (itemList: Item[]): Item[] => {
+						return itemList.map((i) => {
+							if (i.id === tempId) {
+								return newNote
+							}
+							if (i.type === 'folder') {
+								return { ...i, children: replaceItem(i.children) }
+							}
+							return i
+						})
+					}
+					setItems(replaceItem)
+					return newNote
+				}
+
 				// Create on server
 				const newNote: Note = await createNoteMutation({
 					name,
@@ -321,6 +389,28 @@ export function useNotes() {
 			setItems(addItem(items, optimisticFolder, parentFolderId))
 
 			try {
+				if (!session?.user) {
+					console.log('[createFolder] Creating local folder for guest user')
+					const result = await create<Folder>(STORAGE_KEYS.NOTES, optimisticFolder, { userId: 'guest' })
+					if (!result.success || !result.data) throw new Error('Failed to create local folder')
+					const newFolder = result.data
+
+					// Remove temp item and replace with real one
+					const replaceItem = (itemList: Item[]): Item[] => {
+						return itemList.map((i) => {
+							if (i.id === tempId) {
+								return { ...newFolder, children: [] }
+							}
+							if (i.type === 'folder') {
+								return { ...i, children: replaceItem(i.children) }
+							}
+							return i
+						})
+					}
+					setItems(replaceItem)
+					return newFolder
+				}
+
 				// Create on server
 				const newFolder: Folder = await createFolderMutation({
 					name,
@@ -353,10 +443,15 @@ export function useNotes() {
 
 	const updateNote = useCallback(
 		async (id: string, content: NoteContent, name?: string) => {
-			// Update the note on the server - no need to refresh items
-			// since the editor already has the updated content in its state
-			// and the sidebar doesn't need to know about content changes
-			await updateNoteMutation(id, { content, name })
+			if (!session?.user) {
+				const result = await update<Note>(STORAGE_KEYS.NOTES, id, { content, name }, { userId: 'guest' })
+				if (!result.success) throw new Error('Failed to update local note')
+			} else {
+				// Update the note on the server - no need to refresh items
+				// since the editor already has the updated content in its state
+				// and the sidebar doesn't need to know about content changes
+				await updateNoteMutation(id, { content, name })
+			}
 
 			// Only update the item name in local state if name changed
 			if (name !== undefined) {
@@ -406,7 +501,12 @@ export function useNotes() {
 			setItems(updateName(items))
 
 			try {
-				await renameItemMutation(id, newName)
+				if (!session?.user) {
+					const result = await update<Item>(STORAGE_KEYS.NOTES, id, { name: newName }, { userId: 'guest' })
+					if (!result.success) throw new Error('Failed to rename local item')
+				} else {
+					await renameItemMutation(id, newName)
+				}
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to rename item:', error)
@@ -436,7 +536,14 @@ export function useNotes() {
 
 			// Perform actual deletion in background
 			try {
-				const success = await deleteItemMutation(id)
+				let success = false
+				if (!session?.user) {
+					const result = await destroy(STORAGE_KEYS.NOTES, id, { userId: 'guest' })
+					success = result.success
+				} else {
+					success = await deleteItemMutation(id)
+				}
+
 				if (!success) {
 					// Rollback on failure
 					setItems(previousItems)
@@ -507,10 +614,22 @@ export function useNotes() {
 
 			// Perform actual move in background
 			try {
-				const success = await moveItemMutation(
-					itemId,
-					targetFolderId ?? undefined
-				)
+				let success = false
+
+				if (!session?.user) {
+					// For local storage, we update the parentFolderId
+					const updateData: Partial<Item> = {
+						parentFolderId: targetFolderId === null ? undefined : targetFolderId
+					}
+					const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData, { userId: 'guest' })
+					success = result.success
+				} else {
+					success = await moveItemMutation(
+						itemId,
+						targetFolderId ?? undefined
+					)
+				}
+
 				if (!success) {
 					setItems(previousItems)
 					return false
@@ -570,7 +689,15 @@ export function useNotes() {
 			setItems(updatePinStatus(items))
 
 			try {
-				await pinItemMutation(itemId, itemType, pinned)
+				if (!session?.user) {
+					const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, {
+						pinned,
+						pinnedAt: pinned ? Date.now() : undefined
+					}, { userId: 'guest' })
+					if (!result.success) throw new Error('Failed to pin local item')
+				} else {
+					await pinItemMutation(itemId, itemType, pinned)
+				}
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to pin item:', error)
@@ -600,7 +727,12 @@ export function useNotes() {
 			setItems(updateFavoriteStatus(items))
 
 			try {
-				await favoriteNoteMutation(noteId, favorite)
+				if (!session?.user) {
+					const result = await update<Note>(STORAGE_KEYS.NOTES, noteId, { favorite }, { userId: 'guest' })
+					if (!result.success) throw new Error('Failed to favorite local note')
+				} else {
+					await favoriteNoteMutation(noteId, favorite)
+				}
 			} catch (error) {
 				setItems(previousItems)
 				console.error('Failed to favorite note:', error)

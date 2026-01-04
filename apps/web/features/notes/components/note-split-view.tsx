@@ -22,6 +22,7 @@ import { NOTE_TAB_DRAG_TYPE } from '../constants'
 import type { NoteTabDragPayload } from '../types'
 import { useSplitViewStore } from '../split-view/store'
 import { cn } from '@skriuw/shared'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
 
 type NoteSplitViewProps = {
 	noteId: string
@@ -64,6 +65,17 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 	const closeActivePane = useSplitViewStore((state) => state.closeActivePane)
 	const setSizes = useSplitViewStore((state) => state.setSizes)
 	const setCurrentNoteId = useSplitViewStore((state) => state.setCurrentNoteId)
+	const setOrientation = useSplitViewStore((state) => state.setOrientation)
+
+	// Detect mobile viewport
+	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
+
+	// Force single-pane mode on mobile devices
+	useEffect(() => {
+		if (isMobile && orientation !== 'single') {
+			setOrientation('single', noteId)
+		}
+	}, [isMobile, orientation, setOrientation, noteId])
 
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const dragStartRef = useRef<{ pos: number; sizes: number[] } | null>(null)
