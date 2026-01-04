@@ -29,7 +29,7 @@ import { successResult, errorResult } from '../utils/result'
 export async function readOne<T extends BaseEntity>(
     storageKey: string,
     id: string,
-    options?: Pick<ReadOptions<T>, 'cache'>
+    options?: Pick<ReadOptions<T>, 'cache' | 'userId'>
 ): Promise<CrudResult<T>> {
     const startTime = Date.now()
     const cacheKey = cache.generateKey(storageKey, { id })
@@ -52,7 +52,7 @@ export async function readOne<T extends BaseEntity>(
         }
 
         // Fetch from storage
-        const result = await getAdapter().read<T>(storageKey, { getById: id })
+        const result = await getAdapter().read<T>(storageKey, { getById: id, ...options })
 
         if (!result || (Array.isArray(result) && result.length === 0)) {
             return errorResult<T>(createNotFoundError(storageKey, id), startTime)
@@ -117,7 +117,7 @@ export async function readMany<T extends BaseEntity>(
         }
 
         // Fetch from storage
-        const result = await getAdapter().read<T>(storageKey, { getAll: true })
+        const result = await getAdapter().read<T>(storageKey, { getAll: true, ...options })
         let entities = Array.isArray(result) ? result : result ? [result] : []
 
         // Apply filter
