@@ -1391,66 +1391,14 @@ export function Sidebar({
 	const { guard } = useMutationGuard()
 	const { getNoteUrl } = useNoteSlug(items)
 
-	// Wrap actions with guard
-	const createNote = useCallback(
-		async (title: string, parentId?: string) => {
-			return guard(() => originalCreateNote(title, parentId))
-		},
-		[guard, originalCreateNote]
-	)
-
-	const createFolder = useCallback(
-		async (title: string, parentId?: string) => {
-			return guard(() => originalCreateFolder(title, parentId))
-		},
-		[guard, originalCreateFolder]
-	)
-
-	const renameItem = useCallback(
-		async (id: string, name: string) => {
-			return guard(() => originalRenameItem(id, name), {
-				message: 'Sign in to rename items'
-			})
-		},
-		[guard, originalRenameItem]
-	)
-
-	const deleteItem = useCallback(
-		async (id: string) => {
-			return guard(() => originalDeleteItem(id), {
-				message: 'Sign in to delete items'
-			})
-		},
-		[guard, originalDeleteItem]
-	)
-
-	const moveItem = useCallback(
-		async (id: string, targetId: string | null): Promise<boolean> => {
-			const result = await guard(() => originalMoveItem(id, targetId), {
-				message: 'Sign in to move items'
-			})
-			return result ?? false
-		},
-		[guard, originalMoveItem]
-	)
-
-	const pinItem = useCallback(
-		async (id: string, type: 'note' | 'folder', pinned: boolean) => {
-			return guard(() => originalPinItem(id, type, pinned), {
-				message: 'Sign in to pin items'
-			})
-		},
-		[guard, originalPinItem]
-	)
-
-	const favoriteNote = useCallback(
-		async (id: string, favorite: boolean) => {
-			return guard(() => originalFavoriteNote(id, favorite), {
-				message: 'Sign in to favorite notes'
-			})
-		},
-		[guard, originalFavoriteNote]
-	)
+	// Use original actions directly - useNotes handles guest user storage internally
+	const createNote = originalCreateNote
+	const createFolder = originalCreateFolder
+	const renameItem = originalRenameItem
+	const deleteItem = originalDeleteItem
+	const moveItem = originalMoveItem
+	const pinItem = originalPinItem
+	const favoriteNote = originalFavoriteNote
 
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
 		new Set()
