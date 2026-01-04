@@ -27,10 +27,6 @@ async function exchangeCodeForTokens(
 		},
 		body: new URLSearchParams({
 			grant_type: 'authorization_code',
-			code,
-			client_id: config.clientId,
-			client_secret: config.clientSecret,
-			redirect_uri: config.redirectUri
 		})
 	})
 
