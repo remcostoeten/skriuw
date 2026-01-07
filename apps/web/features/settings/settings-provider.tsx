@@ -1,6 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-
-import { getSettings, saveSettings } from './api'
+import React, { createContext, useContext, useEffect, type ReactNode } from 'react'
 
 type SettingsContextValue = {
 	settings: Record<string, any>
@@ -49,16 +47,33 @@ const DEFAULT_SETTINGS = {
 	sidebarHierarchyGuides: false,
 } as const
 
+import {
+	useSettingsQuery,
+	useSaveSettingsMutation
+} from './hooks/use-settings-query'
+
 export function SettingsProvider({
 	children,
 	defaultSettings = DEFAULT_SETTINGS,
 }: SettingsProviderProps) {
-	const [settings, setSettings] = useState<Record<string, any>>(defaultSettings)
-	const [isLoading, setIsLoading] = useState(false) // Start as false - don't block UI
+	const { data: settingsEntity, isLoading: isQueryLoading } = useSettingsQuery()
+	const { mutate: saveSettings } = useSaveSettingsMutation()
 
-	useEffect(() => {
-		loadSettings()
-	}, [])
+	// Derive settings from query data or defaults
+	const settings = React.useMemo(() => {
+		return {
+			...defaultSettings,
+			...(settingsEntity?.settings ?? {})
+		}
+	}, [defaultSettings, settingsEntity])
+
+	// Initial loading state effectively handled by RQ, 
+	// but we can expose it if needed. 
+	// The original provider initialized isLoading=false and then set to true? 
+	// No, initialized false, then loadSettings set it? 
+	// "const [isLoading, setIsLoading] = useState(false)"
+	// It seems it didn't block UI.
+	const isLoading = isQueryLoading
 
 	useEffect(() => {
 		const root = window.document.documentElement
@@ -75,44 +90,23 @@ export function SettingsProvider({
 		}
 
 		// Only update if the theme class is not already applied
-		// This prevents unnecessary DOM manipulation and potential flash
 		if (!root.classList.contains(themeToApply)) {
 			root.classList.remove('light', 'dark')
 			root.classList.add(themeToApply)
 		}
 	}, [settings.theme])
 
-	const loadSettings = async () => {
-		try {
-			const storedSettings = await getSettings()
-			if (storedSettings) {
-				// Force dark theme regardless of stored settings
-				setSettings({ ...defaultSettings, ...storedSettings, theme: 'dark' })
-			}
-		} catch (error) {
-			console.error('Failed to load settings:', error)
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	const saveSettingsToStorage = async (newSettings: Record<string, any>) => {
-		try {
-			await saveSettings(newSettings)
-		} catch (error) {
-			console.error('Failed to save settings:', error)
-		}
-	}
 
 	function updateSetting(key: string, value: any) {
+		// Optimistically update via mutation
 		const newSettings = { ...settings, [key]: value }
-		setSettings(newSettings)
-		saveSettingsToStorage(newSettings)
+		// We pass the entire new settings object to the mutation
+		// The mutation expects the map.
+		saveSettings(newSettings)
 	}
 
 	function resetSettings() {
-		setSettings(defaultSettings)
-		saveSettingsToStorage(defaultSettings)
+		saveSettings(defaultSettings)
 	}
 
 	const value: SettingsContextValue = {

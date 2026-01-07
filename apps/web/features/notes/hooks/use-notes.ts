@@ -1,51 +1,25 @@
 import { Block } from '@blocknote/core'
-import {
-	useState,
-	useCallback,
-	useEffect,
-	startTransition,
-	useDeferredValue
-} from 'react'
+import { useCallback } from 'react'
 
-import { readOne, create, update, destroy } from '@skriuw/crud'
-
-// Define types locally since shared package build is failing
-type UUID = string
-type Timestamp = number
-
-type BaseEntity = {
-	id: UUID
-} & {
-	createdAt: Timestamp
-	updatedAt: Timestamp
-	deletedAt?: Timestamp
-}
-
-type NoteContent = Block[]
-
-function generateId(prefix: string): string {
-	return `${prefix}${Math.random().toString(36).substr(2, 9)}`
-}
-
-import { createFolder as createFolderMutation } from '../api/mutations/create-folder'
-import { createNote as createNoteMutation } from '../api/mutations/create-note'
-import { deleteItem as deleteItemMutation } from '../api/mutations/delete-item'
-import { favoriteNote as favoriteNoteMutation } from '../api/mutations/favorite-note'
-import { moveItem as moveItemMutation } from '../api/mutations/move-item'
-import { pinItem as pinItemMutation } from '../api/mutations/pin-item'
-import { renameItem as renameItemMutation } from '../api/mutations/rename-item'
-import { updateNote as updateNoteMutation } from '../api/mutations/update-note'
-import { setNoteVisibility as setNoteVisibilityMutation } from '../api/mutations/set-visibility'
-import { getItems, invalidateItemsCache } from '../api/queries/get-items'
-import { getNote as getNoteQuery } from '../api/queries/get-note'
 import { stringToBlocks } from '../utils/string-to-blocks'
 
 import type { Note, Folder, Item } from '../types'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { useSession } from '@/lib/auth-client'
+import {
+	useNotesQuery,
+	useNoteQuery,
+	useCreateNoteMutation,
+	useCreateFolderMutation,
+	useUpdateNoteMutation,
+	useDeleteMutation,
+	useMoveItemMutation,
+	useRenameItemMutation,
+	usePinItemMutation,
+	useFavoriteNoteMutation,
+	useSetNoteVisibilityMutation
+} from './use-notes-query'
 
 /**
+
  * Hook for managing notes and folders with optimistic updates and non-blocking state changes.
  *
  * Provides a complete API for CRUD operations on notes and folders, with built-in
@@ -128,675 +102,123 @@ import { useSession } from '@/lib/auth-client'
  * ```
  */
 export function useNotes() {
-	const [items, setItems] = useState<Item[]>([])
-	const [isInitialLoading, setIsInitialLoading] = useState(true)
-	const [isRefreshing, setIsRefreshing] = useState(false)
-	const { data: session, isPending: isSessionPending } = useSession()
+	// 1. Fetch data
+	const { data: items = [], isLoading: isInitialLoading, isRefetching: isRefreshing, refetch } = useNotesQuery()
 
-	// Deferred value for non-blocking updates
-	const deferredItems = useDeferredValue(items)
+	// 2. Mutations
+	const createNoteMutation = useCreateNoteMutation()
+	const createFolderMutation = useCreateFolderMutation()
+	const updateNoteMutation = useUpdateNoteMutation()
+	const deleteMutation = useDeleteMutation()
+	const moveItemMutation = useMoveItemMutation()
+	const renameItemMutation = useRenameItemMutation()
+	const pinItemMutation = usePinItemMutation()
+	const favoriteNoteMutation = useFavoriteNoteMutation()
+	const setVisibilityMutation = useSetNoteVisibilityMutation()
 
-	// localStorage cache key and helpers
-	const CACHE_KEY = 'skriuw:file-tree-cache'
-	const CACHE_TIMESTAMP_KEY = 'skriuw:file-tree-cache-ts'
-	const CACHE_MAX_AGE_MS = 5 * 60 * 1000 // 5 minutes
+	// 3. Wrappers to match original API signature
+	const createNote = useCallback(async (name?: string, content?: string | Block[], parentFolderId?: string) => {
+		// Handle content conversion if string
+		const noteContent: Block[] = typeof content === 'string'
+			? stringToBlocks(content)
+			: content || []
 
-	const getCachedItems = useCallback((): Item[] | null => {
-		if (typeof window === 'undefined') return null
-		try {
-			const cached = localStorage.getItem(CACHE_KEY)
-			const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY)
-			if (cached && timestamp) {
-				const age = Date.now() - parseInt(timestamp, 10)
-				// Return cache even if stale - we'll refresh in background
-				if (age < CACHE_MAX_AGE_MS * 2) {
-					return JSON.parse(cached)
-				}
-			}
-		} catch (e) {
-			console.warn('[useNotes] Failed to read cache:', e)
-		}
-		return null
-	}, [])
+		return await createNoteMutation.mutateAsync({ name: name ?? 'Untitled Note', content: noteContent, parentFolderId })
+	}, [createNoteMutation])
 
-	const setCachedItems = useCallback((data: Item[]) => {
-		if (typeof window === 'undefined') return
-		try {
-			localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-			localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString())
-		} catch (e) {
-			console.warn('[useNotes] Failed to write cache:', e)
-		}
-	}, [])
+	const createFolder = useCallback(async (name?: string, parentFolderId?: string) => {
+		return await createFolderMutation.mutateAsync({ name: name ?? 'New Folder', parentFolderId })
+	}, [createFolderMutation])
 
-	// Initial load with stale-while-revalidate pattern
-	useEffect(() => {
-		let isCancelled = false
+	const updateNote = useCallback(async (id: string, content: Block[], name?: string) => {
+		return await updateNoteMutation.mutateAsync({ id, content, name })
+	}, [updateNoteMutation])
 
-		const loadInitialData = async () => {
-			// Step 1: Try to render from cache immediately
-			const cachedItems = getCachedItems()
-			if (cachedItems && cachedItems.length > 0) {
-				setItems(cachedItems)
-				setIsInitialLoading(false) // Instant render!
-			}
+	const deleteItem = useCallback(async (id: string) => {
+		return await deleteMutation.mutateAsync(id)
+	}, [deleteMutation])
 
-			// Step 2: Fetch fresh data in background
-			try {
-				const userId = session?.user?.id ?? 'guest'
-				const data = await getItems({ forceRefresh: false, userId })
-				if (!isCancelled) {
-					// Only update if data changed (avoid unnecessary re-renders)
-					setItems(data)
-					setCachedItems(data)
-					setIsInitialLoading(false)
-				}
-			} catch (error) {
-				console.error('Failed to load notes:', error)
-				if (!isCancelled) {
-					setIsInitialLoading(false)
-				}
-			}
-		}
+	const moveItem = useCallback(async (itemId: string, targetFolderId: string | null | undefined) => {
+		return await moveItemMutation.mutateAsync({ itemId, targetFolderId: targetFolderId ?? null })
+	}, [moveItemMutation])
 
-		loadInitialData()
+	const renameItem = useCallback(async (id: string, newName: string) => {
+		return await renameItemMutation.mutateAsync({ id, name: newName })
+	}, [renameItemMutation])
 
-		return () => {
-			isCancelled = true
-		}
-	}, [session?.user?.id, getCachedItems, setCachedItems])
+	const pinItem = useCallback(async (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => {
+		return await pinItemMutation.mutateAsync({ id: itemId, pinned })
+	}, [pinItemMutation])
+
+	const favoriteNote = useCallback(async (noteId: string, favorite: boolean) => {
+		return await favoriteNoteMutation.mutateAsync({ id: noteId, favorite })
+	}, [favoriteNoteMutation])
+
+	const setNoteVisibility = useCallback(async (noteId: string, isPublic: boolean) => {
+		return await setVisibilityMutation.mutateAsync({ id: noteId, isPublic })
+	}, [setVisibilityMutation])
 
 	const refreshItems = useCallback(async () => {
-		setIsRefreshing(true)
-		try {
-			const userId = session?.user?.id ?? 'guest'
-			const updatedItems = await getItems({ forceRefresh: true, userId })
-			// Use startTransition to make this update non-blocking
-			startTransition(() => {
-				setItems(updatedItems)
-				setCachedItems(updatedItems)
-				setIsRefreshing(false)
-			})
-		} catch (error) {
-			console.error('Failed to refresh items:', error)
-			setIsRefreshing(false)
-		}
-	}, [])
+		await refetch()
+	}, [refetch])
 
-	const getNote = useCallback(
-		async (id: string): Promise<Note | undefined> => {
-			const userId = session?.user ? undefined : 'guest'
-			return await getNoteQuery(id, userId)
-		},
-		[session?.user]
-	)
-
-	const getItem = useCallback(
-		async (id: string): Promise<Item | undefined> => {
-			const result = await readOne<Item>(STORAGE_KEYS.NOTES, id)
-			if (result.success && result.data && 'id' in result.data) {
-				return result.data
+	// Legacy helpers that might still be needed
+	// countChildren was used in UI, can be derived from items now without async
+	const countChildren = useCallback(async (folderId: string): Promise<number> => {
+		// This is inefficient to do async if we have all items, but keeping signature compatible
+		// Better implementation would be synchronous lookup if we have the tree
+		const findFolder = (list: Item[]): Folder | undefined => {
+			for (const item of list) {
+				if (item.id === folderId && item.type === 'folder') return item as Folder
+				if (item.type === 'folder') {
+					const found = findFolder((item as Folder).children)
+					if (found) return found
+				}
 			}
 			return undefined
-		},
-		[]
-	)
+		}
+		const folder = findFolder(items)
+		return folder?.children?.length ?? 0
+	}, [items])
 
-	const createNote = useCallback(
-		async (name: string = 'Untitled', content?: string | Block[], parentFolderId?: string) => {
-			// Generate temporary ID for optimistic update
-			const tempId = generateId('temp-note-')
-			const now = Date.now()
+	// getNote and getItem are slightly different - they fetch fresh
+	// But usage in app might expect them to check cache first.
+	// The useNoteQuery hook handles specific single note requirements, 
+	// but the original `getNote` was an imperative async call.
+	// We can bridge this by using queryClient.fetchQuery or just keeping the original API query usage
+	// wrapped in a promise if needed.
+	// Ideally components switch to `useNoteQuery(id)`, but for now:
 
-			// Handle content conversion if string
-			const noteContent: Block[] = typeof content === 'string'
-				? stringToBlocks(content)
-				: content || []
+	// We need access to direct queries for imperative calls
+	// Since we can't easily hookify imperative calls without direct client access
+	// We will leave getNote/getItem as async fetchers that might bypass RQ cache for now
+	// OR we use the queryClient to fetch.
 
-			// Create optimistic note
-			const optimisticNote: Note = {
-				id: tempId,
-				name,
-				type: 'note',
-				content: noteContent,
-				parentFolderId,
-				pinned: false,
-				favorite: false,
-				createdAt: now,
-				updatedAt: now
-			}
+	// For this refactor step, let's keep it simple: relying on the list for `getItem` if possible 
+	// or falling back to a fetch if not found, to mimic "cache first".
 
-			// Optimistically add to UI immediately
-			const previousItems = items
-			function addItem(
-				itemList: Item[],
-				item: Item,
-				targetFolderId?: string
-			): Item[] {
-				if (!targetFolderId) {
-					return [...itemList, item]
+	const getItem = useCallback(async (id: string): Promise<Item | undefined> => {
+		const findItem = (list: Item[]): Item | undefined => {
+			for (const item of list) {
+				if (item.id === id) return item
+				if (item.type === 'folder') {
+					const found = findItem((item as Folder).children)
+					if (found) return found
 				}
-				return itemList.map((i) => {
-					if (i.id === targetFolderId && i.type === 'folder') {
-						return { ...i, children: [...i.children, item] }
-					}
-					if (i.type === 'folder') {
-						return {
-							...i,
-							children: addItem(i.children, item, targetFolderId)
-						}
-					}
-					return i
-				})
 			}
-			setItems(addItem(items, optimisticNote, parentFolderId))
+			return undefined
+		}
+		return findItem(items)
+	}, [items])
 
-			try {
-				if (!session?.user) {
-					console.log('[createNote] Creating local note for guest user')
-					const result = await create<Note>(STORAGE_KEYS.NOTES, optimisticNote, { userId: 'guest' })
-					if (!result.success || !result.data) throw new Error('Failed to create local note')
-					const newNote = result.data
+	const getNote = useCallback(async (id: string): Promise<Note | undefined> => {
+		const item = await getItem(id)
+		return item?.type === 'note' ? (item as Note) : undefined
+	}, [getItem])
 
-					// Update the item ID from the real creation (in case it changed)
-					const replaceItem = (itemList: Item[]): Item[] => {
-						return itemList.map((i) => {
-							if (i.id === tempId) {
-								return newNote
-							}
-							if (i.type === 'folder') {
-								return { ...i, children: replaceItem(i.children) }
-							}
-							return i
-						})
-					}
-					setItems(replaceItem)
-					return newNote
-				}
-
-				// Create on server
-				const newNote: Note = await createNoteMutation({
-					name,
-					content: noteContent,
-					parentFolderId
-				})
-
-				// Replace temp note with real note
-				const replaceItem = (itemList: Item[]): Item[] => {
-					return itemList.map((i) => {
-						if (i.id === tempId) {
-							return newNote
-						}
-						if (i.type === 'folder') {
-							return { ...i, children: replaceItem(i.children) }
-						}
-						return i
-					})
-				}
-				setItems(replaceItem)
-				return newNote
-			} catch (error) {
-				// Rollback on failure
-				setItems(previousItems)
-				console.error('Failed to create note:', error)
-				throw error
-			}
-		},
-		[items]
-	)
-
-	const createFolder = useCallback(
-		async (name: string = 'New Folder', parentFolderId?: string) => {
-			// Generate temporary ID for optimistic update
-			const tempId = generateId('temp-folder-')
-			const now = Date.now()
-
-			// Create optimistic folder
-			const optimisticFolder: Folder = {
-				id: tempId,
-				name,
-				type: 'folder',
-				children: [],
-				parentFolderId,
-				pinned: false,
-				createdAt: now,
-				updatedAt: now
-			}
-
-			// Optimistically add to UI immediately
-			const previousItems = items
-			function addItem(
-				itemList: Item[],
-				item: Item,
-				targetFolderId?: string
-			): Item[] {
-				if (!targetFolderId) {
-					return [...itemList, item]
-				}
-				return itemList.map((i) => {
-					if (i.id === targetFolderId && i.type === 'folder') {
-						return { ...i, children: [...i.children, item] }
-					}
-					if (i.type === 'folder') {
-						return {
-							...i,
-							children: addItem(i.children, item, targetFolderId)
-						}
-					}
-					return i
-				})
-			}
-			setItems(addItem(items, optimisticFolder, parentFolderId))
-
-			try {
-				if (!session?.user) {
-					console.log('[createFolder] Creating local folder for guest user')
-					const result = await create<Folder>(STORAGE_KEYS.NOTES, optimisticFolder, { userId: 'guest' })
-					if (!result.success || !result.data) throw new Error('Failed to create local folder')
-					const newFolder = result.data
-
-					// Remove temp item and replace with real one
-					const replaceItem = (itemList: Item[]): Item[] => {
-						return itemList.map((i) => {
-							if (i.id === tempId) {
-								return { ...newFolder, children: [] }
-							}
-							if (i.type === 'folder') {
-								return { ...i, children: replaceItem(i.children) }
-							}
-							return i
-						})
-					}
-					setItems(replaceItem)
-					return newFolder
-				}
-
-				// Create on server
-				const newFolder: Folder = await createFolderMutation({
-					name,
-					parentFolderId
-				})
-
-				// Replace temp folder with real folder (preserving children structure)
-				const replaceItem = (itemList: Item[]): Item[] => {
-					return itemList.map((i) => {
-						if (i.id === tempId) {
-							return { ...newFolder, children: [] }
-						}
-						if (i.type === 'folder') {
-							return { ...i, children: replaceItem(i.children) }
-						}
-						return i
-					})
-				}
-				setItems(replaceItem)
-				return newFolder
-			} catch (error) {
-				// Rollback on failure
-				setItems(previousItems)
-				console.error('Failed to create folder:', error)
-				throw error
-			}
-		},
-		[items]
-	)
-
-	const updateNote = useCallback(
-		async (id: string, content: NoteContent, name?: string) => {
-			if (!session?.user) {
-				const result = await update<Note>(STORAGE_KEYS.NOTES, id, { content, name }, { userId: 'guest' })
-				if (!result.success) throw new Error('Failed to update local note')
-			} else {
-				// Update the note on the server - no need to refresh items
-				// since the editor already has the updated content in its state
-				// and the sidebar doesn't need to know about content changes
-				await updateNoteMutation(id, { content, name })
-			}
-
-			// Only update the item name in local state if name changed
-			if (name !== undefined) {
-				startTransition(() => {
-					setItems((prevItems) => {
-						const updateName = (itemList: Item[]): Item[] => {
-							return itemList.map((item) => {
-								if (item.id === id) {
-									return {
-										...item,
-										name,
-										updatedAt: Date.now()
-									}
-								}
-								if (item.type === 'folder') {
-									return {
-										...item,
-										children: updateName(item.children)
-									}
-								}
-								return item
-							})
-						}
-						return updateName(prevItems)
-					})
-				})
-			}
-		},
-		[]
-	)
-
-	const renameItem = useCallback(
-		async (id: string, newName: string) => {
-			// Optimistic update: rename item immediately
-			const previousItems = items
-			function updateName(itemList: Item[]): Item[] {
-				return itemList.map((item) => {
-					if (item.id === id) {
-						return { ...item, name: newName }
-					}
-					if (item.type === 'folder') {
-						return { ...item, children: updateName(item.children) }
-					}
-					return item
-				})
-			}
-			setItems(updateName(items))
-
-			try {
-				if (!session?.user) {
-					const result = await update<Item>(STORAGE_KEYS.NOTES, id, { name: newName }, { userId: 'guest' })
-					if (!result.success) throw new Error('Failed to rename local item')
-				} else {
-					await renameItemMutation(id, newName)
-				}
-			} catch (error) {
-				setItems(previousItems)
-				console.error('Failed to rename item:', error)
-			}
-		},
-		[items]
-	)
-
-	const deleteItem = useCallback(
-		async (id: string) => {
-			// Optimistic update: remove item from UI immediately
-			const previousItems = items
-			function removeItemById(itemList: Item[]): Item[] {
-				return itemList
-					.filter((item) => item.id !== id)
-					.map((item) => {
-						if (item.type === 'folder') {
-							return {
-								...item,
-								children: removeItemById(item.children)
-							}
-						}
-						return item
-					})
-			}
-			setItems(removeItemById(items))
-
-			// Perform actual deletion in background
-			try {
-				let success = false
-				if (!session?.user) {
-					const result = await destroy(STORAGE_KEYS.NOTES, id, { userId: 'guest' })
-					success = result.success
-				} else {
-					success = await deleteItemMutation(id)
-				}
-
-				if (!success) {
-					// Rollback on failure
-					setItems(previousItems)
-					return false
-				}
-				return true
-			} catch (error) {
-				// Rollback on error
-				setItems(previousItems)
-				console.error('Failed to delete item:', error)
-				return false
-			}
-		},
-		[items]
-	)
-
-	const moveItem = useCallback(
-		async (itemId: string, targetFolderId: string | null | undefined) => {
-			// Optimistic update: move item in UI immediately
-			const previousItems = items
-			let movedItem: Item | null = null
-
-			// Find and remove the item from its current location
-			function removeItem(itemList: Item[]): Item[] {
-				return itemList
-					.filter((item) => {
-						if (item.id === itemId) {
-							movedItem = item
-							return false
-						}
-						return true
-					})
-					.map((item) => {
-						if (item.type === 'folder') {
-							return {
-								...item,
-								children: removeItem(item.children)
-							}
-						}
-						return item
-					})
-			}
-
-			// Add item to target folder
-			function addToTarget(itemList: Item[]): Item[] {
-				if (!movedItem) return itemList
-				if (targetFolderId === null) {
-					return [...itemList, movedItem]
-				}
-				return itemList.map((item) => {
-					if (item.id === targetFolderId && item.type === 'folder') {
-						return {
-							...item,
-							children: [...item.children, movedItem!]
-						}
-					}
-					if (item.type === 'folder') {
-						return { ...item, children: addToTarget(item.children) }
-					}
-					return item
-				})
-			}
-
-			const withoutItem = removeItem(items)
-			if (movedItem) {
-				setItems(addToTarget(withoutItem))
-			}
-
-			// Perform actual move in background
-			try {
-				let success = false
-
-				if (!session?.user) {
-					// For local storage, we update the parentFolderId
-					const updateData: Partial<Item> = {
-						parentFolderId: targetFolderId === null ? undefined : targetFolderId
-					}
-					const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData, { userId: 'guest' })
-					success = result.success
-				} else {
-					success = await moveItemMutation(
-						itemId,
-						targetFolderId ?? undefined
-					)
-				}
-
-				if (!success) {
-					setItems(previousItems)
-					return false
-				}
-				return true
-			} catch (error) {
-				setItems(previousItems)
-				console.error('Failed to move item:', error)
-				return false
-			}
-		},
-		[items]
-	)
-
-	const countChildren = useCallback(
-		async (folderId: string): Promise<number> => {
-			const result = await readOne<Folder>(STORAGE_KEYS.NOTES, folderId)
-			if (
-				result.success &&
-				result.data &&
-				'children' in result.data &&
-				Array.isArray(result.data.children)
-			) {
-				return result.data.children.length
-			}
-			return 0
-		},
-		[]
-	)
-
-	const pinItem = useCallback(
-		async (
-			itemId: string,
-			itemType: 'note' | 'folder',
-			pinned: boolean
-		) => {
-			// Optimistic update: update pin status immediately
-			const previousItems = items
-			function updatePinStatus(itemList: Item[]): Item[] {
-				return itemList.map((item) => {
-					if (item.id === itemId) {
-						return {
-							...item,
-							pinned,
-							pinnedAt: pinned ? Date.now() : undefined
-						}
-					}
-					if (item.type === 'folder') {
-						return {
-							...item,
-							children: updatePinStatus(item.children)
-						}
-					}
-					return item
-				})
-			}
-			setItems(updatePinStatus(items))
-
-			try {
-				if (!session?.user) {
-					const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, {
-						pinned,
-						pinnedAt: pinned ? Date.now() : undefined
-					}, { userId: 'guest' })
-					if (!result.success) throw new Error('Failed to pin local item')
-				} else {
-					await pinItemMutation(itemId, itemType, pinned)
-				}
-			} catch (error) {
-				setItems(previousItems)
-				console.error('Failed to pin item:', error)
-			}
-		},
-		[items]
-	)
-
-	const favoriteNote = useCallback(
-		async (noteId: string, favorite: boolean) => {
-			// Optimistic update: update favorite status immediately
-			const previousItems = items
-			function updateFavoriteStatus(itemList: Item[]): Item[] {
-				return itemList.map((item) => {
-					if (item.id === noteId && item.type === 'note') {
-						return { ...item, favorite }
-					}
-					if (item.type === 'folder') {
-						return {
-							...item,
-							children: updateFavoriteStatus(item.children)
-						}
-					}
-					return item
-				})
-			}
-			setItems(updateFavoriteStatus(items))
-
-			try {
-				if (!session?.user) {
-					const result = await update<Note>(STORAGE_KEYS.NOTES, noteId, { favorite }, { userId: 'guest' })
-					if (!result.success) throw new Error('Failed to favorite local note')
-				} else {
-					await favoriteNoteMutation(noteId, favorite)
-				}
-			} catch (error) {
-				setItems(previousItems)
-				console.error('Failed to favorite note:', error)
-			}
-		},
-		[items]
-	)
-
-	const setNoteVisibility = useCallback(
-		async (noteId: string, isPublic: boolean) => {
-			const previousItems = items
-			function updateVisibility(
-				itemList: Item[],
-				publicId?: string | null,
-				publicViews?: number
-			): Item[] {
-				return itemList.map((item) => {
-					if (item.id === noteId && item.type === 'note') {
-						return {
-							...item,
-							isPublic,
-							publicId: publicId ?? item.publicId,
-							publicViews: publicViews ?? item.publicViews
-						}
-					}
-					if (item.type === 'folder') {
-						return {
-							...item,
-							children: updateVisibility(
-								item.children,
-								publicId,
-								publicViews
-							)
-						}
-					}
-					return item
-				})
-			}
-
-			setItems(updateVisibility(items))
-			try {
-				const updated = await setNoteVisibilityMutation(
-					noteId,
-					isPublic
-				)
-				if (updated) {
-					setItems((prevItems) =>
-						updateVisibility(
-							prevItems,
-							updated.publicId ?? null,
-							updated.publicViews
-						)
-					)
-				}
-			} catch (error) {
-				setItems(previousItems) // previousItems is fine here since it's captured before any mutation
-				console.error('Failed to update visibility:', error)
-			}
-		},
-		[items]
-	)
 
 	return {
-		items: deferredItems,
+		items, // deferredItems removed, RQ handles concurrency usually well enough or we add it back if UI laggy
 		isInitialLoading,
 		isRefreshing,
 		getNote,
@@ -810,7 +232,7 @@ export function useNotes() {
 		countChildren,
 		pinItem,
 		favoriteNote,
-		setNoteVisibility,
-		refreshItems
+		refreshItems,
+		setNoteVisibility
 	}
 }

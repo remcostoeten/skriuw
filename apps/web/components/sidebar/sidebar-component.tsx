@@ -1396,7 +1396,13 @@ export function Sidebar({
 	const createFolder = originalCreateFolder
 	const renameItem = originalRenameItem
 	const deleteItem = originalDeleteItem
-	const moveItem = originalMoveItem
+	const moveItem = useCallback(
+		async (itemId: string, targetFolderId: string | null): Promise<boolean> => {
+			const result = await originalMoveItem(itemId, targetFolderId)
+			return result != null
+		},
+		[originalMoveItem]
+	)
 	const pinItem = originalPinItem
 	const favoriteNote = originalFavoriteNote
 
