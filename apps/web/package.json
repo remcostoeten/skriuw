@@ -15,7 +15,8 @@
 		"tauri:build:mac": "TAURI_BUILD=true bunx --bun tauri build --target universal-apple-darwin",
 		"tauri:build:deb": "TAURI_BUILD=true bunx --bun tauri build -b deb",
 		"seed:identity-guide": "bun scripts/seed-identity-guide.ts",
-		"seed:identity-guide:stats": "bun scripts/seed-identity-guide.ts stats"
+		"seed:identity-guide:stats": "bun scripts/seed-identity-guide.ts stats",
+		"seed:sync": "bun scripts/sync-seeds.ts"
 	},
 	"dependencies": {
 		"@blocknote/core": "^0.44.2",

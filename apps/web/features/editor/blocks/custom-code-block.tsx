@@ -43,23 +43,23 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 	{
 		render: ({ block, editor, contentRef }) => {
 			const [isEditing, setIsEditing] = useState(false)
-			const [isCopied, setIsCopied] = useState(false)
-			const [isCollapsed, setIsCollapsed] = useState(false)
-
-			// Initialize from existing content if available
-			function getBlockContent() {
+			const [localText, setLocalText] = useState(() => {
 				if (Array.isArray(block.content)) {
 					return block.content.map((c: any) => c.text || '').join('')
 				}
 				return ''
-			}
-			const [localText, setLocalText] = useState(getBlockContent())
+			})
 			const textareaRef = useRef<HTMLTextAreaElement>(null)
+			const [isCopied, setIsCopied] = useState(false)
+			const [isCollapsed, setIsCollapsed] = useState(false)
 
+			// Initialize from existing content if available
 			// Sync local state when block content changes (external updates)
 			useEffect(() => {
-				setLocalText(getBlockContent())
-				// eslint-disable-next-line react-hooks/exhaustive-deps
+				const content = Array.isArray(block.content)
+					? block.content.map((c: any) => c.text || '').join('')
+					: ''
+				setLocalText(content)
 			}, [block.content])
 
 			const highlight = useMemo(() => {
@@ -187,6 +187,7 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 											overflowWrap: 'break-word',
 										}}
 									>
+										{/* PrismJS escapes HTML entities, preventing XSS */}
 										<code dangerouslySetInnerHTML={{ __html: highlight }} />
 									</pre>
 								</div>
