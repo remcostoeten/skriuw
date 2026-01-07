@@ -9,7 +9,7 @@ import { useEditorConfig } from '../../editor/hooks/useEditorConfig'
 import { EditorWrapper } from '../../editor/components/editor-wrapper'
 import { useTaskContext } from '../hooks/use-task-context'
 import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
-import { syncTasksToDatabase } from '../api/mutations/sync-tasks'
+import { useSyncTasksMutation } from '../hooks/use-tasks-query'
 
 interface TaskDescriptionEditorProps {
     title: string
@@ -30,6 +30,7 @@ export function TaskDescriptionEditor({
     const { config } = useEditorConfig()
     const taskContext = useTaskContext()
     const syncTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+    const { mutate: syncTasks } = useSyncTasksMutation()
 
     const parsedContent = useMemo(() => {
         let blocks: PartialBlock[] = []
@@ -79,14 +80,10 @@ export function TaskDescriptionEditor({
             )
 
             if (tasks.length > 0) {
-                try {
-                    await syncTasksToDatabase(taskContext.noteId, tasks)
-                } catch (err) {
-                    console.error('Failed to sync description tasks:', err)
-                }
+                syncTasks({ noteId: taskContext.noteId, tasks })
             }
         },
-        [taskContext?.noteId, taskContext?.parentTaskId]
+        [taskContext?.noteId, taskContext?.parentTaskId, syncTasks]
     )
 
     const handleChange = useCallback(() => {

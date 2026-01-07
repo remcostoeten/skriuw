@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '../../../../lib/storage/adapters/server-db'
 import { seedTemplateNotes, seedTemplateFolders, notes, folders, user } from '@skriuw/db'
-import { getSampleNotes, getSampleFolders } from '@/app/api/(dev)/dev/seeds'
 import { GUEST_USER_ID } from '../../../../lib/api-auth'
 import { eq } from 'drizzle-orm'
+import { sampleNotes, sampleFolders } from '@/app/api/(dev)/dev/seeds'
 
 // This endpoint is administrative - normally you'd protect this with an admin check
 // For now, we'll leave it open for development or check for a specific header/secret if needed.
@@ -21,7 +21,6 @@ async function resetSeedTemplates() {
 
     // 2. Insert Folders
     let folderOrder = 0
-    const sampleFolders = getSampleFolders()
     for (const folderData of sampleFolders) {
         const folderId = crypto.randomUUID()
         folderMap.set(folderData.name, folderId)
@@ -54,7 +53,6 @@ async function resetSeedTemplates() {
 
     // 3. Insert Notes
     let noteOrder = 0
-    const sampleNotes = getSampleNotes()
     for (const noteData of sampleNotes) {
         const noteId = crypto.randomUUID()
 
