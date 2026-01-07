@@ -8,7 +8,7 @@ import {
 	shortcuts,
 	getSafeTimestamp
 } from '@skriuw/db'
-import { getSampleNotes, getSampleFolders } from './seeds'
+import { generateSampleData } from '@/app/api/(dev)/dev/seeds'
 import { generateId } from '@skriuw/shared'
 import { env } from '@/lib/env'
 import { getCurrentUserId, getSession } from '@/lib/api-auth'
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 				}
 
 				try {
-					const sampleFolders = getSampleFolders()
+					const { sampleFolders, sampleNotes } = generateSampleData()
 					for (const folderData of sampleFolders) {
 						const folderId = generateId('folder')
 						await db.insert(folders).values({
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 						}
 					}
 
-					const sampleNotes = getSampleNotes()
+
 					for (const noteData of sampleNotes) {
 						await db.insert(notes).values({
 							id: generateId('note'),

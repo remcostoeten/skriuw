@@ -37,13 +37,11 @@ const buttonVariants = cva(
 	}
 )
 
-type TRipple = {
+type Ripple = {
 	id: number
 	x: number
 	y: number
 }
-
-import { haptic } from '../../apps/web/lib/haptics'
 
 export interface ButtonProps
 	extends
@@ -81,7 +79,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 		},
 		ref
 	) => {
-		const [ripples, setRipples] = React.useState<TRipple[]>([])
+		const [ripples, setRipples] = React.useState<Ripple[]>([])
 
 		function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
 			if (onHaptic) {
@@ -95,7 +93,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				const x = event.clientX - rect.left
 				const y = event.clientY - rect.top
 
-				const newRipple: TRipple = {
+				const newRipple: Ripple = {
 					id: Date.now(),
 					x,
 					y

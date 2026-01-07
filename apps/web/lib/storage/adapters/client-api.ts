@@ -14,55 +14,39 @@ type BaseEntity = {
 }
 
 interface ReadAdapterOptions {
-	cache?: {
-		ttl?: number
-		staleWhileRevalidate?: boolean
-		forceRefresh?: boolean
-	}
 	getById?: string
 	userId?: string
 }
 
 interface CreateAdapterOptions {
 	validate?: boolean
-	optimistic?: boolean
 	userId?: string
 }
 
 interface UpdateAdapterOptions {
 	validate?: boolean
-	optimistic?: boolean
 	userId?: string
 }
 
 interface DeleteAdapterOptions {
-	optimistic?: boolean
 	userId?: string
 }
 
 interface BatchReadAdapterOptions {
-	cache?: {
-		ttl?: number
-		staleWhileRevalidate?: boolean
-		forceRefresh?: boolean
-	}
 	userId?: string
 }
 
 interface BatchCreateAdapterOptions {
 	validate?: boolean
-	optimistic?: boolean
 	userId?: string
 }
 
 interface BatchUpdateAdapterOptions {
 	validate?: boolean
-	optimistic?: boolean
 	userId?: string
 }
 
 interface BatchDeleteAdapterOptions {
-	optimistic?: boolean
 	userId?: string
 }
 

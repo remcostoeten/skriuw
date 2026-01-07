@@ -6,7 +6,7 @@ import { invalidateItemsCache } from '../queries/get-items'
 import { getInitialNoteContent } from '../../utils/get-initial-note-content'
 
 import type { Note, CreateNoteData } from '../../types'
-import type { SettingsEntity } from '@/features/settings/api/types'
+import type { SettingsEntity } from '@/features/settings/types'
 import { trackActivity } from '@/features/activity'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { getCurrentUserId } from '@/lib/api-auth'
