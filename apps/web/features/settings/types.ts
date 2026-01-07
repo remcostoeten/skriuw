@@ -54,3 +54,23 @@ export interface PreviewProps<T = any> {
 	options?: T[]
 	allSettings?: Record<string, any>
 }
+
+// -----------------------------------------------------------------------------
+// Storage Entity Types
+// -----------------------------------------------------------------------------
+
+type BaseEntity = {
+	id: string
+} & {
+	createdAt: number
+	updatedAt: number
+	deletedAt?: number
+}
+
+/**
+ * Settings entity stored in storage
+ */
+export interface SettingsEntity extends BaseEntity {
+	id: 'app-settings'
+	settings: Record<string, any>
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, memo } from 'react'
+import { useState, useCallback, memo, useEffect } from 'react'
 import { Trash2, X, MoreHorizontal, ChevronLeft } from 'lucide-react'
 import { notify } from '@/lib/notify'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,21 +10,7 @@ import { TaskDescriptionEditor } from './task-description-editor'
 import { DueDateButton } from './due-date-button'
 import { TaskContextProvider } from '../hooks/use-task-context'
 import { useUIStore } from '@/stores/ui-store'
-
-interface TaskDetail {
-    id: string
-    noteId: string
-    noteName?: string | null
-    blockId: string
-    content: string
-    description: string | null
-    checked: number
-    dueDate: number | null
-    parentTaskId: string | null
-    position: number
-    createdAt: number
-    updatedAt: number
-}
+import { useTaskByIdQuery, useUpdateTaskMutation, useDeleteTaskMutation } from '../hooks/use-tasks-query'
 
 interface SingleTaskPanelProps {
     taskId: string
@@ -34,7 +20,6 @@ interface SingleTaskPanelProps {
     onNavigateBack: () => void
 }
 
-// Individual panel for a single task in the stack
 const SingleTaskPanel = memo(function SingleTaskPanel({
     taskId,
     index,
@@ -42,68 +27,38 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
     onClose,
     onNavigateBack,
 }: SingleTaskPanelProps) {
-    const [task, setTask] = useState<TaskDetail | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { data: task, isLoading, error } = useTaskByIdQuery(taskId)
+    const updateTaskMutation = useUpdateTaskMutation()
+    const deleteTaskMutation = useDeleteTaskMutation()
     const [description, setDescription] = useState('')
+
+    useEffect(() => {
+        if (task?.description) {
+            setDescription(task.description)
+        }
+    }, [task?.description])
 
     const isActive = index === totalPanels - 1
     const isCollapsed = !isActive && totalPanels > 1
 
-    const fetchTask = useCallback(async () => {
-        setIsLoading(true)
-        setError(null)
-        try {
-            const response = await fetch(`/api/tasks/item/${taskId}`)
-            if (!response.ok) {
-                throw new Error(response.status === 404 ? 'Task not found' : 'Failed to fetch')
+    const updateTask = useCallback((updates: Record<string, unknown>) => {
+        updateTaskMutation.mutate({ taskId, updates })
+    }, [updateTaskMutation, taskId])
+
+    const handleDelete = useCallback(() => {
+        deleteTaskMutation.mutate(taskId, {
+            onSuccess: () => {
+                notify('Deleted')
+                onNavigateBack()
+            },
+            onError: () => {
+                notify('Failed to delete')
             }
-            const data = await response.json()
-            setTask(data)
-            setDescription(data.description || '')
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load')
-        } finally {
-            setIsLoading(false)
-        }
-    }, [taskId])
+        })
+    }, [deleteTaskMutation, taskId, onNavigateBack])
 
-    useEffect(() => {
-        fetchTask()
-    }, [fetchTask])
-
-    const updateTask = async (updates: Partial<TaskDetail>) => {
-        if (!task) return
-        try {
-            const response = await fetch(`/api/tasks/item/${task.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            })
-            if (response.ok) {
-                const updated = await response.json()
-                setTask((prev) => (prev ? { ...prev, ...updated } : updated))
-            }
-        } catch {
-            notify('Failed to update')
-        }
-    }
-
-    const handleDelete = async () => {
-        if (!task) return
-        try {
-            await fetch(`/api/tasks/item/${task.id}`, { method: 'DELETE' })
-            notify('Deleted')
-            onNavigateBack()
-        } catch {
-            notify('Failed to delete')
-        }
-    }
-
-    // Calculate panel width based on position
     function getPanelWidth() {
         if (isActive) return 'w-full sm:w-[480px] lg:w-[560px]'
-        // Collapsed panels are thinner
         return 'w-[60px] sm:w-[80px]'
     }
 
@@ -126,7 +81,6 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
             )}
             onClick={isCollapsed ? onNavigateBack : undefined}
         >
-            {/* Collapsed state - just show back indicator */}
             {isCollapsed ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 py-4">
                     <ChevronLeft className="w-4 h-4 text-muted-foreground/60" />
@@ -139,11 +93,8 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                     </span>
                 </div>
             ) : (
-                /* Full panel content */
                 <>
-                    {/* Header - always show, with inline loading state */}
                     <div className="shrink-0">
-                        {/* Top bar */}
                         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/20">
                             <button
                                 onClick={onClose}
@@ -178,7 +129,7 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 
                     {error ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6">
-                            <span className="text-sm text-destructive">{error}</span>
+                            <span className="text-sm text-destructive">{error.message}</span>
                             <button
                                 onClick={onClose}
                                 className="text-xs text-muted-foreground hover:text-foreground underline"
@@ -198,13 +149,11 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                         </div>
                     ) : (
                         <>
-                            {/* Title with checkbox */}
                             <div className="flex items-start gap-3 px-4 py-4">
                                 <button
                                     onClick={() => {
                                         if (!task) return
                                         const newChecked = task.checked === 1 ? 0 : 1
-                                        setTask({ ...task, checked: newChecked })
                                         updateTask({ checked: newChecked })
                                     }}
                                     disabled={!task}
@@ -229,13 +178,11 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                                 </h2>
                             </div>
 
-                            {/* Metadata buttons row */}
                             {task && (
                                 <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
                                     <DueDateButton
                                         dueDate={task.dueDate}
                                         onUpdate={(dueDate: number | null) => {
-                                            setTask({ ...task, dueDate })
                                             updateTask({ dueDate })
                                         }}
                                     />
@@ -250,10 +197,8 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                                 </div>
                             )}
 
-                            {/* Divider */}
                             <div className="border-t border-border/20" />
 
-                            {/* Editor */}
                             {task && (
                                 <div className="flex-1 min-h-0 overflow-y-auto">
                                     <TaskContextProvider
@@ -267,7 +212,6 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                                             initialContent={description}
                                             onTitleUpdate={(newTitle: string) => {
                                                 if (newTitle !== task.content) {
-                                                    setTask({ ...task, content: newTitle })
                                                     updateTask({ content: newTitle })
                                                 }
                                             }}
@@ -280,7 +224,6 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
                                 </div>
                             )}
 
-                            {/* Footer */}
                             {task && (
                                 <div className="shrink-0 px-4 py-2.5 border-t border-border/20 text-xs text-muted-foreground/50">
                                     Created {new Date(task.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -294,10 +237,6 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
     )
 })
 
-/**
- * Stacked Task Panels - Superlist-style horizontal panel stack
- * Each subtask opens a new panel that slides in from the right
- */
 export function TaskPanelStack() {
     const taskStack = useUIStore((s) => s.taskStack)
     const popTask = useUIStore((s) => s.popTask)
@@ -331,5 +270,4 @@ export function TaskPanelStack() {
     )
 }
 
-// Keep the old export for backwards compatibility
 export { TaskPanelStack as TaskDetailPanel }
