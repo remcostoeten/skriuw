@@ -13,14 +13,14 @@ type NotesContextValue = {
 	getItem: (id: string) => Promise<Item | undefined>
 	createNote: (name?: string, content?: string | Block[], parentFolderId?: string) => Promise<Note>
 	createFolder: (name?: string, parentFolderId?: string) => Promise<Folder>
-	updateNote: (id: string, content: Block[], name?: string) => Promise<void>
-	renameItem: (id: string, newName: string) => Promise<void>
+	updateNote: (id: string, content: Block[], name?: string) => Promise<Note | null | undefined>
+	renameItem: (id: string, newName: string) => Promise<Item | null | undefined>
 	deleteItem: (id: string) => Promise<boolean>
-	moveItem: (itemId: string, targetFolderId: string | null) => Promise<boolean>
+	moveItem: (itemId: string, targetFolderId: string | null) => Promise<Item | null | undefined>
 	countChildren: (folderId: string) => Promise<number>
-	pinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => Promise<void>
-	favoriteNote: (noteId: string, favorite: boolean) => Promise<void>
-	setNoteVisibility: (noteId: string, isPublic: boolean) => Promise<void>
+	pinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => Promise<Item | null | undefined>
+	favoriteNote: (noteId: string, favorite: boolean) => Promise<Note | null | undefined>
+	setNoteVisibility: (noteId: string, isPublic: boolean) => Promise<Note | null | undefined>
 	refreshItems: () => Promise<void>
 }
 
