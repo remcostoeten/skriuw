@@ -1,3 +1,6 @@
+import type { ShortcutId, KeyCombo } from './shortcut-definitions'
+import type { BaseEntity } from '../tasks/types'
+
 /**
  * Strongly typed keyboard shortcut system
  * Supports modifiers, sequences (chords), delays, and multiple display formats
@@ -85,29 +88,17 @@ export type RegularKey =
 	| '.'
 	| '='
 	| '-'
-	| string // Allow custom keys
+	| string
 
-/**
- * A single key combination (modifiers + regular key)
- * Note: This is different from the runtime KeyCombo type (string[])
- * This is for display/typing purposes
- */
 export type DisplayKeyCombo = {
 	modifiers?: Modifier[]
 	key: RegularKey
 }
 
-/**
- * Delay configuration between key sequences
- */
 export type SequenceDelay = {
-	maxDelay?: number // Maximum delay in milliseconds between sequences
+	maxDelay?: number
 }
 
-/**
- * A keyboard shortcut sequence (chord)
- * Supports up to 3 key combinations with optional delays
- */
 export type ShortcutSequence =
 	| [DisplayKeyCombo]
 	| [DisplayKeyCombo, DisplayKeyCombo]
@@ -116,14 +107,8 @@ export type ShortcutSequence =
 	| [DisplayKeyCombo, DisplayKeyCombo, SequenceDelay, DisplayKeyCombo]
 	| [DisplayKeyCombo, SequenceDelay, DisplayKeyCombo, SequenceDelay, DisplayKeyCombo]
 
-/**
- * Display format for shortcuts
- */
 export type DisplayFormat = 'text' | 'icon' | 'mixed'
 
-/**
- * Icon mapping for modifier keys
- */
 export const MODIFIER_ICONS: Record<Modifier, string> = {
 	Ctrl: '⌃',
 	Cmd: '⌘',
@@ -132,9 +117,6 @@ export const MODIFIER_ICONS: Record<Modifier, string> = {
 	Meta: '⌘',
 }
 
-/**
- * Icon mapping for special keys
- */
 export const KEY_ICONS: Partial<Record<RegularKey, string>> = {
 	Enter: '↵',
 	Space: '␣',
@@ -152,31 +134,15 @@ export const KEY_ICONS: Partial<Record<RegularKey, string>> = {
 	PageDown: '⇟',
 }
 
-/**
- * Complete keyboard shortcut definition (for display)
- */
 export type KeyboardShortcut = {
 	sequences: ShortcutSequence[]
 	displayFormat?: DisplayFormat
 	description?: string
 }
 
-/**
- * Helper type for creating shortcuts with better DX
- */
 export type ShortcutBuilder = {
-	/**
-	 * Create a simple shortcut with modifiers and a key
-	 * @example shortcut().modifiers('Ctrl', 'Shift').key('N')
-	 */
 	modifiers: (...modifiers: Modifier[]) => ShortcutBuilder
 	key: (key: RegularKey) => KeyboardShortcut
-
-	/**
-	 * Create a sequence (chord) shortcut
-	 * @example shortcut().combo('Ctrl', 'K').then('Ctrl', 'S')
-	 * @example shortcut().combo(undefined, '/').then('Ctrl', 'K')
-	 */
 	combo: (modifiers: Modifier | Modifier[] | undefined, key: RegularKey) => SequenceBuilder
 }
 
@@ -187,4 +153,18 @@ export type SequenceBuilder = {
 		delay?: SequenceDelay
 	) => SequenceBuilder
 	build: () => KeyboardShortcut
+}
+
+export interface CustomShortcut extends BaseEntity {
+	id: ShortcutId
+	keys: KeyCombo[]
+	customizedAt: string
+}
+
+/**
+ * Data required to create a custom shortcut
+ */
+export interface CreateCustomShortcutData {
+	id: ShortcutId
+	keys: KeyCombo[]
 }
