@@ -1,22 +1,7 @@
+import { apiRequest } from '../../../../lib/storage'
 import type { Task } from '../../types'
+
 export type { Task }
-
-async function request<T>(url: string): Promise<T> {
-	const response = await fetch(url, {
-		method: 'GET',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		cache: 'no-store',
-	})
-
-	if (!response.ok) {
-		const errorBody = await response.json().catch(() => ({}))
-		throw new Error(errorBody?.error ?? `Request failed: ${response.status}`)
-	}
-
-	return response.json() as Promise<T>
-}
 
 /**
  * Gets all tasks for a specific note
@@ -24,7 +9,7 @@ async function request<T>(url: string): Promise<T> {
 export async function getTasksForNote(noteId: string): Promise<Task[]> {
 	if (!noteId) return []
 	try {
-		return await request<Task[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
+		return await apiRequest<Task[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
 	} catch (error) {
 		console.error('Failed to get tasks for note:', error)
 		throw error
@@ -37,7 +22,7 @@ export async function getTasksForNote(noteId: string): Promise<Task[]> {
 export async function getTaskByBlockId(noteId: string, blockId: string): Promise<Task | undefined> {
 	if (!noteId || !blockId) return undefined
 	try {
-		const result = await request<Task | null>(
+		const result = await apiRequest<Task | null>(
 			`/api/tasks/${encodeURIComponent(noteId)}?blockId=${encodeURIComponent(blockId)}`
 		)
 		return result ?? undefined
