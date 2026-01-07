@@ -1,102 +1,34 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckSquare, Square, FileText, RefreshCw } from 'lucide-react'
+import { CheckSquare, FileText, RefreshCw } from 'lucide-react'
 
 import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
+import { useAllTasksQuery, useUpdateTaskMutation } from '@/features/tasks/hooks/use-tasks-query'
+import type { Task } from '@/features/tasks/types'
 
-export interface TaskItem {
-    id: string
-    noteId: string
-    noteName: string | null
-    blockId: string
-    content: string
-    checked: number
-    parentTaskId: string | null
-    position: number
-    createdAt: number
-    updatedAt: number
-}
-
-type props = {
+type TProps = {
     className?: string
     activeNoteId?: string
 }
 
-export function TasksSidebarContent({ className, activeNoteId }: props) {
+export function TasksSidebarContent({ className, activeNoteId }: TProps) {
     const router = useRouter()
-    const [tasks, setTasks] = useState<TaskItem[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { data: tasks = [], isLoading, error, refetch } = useAllTasksQuery()
+    const updateTask = useUpdateTaskMutation()
 
-    const fetchTasks = useCallback(async () => {
-        setIsLoading(true)
-        setError(null)
-        try {
-            const response = await fetch('/api/tasks')
-            if (!response.ok) {
-                throw new Error('Failed to fetch tasks')
-            }
-            const data = await response.json()
-            setTasks(data)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load tasks')
-        } finally {
-            setIsLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        fetchTasks()
-    }, [fetchTasks])
-
-    function handleTaskClick(task: TaskItem) {
-        // Navigate to the task detail page
+    function handleTaskClick(task: Task) {
         router.push(`/tasks/${task.id}`)
     }
 
-    const handleToggleCheck = async (task: TaskItem, e: React.MouseEvent) => {
+    function handleToggleCheck(task: Task, e: React.MouseEvent) {
         e.stopPropagation()
         const newChecked = task.checked ? 0 : 1
-
-        // Optimistic update
-        setTasks((prev) =>
-            prev.map((t) =>
-                t.id === task.id ? { ...t, checked: newChecked } : t
-            )
-        )
-
-        // Persist to database
-        try {
-            const response = await fetch(`/api/tasks/item/${task.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ checked: newChecked }),
-            })
-
-            if (!response.ok) {
-                // Revert on failure
-                setTasks((prev) =>
-                    prev.map((t) =>
-                        t.id === task.id ? { ...t, checked: task.checked } : t
-                    )
-                )
-            }
-        } catch (error) {
-            // Revert on error
-            setTasks((prev) =>
-                prev.map((t) =>
-                    t.id === task.id ? { ...t, checked: task.checked } : t
-                )
-            )
-            console.error('Failed to update task:', error)
-        }
+        updateTask.mutate({ taskId: task.id, updates: { checked: newChecked } })
     }
 
-    // Group tasks by note
-    const tasksByNote = tasks.reduce<Record<string, TaskItem[]>>((acc, task) => {
+    const tasksByNote = tasks.reduce<Record<string, Task[]>>((acc, task) => {
         const noteKey = task.noteId
         if (!acc[noteKey]) {
             acc[noteKey] = []
@@ -135,9 +67,9 @@ export function TasksSidebarContent({ className, activeNoteId }: props) {
                     <h2 className="text-sm font-semibold text-sidebar-foreground">Tasks</h2>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4">
-                    <p className="text-xs text-red-400">{error}</p>
+                    <p className="text-xs text-red-400">{error.message}</p>
                     <button
-                        onClick={fetchTasks}
+                        onClick={() => refetch()}
                         className="text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground underline"
                     >
                         Retry
@@ -187,7 +119,6 @@ export function TasksSidebarContent({ className, activeNoteId }: props) {
 
                     return (
                         <div key={noteId} className="mb-3">
-                            {/* Note header */}
                             <div
                                 className={cn(
                                     'flex items-center gap-1.5 px-3 py-1 text-xs',
@@ -200,7 +131,6 @@ export function TasksSidebarContent({ className, activeNoteId }: props) {
                                 <span className="truncate">{noteName}</span>
                             </div>
 
-                            {/* Tasks for this note */}
                             <div className="space-y-0.5">
                                 {noteTasks.map((task) => (
                                     <button

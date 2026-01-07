@@ -1,97 +1,34 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, CheckSquare, Clock, Trash2, X, ExternalLink } from 'lucide-react'
 import { notify } from '@/lib/notify'
 
 import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
-
-interface TaskDetail {
-    id: string
-    noteId: string
-    noteName?: string | null
-    blockId: string
-    content: string
-    description: string | null
-    checked: number
-    dueDate: number | null
-    parentTaskId: string | null
-    position: number
-    createdAt: number
-    updatedAt: number
-}
+import { useTaskByIdQuery, useUpdateTaskMutation, useDeleteTaskMutation } from '@/features/tasks/hooks/use-tasks-query'
 
 export default function TaskDetailPage() {
     const router = useRouter()
     const params = useParams()
     const taskId = params.taskId as string
 
-    const [task, setTask] = useState<TaskDetail | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [isSaving, setIsSaving] = useState(false)
+    const { data: task, isLoading, error } = useTaskByIdQuery(taskId)
+    const updateTaskMutation = useUpdateTaskMutation()
+    const deleteTaskMutation = useDeleteTaskMutation()
 
-    // Local state for editing
     const [description, setDescription] = useState('')
     const [dueDate, setDueDate] = useState<string>('')
 
-    const fetchTask = useCallback(async () => {
-        setIsLoading(true)
-        setError(null)
-        try {
-            const response = await fetch(`/api/tasks/item/${taskId}`)
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Task not found')
-                }
-                throw new Error('Failed to fetch task')
-            }
-            const data = await response.json()
-            setTask(data)
-            setDescription(data.description || '')
-            if (data.dueDate) {
-                setDueDate(new Date(data.dueDate).toISOString().split('T')[0])
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load task')
-        } finally {
-            setIsLoading(false)
-        }
-    }, [taskId])
-
     useEffect(() => {
-        if (taskId) {
-            fetchTask()
-        }
-    }, [taskId, fetchTask])
-
-    const updateTask = async (updates: Partial<TaskDetail>) => {
-        if (!task) return
-
-        setIsSaving(true)
-        try {
-            const response = await fetch(`/api/tasks/item/${taskId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to update task')
+        if (task) {
+            setDescription(task.description || '')
+            if (task.dueDate) {
+                setDueDate(new Date(task.dueDate).toISOString().split('T')[0])
             }
-
-            const updatedTask = await response.json()
-            setTask(updatedTask)
-            notify('Task updated')
-        } catch (err) {
-            notify('Failed to update task')
-            console.error(err)
-        } finally {
-            setIsSaving(false)
         }
-    }
+    }, [task])
 
     function handleBack() {
         router.back()
@@ -103,55 +40,47 @@ export default function TaskDetailPage() {
         }
     }
 
-    const handleToggleCheck = async () => {
+    function handleToggleCheck() {
         if (!task) return
         const newChecked = task.checked ? 0 : 1
-        setTask({ ...task, checked: newChecked })
-        await updateTask({ checked: newChecked })
+        updateTaskMutation.mutate({ taskId, updates: { checked: newChecked } })
     }
 
-    const handleDescriptionBlur = async () => {
+    function handleDescriptionBlur() {
         if (!task || description === (task.description || '')) return
-        await updateTask({ description: description || null })
+        updateTaskMutation.mutate({ taskId, updates: { description: description || null } })
     }
 
-    const handleDueDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    function handleDueDateChange(e: React.ChangeEvent<HTMLInputElement>) {
         const value = e.target.value
         setDueDate(value)
 
         if (value) {
             const timestamp = new Date(value).getTime()
-            await updateTask({ dueDate: timestamp })
+            updateTaskMutation.mutate({ taskId, updates: { dueDate: timestamp } })
         } else {
-            await updateTask({ dueDate: null })
+            updateTaskMutation.mutate({ taskId, updates: { dueDate: null } })
         }
     }
 
-    const handleClearDueDate = async () => {
+    function handleClearDueDate() {
         setDueDate('')
-        await updateTask({ dueDate: null })
+        updateTaskMutation.mutate({ taskId, updates: { dueDate: null } })
     }
 
-    const handleDelete = async () => {
+    function handleDelete() {
         if (!task) return
-
         if (!confirm('Are you sure you want to delete this task?')) return
 
-        try {
-            const response = await fetch(`/api/tasks/item/${taskId}`, {
-                method: 'DELETE',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to delete task')
+        deleteTaskMutation.mutate(taskId, {
+            onSuccess: () => {
+                notify('Task deleted')
+                router.push('/tasks')
+            },
+            onError: () => {
+                notify('Failed to delete task')
             }
-
-            notify('Task deleted')
-            router.push('/tasks')
-        } catch (err) {
-            notify('Failed to delete task')
-            console.error(err)
-        }
+        })
     }
 
     if (isLoading) {
@@ -165,7 +94,7 @@ export default function TaskDetailPage() {
     if (error || !task) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                <div className="text-red-400">{error || 'Task not found'}</div>
+                <div className="text-red-400">{error?.message || 'Task not found'}</div>
                 <button
                     onClick={handleBack}
                     className="text-sm text-muted-foreground hover:text-foreground underline"
@@ -176,9 +105,10 @@ export default function TaskDetailPage() {
         )
     }
 
+    const isSaving = updateTaskMutation.isPending
+
     return (
         <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-6 py-8">
-            {/* Header */}
             <div className="flex items-center gap-4 mb-8">
                 <button
                     onClick={handleBack}
@@ -202,7 +132,6 @@ export default function TaskDetailPage() {
                 )}
             </div>
 
-            {/* Task Title */}
             <div className="flex items-start gap-4 mb-8">
                 <div className="shrink-0 mt-1">
                     <Checkbox
@@ -222,9 +151,7 @@ export default function TaskDetailPage() {
                 </h1>
             </div>
 
-            {/* Task Details */}
             <div className="space-y-6">
-                {/* Due Date Section */}
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border/50">
                     <Calendar className="w-5 h-5 text-muted-foreground" />
                     <div className="flex-1">
@@ -251,7 +178,6 @@ export default function TaskDetailPage() {
                     )}
                 </div>
 
-                {/* Description Section */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-2">
                         <CheckSquare className="w-4 h-4 text-muted-foreground" />
@@ -271,7 +197,6 @@ export default function TaskDetailPage() {
                     />
                 </div>
 
-                {/* Subtasks Section (placeholder - would require additional schema) */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-2">
                         <CheckSquare className="w-4 h-4 text-muted-foreground" />
@@ -290,7 +215,6 @@ export default function TaskDetailPage() {
                     </div>
                 </div>
 
-                {/* Metadata */}
                 <div className="pt-6 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
