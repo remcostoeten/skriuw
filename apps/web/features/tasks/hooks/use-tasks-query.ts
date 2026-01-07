@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Task } from '../types'
+import type { Task, TaskWithNote } from '../types'
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 
 export const tasksKeys = {
@@ -34,7 +34,7 @@ export function useTasksQuery(noteId: string | null) {
         enabled: !!noteId,
         queryFn: async () => {
             if (!noteId) return []
-            return request<Task[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
+            return request<TaskWithNote[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
         },
         staleTime: 1000 * 60,
     })
@@ -44,7 +44,7 @@ export function useAllTasksQuery() {
     return useQuery({
         queryKey: tasksKeys.list(),
         queryFn: async () => {
-            return request<Task[]>('/api/tasks')
+            return request<TaskWithNote[]>('/api/tasks')
         },
         staleTime: 1000 * 60,
     })
@@ -56,7 +56,7 @@ export function useTaskByIdQuery(taskId: string | null) {
         enabled: !!taskId,
         queryFn: async () => {
             if (!taskId) return null
-            return request<Task>(`/api/tasks/item/${encodeURIComponent(taskId)}`)
+            return request<TaskWithNote>(`/api/tasks/item/${encodeURIComponent(taskId)}`)
         },
         staleTime: 1000 * 30,
     })
@@ -164,6 +164,9 @@ export function useSyncTasksMutation() {
         },
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: tasksKeys.note(variables.noteId) })
+        },
+        onError: (error) => {
+            console.error('Failed to sync tasks:', error)
         }
     })
 }

@@ -58,13 +58,17 @@ export function useUnlinkAccountMutation() {
         mutationFn: async ({ providerId, accountId }: { providerId: string, accountId?: string }) => {
             return await unlinkAccount(providerId, accountId)
         },
-        onMutate: async ({ providerId }) => {
+        onMutate: async ({ providerId, accountId }) => {
             await queryClient.cancelQueries({ queryKey: accountKeys.linkedAccounts() })
             const previousAccounts = queryClient.getQueryData<LinkedAccount[]>(accountKeys.linkedAccounts())
 
-            // Optimistically remove the account
             queryClient.setQueryData<LinkedAccount[]>(accountKeys.linkedAccounts(), (old = []) =>
-                old.filter(account => account.providerId !== providerId)
+                old.filter(account => {
+                    if (accountId) {
+                        return account.accountId !== accountId
+                    }
+                    return account.providerId !== providerId
+                })
             )
 
             return { previousAccounts }

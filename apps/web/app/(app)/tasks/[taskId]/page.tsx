@@ -20,15 +20,16 @@ export default function TaskDetailPage() {
 
     const [description, setDescription] = useState('')
     const [dueDate, setDueDate] = useState<string>('')
+    const [isDirty, setIsDirty] = useState(false)
 
     useEffect(() => {
-        if (task) {
+        if (task && !isDirty) {
             setDescription(task.description || '')
             if (task.dueDate) {
                 setDueDate(new Date(task.dueDate).toISOString().split('T')[0])
             }
         }
-    }, [task])
+    }, [task, isDirty])
 
     function handleBack() {
         router.back()
@@ -46,9 +47,20 @@ export default function TaskDetailPage() {
         updateTaskMutation.mutate({ taskId, updates: { checked: newChecked } })
     }
 
+    function handleDescriptionChange(value: string) {
+        setDescription(value)
+        setIsDirty(true)
+    }
+
     function handleDescriptionBlur() {
-        if (!task || description === (task.description || '')) return
-        updateTaskMutation.mutate({ taskId, updates: { description: description || null } })
+        if (!task || description === (task.description || '')) {
+            setIsDirty(false)
+            return
+        }
+        updateTaskMutation.mutate(
+            { taskId, updates: { description: description || null } },
+            { onSettled: () => setIsDirty(false) }
+        )
     }
 
     function handleDueDateChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -185,7 +197,7 @@ export default function TaskDetailPage() {
                     </label>
                     <textarea
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e) => handleDescriptionChange(e.target.value)}
                         onBlur={handleDescriptionBlur}
                         placeholder="Add a description, notes, or details about this task..."
                         className={cn(

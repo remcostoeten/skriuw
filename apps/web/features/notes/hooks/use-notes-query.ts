@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { readMany, readOne, create, update, destroy } from '@skriuw/crud'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { useSession } from '@/lib/auth-client'
+import { generateId } from '@skriuw/shared'
 import type { Item, Note, Folder } from '../types'
 import { extractTasksFromBlocks } from '../utils/extract-tasks'
 import { trackActivity } from '@/features/activity'
@@ -69,10 +70,6 @@ export function useNoteQuery(id: string) {
 // -----------------------------------------------------------------------------
 // Mutations
 // -----------------------------------------------------------------------------
-
-function generateId(prefix: string): string {
-    return `${prefix}${Math.random().toString(36).substr(2, 9)}`
-}
 
 export function useCreateNoteMutation() {
     const queryClient = useQueryClient()
@@ -251,7 +248,29 @@ export function useMoveItemMutation() {
             if (!result.success) throw new Error('Failed to move item')
             return result.data
         },
-        onSuccess: () => {
+        async onMutate({ itemId, targetFolderId }) {
+            await queryClient.cancelQueries({ queryKey: notesKeys.list(userId) })
+            const previousNotes = queryClient.getQueryData<Item[]>(notesKeys.list(userId))
+
+            queryClient.setQueryData<Item[] | undefined>(notesKeys.list(userId), (old) => {
+                if (!old) return old
+
+                const nextParentId = targetFolderId === null ? undefined : targetFolderId
+                return old.map((item) =>
+                    item.id === itemId
+                        ? { ...item, parentFolderId: nextParentId }
+                        : item
+                )
+            })
+
+            return { previousNotes }
+        },
+        onError: (_err, _variables, context) => {
+            if (context?.previousNotes) {
+                queryClient.setQueryData(notesKeys.list(userId), context.previousNotes)
+            }
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
         }
     })
@@ -334,13 +353,18 @@ export function useSetNoteVisibilityMutation() {
 
     return useMutation({
         mutationFn: async ({ id, isPublic }: { id: string, isPublic: boolean }) => {
-            // Note: In original code, there was a specific API for this: setNoteVisibilityMutation
-            // Assuming CRUD update is sufficient or we should use the specific API? 
-            // Checking original use-notes.ts: it imported `setNoteVisibilityMutation`.
-            // For now, using generic update but we might need to fix this if backend logic is complex.
-            const result = await update<Note>(STORAGE_KEYS.NOTES, id, { isPublic }, { userId })
-            if (!result.success) throw new Error('Failed to set visibility')
-            return result.data
+            const response = await fetch('/api/notes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, isPublic })
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to set visibility')
+            }
+
+            return await response.json() as Note
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })

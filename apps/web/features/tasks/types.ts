@@ -9,11 +9,9 @@ export type BaseEntity = {
     deletedAt?: Timestamp
 }
 
-export interface Task extends BaseEntity {
-    noteId: UUID
-    blockId: string
-    content: string
-    checked: number // 0 or 1
-    parentTaskId: UUID | null
-    position: number
+export type { Task } from '@skriuw/db'
+
+export interface TaskWithNote extends Omit<import('@skriuw/db').Task, 'userId'> {
+    noteName: string | null
+    userId?: string | null
 }
