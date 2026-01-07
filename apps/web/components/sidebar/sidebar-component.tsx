@@ -1580,15 +1580,10 @@ export function Sidebar({
 
 	const handleCreateNote = useCallback(
 		async (parentId?: string) => {
+			// Guard against event objects being passed as parentId
+			const safeParentId = typeof parentId === 'string' ? parentId : undefined
 			const targetFolderId =
-				parentId !== undefined ? parentId : selectedFolderId
-
-			// No need to guard here again if createNote is guarded, BUT handleCreateNote does other things too.
-			// It might be safer to keep the guard here OR let createNote fail gracefully?
-			// guard returns null if blocked.
-
-			// If I relying on `createNote` wrapper, it returns `Promise<Note | null>`.
-			// So I should check result.
+				safeParentId !== undefined ? safeParentId : selectedFolderId
 
 			// Expand parent folder if creating inside a folder
 			if (targetFolderId) {
@@ -1618,8 +1613,10 @@ export function Sidebar({
 
 	const handleCreateFolder = useCallback(
 		async (parentId?: string) => {
+			// Guard against event objects being passed as parentId
+			const safeParentId = typeof parentId === 'string' ? parentId : undefined
 			const targetFolderId =
-				parentId !== undefined ? parentId : selectedFolderId
+				safeParentId !== undefined ? safeParentId : selectedFolderId
 
 			if (targetFolderId) {
 				setExpandedFolders((prev) => {

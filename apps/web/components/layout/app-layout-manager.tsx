@@ -213,11 +213,17 @@ export function AppLayoutManager({
 	// Open/activate tab when navigating to a note
 	// Note: We intentionally exclude computedTitle from dependencies to avoid re-render loops
 	// since openTab updates lastVisitedAt. Title updates happen separately when the tab bar renders.
+	// Keep a ref to computedTitle to avoid re-triggering the effect when it changes
+	const computedTitleRef = useRef(computedTitle)
+	useEffect(() => {
+		computedTitleRef.current = computedTitle
+	}, [computedTitle])
+
+	// Open/activate tab when navigating to a note
 	useEffect(() => {
 		if (!multiNoteTabs || !currentNoteId) return
-		openTab({ noteId: currentNoteId, title: computedTitle })
+		openTab({ noteId: currentNoteId, title: computedTitleRef.current })
 		setActiveTab(currentNoteId)
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [multiNoteTabs, currentNoteId, openTab, setActiveTab])
 
 	useEffect(() => {

@@ -1,5 +1,5 @@
 import type { ShortcutId, KeyCombo } from './shortcut-definitions'
-import type { BaseEntity } from '../tasks/types'
+import type { BaseEntity } from '@/types/common'
 
 /**
  * Strongly typed keyboard shortcut system
