@@ -6,7 +6,7 @@ import { CheckSquare, FileText, RefreshCw } from 'lucide-react'
 import { cn } from '@skriuw/shared'
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 import { useAllTasksQuery, useUpdateTaskMutation } from '@/features/tasks/hooks/use-tasks-query'
-import type { Task } from '@/features/tasks/types'
+import type { TaskWithNote } from '@/features/tasks/types'
 
 type TProps = {
     className?: string
@@ -18,17 +18,17 @@ export function TasksSidebarContent({ className, activeNoteId }: TProps) {
     const { data: tasks = [], isLoading, error, refetch } = useAllTasksQuery()
     const updateTask = useUpdateTaskMutation()
 
-    function handleTaskClick(task: Task) {
+    function handleTaskClick(task: TaskWithNote) {
         router.push(`/tasks/${task.id}`)
     }
 
-    function handleToggleCheck(task: Task, e: React.MouseEvent) {
+    function handleToggleCheck(task: TaskWithNote, e: React.MouseEvent) {
         e.stopPropagation()
         const newChecked = task.checked ? 0 : 1
         updateTask.mutate({ taskId: task.id, updates: { checked: newChecked } })
     }
 
-    const tasksByNote = tasks.reduce<Record<string, Task[]>>((acc, task) => {
+    const tasksByNote = tasks.reduce<Record<string, TaskWithNote[]>>((acc, task) => {
         const noteKey = task.noteId
         if (!acc[noteKey]) {
             acc[noteKey] = []
