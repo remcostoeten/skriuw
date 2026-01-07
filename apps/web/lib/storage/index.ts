@@ -25,4 +25,4 @@ interface StorageAdapter {
 
 export const storageAdapter: StorageAdapter = createClientApiAdapter()
 
-export { createClientApiAdapter } from './adapters/client-api'
+export { createClientApiAdapter, apiRequest } from './adapters/client-api'

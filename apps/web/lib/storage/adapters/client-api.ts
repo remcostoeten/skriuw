@@ -4,6 +4,8 @@
  * Supports user-scoped operations via userId parameter.
  */
 
+import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '../../preseed-data'
+
 // Define types locally since crud package has issues
 type BaseEntity = {
 	id: string
@@ -160,6 +162,62 @@ function buildUrl(
  *
  * @param baseUrl - Optional base URL (defaults to window.location.origin)
  */
+/**
+ * Global API request handler with standardized error handling and typing.
+ * Can be used directly for custom endpoints that don't fit the strict CRUD adapter model.
+ */
+export async function apiRequest<T>(
+	endpoint: string,
+	options: RequestInit = {},
+	baseUrl?: string
+): Promise<T> {
+	const apiBaseUrl =
+		baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
+
+	const url = endpoint.startsWith('http')
+		? endpoint
+		: `${apiBaseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
+
+	const response = await globalThis.fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...options.headers
+		},
+		...options
+	})
+
+	if (!response.ok) {
+		const text = await response.text()
+		let message = `API error: ${response.status}`
+		try {
+			const json = JSON.parse(text)
+			message = json.message ?? json.error ?? message
+		} catch {
+			if (text)
+				message = `${response.status} - ${text.substring(0, 200)}`
+		}
+
+		if ([401, 403, 503].includes(response.status)) {
+			throw new AuthRequiredError(message, response.status)
+		}
+		throw new Error(message)
+	}
+
+	// For 204 No Content, return null/undefined as appropriate
+	if (response.status === 204) {
+		return null as T
+	}
+
+	const contentType = response.headers.get('content-type')
+	if (!contentType?.includes('application/json')) {
+		// Allow non-JSON for specific cases or throw?
+		// For now throw to maintain parity, or return text if T allows
+		throw new Error(`Expected JSON response, got: ${contentType}`)
+	}
+
+	return response.json()
+}
+
 export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 	const apiBaseUrl =
 		baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
@@ -168,40 +226,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		endpoint: string,
 		options: RequestInit = {}
 	): Promise<T> {
-		const url = endpoint.startsWith('http')
-			? endpoint
-			: `${apiBaseUrl}${endpoint}`
-		const response = await globalThis.fetch(url, {
-			headers: {
-				'Content-Type': 'application/json',
-				...options.headers
-			},
-			...options
-		})
-
-		if (!response.ok) {
-			const text = await response.text()
-			let message = `API error: ${response.status}`
-			try {
-				const json = JSON.parse(text)
-				message = json.message ?? json.error ?? message
-			} catch {
-				if (text)
-					message = `${response.status} - ${text.substring(0, 200)}`
-			}
-
-			if ([401, 403, 503].includes(response.status)) {
-				throw new AuthRequiredError(message, response.status)
-			}
-			throw new Error(message)
-		}
-
-		const contentType = response.headers.get('content-type')
-		if (!contentType?.includes('application/json')) {
-			throw new Error(`Expected JSON response, got: ${contentType}`)
-		}
-
-		return response.json()
+		return apiRequest<T>(endpoint, options, apiBaseUrl)
 	}
 
 	// Helpers for LocalStorage operations
@@ -225,6 +250,20 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		}
 	}
 
+	// Recursive helper to find item location in tree
+	const findItemLocation = (items: any[], id: string): { list: any[]; index: number } | null => {
+		const index = items.findIndex((i) => i.id === id)
+		if (index !== -1) return { list: items, index }
+
+		for (const item of items) {
+			if (item.children && Array.isArray(item.children)) {
+				const found = findItemLocation(item.children, id)
+				if (found) return found
+			}
+		}
+		return null
+	}
+
 	return {
 		name: 'client-api',
 		async create<T>(
@@ -243,7 +282,23 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 					createdAt: timestamp,
 					updatedAt: timestamp
 				}
-				items.push(newItem)
+
+				if (newItem.parentFolderId) {
+					// Find parent folder and add to its children
+					const location = findItemLocation(items, newItem.parentFolderId)
+					if (location) {
+						const parent = location.list[location.index]
+						if (!parent.children) parent.children = []
+						parent.children.push(newItem)
+					} else {
+						// Parent not found, fallback to root or error? 
+						// Fallback to root for safety
+						items.push(newItem)
+					}
+				} else {
+					items.push(newItem)
+				}
+
 				setLocalItems(storageKey, items)
 				return newItem as T
 			}
@@ -272,8 +327,8 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 				const items = getLocalItems<any>(storageKey)
 
 				if (options?.getById) {
-					const item = items.find(i => i.id === options.getById)
-					return item as T | undefined
+					const location = findItemLocation(items, options.getById)
+					return (location ? location.list[location.index] : undefined) as T | undefined
 				}
 
 				return items as T[]
@@ -314,15 +369,15 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		): Promise<T | undefined> {
 			if (options?.userId === 'guest') {
 				const items = getLocalItems<any>(storageKey)
-				const index = items.findIndex(i => i.id === id)
-				if (index === -1) return undefined
+				const location = findItemLocation(items, id)
+				if (!location) return undefined
 
 				const updatedItem = {
-					...items[index],
+					...location.list[location.index],
 					...data,
 					updatedAt: Date.now()
 				}
-				items[index] = updatedItem
+				location.list[location.index] = updatedItem
 				setLocalItems(storageKey, items)
 				return updatedItem as T
 			}
@@ -357,9 +412,11 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		): Promise<boolean> {
 			if (options?.userId === 'guest') {
 				const items = getLocalItems<any>(storageKey)
-				const newItems = items.filter(i => i.id !== id)
-				if (newItems.length === items.length) return false // Item not found
-				setLocalItems(storageKey, newItems)
+				const location = findItemLocation(items, id)
+				if (!location) return false // Item not found
+
+				location.list.splice(location.index, 1)
+				setLocalItems(storageKey, items)
 				return true
 			}
 
@@ -395,8 +452,8 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		): Promise<T | null> {
 			if (options?.userId === 'guest') {
 				const items = getLocalItems<any>(storageKey)
-				const item = items.find(i => i.id === id)
-				return (item as T) || null
+				const location = findItemLocation(items, id)
+				return (location ? location.list[location.index] : null) as T | null
 			}
 
 			const endpoint = getEndpoint(storageKey)
@@ -424,7 +481,41 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			options?: BatchReadAdapterOptions
 		): Promise<T[]> {
 			if (options?.userId === 'guest') {
-				return getLocalItems<T>(storageKey)
+				const items = getLocalItems<T>(storageKey)
+
+				// Auto-seed for guest if empty and not seeded
+				if (items.length === 0 && (storageKey === 'skriuw:notes' || storageKey === 'notes') && !hasPreseededItems()) {
+					const seedItems = generatePreseededItems('guest')
+					const treeItems: any[] = []
+
+					// Build tree structure for seed items
+					seedItems.forEach((item: any) => {
+						const anyItem = item
+						// Ensure children array exists for folders
+						if (anyItem.type === 'folder' && !anyItem.children) {
+							anyItem.children = []
+						}
+
+						if (anyItem.parentFolderId) {
+							const location = findItemLocation(treeItems, anyItem.parentFolderId)
+							if (location) {
+								const parent = location.list[location.index]
+								if (!parent.children) parent.children = []
+								parent.children.push(anyItem)
+							} else {
+								treeItems.push(anyItem)
+							}
+						} else {
+							treeItems.push(anyItem)
+						}
+					})
+
+					setLocalItems(storageKey, treeItems)
+					markPreseededItems()
+					return treeItems as T[]
+				}
+
+				return items
 			}
 
 			const endpoint = getEndpoint(storageKey)
@@ -455,13 +546,35 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			if (options?.userId === 'guest') {
 				const existingItems = getLocalItems<any>(storageKey)
 				const timestamp = Date.now()
+				// Batch create for trees is complex. 
+				// Assuming batch create is only used for flat initial seeds or similar.
+				// If we need to support tree inserts in batch, we'd need to process sequentially.
+				// For now, allow simple push to root matches previous behavior, but ideally we should loop and insert.
+
 				const newItems = items.map(item => ({
 					...item,
 					id: item.id || `local-${Math.random().toString(36).substr(2, 9)}`,
 					createdAt: timestamp,
 					updatedAt: timestamp
 				}))
-				setLocalItems(storageKey, [...existingItems, ...newItems])
+
+				// Try to respect parentFolderId if possible by re-reading refined existingItems?
+				// For simplicity in batch, we'll traverse for each.
+				newItems.forEach(newItem => {
+					if (newItem.parentFolderId) {
+						const location = findItemLocation(existingItems, newItem.parentFolderId)
+						if (location) {
+							if (!location.list[location.index].children) location.list[location.index].children = []
+							location.list[location.index].children.push(newItem)
+						} else {
+							existingItems.push(newItem)
+						}
+					} else {
+						existingItems.push(newItem)
+					}
+				})
+
+				setLocalItems(storageKey, existingItems)
 				return newItems as T[]
 			}
 
@@ -485,7 +598,13 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		): Promise<T[]> {
 			if (options?.userId === 'guest') {
 				const items = getLocalItems<any>(storageKey)
-				return items.filter(i => ids.includes(i.id)) as T[]
+				// Naive flat filter won't work for tree. Need to find each.
+				const results: T[] = []
+				for (const id of ids) {
+					const location = findItemLocation(items, id)
+					if (location) results.push(location.list[location.index] as T)
+				}
+				return results
 			}
 
 			const endpoint = getEndpoint(storageKey)
@@ -521,10 +640,15 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 				let hasChanges = false
 
 				updates.forEach(({ id, data }) => {
-					const index = items.findIndex(i => i.id === id)
-					if (index !== -1) {
-						items[index] = { ...items[index], ...data, updatedAt: Date.now() }
-						updatedItems.push(items[index] as T)
+					const location = findItemLocation(items, id)
+					if (location) {
+						const updatedItem = {
+							...location.list[location.index],
+							...data,
+							updatedAt: Date.now()
+						}
+						location.list[location.index] = updatedItem
+						updatedItems.push(updatedItem as T)
 						hasChanges = true
 					}
 				})
@@ -556,11 +680,20 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 		): Promise<number> {
 			if (options?.userId === 'guest') {
 				const items = getLocalItems<any>(storageKey)
-				const newItems = items.filter(i => !ids.includes(i.id))
-				const deletedCount = items.length - newItems.length
+				let deletedCount = 0
+
+				// Deleting from tree is tricky if iterating.
+				// Simplest way: process each delete.
+				for (const id of ids) {
+					const location = findItemLocation(items, id)
+					if (location) {
+						location.list.splice(location.index, 1)
+						deletedCount++
+					}
+				}
 
 				if (deletedCount > 0) {
-					setLocalItems(storageKey, newItems)
+					setLocalItems(storageKey, items)
 				}
 				return deletedCount
 			}
