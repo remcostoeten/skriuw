@@ -1,23 +1,5 @@
-// Define types locally since shared package has issues
-type UUID = string
-type Timestamp = number
-
-type BaseEntity = {
-	id: UUID
-} & {
-	createdAt: Timestamp
-	updatedAt: Timestamp
-	deletedAt?: Timestamp
-}
-
-export interface Task extends BaseEntity {
-	noteId: UUID
-	blockId: string
-	content: string
-	checked: number // 0 or 1
-	parentTaskId: UUID | null
-	position: number
-}
+import type { Task } from '../../types'
+export type { Task }
 
 async function request<T>(url: string): Promise<T> {
 	const response = await fetch(url, {

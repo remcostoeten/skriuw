@@ -4,27 +4,25 @@ import { getRecentActivity, getEntityActivity } from '../api/queries/get-recent-
 import { getCalendarData } from '../api/queries/get-calendar-data'
 import type { RecentActivityGroup, RecentActivityItem } from '../types'
 
+type RecentActivityOptions = { limit?: number; startDate?: string; endDate?: string }
+
 export const activityKeys = {
     all: ['activity'] as const,
-    recent: (limit?: number) => [...activityKeys.all, 'recent', { limit }] as const,
+    recent: (options?: RecentActivityOptions) => [...activityKeys.all, 'recent', options] as const,
     entity: (entityType: string, entityId: string) => [...activityKeys.all, 'entity', entityType, entityId] as const,
-    calendar: (days?: string) => [...activityKeys.all, 'calendar', { days }] as const,
+    calendar: (days?: number) => [...activityKeys.all, 'calendar', { days }] as const,
 }
 
-/**
- * Query hook for fetching recent activity grouped by date
- */
-export function useRecentActivityQuery(options?: { limit?: number; startDate?: string; endDate?: string }) {
+export function useRecentActivityQuery(options?: RecentActivityOptions) {
     const { data: session } = useSession()
-    const limit = options?.limit ?? 50
 
     return useQuery({
-        queryKey: activityKeys.recent(limit),
+        queryKey: activityKeys.recent(options),
         queryFn: async () => {
             return await getRecentActivity(options)
         },
         enabled: !!session?.user,
-        staleTime: 1000 * 30, // 30 seconds - activity changes frequently
+        staleTime: 1000 * 30,
     })
 }
 
@@ -51,11 +49,11 @@ export function useCalendarActivityQuery(days: number = 365) {
     const { data: session } = useSession()
 
     return useQuery({
-        queryKey: activityKeys.calendar(String(days)),
+        queryKey: activityKeys.calendar(days),
         queryFn: async () => {
             return await getCalendarData(days)
         },
         enabled: !!session?.user,
-        staleTime: 1000 * 60 * 5, // 5 minutes - calendar data less volatile
+        staleTime: 1000 * 60 * 5,
     })
 }

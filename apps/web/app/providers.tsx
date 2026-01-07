@@ -2,6 +2,8 @@
 
 import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 import { Analytics } from '@vercel/analytics/react'
 
@@ -10,6 +12,7 @@ import { EmptyState } from '@skriuw/ui'
 import { TooltipProvider } from '@skriuw/ui'
 
 import { ensureStorageInitialized } from './storage'
+import { getQueryClient } from '@/lib/query-client'
 
 import { EditorTabsProvider } from '../features/editor/tabs'
 import { NotesProvider } from '@/features/notes/context/notes-context'
@@ -50,10 +53,6 @@ function StorageInitializer({ children }: props) {
 
 	return <>{children}</>
 }
-
-import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { getQueryClient } from '@/lib/query-client'
 
 export function Providers({ children }: props) {
 	const queryClient = getQueryClient()
