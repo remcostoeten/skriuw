@@ -2,6 +2,7 @@ import { createReactBlockSpec } from '@blocknote/react'
 import { Check, Copy, Maximize2, Minimize2 } from 'lucide-react'
 import Prism from 'prismjs'
 import { useEffect, useRef, useState, useMemo } from 'react'
+import DOMPurify from 'isomorphic-dompurify'
 
 // Import languages to ensure they are loaded
 import 'prismjs/components/prism-typescript'
@@ -43,29 +44,30 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 	{
 		render: ({ block, editor, contentRef }) => {
 			const [isEditing, setIsEditing] = useState(false)
-			const [isCopied, setIsCopied] = useState(false)
-			const [isCollapsed, setIsCollapsed] = useState(false)
-
-			// Initialize from existing content if available
-			function getBlockContent() {
+			const [localText, setLocalText] = useState(() => {
 				if (Array.isArray(block.content)) {
 					return block.content.map((c: any) => c.text || '').join('')
 				}
 				return ''
-			}
-			const [localText, setLocalText] = useState(getBlockContent())
+			})
 			const textareaRef = useRef<HTMLTextAreaElement>(null)
+			const [isCopied, setIsCopied] = useState(false)
+			const [isCollapsed, setIsCollapsed] = useState(false)
 
+			// Initialize from existing content if available
 			// Sync local state when block content changes (external updates)
 			useEffect(() => {
-				setLocalText(getBlockContent())
-				// eslint-disable-next-line react-hooks/exhaustive-deps
+				const content = Array.isArray(block.content)
+					? block.content.map((c: any) => c.text || '').join('')
+					: ''
+				setLocalText(content)
 			}, [block.content])
 
 			const highlight = useMemo(() => {
 				const lang = block.props.language
 				const grammar = Prism.languages[lang] || Prism.languages.text || Prism.languages.plain
-				return Prism.highlight(localText || '', grammar, lang)
+				const raw = Prism.highlight(localText || '', grammar, lang)
+				return DOMPurify.sanitize(raw)
 			}, [localText, block.props.language])
 
 			function handleBlur() {
@@ -187,6 +189,7 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 											overflowWrap: 'break-word',
 										}}
 									>
+										{/* Highlighted output is sanitized with DOMPurify */}
 										<code dangerouslySetInnerHTML={{ __html: highlight }} />
 									</pre>
 								</div>
