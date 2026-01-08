@@ -122,7 +122,7 @@ export function SkriuwExplanation({ onCreateNote }: Props) {
 					<Button
 						variant="default"
 						size="lg"
-						onClick={onCreateNote}
+						onClick={() => onCreateNote()}
 						className="px-8 py-6 gap-3 text-base shadow-2xl shadow-primary/30 hover:shadow-primary/40 transition-all duration-300 bg-gradient-to-br from-primary to-primary/90 hover:from-primary hover:to-primary/80 group relative overflow-hidden"
 					>
 						<span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
