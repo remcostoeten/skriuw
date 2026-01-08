@@ -41,6 +41,7 @@
 		"drizzle-orm": "^0.44.7",
 		"framer-motion": "^12.23.12",
 		"gsap": "^3.14.2",
+		"isomorphic-dompurify": "^2.35.0",
 		"lru-cache": "^11.2.4",
 		"lucide-react": "^0.539.0",
 		"next": "16.0.10",
