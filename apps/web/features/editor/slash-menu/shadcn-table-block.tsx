@@ -164,7 +164,7 @@ const ShadcnTableBlock = ({ block, editor }: { block: any; editor: any }) => {
     )
 }
 
-export const shadcnTableBlockSpec: any = createReactBlockSpec(
+export const shadcnTableBlockSpec = createReactBlockSpec(
     {
         type: 'shadcnTable',
         propSchema: {
