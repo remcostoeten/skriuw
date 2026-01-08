@@ -9,7 +9,8 @@ export type { Task }
 export async function getTasksForNote(noteId: string): Promise<Task[]> {
 	if (!noteId) return []
 	try {
-		return await apiRequest<Task[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
+		const result = await apiRequest<Task[]>(`/api/tasks/${encodeURIComponent(noteId)}`)
+		return result ?? []
 	} catch (error) {
 		console.error('Failed to get tasks for note:', error)
 		throw error

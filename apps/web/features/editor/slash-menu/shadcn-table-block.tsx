@@ -1,6 +1,7 @@
 import { createReactBlockSpec } from '@blocknote/react'
 import { Plus, Trash, GripHorizontal } from 'lucide-react'
 import { useEffect, useState } from 'react'
+// import { toast } from 'sonner' // TODO: Fix toast import
 
 import {
     Table,
@@ -32,6 +33,7 @@ const ShadcnTableBlock = ({ block, editor }: { block: any; editor: any }) => {
         } catch (e) {
             console.error('Failed to parse table data', e)
             setData([['Error', 'Parsing', 'Data']])
+            // toast.error('Failed to load table data') // TODO: Enable once toast is available
         }
     }, [block.props.tableData])
 

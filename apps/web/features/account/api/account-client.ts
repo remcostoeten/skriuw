@@ -1,4 +1,5 @@
 import { AUTH_CLIENT_ENABLED } from '@/lib/auth-client'
+import { apiRequest } from '@/lib/storage/adapters/client-api'
 
 export type LinkedAccount = {
 	id: string
@@ -21,19 +22,14 @@ export type DeleteResponse = {
 
 const AUTH_API_BASE = '/api/auth'
 
-import { apiRequest } from '@/lib/storage'
-
-// ... existing imports ...
-
-// Removed parseJson, readError, request local helpers
-
 
 export async function getLinkedAccounts(): Promise<LinkedAccount[]> {
 	if (!AUTH_CLIENT_ENABLED) return []
-	return apiRequest<LinkedAccount[]>(`${AUTH_API_BASE}/list-accounts`, {
+	const result = await apiRequest<LinkedAccount[]>(`${AUTH_API_BASE}/list-accounts`, {
 		method: 'GET',
 		credentials: 'include'
 	})
+	return result ?? []
 }
 
 export async function linkAccount(
@@ -43,7 +39,7 @@ export async function linkAccount(
 	if (!AUTH_CLIENT_ENABLED) {
 		throw new Error('Authentication client not configured')
 	}
-	return apiRequest<LinkResponse>(`${AUTH_API_BASE}/link-social`, {
+	const result = await apiRequest<LinkResponse>(`${AUTH_API_BASE}/link-social`, {
 		method: 'POST',
 		body: JSON.stringify({
 			provider,
@@ -52,6 +48,8 @@ export async function linkAccount(
 		}),
 		credentials: 'include'
 	})
+	if (!result) throw new Error('Failed to initiate account linking')
+	return result
 }
 
 export async function unlinkAccount(
@@ -72,7 +70,7 @@ export async function unlinkAccount(
 			credentials: 'include'
 		}
 	)
-	return Boolean(result.status)
+	return Boolean(result?.status)
 }
 
 export async function updateProfile(fields: {
@@ -90,15 +88,17 @@ export async function updateProfile(fields: {
 			credentials: 'include'
 		}
 	)
-	return Boolean(result.status)
+	return Boolean(result?.status)
 }
 
 export async function deleteAccount(): Promise<DeleteResponse> {
 	if (!AUTH_CLIENT_ENABLED) {
 		throw new Error('Authentication client not configured')
 	}
-	return apiRequest<DeleteResponse>(`${AUTH_API_BASE}/delete-user`, {
+	const result = await apiRequest<DeleteResponse>(`${AUTH_API_BASE}/delete-user`, {
 		method: 'POST',
 		credentials: 'include'
 	})
+	if (!result) return { success: true, message: 'Account deleted' }
+	return result
 }

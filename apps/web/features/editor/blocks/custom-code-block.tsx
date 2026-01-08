@@ -2,6 +2,7 @@ import { createReactBlockSpec } from '@blocknote/react'
 import { Check, Copy, Maximize2, Minimize2 } from 'lucide-react'
 import Prism from 'prismjs'
 import { useEffect, useRef, useState, useMemo } from 'react'
+import DOMPurify from 'isomorphic-dompurify'
 
 // Import languages to ensure they are loaded
 import 'prismjs/components/prism-typescript'
@@ -65,7 +66,8 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 			const highlight = useMemo(() => {
 				const lang = block.props.language
 				const grammar = Prism.languages[lang] || Prism.languages.text || Prism.languages.plain
-				return Prism.highlight(localText || '', grammar, lang)
+				const raw = Prism.highlight(localText || '', grammar, lang)
+				return DOMPurify.sanitize(raw)
 			}, [localText, block.props.language])
 
 			function handleBlur() {
@@ -187,7 +189,7 @@ export const customCodeBlockSpec: any = createReactBlockSpec(
 											overflowWrap: 'break-word',
 										}}
 									>
-										{/* PrismJS escapes HTML entities, preventing XSS */}
+										{/* Highlighted output is sanitized with DOMPurify */}
 										<code dangerouslySetInnerHTML={{ __html: highlight }} />
 									</pre>
 								</div>
