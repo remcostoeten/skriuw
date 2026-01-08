@@ -1,7 +1,7 @@
 import { createReactBlockSpec } from '@blocknote/react'
-import { Plus, Trash, GripHorizontal } from 'lucide-react'
+import type { BlockNoteEditor } from '@blocknote/core'
+import { Plus, Trash } from 'lucide-react'
 import { useEffect, useState } from 'react'
-// import { toast } from 'sonner' // TODO: Fix toast import
 
 import {
     Table,
@@ -13,15 +13,16 @@ import {
 } from '@skriuw/ui/table'
 import { Button } from '@skriuw/ui/button'
 import { Input } from '@skriuw/ui/input'
-import { cn } from '@skriuw/shared'
 
-/**
- * Custom Shadcn Table Block for BlockNote
- *
- * Stores table data in the `rows` prop as a JSON string for simplicity in BlockNote's prop system.
- * Structure: Array<Array<string>> representing rows and their cell string values.
- */
-const ShadcnTableBlock = ({ block, editor }: { block: any; editor: any }) => {
+type TableBlockProps = {
+    id: string
+    type: 'shadcnTable'
+    props: {
+        tableData: string
+    }
+}
+
+const ShadcnTableBlock = ({ block, editor }: { block: TableBlockProps; editor: BlockNoteEditor }) => {
     const [data, setData] = useState<string[][]>([])
 
     useEffect(() => {
@@ -33,7 +34,10 @@ const ShadcnTableBlock = ({ block, editor }: { block: any; editor: any }) => {
         } catch (e) {
             console.error('Failed to parse table data', e)
             setData([['Error', 'Parsing', 'Data']])
-            // toast.error('Failed to load table data') // TODO: Enable once toast is available
+            // TODO: Replace with toast when available in @skriuw/ui
+            if (typeof window !== 'undefined') {
+                window.alert('Failed to load table data: Invalid format')
+            }
         }
     }, [block.props.tableData])
 
@@ -180,7 +184,8 @@ export const shadcnTableBlockSpec = createReactBlockSpec(
     },
     {
         render: ({ block, editor }) => (
-            <ShadcnTableBlock block={block} editor={editor} />
+            <ShadcnTableBlock block={block as TableBlockProps} editor={editor as BlockNoteEditor} />
         ),
     }
 )
+
