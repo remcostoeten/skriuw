@@ -19,7 +19,7 @@ This is **markdown** with \`code\`.
 
 \`\`\`javascript
 const greeting = "Hello!";
-console.log(greeting);
+
 \`\`\``
 
 // Define all custom themes in Monaco

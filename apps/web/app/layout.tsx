@@ -6,6 +6,7 @@ import 'prismjs/themes/prism-tomorrow.css'
 import { Providers } from './providers'
 import { CommandExecutor } from '@/components/command-executor'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 // Force dynamic rendering to avoid SSR issues with BlockNote
 export const dynamic = 'force-dynamic'
@@ -79,7 +80,9 @@ export default function RootLayout({
 			>
 				<div id="main-content">
 					<Providers>
-						{children}
+						<ErrorBoundary>
+							{children}
+						</ErrorBoundary>
 						<CommandExecutor />
 						<InstallPrompt />
 					</Providers>

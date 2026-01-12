@@ -33,6 +33,7 @@ export interface DestinationConfig {
 	encrypt: boolean
 	chunkSize?: number
 	config: Record<string, string | number | boolean | null | undefined>
+	oauth2Tokens?: OAuth2Tokens
 }
 
 export interface BackupChunkMeta {
