@@ -174,7 +174,7 @@ export function RawMDXEditor({
 	return (
 		<div
 			className={cn(
-				'relative w-[90%] max-w-4xl mx-auto h-[calc(100vh-200px)] bg-background-secondary',
+				'relative w-full max-w-[655px] mx-auto h-full bg-background-secondary',
 				disabled && 'opacity-50 pointer-events-none',
 				className
 			)}
@@ -206,7 +206,7 @@ export function RawMDXEditor({
 						minimap: { enabled: false },
 						scrollBeyondLastLine: false,
 						automaticLayout: true,
-						padding: { top: 16, bottom: 0 },
+						padding: { top: 24, bottom: 0 },
 						lineNumbers: 'on',
 						renderLineHighlight: 'line',
 						cursorBlinking: 'smooth',
