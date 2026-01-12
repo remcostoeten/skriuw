@@ -15,6 +15,13 @@ import { recordActivity } from '../api/mutations/record-activity'
  * })
  * ```
  */
-export function trackActivity(input: RecordActivityInput): void {
-	recordActivity(input).catch(() => {})
+	recordActivity(input)
+		.then((result) => {
+			if (!result.success) {
+				console.error('Activity tracking failed:', result.error)
+			}
+		})
+		.catch((error) => {
+			console.error('Failed to track activity (transport):', error)
+		})
 }

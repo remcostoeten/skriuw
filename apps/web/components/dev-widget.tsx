@@ -110,7 +110,10 @@ export function DevWidget() {
 	}, [resizeStart])
 
 	// Click vs drag detection
-	const [dragStartPos, setDragStartPos] = useState<{ x: number, y: number } | null>(null)
+	const [dragStartPos, setDragStartPos] = useState<{
+		x: number
+		y: number
+	} | null>(null)
 	const [hasMoved, setHasMoved] = useState(false)
 
 	const {
@@ -201,7 +204,6 @@ export function DevWidget() {
 		}
 	}, [dragStartPos])
 
-
 	if (!isVisible) return null
 
 	return (
@@ -255,23 +257,42 @@ export function DevWidget() {
 					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm cursor-grab active:cursor-grabbing">
 						<div className="flex items-center gap-2">
 							<GripVertical className="h-4 w-4 text-muted-foreground" />
-							<div className={cn(
-								'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
-								isConnected
-									? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
-									: 'bg-red-500/10 border-red-500/20 text-red-600'
-							)}>
-								<div className={cn('h-1.5 w-1.5 rounded-full animate-pulse', isConnected ? 'bg-emerald-500' : 'bg-red-500')} />
+							<div
+								className={cn(
+									'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
+									isConnected
+										? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
+										: 'bg-red-500/10 border-red-500/20 text-red-600'
+								)}
+							>
+								<div
+									className={cn(
+										'h-1.5 w-1.5 rounded-full animate-pulse',
+										isConnected
+											? 'bg-emerald-500'
+											: 'bg-red-500'
+									)}
+								/>
 								{isConnected ? 'ACTIVE' : 'DOWN'}
 								{!isConnected && (
-									<HintPopover hint={provider === 'neon' ? "Neon URL wrong/DB down" : "Docker not active"} />
+									<HintPopover
+										hint={
+											provider === 'neon'
+												? 'Neon URL wrong/DB down'
+												: 'Docker not active'
+										}
+									/>
 								)}
 							</div>
 							{provider && (
-								<div className={cn(
-									'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium',
-									provider === 'neon' ? 'bg-orange-500/10 border-orange-500/20 text-orange-600' : 'bg-blue-500/10 border-blue-500/20 text-blue-600'
-								)}>
+								<div
+									className={cn(
+										'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium',
+										provider === 'neon'
+											? 'bg-orange-500/10 border-orange-500/20 text-orange-600'
+											: 'bg-blue-500/10 border-blue-500/20 text-blue-600'
+									)}
+								>
 									<Server className="h-2 w-2" />
 									{provider === 'neon' ? 'NEON' : 'DOCKER'}
 								</div>
@@ -292,11 +313,36 @@ export function DevWidget() {
 					{/* Tab Navigation */}
 					<div className="flex border-b bg-muted/30 overflow-x-auto scrollbar-hide">
 						{[
-							{ id: 'database' as TabType, icon: Database, label: 'Database', shortcut: '1' },
-							{ id: 'users' as TabType, icon: Users, label: 'Users', shortcut: '2' },
-							{ id: 'cron' as TabType, icon: Clock, label: 'Cron', shortcut: '3' },
-							{ id: 'health' as TabType, icon: Activity, label: 'Health', shortcut: '4' },
-							{ id: 'seeding' as TabType, icon: Sprout, label: 'Seeding', shortcut: '5' }
+							{
+								id: 'database' as TabType,
+								icon: Database,
+								label: 'Database',
+								shortcut: '1'
+							},
+							{
+								id: 'users' as TabType,
+								icon: Users,
+								label: 'Users',
+								shortcut: '2'
+							},
+							{
+								id: 'cron' as TabType,
+								icon: Clock,
+								label: 'Cron',
+								shortcut: '3'
+							},
+							{
+								id: 'health' as TabType,
+								icon: Activity,
+								label: 'Health',
+								shortcut: '4'
+							},
+							{
+								id: 'seeding' as TabType,
+								icon: Sprout,
+								label: 'Seeding',
+								shortcut: '5'
+							}
 						].map((tab) => (
 							<button
 								key={tab.id}
@@ -328,7 +374,6 @@ export function DevWidget() {
 							<DatabaseTab
 								stats={stats}
 								loading={loading}
-								refreshItems={refreshItems}
 								fetchStats={fetchStats}
 								resetPosition={resetPosition}
 							/>
