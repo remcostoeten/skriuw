@@ -1,6 +1,7 @@
 import { Navigation } from '@/components/navigation'
 import { Header } from '@/components/layouts/header'
 import { Providers } from '@/components/providers'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { metadata, viewport } from '@/core/config/metadata'
 import { geistSans, geistMono } from '@/core/config/fonts'
 import './globals.css'
@@ -94,7 +95,9 @@ export default function RootLayout({
 				<Header hasActions={false} />
 				<Navigation />
 				<div className="sm:pl-12 pt-8 pb-16 sm:pb-0 bg-background min-h-screen">
-					<Providers>{children}</Providers>
+					<ErrorBoundary>
+						<Providers>{children}</Providers>
+					</ErrorBoundary>
 				</div>
 				<Footer />
 			</body>
