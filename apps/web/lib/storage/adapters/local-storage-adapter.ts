@@ -18,29 +18,38 @@ import type {
 
 const PRESEEDED_KEYS = ['skriuw:notes', 'notes'];
 
-function ensurePreseededData<T>(storageKey: string, items: T[]): T[] {
+// Base interface for items in storage
+interface StorageItem {
+    id: string;
+    parentFolderId?: string;
+    children?: StorageItem[];
+    [key: string]: any; // Allow other properties but enforce structure
+}
+
+
+function ensurePreseededData<T extends StorageItem>(storageKey: string, items: T[]): T[] {
     if (items.length === 0 && PRESEEDED_KEYS.includes(storageKey) && !hasPreseededItems()) {
         try {
             const seedItems = generatePreseededItems('guest')
-            const treeItems: any[] = []
+            const treeItems: StorageItem[] = []
 
             seedItems.forEach((item: any) => {
-                const anyItem = item
-                if (anyItem.type === 'folder' && !anyItem.children) {
-                    anyItem.children = []
+                const typedItem = item as StorageItem
+                if (typedItem.type === 'folder' && !Array.isArray(typedItem.children)) {
+                    typedItem.children = []
                 }
 
-                if (anyItem.parentFolderId) {
-                    const location = findItemLocation(treeItems, anyItem.parentFolderId)
+                if (typedItem.parentFolderId) {
+                    const location = findItemLocation(treeItems, typedItem.parentFolderId)
                     if (location) {
                         const parent = location.list[location.index]
-                        if (!parent.children) parent.children = []
-                        parent.children.push(anyItem)
+                        if (!Array.isArray(parent.children)) parent.children = []
+                        parent.children!.push(typedItem)
                     } else {
-                        treeItems.push(anyItem)
+                        treeItems.push(typedItem)
                     }
                 } else {
-                    treeItems.push(anyItem)
+                    treeItems.push(typedItem)
                 }
             })
 
@@ -70,7 +79,18 @@ function getLocalItems<T>(key: string): T[] {
 function setLocalItems<T>(key: string, items: T[]): void {
     if (typeof window === 'undefined') return
     try {
-        window.localStorage.setItem(key, JSON.stringify(items))
+        // Simple cycle detection before stringifying
+        const seen = new WeakSet()
+        const safeStringify = (key: string, value: any) => {
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                    return '[Circular]'
+                }
+                seen.add(value)
+            }
+            return value
+        }
+        window.localStorage.setItem(key, JSON.stringify(items, safeStringify))
     } catch (e) {
         console.warn(`Error writing to localStorage key "${key}":`, e)
     }
@@ -78,19 +98,19 @@ function setLocalItems<T>(key: string, items: T[]): void {
 
 // Recursive helper to find item location in tree
 function findItemLocation(
-    items: any[],
+    items: StorageItem[],
     id: string,
     visited = new Set<string>() // Prevent infinite recursion
-): { list: any[]; index: number } | null {
+): { list: StorageItem[]; index: number } | null {
     const index = items.findIndex((i) => i.id === id)
     if (index !== -1) return { list: items, index }
 
     for (const item of items) {
         // Circular reference check
-        if (item.id && visited.has(item.id)) continue;
-        if (item.id) visited.add(item.id);
+        if (!item.id || visited.has(item.id)) continue;
+        visited.add(item.id);
 
-        if (item.children && Array.isArray(item.children)) {
+        if (Array.isArray(item.children)) {
             const found = findItemLocation(item.children, id, visited)
             if (found) return found
         }
@@ -106,9 +126,9 @@ export class LocalStorageAdapter implements StorageAdapter {
         data: any,
         options?: CreateAdapterOptions
     ): Promise<T> {
-        const items = getLocalItems<any>(storageKey)
+        const items = getLocalItems<StorageItem>(storageKey)
         const timestamp = Date.now()
-        const newItem = {
+        const newItem: StorageItem = {
             ...data,
             // Ensure ID exists
             id: data.id || `local-${Math.random().toString(36).substr(2, 9)}`,
@@ -121,8 +141,8 @@ export class LocalStorageAdapter implements StorageAdapter {
             const location = findItemLocation(items, newItem.parentFolderId)
             if (location) {
                 const parent = location.list[location.index]
-                if (!parent.children) parent.children = []
-                parent.children.push(newItem)
+                if (!Array.isArray(parent.children)) parent.children = []
+                parent.children!.push(newItem)
             } else {
                 // Parent not found, fallback to root
                 items.push(newItem)
@@ -132,22 +152,22 @@ export class LocalStorageAdapter implements StorageAdapter {
         }
 
         setLocalItems(storageKey, items)
-        return newItem as T
+        return newItem as unknown as T
     }
 
     async read<T>(
         storageKey: string,
         options?: ReadAdapterOptions
     ): Promise<T[] | T | undefined> {
-        let items = getLocalItems<any>(storageKey)
+        let items = getLocalItems<StorageItem>(storageKey)
 
         if (options?.getById) {
             items = ensurePreseededData(storageKey, items)
             const location = findItemLocation(items, options.getById)
-            return (location ? location.list[location.index] : undefined) as T | undefined
+            return (location ? location.list[location.index] : undefined) as unknown as T | undefined
         }
 
-        return ensurePreseededData(storageKey, items) as T[]
+        return ensurePreseededData(storageKey, items) as unknown as T[]
     }
 
     async readOne<T>(
@@ -155,17 +175,17 @@ export class LocalStorageAdapter implements StorageAdapter {
         id: string,
         options?: ReadAdapterOptions
     ): Promise<T | null> {
-        const items = getLocalItems<any>(storageKey)
+        const items = getLocalItems<StorageItem>(storageKey)
         const location = findItemLocation(items, id)
-        return (location ? location.list[location.index] : null) as T | null
+        return (location ? location.list[location.index] : null) as unknown as T | null
     }
 
     async readMany<T>(
         storageKey: string,
         options?: BatchReadAdapterOptions
     ): Promise<T[]> {
-        const items = getLocalItems<T>(storageKey)
-        return ensurePreseededData(storageKey, items)
+        const items = getLocalItems<StorageItem>(storageKey)
+        return ensurePreseededData(storageKey, items) as unknown as T[]
     }
 
     async update<T>(
@@ -174,7 +194,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         data: any,
         options?: UpdateAdapterOptions
     ): Promise<T | undefined> {
-        const items = getLocalItems<any>(storageKey)
+        const items = getLocalItems<StorageItem>(storageKey)
         const location = findItemLocation(items, id)
         if (!location) return undefined
 
@@ -188,7 +208,7 @@ export class LocalStorageAdapter implements StorageAdapter {
             location.list.splice(location.index, 1)
 
             // 2. Update item data
-            const updatedItem = {
+            const updatedItem: StorageItem = {
                 ...currentItem,
                 ...data,
                 updatedAt: Date.now()
@@ -198,13 +218,13 @@ export class LocalStorageAdapter implements StorageAdapter {
             if (updatedItem.parentFolderId) {
                 // Find new parent
                 // Note: items is the root array, which we modified in step 1. 
-                // Since we removed the item, we don't risk finding it as its own parent (though prevent cycles ideally)
+                // Since we removed the item, we don't risk finding it as its own parent (checking visited prevents bad cycles in search)
                 const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
                 
                 if (parentLoc) {
                     const parent = parentLoc.list[parentLoc.index]
-                    if (!parent.children) parent.children = []
-                    parent.children.push(updatedItem)
+                    if (!Array.isArray(parent.children)) parent.children = []
+                    parent.children!.push(updatedItem)
                 } else {
                     // Parent not found, fallback to root
                     items.push(updatedItem)
@@ -215,17 +235,17 @@ export class LocalStorageAdapter implements StorageAdapter {
             }
 
             setLocalItems(storageKey, items)
-            return updatedItem as T
+            return updatedItem as unknown as T
         } else {
             // Simple update in place
-            const updatedItem = {
+            const updatedItem: StorageItem = {
                 ...currentItem,
                 ...data,
                 updatedAt: Date.now()
             }
             location.list[location.index] = updatedItem
             setLocalItems(storageKey, items)
-            return updatedItem as T
+            return updatedItem as unknown as T
         }
     }
 
@@ -234,7 +254,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         id: string,
         options?: DeleteAdapterOptions
     ): Promise<boolean> {
-        const items = getLocalItems<any>(storageKey)
+        const items = getLocalItems<StorageItem>(storageKey)
         const location = findItemLocation(items, id)
         if (!location) return false
 
@@ -245,13 +265,13 @@ export class LocalStorageAdapter implements StorageAdapter {
 
     async batchCreate<T>(
         storageKey: string,
-        items: any[],
+        itemsToCreate: any[],
         options?: BatchCreateAdapterOptions
     ): Promise<T[]> {
-        const existingItems = getLocalItems<any>(storageKey)
+        const existingItems = getLocalItems<StorageItem>(storageKey)
         const timestamp = Date.now()
 
-        const newItems = items.map(item => ({
+        const newItems: StorageItem[] = itemsToCreate.map(item => ({
             ...item,
             id: item.id || `local-${Math.random().toString(36).substr(2, 9)}`,
             createdAt: timestamp,
@@ -262,8 +282,9 @@ export class LocalStorageAdapter implements StorageAdapter {
             if (newItem.parentFolderId) {
                 const location = findItemLocation(existingItems, newItem.parentFolderId)
                 if (location) {
-                    if (!location.list[location.index].children) location.list[location.index].children = []
-                    location.list[location.index].children.push(newItem)
+                    const parent = location.list[location.index]
+                    if (!Array.isArray(parent.children)) parent.children = []
+                    parent.children!.push(newItem)
                 } else {
                     existingItems.push(newItem)
                 }
@@ -273,7 +294,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         })
 
         setLocalItems(storageKey, existingItems)
-        return newItems as T[]
+        return newItems as unknown as T[]
     }
 
     async batchRead<T>(
@@ -281,13 +302,13 @@ export class LocalStorageAdapter implements StorageAdapter {
         ids: string[],
         options?: BatchReadAdapterOptions
     ): Promise<T[]> {
-        const items = getLocalItems<any>(storageKey)
-        const results: T[] = []
+        const items = getLocalItems<StorageItem>(storageKey)
+        const results: StorageItem[] = []
         for (const id of ids) {
             const location = findItemLocation(items, id)
-            if (location) results.push(location.list[location.index] as T)
+            if (location) results.push(location.list[location.index])
         }
-        return results
+        return results as unknown as T[]
     }
 
     async batchUpdate<T>(
@@ -295,8 +316,8 @@ export class LocalStorageAdapter implements StorageAdapter {
         updates: { id: string; data: any }[],
         options?: BatchUpdateAdapterOptions
     ): Promise<T[]> {
-        const items = getLocalItems<any>(storageKey)
-        const updatedItems: T[] = []
+        const items = getLocalItems<StorageItem>(storageKey)
+        const updatedItems: StorageItem[] = []
         let hasChanges = false
 
         for (const { id, data } of updates) {
@@ -310,7 +331,7 @@ export class LocalStorageAdapter implements StorageAdapter {
                     location.list.splice(location.index, 1)
 
                     // 2. Update item data
-                    const updatedItem = {
+                    const updatedItem: StorageItem = {
                         ...currentItem,
                         ...data,
                         updatedAt: Date.now()
@@ -321,23 +342,23 @@ export class LocalStorageAdapter implements StorageAdapter {
                          const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
                          if (parentLoc) {
                              const parent = parentLoc.list[parentLoc.index]
-                             if (!parent.children) parent.children = []
-                             parent.children.push(updatedItem)
+                             if (!Array.isArray(parent.children)) parent.children = []
+                             parent.children!.push(updatedItem)
                          } else {
                              items.push(updatedItem)
                          }
                     } else {
                         items.push(updatedItem)
                     }
-                    updatedItems.push(updatedItem as T)
+                    updatedItems.push(updatedItem)
                 } else {
-                    const updatedItem = {
+                    const updatedItem: StorageItem = {
                         ...currentItem,
                         ...data,
                         updatedAt: Date.now()
                     }
                     location.list[location.index] = updatedItem
-                    updatedItems.push(updatedItem as T)
+                    updatedItems.push(updatedItem)
                 }
                 hasChanges = true
             }
@@ -347,7 +368,7 @@ export class LocalStorageAdapter implements StorageAdapter {
             setLocalItems(storageKey, items)
         }
 
-        return updatedItems
+        return updatedItems as unknown as T[]
     }
 
     async batchDelete(
@@ -355,7 +376,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         ids: string[],
         options?: BatchDeleteAdapterOptions
     ): Promise<number> {
-        const items = getLocalItems<any>(storageKey)
+        const items = getLocalItems<StorageItem>(storageKey)
         let deletedCount = 0
 
         for (const id of ids) {

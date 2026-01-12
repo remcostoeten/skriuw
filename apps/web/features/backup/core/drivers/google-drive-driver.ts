@@ -15,7 +15,13 @@ export class GoogleDriveDriver implements StorageDriver {
 
 	async init(destination: DestinationConfig) {
 		const config = destination.config as Record<string, string>
-		this.accessToken = config.accessToken
+		
+		if (destination.oauth2Tokens?.access_token) {
+			this.accessToken = destination.oauth2Tokens.access_token
+		} else {
+			this.accessToken = config.accessToken
+		}
+		
 		this.parentFolderId = config.folderId
 
 		// Similar assumption about token availability
