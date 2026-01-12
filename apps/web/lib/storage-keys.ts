@@ -10,6 +10,9 @@ export const STORAGE_KEYS = {
 
     // Settings
     SETTINGS: 'skriuw:settings',
+    
+    // Tasks
+    TASKS: 'skriuw:tasks',
 
     // Shortcuts
     SHORTCUTS: 'skriuw:shortcuts',

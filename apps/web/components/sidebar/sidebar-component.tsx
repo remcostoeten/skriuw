@@ -942,11 +942,9 @@ function FileTreeItem({
 		async (e: React.MouseEvent) => {
 			const selectedCount = getSelectedCount()
 			if (selectedCount > 1) {
-				const selectedIds = getSelectedIds()
-				for (const id of selectedIds) {
-					await onDelete(id)
-				}
+				const selectedIds = [...getSelectedIds()]
 				clearSelection()
+				await Promise.all(selectedIds.map((id) => onDelete(id)))
 			} else {
 				onDelete(item.id)
 			}
