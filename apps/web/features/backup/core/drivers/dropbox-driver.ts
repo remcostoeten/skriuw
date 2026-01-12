@@ -17,8 +17,15 @@ export class DropboxDriver implements StorageDriver {
 		// Or via OAuth2 tokens if the system unifies them.
 		// For simplicity, we assume `config.accessToken` is populated.
 
+
 		const config = destination.config as Record<string, string>
-		this.accessToken = config.accessToken
+		
+		// Prioritize OAuth2 tokens if available
+		if (destination.oauth2Tokens?.access_token) {
+			this.accessToken = destination.oauth2Tokens.access_token
+		} else {
+			this.accessToken = config.accessToken
+		}
 
 		// Handle OAuth2 token usage if present separately, or assume it's merged into config
 		// In `useStorageConnectors`, we see `oauth2Tokens` are stored separately but logic might merge them.
