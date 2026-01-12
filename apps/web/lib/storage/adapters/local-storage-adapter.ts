@@ -18,7 +18,44 @@ import type {
 
 const PRESEEDED_KEYS = ['skriuw:notes', 'notes'];
 
-// Helpers for LocalStorage operations
+function ensurePreseededData<T>(storageKey: string, items: T[]): T[] {
+    if (items.length === 0 && PRESEEDED_KEYS.includes(storageKey) && !hasPreseededItems()) {
+        try {
+            const seedItems = generatePreseededItems('guest')
+            const treeItems: any[] = []
+
+            seedItems.forEach((item: any) => {
+                const anyItem = item
+                if (anyItem.type === 'folder' && !anyItem.children) {
+                    anyItem.children = []
+                }
+
+                if (anyItem.parentFolderId) {
+                    const location = findItemLocation(treeItems, anyItem.parentFolderId)
+                    if (location) {
+                        const parent = location.list[location.index]
+                        if (!parent.children) parent.children = []
+                        parent.children.push(anyItem)
+                    } else {
+                        treeItems.push(anyItem)
+                    }
+                } else {
+                    treeItems.push(anyItem)
+                }
+            })
+
+            setLocalItems(storageKey, treeItems)
+            return treeItems as T[]
+        } catch (error) {
+            console.error('Failed to seed guest data:', error)
+            return items
+        } finally {
+            markPreseededItems()
+        }
+    }
+    return items
+}
+
 function getLocalItems<T>(key: string): T[] {
     if (typeof window === 'undefined') return []
     try {
@@ -102,14 +139,15 @@ export class LocalStorageAdapter implements StorageAdapter {
         storageKey: string,
         options?: ReadAdapterOptions
     ): Promise<T[] | T | undefined> {
-        const items = getLocalItems<any>(storageKey)
+        let items = getLocalItems<any>(storageKey)
 
         if (options?.getById) {
+            items = ensurePreseededData(storageKey, items)
             const location = findItemLocation(items, options.getById)
             return (location ? location.list[location.index] : undefined) as T | undefined
         }
 
-        return items as T[]
+        return ensurePreseededData(storageKey, items) as T[]
     }
 
     async readOne<T>(
@@ -127,49 +165,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         options?: BatchReadAdapterOptions
     ): Promise<T[]> {
         const items = getLocalItems<T>(storageKey)
-
-        // Auto-seed for guest if empty and not seeded
-        if (items.length === 0 && PRESEEDED_KEYS.includes(storageKey) && !hasPreseededItems()) {
-            try {
-                const seedItems = generatePreseededItems('guest')
-                const treeItems: any[] = []
-
-                // Build tree structure for seed items
-                seedItems.forEach((item: any) => {
-                    const anyItem = item
-                    // Ensure children array exists for folders
-                    if (anyItem.type === 'folder' && !anyItem.children) {
-                        anyItem.children = []
-                    }
-
-                    if (anyItem.parentFolderId) {
-                        // Pass fresh Set for each find pass to allow DAGs but prevent cycles
-                        const location = findItemLocation(treeItems, anyItem.parentFolderId)
-                        if (location) {
-                            const parent = location.list[location.index]
-                            if (!parent.children) parent.children = []
-                            parent.children.push(anyItem)
-                        } else {
-                            treeItems.push(anyItem)
-                        }
-                    } else {
-                        treeItems.push(anyItem)
-                    }
-                })
-
-                setLocalItems(storageKey, treeItems)
-                return treeItems as T[]
-            } catch (error) {
-                console.error('Failed to seed guest data:', error)
-                // Fallback to empty items if seeding fails
-                return items
-            } finally {
-                // Always mark as seeded to prevent infinite retry loops on failure
-                markPreseededItems()
-            }
-        }
-
-        return items
+        return ensurePreseededData(storageKey, items)
     }
 
     async update<T>(
@@ -182,14 +178,55 @@ export class LocalStorageAdapter implements StorageAdapter {
         const location = findItemLocation(items, id)
         if (!location) return undefined
 
-        const updatedItem = {
-            ...location.list[location.index],
-            ...data,
-            updatedAt: Date.now()
+        const currentItem = location.list[location.index]
+        
+        // Check if moving to a different folder
+        const isMoving = data.parentFolderId !== undefined && data.parentFolderId !== currentItem.parentFolderId
+
+        if (isMoving) {
+            // 1. Remove from old location
+            location.list.splice(location.index, 1)
+
+            // 2. Update item data
+            const updatedItem = {
+                ...currentItem,
+                ...data,
+                updatedAt: Date.now()
+            }
+
+            // 3. Add to new location
+            if (updatedItem.parentFolderId) {
+                // Find new parent
+                // Note: items is the root array, which we modified in step 1. 
+                // Since we removed the item, we don't risk finding it as its own parent (though prevent cycles ideally)
+                const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
+                
+                if (parentLoc) {
+                    const parent = parentLoc.list[parentLoc.index]
+                    if (!parent.children) parent.children = []
+                    parent.children.push(updatedItem)
+                } else {
+                    // Parent not found, fallback to root
+                    items.push(updatedItem)
+                }
+            } else {
+                // Moving to root
+                items.push(updatedItem)
+            }
+
+            setLocalItems(storageKey, items)
+            return updatedItem as T
+        } else {
+            // Simple update in place
+            const updatedItem = {
+                ...currentItem,
+                ...data,
+                updatedAt: Date.now()
+            }
+            location.list[location.index] = updatedItem
+            setLocalItems(storageKey, items)
+            return updatedItem as T
         }
-        location.list[location.index] = updatedItem
-        setLocalItems(storageKey, items)
-        return updatedItem as T
     }
 
     async delete(
@@ -262,19 +299,49 @@ export class LocalStorageAdapter implements StorageAdapter {
         const updatedItems: T[] = []
         let hasChanges = false
 
-        updates.forEach(({ id, data }) => {
+        for (const { id, data } of updates) {
             const location = findItemLocation(items, id)
             if (location) {
-                const updatedItem = {
-                    ...location.list[location.index],
-                    ...data,
-                    updatedAt: Date.now()
+                const currentItem = location.list[location.index]
+                const isMoving = data.parentFolderId !== undefined && data.parentFolderId !== currentItem.parentFolderId
+
+                if (isMoving) {
+                     // 1. Remove from old location
+                    location.list.splice(location.index, 1)
+
+                    // 2. Update item data
+                    const updatedItem = {
+                        ...currentItem,
+                        ...data,
+                        updatedAt: Date.now()
+                    }
+
+                    // 3. Add to new location
+                    if (updatedItem.parentFolderId) {
+                         const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
+                         if (parentLoc) {
+                             const parent = parentLoc.list[parentLoc.index]
+                             if (!parent.children) parent.children = []
+                             parent.children.push(updatedItem)
+                         } else {
+                             items.push(updatedItem)
+                         }
+                    } else {
+                        items.push(updatedItem)
+                    }
+                    updatedItems.push(updatedItem as T)
+                } else {
+                    const updatedItem = {
+                        ...currentItem,
+                        ...data,
+                        updatedAt: Date.now()
+                    }
+                    location.list[location.index] = updatedItem
+                    updatedItems.push(updatedItem as T)
                 }
-                location.list[location.index] = updatedItem
-                updatedItems.push(updatedItem as T)
                 hasChanges = true
             }
-        })
+        }
 
         if (hasChanges) {
             setLocalItems(storageKey, items)
