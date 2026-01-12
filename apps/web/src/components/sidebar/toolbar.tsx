@@ -49,37 +49,30 @@ export function SidebarToolbar({
 
   const handleNewNote = useCallback(() => {
     onNoteCreate?.()
-    console.log('[SidebarToolbar] New note button clicked')
   }, [onNoteCreate])
 
   const handleToggleSearch = useCallback(() => {
     onToggleSearch?.()
-    console.log('[SidebarToolbar] Toggle search button clicked')
   }, [onToggleSearch])
 
   const handleNewFolder = useCallback(() => {
     onNewFolder?.()
-    console.log('[SidebarToolbar] New folder button clicked')
   }, [onNewFolder])
 
   const handleSettings = useCallback(() => {
     onSettings?.()
-    console.log('[SidebarToolbar] Settings button clicked')
   }, [onSettings])
 
   const handleExpand = useCallback(() => {
     onExpandToggle?.()
-    console.log('[SidebarToolbar] Expand toggle button clicked')
   }, [onExpandToggle])
 
   const handleZoomIn = useCallback(() => {
     onZoomIn?.()
-    console.log('[SidebarToolbar] Zoom in button clicked')
   }, [onZoomIn])
 
   const handleZoomOut = useCallback(() => {
     onZoomOut?.()
-    console.log('[SidebarToolbar] Zoom out button clicked')
   }, [onZoomOut])
 
   // Listen to global shortcut events instead of registering duplicate handlers

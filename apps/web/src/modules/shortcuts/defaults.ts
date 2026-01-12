@@ -130,7 +130,6 @@ export async function setupDefaultShortcuts(shortcuts: TShortcut[]) {
       tx.shortcuts[id].update(data)
     )
     await transact(updates)
-    console.log(`[Shortcuts] Created ${createdCount} new default shortcuts`)
   }
 }
 
