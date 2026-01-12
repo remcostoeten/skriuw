@@ -134,7 +134,8 @@ export function ExportPanel() {
 					name: connector.name,
 					enabled: true,
 					encrypt: false,
-					config: connector.config as any
+					config: connector.config as any,
+					oauth2Tokens: connector.oauth2Tokens
 				})
 
 				// 4. Run Backup
@@ -147,7 +148,8 @@ export function ExportPanel() {
 						name: connector.name,
 						enabled: true,
 						encrypt: false,
-						config: connector.config as any
+						config: connector.config as any,
+						oauth2Tokens: connector.oauth2Tokens
 					},
 					payload: {
 						version: '1.0',

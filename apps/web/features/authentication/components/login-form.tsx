@@ -56,6 +56,13 @@ export function LoginForm({
         }
     }, [onSuccess, router])
 
+    // Helper to ensure loading state is visible for at least 800ms
+    const withMinDelay = async (promise: Promise<any>) => {
+        const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+        const [result] = await Promise.all([promise, minDelay])
+        return result
+    }
+
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
         setPasswordError("")
@@ -72,7 +79,7 @@ export function LoginForm({
                     return
                 }
 
-                await signUp.email({
+                await withMinDelay(signUp.email({
                     email,
                     password,
                     name: name || email.split('@')[0],
@@ -83,9 +90,9 @@ export function LoginForm({
                         setIsLoading(false)
                         setLoadingAction(null)
                     }
-                })
+                }))
             } else {
-                await signIn.email({
+                await withMinDelay(signIn.email({
                     email,
                     password,
                 }, {
@@ -101,7 +108,7 @@ export function LoginForm({
                         setIsLoading(false)
                         setLoadingAction(null)
                     }
-                })
+                }))
             }
         } catch (error) {
             setGeneralError("An unexpected error occurred. Please try again.")
@@ -115,7 +122,7 @@ export function LoginForm({
         setIsLoading(true)
         setLoadingAction(provider)
         try {
-            await signIn.social({
+            await withMinDelay(signIn.social({
                 provider
             }, {
                 onSuccess: () => {
@@ -126,7 +133,7 @@ export function LoginForm({
                     setIsLoading(false)
                     setLoadingAction(null)
                 }
-            })
+            }))
         } catch (error) {
             setGeneralError("Failed to initiate social login")
             setIsLoading(false)
@@ -139,7 +146,7 @@ export function LoginForm({
         setIsLoading(true)
         setLoadingAction("anonymous")
         try {
-            await signIn.anonymous({}, {
+            await withMinDelay(signIn.anonymous({}, {
                 onSuccess: () => {
                     onSuccess ? onSuccess() : router.push("/")
                 },
@@ -148,7 +155,7 @@ export function LoginForm({
                     setIsLoading(false)
                     setLoadingAction(null)
                 }
-            })
+            }))
         } catch (error) {
             setGeneralError("Failed to sign in anonymously")
             setIsLoading(false)

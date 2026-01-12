@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Task, TaskWithNote } from '../types'
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import { useSession } from '@/lib/auth-client'
-import { readMany, create, update, destroy, batchCreate, batchDelete } from '@skriuw/crud'
+import { readMany, create, update, destroy, batchCreate, batchDestroy } from '@skriuw/crud'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 
 export const tasksKeys = {
@@ -288,7 +288,7 @@ export function useSyncTasksMutation() {
                 
                 const existingIds = existing.map(e => e.id)
                 if (existingIds.length > 0) {
-                    await batchDelete(STORAGE_KEYS.TASKS, existingIds, { userId })
+                    await batchDestroy(STORAGE_KEYS.TASKS, existingIds, { userId })
                 }
                 
                 if (newTasks.length > 0) {
@@ -328,7 +328,7 @@ export function useDeleteTasksMutation() {
                 const existing = await getTasksForNoteLocal(noteId, userId)
                 const ids = existing.map(e => e.id)
                 if (ids.length > 0) {
-                    await batchDelete(STORAGE_KEYS.TASKS, ids, { userId })
+                    await batchDestroy(STORAGE_KEYS.TASKS, ids, { userId })
                 }
                 return
             }

@@ -57,7 +57,6 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 
 				// Ensure we return valid blocks array
 				if (blocks && Array.isArray(blocks) && blocks.length > 0) {
-					console.log(`Successfully parsed markdown to ${blocks.length} blocks`)
 					return blocks
 				}
 
@@ -84,7 +83,6 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 				tiptapEditor.destroy()
 
 				if (blocks && Array.isArray(blocks) && blocks.length > 0) {
-					console.log(`Successfully parsed markdown via TipTap to ${blocks.length} blocks`)
 					return blocks
 				}
 			} catch (tiptapError) {

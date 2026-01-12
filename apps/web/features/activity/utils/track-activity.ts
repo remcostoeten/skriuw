@@ -15,6 +15,7 @@ import { recordActivity } from '../api/mutations/record-activity'
  * })
  * ```
  */
+export function trackActivity(input: RecordActivityInput): void {
 	recordActivity(input)
 		.then((result) => {
 			if (!result.success) {
