@@ -25,6 +25,22 @@ export { apiRequest }
 export * from './types'
 export { AuthRequiredError } from './api-adapter'
 
+const GUEST_USER_IDS = ['guest', 'guest-user'] as const
+
+function isGuestUser(userId?: string | null): boolean {
+	return userId != null && GUEST_USER_IDS.includes(userId as typeof GUEST_USER_IDS[number])
+}
+
+/**
+ * Creates a client-side API adapter that routes to either LocalStorage or API
+ * based on user authentication state.
+ *
+ * @param baseUrl - Optional base URL for API requests
+ */
+/* eslint-disable no-console */
+const GUEST_ID = 'guest'
+const GUEST_USER_ID = 'guest-user'
+
 /**
  * Creates a client-side API adapter that routes to either LocalStorage or API
  * based on user authentication state.
@@ -32,7 +48,7 @@ export { AuthRequiredError } from './api-adapter'
  * @param baseUrl - Optional base URL for API requests
  */
 export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
-	const localAdapter = new LocalStorageAdapter()
+	const guestAdapter = new LocalStorageAdapter()
 	const apiAdapter = new ApiAdapter(baseUrl)
 
 	return {
@@ -43,8 +59,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			data: any,
 			options?: CreateAdapterOptions
 		): Promise<T> {
-			if (options?.userId === 'guest') {
-				return localAdapter.create(key, data, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.create(key, data, options)
 			}
 			return apiAdapter.create(key, data, options)
 		},
@@ -53,8 +70,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			key: string,
 			options?: ReadAdapterOptions
 		): Promise<T[] | T | undefined> {
-			if (options?.userId === 'guest') {
-				return localAdapter.read(key, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.read(key, options)
 			}
 			return apiAdapter.read(key, options)
 		},
@@ -64,8 +82,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			id: string,
 			options?: ReadAdapterOptions
 		): Promise<T | null> {
-			if (options?.userId === 'guest') {
-				return localAdapter.readOne(key, id, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.readOne(key, id, options)
 			}
 			return apiAdapter.readOne(key, id, options)
 		},
@@ -74,8 +93,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			key: string,
 			options?: BatchReadAdapterOptions
 		): Promise<T[]> {
-			if (options?.userId === 'guest') {
-				return localAdapter.readMany(key, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.readMany(key, options)
 			}
 			return apiAdapter.readMany(key, options)
 		},
@@ -86,8 +106,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			data: any,
 			options?: UpdateAdapterOptions
 		): Promise<T | undefined> {
-			if (options?.userId === 'guest') {
-				return localAdapter.update(key, id, data, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.update(key, id, data, options)
 			}
 			return apiAdapter.update(key, id, data, options)
 		},
@@ -97,8 +118,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			id: string,
 			options?: DeleteAdapterOptions
 		): Promise<boolean> {
-			if (options?.userId === 'guest') {
-				return localAdapter.delete(key, id, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.delete(key, id, options)
 			}
 			return apiAdapter.delete(key, id, options)
 		},
@@ -108,8 +130,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			items: any[],
 			options?: BatchCreateAdapterOptions
 		): Promise<T[]> {
-			if (options?.userId === 'guest') {
-				return localAdapter.batchCreate(key, items, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.batchCreate(key, items, options)
 			}
 			return apiAdapter.batchCreate(key, items, options)
 		},
@@ -119,8 +142,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			ids: string[],
 			options?: BatchReadAdapterOptions
 		): Promise<T[]> {
-			if (options?.userId === 'guest') {
-				return localAdapter.batchRead(key, ids, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.batchRead(key, ids, options)
 			}
 			return apiAdapter.batchRead(key, ids, options)
 		},
@@ -130,8 +154,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			updates: { id: string; data: any }[],
 			options?: BatchUpdateAdapterOptions
 		): Promise<T[]> {
-			if (options?.userId === 'guest') {
-				return localAdapter.batchUpdate(key, updates, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.batchUpdate(key, updates, options)
 			}
 			return apiAdapter.batchUpdate(key, updates, options)
 		},
@@ -141,8 +166,9 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			ids: string[],
 			options?: BatchDeleteAdapterOptions
 		): Promise<number> {
-			if (options?.userId === 'guest') {
-				return localAdapter.batchDelete(key, ids, options)
+			const userId = options?.userId
+			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
+				return guestAdapter.batchDelete(key, ids, options)
 			}
 			return apiAdapter.batchDelete(key, ids, options)
 		}

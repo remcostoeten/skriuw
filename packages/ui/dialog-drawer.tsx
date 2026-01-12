@@ -33,8 +33,8 @@ const DialogContext = createContext<DialogContextValue | undefined>(undefined)
 
 // Centralized z-index tiersdd for app overlays
 const Z_INDEX = {
-	overlay: 10,
-	dialog: 20,
+	overlay: 60,
+	dialog: 70,
 } as const
 
 function useDialogContext(): DialogContextValue {

@@ -24,10 +24,13 @@ type NotesContextValue = {
 	refreshItems: () => Promise<void>
 }
 
+import { useGuestMigration } from '../hooks/use-guest-migration'
+
 const NotesContext = createContext<NotesContextValue | null>(null)
 
 export function NotesProvider({ children }: { children: ReactNode }) {
 	const notesState = useNotes()
+	useGuestMigration()
 
 	return <NotesContext.Provider value={notesState}>{children}</NotesContext.Provider>
 }
