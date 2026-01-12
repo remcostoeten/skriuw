@@ -6,6 +6,8 @@ import { generateId } from '@skriuw/shared'
 import type { Item, Note, Folder } from '../types'
 import { extractTasksFromBlocks } from '../utils/extract-tasks'
 import { trackActivity } from '@/features/activity'
+import { useEffect } from 'react'
+import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '@/lib/preseed-data'
 
 // Type definitions
 type NoteContent = any[] // Block[]
@@ -29,6 +31,40 @@ export const notesKeys = {
 export function useNotesQuery() {
     const { data: session } = useSession()
     const userId = session?.user?.id ?? 'guest'
+    const queryClient = useQueryClient()
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (userId === 'guest' || userId === 'guest-user')) {
+             const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
+             const isSeeded = hasPreseededItems()
+
+             if ((!hasData || hasData === '[]') && !isSeeded) {
+                 const items = generatePreseededItems(userId)
+                 const treeItems: any[] = []
+                 const itemsMap = new Map()
+                 
+                 items.forEach((item: any) => {
+                     itemsMap.set(item.id, { ...item, children: [] })
+                 })
+                 
+                 items.forEach((item: any) => {
+                     const mapped = itemsMap.get(item.id)
+                     if (item.type === 'folder' && !mapped.children) mapped.children = []
+                     
+                     if (item.parentFolderId && itemsMap.has(item.parentFolderId)) {
+                         const parent = itemsMap.get(item.parentFolderId)
+                         if (parent.children) parent.children.push(mapped)
+                     } else {
+                         treeItems.push(mapped)
+                     }
+                 })
+                 
+                 localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(treeItems))
+                 markPreseededItems()
+                 queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
+             }
+        }
+    }, [userId, queryClient])
 
     return useQuery({
         queryKey: notesKeys.list(userId),
@@ -42,7 +78,8 @@ export function useNotesQuery() {
             const allItems = Array.isArray(result.data) ? result.data : []
             return filterActiveItems(allItems)
         },
-        staleTime: 60 * 1000,
+        staleTime: userId === 'guest' || userId === 'guest-user' ? 0 : 60 * 1000,
+        refetchOnMount: userId === 'guest' || userId === 'guest-user' ? true : undefined,
     })
 }
 
@@ -94,7 +131,46 @@ export function useCreateNoteMutation() {
             if (!result.success || !result.data) throw new Error('Failed to create note')
             return result.data
         },
-        onSuccess: () => {
+        onSuccess: (newNote) => {
+            // Optimistically update list cache
+            queryClient.setQueryData<Item[]>(notesKeys.list(userId), (old = []) => {
+                const addItem = (items: Item[]): Item[] => {
+                    if (!newNote.parentFolderId) {
+                        return [...items, newNote]
+                    }
+                    
+                    // If adding to a folder, find it and append
+                    // Check if we are at root and parent is here (optimization/simplicity)
+                    // But we need to traverse
+                    let added = false
+                    const newItems = items.map(item => {
+                        if (item.id === newNote.parentFolderId && item.type === 'folder') {
+                            added = true
+                            return { ...item, children: [...(item.children || []), newNote] }
+                        }
+                        if (item.type === 'folder') {
+                            return { ...item, children: addItem(item.children) }
+                        }
+                        return item
+                    })
+                    
+                    // If we traversed and didn't find the parent (maybe it's root?)
+                    // Logic above: recursively maps. If parent found, it adds.
+                    // If newNote.parentFolderId exists but we are at root call...
+                    // Wait, if parentFolderId is provided but not found? 
+                    // Should we add to root? Or assume parent exists?
+                    // Safe cleanup: if parentFolderId is set but parent not found, technically it's orphaned.
+                    // But for our cache, we rely on the map.
+                    
+                    return newItems
+                }
+                
+                if (newNote.parentFolderId) {
+                    return addItem(old)
+                }
+                return [...old, newNote]
+            })
+
             // Invalidate list to refetch
             queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
         }
@@ -123,7 +199,31 @@ export function useCreateFolderMutation() {
             if (!result.success || !result.data) throw new Error('Failed to create folder')
             return result.data
         },
-        onSuccess: () => {
+        onSuccess: (newFolder) => {
+            // Optimistically update list cache
+            queryClient.setQueryData<Item[]>(notesKeys.list(userId), (old = []) => {
+                const addItem = (items: Item[]): Item[] => {
+                    if (!newFolder.parentFolderId) {
+                        return [...items, newFolder]
+                    }
+                    
+                    return items.map(item => {
+                        if (item.id === newFolder.parentFolderId && item.type === 'folder') {
+                            return { ...item, children: [...(item.children || []), newFolder] }
+                        }
+                        if (item.type === 'folder') {
+                            return { ...item, children: addItem(item.children) }
+                        }
+                        return item
+                    })
+                }
+                
+                if (newFolder.parentFolderId) {
+                    return addItem(old)
+                }
+                return [...old, newFolder]
+            })
+
             queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
         }
     })
