@@ -252,10 +252,14 @@ function FileTreeItem({
 	ruler,
 	openTabIds,
 	allVisibleItemIds,
-	showConfirm
+	showConfirm,
+	isLast = false,
+	parentGuides = []
 }: {
 	item: Item
 	level?: number
+    isLast?: boolean
+    parentGuides?: boolean[]
 	activeNoteId?: string
 	expandedFolders: Set<string>
 	selectedFolderId: string | null
@@ -1005,6 +1009,67 @@ function FileTreeItem({
 								}
 								aria-selected={isItemSelected}
 							>
+								{/* Tree Hierarchy Guides */}
+								{ruler?.enabled && (
+									<>
+										{/* Ancestor Vertical Lines */}
+										{parentGuides?.map((hasLine, i) => (
+											hasLine && (
+												<div
+													key={i}
+													className="absolute top-0 bottom-0 border-l border-muted-foreground/30 pointer-events-none"
+													style={{
+														left: `calc(0.75rem + ${i * 0.75}rem + 9px - 0.5px)`,
+													}}
+												/>
+											)
+										))}
+										{/* Current Item Connector */}
+										{level > 0 && (
+											<>
+												{/* Vertical segment from parent */}
+												<div
+													className={cn(
+														"absolute border-l border-muted-foreground/30 pointer-events-none",
+														isLast ? "top-0 h-1/2" : "top-0 h-full"
+													)}
+													style={{
+														left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+													}}
+												/>
+												{/* Horizontal curve/segment to item */}
+												<div
+													className={cn(
+														"absolute top-1/2 h-px w-[12px] border-t border-muted-foreground/30 pointer-events-none",
+													    isLast && "rounded-bl-lg" // Optional: if we used borders for curve, but here we just use lines. 
+                                                        // Actually, for a rounded curve, we need a box with border-b and border-l.
+                                                        // Let's implement the Curve properly for Last Item.
+													)}
+                                                    style={{ display: 'none' }} // Placeholder for the actual implementation below
+												/>
+                                                {/* Re-implementing with proper Curve for isLast */}
+                                                {isLast ? (
+                                                    <div
+                                                        className="absolute top-0 w-[12px] h-[50%] border-l border-b border-muted-foreground/30 rounded-bl-lg pointer-events-none"
+                                                        style={{
+                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    // For not last, use simple T-shape (Full vertical already drawn). 
+                                                    // Just draw the horizontal arm.
+                                                    <div
+                                                        className="absolute top-1/2 w-[12px] border-t border-muted-foreground/30 pointer-events-none"
+                                                        style={{
+                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+                                                        }}
+                                                    />
+                                                )}
+											</>
+										)}
+									</>
+								)}
+
 								<div className="flex items-center w-[calc(100%-20px)] gap-2 min-w-0">
 									{isFolder ? (
 										<div
@@ -1046,7 +1111,7 @@ function FileTreeItem({
 											title={item.name}
 											data-item-name
 										>
-											{item.pinned && (
+											{!isFolder && item.pinned && (
 												<Pin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
 											)}
 											{!isFolder && item.favorite && (
@@ -1059,12 +1124,8 @@ function FileTreeItem({
 									)}
 								</div>
 
-								{/* Count (only show on hover or selected) */}
-								{isFolder && (
-									<span className={cn(
-										"text-[10px] text-muted-foreground/50 tabular-nums pr-1 opacity-0 group-hover:opacity-100 transition-opacity",
-										(isExpanded || isActive) && "opacity-100"
-									)}>
+								{isFolder && childCount > 0 && (
+									<span className="text-[10px] text-muted-foreground/50 tabular-nums pr-1">
 										{childCount}
 									</span>
 								)}
@@ -1144,35 +1205,37 @@ function FileTreeItem({
 						)}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
-					<ContextMenuItem
-						onClick={handlePinUnpinFromContextMenu}
-						className={cn(
-							'h-8 text-xs font-base min-h-[36px]',
-							isMobile && 'h-12 text-sm px-4'
-						)}
-					>
-						{item.pinned ? (
-							<>
-								<Pin
-									className={cn(
-										'w-4 h-4 mr-3 shrink-0',
-										isMobile && 'w-5 h-5'
-									)}
-								/>
-								Unpin from top
-							</>
-						) : (
-							<>
-								<Pin
-									className={cn(
-										'w-4 h-4 mr-3 shrink-0',
-										isMobile && 'w-5 h-5'
-									)}
-								/>
-								Pin to top
-							</>
-						)}
-					</ContextMenuItem>
+					{!isFolder && (
+						<ContextMenuItem
+							onClick={handlePinUnpinFromContextMenu}
+							className={cn(
+								'h-8 text-xs font-base min-h-[36px]',
+								isMobile && 'h-12 text-sm px-4'
+							)}
+						>
+							{item.pinned ? (
+								<>
+									<Pin
+										className={cn(
+											'w-4 h-4 mr-3 shrink-0',
+											isMobile && 'w-5 h-5'
+										)}
+									/>
+									Unpin from top
+								</>
+							) : (
+								<>
+									<Pin
+										className={cn(
+											'w-4 h-4 mr-3 shrink-0',
+											isMobile && 'w-5 h-5'
+										)}
+									/>
+									Pin to top
+								</>
+							)}
+						</ContextMenuItem>
+					)}
 					{hasMultipleSelections && hasNotesInSelection ? (
 						<>
 							<ContextMenuItem
@@ -1308,24 +1371,14 @@ function FileTreeItem({
 				</ContextMenuContent>
 
 				{isFolder && isExpanded && item.type === 'folder' && (
-					<div className="space-y-1.5 pt-1.5 relative w-full">
-						{ruler?.enabled && (
-							<div
-								className="absolute top-0 bottom-0"
-								style={{
-									left: `calc(${0.75 + level * 0.75}rem + 9px - 0.5px)`,
-									borderLeft: `1px ${ruler.style === 'dashed' ? 'dashed' : 'solid'}`,
-									borderColor: ruler.color || 'currentColor',
-									opacity: ruler.opacity || 0.25,
-									zIndex: 1
-								}}
-							/>
-						)}
-						{item.children.map((child: any) => (
+						{/* Modern Hierarchy Guides - Recursive Children */}
+						{item.children.map((child: any, index: number, arr: any[]) => (
 							<FileTreeItem
 								key={child.id}
 								item={child}
 								level={level + 1}
+								isLast={index === arr.length - 1}
+								parentGuides={[...(parentGuides || []), !isLast]}
 								activeNoteId={activeNoteId}
 								expandedFolders={expandedFolders}
 								selectedFolderId={selectedFolderId}
@@ -1347,6 +1400,7 @@ function FileTreeItem({
 								onMoveItem={onMoveItem}
 								allItems={allItems}
 								ruler={ruler}
+								openTabIds={openTabIds}
 								allVisibleItemIds={allVisibleItemIds}
 								showConfirm={showConfirm}
 							/>
@@ -2237,10 +2291,12 @@ export function Sidebar({
 							<SidebarEmptyState hasSearchQuery={!!searchQuery} />
 						</div>
 					) : (
-						filteredItems.map((item) => (
+						filteredItems.map((item, index, arr) => (
 							<FileTreeItem
 								key={item.id}
 								item={item}
+								isLast={index === arr.length - 1}
+								parentGuides={[]}
 								activeNoteId={activeNoteId}
 								expandedFolders={expandedFolders}
 								selectedFolderId={selectedFolderId}
