@@ -23,14 +23,13 @@ export function UserMenu() {
 
 	if (!session) {
 		return (
-			<Link href="/login">
-				<Button
-					variant="ghost"
-					className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
-				>
-					Sign In
-				</Button>
-			</Link>
+			<Button
+				asChild
+				variant="ghost"
+				className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
+			>
+				<Link href="/login">Sign In</Link>
+			</Button>
 		)
 	}
 

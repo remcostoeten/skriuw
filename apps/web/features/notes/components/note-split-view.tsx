@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
 	useCallback,
@@ -330,15 +329,14 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 					const isDropTarget = dropTargetPaneId === pane.id
 
 					return (
-						<motion.div
+						<div
 							key={pane.id}
-							layout
 							style={{
 								width: orientation === 'vertical' ? basis : '100%',
 								height: orientation === 'horizontal' ? basis : '100%',
 							}}
 							className={cn(
-								'relative flex flex-1 flex-col overflow-hidden transition-colors',
+								'relative flex flex-1 flex-col overflow-hidden',
 								isDropTarget && 'border border-primary/80 bg-primary/5'
 							)}
 							onClick={() => setActivePane(pane.id)}
@@ -361,7 +359,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 									/>
 								)}
 							</div>
-						</motion.div>
+						</div>
 					)
 				})}
 
@@ -371,15 +369,18 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 						aria-orientation={orientation === 'vertical' ? 'vertical' : 'horizontal'}
 						onPointerDown={handleDividerPointerDown}
 						className={cn(
-							'flex items-center justify-center bg-background-secondary/80',
-							orientation === 'vertical' ? 'w-1 cursor-col-resize' : 'h-1 cursor-row-resize',
-							isResizing && 'bg-primary/40'
+							'group flex items-center justify-center',
+							orientation === 'vertical'
+								? 'w-[3px] cursor-col-resize'
+								: 'h-[3px] cursor-row-resize',
+							isResizing ? 'bg-primary/60' : 'bg-border hover:bg-primary/40'
 						)}
 					>
 						<div
 							className={cn(
-								'rounded-full bg-border',
-								orientation === 'vertical' ? 'h-8 w-0.5' : 'w-8 h-0.5'
+								'rounded-full bg-muted-foreground/50 group-hover:bg-primary/80',
+								orientation === 'vertical' ? 'h-12 w-1' : 'w-12 h-1',
+								isResizing && 'bg-primary'
 							)}
 						/>
 					</div>

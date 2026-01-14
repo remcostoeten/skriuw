@@ -7,21 +7,19 @@ import { IosInstallInstructions } from "./ios-install-instructions";
 import { cn } from "@skriuw/shared";
 
 const DISMISS_KEY = "pwa-install-dismissed-at";
-const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000;
 
 export function InstallPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isIos, setIsIos] = useState(false);
     const [showIosInstructions, setShowIosInstructions] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
-    const [isDismissed, setIsDismissed] = useState(true); // Default to true until checked
+    const [isDismissed, setIsDismissed] = useState(true);
 
     useEffect(() => {
-        // 1. Check if already installed
         const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
         if (isStandalone) return;
 
-        // 2. Check for dismissal
         const dismissedAt = localStorage.getItem(DISMISS_KEY);
         if (dismissedAt) {
             const now = Date.now();
@@ -31,7 +29,6 @@ export function InstallPrompt() {
         }
         setIsDismissed(false);
 
-        // 3. Check for iOS
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
         setIsIos(isIosDevice);
@@ -40,7 +37,6 @@ export function InstallPrompt() {
             setIsVisible(true);
         }
 
-        // 4. Check for Android/Desktop (beforeinstallprompt)
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
@@ -76,39 +72,60 @@ export function InstallPrompt() {
 
     return (
         <>
-            {/* On mobile/small screens, show as a banner above the footer. On desktop, show as a floating button. */}
             <div className={cn(
-                "fixed z-[100] transition-all duration-300 ease-in-out",
-                // Mobile/Small: Full width banner above footer (footer height is ~2.25rem + safe area)
-                "bottom-[calc(2.25rem+env(safe-area-inset-bottom)+8px)] left-4 right-4 sm:left-auto sm:right-6 sm:bottom-12 sm:w-auto"
+                "fixed z-[60] transition-all duration-300 ease-out",
+                "bottom-[calc(56px+env(safe-area-inset-bottom)+12px)] left-3 right-3",
+                "sm:left-auto sm:right-4 sm:bottom-20 sm:w-auto sm:max-w-[320px]"
             )}>
-                <div className="flex items-center gap-3 bg-card border border-border p-3 sm:p-2 rounded-xl shadow-2xl animate-in fade-in slide-in-from-bottom-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Download className="h-5 w-5" />
+                <div className={cn(
+                    "flex items-center gap-3",
+                    "bg-[#1a1a1a] border border-white/[0.08]",
+                    "p-3 rounded-2xl",
+                    "shadow-[0_8px_32px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]",
+                    "animate-in fade-in slide-in-from-bottom-4 duration-300"
+                )}>
+                    <div className={cn(
+                        "flex h-11 w-11 shrink-0 items-center justify-center",
+                        "rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10",
+                        "ring-1 ring-emerald-500/30"
+                    )}>
+                        <Download className="h-5 w-5 text-emerald-400" />
                     </div>
 
-                    <div className="flex flex-col gap-0.5 pr-2">
-                        <p className="text-sm font-semibold leading-tight">Install Skriuw</p>
-                        <p className="text-[11px] text-muted-foreground leading-tight hidden xs:block">Use as a desktop or mobile application</p>
+                    <div className="flex-1 min-w-0 pr-1">
+                        <p className="text-[13px] font-semibold text-white leading-tight">
+                            Install Skriuw
+                        </p>
+                        <p className="text-[11px] text-white/50 leading-tight mt-0.5 truncate">
+                            Better experience as an app
+                        </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5 ml-auto">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <Button
                             size="sm"
                             onClick={handleInstallClick}
-                            className="h-8 px-3 text-xs font-medium"
+                            className={cn(
+                                "h-9 px-4 text-xs font-semibold",
+                                "bg-white text-black hover:bg-white/90",
+                                "rounded-xl shadow-sm"
+                            )}
                         >
                             Install
                         </Button>
-                        <Button
-                            size="icon"
-                            variant="ghost"
+                        <button
+                            type="button"
                             onClick={handleDismiss}
-                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                            aria-label="Maybe later"
+                            className={cn(
+                                "flex items-center justify-center",
+                                "h-9 w-9 rounded-xl",
+                                "text-white/40 hover:text-white/70 hover:bg-white/5",
+                                "transition-colors duration-150"
+                            )}
+                            aria-label="Dismiss"
                         >
                             <X className="h-4 w-4" />
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -120,4 +137,3 @@ export function InstallPrompt() {
         </>
     );
 }
-
