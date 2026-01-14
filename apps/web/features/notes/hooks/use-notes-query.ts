@@ -142,13 +142,12 @@ export function useCreateNoteMutation() {
                     // If adding to a folder, find it and append
                     // Check if we are at root and parent is here (optimization/simplicity)
                     // But we need to traverse
-                    let added = false
+                    if (!items || !Array.isArray(items)) return []
                     const newItems = items.map(item => {
                         if (item.id === newNote.parentFolderId && item.type === 'folder') {
-                            added = true
                             return { ...item, children: [...(item.children || []), newNote] }
                         }
-                        if (item.type === 'folder') {
+                        if (item.type === 'folder' && item.children) {
                             return { ...item, children: addItem(item.children) }
                         }
                         return item
@@ -207,11 +206,12 @@ export function useCreateFolderMutation() {
                         return [...items, newFolder]
                     }
                     
+                    if (!items || !Array.isArray(items)) return []
                     return items.map(item => {
                         if (item.id === newFolder.parentFolderId && item.type === 'folder') {
                             return { ...item, children: [...(item.children || []), newFolder] }
                         }
-                        if (item.type === 'folder') {
+                        if (item.type === 'folder' && item.children) {
                             return { ...item, children: addItem(item.children) }
                         }
                         return item

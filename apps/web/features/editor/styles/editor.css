@@ -468,31 +468,104 @@
 }
 
 /* =============================================================================
-   Mobile Toolbar Adjustments
+   Mobile Editor Adjustments
    ============================================================================= */
 
 @media (max-width: 767px) {
+    /* Editor Container Mobile */
+    .editor-container .bn-editor {
+        padding: 1rem 1rem 6rem;
+    }
+
+    .editor-container.centered-layout .bn-editor {
+        padding: 0 1rem 6rem;
+    }
+
+    /* Hide side menu on mobile - use toolbar instead */
+    .editor-container .bn-side-menu {
+        display: none;
+    }
+
+    /* Mobile Toolbar */
     .editor-container .bn-toolbar {
-        padding: 0.125rem 0.25rem;
-        gap: 0.125rem;
+        position: fixed;
+        bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        left: 0;
+        right: 0;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        padding: 0.5rem;
+        gap: 0.25rem;
+        justify-content: center;
+        background: hsl(var(--background) / 0.95);
+        backdrop-filter: blur(12px);
+        z-index: 50;
     }
 
     .editor-container .bn-toolbar-button {
-        height: 1.5rem;
-        min-width: 1.5rem;
-        padding: 0.25rem;
-        font-size: 0.625rem;
+        height: 2.5rem;
+        min-width: 2.5rem;
+        padding: 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 0.5rem;
     }
 
     .editor-container .bn-toolbar-select {
-        height: 1.5rem;
-        padding: 0.25rem;
-        font-size: 0.625rem;
+        height: 2.5rem;
+        padding: 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 0.5rem;
     }
 
     .editor-container .bn-toolbar-select-text,
     .editor-container .bn-toolbar-select-arrow {
         display: none;
+    }
+
+    /* Suggestion Menu Mobile */
+    .bn-suggestion-menu {
+        position: fixed !important;
+        bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 48px);
+        left: 0.75rem;
+        right: 0.75rem;
+        top: auto !important;
+        max-width: none;
+        max-height: 50vh;
+        border-radius: 1rem;
+    }
+
+    .bn-suggestion-item {
+        padding: 0.875rem 1rem;
+        min-height: 48px;
+    }
+
+    /* Mention Menu Mobile */
+    .skriuw-mention-menu {
+        position: fixed !important;
+        bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 48px);
+        left: 0.75rem;
+        right: 0.75rem;
+        top: auto !important;
+        max-width: none;
+        max-height: 50vh;
+        border-radius: 1rem;
+    }
+
+    .skriuw-mention-menu__item {
+        padding: 0.875rem;
+        min-height: 48px;
+    }
+
+    /* Link toolbar mobile */
+    .editor-container .bn-link-toolbar {
+        position: fixed !important;
+        bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        left: 0.5rem;
+        right: 0.5rem;
+        top: auto !important;
+        border-radius: 0.75rem 0.75rem 0 0;
     }
 }
 

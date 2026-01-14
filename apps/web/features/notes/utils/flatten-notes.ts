@@ -8,11 +8,11 @@ export function flattenNotes(items: Item[]): Note[] {
 	const notes: Note[] = []
 
 	function traverse(itemList: Item[]) {
+		if (!itemList || !Array.isArray(itemList)) return
 		for (const item of itemList) {
 			if (item.type === 'note') {
 				notes.push(item)
-			} else if (item.type === 'folder') {
-				// Recursively traverse folder children
+			} else if (item.type === 'folder' && item.children) {
 				traverse(item.children)
 			}
 		}

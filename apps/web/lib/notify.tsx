@@ -1,6 +1,7 @@
 'use client'
 
 import { createRoot } from 'react-dom/client'
+import { cn } from '@skriuw/shared'
 
 type NotificationOptions = {
     id?: string
@@ -17,16 +18,6 @@ function getContainer() {
     if (!container) {
         container = document.createElement('div')
         container.id = 'notification-container'
-        container.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        `
         document.body.appendChild(container)
         root = createRoot(container)
     }
@@ -34,45 +25,54 @@ function getContainer() {
 }
 
 let notifications: NotificationOptions[] = []
-let updateTimeout: ReturnType<typeof setTimeout> | null = null
 
 function renderNotifications() {
-    const { root } = getContainer()
+    const { root, container } = getContainer()
+
+    const isMobile = window.innerWidth < 1024
+
+    container.style.cssText = `
+        position: fixed;
+        ${isMobile ? `
+            bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 12px);
+            left: 12px;
+            right: 12px;
+        ` : `
+            bottom: 20px;
+            right: 20px;
+        `}
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+    `
 
     const elements = notifications.map((n) => (
         <div
             key={n.id}
-            style={{
-                background: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                pointerEvents: 'auto',
-                color: 'hsl(var(--foreground))',
-                fontSize: '14px',
-                animation: 'slideIn 0.2s ease-out',
-            }}
+            className={cn(
+                "pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-200",
+                "flex items-center gap-3",
+                "bg-[#1a1a1a] border border-white/[0.08]",
+                "p-3 rounded-xl",
+                "shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+                "text-[13px] text-white"
+            )}
         >
-            <span>{n.message}</span>
+            <span className="flex-1">{n.message}</span>
             {n.revertText && (
                 <button
                     onClick={() => {
                         n.onRevert?.()
                         removeNotification(n.id!)
                     }}
-                    style={{
-                        background: 'transparent',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        cursor: 'pointer',
-                        color: 'hsl(var(--foreground))',
-                        fontSize: '12px',
-                    }}
+                    className={cn(
+                        "shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium",
+                        "bg-white/10 hover:bg-white/20",
+                        "text-white/80 hover:text-white",
+                        "transition-colors duration-150"
+                    )}
                 >
                     {n.revertText}
                 </button>
@@ -80,26 +80,11 @@ function renderNotifications() {
         </div>
     ))
 
-    root.render(
-        <>
-            <style>{`
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-            `}</style>
-            {elements}
-        </>
-    )
+    root.render(<>{elements}</>)
 }
 
 function removeNotification(id: string) {
     notifications = notifications.filter(n => n.id !== id)
-    renderNotifications()
-}
-
-function removeNotificationByIndex(index: number) {
-    notifications = notifications.filter((_, i) => i !== index)
     renderNotifications()
 }
 
@@ -135,7 +120,6 @@ class NotificationBuilder {
             message,
             duration: 3000,
         }
-        // Auto-show after microtask to allow chaining
         queueMicrotask(() => {
             showNotification(this.options)
         })

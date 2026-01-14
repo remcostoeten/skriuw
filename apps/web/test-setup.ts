@@ -1,4 +1,15 @@
 import { mock } from "bun:test";
+import { JSDOM } from "jsdom";
+
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    url: "http://localhost:3000"
+});
+
+global.window = dom.window as any;
+global.document = dom.window.document;
+global.localStorage = dom.window.localStorage;
+global.navigator = dom.window.navigator;
+
 
 // Native Bun mock for local env
 mock.module("../env", () => ({

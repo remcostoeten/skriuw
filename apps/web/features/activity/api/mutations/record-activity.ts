@@ -29,9 +29,11 @@ export async function recordActivity(input: RecordActivityInput): Promise<{ succ
 
         return { success: true }
     } catch (error) {
-        console.error('Failed to record activity:', error)
-        // Don't throw - activity tracking shouldn't break main operations
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        if (errorMessage !== 'Authentication required') {
+            console.error('Failed to record activity:', error)
+        }
+        return { success: false, error: errorMessage }
     }
 }
 
@@ -60,7 +62,10 @@ export async function recordActivities(inputs: RecordActivityInput[]): Promise<{
 
         return { success: true }
     } catch (error) {
-        console.error('Failed to record activities:', error)
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        if (errorMessage !== 'Authentication required') {
+            console.error('Failed to record activities:', error)
+        }
+        return { success: false, error: errorMessage }
     }
 }
