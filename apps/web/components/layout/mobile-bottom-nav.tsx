@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Plus, FolderOpen, Trash2, Archive, Settings, FileText } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Archive, FileText, Sparkles } from 'lucide-react'
 import { cn } from '@skriuw/shared'
 import { useUIStore } from '../../stores/ui-store'
 import { useNotesContext } from '@/features/notes/context/notes-context'
@@ -77,7 +77,7 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
         },
         {
             icon: Plus,
-            label: isCreating ? 'Creating...' : 'New',
+            label: isCreating ? '...' : 'New',
             active: false,
             onClick: () => {
                 haptic.medium()
@@ -109,19 +109,14 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
     return (
         <nav
             className={cn(
-                // Positioning & sizing
                 'fixed bottom-0 left-0 right-0 z-[70]',
-                'h-16 pb-[env(safe-area-inset-bottom)]',
-                // Glassmorphism effect
-                'bg-background/80 backdrop-blur-xl',
-                'border-t border-border/50',
-                // Shadow for depth
-                'shadow-[0_-4px_20px_rgba(0,0,0,0.1)]',
-                // Only show on mobile
+                'pb-[env(safe-area-inset-bottom)]',
+                'bg-[#0a0a0a]/95 backdrop-blur-2xl',
+                'border-t border-white/[0.06]',
                 'lg:hidden'
             )}
         >
-            <div className="flex items-center justify-around h-full px-2 max-w-md mx-auto">
+            <div className="flex items-stretch justify-around h-[56px] px-1 max-w-lg mx-auto">
                 {navItems.map((item) => (
                     <button
                         key={item.label}
@@ -129,51 +124,58 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
                         onClick={item.onClick}
                         disabled={item.disabled}
                         className={cn(
-                            // Base styles
-                            'flex flex-col items-center justify-center',
-                            'transition-all duration-200 ease-out',
-                            'rounded-xl px-3 py-1.5',
-                            'touch-manipulation',
-                            // Disabled state styling
-                            item.disabled && [
-                                'opacity-50 cursor-not-allowed',
-                                'scale-100 hover:scale-100 active:scale-100'
+                            'relative flex flex-col items-center justify-center flex-1 gap-0.5',
+                            'transition-all duration-150 ease-out',
+                            'touch-manipulation select-none',
+                            item.disabled && 'opacity-40 pointer-events-none',
+                            item.primary && [
+                                'mx-1',
                             ],
-                            // Primary action (Create Note) styling
-                            item.primary && !item.disabled && [
-                                'bg-gradient-to-br from-brand-500 to-brand-600',
-                                'text-white shadow-lg shadow-brand-500/30',
-                                'scale-100 hover:scale-105 active:scale-95',
-                                '-mt-4 px-4 py-2.5 rounded-2xl',
-                            ],
-                            // Regular item styling
                             !item.primary && !item.disabled && [
-                                'text-muted-foreground',
-                                'hover:text-foreground hover:bg-muted/50',
-                                'active:scale-95',
+                                'text-white/40',
+                                'active:scale-95 active:opacity-70',
                             ],
-                            // Active state for non-primary items
                             !item.primary && !item.disabled && item.active && [
-                                'text-brand-500',
-                                'bg-brand-500/10',
+                                'text-white',
                             ]
                         )}
                     >
-                        <item.icon
-                            className={cn(
-                                'transition-transform duration-200',
-                                item.primary ? 'w-6 h-6' : 'w-5 h-5',
-                                item.active && !item.primary && !item.disabled && 'scale-110'
-                            )}
-                        />
-                        <span
-                            className={cn(
-                                'text-[10px] font-medium mt-0.5',
-                                item.primary && 'text-xs'
-                            )}
-                        >
-                            {item.label}
-                        </span>
+                        {item.primary ? (
+                            <div className={cn(
+                                'relative flex items-center justify-center',
+                                'w-12 h-12 -mt-4 rounded-2xl',
+                                'bg-gradient-to-b from-emerald-500 to-emerald-600',
+                                'shadow-[0_4px_20px_rgba(16,185,129,0.4)]',
+                                'transition-transform duration-150',
+                                'active:scale-90',
+                                item.disabled && 'from-gray-500 to-gray-600 shadow-none'
+                            )}>
+                                <item.icon className="w-6 h-6 text-white" strokeWidth={2.5} />
+                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/10 to-white/10" />
+                            </div>
+                        ) : (
+                            <>
+                                <div className={cn(
+                                    'relative flex items-center justify-center w-7 h-7 rounded-lg',
+                                    'transition-colors duration-150',
+                                    item.active && 'bg-white/10'
+                                )}>
+                                    <item.icon
+                                        className={cn(
+                                            'w-[22px] h-[22px] transition-all duration-150',
+                                            item.active && 'scale-105'
+                                        )}
+                                        strokeWidth={item.active ? 2.25 : 1.75}
+                                    />
+                                </div>
+                                <span className={cn(
+                                    'text-[10px] font-medium tracking-tight',
+                                    'transition-colors duration-150'
+                                )}>
+                                    {item.label}
+                                </span>
+                            </>
+                        )}
                     </button>
                 ))}
             </div>

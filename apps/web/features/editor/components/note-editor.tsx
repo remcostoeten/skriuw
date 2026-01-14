@@ -31,7 +31,6 @@ export function NoteEditor({
 		noteId,
 		autoSave,
 		autoSaveDelay,
-		readOnly: !session,
 	})
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)
