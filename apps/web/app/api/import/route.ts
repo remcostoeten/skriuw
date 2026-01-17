@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, notes, folders, getSafeTimestamp } from '@skriuw/db'
 import { Item } from '@/features/notes/types'
+import { allowReadAccess, requireMutation } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
     try {
+        // Allow imports for both authenticated users and guests
+        const userId = await allowReadAccess()
+
         const { items } = await request.json()
         const db = getDatabase()
         const now = getSafeTimestamp()
@@ -20,6 +24,7 @@ export async function POST(request: NextRequest) {
                     createdAt: item.createdAt || now,
                     updatedAt: item.updatedAt || now,
                     type: 'folder',
+                    userId, // Attach to authenticated user
                 }).onConflictDoUpdate({
                     target: folders.id,
                     set: {
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
                     createdAt: item.createdAt || now,
                     updatedAt: item.updatedAt || now,
                     type: 'note',
+                    userId, // Attach to authenticated user
                 }).onConflictDoUpdate({
                     target: notes.id,
                     set: {

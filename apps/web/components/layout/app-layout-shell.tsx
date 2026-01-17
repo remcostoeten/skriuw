@@ -195,7 +195,7 @@ export function AppLayoutShell({
 					<div className="sticky z-[60] top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
 						{topToolbar}
 					</div>
-					<div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))] lg:pb-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
+					<div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
 						{mainContent}
 					</div>
 					{footer}

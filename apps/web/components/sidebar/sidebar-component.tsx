@@ -1040,10 +1040,6 @@ function FileTreeItem({
 							>
 								{/* Tree Hierarchy Guides */}
 
-								// ... existing imports
-
-								// ... inside FileTreeItem component
-
 								{ruler?.enabled && (
 									<>
 										{/* Ancestor Vertical Lines */}

@@ -27,6 +27,11 @@ export const metadata: Metadata = {
 			}
 		]
 	},
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: 'default',
+		title: 'Skriuw'
+	},
 	other: {
 		'msapplication-TileImage': '/ms-application.png',
 		'msapplication-TileColor': '#000000'
@@ -40,7 +45,10 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<head>
+			<body
+				className="font-sans antialiased dark bg-background"
+				suppressHydrationWarning
+			>
 				<script
 					dangerouslySetInnerHTML={{
 						__html: `
@@ -51,32 +59,6 @@ export default function RootLayout({
 						`
 					}}
 				/>
-				<link
-					rel="apple-touch-icon"
-					sizes="180x180"
-					href="/apple-touch-icon.png"
-				/>
-				<link
-					rel="apple-touch-icon"
-					sizes="152x152"
-					href="/icons/Square150x150Logo.png"
-				/>
-				<link
-					rel="apple-touch-icon"
-					sizes="310x310"
-					href="/icons/Square310x310Logo.png"
-				/>
-				<meta name="apple-mobile-web-app-capable" content="yes" />
-				<meta
-					name="apple-mobile-web-app-status-bar-style"
-					content="default"
-				/>
-				<meta name="apple-mobile-web-app-title" content="Skriuw" />
-			</head>
-			<body
-				className="font-sans antialiased dark bg-background"
-				suppressHydrationWarning
-			>
 				<div id="main-content">
 					<Providers>
 						{children}

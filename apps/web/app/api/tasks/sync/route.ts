@@ -3,6 +3,7 @@ import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import type { Task } from '@/features/tasks/api/queries/get-tasks'
 import { generateId } from '@skriuw/shared'
 import { db } from '@/lib/storage/adapters/server-db'
+import { requireMutation } from '@/lib/api-auth'
 
 type SyncPayload = {
 	noteId: string
@@ -11,11 +12,17 @@ type SyncPayload = {
 
 export async function POST(request: NextRequest) {
 	try {
+		// Require authentication for sync operations  
+		const auth = await requireMutation()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const body: SyncPayload = await request.json()
 		if (!body.noteId) return NextResponse.json({ error: 'noteId is required' }, { status: 400 })
 
 		const incoming = Array.isArray(body.tasks) ? body.tasks : []
-		const existing = (await db.findAll<Task>('tasks')).filter(t => t.noteId === body.noteId)
+		// Only get tasks for this user's notes
+		const existing = (await db.findAll<Task>('tasks', userId)).filter(t => t.noteId === body.noteId)
 
 		const existingMap = new Map(existing.map(t => [t.blockId, t]))
 		const incomingMap = new Map(incoming.map(t => [t.blockId, t]))
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
 
 		// Delete removed
 		const toDelete = existing.filter(t => !incomingMap.has(t.blockId)).map(t => (t as any).id)
-		if (toDelete.length > 0) await db.deleteMany('tasks', toDelete)
+		if (toDelete.length > 0) await db.deleteMany('tasks', toDelete, userId)
 
 		// Prepare inserts and updates
 		const toInsert: any[] = []
@@ -61,13 +68,14 @@ export async function POST(request: NextRequest) {
 					position: task.position ?? 0,
 					createdAt: now,
 					updatedAt: now,
+					userId, // Attach to authenticated user
 				})
 			}
 		}
 
-		if (toInsert.length > 0) await db.createMany('tasks', toInsert)
+		if (toInsert.length > 0) await db.createMany('tasks', toInsert, userId)
 		if (toUpdate.length > 0) {
-			await Promise.all(toUpdate.map(u => db.update('tasks', u.id, u.data)))
+			await Promise.all(toUpdate.map(u => db.update('tasks', u.id, u.data, userId)))
 		}
 
 		return NextResponse.json({ success: true })

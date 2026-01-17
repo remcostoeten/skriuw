@@ -103,10 +103,18 @@ function MobileSettingsSection({
 type props = {
 	open: boolean
 	onOpenChange: (open: boolean) => void
+	activeTab?: string
 }
 
-export function SidebarMenu({ open, onOpenChange }: props) {
-	const [activeItem, setActiveItem] = useState<string>('editor')
+export function SidebarMenu({ open, onOpenChange, activeTab }: props) {
+	const [activeItem, setActiveItem] = useState<string>(activeTab || 'editor')
+
+	useEffect(() => {
+		if (activeTab) {
+			setActiveItem(activeTab)
+		}
+	}, [activeTab])
+
 	const { settings, updateMultipleSettings } = useSettings()
 
 	// Mobile detection and state
