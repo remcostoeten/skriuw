@@ -1,27 +1,9 @@
 import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from 'react'
 
-import { cn } from '@skriuw/shared'
+import { cn, type AppLayoutShellProps } from '@skriuw/shared'
 import { MOBILE_BREAKPOINT } from '@skriuw/shared/client'
 import { useMediaQuery } from '@skriuw/shared/client'
 import { Icons } from '@skriuw/ui'
-
-
-type props = {
-	leftToolbar?: ReactNode
-	sidebar: ReactNode
-	sidebarVisible?: boolean // Control sidebar visibility without unmounting
-	topToolbar: ReactNode
-	mainContent: ReactNode
-	footer: ReactNode
-	rightPanel: ReactNode
-	floatingWidgets: ReactNode
-	isRightPanelOpen: boolean
-	isTaskPanelOpen?: boolean
-	isSidebarOpen: boolean
-	isDesktopSidebarOpen: boolean
-	onSidebarClose?: () => void
-	onSidebarOpen?: () => void
-}
 
 /**
  * Pure layout shell component with no data loading
@@ -42,7 +24,7 @@ export function AppLayoutShell({
 	isDesktopSidebarOpen = true,
 	onSidebarClose,
 	onSidebarOpen,
-}: props) {
+}: AppLayoutShellProps) {
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 	const sidebarRef = useRef<HTMLDivElement>(null)
 	const [dragOffset, setDragOffset] = useState(0)
@@ -130,10 +112,11 @@ export function AppLayoutShell({
 				{/* Edge Swipe Hit Area - Only active when mobile and sidebar closed */}
 				{isMobile && !isSidebarOpen && (
 					<div
-						className="fixed inset-y-0 left-0 w-5 z-50 md:hidden"
+						className="fixed inset-y-0 left-0 w-5 z-50 md:hidden touch-pan-y"
 						onTouchStart={handleEdgeTouchStart}
 						onTouchMove={handleEdgeTouchMove}
 						onTouchEnd={handleEdgeTouchEnd}
+						onTouchCancel={handleEdgeTouchEnd}
 					/>
 				)}
 

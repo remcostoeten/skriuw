@@ -8,7 +8,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	type TouchEvent
+	type TouchEvent as ReactTouchEvent
 } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -332,18 +332,15 @@ function FileTreeItem({
 			if (isFolder) return
 
 			// If already in split mode, put the note in the secondary pane
+			// If already in split mode, put the note in the secondary pane
 			if (panes.length > 1 && panes[1]) {
 				updatePaneNote(panes[1].id, item.id)
 			} else {
 				// Enter split mode with the current note in primary, target in secondary
-				openSplitWithNote(activeNoteId ?? null)
-				// After split is created, update the secondary pane with the target note
-				setTimeout(() => {
-					const latestPanes = useSplitViewStore.getState().panes
-					if (latestPanes.length > 1 && latestPanes[1]) {
-						useSplitViewStore.getState().updatePaneNote(latestPanes[1].id, item.id)
-					}
-				}, 0)
+				const newPaneId = openSplitWithNote(activeNoteId ?? null)
+				if (newPaneId) {
+					updatePaneNote(newPaneId, item.id)
+				}
 			}
 		},
 		[isFolder, panes, updatePaneNote, openSplitWithNote, activeNoteId, item.id]
@@ -736,7 +733,7 @@ function FileTreeItem({
 
 	// Long-press handler for mobile
 	const handleTouchStart = useCallback(
-		(e: TouchEvent<HTMLButtonElement>) => {
+		(e: ReactTouchEvent<HTMLButtonElement>) => {
 			if (!isMobile) return
 
 			const touch = e.touches[0]
@@ -856,7 +853,7 @@ function FileTreeItem({
 	}, [onDrop, item.id])
 
 	const handleTouchMove = useCallback(
-		(e: TouchEvent<HTMLButtonElement>) => {
+		(e: ReactTouchEvent<HTMLButtonElement>) => {
 			if (!isMobile || !touchStartPosRef.current) return
 
 			const touch = e.touches[0]
@@ -884,7 +881,7 @@ function FileTreeItem({
 		[isMobile]
 	)
 
-	const handleTouchEnd = useCallback((e: TouchEvent<HTMLButtonElement>) => {
+	const handleTouchEnd = useCallback((e: ReactTouchEvent<HTMLButtonElement>) => {
 		if (longPressTimerRef.current) {
 			clearTimeout(longPressTimerRef.current)
 			longPressTimerRef.current = null

@@ -157,6 +157,9 @@ export function AppLayoutManager({
 			return 'Tasks'
 		}
 
+		if (pathname === '/') {
+			return 'Home'
+		}
 		// For note pages, use the existing logic
 		if (!currentNote) {
 			return 'Untitled'
@@ -335,18 +338,19 @@ export function AppLayoutManager({
 	const handleOpenInSplit = useCallback(
 		(noteId: string) => {
 			// If already in split mode, put the note in the secondary pane
+			// If already in split mode, put the note in the secondary pane
 			if (panes.length > 1 && panes[1]) {
 				updatePaneNote(panes[1].id, noteId)
 			} else {
 				// Enter split mode with the current note in primary, target in secondary
-				openSplitWithNote(currentNoteId)
-				// After split is created, update the secondary pane with the target note
-				setTimeout(() => {
-					const latestPanes = useSplitViewStore.getState().panes
-					if (latestPanes.length > 1 && latestPanes[1]) {
-						useSplitViewStore.getState().updatePaneNote(latestPanes[1].id, noteId)
-					}
-				}, 0)
+				// Guard against null primary note by falling back to the target note
+				const primaryId = currentNoteId ?? noteId
+				const newPaneId = openSplitWithNote(primaryId)
+
+				// Only update the secondary pane if we got a valid pane ID and it's not the same note (if logic dictates)
+				if (newPaneId) {
+					updatePaneNote(newPaneId, noteId)
+				}
 			}
 		},
 		[panes, updatePaneNote, openSplitWithNote, currentNoteId]
@@ -480,7 +484,12 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<RightSidebar noteId={sidebarActiveNoteId || undefined} content={currentNote?.content} />
+					{sidebarActiveNoteId && (
+						<RightSidebar
+							noteId={sidebarActiveNoteId}
+							content={currentNote?.content}
+						/>
+					)}
 					<MobileBottomNav onSettingsClick={() => setSettingsOpen(true)} />
 
 					{/* <AlphaBanner

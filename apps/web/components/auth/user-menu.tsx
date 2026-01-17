@@ -21,14 +21,18 @@ export function UserMenu() {
 		return <div className="h-7 w-7 animate-pulse rounded-full bg-muted" />
 	}
 
-	if (!session) {
+	if (!session || session?.user?.isAnonymous) {
 		return (
 			<Button
 				asChild
-				variant="ghost"
-				className="text-muted-foreground hover:text-foreground hover:bg-muted/60"
+				variant="secondary"
+				size="sm"
+				className="gap-2"
 			>
-				<Link href="/login">Sign In</Link>
+				<Link href="/login">
+					<LogOut className="h-4 w-4 rotate-180" />
+					Sign In
+				</Link>
 			</Button>
 		)
 	}

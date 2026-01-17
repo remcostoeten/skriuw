@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useState } from 'react'
 import { ChevronDown, X, FileText } from 'lucide-react'
 
-import { cn } from '@skriuw/shared'
+import { cn, PaneHeaderProps } from '@skriuw/shared'
 import { Button } from '@skriuw/ui/button'
 import {
     DropdownMenu,
@@ -15,15 +15,6 @@ import {
 
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-
-type PaneHeaderProps = {
-    paneId: string
-    noteId: string | null
-    isActive: boolean
-    isPrimary: boolean
-    onNoteSelect: (paneId: string, noteId: string) => void
-    onClose?: () => void
-}
 
 export function PaneHeader({
     paneId,

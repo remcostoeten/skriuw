@@ -125,15 +125,13 @@ export function MobileFormattingToolbar({ editor, className }: MobileFormattingT
                 })
                 break
             case 'quote':
-                // BlockNote doesn't have a native quote block, use paragraph with styling
                 editor.updateBlock(editor.getTextCursorPosition().block, {
-                    type: 'paragraph',
-                    props: { textAlignment: 'left' },
+                    type: 'blockquote',
                 })
                 break
             case 'divider':
                 editor.insertBlocks(
-                    [{ type: 'paragraph', content: '---' }],
+                    [{ type: 'horizontalRule' }],
                     editor.getTextCursorPosition().block,
                     'after'
                 )

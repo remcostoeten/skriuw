@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useShortcut } from '../features/shortcuts'
+
 import { useCookie } from '@/hooks/use-cookie'
 import { useUIStore } from '@/stores/ui-store'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'

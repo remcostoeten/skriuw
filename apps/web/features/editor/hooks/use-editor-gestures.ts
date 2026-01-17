@@ -1,16 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { haptic } from '@skriuw/shared'
+import { haptic, type EditorGestureCallbacks } from '@skriuw/shared'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
-
-export type EditorGestureCallbacks = {
-    onPullDown?: () => void
-    onDoubleTap?: () => void
-    onLongPress?: (element: HTMLElement) => void
-    onSwipeLeft?: () => void
-    onSwipeRight?: () => void
-}
 
 type GestureState = {
     isDoubleTapPending: boolean
@@ -33,7 +25,7 @@ export function useEditorGestures(
 ) {
     const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
     const [isEditing, setIsEditing] = useState(true)
-    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | number | null>(null)
 
     const stateRef = useRef<GestureState>({
         isDoubleTapPending: false,

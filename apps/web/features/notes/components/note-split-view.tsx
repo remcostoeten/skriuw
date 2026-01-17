@@ -22,7 +22,7 @@ import type { NoteTabDragPayload } from '../types'
 import { useSplitViewStore } from '../split-view/store'
 import { cn } from '@skriuw/shared'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
-import { PaneHeader } from './pane-header'
+import { PaneHeader } from '@/features/notes/components/pane-header'
 
 type NoteSplitViewProps = {
 	noteId: string
