@@ -111,8 +111,6 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		subsection: 'Typography',
 		options: ['small', 'medium', 'large', 'x-large'],
 		implemented: true,
-		disabled: true,
-		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
 			props: { type: 'fontSize' },

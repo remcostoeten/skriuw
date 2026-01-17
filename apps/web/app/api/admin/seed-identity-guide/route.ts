@@ -1,14 +1,22 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, notes, user } from '@skriuw/db'
 import { eq, and } from 'drizzle-orm'
 import { identityGuardNoteContent } from '@/lib/seed-content/identity-guard-content'
-import { NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { isAdmin } from '@/lib/is-admin'
 
 /**
  * Seeds the Identity Guard knowledge note to all users in the database
  * This ensures every user has access to the documentation about the identity guard pattern
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    // Require admin access
+    const session = await auth?.api.getSession({ headers: request.headers })
+    if (!session?.user?.email || !isAdmin(session.user.email)) {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
+    }
+
     const db = getDatabase()
     const now = Date.now()
 
@@ -111,8 +119,14 @@ ${results.errors.length > 0 ? '\nErrors:\n' + results.errors.join('\n') : ''}
 /**
  * Get statistics about Identity Guard note seeding
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Require admin access for viewing seed stats
+    const session = await auth?.api.getSession({ headers: request.headers })
+    if (!session?.user?.email || !isAdmin(session.user.email)) {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
+    }
+
     const db = getDatabase()
 
     // Count total users

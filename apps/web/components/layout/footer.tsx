@@ -58,7 +58,7 @@ export function Footer() {
 
 	return (
 		<>
-			<footer className="hidden lg:block fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]">
+			<footer className="hidden lg:flex w-full h-9 shrink-0 items-center justify-between bg-sidebar-background border-t border-border px-1.5">
 				<div className="flex items-center gap-1.5">
 					<ThemeButton
 						isTouchDevice={isTouchDevice}
@@ -96,6 +96,12 @@ export function Footer() {
 			<SidebarMenu
 				open={activeMenu !== null}
 				onOpenChange={handleOpenChange}
+				activeTab={
+					activeMenu === MENU_KEYS.SYNC ? 'Skriuw' :
+						activeMenu === MENU_KEYS.PERFORMANCE ? 'advanced' :
+							activeMenu === MENU_KEYS.LANGUAGE ? 'appearance' :
+								'editor'
+				}
 			/>
 		</>
 	)

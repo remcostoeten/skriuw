@@ -83,7 +83,7 @@ export function AppLayoutManager({
 	// Track if we've ever loaded to prevent showing skeleton during navigation
 	const hasEverLoadedRef = useRef(false)
 
-	const { toggleSplit, orientation, toggleActivePane, setOrientation } = useSplitViewStore()
+	const { toggleSplit, orientation, toggleActivePane, setOrientation, openSplitWithNote, updatePaneNote, panes } = useSplitViewStore()
 
 	// Update ref when loading completes
 	useEffect(() => {
@@ -157,6 +157,9 @@ export function AppLayoutManager({
 			return 'Tasks'
 		}
 
+		if (pathname === '/') {
+			return 'Home'
+		}
 		// For note pages, use the existing logic
 		if (!currentNote) {
 			return 'Untitled'
@@ -331,6 +334,28 @@ export function AppLayoutManager({
 		[notesInOrder]
 	)
 
+	// Handler to open a note in split view (from context menu)
+	const handleOpenInSplit = useCallback(
+		(noteId: string) => {
+			// If already in split mode, put the note in the secondary pane
+			// If already in split mode, put the note in the secondary pane
+			if (panes.length > 1 && panes[1]) {
+				updatePaneNote(panes[1].id, noteId)
+			} else {
+				// Enter split mode with the current note in primary, target in secondary
+				// Guard against null primary note by falling back to the target note
+				const primaryId = currentNoteId ?? noteId
+				const newPaneId = openSplitWithNote(primaryId)
+
+				// Only update the secondary pane if we got a valid pane ID and it's not the same note (if logic dictates)
+				if (newPaneId) {
+					updatePaneNote(newPaneId, noteId)
+				}
+			}
+		},
+		[panes, updatePaneNote, openSplitWithNote, currentNoteId]
+	)
+
 	useShortcut('toggle-shortcuts', (e) => {
 		e.preventDefault()
 		toggleSettings()
@@ -440,6 +465,7 @@ export function AppLayoutManager({
 							onPinNote={handlePinNote}
 							onFavoriteNote={handleFavoriteNote}
 							getNoteData={getNoteData}
+							onOpenInSplit={handleOpenInSplit}
 						/>
 					)}
 					<div
@@ -458,7 +484,12 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<RightSidebar noteId={sidebarActiveNoteId || undefined} content={currentNote?.content} />
+					{sidebarActiveNoteId && (
+						<RightSidebar
+							noteId={sidebarActiveNoteId}
+							content={currentNote?.content}
+						/>
+					)}
 					<MobileBottomNav onSettingsClick={() => setSettingsOpen(true)} />
 
 					{/* <AlphaBanner
@@ -475,6 +506,7 @@ export function AppLayoutManager({
 			isSidebarOpen={isMobileSidebarOpen}
 			isDesktopSidebarOpen={isDesktopSidebarOpen}
 			onSidebarClose={isMobile ? toggleMobileSidebar : undefined}
+			onSidebarOpen={isMobile ? toggleMobileSidebar : undefined}
 		/>
 	)
 }

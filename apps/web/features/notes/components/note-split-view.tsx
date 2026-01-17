@@ -22,6 +22,7 @@ import type { NoteTabDragPayload } from '../types'
 import { useSplitViewStore } from '../split-view/store'
 import { cn } from '@skriuw/shared'
 import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { PaneHeader } from '@/features/notes/components/pane-header'
 
 type NoteSplitViewProps = {
 	noteId: string
@@ -62,6 +63,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 	const swapPanes = useSplitViewStore((state) => state.swapPanes)
 	const focusPaneByIndex = useSplitViewStore((state) => state.focusPaneByIndex)
 	const closeActivePane = useSplitViewStore((state) => state.closeActivePane)
+	const closePane = useSplitViewStore((state) => state.closePane)
 	const setSizes = useSplitViewStore((state) => state.setSizes)
 	const setCurrentNoteId = useSplitViewStore((state) => state.setCurrentNoteId)
 	const setOrientation = useSplitViewStore((state) => state.setOrientation)
@@ -283,6 +285,17 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 		[updatePaneScroll]
 	)
 
+	// Handler for selecting a different note from the pane header dropdown
+	const handlePaneNoteSelect = useCallback(
+		(paneId: string, selectedNoteId: string) => {
+			updatePaneNote(paneId, selectedNoteId)
+			setActivePane(paneId)
+			// Update URL to reflect the newly selected note
+			router.replace(getNoteUrl(selectedNoteId))
+		},
+		[updatePaneNote, setActivePane, router, getNoteUrl]
+	)
+
 	useShortcut('split.toggle', (event) => {
 		event.preventDefault()
 		toggleSplit(activePane?.noteId ?? noteId)
@@ -336,14 +349,29 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 								height: orientation === 'horizontal' ? basis : '100%',
 							}}
 							className={cn(
-								'relative flex flex-1 flex-col overflow-hidden',
-								isDropTarget && 'border border-primary/80 bg-primary/5'
+								'relative flex flex-1 flex-col overflow-hidden transition-all duration-150',
+								// Focus indicators - much stronger visual feedback
+								isActive && 'ring-2 ring-primary/60 bg-primary/[0.02]',
+								!isActive && orientation !== 'single' && 'ring-1 ring-border/50 opacity-90 hover:opacity-100',
+								// Drop target styling
+								isDropTarget && 'ring-2 ring-primary bg-primary/10'
 							)}
 							onClick={() => setActivePane(pane.id)}
 							onDragOver={handleDragOver(pane.id)}
 							onDragLeave={handleDragLeave(pane.id)}
 							onDrop={handleDrop(pane.id)}
 						>
+							{/* Pane header - shown in split mode for note selection */}
+							{orientation !== 'single' && (
+								<PaneHeader
+									paneId={pane.id}
+									noteId={pane.noteId}
+									isActive={isActive}
+									isPrimary={index === 0}
+									onNoteSelect={handlePaneNoteSelect}
+									onClose={index > 0 ? () => closePane(pane.id) : undefined}
+								/>
+							)}
 							<div className="flex-1 overflow-auto" onScroll={handlePaneScroll(pane.id)}>
 								{pane.noteId ? (
 									<NoteEditor

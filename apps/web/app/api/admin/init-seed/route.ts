@@ -4,11 +4,10 @@ import { seedTemplateNotes, seedTemplateFolders, notes, folders, user } from '@s
 import { GUEST_USER_ID } from '../../../../lib/api-auth'
 import { eq } from 'drizzle-orm'
 import { sampleNotes, sampleFolders } from '@/app/api/(dev)/dev/seeds'
+import { auth } from '@/lib/auth'
+import { isAdmin } from '@/lib/is-admin'
 
-// This endpoint is administrative - normally you'd protect this with an admin check
-// For now, we'll leave it open for development or check for a specific header/secret if needed.
-// Given strict instructions, let's assume this is a DEV/ADMIN tool.
-
+// This endpoint is administrative - requires admin access
 async function resetSeedTemplates() {
     const drizzleDb = db.raw()
     const now = Date.now()
@@ -138,6 +137,12 @@ async function seedGuestUser() {
 
 export async function POST(request: NextRequest) {
     try {
+        // Require admin access
+        const session = await auth?.api.getSession({ headers: request.headers })
+        if (!session?.user?.email || !isAdmin(session.user.email)) {
+            return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
+        }
+
         await resetSeedTemplates()
         await seedGuestUser()
 

@@ -55,7 +55,7 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 				/>
 			</div>
 
-			<div className="flex flex-col items-center gap-2 pb-12">
+			<div className="flex flex-col items-center gap-4 pb-2">
 				<IconButton
 					icon={<Trash2 className="w-4 h-4" />}
 					tooltip="Trash"

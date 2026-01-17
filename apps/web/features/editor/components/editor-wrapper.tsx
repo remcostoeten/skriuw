@@ -12,6 +12,7 @@ import { getFontSizePx, getFontFamily, getMaxWidthPx } from '../styles/editor-to
 
 import { DualModeEditor } from './default-mode-editor'
 import { TaskCheckboxReplacer } from './task-checkbox-replacer'
+import { MobileFormattingToolbar } from './mobile-formatting-toolbar'
 
 type Props = {
   editor: BlockNoteEditor | null
@@ -34,6 +35,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
       fontFamily,
       lineHeight,
       maxWidth,
+      updateSetting,
     } = useSettings()
     const [editorContent, setEditorContent] = useState<any[]>([])
 
@@ -163,6 +165,70 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
       }
     }, [centeredLayout, maxWidth])
 
+    // Pinch-to-zoom for font size
+    useEffect(() => {
+      const el = editorRef.current
+      if (!el) return
+
+      let startDistance = 0
+      let baseFontSize = fontSize || 'medium' // Snapshot at start of gesture
+
+      // Font size progression: small -> medium -> large -> x-large
+      const sizes = ['small', 'medium', 'large', 'x-large']
+
+      const getDistance = (touches: TouchList) => {
+        const touch1 = touches[0]
+        const touch2 = touches[1]
+        return Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
+      }
+
+      const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length === 2) {
+          startDistance = getDistance(e.touches)
+          baseFontSize = fontSize || 'medium'
+        }
+      }
+
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 2 && startDistance > 0) {
+          const newDistance = getDistance(e.touches)
+          const scale = newDistance / startDistance
+
+          // Determine direction
+          let newSize = baseFontSize
+          const currentIndex = sizes.indexOf(baseFontSize)
+
+          if (scale > 1.3) {
+            // Zoom In
+            if (currentIndex < sizes.length - 1) {
+              newSize = sizes[currentIndex + 1]
+            }
+          } else if (scale < 0.7) {
+            // Zoom Out
+            if (currentIndex > 0) {
+              newSize = sizes[currentIndex - 1]
+            }
+          }
+
+          // Only update if changed
+          if (newSize !== fontSize) {
+            updateSetting('fontSize', newSize)
+            // Reset base to avoid rapid firing, effectively converting continuous pinch into steps
+            baseFontSize = newSize
+            startDistance = newDistance
+          }
+        }
+      }
+
+      el.addEventListener('touchstart', handleTouchStart as any, { passive: true })
+      el.addEventListener('touchmove', handleTouchMove as any, { passive: true })
+
+      return () => {
+        el.removeEventListener('touchstart', handleTouchStart as any)
+        el.removeEventListener('touchmove', handleTouchMove as any)
+      }
+    }, [fontSize, updateSetting])
+
     if (!editor) {
       return null
     }
@@ -192,6 +258,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
           className="w-full h-full"
         />
         <TaskCheckboxReplacer editor={editor} editorContainerRef={editorRef} />
+        <MobileFormattingToolbar editor={editor} />
       </div>
     )
   }

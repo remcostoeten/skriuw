@@ -45,7 +45,7 @@ function fuzzyMatch(query: string, text: string): number {
     return Math.max(0, score)
 }
 
-function filterCommands(commands: Array<{id: ShortcutId; description: string; keys: string}>, query: string) {
+function filterCommands(commands: Array<{ id: ShortcutId; description: string; keys: string }>, query: string) {
     if (!query.trim()) return commands
 
     return commands
@@ -253,13 +253,48 @@ export function CommandExecutor() {
         window.dispatchEvent(event)
     }, [])
 
+    // Mobile visual viewport handling
+    const [viewportStyle, setViewportStyle] = useState<React.CSSProperties>({})
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!window.visualViewport) return
+
+        function handleViewportChange() {
+            if (!window.visualViewport) return
+
+            // Adjust the modal position to be visible above keyboard
+            const height = window.visualViewport.height
+            const offsetTop = window.visualViewport.offsetTop
+
+            setViewportStyle({
+                height: `${height}px`,
+                top: `${offsetTop}px`,
+            })
+        }
+
+        window.visualViewport.addEventListener('resize', handleViewportChange)
+        window.visualViewport.addEventListener('scroll', handleViewportChange)
+
+        // Initial call
+        handleViewportChange()
+
+        return () => {
+            if (!window.visualViewport) return
+            window.visualViewport.removeEventListener('resize', handleViewportChange)
+            window.visualViewport.removeEventListener('scroll', handleViewportChange)
+        }
+    }, [isOpen])
+
     if (!isOpen) return null
 
     let commandIndex = 0
 
     return (
         <div
-            className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]"
+            ref={containerRef}
+            style={viewportStyle}
+            className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] touch-none"
             role="dialog"
             aria-modal="true"
             aria-label="Command executor"
@@ -282,7 +317,7 @@ export function CommandExecutor() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Type to search commands..."
-                        className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-sm"
+                        className="flex-1 bg-transparent outline-none border-none focus:ring-0 placeholder:text-muted-foreground text-sm"
                     />
                     <button
                         onClick={() => setIsOpen(false)}
@@ -314,8 +349,8 @@ export function CommandExecutor() {
                                                 onClick={() => executeCommand(command.id)}
                                                 onMouseEnter={() => setSelectedIndex(currentIndex)}
                                                 className={`w-full flex items-center justify-between rounded-md px-2 py-2 text-sm transition-colors ${isSelected
-                                                        ? 'bg-accent text-accent-foreground'
-                                                        : 'hover:bg-accent/50 hover:text-accent-foreground'
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'hover:bg-accent/50 hover:text-accent-foreground'
                                                     }`}
                                             >
                                                 <span>{command.description}</span>

@@ -3,7 +3,6 @@
 import { AlertCircle } from 'lucide-react'
 import { ReactNode, useEffect, useState } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 import { Analytics } from '@vercel/analytics/react'
 
@@ -78,7 +77,6 @@ export function Providers({ children }: props) {
 				</StorageInitializer>
 				<Analytics />
 			</TooltipProvider>
-			<ReactQueryDevtools initialIsOpen={false} />
 		</QueryClientProvider>
 	)
 }
