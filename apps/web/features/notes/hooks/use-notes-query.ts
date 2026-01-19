@@ -7,7 +7,7 @@ import type { Item, Note, Folder } from '../types'
 import { extractTasksFromBlocks } from '../utils/extract-tasks'
 import { trackActivity } from '@/features/activity'
 import { useEffect } from 'react'
-import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '@/lib/preseed-data'
+import { getWelcomeTunnelContent } from '@/lib/seed-content/welcome-tunnel'
 
 // Type definitions
 type NoteContent = any[] // Block[]
@@ -34,35 +34,30 @@ export function useNotesQuery() {
     const queryClient = useQueryClient()
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && (userId === 'guest' || userId === 'guest-user')) {
-             const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
-             const isSeeded = hasPreseededItems()
+        if (typeof window === 'undefined') return
+        if (userId !== 'guest' && userId !== 'guest-user') return
 
-             if ((!hasData || hasData === '[]') && !isSeeded) {
-                 const items = generatePreseededItems(userId)
-                 const treeItems: any[] = []
-                 const itemsMap = new Map()
-                 
-                 items.forEach((item: any) => {
-                     itemsMap.set(item.id, { ...item, children: [] })
-                 })
-                 
-                 items.forEach((item: any) => {
-                     const mapped = itemsMap.get(item.id)
-                     if (item.type === 'folder' && !mapped.children) mapped.children = []
-                     
-                     if (item.parentFolderId && itemsMap.has(item.parentFolderId)) {
-                         const parent = itemsMap.get(item.parentFolderId)
-                         if (parent.children) parent.children.push(mapped)
-                     } else {
-                         treeItems.push(mapped)
-                     }
-                 })
-                 
-                 localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(treeItems))
-                 markPreseededItems()
-                 queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
-             }
+        const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
+        const hasSeeded = localStorage.getItem('skriuw:welcome_seeded')
+
+        if ((!hasData || hasData === '[]') && !hasSeeded) {
+            const now = Date.now()
+            const welcomeNote: Note = {
+                id: `welcome-${now}`,
+                name: 'Welcome to Skriuw',
+                type: 'note',
+                content: getWelcomeTunnelContent(),
+                parentFolderId: undefined,
+                pinned: true,
+                favorite: false,
+                createdAt: now,
+                updatedAt: now,
+                userId,
+            }
+
+            localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([welcomeNote]))
+            localStorage.setItem('skriuw:welcome_seeded', 'true')
+            queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
         }
     }, [userId, queryClient])
 
@@ -138,7 +133,7 @@ export function useCreateNoteMutation() {
                     if (!newNote.parentFolderId) {
                         return [...items, newNote]
                     }
-                    
+
                     // If adding to a folder, find it and append
                     // Check if we are at root and parent is here (optimization/simplicity)
                     // But we need to traverse
@@ -152,7 +147,7 @@ export function useCreateNoteMutation() {
                         }
                         return item
                     })
-                    
+
                     // If we traversed and didn't find the parent (maybe it's root?)
                     // Logic above: recursively maps. If parent found, it adds.
                     // If newNote.parentFolderId exists but we are at root call...
@@ -160,10 +155,10 @@ export function useCreateNoteMutation() {
                     // Should we add to root? Or assume parent exists?
                     // Safe cleanup: if parentFolderId is set but parent not found, technically it's orphaned.
                     // But for our cache, we rely on the map.
-                    
+
                     return newItems
                 }
-                
+
                 if (newNote.parentFolderId) {
                     return addItem(old)
                 }
@@ -205,7 +200,7 @@ export function useCreateFolderMutation() {
                     if (!newFolder.parentFolderId) {
                         return [...items, newFolder]
                     }
-                    
+
                     if (!items || !Array.isArray(items)) return []
                     return items.map(item => {
                         if (item.id === newFolder.parentFolderId && item.type === 'folder') {
@@ -217,7 +212,7 @@ export function useCreateFolderMutation() {
                         return item
                     })
                 }
-                
+
                 if (newFolder.parentFolderId) {
                     return addItem(old)
                 }

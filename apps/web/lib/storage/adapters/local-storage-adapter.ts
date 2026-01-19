@@ -3,7 +3,6 @@
  * @description Implements StorageAdapter for guest users using browser LocalStorage.
  */
 
-import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '../../preseed-data'
 import type {
     StorageAdapter,
     ReadAdapterOptions,
@@ -16,8 +15,6 @@ import type {
     BatchDeleteAdapterOptions
 } from './types'
 
-const PRESEEDED_KEYS = ['skriuw:notes', 'notes'];
-
 // Base interface for items in storage
 interface StorageItem {
     id: string;
@@ -27,43 +24,6 @@ interface StorageItem {
 }
 
 
-function ensurePreseededData<T extends StorageItem>(storageKey: string, items: T[]): T[] {
-    if (items.length === 0 && PRESEEDED_KEYS.includes(storageKey) && !hasPreseededItems()) {
-        try {
-            const seedItems = generatePreseededItems('guest')
-            const treeItems: StorageItem[] = []
-
-            seedItems.forEach((item: any) => {
-                const typedItem = item as StorageItem
-                if (typedItem.type === 'folder' && !Array.isArray(typedItem.children)) {
-                    typedItem.children = []
-                }
-
-                if (typedItem.parentFolderId) {
-                    const location = findItemLocation(treeItems, typedItem.parentFolderId)
-                    if (location) {
-                        const parent = location.list[location.index]
-                        if (!Array.isArray(parent.children)) parent.children = []
-                        parent.children!.push(typedItem)
-                    } else {
-                        treeItems.push(typedItem)
-                    }
-                } else {
-                    treeItems.push(typedItem)
-                }
-            })
-
-            setLocalItems(storageKey, treeItems)
-            return treeItems as T[]
-        } catch (error) {
-            console.error('Failed to seed guest data:', error)
-            return items
-        } finally {
-            markPreseededItems()
-        }
-    }
-    return items
-}
 
 function getLocalItems<T>(key: string): T[] {
     if (typeof window === 'undefined') return []
@@ -162,12 +122,11 @@ export class LocalStorageAdapter implements StorageAdapter {
         let items = getLocalItems<StorageItem>(storageKey)
 
         if (options?.getById) {
-            items = ensurePreseededData(storageKey, items)
             const location = findItemLocation(items, options.getById)
             return (location ? location.list[location.index] : undefined) as unknown as T | undefined
         }
 
-        return ensurePreseededData(storageKey, items) as unknown as T[]
+        return items as unknown as T[]
     }
 
     async readOne<T>(
@@ -185,7 +144,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         options?: BatchReadAdapterOptions
     ): Promise<T[]> {
         const items = getLocalItems<StorageItem>(storageKey)
-        return ensurePreseededData(storageKey, items) as unknown as T[]
+        return items as unknown as T[]
     }
 
     async update<T>(
@@ -199,7 +158,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         if (!location) return undefined
 
         const currentItem = location.list[location.index]
-        
+
         // Check if moving to a different folder
         const isMoving = data.parentFolderId !== undefined && data.parentFolderId !== currentItem.parentFolderId
 
@@ -220,7 +179,7 @@ export class LocalStorageAdapter implements StorageAdapter {
                 // Note: items is the root array, which we modified in step 1. 
                 // Since we removed the item, we don't risk finding it as its own parent (checking visited prevents bad cycles in search)
                 const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
-                
+
                 if (parentLoc) {
                     const parent = parentLoc.list[parentLoc.index]
                     if (!Array.isArray(parent.children)) parent.children = []
@@ -327,7 +286,7 @@ export class LocalStorageAdapter implements StorageAdapter {
                 const isMoving = data.parentFolderId !== undefined && data.parentFolderId !== currentItem.parentFolderId
 
                 if (isMoving) {
-                     // 1. Remove from old location
+                    // 1. Remove from old location
                     location.list.splice(location.index, 1)
 
                     // 2. Update item data
@@ -339,14 +298,14 @@ export class LocalStorageAdapter implements StorageAdapter {
 
                     // 3. Add to new location
                     if (updatedItem.parentFolderId) {
-                         const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
-                         if (parentLoc) {
-                             const parent = parentLoc.list[parentLoc.index]
-                             if (!Array.isArray(parent.children)) parent.children = []
-                             parent.children!.push(updatedItem)
-                         } else {
-                             items.push(updatedItem)
-                         }
+                        const parentLoc = findItemLocation(items, updatedItem.parentFolderId)
+                        if (parentLoc) {
+                            const parent = parentLoc.list[parentLoc.index]
+                            if (!Array.isArray(parent.children)) parent.children = []
+                            parent.children!.push(updatedItem)
+                        } else {
+                            items.push(updatedItem)
+                        }
                     } else {
                         items.push(updatedItem)
                     }
