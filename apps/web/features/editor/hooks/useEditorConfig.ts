@@ -10,6 +10,7 @@ import { taskBlockSpec } from '../slash-menu/task-block'
 import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
 import { fileTreeBlockSpec } from '../slash-menu/file-tree-block'
 import { calloutBlockSpec } from '../blocks/callout-block'
+import { headerBlockSpec } from '../blocks/header-block'
 import '@/features/editor/utils/prism-file-tree'
 
 /**
@@ -24,7 +25,8 @@ export function createEditorSchema() {
 
 			shadcnTable: shadcnTableBlockSpec(), // Add our new block custom block
 			fileTree: fileTreeBlockSpec(),
-			callout: calloutBlockSpec()
+			callout: calloutBlockSpec(),
+			header: headerBlockSpec()
 		}
 	})
 }
