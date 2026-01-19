@@ -11,7 +11,6 @@ import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
 import { fileTreeBlockSpec } from '../slash-menu/file-tree-block'
 import { calloutBlockSpec } from '../blocks/callout-block'
 import { headerBlockSpec } from '../blocks/header-block'
-import '@/features/editor/utils/prism-file-tree'
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks

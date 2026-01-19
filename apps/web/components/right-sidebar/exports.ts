@@ -1,5 +1,0 @@
-export { RightSidebar } from './index'
-export { CollapsibleSection } from './collapsible-section'
-export { TOCItem } from './toc-item'
-export * from './types'
-export * from './hooks'
