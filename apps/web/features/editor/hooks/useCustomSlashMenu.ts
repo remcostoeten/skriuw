@@ -3,7 +3,7 @@ import {
 	type DefaultReactSuggestionItem
 } from '@blocknote/react'
 import { createElement } from 'react'
-import { CheckSquare, FolderTree, Info } from 'lucide-react'
+import { CheckSquare, FolderTree, Info, LayoutTemplate } from 'lucide-react'
 
 // At symbol icon for note mention
 const AtIcon = () =>
@@ -33,6 +33,21 @@ export const getCustomSlashMenuItems = (
 
 	// Add custom items to the default list
 	const customItems: DefaultReactSuggestionItem[] = [
+		{
+			title: 'Properties',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				editor.insertBlocks(
+					[{ type: 'header' }],
+					currentBlock,
+					'after'
+				)
+			},
+			aliases: ['header', 'meta', 'frontmatter', 'props'],
+			subtext: 'Add page properties and metadata',
+			icon: createElement(LayoutTemplate, { size: 18 }),
+			group: 'Basic blocks'
+		},
 		{
 			title: 'Task',
 			onItemClick: () => {

@@ -258,8 +258,8 @@ function FileTreeItem({
 }: {
 	item: Item
 	level?: number
-    isLast?: boolean
-    parentGuides?: boolean[]
+	isLast?: boolean
+	parentGuides?: boolean[]
 	activeNoteId?: string
 	expandedFolders: Set<string>
 	selectedFolderId: string | null
@@ -1041,30 +1041,30 @@ function FileTreeItem({
 												<div
 													className={cn(
 														"absolute top-1/2 h-px w-[12px] border-t border-muted-foreground/30 pointer-events-none",
-													    isLast && "rounded-bl-lg" // Optional: if we used borders for curve, but here we just use lines. 
-                                                        // Actually, for a rounded curve, we need a box with border-b and border-l.
-                                                        // Let's implement the Curve properly for Last Item.
+														isLast && "rounded-bl-lg" // Optional: if we used borders for curve, but here we just use lines. 
+														// Actually, for a rounded curve, we need a box with border-b and border-l.
+														// Let's implement the Curve properly for Last Item.
 													)}
-                                                    style={{ display: 'none' }} // Placeholder for the actual implementation below
+													style={{ display: 'none' }} // Placeholder for the actual implementation below
 												/>
-                                                {/* Re-implementing with proper Curve for isLast */}
-                                                {isLast ? (
-                                                    <div
-                                                        className="absolute top-0 w-[12px] h-[50%] border-l border-b border-muted-foreground/30 rounded-bl-lg pointer-events-none"
-                                                        style={{
-                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    // For not last, use simple T-shape (Full vertical already drawn). 
-                                                    // Just draw the horizontal arm.
-                                                    <div
-                                                        className="absolute top-1/2 w-[12px] border-t border-muted-foreground/30 pointer-events-none"
-                                                        style={{
-                                                            left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
-                                                        }}
-                                                    />
-                                                )}
+												{/* Re-implementing with proper Curve for isLast */}
+												{isLast ? (
+													<div
+														className="absolute top-0 w-[12px] h-[50%] border-l border-b border-muted-foreground/30 rounded-bl-lg pointer-events-none"
+														style={{
+															left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+														}}
+													/>
+												) : (
+													// For not last, use simple T-shape (Full vertical already drawn). 
+													// Just draw the horizontal arm.
+													<div
+														className="absolute top-1/2 w-[12px] border-t border-muted-foreground/30 pointer-events-none"
+														style={{
+															left: `calc(0.75rem + ${(level - 1) * 0.75}rem + 9px - 0.5px)`,
+														}}
+													/>
+												)}
 											</>
 										)}
 									</>
@@ -1371,6 +1371,7 @@ function FileTreeItem({
 				</ContextMenuContent>
 
 				{isFolder && isExpanded && item.type === 'folder' && (
+					<>
 						{/* Modern Hierarchy Guides - Recursive Children */}
 						{item.children.map((child: any, index: number, arr: any[]) => (
 							<FileTreeItem
@@ -1405,7 +1406,7 @@ function FileTreeItem({
 								showConfirm={showConfirm}
 							/>
 						))}
-					</div>
+					</>
 				)}
 			</ContextMenu>
 		</>
