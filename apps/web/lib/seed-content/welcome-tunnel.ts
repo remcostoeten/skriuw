@@ -12,7 +12,7 @@ const createId = (prefix: string) => `${prefix}-${Date.now()}-${++idCounter}`
 const heading = (level: 1 | 2 | 3, text: string) => ({
     id: createId('h'),
     type: 'heading' as const,
-    props: { level, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+    props: { level, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' } as const,
     content: [{ type: 'text' as const, text, styles: {} }],
     children: [],
 })
@@ -20,7 +20,7 @@ const heading = (level: 1 | 2 | 3, text: string) => ({
 const paragraph = (text: string, styles: any = {}) => ({
     id: createId('p'),
     type: 'paragraph' as const,
-    props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+    props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' } as const,
     content: text ? [{ type: 'text' as const, text, styles }] : [],
     children: [],
 })
@@ -36,7 +36,7 @@ const codeBlock = (code: string, language = 'text') => ({
 const checkItem = (text: string, checked = false) => ({
     id: createId('chk'),
     type: 'checkListItem' as const,
-    props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked },
+    props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left', checked } as const,
     content: [{ type: 'text' as const, text, styles: {} }],
     children: [],
 })
@@ -96,23 +96,23 @@ connected_devices: 4
         // Feature list
         {
             id: createId('li'),
-            type: 'bulletListItem',
-            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-            content: [{ type: 'text', text: 'Slash Commands (/ to activate)', styles: { code: true } }],
+            type: 'bulletListItem' as const,
+            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' } as const,
+            content: [{ type: 'text' as const, text: 'Slash Commands (/ to activate)', styles: { code: true } }],
             children: []
         },
         {
             id: createId('li'),
-            type: 'bulletListItem',
-            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-            content: [{ type: 'text', text: 'Markdown Shortcuts (try # or **)', styles: {} }],
+            type: 'bulletListItem' as const,
+            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' } as const,
+            content: [{ type: 'text' as const, text: 'Markdown Shortcuts (try # or **)', styles: {} }],
             children: []
         },
         {
             id: createId('li'),
-            type: 'bulletListItem',
-            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-            content: [{ type: 'text', text: 'Real-time Sync', styles: {} }],
+            type: 'bulletListItem' as const,
+            props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' } as const,
+            content: [{ type: 'text' as const, text: 'Real-time Sync', styles: {} }],
             children: []
         },
 
