@@ -1241,7 +1241,7 @@ function FileTreeItem({
 						<ContextMenuSubContent
 							className={cn(
 								isMobile &&
-									'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+								'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 							)}
 						>
 							<MoveFolderMenu
@@ -1687,7 +1687,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
-				;(item.children || []).forEach(traverse)
+					; (item.children || []).forEach(traverse)
 			}
 		}
 		items.forEach(traverse)

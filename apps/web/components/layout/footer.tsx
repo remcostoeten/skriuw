@@ -27,7 +27,6 @@ export function Footer() {
 	const currentTheme = settings.theme || 'dark'
 	const isTouchDevice = useIsTouchDevice()
 
-	// Handle hydration safety for window based checks
 	useEffect(() => {
 		setIsMounted(true)
 	}, [])
@@ -38,7 +37,7 @@ export function Footer() {
 		if (currentTheme === 'system' && isMounted) {
 			return window.matchMedia('(prefers-color-scheme: dark)').matches
 		}
-		return true // default to dark
+		return true
 	}, [currentTheme, isMounted])
 
 	const handleThemeToggle = useCallback(
@@ -93,15 +92,11 @@ export function Footer() {
 				</div>
 			</footer>
 
-			{/* Only need one instance of the menu - it internally handles state Based on whatever triggers it */}
 			<SidebarMenu open={activeMenu !== null} onOpenChange={handleOpenChange} />
 		</>
 	)
 }
 
-/**
- * Shared icon button component for the footer to reduce repetition
- */
 function FooterButton({
 	icon: Icon,
 	onClick,
@@ -127,9 +122,6 @@ function FooterButton({
 	)
 }
 
-/**
- * Specialized theme toggle button with optional tooltip
- */
 function ThemeButton({
 	isTouchDevice,
 	isDark,
