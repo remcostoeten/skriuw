@@ -258,14 +258,13 @@ export function useUpdateNoteMutation() {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ noteId: id, tasks: extractedTasks })
-					}).catch(() => {})
+					}).catch(() => { })
 				} catch (taskError) {
 					// Don't fail note update if task sync fails
 					console.error('Failed to sync tasks:', taskError)
 				}
 			}
 
-			// Track activity (fire-and-forget via server action) - skip for guest users
 			if (result.data && userId !== 'guest' && userId !== 'guest-user') {
 				trackActivity({
 					entityType: 'note',

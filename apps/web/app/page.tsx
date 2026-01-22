@@ -15,12 +15,6 @@ import { HeroBadge } from "@skriuw/ui/hero-badge";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useEffect, useCallback, useState, useRef } from "react";
 
-/**
- * Root page component - shows welcome screen on first load.
- *
- * This page shows SkriuwExplanation and lets the user interact with it.
- * It does NOT auto-redirect - users navigate via sidebar clicks.
- */
 export default function Index() {
 	const pathname = usePathname()
 	const router = useRouter()
@@ -28,29 +22,22 @@ export default function Index() {
 	const { getNoteUrl } = useNoteSlug(items)
 	const { data: session, isPending: isAuthLoading } = useSession()
 
-	// Find the welcome note for guests (usually the first note)
 	const welcomeNoteId = useMemo(() => {
 		if (session || !items.length) return null
-		// Look for the seeded welcome note first
 		const welcomeNote = items.find((item) => item.id.startsWith('welcome-'))
 		if (welcomeNote) return welcomeNote.id
-		// Fallback to the first note if no welcome note found
 		const firstNote = flattenNotes(items)[0]
 		return firstNote?.id || null
 	}, [items, session])
 
-	// Cookie for alpha badge
 	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
-	// Only show badge if cookie not set
 	const showBadge = hideBadgeCookie !== 'true'
 
-	// Prevent hydration mismatch
 	const [hasMounted, setHasMounted] = useState(false)
 	useEffect(() => {
 		setHasMounted(true)
 	}, [])
 
-	// Handlers
 	const handleCreateNote = useCallback(
 		async (content?: string) => {
 			const newNote = await createNote('Untitled', content)
@@ -63,7 +50,6 @@ export default function Index() {
 		[createNote, getNoteUrl, router]
 	)
 
-	// Handle PWA Actions (Shortcuts & Share Target)
 	useEffect(() => {
 		if (!hasMounted) return
 
@@ -72,7 +58,6 @@ export default function Index() {
 		const sharedContent = params.get('content')
 
 		if (action === 'new') {
-			// Clear params and create note
 			window.history.replaceState({}, '', '/')
 			handleCreateNote(sharedContent || undefined)
 		}
@@ -82,7 +67,6 @@ export default function Index() {
 		updateCookie('true')
 	}
 
-	// Keyboard shortcuts
 	useShortcut('create-note', (e) => {
 		e.preventDefault()
 		handleCreateNote()
@@ -93,8 +77,6 @@ export default function Index() {
 		router.push('/archive')
 	})
 
-	// Show nothing while checking auth to prevent flash
-	// Also wait for items to load if we are guest (to find the note)
 	if (!hasMounted || isAuthLoading || (!session && isInitialLoading)) {
 		return null
 	}
@@ -116,17 +98,14 @@ export default function Index() {
 			)}
 
 			{session ? (
-				// Authenticated: Show Branding / Explanation
 				<div className='flex-1 flex items-center justify-center translate-y-[30%]'>
 					<SkriuwExplanation onCreateNote={handleCreateNote} />
 				</div>
 			) : (
-				// Guest: Show Full Editor with Welcome Note
 				<div className='flex-1 flex flex-col h-full'>
 					{welcomeNoteId ? (
 						<NoteSplitView noteId={welcomeNoteId} />
 					) : (
-						// Fallback if no welcome note found (shouldn't happen due to seeding)
 						<div className='flex-1 flex items-center justify-center'>
 							<SkriuwExplanation onCreateNote={handleCreateNote} />
 						</div>
