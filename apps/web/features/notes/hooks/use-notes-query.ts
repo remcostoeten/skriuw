@@ -250,8 +250,8 @@ export function useUpdateNoteMutation() {
                 }
             }
 
-            // Track activity (fire-and-forget via server action)
-            if (result.data) {
+            // Track activity (fire-and-forget via server action) - skip for guest users
+            if (result.data && userId !== 'guest' && userId !== 'guest-user') {
                 trackActivity({
                     entityType: 'note',
                     entityId: id,
@@ -479,7 +479,7 @@ function filterActiveItems(items: Item[]): Item[] {
         .filter((item) => !item.deletedAt)
         .map((item) => {
             if (item.type === 'folder') {
-                return { ...item, children: filterActiveItems(item.children) }
+                return { ...item, children: filterActiveItems(item.children || []) }
             }
             return item
         })

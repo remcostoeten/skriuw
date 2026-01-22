@@ -17,7 +17,7 @@ function filterActiveItems(items: Item[]): Item[] {
 		.filter((item) => !item.deletedAt)
 		.map((item) => {
 			if (item.type === 'folder') {
-				return { ...item, children: filterActiveItems(item.children) }
+				return { ...item, children: filterActiveItems(item.children || []) }
 			}
 			return item
 		})
