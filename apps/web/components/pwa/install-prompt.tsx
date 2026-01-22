@@ -9,15 +9,30 @@ import { cn } from "@skriuw/shared";
 const DISMISS_KEY = "pwa-install-dismissed-at";
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000;
 
+type PromptChoice = {
+    outcome: "accepted" | "dismissed";
+    platform: string;
+};
+
+type PromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<PromptChoice>;
+};
+
+type StandaloneNav = Navigator & {
+    standalone?: boolean;
+};
+
 export function InstallPrompt() {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [isIos, setIsIos] = useState(false);
-    const [showIosInstructions, setShowIosInstructions] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
-    const [isDismissed, setIsDismissed] = useState(true);
+    const [deferredPrompt, setPrompt] = useState<PromptEvent | null>(null);
+    const [isIos, setIos] = useState(false);
+    const [iosOpen, setOpen] = useState(false);
+    const [isVisible, setVisible] = useState(false);
+    const [isDismissed, setDismissed] = useState(true);
 
     useEffect(() => {
-        const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+        const nav = window.navigator as StandaloneNav;
+        const isStandalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(nav.standalone);
         if (isStandalone) return;
 
         const dismissedAt = localStorage.getItem(DISMISS_KEY);
@@ -27,46 +42,54 @@ export function InstallPrompt() {
                 return;
             }
         }
-        setIsDismissed(false);
+        setDismissed(false);
 
         const userAgent = window.navigator.userAgent.toLowerCase();
-        const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-        setIsIos(isIosDevice);
+        const iosMatch = /iphone|ipad|ipod/.test(userAgent);
+        setIos(iosMatch);
 
-        if (isIosDevice) {
-            setIsVisible(true);
+        if (iosMatch) {
+            setVisible(true);
         }
 
-        const handleBeforeInstallPrompt = (e: any) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
-            setIsVisible(true);
-        };
+        function onPrompt(event: Event) {
+            if (!("prompt" in event)) return;
+            const promptEvent = event as PromptEvent;
+            promptEvent.preventDefault();
+            setPrompt(promptEvent);
+            setVisible(true);
+        }
 
-        window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+        window.addEventListener("beforeinstallprompt", onPrompt);
 
         return () => {
-            window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+            window.removeEventListener("beforeinstallprompt", onPrompt);
         };
     }, []);
 
-    const handleInstallClick = async () => {
+    async function onInstall() {
         if (isIos) {
-            setShowIosInstructions(true);
+            setOpen(true);
+            setVisible(false);
         } else if (deferredPrompt) {
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             if (outcome === "accepted") {
-                setDeferredPrompt(null);
-                setIsVisible(false);
+                setPrompt(null);
+                setVisible(false);
             }
         }
-    };
+    }
 
-    const handleDismiss = () => {
+    function onDismiss() {
         localStorage.setItem(DISMISS_KEY, Date.now().toString());
-        setIsVisible(false);
-    };
+        setVisible(false);
+    }
+
+    function onIos(open: boolean) {
+        setOpen(open);
+        setVisible(!open);
+    }
 
     if (!isVisible || isDismissed) return null;
 
@@ -104,7 +127,7 @@ export function InstallPrompt() {
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Button
                             size="sm"
-                            onClick={handleInstallClick}
+                            onClick={onInstall}
                             className={cn(
                                 "h-9 px-4 text-xs font-semibold",
                                 "bg-white text-black hover:bg-white/90",
@@ -115,7 +138,7 @@ export function InstallPrompt() {
                         </Button>
                         <button
                             type="button"
-                            onClick={handleDismiss}
+                            onClick={onDismiss}
                             className={cn(
                                 "flex items-center justify-center",
                                 "h-9 w-9 rounded-xl",
@@ -131,8 +154,8 @@ export function InstallPrompt() {
             </div>
 
             <IosInstallInstructions
-                isOpen={showIosInstructions}
-                onOpenChange={setShowIosInstructions}
+                isOpen={iosOpen}
+                onOpenChange={onIos}
             />
         </>
     );
