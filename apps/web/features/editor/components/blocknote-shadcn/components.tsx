@@ -227,15 +227,55 @@ const SuggestionMenuRoot = ({
 	</div>
 )
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+function getItemText(value: unknown): string | undefined {
+	if (typeof value === 'string') return value
+	if (typeof value === 'number') return String(value)
+	if (!isRecord(value)) return undefined
+	if (typeof value.name === 'string') return value.name
+	if (typeof value.label === 'string') return value.label
+	return undefined
+}
+
+function getItemTitle(item: unknown): string {
+	if (!isRecord(item)) return String(item)
+	return (
+		getItemText(item.title) ||
+		getItemText(item.label) ||
+		getItemText(item.name) ||
+		String(item)
+	)
+}
+
+function getItemIcon(item: unknown): React.ReactNode {
+	if (!isRecord(item)) return '•'
+	const icon = item.icon
+	if (React.isValidElement(icon)) return icon
+	if (typeof icon === 'string' || typeof icon === 'number') return icon
+	const emoji = getItemText(item.emoji)
+	if (emoji) return emoji
+	const native = getItemText(item.native)
+	if (native) return native
+	return '•'
+}
+
+function getItemDesc(item: unknown): string | undefined {
+	if (!isRecord(item)) return undefined
+	return getItemText(item.description) || getItemText(item.subtext)
+}
+
 const SuggestionMenuItem = ({
 	className,
 	isSelected,
 	onClick,
 	item,
 }: BlockNoteComponentProps['SuggestionMenu']['Item']) => {
-	const title = (item as any).title || (item as any).label || String(item)
-	const description = (item as any).description || (item as any).subtext
-	const icon = (item as any).icon
+	const title = getItemTitle(item)
+	const description = getItemDesc(item)
+	const icon = getItemIcon(item)
 
 	// Determine category based on title for better organization
 	function getCategory(title: string) {
@@ -392,10 +432,10 @@ const GridSuggestionMenuItem = ({
 		)}
 	>
 		<div className="text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110">
-			{(item as any).icon}
+			{getItemIcon(item)}
 		</div>
 		<span className="font-semibold truncate w-full text-center leading-tight">
-			{(item as any).title || (item as any).label || String(item)}
+			{getItemTitle(item)}
 		</span>
 	</button>
 )
