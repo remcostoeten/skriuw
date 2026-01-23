@@ -4,9 +4,8 @@ import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor 
 import { Link2 } from "lucide-react";
 import { useCallback } from "react";
 
-type MentionSuggestionItem = NoteMentionSearchResult & {
-    // Custom props if needed
-}
+// NoteMentionSearchResult is sufficient for now, but we alias it in case we need extra props later
+type MentionSuggestionItem = NoteMentionSearchResult
 type MentionGetItems = (query: string) => Promise<MentionSuggestionItem[]>
 
 const WikilinkMenuList = ({

@@ -1,13 +1,7 @@
 import type { Item, Note } from '../types'
 import { flattenNotes } from './flatten-notes'
 import { extractWikilinksFromBlocks } from './wikilink-parser'
-
-export type Backlink = {
-    noteId: string
-    noteName: string
-    context: string
-    linkText: string
-}
+import type { Backlink } from '@skriuw/shared'
 
 export function getBacklinks(items: Item[], currentNoteId: string, currentNoteName: string): Backlink[] {
     const backlinks: Backlink[] = []
