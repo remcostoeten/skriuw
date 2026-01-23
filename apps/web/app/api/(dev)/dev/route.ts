@@ -6,7 +6,10 @@ import {
 	tasks,
 	settings,
 	shortcuts,
-	getSafeTimestamp
+	getSafeTimestamp,
+	account,
+	and,
+	eq
 } from '@skriuw/db'
 import { generateSampleData } from '@/app/api/(dev)/dev/seeds'
 import { generateId } from '@skriuw/shared'
@@ -14,16 +17,34 @@ import { env } from '@/lib/env'
 import { getCurrentUserId, getSession } from '@/lib/api-auth'
 import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from '@/lib/schema-utils'
 
+async function isGithubOwner(userId: string) {
+	const db = getDatabase()
+	const accounts = await db
+		.select({ id: account.id })
+		.from(account)
+		.where(and(eq(account.userId, userId), eq(account.providerId, 'github')))
+		.limit(1)
+
+	return accounts.length > 0
+}
+
 async function isAdminOrDev() {
 	if (process.env.NODE_ENV === 'development') return true
 
-	const adminEmails = env.ADMIN_EMAILS?.split(',').map((e) => e.trim()) || []
-	if (adminEmails.length === 0) return false
-
 	const session = await getSession()
-	const userEmail = session?.user?.email
+	const userEmail = session?.user?.email?.toLowerCase() ?? null
+	const userId = session?.user?.id ?? null
 
-	return userEmail && adminEmails.includes(userEmail)
+	const adminEmails =
+		env.ADMIN_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) || []
+
+	if (userEmail && adminEmails.includes(userEmail)) {
+		return true
+	}
+
+	if (!userId || userEmail !== 'remcostoeten@hotmail.com') return false
+
+	return isGithubOwner(userId)
 }
 
 export async function POST(request: NextRequest) {
