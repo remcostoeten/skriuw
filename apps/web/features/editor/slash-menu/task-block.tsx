@@ -1,6 +1,4 @@
 import { createReactBlockSpec } from '@blocknote/react'
-import { ArrowUpRight } from 'lucide-react'
-
 import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -14,7 +12,7 @@ import { useUIStore } from '@/stores/ui-store'
  * - Slash command: /task
  * - Click task title to open task detail view
  */
-export const taskBlockSpec: any = createReactBlockSpec(
+export const taskBlockSpec = createReactBlockSpec(
 	{
 		type: 'task',
 		propSchema: {
@@ -27,10 +25,10 @@ export const taskBlockSpec: any = createReactBlockSpec(
 	{
 		render: ({ block, editor, contentRef }) => {
 			const checked = block.props.checked as boolean
-			const children = block.children;
-			const totalSubtasks = children.length;
-			const completedSubtasks = children.filter(child => child.props.checked).length;
-			const hasSubtasks = totalSubtasks > 0;
+			const children = block.children
+			const totalSubtasks = children.length
+			const completedSubtasks = children.filter((child) => child.props.checked).length
+			const hasSubtasks = totalSubtasks > 0
 
 			return (
 				<div
@@ -43,6 +41,12 @@ export const taskBlockSpec: any = createReactBlockSpec(
 							checked={checked}
 							size="sm"
 							variant="default"
+							animation="gooey"
+							colors={{
+								bgChecked: 'hsl(var(--foreground))',
+								borderChecked: 'hsl(var(--foreground))',
+								checkmark: 'hsl(var(--background))',
+							}}
 							onChange={(newChecked) => {
 								editor.updateBlock(block.id, {
 									props: {
@@ -154,4 +158,3 @@ export const taskBlockSpec: any = createReactBlockSpec(
 		},
 	}
 )
-
