@@ -243,6 +243,36 @@ const BACKUP_CONTENT = [
 	bulletItem('One-click restore')
 ]
 
+const WIKILINKS_CONTENT = [
+	heading(1, '🔗 Wikilinks & Backlinks'),
+	paragraph(
+		'Connect your notes together with bi-directional linking, just like Obsidian or Roam.'
+	),
+	paragraph(''),
+	heading(2, '📝 Creating Wikilinks'),
+	bulletItem('Type [ to open the link suggestion menu'),
+	bulletItem('Search for an existing note or create a new one'),
+	bulletItem('Links render as [[Note Name]] chips in the editor'),
+	bulletItem('Click any wikilink to navigate instantly'),
+	paragraph(''),
+	heading(2, '🔍 Backlinks Panel'),
+	paragraph('At the bottom of every note, you\'ll see:'),
+	bulletItem('Linked References — Notes that explicitly link to this page'),
+	bulletItem('Unlinked Mentions — Notes that mention this page\'s name without linking'),
+	bulletItem('Click the chain icon to convert mentions into wikilinks'),
+	paragraph(''),
+	heading(2, '✨ Features'),
+	bulletItem('Autocomplete — Fuzzy search across all your notes'),
+	bulletItem('Create on click — Link to notes that don\'t exist yet'),
+	bulletItem('Context preview — See surrounding text in backlinks'),
+	bulletItem('Keyboard accessible — Tab + Enter navigation'),
+	paragraph(''),
+	heading(2, '💡 Tips'),
+	bulletItem('Use wikilinks to build a knowledge graph'),
+	bulletItem('Check unlinked mentions to discover hidden connections'),
+	bulletItem('Organize thoughts associatively, not just hierarchically')
+]
+
 // ============================================================================
 // Note and Folder Definitions
 // ============================================================================
@@ -261,6 +291,7 @@ const NOTES: NoteDefinition[] = [
 	{ name: 'Editor Features', content: EDITOR_FEATURES_CONTENT, folder: 'Getting Started' },
 	{ name: 'Architecture Overview', content: ARCHITECTURE_CONTENT, folder: 'Documentation' },
 	{ name: 'Storage & Backup', content: BACKUP_CONTENT, folder: 'Documentation' },
+	{ name: 'Wikilinks & Backlinks', content: WIKILINKS_CONTENT, folder: 'Documentation' },
 	{
 		name: 'Project Ideas',
 		content: [heading(2, 'Project Ideas'), paragraph('Add your project ideas here...')],
