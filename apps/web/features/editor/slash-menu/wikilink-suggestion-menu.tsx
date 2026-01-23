@@ -5,7 +5,10 @@ import { Link2 } from "lucide-react";
 import { useCallback } from "react";
 
 // NoteMentionSearchResult is sufficient for now, but we alias it in case we need extra props later
-type MentionSuggestionItem = NoteMentionSearchResult
+// NoteMentionSearchResult is sufficient for now, but we alias it in case we need extra props later
+type MentionSuggestionItem = NoteMentionSearchResult & {
+    isCreateOption?: boolean
+}
 type MentionGetItems = (query: string) => Promise<MentionSuggestionItem[]>
 
 const WikilinkMenuList = ({
@@ -87,16 +90,27 @@ export function WikilinkSuggestionMenu() {
 
     const getItems = useCallback<MentionGetItems>(
         async (query) => {
-            // BlockNote captures the char after the trigger.
-            // If trigger is '[', user types '[' (to make [[), query might handle it.
-            // We want to trigger on '[[', but BN supports single char.
-            // We'll use '[' as trigger, but we need to check if we are actually doing a double bracket.
-            // BUT, standard BN doesn't easily support multi-char trigger logic in the *trigger* prop.
-            // However, we can just trigger on '[' and show menu.
-            // If the user continues typing, we filter.
-
-            // TODO: Add "Create new note" item if no match
             const results = searchNoteMentions(query, candidates)
+
+            // If no exact match, add "Create Note" option
+            // We consider it a "no exact match" if the query is not empty and no result has the exact same title
+            // Or simply always add it at the bottom if the query is non-empty?
+            // A common pattern is: Show matches. If query doesn't match any Title exactly, show "Create 'Query'".
+
+            const hasExactMatch = results.some(r => r.title.toLowerCase() === query.toLowerCase())
+
+            if (query.trim().length > 0 && !hasExactMatch) {
+                const createOption: MentionSuggestionItem = {
+                    id: `create-${query}`,
+                    title: `Create "${query}"`,
+                    titleHighlights: [{ text: `Create "${query}"`, matched: true }],
+                    path: 'New Note',
+                    updatedAt: new Date(),
+                    isCreateOption: true
+                }
+                return [...results, createOption]
+            }
+
             return results
         },
         [candidates]
@@ -105,6 +119,23 @@ export function WikilinkSuggestionMenu() {
     const handleItemClick = useCallback(
         (item: MentionSuggestionItem) => {
             if (!editor) return
+
+            if (item.isCreateOption) {
+                // For create option, we insert the link with the query as the name and empty ID
+                // The WikiLink component handles the creation when clicked
+                const noteName = item.title.replace(/^Create "/, '').replace(/"$/, '')
+                editor.insertInlineContent([
+                    {
+                        type: "wikilink",
+                        props: {
+                            noteName: noteName,
+                            noteId: "" // Empty ID signals it needs creation
+                        }
+                    },
+                    " "
+                ])
+                return
+            }
 
             // Insert the WikiLink inline content
             editor.insertInlineContent([
