@@ -8,6 +8,11 @@ import { useNoteSlug } from '../../notes/hooks/use-note-slug'
 import { useNotesContext } from '../../notes/context/notes-context'
 import { cn } from '@skriuw/shared'
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Badge } from '@skriuw/ui'
+import { Link as LinkIcon } from 'lucide-react'
+import { createLinkInBlocks } from '../../notes/utils/link-mention'
+import { notify } from '@/lib/notify'
+import { flattenNotes } from '../../notes/utils/flatten-notes'
+import type { Note } from '../../notes/types'
 
 type BacklinksPanelProps = {
     noteId: string
@@ -17,7 +22,7 @@ type BacklinksPanelProps = {
 
 export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelProps) {
     const router = useRouter()
-    const { items } = useNotesContext()
+    const { items, updateNote } = useNotesContext()
     const { getNoteUrl } = useNoteSlug(items)
     const { backlinks, unlinkedMentions, totalCount, isLoading } = useBacklinks(noteId, noteName)
 
@@ -27,6 +32,38 @@ export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelPr
     const handleNavigate = (targetNoteId: string) => {
         const url = getNoteUrl(targetNoteId)
         router.push(url)
+    }
+
+    const handleLinkMention = async (e: React.MouseEvent, mention: typeof unlinkedMentions[0]) => {
+        e.stopPropagation() // Prevent navigation
+
+        try {
+            const allNotes = flattenNotes(items).filter((item): item is Note => item.type === 'note')
+            const sourceNote = allNotes.find(n => n.id === mention.noteId)
+
+            if (!sourceNote || !sourceNote.content) {
+                notify("Could not find source note").error()
+                return
+            }
+
+            const { success, newBlocks } = createLinkInBlocks(
+                sourceNote.content,
+                noteName, // The text to find (which matches current note name)
+                noteId,   // The ID to link to (current note)
+                noteName  // The name to link to
+            )
+
+            if (!success) {
+                notify("Could not find mention in note content").error()
+                return
+            }
+
+            await updateNote(sourceNote.id, newBlocks)
+            notify("Note linked successfully").success()
+        } catch (err) {
+            console.error("Failed to link mention", err)
+            notify("Failed to link mention").error()
+        }
     }
 
     if (isLoading) {
@@ -99,20 +136,33 @@ export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelPr
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2 space-y-2">
                         {unlinkedMentions.map((mention, index) => (
-                            <button
+                            <div
                                 key={`${mention.noteId}-${index}`}
-                                onClick={() => handleNavigate(mention.noteId)}
-                                className="w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group"
+                                className="group/item relative"
                             >
-                                <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                                    {mention.noteName}
-                                </div>
-                                {mention.context && (
-                                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {mention.context}
+                                <button
+                                    onClick={() => handleNavigate(mention.noteId)}
+                                    className="w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group pr-8"
+                                >
+                                    <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                                        {mention.noteName}
                                     </div>
-                                )}
-                            </button>
+                                    {mention.context && (
+                                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                            {mention.context}
+                                        </div>
+                                    )}
+                                </button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-1 top-1 h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                    onClick={(e) => handleLinkMention(e, mention)}
+                                    title="Link this mention"
+                                >
+                                    <LinkIcon className="w-3 h-3" />
+                                </Button>
+                            </div>
                         ))}
                     </CollapsibleContent>
                 </Collapsible>
