@@ -1,6 +1,6 @@
 'use client'
 
-import { CloudOff, Globe, Zap, Upload, type LucideIcon } from 'lucide-react'
+import { CloudOff, Globe, Zap, Upload, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
 import { useSettingsContext } from '../../features/settings/settings-provider'
@@ -8,7 +8,7 @@ import { createShortcut } from '../../features/shortcuts/builder'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
 
 import { SidebarMenu } from '../sidebar-menu'
-import { Kbd, ThemeToggle, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
+import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
 import { cn } from '@skriuw/shared'
 import { useIsTouchDevice } from '@skriuw/shared/client'
 
@@ -58,7 +58,7 @@ export function Footer() {
 
 	return (
 		<>
-			<footer className="hidden lg:block fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]">
+			<footer className="hidden lg:flex fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex flex-row items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]">
 				<div className="flex items-center gap-1.5">
 					<ThemeButton
 						isTouchDevice={isTouchDevice}
@@ -142,9 +142,11 @@ function ThemeButton({
 	onToggle: (v: boolean) => void
 }) {
 	const content = (
-		<div className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors">
-			<ThemeToggle size={24} isDark={isDark} onChange={onToggle} />
-		</div>
+		<FooterButton
+			icon={isDark ? Moon : Sun}
+			onClick={() => onToggle(!isDark)}
+			ariaLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+		/>
 	)
 
 	if (isTouchDevice) return content

@@ -109,7 +109,7 @@ function MoveFolderMenu({
 					!checkIsDescendant(item.id, folderIdsToExclude, allItems)
 				) {
 					folders.push(item)
-					collectFolders(item.children)
+					collectFolders(item.children || [])
 				}
 			}
 		}
@@ -1822,7 +1822,7 @@ export function Sidebar({
 		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
-				item.children.forEach(traverse)
+					; (item.children || []).forEach(traverse)
 			}
 		}
 		items.forEach(traverse)
