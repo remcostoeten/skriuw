@@ -25,11 +25,11 @@ const WikiLinkComponent = ({ noteName, noteId }: { noteName: string, noteId: str
                 if (newNote) {
                     const url = getNoteUrl(newNote.id);
                     router.push(url);
-                    notify(`Created "${noteName}"`).success();
+                    notify(`Created "${noteName}"`);
                 }
             } catch (error) {
                 console.error("Failed to create note from wikilink", error);
-                notify("Failed to create note").error();
+                notify("Failed to create note");
             }
         }
     };

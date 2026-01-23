@@ -203,7 +203,7 @@ export function EditorHeader({
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <Badge variant="outline" className="rounded-sm font-normal text-xs cursor-pointer hover:bg-muted">Standard</Badge>
-                                        <Badge variant="ghost" className="rounded-sm font-normal text-xs text-muted-foreground hover:bg-muted cursor-pointer">Full width</Badge>
+                                        <Badge variant="secondary" className="rounded-sm font-normal text-xs text-muted-foreground hover:bg-muted cursor-pointer">Full width</Badge>
                                     </div>
 
                                     {/* Journal */}
