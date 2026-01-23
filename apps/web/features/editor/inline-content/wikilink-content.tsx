@@ -2,14 +2,15 @@ import { createReactInlineContentSpec } from "@blocknote/react";
 import { useRouter } from "next/navigation";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import { notify } from "@/lib/notify";
 
 // Separate component to use hooks
 const WikiLinkComponent = ({ noteName, noteId }: { noteName: string, noteId: string }) => {
     const router = useRouter();
-    const { items } = useNotesContext(); // Access context to get slugs/urls
+    const { items, createNote } = useNotesContext(); // Access context to get slugs/urls and createNote
     const { getNoteUrl } = useNoteSlug(items);
 
-    const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+    const handleClick = async (e: React.MouseEvent | React.KeyboardEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -17,8 +18,19 @@ const WikiLinkComponent = ({ noteName, noteId }: { noteName: string, noteId: str
             const url = getNoteUrl(noteId);
             router.push(url);
         } else {
-            // Fallback or "create new" logic could go here if we tracked missing notes
-            console.warn("WikiLink clicked without noteId");
+            // Logic for missing note (create new)
+            try {
+                notify(`Creating note "${noteName}"...`).duration(2000);
+                const newNote = await createNote(noteName);
+                if (newNote) {
+                    const url = getNoteUrl(newNote.id);
+                    router.push(url);
+                    notify(`Created "${noteName}"`).success();
+                }
+            } catch (error) {
+                console.error("Failed to create note from wikilink", error);
+                notify("Failed to create note").error();
+            }
         }
     };
 
