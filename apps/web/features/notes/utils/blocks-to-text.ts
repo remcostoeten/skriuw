@@ -1,4 +1,4 @@
-import type { Block } from '@blocknote/core'
+import type { Block } from "@blocknote/core";
 
 /**
  * Extracts plain text content from BlockNote blocks
@@ -19,7 +19,11 @@ export function blocksToText(blocks: Block[]): string {
 			for (const contentItem of block.content) {
 				if (typeof contentItem === 'string') {
 					textParts.push(contentItem)
-				} else if (contentItem && typeof contentItem === 'object' && 'text' in contentItem) {
+				} else if (
+					contentItem &&
+					typeof contentItem === 'object' &&
+					'text' in contentItem
+				) {
 					textParts.push(String((contentItem as { text: string }).text))
 				}
 			}

@@ -3,12 +3,14 @@
 ## 1. Count Prefix System
 
 ### Implementation Details
+
 - Support numeric prefixes for multiplying commands (e.g., `3dd`, `5j`, `10w`)
 - Buffer count state between keystrokes
 - Reset count buffer on command completion or mode change
 - Display count in status indicator
 
 ### Examples
+
 ```
 3j -> Move down 3 lines
 2dd -> Delete 2 lines
@@ -18,6 +20,7 @@
 ## 2. Text Objects
 
 ### Inner/Around Text Objects
+
 - `iw`, `aw` - inner/around word
 - `is`, `as` - inner/around sentence
 - `ip`, `ap` - inner/around paragraph
@@ -28,6 +31,7 @@
 - `it`, `at` - inner/around tags (HTML/XML)
 
 ### Note-Specific Text Objects
+
 - `ib`, `ab` - inner/around block (BlockNote specific)
 - `ih`, `ah` - inner/around heading section
 - `ic`, `ac` - inner/around code block
@@ -36,24 +40,27 @@
 ## 3. Dot Command (Repeat)
 
 ### Core Functionality
+
 - `.` repeats last change operation
 - Track last change in vim state
 - Support complex operations (not just simple edits)
 - Handle count prefixes with dot command
 
 ### State Management
+
 ```typescript
 type TLastChange = {
-  operation: string
-  count?: number
-  register?: string
-  startMode: VimMode
+	operation: string
+	count?: number
+	register?: string
+	startMode: VimMode
 }
 ```
 
 ## 4. Command-Line Mode
 
 ### Commands Beyond :w, :q
+
 - `:s/pattern/replacement/` - substitute
 - `:g/pattern/command` - global command
 - `:sort` - sort lines
@@ -64,6 +71,7 @@ type TLastChange = {
 - `:marks` - show marks
 
 ### Command History
+
 - Use `↑`/`↓` to navigate command history
 - Store last N commands
 - Persist command history to storage
@@ -71,6 +79,7 @@ type TLastChange = {
 ## 5. Window/Split Management
 
 ### Keybindings
+
 - `Ctrl+w s` - horizontal split
 - `Ctrl+w v` - vertical split
 - `Ctrl+w h/j/k/l` - navigate splits
@@ -82,6 +91,7 @@ type TLastChange = {
 ## 6. Folding Support
 
 ### Fold Commands
+
 - `za` - toggle fold
 - `zo` - open fold
 - `zc` - close fold
@@ -90,6 +100,7 @@ type TLastChange = {
 - `zj`/`zk` - move to next/previous fold
 
 ### Application Context
+
 - Fold heading sections
 - Fold code blocks
 - Fold nested lists
@@ -98,6 +109,7 @@ type TLastChange = {
 ## 7. Scrolling Commands
 
 ### Additional Scroll Keys
+
 - `Ctrl+d` - scroll down half page
 - `Ctrl+u` - scroll up half page
 - `Ctrl+f` - scroll forward full page
@@ -111,6 +123,7 @@ type TLastChange = {
 ## 8. Advanced Search Features
 
 ### Search Options
+
 - Case-sensitive/insensitive toggle
 - Whole word matching
 - Regex support
@@ -118,6 +131,7 @@ type TLastChange = {
 - Search history with `/` and `↑`/`↓`
 
 ### Search Highlighting
+
 - Highlight all matches
 - Incremental search preview
 - Clear highlights command (`:noh`)
@@ -126,6 +140,7 @@ type TLastChange = {
 ## 9. Clipboard and Register System
 
 ### Register Types
+
 - Unnamed register (`""`)
 - Numbered registers (`"0` - `"9`)
 - Named registers (`"a` - `"z`)
@@ -134,6 +149,7 @@ type TLastChange = {
 - Last search register (`"/`)
 
 ### Register Operations
+
 - `"ayy` - yank line to register a
 - `"ap` - paste from register a
 - `:reg` - show all registers
@@ -142,12 +158,14 @@ type TLastChange = {
 ## 10. Jump List and Change List
 
 ### Jump Navigation
+
 - `Ctrl+o` - jump to previous location
 - `Ctrl+i` - jump to next location
 - `:jumps` - show jump list
 - Persist jump list across sessions
 
 ### Change Navigation
+
 - `g;` - jump to previous change
 - `g,` - jump to next change
 - `:changes` - show change list
@@ -155,6 +173,7 @@ type TLastChange = {
 ## 11. Block-Specific Operations
 
 ### BlockNote Navigation
+
 - `{` - previous block
 - `}` - next block
 - `[[` - previous heading
@@ -162,6 +181,7 @@ type TLastChange = {
 - `gd` - go to definition (if linking between notes)
 
 ### Block Manipulation
+
 - `dib` - delete inner block
 - `dab` - delete around block
 - `yib` - yank inner block
@@ -170,6 +190,7 @@ type TLastChange = {
 ## 12. Undo Tree Navigation
 
 ### Beyond Linear Undo
+
 - Track undo branches
 - `g-` - go to older text state
 - `g+` - go to newer text state
@@ -180,6 +201,7 @@ type TLastChange = {
 ## 13. Ex Commands for Note Management
 
 ### Note-Specific Commands
+
 - `:note new` - create new note
 - `:note rename` - rename current note
 - `:note delete` - delete current note
@@ -190,6 +212,7 @@ type TLastChange = {
 ## 14. Insert Mode Special Keys
 
 ### Quick Navigation in Insert Mode
+
 - `Ctrl+h` - delete previous character
 - `Ctrl+w` - delete previous word
 - `Ctrl+u` - delete to start of line
@@ -200,6 +223,7 @@ type TLastChange = {
 ## 15. Operator Pending Mode Details
 
 ### Implementation Requirements
+
 - Clear visual indicator of pending operator
 - Timeout for incomplete sequences
 - Cancel with `Esc`
@@ -209,6 +233,7 @@ type TLastChange = {
 ## 16. Keybinding Conflicts Resolution
 
 ### Conflict Detection Strategy
+
 - Check for browser shortcut conflicts
 - Check for application shortcut conflicts
 - Warn on profile import conflicts
@@ -216,6 +241,7 @@ type TLastChange = {
 - Provide override mechanism
 
 ### Common Conflict Areas
+
 - `Ctrl+w` (close tab vs window commands)
 - `Ctrl+n` (new window vs navigation)
 - `Ctrl+t` (new tab vs tag jump)
@@ -224,6 +250,7 @@ type TLastChange = {
 ## 17. Mode Indicators
 
 ### Visual Feedback
+
 - Status bar mode indicator
 - Cursor shape per mode (block, line, underline)
 - Color coding per mode
@@ -233,6 +260,7 @@ type TLastChange = {
 ## 18. Training Mode
 
 ### Progressive Learning
+
 - Tutorial mode for vim beginners
 - Hints system showing available commands
 - Command palette showing vim equivalents
@@ -242,6 +270,7 @@ type TLastChange = {
 ## 19. Contextual Help System
 
 ### In-App Documentation
+
 - `?` or `:help {topic}` - show help
 - Context-sensitive help based on current mode
 - Interactive keybinding reference
@@ -251,6 +280,7 @@ type TLastChange = {
 ## 20. Mobile/Touch Adaptation
 
 ### Alternative Approach
+
 - Virtual vim keys overlay
 - Gesture-based vim commands
 - Simplified vim mode for touch
@@ -260,6 +290,7 @@ type TLastChange = {
 ## 21. Performance Optimizations
 
 ### Specific Techniques
+
 - Use event delegation for key handlers
 - Debounce rapid keystrokes appropriately
 - Virtual scrolling for long documents
@@ -270,6 +301,7 @@ type TLastChange = {
 ## 22. Collaborative Editing Considerations
 
 ### Multi-User Scenarios
+
 - Show other users' cursor modes
 - Handle concurrent edits with vim operations
 - Sync mode state carefully
@@ -279,6 +311,7 @@ type TLastChange = {
 ## 23. Plugin Architecture
 
 ### Extension Points
+
 - Custom operators
 - Custom motions
 - Custom text objects
@@ -286,22 +319,24 @@ type TLastChange = {
 - Event hooks (mode change, command execution)
 
 ### Plugin Format
+
 ```typescript
 type TPlugin = {
-  id: string
-  name: string
-  version: string
-  keybindings?: Keybinding[]
-  actions?: KeybindingAction[]
-  textObjects?: TextObject[]
-  onActivate?: () => void
-  onDeactivate?: () => void
+	id: string
+	name: string
+	version: string
+	keybindings?: Keybinding[]
+	actions?: KeybindingAction[]
+	textObjects?: TextObject[]
+	onActivate?: () => void
+	onDeactivate?: () => void
 }
 ```
 
 ## 24. Analytics and Usage Tracking
 
 ### Metrics to Consider
+
 - Most used keybindings
 - Mode distribution time
 - Custom keybinding adoption
@@ -312,6 +347,7 @@ type TPlugin = {
 ## 25. Migration Path
 
 ### From Non-Vim Users
+
 - Gradual introduction mode
 - Side-by-side command comparison
 - Incremental vim feature enablement
@@ -319,6 +355,7 @@ type TPlugin = {
 - Preserve muscle memory with hybrid mode
 
 ### Import from Other Editors
+
 - VSCode keybinding import
 - Sublime Text keybinding import
 - IntelliJ IDEA keybinding import

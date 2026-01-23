@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+import { cn } from "@skriuw/shared";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 
-import { cn } from '@skriuw/shared'
-
-export interface TableOfContentsItem {
+export type TableOfContentsItem = {
 	id: string
 	label: string
 	level: number
@@ -28,7 +27,7 @@ export function TableOfContents({ items, className }: props) {
 		// Set up Intersection Observer to highlight visible sections
 		const observerOptions = {
 			rootMargin: '-20% 0px -60% 0px',
-			threshold: 0,
+			threshold: 0
 		}
 
 		observerRef.current = new IntersectionObserver((entries) => {
@@ -72,11 +71,11 @@ export function TableOfContents({ items, className }: props) {
 				className
 			)}
 		>
-			<div className="px-4 py-3 border-b border-sidebar-border">
-				<h2 className="text-sm font-semibold text-sidebar-foreground">Table of Contents</h2>
+			<div className='px-4 py-3 border-b border-sidebar-border'>
+				<h2 className='text-sm font-semibold text-sidebar-foreground'>Table of Contents</h2>
 			</div>
-			<div className="flex-1 overflow-y-auto px-2 py-2">
-				<nav className="space-y-1">
+			<div className='flex-1 overflow-y-auto px-2 py-2'>
+				<nav className='space-y-1'>
 					{items.map((item) => {
 						const isActive = activeId === item.id
 						const indentLevel = item.level - 1
@@ -93,7 +92,7 @@ export function TableOfContents({ items, className }: props) {
 										: 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
 								)}
 								style={{
-									paddingLeft: `${8 + indentLevel * 16}px`,
+									paddingLeft: `${8 + indentLevel * 16}px`
 								}}
 							>
 								{item.label}

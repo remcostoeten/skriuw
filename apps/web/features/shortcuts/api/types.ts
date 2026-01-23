@@ -1,4 +1,4 @@
-import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
+import type { ShortcutId, KeyCombo } from "../shortcut-definitions";
 
 // Define types locally since shared package has issues
 type BaseEntity = {
@@ -12,16 +12,16 @@ type BaseEntity = {
 /**
  * Custom shortcut entity that extends BaseEntity for CRUD operations
  */
-export interface CustomShortcut extends BaseEntity {
+export type CustomShortcut = {
 	id: ShortcutId
 	keys: KeyCombo[]
 	customizedAt: string // ISO date string
-}
+} & BaseEntity
 
 /**
  * Data required to create a custom shortcut
  */
-export interface CreateCustomShortcutData {
+export type CreateCustomShortcutData = {
 	id: ShortcutId
 	keys: KeyCombo[]
 }

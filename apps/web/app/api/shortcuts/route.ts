@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '../../../lib/storage/adapters/server-db'
-import { requireAuth } from '../../../lib/api-auth'
+import { requireAuth } from "../../../lib/api-auth";
+import { db } from "../../../lib/storage/adapters/server-db";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
 	try {
@@ -32,17 +32,19 @@ export async function POST(request: NextRequest) {
 		const { userId } = auth
 
 		const body = await request.json()
-		if (!body?.id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
+		if (!body?.id)
+			return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
 
 		const now = Date.now()
-		const customizedAt = typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
+		const customizedAt =
+			typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
 
 		const data = {
 			id: body.id,
 			keys: Array.isArray(body.keys) ? body.keys : [],
 			customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
 			createdAt: now,
-			updatedAt: now,
+			updatedAt: now
 		}
 
 		const result = await db.upsert('shortcuts', data, userId)
@@ -60,17 +62,19 @@ export async function PUT(request: NextRequest) {
 		const { userId } = auth
 
 		const body = await request.json()
-		if (!body?.id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
+		if (!body?.id)
+			return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 })
 
 		const now = Date.now()
-		const customizedAt = typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
+		const customizedAt =
+			typeof body.customizedAt === 'string' ? Date.parse(body.customizedAt) : now
 
 		const data = {
 			id: body.id,
 			keys: Array.isArray(body.keys) ? body.keys : [],
 			customizedAt: Number.isNaN(customizedAt) ? now : customizedAt,
 			createdAt: now,
-			updatedAt: now,
+			updatedAt: now
 		}
 
 		const result = await db.upsert('shortcuts', data, userId)
@@ -98,5 +102,3 @@ export async function DELETE(request: NextRequest) {
 		return NextResponse.json({ error: 'Failed to delete shortcut' }, { status: 500 })
 	}
 }
-
-

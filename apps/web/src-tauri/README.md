@@ -8,8 +8,8 @@ This folder contains the Tauri 2.0 configuration for packaging the Skriuw web ap
 - Bun (per repository root)
 - `@tauri-apps/cli` installed via `bun install`
 - Platform SDKs for bundling:
-  - **macOS**: Xcode command-line tools and signing identity if you intend to sign
-  - **Ubuntu**: `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, and other GTK deps typically required by Tauri
+    - **macOS**: Xcode command-line tools and signing identity if you intend to sign
+    - **Ubuntu**: `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, and other GTK deps typically required by Tauri
 
 ## Development
 
@@ -26,16 +26,16 @@ This starts the Next.js dev server (`http://localhost:3000`) and opens it in a T
 The Tauri configuration builds the static Next.js export into `apps/web/out` and then packages it.
 
 - **Universal macOS build** (creates `.app` and `.dmg`):
-  ```bash
-  bun run tauri:build:mac
-  ```
+    ```bash
+    bun run tauri:build:mac
+    ```
 - **Ubuntu `.deb` package**:
-  ```bash
-  bun run tauri:build:deb
-  ```
+    ```bash
+    bun run tauri:build:deb
+    ```
 - **Platform-default bundle** (uses the current host OS settings):
-  ```bash
-  bun run tauri:build
-  ```
+    ```bash
+    bun run tauri:build
+    ```
 
 Artifacts are written to `apps/web/src-tauri/target/release/bundle/`.

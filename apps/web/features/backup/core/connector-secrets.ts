@@ -1,14 +1,7 @@
-import { encryptSecret, decryptSecret } from '@/lib/crypto/secret'
-
-import { logger } from '@/lib/debug'
-
-import { STORAGE_CONNECTOR_DEFINITIONS } from './connectors'
-import type {
-	StorageConnectorDefinition,
-	StorageConnectorState,
-	StorageConnectorType,
-	OAuth2Tokens,
-} from './types'
+import { STORAGE_CONNECTOR_DEFINITIONS } from "./connectors";
+import type { StorageConnectorDefinition, StorageConnectorState, StorageConnectorType, OAuth2Tokens } from "./types";
+import { encryptSecret, decryptSecret } from "@/lib/crypto/secret";
+import { logger } from "@/lib/debug";
 
 type MaybeEncrypted = StorageConnectorState & { encrypted?: boolean }
 
@@ -88,7 +81,7 @@ export function encryptConnectorStates(
 		return {
 			...connector,
 			config: processConfig(connector.config, definition, 'encrypt', connector.id),
-			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'encrypt', connector.id),
+			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'encrypt', connector.id)
 		}
 	})
 }
@@ -100,7 +93,7 @@ export function decryptConnectorStates(connectors: MaybeEncrypted[]): StorageCon
 		return {
 			...connector,
 			config: processConfig(connector.config, definition, 'decrypt', connector.id),
-			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'decrypt', connector.id),
+			oauth2Tokens: processOAuth2Tokens(connector.oauth2Tokens, 'decrypt', connector.id)
 		}
 	})
 }
@@ -112,4 +105,3 @@ export function encryptConnectorState(connector: StorageConnectorState): Storage
 export function decryptConnectorState(connector: MaybeEncrypted): StorageConnectorState {
 	return decryptConnectorStates([connector])[0]
 }
-

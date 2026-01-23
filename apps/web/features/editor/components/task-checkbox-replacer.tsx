@@ -1,16 +1,14 @@
-import { useEffect, useRef } from 'react'
-import { createRoot } from 'react-dom/client'
+import type { BlockNoteEditor } from "@blocknote/core";
+import { Checkbox } from "@skriuw/ui/primitives/checkbox";
+import { useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 
-import { Checkbox } from '@skriuw/ui/primitives/checkbox'
-
-import type { BlockNoteEditor } from '@blocknote/core'
-
-interface TaskCheckboxReplacerProps {
+type TaskCheckboxReplacerProps = {
 	editor: BlockNoteEditor | null
 	editorContainerRef: React.RefObject<HTMLDivElement | null>
 }
 
-interface ReplacedCheckbox {
+type ReplacedCheckbox = {
 	root: ReturnType<typeof createRoot>
 	defaultCheckbox: HTMLInputElement
 	listItem: Element
@@ -39,7 +37,9 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 
 			taskListItems.forEach((listItem) => {
 				// Check if this list item has a checkbox (making it a task)
-				const defaultCheckbox = listItem.querySelector('input[type="checkbox"]') as HTMLInputElement
+				const defaultCheckbox = listItem.querySelector(
+					'input[type="checkbox"]'
+				) as HTMLInputElement
 
 				if (!defaultCheckbox) return
 
@@ -52,13 +52,13 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 					existing.root.render(
 						<Checkbox
 							checked={currentChecked}
-							size="sm"
-							variant="default"
-							animation="gooey"
+							size='sm'
+							variant='default'
+							animation='gooey'
 							colors={{
 								bgChecked: 'hsl(var(--foreground))',
 								borderChecked: 'hsl(var(--foreground))',
-								checkmark: 'hsl(var(--background))',
+								checkmark: 'hsl(var(--background))'
 							}}
 							onChange={(checked) => {
 								// Use BlockNote's API to toggle the task
@@ -68,8 +68,8 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 										editor.updateBlock(block, {
 											props: {
 												...block.props,
-												checked: checked,
-											},
+												checked: checked
+											}
 										})
 									}
 								} else {
@@ -127,13 +127,13 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 				root.render(
 					<Checkbox
 						checked={isChecked}
-						size="sm"
-						variant="default"
-						animation="gooey"
+						size='sm'
+						variant='default'
+						animation='gooey'
 						colors={{
 							bgChecked: 'hsl(var(--foreground))',
 							borderChecked: 'hsl(var(--foreground))',
-							checkmark: 'hsl(var(--background))',
+							checkmark: 'hsl(var(--background))'
 						}}
 						onChange={(checked) => {
 							// Use BlockNote's API to toggle the task
@@ -144,12 +144,15 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 										editor.updateBlock(block, {
 											props: {
 												...block.props,
-												checked: checked,
-											},
+												checked: checked
+											}
 										})
 									}
 								} catch (error) {
-									console.warn('Failed to update block via API, using fallback:', error)
+									console.warn(
+										'Failed to update block via API, using fallback:',
+										error
+									)
 									// Fallback: update checkbox and trigger change
 									defaultCheckbox.checked = checked
 									const event = new Event('change', { bubbles: true })
@@ -170,7 +173,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 					root,
 					defaultCheckbox,
 					listItem,
-					blockId,
+					blockId
 				})
 			})
 		}
@@ -236,7 +239,7 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 		if (editorContainerRef.current) {
 			observer.observe(editorContainerRef.current, {
 				childList: true,
-				subtree: true,
+				subtree: true
 			})
 		}
 

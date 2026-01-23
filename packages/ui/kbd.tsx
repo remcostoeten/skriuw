@@ -1,7 +1,7 @@
-import React from 'react'
-import { cn } from '@skriuw/shared'
+import { cn } from "@skriuw/shared";
+import React from "react";
 
-interface KbdProps {
+type KbdProps = {
 	children?: React.ReactNode
 	className?: string
 	shortcut?: {
@@ -38,9 +38,7 @@ export function Kbd({ children, className, shortcut }: KbdProps) {
 				>
 					{keys.map((key, index) => (
 						<React.Fragment key={index}>
-							{index > 0 && (
-								<span className="text-muted-foreground">+</span>
-							)}
+							{index > 0 && <span className='text-muted-foreground'>+</span>}
 							<span>{key}</span>
 						</React.Fragment>
 					))}

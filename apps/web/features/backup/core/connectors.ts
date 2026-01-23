@@ -1,4 +1,4 @@
-import type { StorageConnectorDefinition } from './types'
+import type { StorageConnectorDefinition } from "./types";
 
 export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 	{
@@ -12,7 +12,7 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				label: 'Access Key ID',
 				placeholder: 'AKIA...',
 				required: true,
-				help: 'Create an IAM user with programmatic access and S3 permissions.',
+				help: 'Create an IAM user with programmatic access and S3 permissions.'
 			},
 			{
 				name: 'secretAccessKey',
@@ -20,28 +20,28 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				placeholder: '********',
 				secret: true,
 				required: true,
-				help: 'Store securely; used only to sign S3 requests.',
+				help: 'Store securely; used only to sign S3 requests.'
 			},
 			{
 				name: 'region',
 				label: 'Region',
 				placeholder: 'us-east-1',
-				required: true,
+				required: true
 			},
 			{
 				name: 'bucket',
 				label: 'Bucket Name',
 				placeholder: 'skriuw-backups',
 				required: true,
-				help: 'Bucket name where backups will be stored.',
+				help: 'Bucket name where backups will be stored.'
 			},
 			{
 				name: 'endpoint',
 				label: 'Custom Endpoint (optional)',
 				placeholder: 'https://s3.eu-central-1.amazonaws.com',
-				help: 'Use this for S3-compatible providers like MinIO or Cloudflare R2.',
-			},
-		],
+				help: 'Use this for S3-compatible providers like MinIO or Cloudflare R2.'
+			}
+		]
 	},
 	{
 		type: 'dropbox',
@@ -54,15 +54,15 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				label: 'Connect with Dropbox',
 				type: 'oauth2',
 				required: true,
-				help: 'Click to authorize Skriuw to access your Dropbox.',
+				help: 'Click to authorize Skriuw to access your Dropbox.'
 			},
 			{
 				name: 'rootPath',
 				label: 'Folder Path',
 				placeholder: '/Apps/Skriuw',
-				help: 'Optional: Custom folder path for backups.',
-			},
-		],
+				help: 'Optional: Custom folder path for backups.'
+			}
+		]
 	},
 	{
 		type: 'google-drive',
@@ -75,14 +75,14 @@ export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 				label: 'Connect with Google Drive',
 				type: 'oauth2',
 				required: true,
-				help: 'Click to authorize Skriuw to access your Google Drive.',
+				help: 'Click to authorize Skriuw to access your Google Drive.'
 			},
 			{
 				name: 'folderId',
 				label: 'Target Folder ID',
 				placeholder: 'drive-folder-id',
-				help: 'Optional: Leave blank to use root; paste the ID from the Drive URL.',
-			},
-		],
-	},
+				help: 'Optional: Leave blank to use root; paste the ID from the Drive URL.'
+			}
+		]
+	}
 ]

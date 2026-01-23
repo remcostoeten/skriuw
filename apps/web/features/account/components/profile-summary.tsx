@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Camera, CheckCircle2, Loader2, Mail, User } from 'lucide-react'
-
-import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
-import { Button } from '@skriuw/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
-import { Input } from '@skriuw/ui/input'
-import { Label } from '@skriuw/ui/label'
-
-import type { useSession } from '@/lib/auth-client'
-import { updateProfile } from '../api/account-client'
+import { updateProfile } from "../api/account-client";
+import type { useSession } from "@/lib/auth-client";
+import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
+import { Button } from "@skriuw/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
+import { Input } from "@skriuw/ui/input";
+import { Label } from "@skriuw/ui/label";
+import { Camera, CheckCircle2, Loader2, Mail, User } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 
 type SessionData = ReturnType<typeof useSession>['data']
 type SessionUser = NonNullable<SessionData>['user']
@@ -49,7 +47,7 @@ function fileToDataUrl(file: File): Promise<string> {
 
 function getStatusIcon(message: string | null) {
 	if (!message) return null
-	return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+	return <CheckCircle2 className='h-4 w-4 text-emerald-500' />
 }
 
 export default function ProfileSummary({ user, onRefresh }: Props) {
@@ -94,7 +92,9 @@ export default function ProfileSummary({ user, onRefresh }: Props) {
 			await onRefresh()
 			setStatus('Profile updated')
 		} catch (profileError) {
-			setError(profileError instanceof Error ? profileError.message : 'Could not update profile')
+			setError(
+				profileError instanceof Error ? profileError.message : 'Could not update profile'
+			)
 		} finally {
 			setIsSaving(false)
 		}
@@ -128,60 +128,86 @@ export default function ProfileSummary({ user, onRefresh }: Props) {
 
 	return (
 		<Card>
-			<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<div className="space-y-2">
-					<CardTitle className="flex items-center gap-2 text-xl">
-						<User className="h-5 w-5 text-muted-foreground" />
+			<CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+				<div className='space-y-2'>
+					<CardTitle className='flex items-center gap-2 text-xl'>
+						<User className='h-5 w-5 text-muted-foreground' />
 						Profile details
 					</CardTitle>
-					<CardDescription>Update your name and avatar. Changes are saved to your account immediately.</CardDescription>
+					<CardDescription>
+						Update your name and avatar. Changes are saved to your account immediately.
+					</CardDescription>
 				</div>
-				<div className="flex items-center gap-3">
-					<div className="h-16 w-16 overflow-hidden rounded-full border border-border/60 bg-muted">
+				<div className='flex items-center gap-3'>
+					<div className='h-16 w-16 overflow-hidden rounded-full border border-border/60 bg-muted'>
 						{preview ? (
-							<img src={preview} alt="Profile avatar" className="h-full w-full object-cover" />
+							<img
+								src={preview}
+								alt='Profile avatar'
+								className='h-full w-full object-cover'
+							/>
 						) : (
-							<div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">{name ? name[0]?.toUpperCase() : '👤'}</div>
+							<div className='flex h-full w-full items-center justify-center text-sm text-muted-foreground'>
+								{name ? name[0]?.toUpperCase() : '👤'}
+							</div>
 						)}
 					</div>
-					<div className="flex flex-col gap-2 text-right">
-						<span className="text-sm font-medium">{name || 'No name set'}</span>
-						<span className="flex items-center gap-1 text-xs text-muted-foreground">
-							<Mail className="h-3.5 w-3.5" />
+					<div className='flex flex-col gap-2 text-right'>
+						<span className='text-sm font-medium'>{name || 'No name set'}</span>
+						<span className='flex items-center gap-1 text-xs text-muted-foreground'>
+							<Mail className='h-3.5 w-3.5' />
 							{email}
 						</span>
 					</div>
 				</div>
 			</CardHeader>
-			<CardContent className="space-y-6">
-				<form className="grid gap-4 sm:grid-cols-2" onSubmit={saveProfile}>
-					<div className="space-y-2">
-						<Label htmlFor="name">Display name</Label>
-						<Input id="name" value={name} onChange={updateName} placeholder="How should we call you?" />
+			<CardContent className='space-y-6'>
+				<form className='grid gap-4 sm:grid-cols-2' onSubmit={saveProfile}>
+					<div className='space-y-2'>
+						<Label htmlFor='name'>Display name</Label>
+						<Input
+							id='name'
+							value={name}
+							onChange={updateName}
+							placeholder='How should we call you?'
+						/>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="avatar">Avatar</Label>
-						<div className="flex items-center gap-3">
-							<label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/70 px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" htmlFor="avatar">
-								<Camera className="h-4 w-4" />
+					<div className='space-y-2'>
+						<Label htmlFor='avatar'>Avatar</Label>
+						<div className='flex items-center gap-3'>
+							<label
+								className='inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/70 px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted'
+								htmlFor='avatar'
+							>
+								<Camera className='h-4 w-4' />
 								<span>{isUploading ? 'Uploading…' : 'Upload image'}</span>
 							</label>
 							<input
-								type="file"
-								id="avatar"
-								accept="image/*"
-								className="sr-only"
+								type='file'
+								id='avatar'
+								accept='image/*'
+								className='sr-only'
 								onChange={updateAvatar}
 							/>
 						</div>
-						<p className="text-xs text-muted-foreground">PNG, JPG or GIF up to 3MB. Stored securely via BetterAuth.</p>
+						<p className='text-xs text-muted-foreground'>
+							PNG, JPG or GIF up to 3MB. Stored securely via BetterAuth.
+						</p>
 					</div>
-					<div className="sm:col-span-2 flex items-center gap-3">
-						<Button type="submit" disabled={isSaving || isUploading} className="w-full sm:w-auto">
-							{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save changes'}
+					<div className='sm:col-span-2 flex items-center gap-3'>
+						<Button
+							type='submit'
+							disabled={isSaving || isUploading}
+							className='w-full sm:w-auto'
+						>
+							{isSaving ? (
+								<Loader2 className='h-4 w-4 animate-spin' />
+							) : (
+								'Save changes'
+							)}
 						</Button>
 						{status && (
-							<span className="flex items-center gap-2 text-sm text-emerald-600">
+							<span className='flex items-center gap-2 text-sm text-emerald-600'>
 								{getStatusIcon(status)}
 								{status}
 							</span>
@@ -190,7 +216,7 @@ export default function ProfileSummary({ user, onRefresh }: Props) {
 				</form>
 
 				{error && (
-					<Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+					<Alert variant='destructive' className='border-destructive/30 bg-destructive/5'>
 						<AlertTitle>Update failed</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>

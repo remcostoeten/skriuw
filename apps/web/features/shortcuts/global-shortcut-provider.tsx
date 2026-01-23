@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useEffect, useRef } from 'react'
-import { ShortcutId, shortcutDefinitions, KeyCombo } from './shortcut-definitions'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from "./shortcut-definitions";
+import { createContext, useEffect, useRef } from "react";
 
 type ShortcutHandler = (event: KeyboardEvent) => void
 type ShortcutRegistry = Map<ShortcutId, ShortcutHandler>
@@ -42,7 +42,7 @@ function matchesKeyCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
 		meta: event.metaKey,
 		alt: event.altKey,
 		shift: event.shiftKey,
-		key: event.key,
+		key: event.key
 	}
 
 	// Check if all keys in the combo are pressed
@@ -61,9 +61,14 @@ function matchesKeyCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
 	// If combo has no modifiers, pressed event shouldn't have modifiers either
 	// (except for special keys like Delete, Backspace, etc.)
 	if (!hasCtrl && !hasMeta && !hasAlt && !hasShift) {
-		const isSpecialKey = ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
-			event.key
-		)
+		const isSpecialKey = [
+			'Delete',
+			'Backspace',
+			'ArrowLeft',
+			'ArrowRight',
+			'ArrowUp',
+			'ArrowDown'
+		].includes(event.key)
 		if (!isSpecialKey && (pressed.ctrl || pressed.meta || pressed.alt)) {
 			return false
 		}
@@ -82,7 +87,7 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 		},
 		unregister: (id: ShortcutId) => {
 			shortcuts.current.delete(id)
-		},
+		}
 	})
 
 	useEffect(() => {
@@ -114,5 +119,9 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 		return () => window.removeEventListener('keydown', handleKeyDown, true)
 	}, [])
 
-	return <ShortcutContext.Provider value={registryManager.current}>{children}</ShortcutContext.Provider>
+	return (
+		<ShortcutContext.Provider value={registryManager.current}>
+			{children}
+		</ShortcutContext.Provider>
+	)
 }

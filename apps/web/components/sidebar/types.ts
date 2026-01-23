@@ -9,7 +9,7 @@ export type SidebarContentType =
 	| 'agenda' // Agenda/calendar view (future)
 	| 'custom' // Custom content passed as children
 
-export interface SidebarContentProps {
+export type SidebarContentProps = {
 	activeNoteId?: string
 	[key: string]: any
 }

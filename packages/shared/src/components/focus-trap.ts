@@ -9,7 +9,7 @@ const FOCUSABLE_ELEMENTS = [
 	'object',
 	'embed',
 	'[contenteditable]',
-	'[tabindex]:not([tabindex^="-"])',
+	'[tabindex]:not([tabindex^="-"])'
 ]
 
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {

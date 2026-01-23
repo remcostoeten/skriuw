@@ -1,15 +1,11 @@
 'use client'
 
-import { BlockNoteEditor, Block } from '@blocknote/core'
-import { useCreateBlockNote } from '@blocknote/react'
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
-
-
-import { useNotesContext } from '@/features/notes/context/notes-context'
-
-import { useEditorConfig } from './useEditorConfig'
-
-import type { Note } from '@/features/notes'
+import { useEditorConfig } from "./useEditorConfig";
+import type { Note } from "@/features/notes";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { BlockNoteEditor, Block } from "@blocknote/core";
+import { useCreateBlockNote } from "@blocknote/react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
 /**
  * Enforces spellcheck on all contenteditable elements within a container
@@ -26,7 +22,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 
 		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			(element as any).spellcheck = true
+			;(element as any).spellcheck = true
 		}
 	})
 
@@ -39,7 +35,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							(element as any).spellcheck = true
+							;(element as any).spellcheck = true
 						}
 					}
 
@@ -48,7 +44,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							(nested as any).spellcheck = true
+							;(nested as any).spellcheck = true
 						}
 					})
 				}
@@ -87,7 +83,7 @@ export function useEditor({
 	noteId,
 	autoSave = true,
 	autoSaveDelay = 1000,
-	readOnly = false,
+	readOnly = false
 }: options): props {
 	const { getNote, updateNote } = useNotesContext()
 	const { config: editorConfig } = useEditorConfig()
@@ -154,11 +150,11 @@ export function useEditor({
 			props: {
 				backgroundColor: 'default',
 				textColor: 'default',
-				textAlignment: 'left',
+				textAlignment: 'left'
 			},
 			content: [],
-			children: [],
-		} as Block,
+			children: []
+		} as Block
 	]
 
 	const initialContent = useMemo(() => {
@@ -168,18 +164,15 @@ export function useEditor({
 		return getDefaultContent()
 	}, [note?.content])
 
-
-
-
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
 		editorModuleSpec: {
 			// @ts-ignore
-			editable: !readOnly,
+			editable: !readOnly
 		},
 		// Some versions of BlockNote use this
-		_editable: !readOnly,
+		_editable: !readOnly
 	})
 
 	// Force editable state update if it changes
@@ -293,6 +286,6 @@ export function useEditor({
 		isLoading,
 		setNoteName,
 		handleSave,
-		error,
+		error
 	}
 }

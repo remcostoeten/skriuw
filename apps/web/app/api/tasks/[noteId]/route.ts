@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
-import { getDatabase, tasks } from '@skriuw/db'
+import { getDatabase, tasks } from "@skriuw/db";
+import { and, eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = {
 	params: Promise<{ noteId: string }>
@@ -16,7 +16,7 @@ function serializeTask(row: typeof tasks.$inferSelect) {
 		parentTaskId: row.parentTaskId,
 		position: row.position,
 		createdAt: row.createdAt,
-		updatedAt: row.updatedAt,
+		updatedAt: row.updatedAt
 	}
 }
 

@@ -1,6 +1,6 @@
-import { createReactBlockSpec } from '@blocknote/react'
-import { Checkbox } from '@skriuw/ui/primitives/checkbox'
-import { useUIStore } from '@/stores/ui-store'
+import { useUIStore } from "@/stores/ui-store";
+import { createReactBlockSpec } from "@blocknote/react";
+import { Checkbox } from "@skriuw/ui/primitives/checkbox";
 
 /**
  * Custom Task Block for BlockNote
@@ -17,10 +17,10 @@ export const taskBlockSpec = createReactBlockSpec(
 		type: 'task',
 		propSchema: {
 			checked: {
-				default: false,
-			},
+				default: false
+			}
 		},
-		content: 'inline',
+		content: 'inline'
 	},
 	{
 		render: ({ block, editor, contentRef }) => {
@@ -32,61 +32,63 @@ export const taskBlockSpec = createReactBlockSpec(
 
 			return (
 				<div
-					className="bn-task-block flex items-center px-2 gap-3 py-1 group relative w-full"
-					data-content-type="task"
+					className='bn-task-block flex items-center px-2 gap-3 py-1 group relative w-full'
+					data-content-type='task'
 					data-block-id={block.id}
 				>
-					<div className="shrink-0 mt-0.5 flex items-center">
+					<div className='shrink-0 mt-0.5 flex items-center'>
 						<Checkbox
 							checked={checked}
-							size="sm"
-							variant="default"
-							animation="gooey"
+							size='sm'
+							variant='default'
+							animation='gooey'
 							colors={{
 								bgChecked: 'hsl(var(--foreground))',
 								borderChecked: 'hsl(var(--foreground))',
-								checkmark: 'hsl(var(--background))',
+								checkmark: 'hsl(var(--background))'
 							}}
 							onChange={(newChecked) => {
 								editor.updateBlock(block.id, {
 									props: {
-										checked: newChecked,
-									},
+										checked: newChecked
+									}
 								})
 							}}
 						/>
 					</div>
 
 					{/* Middle: Content & Metadata */}
-					<div className="flex-1 min-w-0 flex flex-col gap-0.5">
+					<div className='flex-1 min-w-0 flex flex-col gap-0.5'>
 						{/* Content Area */}
-						<div className="w-full text-base" ref={contentRef} />
+						<div className='w-full text-base' ref={contentRef} />
 
 						{/* Metadata Row */}
 						{hasSubtasks && (
-							<div className="flex items-center gap-3 text-xs text-muted-foreground select-none">
-								<div className="flex items-center gap-1">
+							<div className='flex items-center gap-3 text-xs text-muted-foreground select-none'>
+								<div className='flex items-center gap-1'>
 									{/* Simple pie/circle icon or check icon for subtasks */}
 									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										className="opacity-70"
+										xmlns='http://www.w3.org/2000/svg'
+										width='12'
+										height='12'
+										viewBox='0 0 24 24'
+										fill='none'
+										stroke='currentColor'
+										strokeWidth='2'
+										strokeLinecap='round'
+										strokeLinejoin='round'
+										className='opacity-70'
 									>
-										<path d="M8 6h13" />
-										<path d="M8 12h13" />
-										<path d="M8 18h13" />
-										<path d="M3 6h.01" />
-										<path d="M3 12h.01" />
-										<path d="M3 18h.01" />
+										<path d='M8 6h13' />
+										<path d='M8 12h13' />
+										<path d='M8 18h13' />
+										<path d='M3 6h.01' />
+										<path d='M3 12h.01' />
+										<path d='M3 18h.01' />
 									</svg>
-									<span>{completedSubtasks}/{totalSubtasks}</span>
+									<span>
+										{completedSubtasks}/{totalSubtasks}
+									</span>
 								</div>
 							</div>
 						)}
@@ -94,31 +96,31 @@ export const taskBlockSpec = createReactBlockSpec(
 
 					{/* Right: Open Detail Action */}
 					<div
-						role="button"
+						role='button'
 						tabIndex={0}
 						onClick={(e) => {
 							e.stopPropagation()
 							e.preventDefault()
 							useUIStore.getState().openTaskPanel(block.id)
 						}}
-						className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
-						title="Open task details"
+						className='shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground'
+						title='Open task details'
 					>
 						{/* Circle Arrow Right Icon */}
 						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="20"
-							height="20"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
+							xmlns='http://www.w3.org/2000/svg'
+							width='20'
+							height='20'
+							viewBox='0 0 24 24'
+							fill='none'
+							stroke='currentColor'
+							strokeWidth='2'
+							strokeLinecap='round'
+							strokeLinejoin='round'
 						>
-							<circle cx="12" cy="12" r="10" />
-							<path d="M8 12h8" />
-							<path d="M12 16l4-4-4-4" />
+							<circle cx='12' cy='12' r='10' />
+							<path d='M8 12h8' />
+							<path d='M12 16l4-4-4-4' />
 						</svg>
 					</div>
 
@@ -142,7 +144,7 @@ export const taskBlockSpec = createReactBlockSpec(
 				const checked = checkbox ? (checkbox as HTMLInputElement).checked : false
 
 				return {
-					checked,
+					checked
 				}
 			}
 			return undefined
@@ -150,11 +152,11 @@ export const taskBlockSpec = createReactBlockSpec(
 		toExternalHTML: ({ block }) => {
 			const checked = block.props.checked as boolean
 			return (
-				<div data-content-type="task" className="bn-task-block" data-checked={checked}>
-					<input type="checkbox" checked={checked} readOnly />
+				<div data-content-type='task' className='bn-task-block' data-checked={checked}>
+					<input type='checkbox' checked={checked} readOnly />
 					<span>{/* Content will be rendered by BlockNote */}</span>
 				</div>
 			)
-		},
+		}
 	}
 )

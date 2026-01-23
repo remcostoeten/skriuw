@@ -1,21 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import {
-	getDatabase,
-	notes,
-	folders,
-	tasks,
-	settings,
-	shortcuts,
-	getSafeTimestamp,
-	account,
-	and,
-	eq
-} from '@skriuw/db'
-import { generateSampleData } from '@/app/api/(dev)/dev/seeds'
-import { generateId } from '@skriuw/shared'
-import { env } from '@/lib/env'
-import { getCurrentUserId, getSession } from '@/lib/api-auth'
-import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from '@/lib/schema-utils'
+import { generateSampleData } from "@/app/api/(dev)/dev/seeds";
+import { getCurrentUserId, getSession } from "@/lib/api-auth";
+import { env } from "@/lib/env";
+import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from "@/lib/schema-utils";
+import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp, account, and, eq } from "@skriuw/db";
+import { generateId } from "@skriuw/shared";
+import { NextRequest, NextResponse } from "next/server";
 
 async function isGithubOwner(userId: string) {
 	const db = getDatabase()
@@ -35,10 +24,10 @@ async function isAdminOrDev() {
 	const userEmail = session?.user?.email?.toLowerCase() ?? null
 	const userId = session?.user?.id ?? null
 
-	const adminEmails =
-		env.ADMIN_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) || []
+	const adminEmails = env.ADMIN_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) || []
 
 	if (userEmail && adminEmails.includes(userEmail)) {
+		console.info('Admin user:', userEmail, adminEmails)
 		return true
 	}
 
@@ -136,7 +125,6 @@ export async function POST(request: NextRequest) {
 						}
 					}
 
-
 					for (const noteData of sampleNotes) {
 						await db.insert(notes).values({
 							id: generateId('note'),
@@ -162,11 +150,17 @@ export async function POST(request: NextRequest) {
 					})
 				} catch (error) {
 					console.error('Error seeding database:', error)
-					return NextResponse.json({
-						success: false,
-						action: 'seed',
-						error: error instanceof Error ? error.message : 'Unknown error occurred while seeding database'
-					}, { status: 500 })
+					return NextResponse.json(
+						{
+							success: false,
+							action: 'seed',
+							error:
+								error instanceof Error
+									? error.message
+									: 'Unknown error occurred while seeding database'
+						},
+						{ status: 500 }
+					)
 				}
 			}
 
@@ -228,19 +222,14 @@ export async function POST(request: NextRequest) {
 			}
 
 			case 'stats': {
-				const [
-					noteCount,
-					folderCount,
-					taskCount,
-					settingCount,
-					shortcutCount
-				] = await Promise.all([
-					db.select().from(notes),
-					db.select().from(folders),
-					db.select().from(tasks),
-					db.select().from(settings),
-					db.select().from(shortcuts)
-				])
+				const [noteCount, folderCount, taskCount, settingCount, shortcutCount] =
+					await Promise.all([
+						db.select().from(notes),
+						db.select().from(folders),
+						db.select().from(tasks),
+						db.select().from(settings),
+						db.select().from(shortcuts)
+					])
 
 				return NextResponse.json({
 					success: true,
@@ -279,10 +268,7 @@ export async function POST(request: NextRequest) {
 							success: false,
 							action: 'clear-cache',
 							error: 'Failed to clear cache.',
-							message:
-								error instanceof Error
-									? error.message
-									: String(error)
+							message: error instanceof Error ? error.message : String(error)
 						},
 						{ status: 500 }
 					)
@@ -338,15 +324,11 @@ export async function POST(request: NextRequest) {
 			}
 
 			default:
-				return NextResponse.json(
-					{ error: `Unknown action: ${action}` },
-					{ status: 400 }
-				)
+				return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
 		}
 	} catch (error) {
 		console.error('Dev API error:', error)
-		const errorMessage =
-			error instanceof Error ? error.message : String(error)
+		const errorMessage = error instanceof Error ? error.message : String(error)
 		return NextResponse.json(
 			{ error: 'Dev action failed', message: errorMessage },
 			{ status: 500 }
@@ -368,23 +350,17 @@ export async function GET() {
 		const now = new Date()
 		const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-		const [
-			noteRows,
-			folderRows,
-			taskRows,
-			settingRows,
-			shortcutRows,
-			userRows
-		] = await Promise.all([
-			db.select().from(notes),
-			db.select().from(folders),
-			db.select().from(tasks),
-			db.select().from(settings),
-			db.select().from(shortcuts),
-			db.query.user.findMany({
-				columns: { id: true, isAnonymous: true, createdAt: true }
-			})
-		])
+		const [noteRows, folderRows, taskRows, settingRows, shortcutRows, userRows] =
+			await Promise.all([
+				db.select().from(notes),
+				db.select().from(folders),
+				db.select().from(tasks),
+				db.select().from(settings),
+				db.select().from(shortcuts),
+				db.query.user.findMany({
+					columns: { id: true, isAnonymous: true, createdAt: true }
+				})
+			])
 
 		// Calculate user statistics
 		const totalUsers = userRows.length
@@ -409,15 +385,12 @@ export async function GET() {
 			timestamp: new Date().toISOString(),
 			provider:
 				process.env.DATABASE_PROVIDER ||
-				(process.env.DATABASE_URL?.includes('neon')
-					? 'neon'
-					: 'postgres'),
+				(process.env.DATABASE_URL?.includes('neon') ? 'neon' : 'postgres'),
 			isAdmin: await isAdminOrDev()
 		})
 	} catch (error) {
 		console.error('Dev API error:', error)
-		const errorMessage =
-			error instanceof Error ? error.message : String(error)
+		const errorMessage = error instanceof Error ? error.message : String(error)
 		return NextResponse.json(
 			{ error: 'Failed to get stats', message: errorMessage },
 			{ status: 500 }

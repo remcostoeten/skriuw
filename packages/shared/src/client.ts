@@ -1,3 +1,4 @@
+'use client'
 // Client-only exports - these use React hooks and need "use client"
 export * from './hooks/use-is-touch-device'
 export * from './hooks/use-mobile'

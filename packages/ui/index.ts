@@ -6,10 +6,7 @@ export * from './badge'
 export * from './button'
 // Export calendar-rac components (RAC = React Aria Components)
 export { Calendar as CalendarRAC, RangeCalendar } from './calendar-rac'
-export type {
-	CalendarProps as CalendarRACProps,
-	RangeCalendarProps
-} from './calendar-rac'
+export type { CalendarProps as CalendarRACProps, RangeCalendarProps } from './calendar-rac'
 // Export calendar wrapper (uses calendar-rac internally)
 export { Calendar } from './calendar'
 export type { CalendarProps } from './calendar'

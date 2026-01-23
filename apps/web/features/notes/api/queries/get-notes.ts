@@ -1,10 +1,9 @@
-import { readMany } from '@skriuw/crud'
-
-import type { Note } from '../../types'
+import type { Note } from "../../types";
+import { readMany } from "@skriuw/crud";
 
 const STORAGE_KEY = 'Skriuw_notes'
 
-export interface GetNotesOptions {
+export type GetNotesOptions = {
 	parentFolderId?: string
 }
 
@@ -18,7 +17,7 @@ export async function getNotes(options?: GetNotesOptions): Promise<Note[]> {
 					return typedItem.parentFolderId === options.parentFolderId
 				}
 				return true
-			},
+			}
 		})
 
 		if (!result.success || !result.data) return []

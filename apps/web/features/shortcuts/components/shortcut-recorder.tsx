@@ -1,7 +1,6 @@
-import { X } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
-
-import { KeyCombo } from '../shortcut-definitions'
+import { KeyCombo } from "../shortcut-definitions";
+import { X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
 type ShortcutRecorderProps = {
 	value: KeyCombo[]
@@ -22,7 +21,7 @@ export function ShortcutRecorder({
 	onCancel,
 	isRecording,
 	onStartRecording,
-	onStopRecording,
+	onStopRecording
 }: ShortcutRecorderProps) {
 	const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set())
 	const pressedKeysRef = useRef<Set<string>>(new Set())
@@ -87,14 +86,18 @@ export function ShortcutRecorder({
 					Minus: '-',
 					Equal: '=',
 					'`': '`', // Direct backquote support
-					'~': '~', // Tilde support (Shift + backquote)
+					'~': '~' // Tilde support (Shift + backquote)
 				}
 
 				// Special handling for backquote key - prioritize e.code for physical key detection
 				let normalizedKey = key
 				if (code === 'Backquote' || key === 'Backquote') {
 					normalizedKey = '`'
-					console.log('Backquote key detected via code/key:', { key, code, keyCode: e.keyCode })
+					console.log('Backquote key detected via code/key:', {
+						key,
+						code,
+						keyCode: e.keyCode
+					})
 				} else {
 					// Use mapped key if available, otherwise use the key as-is
 					normalizedKey = keyMap[key] || key
@@ -106,7 +109,7 @@ export function ShortcutRecorder({
 						originalKey: key,
 						code,
 						normalizedKey,
-						keyCode: e.keyCode,
+						keyCode: e.keyCode
 					})
 				}
 
@@ -183,32 +186,34 @@ export function ShortcutRecorder({
 	}
 
 	return (
-		<div className="flex items-center gap-2">
+		<div className='flex items-center gap-2'>
 			<div
 				ref={inputRef}
 				onClick={handleClick}
 				onKeyDown={handleKeyDown}
 				tabIndex={0}
-				role="button"
-				aria-label={isRecording ? 'Recording shortcut' : 'Click or press Enter to record shortcut'}
+				role='button'
+				aria-label={
+					isRecording ? 'Recording shortcut' : 'Click or press Enter to record shortcut'
+				}
 				className={`
           flex-1 px-3 py-2 rounded-md border text-sm
           transition-all duration-200 cursor-pointer
           ${
-						isRecording
-							? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/20'
-							: 'border-border bg-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-brand-500/50'
-					}
+				isRecording
+					? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/20'
+					: 'border-border bg-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-brand-500/50'
+			}
         `}
 			>
 				{isRecording ? (
-					<span className="text-brand-400 animate-pulse">
+					<span className='text-brand-400 animate-pulse'>
 						{pressedKeys.size > 0
 							? formatKeyCombo(Array.from(pressedKeys))
 							: 'Press any key combination...'}
 					</span>
 				) : (
-					<span className="text-foreground">{formatShortcut(value)}</span>
+					<span className='text-foreground'>{formatShortcut(value)}</span>
 				)}
 			</div>
 
@@ -218,10 +223,10 @@ export function ShortcutRecorder({
 						onStopRecording()
 						onCancel?.()
 					}}
-					className="p-2 rounded-md hover:bg-accent/50 transition-colors"
-					aria-label="Cancel recording"
+					className='p-2 rounded-md hover:bg-accent/50 transition-colors'
+					aria-label='Cancel recording'
 				>
-					<X className="w-4 h-4 text-muted-foreground" />
+					<X className='w-4 h-4 text-muted-foreground' />
 				</button>
 			)}
 		</div>

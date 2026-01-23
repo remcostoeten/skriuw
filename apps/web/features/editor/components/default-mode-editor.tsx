@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Block } from '@blocknote/core'
-import { RawMDXEditor } from './raw-mdx-editor'
-import { useUserPreferences } from '../../settings/use-feature-flags'
-import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
-import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
-import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
-import { NoteMentionSuggestionMenu } from '../slash-menu/note-suggestions-menu'
-import { SlashSuggestionMenu } from '../slash-menu/slash-suggestions-menu'
-import { cn } from '@skriuw/shared'
+import { useUserPreferences } from "../../settings/use-feature-flags";
+import { NoteMentionSuggestionMenu } from "../slash-menu/note-suggestions-menu";
+import { SlashSuggestionMenu } from "../slash-menu/slash-suggestions-menu";
+import { BlockNoteView } from "./blocknote-shadcn/BlockNoteView";
+import { RawMDXEditor } from "./raw-mdx-editor";
+import { blocksToMarkdown } from "@/features/notes/utils/blocks-to-markdown";
+import { markdownToBlocks } from "@/features/notes/utils/markdown-to-blocks";
+import { Block } from "@blocknote/core";
+import { cn } from "@skriuw/shared";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
-interface DualModeEditorProps {
+type DualModeEditorProps = {
 	editor: any // BlockNoteEditor instance
 	value: Block[]
 	onChange: (blocks: Block[]) => void
@@ -39,7 +39,7 @@ export function DualModeEditor({
 	wordWrap = true,
 	blockIndicator = true,
 	showFormattingToolbar = true,
-	className,
+	className
 }: DualModeEditorProps) {
 	const { hasRawMDXMode, hasSideBySideMode, toggle: togglePreference } = useUserPreferences()
 	const [rawMDXContent, setRawMDXContent] = useState('')
@@ -86,16 +86,16 @@ export function DualModeEditor({
 					props: {
 						backgroundColor: 'default',
 						textColor: 'default',
-						textAlignment: 'left',
+						textAlignment: 'left'
 					},
 					content: [
 						{
 							type: 'text' as const,
 							text: markdown,
-							styles: {},
-						},
+							styles: {}
+						}
 					],
-					children: [],
+					children: []
 				} as Block
 				onChange([fallbackBlock])
 				return [fallbackBlock]
@@ -205,7 +205,7 @@ export function DualModeEditor({
 		return (
 			<div ref={containerRef} className={cn('relative flex h-full', className)}>
 				{isConverting && (
-					<div className="absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-20 flex items-center justify-center p-2 text-sm text-muted-foreground">
+					<div className='absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-20 flex items-center justify-center p-2 text-sm text-muted-foreground'>
 						Converting content...
 					</div>
 				)}
@@ -233,15 +233,15 @@ export function DualModeEditor({
 				<div
 					ref={splitterRef}
 					onMouseDown={handleMouseDown}
-					className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors relative group"
-					role="separator"
-					aria-label="Resize panels"
+					className='w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors relative group'
+					role='separator'
+					aria-label='Resize panels'
 				>
-					<div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-2 transition-all" />
+					<div className='absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:w-2 transition-all' />
 				</div>
 
 				{/* MDX Editor Panel */}
-				<div className="relative overflow-hidden" style={{ width: `${100 - splitRatio}%` }}>
+				<div className='relative overflow-hidden' style={{ width: `${100 - splitRatio}%` }}>
 					<RawMDXEditor
 						value={rawMDXContent}
 						onChange={handleMDXChange}
@@ -261,7 +261,7 @@ export function DualModeEditor({
 		return (
 			<div className={className}>
 				{isConverting && (
-					<div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+					<div className='flex items-center justify-center p-4 text-sm text-muted-foreground'>
 						Converting content...
 					</div>
 				)}
@@ -282,7 +282,7 @@ export function DualModeEditor({
 	return (
 		<div className={cn(className, isConverting && 'opacity-50')}>
 			{isConverting && (
-				<div className="absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-10 flex items-center justify-center p-2 text-sm text-muted-foreground">
+				<div className='absolute top-0 left-0 right-0 bg-background/80 border-b border-border z-10 flex items-center justify-center p-2 text-sm text-muted-foreground'>
 					Converting content...
 				</div>
 			)}

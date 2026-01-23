@@ -1,23 +1,6 @@
-/**
- * @fileoverview Client API Adapter Factory
- * @description Factory that creates a StorageAdapter which routes requests to either
- * LocalStorage (for guests) or API (for authenticated users).
- */
-
-import { ApiAdapter, apiRequest } from './api-adapter'
-import { LocalStorageAdapter } from './local-storage-adapter'
-import type {
-	StorageAdapter,
-	ReadAdapterOptions,
-	CreateAdapterOptions,
-	UpdateAdapterOptions,
-	DeleteAdapterOptions,
-	BatchReadAdapterOptions,
-	BatchCreateAdapterOptions,
-	BatchUpdateAdapterOptions,
-	BatchDeleteAdapterOptions,
-	BaseEntity
-} from './types'
+import { ApiAdapter, apiRequest } from "./api-adapter";
+import { LocalStorageAdapter } from "./local-storage-adapter";
+import type { StorageAdapter, ReadAdapterOptions, CreateAdapterOptions, UpdateAdapterOptions, DeleteAdapterOptions, BatchReadAdapterOptions, BatchCreateAdapterOptions, BatchUpdateAdapterOptions, BatchDeleteAdapterOptions, BaseEntity } from "./types";
 
 // Re-export common types and helpers for consumers
 export type { BaseEntity }
@@ -28,7 +11,7 @@ export { AuthRequiredError } from './api-adapter'
 const GUEST_USER_IDS = ['guest', 'guest-user'] as const
 
 function isGuestUser(userId?: string | null): boolean {
-	return userId != null && GUEST_USER_IDS.includes(userId as typeof GUEST_USER_IDS[number])
+	return userId != null && GUEST_USER_IDS.includes(userId as (typeof GUEST_USER_IDS)[number])
 }
 
 /**
@@ -54,11 +37,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 	return {
 		name: 'client-api-strategy',
 
-		async create<T>(
-			key: string,
-			data: any,
-			options?: CreateAdapterOptions
-		): Promise<T> {
+		async create<T>(key: string, data: any, options?: CreateAdapterOptions): Promise<T> {
 			const userId = options?.userId
 			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
 				return guestAdapter.create(key, data, options)
@@ -66,10 +45,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			return apiAdapter.create(key, data, options)
 		},
 
-		async read<T>(
-			key: string,
-			options?: ReadAdapterOptions
-		): Promise<T[] | T | undefined> {
+		async read<T>(key: string, options?: ReadAdapterOptions): Promise<T[] | T | undefined> {
 			const userId = options?.userId
 			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
 				return guestAdapter.read(key, options)
@@ -77,11 +53,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			return apiAdapter.read(key, options)
 		},
 
-		async readOne<T>(
-			key: string,
-			id: string,
-			options?: ReadAdapterOptions
-		): Promise<T | null> {
+		async readOne<T>(key: string, id: string, options?: ReadAdapterOptions): Promise<T | null> {
 			const userId = options?.userId
 			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
 				return guestAdapter.readOne(key, id, options)
@@ -89,10 +61,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			return apiAdapter.readOne(key, id, options)
 		},
 
-		async readMany<T>(
-			key: string,
-			options?: BatchReadAdapterOptions
-		): Promise<T[]> {
+		async readMany<T>(key: string, options?: BatchReadAdapterOptions): Promise<T[]> {
 			const userId = options?.userId
 			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
 				return guestAdapter.readMany(key, options)
@@ -113,11 +82,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 			return apiAdapter.update(key, id, data, options)
 		},
 
-		async delete(
-			key: string,
-			id: string,
-			options?: DeleteAdapterOptions
-		): Promise<boolean> {
+		async delete(key: string, id: string, options?: DeleteAdapterOptions): Promise<boolean> {
 			const userId = options?.userId
 			if (userId === GUEST_ID || userId === GUEST_USER_ID) {
 				return guestAdapter.delete(key, id, options)

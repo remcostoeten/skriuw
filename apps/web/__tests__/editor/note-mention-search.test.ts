@@ -1,10 +1,5 @@
-import { describe, expect, it } from 'vitest'
-
-import {
-	buildMentionCandidates,
-	searchNoteMentions,
-	type NoteMentionCandidate,
-} from '../../features/editor/utils/note-mention-search'
+import { buildMentionCandidates, searchNoteMentions, type NoteMentionCandidate } from "../../features/editor/utils/note-mention-search";
+import { describe, expect, it } from "vitest";
 
 describe('note mention search utilities', () => {
 	it('builds mention candidates from nested folders', () => {
@@ -22,9 +17,9 @@ describe('note mention search utilities', () => {
 						type: 'note',
 						content: [],
 						createdAt: 0,
-						updatedAt: 2,
-					},
-				],
+						updatedAt: 2
+					}
+				]
 			},
 			{
 				id: 'note-2',
@@ -32,8 +27,8 @@ describe('note mention search utilities', () => {
 				type: 'note',
 				content: [],
 				createdAt: 0,
-				updatedAt: 1,
-			},
+				updatedAt: 1
+			}
 		] as any
 
 		const candidates = buildMentionCandidates(items)
@@ -46,7 +41,7 @@ describe('note mention search utilities', () => {
 		const candidates: NoteMentionCandidate[] = [
 			{ id: '1', title: 'Monthly Review', updatedAt: 2 },
 			{ id: '2', title: 'Review Meeting Notes', updatedAt: 3 },
-			{ id: '3', title: 'Finances', updatedAt: 5 },
+			{ id: '3', title: 'Finances', updatedAt: 5 }
 		]
 
 		const results = searchNoteMentions('rev', candidates, 5)

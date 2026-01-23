@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
-import { getDatabase, schema } from '@skriuw/db'
-import { eq, and, lt, inArray } from 'drizzle-orm'
-import { env } from '@/lib/env'
+import { env } from "@/lib/env";
+import { getDatabase, schema } from "@skriuw/db";
+import { eq, and, lt, inArray } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic'
 
@@ -12,8 +12,7 @@ export async function GET(request: Request) {
 		const isVercelCron = request.headers.get('vercel-cron') === 'true'
 		const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
 		const isDevBearer =
-			process.env.NODE_ENV === 'development' &&
-			authHeader === `Bearer dev-cleanup-secret`
+			process.env.NODE_ENV === 'development' && authHeader === `Bearer dev-cleanup-secret`
 
 		if (!isVercelCron && !isValidBearer && !isDevBearer) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,8 +35,7 @@ export async function POST(request: Request) {
 		const isVercelCron = request.headers.get('vercel-cron') === 'true'
 		const isValidBearer = authHeader === `Bearer ${env.CRON_SECRET}`
 		const isDevBearer =
-			process.env.NODE_ENV === 'development' &&
-			authHeader === `Bearer dev-cleanup-secret`
+			process.env.NODE_ENV === 'development' && authHeader === `Bearer dev-cleanup-secret`
 
 		if (!isVercelCron && !isValidBearer && !isDevBearer) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -75,9 +73,7 @@ async function cleanupProcess(dryRun: boolean) {
 
 		if (usersToDelete.length === 0) {
 			return NextResponse.json({
-				message: dryRun
-					? 'No users to cleanup (dry run)'
-					: 'No users to cleanup',
+				message: dryRun ? 'No users to cleanup (dry run)' : 'No users to cleanup',
 				deletedCount: 0,
 				dryRun,
 				timestamp: now.toISOString()
@@ -94,9 +90,7 @@ async function cleanupProcess(dryRun: boolean) {
 
 			for (let i = 0; i < ids.length; i += batchSize) {
 				const batch = ids.slice(i, i + batchSize)
-				await db
-					.delete(schema.user)
-					.where(inArray(schema.user.id, batch))
+				await db.delete(schema.user).where(inArray(schema.user.id, batch))
 				deletedCount += batch.length
 			}
 		} else {

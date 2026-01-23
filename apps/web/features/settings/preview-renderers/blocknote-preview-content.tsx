@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { PartialBlock } from '@blocknote/core'
-import { useCreateBlockNote } from '@blocknote/react'
-import '@blocknote/core/style.css'
-import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
+import { BlockNoteView } from "@/features/editor/components/blocknote-shadcn/BlockNoteView";
+import { PartialBlock } from "@blocknote/core";
+import "@blocknote/core/style.css";
+import { useCreateBlockNote } from "@blocknote/react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 
 // Sample content for BlockNote preview
 const SAMPLE_BLOCKS: PartialBlock[] = [
@@ -14,29 +14,29 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'Try typing ',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: '@',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: ' to mention a note, or start with ',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: '/',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: ' for slash commands!',
-				styles: {},
-			},
-		],
+				styles: {}
+			}
+		]
 	},
 	{
 		type: 'paragraph',
@@ -44,29 +44,29 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'You can also create ',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: 'rich text formatting',
-				styles: { bold: true },
+				styles: { bold: true }
 			},
 			{
 				type: 'text',
 				text: ' with ',
-				styles: {},
+				styles: {}
 			},
 			{
 				type: 'text',
 				text: 'inline code',
-				styles: { code: true },
+				styles: { code: true }
 			},
 			{
 				type: 'text',
 				text: ' and more.',
-				styles: {},
-			},
-		],
+				styles: {}
+			}
+		]
 	},
 	{
 		type: 'heading',
@@ -75,9 +75,9 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'Interactive Features',
-				styles: {},
-			},
-		],
+				styles: {}
+			}
+		]
 	},
 	{
 		type: 'bulletListItem',
@@ -85,9 +85,9 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'Drag the ⋮⋮ handle to reorder blocks',
-				styles: {},
-			},
-		],
+				styles: {}
+			}
+		]
 	},
 	{
 		type: 'bulletListItem',
@@ -95,9 +95,9 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'Hover over blocks to see the drag handle',
-				styles: {},
-			},
-		],
+				styles: {}
+			}
+		]
 	},
 	{
 		type: 'bulletListItem',
@@ -105,13 +105,13 @@ const SAMPLE_BLOCKS: PartialBlock[] = [
 			{
 				type: 'text',
 				text: 'Type @ for note mentions (if available)',
-				styles: {},
-			},
-		],
-	},
+				styles: {}
+			}
+		]
+	}
 ]
 
-export interface BlockNotePreviewContentProps {
+export type BlockNotePreviewContentProps = {
 	value: boolean
 }
 
@@ -130,7 +130,7 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 			uploadFile: async () => {
 				// Return a placeholder URL for uploaded files
 				return Promise.resolve('/placeholder.png')
-			},
+			}
 		},
 		[]
 	)
@@ -188,21 +188,21 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 
 	return (
 		<div
-			className="mt-3 rounded-md overflow-hidden border border-border transition-all duration-200"
+			className='mt-3 rounded-md overflow-hidden border border-border transition-all duration-200'
 			onMouseEnter={() => setIsHovering(true)}
 			onMouseLeave={() => setIsHovering(false)}
 		>
-			<div className="text-xs text-muted-foreground px-3 py-1.5 bg-muted/50 border-b border-border flex items-center justify-between">
+			<div className='text-xs text-muted-foreground px-3 py-1.5 bg-muted/50 border-b border-border flex items-center justify-between'>
 				<span>BlockNote Editor Preview</span>
-				<span className="font-medium">{value ? 'Enabled' : 'Disabled'}</span>
+				<span className='font-medium'>{value ? 'Enabled' : 'Disabled'}</span>
 			</div>
 
 			{/* Demo hints */}
 			<div
-				className="text-xs px-3 py-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-border/50 text-blue-600 dark:text-blue-400 transition-all duration-500"
+				className='text-xs px-3 py-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-border/50 text-blue-600 dark:text-blue-400 transition-all duration-500'
 				style={{
 					opacity: isHovering ? 1 : 0.7,
-					transform: isHovering ? 'translateY(0)' : 'translateY(-2px)',
+					transform: isHovering ? 'translateY(0)' : 'translateY(-2px)'
 				}}
 			>
 				{getDemoHint()}
@@ -214,39 +214,39 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 				style={{
 					height: isHovering ? '280px' : '200px',
 					opacity: value ? 1 : 0.3,
-					pointerEvents: value ? 'auto' : ('none' as const),
+					pointerEvents: value ? 'auto' : ('none' as const)
 				}}
 			>
 				{value && editor ? (
-					<div className="h-full overflow-hidden">
+					<div className='h-full overflow-hidden'>
 						<BlockNoteView
 							key={instanceId}
 							// @ts-ignore // Type mismatch due to BlockNote version differences
 							editor={editor}
 							editable={false} // Read-only for preview
 							theme={'light'}
-							className="h-full"
+							className='h-full'
 							data-theming-css-variables={false}
 						/>
 
 						{/* Interactive overlay for hover effects */}
 						{isHovering && (
-							<div className="absolute inset-0 pointer-events-none">
+							<div className='absolute inset-0 pointer-events-none'>
 								{/* Animated highlight effect */}
 								<div
-									className="absolute top-8 left-4 right-4 h-8 bg-blue-500/10 rounded-md border border-blue-500/20 animate-pulse"
+									className='absolute top-8 left-4 right-4 h-8 bg-blue-500/10 rounded-md border border-blue-500/20 animate-pulse'
 									style={{
-										animation: 'slideIn 0.5s ease-out, pulse 2s infinite',
+										animation: 'slideIn 0.5s ease-out, pulse 2s infinite'
 									}}
 								/>
 							</div>
 						)}
 					</div>
 				) : (
-					<div className="h-full flex items-center justify-center text-muted-foreground">
-						<div className="text-center">
-							<div className="text-4xl mb-2">📝</div>
-							<div className="text-sm">BlockNote Editor Disabled</div>
+					<div className='h-full flex items-center justify-center text-muted-foreground'>
+						<div className='text-center'>
+							<div className='text-4xl mb-2'>📝</div>
+							<div className='text-sm'>BlockNote Editor Disabled</div>
 						</div>
 					</div>
 				)}
@@ -254,17 +254,17 @@ export default function BlockNotePreviewContent({ value }: BlockNotePreviewConte
 
 			{/* Feature highlights */}
 			{isHovering && value && (
-				<div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-t border-border/50 grid grid-cols-3 gap-2 text-xs">
-					<div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-						<span className="font-medium">@</span>
+				<div className='px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-t border-border/50 grid grid-cols-3 gap-2 text-xs'>
+					<div className='flex items-center gap-1 text-blue-600 dark:text-blue-400'>
+						<span className='font-medium'>@</span>
 						<span>Note Mentions</span>
 					</div>
-					<div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
-						<span className="font-medium">/</span>
+					<div className='flex items-center gap-1 text-purple-600 dark:text-purple-400'>
+						<span className='font-medium'>/</span>
 						<span>Slash Commands</span>
 					</div>
-					<div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-						<span className="font-medium">⋮⋮</span>
+					<div className='flex items-center gap-1 text-green-600 dark:text-green-400'>
+						<span className='font-medium'>⋮⋮</span>
 						<span>Drag & Drop</span>
 					</div>
 				</div>

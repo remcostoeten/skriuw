@@ -1,10 +1,4 @@
-/**
- * @fileoverview Environment Variable Schema Definitions
- * @description Centralized schema definitions using Zod for all environment variables.
- * Provides type-safe access and validation with helpful error messages.
- */
-
-import { z } from 'zod'
+import { z } from "zod";
 
 // ============================================================================
 // SCHEMA DEFINITIONS
@@ -15,55 +9,55 @@ import { z } from 'zod'
  * Supports both Neon (serverless) and standard PostgreSQL.
  */
 export const databaseSchema = z.object({
-    DATABASE_URL: z
-        .string({
-            required_error: '❌ DATABASE_URL is required',
-            invalid_type_error: 'DATABASE_URL must be a string',
-        })
-        .url('DATABASE_URL must be a valid URL')
-        .refine(
-            (url) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
-            'DATABASE_URL must be a PostgreSQL connection string'
-        ),
+	DATABASE_URL: z
+		.string({
+			required_error: '❌ DATABASE_URL is required',
+			invalid_type_error: 'DATABASE_URL must be a string'
+		})
+		.url('DATABASE_URL must be a valid URL')
+		.refine(
+			(url) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
+			'DATABASE_URL must be a PostgreSQL connection string'
+		),
 
-    DATABASE_PROVIDER: z
-        .enum(['neon', 'postgres'], {
-            errorMap: () => ({ message: 'DATABASE_PROVIDER must be "neon" or "postgres"' }),
-        })
-        .optional()
-        .default('postgres'),
+	DATABASE_PROVIDER: z
+		.enum(['neon', 'postgres'], {
+			errorMap: () => ({ message: 'DATABASE_PROVIDER must be "neon" or "postgres"' })
+		})
+		.optional()
+		.default('postgres')
 })
 
 /**
  * Authentication configuration schema (Better Auth).
  */
 export const authSchema = z.object({
-    GITHUB_CLIENT_ID: z.string().optional(),
-    GITHUB_CLIENT_SECRET: z.string().optional(),
-    GOOGLE_CLIENT_ID: z.string().optional(),
-    GOOGLE_CLIENT_SECRET: z.string().optional(),
-    BETTER_AUTH_SECRET: z.string().optional(),
-    BETTER_AUTH_URL: z.string().url().optional(),
+	GITHUB_CLIENT_ID: z.string().optional(),
+	GITHUB_CLIENT_SECRET: z.string().optional(),
+	GOOGLE_CLIENT_ID: z.string().optional(),
+	GOOGLE_CLIENT_SECRET: z.string().optional(),
+	BETTER_AUTH_SECRET: z.string().optional(),
+	BETTER_AUTH_URL: z.string().url().optional()
 })
 
 /**
  * AI/LLM configuration schema.
  */
 export const aiSchema = z.object({
-    GEMINI_API_KEY: z.string().optional(),
-    GEMINI_BACKUP_KEY: z.string().optional(),
-    OPENAI_API_KEY: z.string().optional(),
-    ANTHROPIC_API_KEY: z.string().optional(),
+	GEMINI_API_KEY: z.string().optional(),
+	GEMINI_BACKUP_KEY: z.string().optional(),
+	OPENAI_API_KEY: z.string().optional(),
+	ANTHROPIC_API_KEY: z.string().optional()
 })
 
 /**
  * Vercel-specific configuration schema.
  */
 export const vercelSchema = z.object({
-    VERCEL: z.string().optional(),
-    VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
-    VERCEL_URL: z.string().optional(),
-    VERCEL_OIDC_TOKEN: z.string().optional(),
+	VERCEL: z.string().optional(),
+	VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
+	VERCEL_URL: z.string().optional(),
+	VERCEL_OIDC_TOKEN: z.string().optional()
 })
 
 /**
@@ -71,16 +65,16 @@ export const vercelSchema = z.object({
  * Includes all sensitive variables that should never be exposed to the client.
  */
 export const serverSchema = z.object({
-    ...databaseSchema.shape,
-    ...authSchema.shape,
-    ...aiSchema.shape,
-    ...vercelSchema.shape,
+	...databaseSchema.shape,
+	...authSchema.shape,
+	...aiSchema.shape,
+	...vercelSchema.shape,
 
-    // Node environment
-    NODE_ENV: z
-        .enum(['development', 'test', 'production'])
-        .optional()
-        .default('development'),
+	// Node environment
+	NODE_ENV: z.enum(['development', 'test', 'production']).optional().default('development'),
+
+	// Admin access
+	ADMIN_EMAILS: z.string().optional()
 })
 
 /**
@@ -88,8 +82,8 @@ export const serverSchema = z.object({
  * Only includes NEXT_PUBLIC_* variables that are safe for the browser.
  */
 export const clientSchema = z.object({
-    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-    NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
+	NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+	NEXT_PUBLIC_VERCEL_URL: z.string().optional()
 })
 
 // ============================================================================

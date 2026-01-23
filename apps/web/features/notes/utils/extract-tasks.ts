@@ -1,6 +1,6 @@
-import type { Block } from '@blocknote/core'
+import type { Block } from "@blocknote/core";
 
-export interface ExtractedTask {
+export type ExtractedTask = {
 	blockId: string
 	content: string
 	checked: boolean
@@ -73,7 +73,7 @@ export function extractTasksFromBlocks(
 				content,
 				checked,
 				parentTaskId,
-				position: position++,
+				position: position++
 			})
 
 			// If this task has children, they might be subtasks

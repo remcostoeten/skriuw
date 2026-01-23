@@ -1,12 +1,12 @@
 {
-    "$schema": "https://openapi.vercel.sh/vercel.json",
-    "buildCommand": "cd ../.. && turbo build --filter=web",
-    "installCommand": "cd ../.. && bun install",
-    "framework": "nextjs",
-    "crons": [
-        {
-            "path": "/api/cron/cleanup",
-            "schedule": "0 2 * * *"
-        }
-    ]
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"buildCommand": "cd ../.. && turbo build --filter=web",
+	"installCommand": "cd ../.. && bun install",
+	"framework": "nextjs",
+	"crons": [
+		{
+			"path": "/api/cron/cleanup",
+			"schedule": "0 2 * * *"
+		}
+	]
 }

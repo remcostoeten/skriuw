@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { findItemById, findFolderById, isDescendant } from '../../features/notes/utils/tree-helpers'
-import type { Item, Folder, Note } from '../../features/notes/types'
+import type { Item, Folder, Note } from "../../features/notes/types";
+import { findItemById, findFolderById, isDescendant } from "../../features/notes/utils/tree-helpers";
+import { describe, it, expect } from "vitest";
 
 describe('tree-helpers', () => {
 	const mockItems: Item[] = [
@@ -15,7 +15,7 @@ describe('tree-helpers', () => {
 					type: 'note',
 					content: [],
 					createdAt: new Date(),
-					updatedAt: new Date(),
+					updatedAt: new Date()
 				} as unknown as Note,
 				{
 					id: 'folder-2',
@@ -26,18 +26,18 @@ describe('tree-helpers', () => {
 							id: 'note-2',
 							name: 'Note 2',
 							type: 'note',
-							content: [],
-						} as Note,
-					],
-				} as Folder,
-			],
+							content: []
+						} as Note
+					]
+				} as Folder
+			]
 		} as Folder,
 		{
 			id: 'note-3',
 			name: 'Note 3',
 			type: 'note',
-			content: [],
-		} as Note,
+			content: []
+		} as Note
 	]
 
 	describe('findItemById', () => {

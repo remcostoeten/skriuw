@@ -1,4 +1,4 @@
-export interface UserSetting<T = any> {
+export type UserSetting<T = any> = {
 	key: string
 	label?: string
 	value: T
@@ -29,14 +29,14 @@ export type SettingsCategory =
 	| 'advanced'
 	| 'ai'
 
-export interface SettingsGroup {
+export type SettingsGroup = {
 	category: SettingsCategory
 	title: string
 	description: string
 	settings: UserSetting[]
 }
 
-export interface SettingsConfig {
+export type SettingsConfig = {
 	key: string
 	defaultValue: any
 	type: 'string' | 'number' | 'boolean' | 'object' | 'enum'
@@ -48,7 +48,7 @@ export interface SettingsConfig {
 }
 
 // Props passed to all preview components
-export interface PreviewProps<T = any> {
+export type PreviewProps<T = any> = {
 	value: T
 	settingKey: string
 	options?: T[]
@@ -70,7 +70,7 @@ type BaseEntity = {
 /**
  * Settings entity stored in storage
  */
-export interface SettingsEntity extends BaseEntity {
+export type SettingsEntity = {
 	id: 'app-settings'
 	settings: Record<string, any>
-}
+} & BaseEntity

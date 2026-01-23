@@ -1,13 +1,5 @@
-import { generateId } from '@skriuw/shared'
-
-import type {
-	BackupChunkMeta,
-	BackupManifest,
-	BackupPayload,
-	DestinationConfig,
-	EncryptionHandler,
-	StorageDriver,
-} from './types'
+import type { BackupChunkMeta, BackupManifest, BackupPayload, DestinationConfig, EncryptionHandler, StorageDriver } from "./types";
+import { generateId } from "@skriuw/shared";
 
 const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024 // 8 MB
 
@@ -22,7 +14,10 @@ async function toHexSha256(data: Uint8Array): Promise<string> {
 	throw new Error('WebCrypto unavailable: cannot compute SHA-256 chunk checksum')
 }
 
-function chunkBuffer(payload: Uint8Array, chunkSize: number): Array<{ chunk: Uint8Array; meta: BackupChunkMeta }> {
+function chunkBuffer(
+	payload: Uint8Array,
+	chunkSize: number
+): Array<{ chunk: Uint8Array; meta: BackupChunkMeta }> {
 	const chunks: Array<{ chunk: Uint8Array; meta: BackupChunkMeta }> = []
 	let index = 0
 
@@ -35,8 +30,8 @@ function chunkBuffer(payload: Uint8Array, chunkSize: number): Array<{ chunk: Uin
 				id,
 				index,
 				size: slice.byteLength,
-				checksum: '',
-			},
+				checksum: ''
+			}
 		})
 		index++
 	}
@@ -44,7 +39,7 @@ function chunkBuffer(payload: Uint8Array, chunkSize: number): Array<{ chunk: Uin
 	return chunks
 }
 
-export interface BackupRunOptions {
+export type BackupRunOptions = {
 	driver: StorageDriver
 	destination: DestinationConfig
 	payload: BackupPayload
@@ -57,7 +52,7 @@ export async function runBackup({
 	destination,
 	payload,
 	chunkSize = DEFAULT_CHUNK_SIZE,
-	encryption,
+	encryption
 }: BackupRunOptions): Promise<BackupManifest> {
 	const manifestId = payload.id ?? generateId('manifest-')
 	const createdAt = payload.createdAt ?? new Date().toISOString()
@@ -95,7 +90,7 @@ export async function runBackup({
 		totalBytes: payload.bytes.byteLength,
 		chunks: manifestChunks,
 		encrypted: isEncrypted,
-		metadata: payload.metadata,
+		metadata: payload.metadata
 	}
 
 	await driver.finalize(manifest)

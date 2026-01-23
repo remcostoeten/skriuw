@@ -84,15 +84,10 @@ Zero-session users receive periodic login prompts to encourage authentication:
 function checkAndShowLoginPopup(requestCount) {
 	const NthRequest = 5 // Show popup every 5th request
 	const popupShown = sessionStorage.getItem('loginPopupShown')
-	const lastShownAt = parseInt(
-		sessionStorage.getItem('lastPopupShownAt') || '0'
-	)
+	const lastShownAt = parseInt(sessionStorage.getItem('lastPopupShownAt') || '0')
 	const oneHourAgo = Date.now() - 60 * 60 * 1000
 
-	if (
-		requestCount % NthRequest === 0 &&
-		Date.now() > lastShownAt + oneHourAgo
-	) {
+	if (requestCount % NthRequest === 0 && Date.now() > lastShownAt + oneHourAgo) {
 		showLoginPrompt()
 		sessionStorage.setItem('loginPopupShown', 'true')
 		sessionStorage.setItem('lastPopupShownAt', Date.now().toString())

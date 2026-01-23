@@ -1,8 +1,7 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
-
-import type { SidebarContentType } from './types'
+import type { SidebarContentType } from "./types";
+import { usePathname } from "next/navigation";
 
 /**
  * Determines the sidebar content type based on the current route

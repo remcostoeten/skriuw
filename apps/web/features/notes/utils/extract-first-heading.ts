@@ -1,4 +1,4 @@
-import type { Block } from '@blocknote/core'
+import type { Block } from "@blocknote/core";
 
 /**
  * Extracts the first heading (# or ##) from BlockNote blocks
@@ -14,14 +14,21 @@ export function extractFirstHeading(blocks: Block[]): string | null {
 	function findFirstHeading(blockList: Block[]): string | null {
 		for (const block of blockList) {
 			// Check if this block is a heading (level 1 or 2)
-			if (block.type === 'heading' && (block.props?.level === 1 || block.props?.level === 2)) {
+			if (
+				block.type === 'heading' &&
+				(block.props?.level === 1 || block.props?.level === 2)
+			) {
 				// Extract text content from the heading block
 				if (block.content && Array.isArray(block.content)) {
 					const textParts: string[] = []
 					for (const contentItem of block.content) {
 						if (typeof contentItem === 'string') {
 							textParts.push(contentItem)
-						} else if (contentItem && typeof contentItem === 'object' && 'text' in contentItem) {
+						} else if (
+							contentItem &&
+							typeof contentItem === 'object' &&
+							'text' in contentItem
+						) {
 							textParts.push(String((contentItem as { text: string }).text))
 						}
 					}

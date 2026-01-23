@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode } from "react";
 
 /**
  * Animation variant types for the switch component
@@ -25,7 +25,7 @@ export type SwitchSize = 'sm' | 'md' | 'lg'
 /**
  * Custom color configuration for the switch
  */
-export interface SwitchColors {
+export type SwitchColors = {
 	/** Track background color when OFF */
 	trackOff?: string
 	/** Track background color when ON */
@@ -42,7 +42,7 @@ export interface SwitchColors {
  * Comprehensive props interface for the Switch component
  * Covers all enterprise requirements including accessibility, callbacks, and customization
  */
-export interface SwitchProps {
+export type SwitchProps = {
 	/** Controlled checked state */
 	checked?: boolean
 

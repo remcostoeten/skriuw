@@ -1,17 +1,13 @@
-import { X, Search } from 'lucide-react'
-import { useState, useEffect, useRef, useMemo } from 'react'
-
-import { createFocusTrap } from '@skriuw/shared/client'
-
-import { Input } from '@skriuw/ui/input'
-
-import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts'
-import { resetShortcut } from '../api/mutations/reset-shortcut'
-import { saveShortcut } from '../api/mutations/save-shortcut'
-import { getShortcuts } from '../api/queries/get-shortcuts'
-import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions'
-
-import { ShortcutsList, ShortcutState } from './shortcuts-list'
+import { resetAllShortcuts } from "../api/mutations/reset-all-shortcuts";
+import { resetShortcut } from "../api/mutations/reset-shortcut";
+import { saveShortcut } from "../api/mutations/save-shortcut";
+import { getShortcuts } from "../api/queries/get-shortcuts";
+import { ShortcutId, shortcutDefinitions, KeyCombo } from "../shortcut-definitions";
+import { ShortcutsList, ShortcutState } from "./shortcuts-list";
+import { createFocusTrap } from "@skriuw/shared/client";
+import { Input } from "@skriuw/ui/input";
+import { X, Search } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 type props = {
 	isOpen: boolean
@@ -92,8 +88,8 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 	const loadShortcuts = async () => {
 		const customShortcuts = await getShortcuts()
 
-		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
-			.map(([id, definition]) => {
+		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions).map(
+			([id, definition]) => {
 				const shortcutId = id as ShortcutId
 				const customKeys = customShortcuts[shortcutId]
 
@@ -102,9 +98,10 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 					currentKeys: customKeys || definition.keys,
 					defaultKeys: definition.keys,
 					description: definition.description || id,
-					isCustomized: !!customKeys,
+					isCustomized: !!customKeys
 				}
-			})
+			}
+		)
 
 		setShortcuts(shortcutStates)
 	}
@@ -135,44 +132,47 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 			{/* Sidebar */}
 			<div
 				ref={sidebarRef}
-				className={`fixed top-1 right-0 h-full w-full sm:w-[500px] bg-popover border-l border-border z-50 flex flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(-1.34,1.56,0.64,1)] ${isOpen ? 'translate-x-0' : 'translate-x-full'
-					}`}
+				className={`fixed top-1 right-0 h-full w-full sm:w-[500px] bg-popover border-l border-border z-50 flex flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(-1.34,1.56,0.64,1)] ${
+					isOpen ? 'translate-x-0' : 'translate-x-full'
+				}`}
 				tabIndex={-1}
 			>
 				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b border-border">
-					<h2 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h2>
+				<div className='flex items-center justify-between p-4 border-b border-border'>
+					<h2 className='text-lg font-semibold text-foreground'>Keyboard Shortcuts</h2>
 					<button
 						onClick={onClose}
-						className="p-2 rounded-md hover:bg-accent/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-						aria-label="Close shortcuts panel"
+						className='p-2 rounded-md hover:bg-accent/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring'
+						aria-label='Close shortcuts panel'
 					>
-						<X className="w-5 h-5 text-muted-foreground" />
+						<X className='w-5 h-5 text-muted-foreground' />
 					</button>
 				</div>
 
 				{/* Search */}
-				<div className="p-4 border-b border-border">
-					<div className="relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+				<div className='p-4 border-b border-border'>
+					<div className='relative'>
+						<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none' />
 						<Input
 							ref={searchInputRef}
-							type="text"
-							placeholder="Search shortcuts..."
+							type='text'
+							placeholder='Search shortcuts...'
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 h-9 w-full"
-							aria-label="Search shortcuts"
+							className='pl-9 h-9 w-full'
+							aria-label='Search shortcuts'
 						/>
 					</div>
 				</div>
 
 				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-4">
+				<div className='flex-1 overflow-y-auto p-4'>
 					{filteredShortcuts.length === 0 ? (
-						<div className="py-12 text-center">
-							<p className="text-sm text-muted-foreground">
-								{searchQuery.trim() ? 'No shortcuts found' : 'No shortcuts available'}
+						<div className='py-12 text-center'>
+							<p className='text-sm text-muted-foreground'>
+								{searchQuery.trim()
+									? 'No shortcuts found'
+									: 'No shortcuts available'}
 							</p>
 						</div>
 					) : (
@@ -188,10 +188,10 @@ export function ShortcutsSidebar({ isOpen, onClose }: props) {
 				</div>
 
 				{/* Footer */}
-				<div className="p-4 border-t border-border bg-popover">
+				<div className='p-4 border-t border-border bg-popover'>
 					<button
 						onClick={handleResetAll}
-						className="w-full px-4 py-2 rounded-md border border-border hover:bg-accent/30 transition-colors text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+						className='w-full px-4 py-2 rounded-md border border-border hover:bg-accent/30 transition-colors text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 					>
 						Reset All to Defaults
 					</button>

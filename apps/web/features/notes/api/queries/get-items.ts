@@ -1,7 +1,6 @@
-import { readMany, invalidateForStorageKey } from '@skriuw/crud'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import type { Item } from '../../types'
+import type { Item } from "../../types";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { readMany, invalidateForStorageKey } from "@skriuw/crud";
 
 const CACHE_TTL_MS = 60000
 
@@ -23,10 +22,7 @@ function filterActiveItems(items: Item[]): Item[] {
 		})
 }
 
-async function fetchItems(options?: {
-	forceRefresh?: boolean
-	userId?: string
-}): Promise<Item[]> {
+async function fetchItems(options?: { forceRefresh?: boolean; userId?: string }): Promise<Item[]> {
 	const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 		cache: {
 			ttl: CACHE_TTL_MS,

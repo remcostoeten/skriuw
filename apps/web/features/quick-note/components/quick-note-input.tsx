@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
-
-import { useNotesContext } from '../../notes/context/notes-context'
+import { useNotesContext } from "../../notes/context/notes-context";
+import { Plus } from "lucide-react";
+import { useState } from "react";
 
 export function QuickNoteInput() {
 	const [noteTitle, setNoteTitle] = useState('')
@@ -28,24 +27,24 @@ export function QuickNoteInput() {
 	}
 
 	return (
-		<div className="w-full max-w-md border rounded-lg p-6 space-y-4">
-			<div className="text-lg font-semibold flex items-center gap-2">
-				<Plus className="h-5 w-5" />
+		<div className='w-full max-w-md border rounded-lg p-6 space-y-4'>
+			<div className='text-lg font-semibold flex items-center gap-2'>
+				<Plus className='h-5 w-5' />
 				Quick Note
 			</div>
-			<div className="space-y-3">
+			<div className='space-y-3'>
 				<input
-					type="text"
-					placeholder="Create a quick note..."
+					type='text'
+					placeholder='Create a quick note...'
 					value={noteTitle}
 					onChange={(e) => setNoteTitle(e.target.value)}
 					onKeyPress={handleKeyPress}
-					className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+					className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
 				/>
-				<button 
+				<button
 					onClick={handleCreateQuickNote}
 					disabled={!noteTitle.trim()}
-					className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+					className='w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
 				>
 					Create Note
 				</button>

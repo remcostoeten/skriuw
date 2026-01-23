@@ -1,22 +1,21 @@
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: skriuw-db
-    restart: unless-stopped
-    ports:
-      - '5433:5432'
-    environment:
-      POSTGRES_USER: skriuw
-      POSTGRES_PASSWORD: skriuw_dev
-      POSTGRES_DB: skriuw
-    volumes:
-      - skriuw_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U skriuw -d skriuw']
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    postgres:
+        image: postgres:16-alpine
+        container_name: skriuw-db
+        restart: unless-stopped
+        ports:
+            - '5433:5432'
+        environment:
+            POSTGRES_USER: skriuw
+            POSTGRES_PASSWORD: skriuw_dev
+            POSTGRES_DB: skriuw
+        volumes:
+            - skriuw_postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U skriuw -d skriuw']
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
 volumes:
-  skriuw_postgres_data:
+    skriuw_postgres_data:

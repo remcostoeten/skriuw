@@ -56,16 +56,16 @@ Modify the file tree sorting function:
 
 ```typescript
 const sortNodes = (nodes: Node[]) => {
-  return nodes.sort((a, b) => {
-    // 1. Folders first (usually)
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
-    
-    // 2. Pinned items first
-    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
-    
-    // 3. Alphabetical
-    return a.name.localeCompare(b.name)
-  })
+	return nodes.sort((a, b) => {
+		// 1. Folders first (usually)
+		if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
+
+		// 2. Pinned items first
+		if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
+
+		// 3. Alphabetical
+		return a.name.localeCompare(b.name)
+	})
 }
 ```
 
@@ -117,14 +117,14 @@ When toggling pin/favorite, update the UI immediately before the API call comple
 
 ```typescript
 const togglePin = (id: string, currentStatus: boolean) => {
-  // 1. Optimistic update in store
-  updateNode(id, { isPinned: !currentStatus })
-  
-  // 2. API call
-  api.updateNote(id, { isPinned: !currentStatus }).catch(() => {
-    // Revert on failure
-    updateNode(id, { isPinned: currentStatus })
-  })
+	// 1. Optimistic update in store
+	updateNode(id, { isPinned: !currentStatus })
+
+	// 2. API call
+	api.updateNote(id, { isPinned: !currentStatus }).catch(() => {
+		// Revert on failure
+		updateNode(id, { isPinned: currentStatus })
+	})
 }
 ```
 
@@ -138,7 +138,7 @@ If `Favorites` is a separate query, we need to invalidate it when a note is upda
 
 - **Pinning**: Should pinned items be separated by a divider? (Maybe just visual sorting is enough).
 - **Favorites**: Should clicking a favorite navigate to the note in its original folder context (expanding the tree) or just open the note?
-  - *Recommendation*: Just open the note. Highlight it in the main tree if visible.
+    - _Recommendation_: Just open the note. Highlight it in the main tree if visible.
 
 ## Future Enhancements
 

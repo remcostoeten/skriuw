@@ -1,7 +1,7 @@
-import type { OAuth2Config, OAuth2Tokens } from './types'
-import { clientEnv } from '@/lib/env'
+import type { OAuth2Config, OAuth2Tokens } from "./types";
+import { clientEnv } from "@/lib/env";
 
-export interface OAuth2Provider {
+export type OAuth2Provider = {
 	getConfig(): OAuth2Config
 	exchangeCodeForTokens(code: string): Promise<OAuth2Tokens>
 	refreshTokens(refreshToken: string): Promise<OAuth2Tokens>
@@ -14,7 +14,7 @@ export class DropboxOAuth2Provider implements OAuth2Provider {
 			redirectUri: `${window.location.origin}/backup/oauth/dropbox`,
 			scope: 'account_info.read files.metadata.write files.content.write',
 			authUrl: 'https://www.dropbox.com/oauth2/authorize',
-			tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
+			tokenUrl: 'https://api.dropboxapi.com/oauth2/token'
 		}
 	}
 
@@ -23,14 +23,14 @@ export class DropboxOAuth2Provider implements OAuth2Provider {
 		const response = await fetch(config.tokenUrl, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			body: new URLSearchParams({
 				code,
 				grant_type: 'authorization_code',
 				client_id: config.clientId,
-				redirect_uri: config.redirectUri,
-			}),
+				redirect_uri: config.redirectUri
+			})
 		})
 
 		if (!response.ok) {
@@ -45,13 +45,13 @@ export class DropboxOAuth2Provider implements OAuth2Provider {
 		const response = await fetch(config.tokenUrl, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			body: new URLSearchParams({
 				refresh_token: refreshToken,
 				grant_type: 'refresh_token',
-				client_id: config.clientId,
-			}),
+				client_id: config.clientId
+			})
 		})
 
 		if (!response.ok) {
@@ -69,7 +69,7 @@ export class GoogleDriveOAuth2Provider implements OAuth2Provider {
 			redirectUri: `${window.location.origin}/backup/oauth/google-drive`,
 			scope: 'https://www.googleapis.com/auth/drive.file',
 			authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-			tokenUrl: 'https://oauth2.googleapis.com/token',
+			tokenUrl: 'https://oauth2.googleapis.com/token'
 		}
 	}
 
@@ -78,14 +78,14 @@ export class GoogleDriveOAuth2Provider implements OAuth2Provider {
 		const response = await fetch(config.tokenUrl, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			body: new URLSearchParams({
 				code,
 				grant_type: 'authorization_code',
 				client_id: config.clientId,
-				redirect_uri: config.redirectUri,
-			}),
+				redirect_uri: config.redirectUri
+			})
 		})
 
 		if (!response.ok) {
@@ -100,13 +100,13 @@ export class GoogleDriveOAuth2Provider implements OAuth2Provider {
 		const response = await fetch(config.tokenUrl, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			body: new URLSearchParams({
 				refresh_token: refreshToken,
 				grant_type: 'refresh_token',
-				client_id: config.clientId,
-			}),
+				client_id: config.clientId
+			})
 		})
 
 		if (!response.ok) {

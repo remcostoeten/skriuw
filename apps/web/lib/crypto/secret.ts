@@ -1,10 +1,5 @@
-import {
-	createCipheriv,
-	createDecipheriv,
-	createHash,
-	randomBytes
-} from 'crypto'
-import { env } from '../env'
+import { env } from "../env";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // recommended for GCM
@@ -24,10 +19,7 @@ export function encryptSecret(plainText: string): string {
 	const key = getKey()
 	const iv = randomBytes(IV_LENGTH)
 	const cipher = createCipheriv(ALGORITHM, key, iv)
-	const encrypted = Buffer.concat([
-		cipher.update(plainText, 'utf8'),
-		cipher.final()
-	])
+	const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()])
 	const authTag = cipher.getAuthTag()
 	return Buffer.concat([iv, authTag, encrypted]).toString('base64')
 }

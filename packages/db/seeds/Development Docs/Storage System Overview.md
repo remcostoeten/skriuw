@@ -121,16 +121,18 @@ This document explains how all the storage components work together: CRUD functi
 **Purpose:** Provide a simple, type-safe API for storage operations
 
 **Responsibilities:**
+
 - Get current adapter from factory
 - Call adapter methods
 - Wrap errors with context
 - Provide consistent API
 
 **Example:**
+
 ```typescript
 export async function read<T>(storageKey: string, options?: ReadOptions<T>) {
-  const storage = getGenericStorage()  // Get adapter
-  return await storage.read<T>(storageKey, options)  // Delegate to adapter
+	const storage = getGenericStorage() // Get adapter
+	return await storage.read<T>(storageKey, options) // Delegate to adapter
 }
 ```
 
@@ -139,12 +141,14 @@ export async function read<T>(storageKey: string, options?: ReadOptions<T>) {
 **Purpose:** Manage adapter lifecycle and provide global access
 
 **Responsibilities:**
+
 - Register adapter factories
 - Create adapter instances
 - Initialize/destroy adapters
 - Provide singleton access
 
 **Key Functions:**
+
 - `createGenericStorageAdapter()` - Create adapter from config
 - `initializeGenericStorage()` - Initialize and store globally
 - `getGenericStorage()` - Get current adapter
@@ -155,6 +159,7 @@ export async function read<T>(storageKey: string, options?: ReadOptions<T>) {
 **Purpose:** Implement storage operations via HTTP requests
 
 **Responsibilities:**
+
 - Map storage keys to API endpoints
 - Make HTTP requests
 - Handle responses and errors
@@ -162,6 +167,7 @@ export async function read<T>(storageKey: string, options?: ReadOptions<T>) {
 - Provide storage info
 
 **Key Features:**
+
 - Storage key → API endpoint mapping
 - Error handling and parsing
 - Event system for real-time updates
@@ -171,13 +177,14 @@ export async function read<T>(storageKey: string, options?: ReadOptions<T>) {
 
 Storage keys identify different data types and map to API endpoints:
 
-| Storage Key | API Endpoint | Data Type |
-|------------|--------------|-----------|
-| `Skriuw_notes` | `/api/notes` | Notes and folders |
-| `app:settings` | `/api/settings` | User settings |
+| Storage Key                      | API Endpoint     | Data Type          |
+| -------------------------------- | ---------------- | ------------------ |
+| `Skriuw_notes`                   | `/api/notes`     | Notes and folders  |
+| `app:settings`                   | `/api/settings`  | User settings      |
 | `quantum-works:shortcuts:custom` | `/api/shortcuts` | Keyboard shortcuts |
 
 **Why Storage Keys?**
+
 - Abstraction: Business logic doesn't know about API endpoints
 - Flexibility: Easy to change endpoints without changing business logic
 - Consistency: Same pattern for all data types
@@ -244,6 +251,7 @@ Business logic handles error
 ```
 
 **Example:**
+
 ```typescript
 // Database error
 throw new Error('Connection failed')
@@ -278,13 +286,14 @@ Components can react to changes
 ```
 
 **Example:**
+
 ```typescript
 // Register listener
 adapter.addEventListener((event) => {
-  if (event.type === 'created' && event.storageKey === 'Skriuw_notes') {
-    // Refresh notes list
-    refreshNotes()
-  }
+	if (event.type === 'created' && event.storageKey === 'Skriuw_notes') {
+		// Refresh notes list
+		refreshNotes()
+	}
 })
 
 // Create note
@@ -311,6 +320,7 @@ Promise<Note[] | Note | undefined>
 ```
 
 **Benefits:**
+
 - Compile-time type checking
 - IntelliSense support
 - Refactoring safety
@@ -320,52 +330,55 @@ Promise<Note[] | Note | undefined>
 To add a new storage type (e.g., tasks):
 
 1. **Create API Route**
-   ```typescript
-   // app/api/tasks/route.ts
-   export async function GET() { ... }
-   export async function POST() { ... }
-   ```
+
+    ```typescript
+    // app/api/tasks/route.ts
+    export async function GET() { ... }
+    export async function POST() { ... }
+    ```
 
 2. **Add Storage Key**
-   ```typescript
-   // adapters/serverless-api.ts
-   const TASKS_STORAGE_KEY = 'Skriuw_tasks'
-   ```
+
+    ```typescript
+    // adapters/serverless-api.ts
+    const TASKS_STORAGE_KEY = 'Skriuw_tasks'
+    ```
 
 3. **Map in Adapter**
-   ```typescript
-   if (storageKey === TASKS_STORAGE_KEY) {
-     return await apiCall('/tasks', { method: 'GET' })
-   }
-   ```
+
+    ```typescript
+    if (storageKey === TASKS_STORAGE_KEY) {
+    	return await apiCall('/tasks', { method: 'GET' })
+    }
+    ```
 
 4. **Use in Business Logic**
-   ```typescript
-   const tasks = await read<Task>('Skriuw_tasks')
-   ```
+    ```typescript
+    const tasks = await read<Task>('Skriuw_tasks')
+    ```
 
 ## Benefits of This Architecture
 
 1. **Separation of Concerns**
-   - Each layer has a single responsibility
-   - Easy to understand and maintain
+    - Each layer has a single responsibility
+    - Easy to understand and maintain
 
 2. **Testability**
-   - Can mock adapters for testing
-   - Can test each layer independently
+    - Can mock adapters for testing
+    - Can test each layer independently
 
 3. **Flexibility**
-   - Easy to swap adapters
-   - Easy to add new storage types
-   - Easy to change API endpoints
+    - Easy to swap adapters
+    - Easy to add new storage types
+    - Easy to change API endpoints
 
 4. **Type Safety**
-   - Full TypeScript support
-   - Compile-time validation
+    - Full TypeScript support
+    - Compile-time validation
 
 5. **Consistency**
-   - Same pattern for all operations
-   - Predictable error handling
+    - Same pattern for all operations
+    - Predictable error handling
 
 ## Summary
 

@@ -1,4 +1,4 @@
-import { CheckboxAnimationVariant, CheckboxVariant, CheckboxSize } from './types'
+import { CheckboxAnimationVariant, CheckboxVariant, CheckboxSize } from "./types";
 
 /**
  * Style configurations for each checkbox variant
@@ -27,65 +27,65 @@ export const checkboxStyles: Record<
 		description: 'Standard checkbox with border and background',
 		unchecked: {
 			border: 'border-2 border-border',
-			background: 'bg-background',
+			background: 'bg-background'
 		},
 		checked: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
+			background: 'bg-primary'
 		},
 		indeterminate: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
-		},
+			background: 'bg-primary'
+		}
 	},
 	outline: {
 		name: 'Outline',
 		description: 'Minimal outline checkbox with transparent background',
 		unchecked: {
 			border: 'border-2 border-muted-foreground/50',
-			background: 'bg-transparent',
+			background: 'bg-transparent'
 		},
 		checked: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
+			background: 'bg-primary'
 		},
 		indeterminate: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
-		},
+			background: 'bg-primary'
+		}
 	},
 	filled: {
 		name: 'Filled',
 		description: 'Filled checkbox with background even when unchecked',
 		unchecked: {
 			border: 'border-2 border-muted',
-			background: 'bg-muted',
+			background: 'bg-muted'
 		},
 		checked: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
+			background: 'bg-primary'
 		},
 		indeterminate: {
 			border: 'border-2 border-primary',
-			background: 'bg-primary',
-		},
+			background: 'bg-primary'
+		}
 	},
 	minimal: {
 		name: 'Minimal',
 		description: 'Minimalist checkbox with subtle borders',
 		unchecked: {
 			border: 'border border-muted-foreground/30',
-			background: 'bg-transparent',
+			background: 'bg-transparent'
 		},
 		checked: {
 			border: 'border border-primary',
-			background: 'bg-primary',
+			background: 'bg-primary'
 		},
 		indeterminate: {
 			border: 'border border-primary',
-			background: 'bg-primary',
-		},
-	},
+			background: 'bg-primary'
+		}
+	}
 }
 
 /**
@@ -118,11 +118,11 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 scale-50',
 			checked: 'opacity-100 scale-100',
 			indeterminate: 'opacity-100 scale-100',
-			transition: 'all 200ms ease-in-out',
+			transition: 'all 200ms ease-in-out'
 		},
 		containerTransform: {
-			transition: 'all 200ms ease-in-out',
-		},
+			transition: 'all 200ms ease-in-out'
+		}
 	},
 	scale: {
 		name: 'Scale',
@@ -133,11 +133,11 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 scale-0',
 			checked: 'opacity-100 scale-100',
 			indeterminate: 'opacity-100 scale-100',
-			transition: 'all 250ms cubic-bezier(0.68, -0.2, 0.32, 1.2)',
+			transition: 'all 250ms cubic-bezier(0.68, -0.2, 0.32, 1.2)'
 		},
 		containerTransform: {
-			transition: 'all 250ms cubic-bezier(0.68, -0.2, 0.32, 1.2)',
-		},
+			transition: 'all 250ms cubic-bezier(0.68, -0.2, 0.32, 1.2)'
+		}
 	},
 	bounce: {
 		name: 'Bounce',
@@ -148,11 +148,11 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 scale-0 rotate(-180deg)',
 			checked: 'opacity-100 scale-100 rotate(0deg)',
 			indeterminate: 'opacity-100 scale-90 rotate(0deg)',
-			transition: 'all 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+			transition: 'all 400ms cubic-bezier(0.34, 1.56, 0.64, 1)'
 		},
 		containerTransform: {
-			transition: 'all 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-		},
+			transition: 'all 400ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+		}
 	},
 	slide: {
 		name: 'Slide',
@@ -163,11 +163,11 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 translate-x-[-100%]',
 			checked: 'opacity-100 translate-x-0',
 			indeterminate: 'opacity-100 translate-x-0',
-			transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+			transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
 		},
 		containerTransform: {
-			transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-		},
+			transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+		}
 	},
 	rotate: {
 		name: 'Rotate',
@@ -178,11 +178,11 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 rotate(-45deg) scale-0',
 			checked: 'opacity-100 rotate(0deg) scale-100',
 			indeterminate: 'opacity-100 rotate(0deg) scale-90',
-			transition: 'all 350ms cubic-bezier(0.65, 0, 0.35, 1)',
+			transition: 'all 350ms cubic-bezier(0.65, 0, 0.35, 1)'
 		},
 		containerTransform: {
-			transition: 'all 350ms cubic-bezier(0.65, 0, 0.35, 1)',
-		},
+			transition: 'all 350ms cubic-bezier(0.65, 0, 0.35, 1)'
+		}
 	},
 	gooey: {
 		name: 'Gooey',
@@ -193,12 +193,12 @@ export const checkboxAnimations: Record<
 			unchecked: 'opacity-0 scale-0 rotate(-12deg)',
 			checked: 'opacity-100 scale-110 rotate(0deg)',
 			indeterminate: 'opacity-100 scale-95 rotate(0deg)',
-			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)',
+			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)'
 		},
 		containerTransform: {
-			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)',
-		},
-	},
+			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)'
+		}
+	}
 }
 
 /**
@@ -230,55 +230,55 @@ export const checkboxSizes: Record<
 		description: 'Compact checkbox for dense interfaces',
 		container: {
 			width: 'w-4',
-			height: 'h-4',
+			height: 'h-4'
 		},
 		label: 'text-sm',
 		labelDescription: 'text-xs',
 		icon: {
 			width: 'w-2.5',
-			height: 'h-2.5',
+			height: 'h-2.5'
 		},
 		spacing: {
 			between: 'gap-2',
-			labelDescription: 'gap-1',
-		},
+			labelDescription: 'gap-1'
+		}
 	},
 	md: {
 		name: 'Medium',
 		description: 'Standard checkbox size for most interfaces',
 		container: {
 			width: 'w-5',
-			height: 'h-5',
+			height: 'h-5'
 		},
 		label: 'text-base',
 		labelDescription: 'text-sm',
 		icon: {
 			width: 'w-3',
-			height: 'h-3',
+			height: 'h-3'
 		},
 		spacing: {
 			between: 'gap-3',
-			labelDescription: 'gap-1.5',
-		},
+			labelDescription: 'gap-1.5'
+		}
 	},
 	lg: {
 		name: 'Large',
 		description: 'Large checkbox for touch interfaces or emphasis',
 		container: {
 			width: 'w-6',
-			height: 'h-6',
+			height: 'h-6'
 		},
 		label: 'text-lg',
 		labelDescription: 'text-base',
 		icon: {
 			width: 'w-4',
-			height: 'h-4',
+			height: 'h-4'
 		},
 		spacing: {
 			between: 'gap-4',
-			labelDescription: 'gap-2',
-		},
-	},
+			labelDescription: 'gap-2'
+		}
+	}
 }
 
 /**
@@ -293,14 +293,14 @@ export const focusRingStyles: Record<
 > = {
 	sm: {
 		ring: 'ring-1',
-		ringOffset: 'ring-offset-1',
+		ringOffset: 'ring-offset-1'
 	},
 	md: {
 		ring: 'ring-2',
-		ringOffset: 'ring-offset-2',
+		ringOffset: 'ring-offset-2'
 	},
 	lg: {
 		ring: 'ring-2',
-		ringOffset: 'ring-offset-2',
-	},
+		ringOffset: 'ring-offset-2'
+	}
 }

@@ -5,8 +5,8 @@
 
 export { CrudErrorCode, detectErrorCode } from './codes'
 export {
-    createCrudError,
-    createValidationError,
-    createNotFoundError,
-    type CrudError,
+	createCrudError,
+	createValidationError,
+	createNotFoundError,
+	type CrudError
 } from './error'

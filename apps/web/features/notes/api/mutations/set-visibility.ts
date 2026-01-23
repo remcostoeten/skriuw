@@ -1,9 +1,10 @@
 'use server'
-import { update } from '@skriuw/crud'
-import type { Note } from '../../types'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { invalidateItemsCache } from '../queries/get-items'
-import { trackActivity } from '@/features/activity'
+
+import type { Note } from "../../types";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { update } from "@skriuw/crud";
 
 export async function setNoteVisibility(
 	noteId: string,
@@ -13,9 +14,7 @@ export async function setNoteVisibility(
 	invalidateItemsCache()
 
 	if (!result.success) {
-		throw new Error(
-			(result as any).error?.message ?? 'Failed to update note visibility'
-		)
+		throw new Error((result as any).error?.message ?? 'Failed to update note visibility')
 	}
 
 	if (result.data) {

@@ -1,17 +1,11 @@
-/**
- * @fileoverview API Authentication Utilities
- * @description Provides session helpers for API routes to enable user-scoped operations.
- * Uses Better Auth for session management.
- */
-
-import { headers } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from './auth'
+import { auth } from "./auth";
+import { headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Session result from Better Auth
  */
-export interface Session {
+export type Session = {
 	user: {
 		id: string
 		email: string
@@ -27,13 +21,13 @@ export interface Session {
 /**
  * Authentication result for API routes
  */
-export interface AuthResult {
+export type AuthResult = {
 	authenticated: true
 	userId: string
 	session: Session
 }
 
-export interface AuthError {
+export type AuthError = {
 	authenticated: false
 	response: NextResponse
 }
@@ -152,10 +146,7 @@ export async function optionalAuth(): Promise<string | null> {
  * ```
  */
 export function withAuth<T>(
-	handler: (
-		request: NextRequest,
-		context: { userId: string; session: Session }
-	) => Promise<T>,
+	handler: (request: NextRequest, context: { userId: string; session: Session }) => Promise<T>,
 	options: { required?: boolean } = { required: true }
 ) {
 	return async (request: NextRequest): Promise<T | NextResponse> => {
@@ -181,18 +172,14 @@ export function withAuth<T>(
 /**
  * Type guard to check if auth result is successful
  */
-export function isAuthenticated(
-	result: AuthResult | AuthError
-): result is AuthResult {
+export function isAuthenticated(result: AuthResult | AuthError): result is AuthResult {
 	return result.authenticated
 }
 
 /**
  * Alias for isAuthenticated - evaluate if auth guard passes
  */
-export function evaluateAuthGuard(
-	result: AuthResult | AuthError
-): result is AuthResult {
+export function evaluateAuthGuard(result: AuthResult | AuthError): result is AuthResult {
 	return isAuthenticated(result)
 }
 

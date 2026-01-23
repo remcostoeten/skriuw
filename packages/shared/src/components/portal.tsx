@@ -1,7 +1,7 @@
 'use client'
 
-import { type ReactNode, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { type ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
 	children: ReactNode

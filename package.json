@@ -1,38 +1,24 @@
 {
 	"name": "skriuw-monorepo",
 	"version": "0.1.0",
-	"devDependencies": {
-		"@skriuw/config": "workspace:*",
-		"@typescript-eslint/eslint-plugin": "^8.0.0",
-		"@typescript-eslint/parser": "^8.0.0",
-		"baseline-browser-mapping": "^2.9.5",
-		"dotenv": "^17.2.3",
-		"eslint-config-prettier": "^9.0.0",
-		"eslint-plugin-import": "^2.25.2",
-		"eslint-plugin-jsx-a11y": "^6.8.0",
-		"eslint-plugin-react": "^7.33.2",
-		"eslint-plugin-react-hooks": "^4.6.0",
-		"next": "16.0.10",
-		"postgres": "^3.4.7",
-		"prettier": "^3.6.2",
-		"tinyglobby": "^0.2.15",
-		"turbo": "^2.6.2",
-		"typescript": "5.9.3"
-	},
-	"engines": {
-		"node": ">=18"
-	},
-	"packageManager": "bun@1.3.3",
 	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
 	"scripts": {
-		"build": "cd apps/web && bun run build",
+		"build": "cd apps/web && bun --bun run build",
 		"build:packages": "cd packages/shared && bun run build && cd ../crud && bun run build && cd ../ui && bun run build",
-		"dev": "cd apps/web && bun run dev",
-		"start": "cd apps/web && bun run start",
-		"lint": "turbo lint",
-		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
+		"dev": "cd apps/web && bun --bun run dev",
+		"start": "cd apps/web && bun --bun run start",
+		"lint": "bun run --cwd packages/style lint",
+		"lint:fix": "bun run --cwd packages/style lint:fix",
+		"format": "bun run --cwd packages/style format",
+		"format:fix": "bun run --cwd packages/style format:fix",
+		"fix": "bun run --cwd packages/style fix",
 		"check-types": "turbo check-types",
 		"test": "turbo test",
+		"test:verbose": "turbo test:verbose --no-cache --continue",
 		"gen": "cd packages/db && bun drizzle-kit generate",
 		"migrate": "cd packages/db && bun drizzle-kit migrate",
 		"dbpush": "cd packages/db && bun drizzle-kit push",
@@ -41,15 +27,25 @@
 		"dev-cli": "bun scripts/dev-cli.ts",
 		"sync-seeds": "cd packages/db && bun scripts/sync-seeds.ts"
 	},
-	"workspaces": [
-		"apps/*",
-		"packages/*"
-	],
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
 		"@use-gesture/react": "^10.3.1",
 		"@vercel/analytics": "^1.6.1",
 		"better-auth": "^1.4.5",
 		"next-themes": "^0.4.6"
-	}
+	},
+	"devDependencies": {
+		"@skriuw/config": "workspace:*",
+		"baseline-browser-mapping": "^2.9.5",
+		"dotenv": "^17.2.3",
+		"next": "16.0.10",
+		"postgres": "^3.4.7",
+		"tinyglobby": "^0.2.15",
+		"turbo": "^2.6.2",
+		"typescript": "5.9.3"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"packageManager": "bun@1.3.3"
 }

@@ -1,14 +1,12 @@
 'use client'
 
-import React, { Suspense } from 'react'
-
-import { Label } from '@skriuw/ui/label'
-import { Input } from '@skriuw/ui/input'
-import { Switch } from '@skriuw/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@skriuw/ui/select'
-
-import type { SettingsGroup, UserSetting } from '../types'
-import { getPreviewRenderer } from '../preview-renderers'
+import { getPreviewRenderer } from "../preview-renderers";
+import type { SettingsGroup, UserSetting } from "../types";
+import { Input } from "@skriuw/ui/input";
+import { Label } from "@skriuw/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@skriuw/ui/select";
+import { Switch } from "@skriuw/ui/switch";
+import React, { Suspense } from "react";
 
 type props = {
 	group: SettingsGroup
@@ -35,11 +33,13 @@ function SettingPreview({
 	if (!PreviewComponent) return null
 
 	return (
-		<Suspense fallback={
-			<div className="mt-3 rounded-md border border-border bg-muted/30 h-20 flex items-center justify-center">
-				<span className="text-xs text-muted-foreground">Loading preview...</span>
-			</div>
-		}>
+		<Suspense
+			fallback={
+				<div className='mt-3 rounded-md border border-border bg-muted/30 h-20 flex items-center justify-center'>
+					<span className='text-xs text-muted-foreground'>Loading preview...</span>
+				</div>
+			}
+		>
 			<PreviewComponent
 				value={value}
 				settingKey={settingKey}
@@ -62,7 +62,8 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 			onChange(setting.key, value)
 		}
 
-		const isSettingDisabled = disabled || setting.implemented === false || setting.disabled === true
+		const isSettingDisabled =
+			disabled || setting.implemented === false || setting.disabled === true
 
 		function renderPreview() {
 			if (!setting.preview) return null
@@ -86,21 +87,25 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 						key={setting.key}
 						className={`py-4 overflow-visible ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
-						<div className="flex items-center justify-between">
-							<div className="flex-1 min-w-0 pr-8">
-								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
+						<div className='flex items-center justify-between'>
+							<div className='flex-1 min-w-0 pr-8'>
+								<Label className='text-base font-medium text-foreground block'>
+									{setting.label || setting.key}
+								</Label>
+								<p className='text-sm text-muted-foreground leading-relaxed mt-0.5'>
 									{setting.description}
 								</p>
 								{setting.disabledReason && (
-									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+									<p className='text-xs text-muted-foreground mt-1'>
+										{setting.disabledReason}
+									</p>
 								)}
 							</div>
 							<Switch
 								checked={currentValue}
 								onCheckedChange={handleChange}
 								disabled={isSettingDisabled}
-								size="md"
+								size='md'
 							/>
 						</div>
 						{renderPreview()}
@@ -113,14 +118,18 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 						key={setting.key}
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
-						<div className="flex items-center justify-between">
-							<div className="flex-1 min-w-0 pr-8">
-								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
+						<div className='flex items-center justify-between'>
+							<div className='flex-1 min-w-0 pr-8'>
+								<Label className='text-base font-medium text-foreground block'>
+									{setting.label || setting.key}
+								</Label>
+								<p className='text-sm text-muted-foreground leading-relaxed mt-0.5'>
 									{setting.description}
 								</p>
 								{setting.disabledReason && (
-									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+									<p className='text-xs text-muted-foreground mt-1'>
+										{setting.disabledReason}
+									</p>
 								)}
 							</div>
 							<Select
@@ -128,7 +137,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 								onValueChange={handleChange}
 								disabled={isSettingDisabled}
 							>
-								<SelectTrigger className="w-[160px] shrink-0">
+								<SelectTrigger className='w-[160px] shrink-0'>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -150,22 +159,26 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 						key={setting.key}
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
-						<div className="flex items-center justify-between">
-							<div className="flex-1 min-w-0 pr-8">
-								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
+						<div className='flex items-center justify-between'>
+							<div className='flex-1 min-w-0 pr-8'>
+								<Label className='text-base font-medium text-foreground block'>
+									{setting.label || setting.key}
+								</Label>
+								<p className='text-sm text-muted-foreground leading-relaxed mt-0.5'>
 									{setting.description}
 								</p>
 								{setting.disabledReason && (
-									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+									<p className='text-xs text-muted-foreground mt-1'>
+										{setting.disabledReason}
+									</p>
 								)}
 							</div>
 							<Input
-								type="number"
+								type='number'
 								value={currentValue?.toString() || ''}
 								onChange={(e) => handleChange(Number(e.target.value))}
 								disabled={isSettingDisabled}
-								className="w-[100px] shrink-0"
+								className='w-[100px] shrink-0'
 							/>
 						</div>
 						{renderPreview()}
@@ -178,21 +191,25 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 						key={setting.key}
 						className={`py-4 ${!isLast ? 'border-b border-border/50' : ''}`}
 					>
-						<div className="flex items-center justify-between">
-							<div className="flex-1 min-w-0 pr-8">
-								<Label className="text-base font-medium text-foreground block">{setting.label || setting.key}</Label>
-								<p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
+						<div className='flex items-center justify-between'>
+							<div className='flex-1 min-w-0 pr-8'>
+								<Label className='text-base font-medium text-foreground block'>
+									{setting.label || setting.key}
+								</Label>
+								<p className='text-sm text-muted-foreground leading-relaxed mt-0.5'>
 									{setting.description}
 								</p>
 								{setting.disabledReason && (
-									<p className="text-xs text-muted-foreground mt-1">{setting.disabledReason}</p>
+									<p className='text-xs text-muted-foreground mt-1'>
+										{setting.disabledReason}
+									</p>
 								)}
 							</div>
 							<Input
 								value={currentValue?.toString() || ''}
 								onChange={(e) => handleChange(e.target.value)}
 								disabled={isSettingDisabled}
-								className="w-[180px] shrink-0"
+								className='w-[180px] shrink-0'
 							/>
 						</div>
 						{renderPreview()}
@@ -201,7 +218,7 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 
 			default:
 				return (
-					<div key={setting.key} className="text-sm text-muted-foreground py-4">
+					<div key={setting.key} className='text-sm text-muted-foreground py-4'>
 						Unsupported setting type: {setting.type}
 					</div>
 				)
@@ -215,12 +232,12 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 			: undefined
 
 	return (
-		<div className="w-full max-w-2xl">
-			<div className="pb-4 mb-2 border-b border-border">
-				<h2 className="text-xl font-semibold text-foreground">{group.title}</h2>
-				<p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+		<div className='w-full max-w-2xl'>
+			<div className='pb-4 mb-2 border-b border-border'>
+				<h2 className='text-xl font-semibold text-foreground'>{group.title}</h2>
+				<p className='text-sm text-muted-foreground mt-1'>{group.description}</p>
 				{disabledNotice && (
-					<p className="text-xs text-muted-foreground mt-1 bg-muted/40 inline-block px-2 py-1 rounded border border-dashed border-border">
+					<p className='text-xs text-muted-foreground mt-1 bg-muted/40 inline-block px-2 py-1 rounded border border-dashed border-border'>
 						{disabledNotice}
 					</p>
 				)}
@@ -228,15 +245,16 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 			<div>
 				{implementedSettings.map((setting, index) => {
 					const isLast = index === implementedSettings.length - 1
-					const showSubsectionHeader = setting.subsection && (
-						index === 0 || implementedSettings[index - 1].subsection !== setting.subsection
-					)
+					const showSubsectionHeader =
+						setting.subsection &&
+						(index === 0 ||
+							implementedSettings[index - 1].subsection !== setting.subsection)
 
 					return (
 						<React.Fragment key={setting.key}>
 							{showSubsectionHeader && (
-								<div className="mt-6 mb-2 first:mt-0">
-									<h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+								<div className='mt-6 mb-2 first:mt-0'>
+									<h3 className='text-sm font-medium text-muted-foreground uppercase tracking-wider'>
 										{setting.subsection}
 									</h3>
 								</div>

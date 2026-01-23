@@ -1,41 +1,31 @@
-import { ReactNode, useMemo, useCallback, useEffect, useRef } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { EditorTabsBar } from "../../features/editor/components/editor-tabs-bar";
+import { useEditorTabs } from "../../features/editor/tabs";
+import { useSplitViewStore } from "../../features/notes/split-view/store";
+import { useSettings, useUserPreferences } from "../../features/settings";
+import { useShortcut } from "../../features/shortcuts/use-shortcut";
+import { TaskPanelStack } from "../../features/tasks";
+import { useUIStore } from "../../stores/ui-store";
+import { DevWidget } from "../dev-widget";
+import { LeftToolbar } from "../left-toolbar";
+import { RightSidebar } from "../right-sidebar";
+import { Sidebar } from "../sidebar";
+import { SidebarMenu } from "../sidebar-menu";
+import { SidebarSkeleton } from "../sidebar/sidebar-skeleton";
+import type { SidebarContentType } from "../sidebar/types";
+import { AppLayoutShell } from "./app-layout-shell";
+import { Footer } from "./footer";
+import { TopToolbar } from "./top-toolbar";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import { extractFirstHeading } from "@/features/notes/utils/extract-first-heading";
+import { flattenNotes } from "@/features/notes/utils/flatten-notes";
+import { useSession } from "@/lib/auth-client";
+import { MOBILE_BREAKPOINT } from "@skriuw/shared/client";
+import { useMediaQuery } from "@skriuw/shared/client";
+import { usePathname, useRouter } from "next/navigation";
+import { ReactNode, useMemo, useCallback, useEffect, useRef } from "react";
 
-import { MOBILE_BREAKPOINT } from '@skriuw/shared/client'
-import { useMediaQuery } from '@skriuw/shared/client'
-
-import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
-import { useEditorTabs } from '../../features/editor/tabs'
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
-import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-
-import { useSettings, useUserPreferences } from '../../features/settings'
-import { useShortcut } from '../../features/shortcuts/use-shortcut'
-import { useSession } from '@/lib/auth-client'
-
-import { useSplitViewStore } from '../../features/notes/split-view/store'
-
-import { DevWidget } from '../dev-widget'
 // import { AlphaBanner } from '../alpha-banner'
-import { Footer } from './footer'
-import { TopToolbar } from './top-toolbar'
-import { LeftToolbar } from '../left-toolbar'
-import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
-import { SidebarMenu } from '../sidebar-menu'
-
-import { useUIStore } from '../../stores/ui-store'
-
-import { AppLayoutShell } from './app-layout-shell'
-
-import type { SidebarContentType } from '../sidebar/types'
-
-import { Sidebar } from '../sidebar'
-
-import { TaskPanelStack } from '../../features/tasks'
-import { RightSidebar } from '../right-sidebar'
-
 type AppLayoutManagerProps = {
 	children: ReactNode
 	sidebarContentType?: SidebarContentType
@@ -49,7 +39,7 @@ type AppLayoutManagerProps = {
 export function AppLayoutManager({
 	children,
 	sidebarContentType,
-	sidebarCustomContent,
+	sidebarCustomContent
 }: AppLayoutManagerProps) {
 	const router = useRouter()
 	const pathname = usePathname()
@@ -65,7 +55,6 @@ export function AppLayoutManager({
 		// List of public paths that don't require auth (kept for reference)
 		// const publicPaths = ['/login', '/register', '/auth/callback']
 		// const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
-
 		// Removed forced redirect logic to allow public browsing
 	}, [session, isPending, pathname, router])
 
@@ -103,7 +92,7 @@ export function AppLayoutManager({
 		setSettingsOpen,
 		taskStack,
 		setLastActiveNote,
-		toggleRightSidebar,
+		toggleRightSidebar
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
 	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false
@@ -121,7 +110,7 @@ export function AppLayoutManager({
 		closeTabsToRight,
 		closeTabsToLeft,
 		moveTabLeft,
-		moveTabRight,
+		moveTabRight
 	} = useEditorTabs()
 
 	const notesInOrder = useMemo(() => flattenNotes(items), [items])
@@ -324,7 +313,7 @@ export function AppLayoutManager({
 			if (!note) return null
 			return {
 				pinned: note.pinned ?? false,
-				favorite: note.favorite ?? false,
+				favorite: note.favorite ?? false
 			}
 		},
 		[notesInOrder]
@@ -389,7 +378,7 @@ export function AppLayoutManager({
 							enabled: sidebarHierarchyGuides,
 							style: 'solid',
 							color: 'hsl(var(--muted-foreground))',
-							opacity: 0.35,
+							opacity: 0.35
 						}}
 					/>
 				)
@@ -418,7 +407,7 @@ export function AppLayoutManager({
 				/>
 			}
 			mainContent={
-				<div className="flex h-full flex-col">
+				<div className='flex h-full flex-col'>
 					{multiNoteTabs && (
 						<EditorTabsBar
 							tabs={tabs}
@@ -457,7 +446,10 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<RightSidebar noteId={sidebarActiveNoteId || undefined} content={currentNote?.content} />
+					<RightSidebar
+						noteId={sidebarActiveNoteId || undefined}
+						content={currentNote?.content}
+					/>
 					{/* <AlphaBanner
 						href="/docs"
 						text="New! PrismUI Components"

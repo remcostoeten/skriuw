@@ -1,15 +1,13 @@
 'use server'
 
-import { create, readMany } from '@skriuw/crud'
-
-import { invalidateItemsCache } from '../queries/get-items'
-import { getInitialNoteContent } from '../../utils/get-initial-note-content'
-
-import type { Note, CreateNoteData } from '../../types'
-import type { SettingsEntity } from '@/features/settings/types'
-import { trackActivity } from '@/features/activity'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { getCurrentUserId } from '@/lib/api-auth'
+import type { Note, CreateNoteData } from "../../types";
+import { getInitialNoteContent } from "../../utils/get-initial-note-content";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import type { SettingsEntity } from "@/features/settings/types";
+import { getCurrentUserId } from "@/lib/api-auth";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { create, readMany } from "@skriuw/crud";
 
 const SETTINGS_STORAGE_KEY = 'skriuw:settings'
 
@@ -32,10 +30,7 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 		if (!initialContent || initialContent.length === 0) {
 			const settingsEntity = await getSettings()
 			const template =
-				(settingsEntity?.settings?.defaultNoteTemplate as
-					| 'empty'
-					| 'h1'
-					| 'h2') || 'empty'
+				(settingsEntity?.settings?.defaultNoteTemplate as 'empty' | 'h1' | 'h2') || 'empty'
 			initialContent = getInitialNoteContent(template)
 		}
 
@@ -52,9 +47,7 @@ export async function createNote(data: CreateNoteData): Promise<Note> {
 		})
 
 		if (!result.success || !result.data) {
-			throw new Error(
-				(result as any).error?.message || 'Failed to create note'
-			)
+			throw new Error((result as any).error?.message || 'Failed to create note')
 		}
 
 		invalidateItemsCache()

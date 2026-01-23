@@ -1,8 +1,8 @@
-import React, { useId, useRef, useState, useEffect } from 'react'
-import { cn } from '@skriuw/shared'
-import { SwitchProps } from './types'
-import { switchAnimations, switchSizes } from './variants'
-import { Loader2 } from 'lucide-react'
+import { SwitchProps } from "./types";
+import { switchAnimations, switchSizes } from "./variants";
+import { cn } from "@skriuw/shared";
+import { Loader2 } from "lucide-react";
+import React, { useId, useRef, useState, useEffect } from "react";
 
 /**
  * Enterprise-grade Switch Component
@@ -110,7 +110,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 				const syntheticEvent = {
 					...event,
 					target: { ...inputRef.current!, checked: !checked },
-					currentTarget: { ...inputRef.current!, checked: !checked },
+					currentTarget: { ...inputRef.current!, checked: !checked }
 				} as React.ChangeEvent<HTMLInputElement>
 
 				// Handle both callbacks for keyboard events
@@ -137,10 +137,12 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 	const customColorVars: React.CSSProperties = {
 		...(colors?.trackOff && { backgroundColor: colors.trackOff }),
 		...(colors?.trackOn && { '--track-on-color': colors.trackOn }),
-		...(colors?.trackIndeterminate && { '--track-indeterminate-color': colors.trackIndeterminate }),
+		...(colors?.trackIndeterminate && {
+			'--track-indeterminate-color': colors.trackIndeterminate
+		}),
 		...(colors?.thumb && { backgroundColor: colors.thumb }),
 		...(colors?.focusRing && { '--focus-ring-color': colors.focusRing }),
-		'--switch-thumb-travel': sizeConfig.thumbTravel,
+		'--switch-thumb-travel': sizeConfig.thumbTravel
 	} as React.CSSProperties
 
 	const ariaAttributes = {
@@ -155,7 +157,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 		'aria-readonly': readOnly,
 		...Object.keys(restProps)
 			.filter((key) => key.startsWith('aria-'))
-			.reduce((acc, key) => ({ ...acc, [key]: restProps[key as keyof typeof restProps] }), {}),
+			.reduce((acc, key) => ({ ...acc, [key]: restProps[key as keyof typeof restProps] }), {})
 	}
 
 	const dataAttributes = Object.keys(restProps)
@@ -183,8 +185,8 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 		>
 			<input
 				ref={inputRef}
-				type="checkbox"
-				role="switch"
+				type='checkbox'
+				role='switch'
 				id={switchId}
 				name={name}
 				value={value}
@@ -199,7 +201,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 				onBlur={handleBlur}
 				onKeyDown={handleKeyDown}
 				onKeyUp={onKeyUp}
-				className="sr-only"
+				className='sr-only'
 				{...ariaAttributes}
 			/>
 
@@ -215,7 +217,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 					width: sizeConfig.trackWidth,
 					height: sizeConfig.trackHeight,
 					minWidth: sizeConfig.trackWidth,
-					minHeight: sizeConfig.trackHeight,
+					minHeight: sizeConfig.trackHeight
 				}}
 				onClick={() => {
 					if (!disabled && !readOnly && !loading) {
@@ -238,18 +240,18 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 							checked || indeterminate
 								? `translateY(-50%) ${animationConfig.thumbTransform.on}`
 								: `translateY(-50%) ${animationConfig.thumbTransform.off}`,
-						transition: animationConfig.thumbTransform.transition,
+						transition: animationConfig.thumbTransform.transition
 					}}
 				>
-					{loading && <Loader2 className="w-3 h-3 animate-spin text-foreground/60" />}
+					{loading && <Loader2 className='w-3 h-3 animate-spin text-foreground/60' />}
 
 					{!loading && checked && iconOn && (
-						<div className="w-full h-full flex items-center justify-center text-foreground/60">
+						<div className='w-full h-full flex items-center justify-center text-foreground/60'>
 							{iconOn}
 						</div>
 					)}
 					{!loading && !checked && !indeterminate && iconOff && (
-						<div className="w-full h-full flex items-center justify-center text-foreground/60">
+						<div className='w-full h-full flex items-center justify-center text-foreground/60'>
 							{iconOff}
 						</div>
 					)}
@@ -284,19 +286,19 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
 						)}
 					>
 						{label}
-						{required && <span className="ml-1 text-destructive">*</span>}
+						{required && <span className='ml-1 text-destructive'>*</span>}
 					</label>
 				)}
 			</div>
 
 			{description && (
-				<p id={descriptionId} className="text-sm text-muted-foreground">
+				<p id={descriptionId} className='text-sm text-muted-foreground'>
 					{description}
 				</p>
 			)}
 
 			{error && (
-				<p id={errorId} className="text-sm text-destructive" role="alert">
+				<p id={errorId} className='text-sm text-destructive' role='alert'>
 					{error}
 				</p>
 			)}

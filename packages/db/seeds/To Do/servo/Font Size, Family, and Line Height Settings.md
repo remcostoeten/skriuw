@@ -21,8 +21,8 @@ Implement user-configurable font settings (size, family, and line height) throug
 - `RawMDXEditor` accepts the same props
 - `useEditorConfig` has hardcoded values: `fontSize = 'medium'`, `fontFamily = 'inter'`, `lineHeight = 1.6`
 - Font mapping functions exist in `useEditorConfig.ts`:
-  - `getFontSizePx()` - maps size strings to pixel values
-  - `getFontFamily()` - maps family strings to CSS font stacks
+    - `getFontSizePx()` - maps size strings to pixel values
+    - `getFontFamily()` - maps family strings to CSS font stacks
 
 ### Issues to Address
 
@@ -41,9 +41,9 @@ Implement user-configurable font settings (size, family, and line height) throug
 ```typescript
 // src/features/settings/types.ts
 interface FontSettings {
-  fontSize: 'small' | 'medium' | 'large' | 'xlarge' | string // Allow custom px values
-  fontFamily: 'inter' | 'mono' | 'serif' | 'sans-serif' | string
-  lineHeight: number // 1.0 to 2.5, step 0.1
+	fontSize: 'small' | 'medium' | 'large' | 'xlarge' | string // Allow custom px values
+	fontFamily: 'inter' | 'mono' | 'serif' | 'sans-serif' | string
+	lineHeight: number // 1.0 to 2.5, step 0.1
 }
 ```
 
@@ -51,9 +51,9 @@ interface FontSettings {
 
 ```typescript
 const DEFAULT_FONT_SETTINGS: FontSettings = {
-  fontSize: 'medium',      // Maps to 16px
-  fontFamily: 'inter',      // Maps to Inter font stack
-  lineHeight: 1.6          // 1.6x line height
+	fontSize: 'medium', // Maps to 16px
+	fontFamily: 'inter', // Maps to Inter font stack
+	lineHeight: 1.6 // 1.6x line height
 }
 ```
 
@@ -123,23 +123,23 @@ src/features/settings/components/FontSettings/
 ```typescript
 // src/features/editor/hooks/useEditorConfig.ts
 export function useEditorConfig() {
-  const { fontSize, fontFamily, lineHeight } = useFontSettings()
-  
-  // Use settings instead of hardcoded values
-  const editorConfig = useMemo(() => {
-    return {
-      editorProps: {
-        attributes: {
-          style: {
-            fontSize: getFontSizePx(fontSize),
-            fontFamily: getFontFamily(fontFamily),
-            lineHeight: lineHeight.toString(),
-            // ... other styles
-          }
-        }
-      }
-    }
-  }, [fontSize, fontFamily, lineHeight])
+	const { fontSize, fontFamily, lineHeight } = useFontSettings()
+
+	// Use settings instead of hardcoded values
+	const editorConfig = useMemo(() => {
+		return {
+			editorProps: {
+				attributes: {
+					style: {
+						fontSize: getFontSizePx(fontSize),
+						fontFamily: getFontFamily(fontFamily),
+						lineHeight: lineHeight.toString()
+						// ... other styles
+					}
+				}
+			}
+		}
+	}, [fontSize, fontFamily, lineHeight])
 }
 ```
 
@@ -148,21 +148,21 @@ export function useEditorConfig() {
 ```typescript
 // src/features/settings/hooks/use-font-settings.ts
 export function useFontSettings() {
-  const { settings, updateSetting } = useSettings()
-  
-  return {
-    fontSize: settings.fontSize ?? DEFAULT_FONT_SETTINGS.fontSize,
-    fontFamily: settings.fontFamily ?? DEFAULT_FONT_SETTINGS.fontFamily,
-    lineHeight: settings.lineHeight ?? DEFAULT_FONT_SETTINGS.lineHeight,
-    updateFontSize: (size: string) => updateSetting('fontSize', size),
-    updateFontFamily: (family: string) => updateSetting('fontFamily', family),
-    updateLineHeight: (height: number) => updateSetting('lineHeight', height),
-    resetToDefaults: () => {
-      updateSetting('fontSize', DEFAULT_FONT_SETTINGS.fontSize)
-      updateSetting('fontFamily', DEFAULT_FONT_SETTINGS.fontFamily)
-      updateSetting('lineHeight', DEFAULT_FONT_SETTINGS.lineHeight)
-    }
-  }
+	const { settings, updateSetting } = useSettings()
+
+	return {
+		fontSize: settings.fontSize ?? DEFAULT_FONT_SETTINGS.fontSize,
+		fontFamily: settings.fontFamily ?? DEFAULT_FONT_SETTINGS.fontFamily,
+		lineHeight: settings.lineHeight ?? DEFAULT_FONT_SETTINGS.lineHeight,
+		updateFontSize: (size: string) => updateSetting('fontSize', size),
+		updateFontFamily: (family: string) => updateSetting('fontFamily', family),
+		updateLineHeight: (height: number) => updateSetting('lineHeight', height),
+		resetToDefaults: () => {
+			updateSetting('fontSize', DEFAULT_FONT_SETTINGS.fontSize)
+			updateSetting('fontFamily', DEFAULT_FONT_SETTINGS.fontFamily)
+			updateSetting('lineHeight', DEFAULT_FONT_SETTINGS.lineHeight)
+		}
+	}
 }
 ```
 
@@ -179,11 +179,11 @@ export function useFontSettings() {
 
 ```typescript
 const FONT_SIZE_PRESETS = {
-  small: '14px',
-  medium: '16px',
-  large: '18px',
-  xlarge: '20px',
-  xxlarge: '24px'
+	small: '14px',
+	medium: '16px',
+	large: '18px',
+	xlarge: '20px',
+	xxlarge: '24px'
 } as const
 ```
 
@@ -199,26 +199,26 @@ const FONT_SIZE_PRESETS = {
 
 ```typescript
 const FONT_FAMILIES = {
-  inter: {
-    name: 'Inter',
-    description: 'Modern sans-serif',
-    stack: '"Inter", system-ui, sans-serif'
-  },
-  mono: {
-    name: 'Monospace',
-    description: 'Code-friendly monospace',
-    stack: '"Fira Code", "Menlo", "Monaco", monospace'
-  },
-  serif: {
-    name: 'Serif',
-    description: 'Traditional serif',
-    stack: '"Georgia", "Times New Roman", serif'
-  },
-  'sans-serif': {
-    name: 'System Sans-serif',
-    description: 'System default',
-    stack: 'system-ui, sans-serif'
-  }
+	inter: {
+		name: 'Inter',
+		description: 'Modern sans-serif',
+		stack: '"Inter", system-ui, sans-serif'
+	},
+	mono: {
+		name: 'Monospace',
+		description: 'Code-friendly monospace',
+		stack: '"Fira Code", "Menlo", "Monaco", monospace'
+	},
+	serif: {
+		name: 'Serif',
+		description: 'Traditional serif',
+		stack: '"Georgia", "Times New Roman", serif'
+	},
+	'sans-serif': {
+		name: 'System Sans-serif',
+		description: 'System default',
+		stack: 'system-ui, sans-serif'
+	}
 } as const
 ```
 
@@ -291,22 +291,22 @@ const FONT_FAMILIES = {
 
 ```typescript
 function getFontSizePx(size: string | number): string {
-  // If already in px format, return as-is
-  if (typeof size === 'string' && size.endsWith('px')) {
-    const pxValue = parseInt(size, 10)
-    return pxValue >= 10 && pxValue <= 32 ? size : '16px'
-  }
-  
-  // Map preset names to pixel values
-  const sizeMap: Record<string, string> = {
-    small: '14px',
-    medium: '16px',
-    large: '18px',
-    xlarge: '20px',
-    xxlarge: '24px'
-  }
-  
-  return sizeMap[size] || '16px'
+	// If already in px format, return as-is
+	if (typeof size === 'string' && size.endsWith('px')) {
+		const pxValue = parseInt(size, 10)
+		return pxValue >= 10 && pxValue <= 32 ? size : '16px'
+	}
+
+	// Map preset names to pixel values
+	const sizeMap: Record<string, string> = {
+		small: '14px',
+		medium: '16px',
+		large: '18px',
+		xlarge: '20px',
+		xxlarge: '24px'
+	}
+
+	return sizeMap[size] || '16px'
 }
 ```
 
@@ -314,14 +314,14 @@ function getFontSizePx(size: string | number): string {
 
 ```typescript
 function getFontFamily(family: string): string {
-  const fontMap: Record<string, string> = {
-    inter: '"Inter", system-ui, sans-serif',
-    mono: '"Fira Code", "Menlo", "Monaco", monospace',
-    serif: '"Georgia", "Times New Roman", serif',
-    'sans-serif': 'system-ui, sans-serif'
-  }
-  
-  return fontMap[family] || fontMap.inter
+	const fontMap: Record<string, string> = {
+		inter: '"Inter", system-ui, sans-serif',
+		mono: '"Fira Code", "Menlo", "Monaco", monospace',
+		serif: '"Georgia", "Times New Roman", serif',
+		'sans-serif': 'system-ui, sans-serif'
+	}
+
+	return fontMap[family] || fontMap.inter
 }
 ```
 
@@ -339,7 +339,7 @@ function getFontFamily(family: string): string {
 ```typescript
 export function DualModeEditor({ editor, value, onChange, ...props }: DualModeEditorProps) {
   const { fontSize, fontFamily, lineHeight } = useFontSettings()
-  
+
   // Use settings instead of props
   return (
     // ... render with font settings
@@ -352,7 +352,7 @@ export function DualModeEditor({ editor, value, onChange, ...props }: DualModeEd
 ```typescript
 export function RawMDXEditor({ value, onChange, ...props }: RawMDXEditorProps) {
   const { fontSize, fontFamily, lineHeight } = useFontSettings()
-  
+
   return (
     <textarea
       style={{

@@ -1,13 +1,13 @@
-import type { UUID, Timestamp } from './semantics'
+import type { UUID, Timestamp } from "./semantics";
 
 /**
  * Core entity time metadata.
  * Includes creation, update, and optional deletion timestamp.
  */
 type Timestamps = {
-    createdAt: Timestamp
-    updatedAt: Timestamp
-    deletedAt?: Timestamp
+	createdAt: Timestamp
+	updatedAt: Timestamp
+	deletedAt?: Timestamp
 }
 
 /**
@@ -15,6 +15,5 @@ type Timestamps = {
  * Aligns with database schema and CRUD package.
  */
 export type BaseEntity = {
-    id: UUID
+	id: UUID
 } & Timestamps
-

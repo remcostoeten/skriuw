@@ -1,11 +1,8 @@
-import { RotateCcw } from 'lucide-react'
-import { useMemo } from 'react'
-
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@skriuw/ui/table'
-
-import { ShortcutId, KeyCombo } from '../shortcut-definitions'
-
-import { ShortcutRecorder } from './shortcut-recorder'
+import { ShortcutId, KeyCombo } from "../shortcut-definitions";
+import { ShortcutRecorder } from "./shortcut-recorder";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@skriuw/ui/table";
+import { RotateCcw } from "lucide-react";
+import { useMemo } from "react";
 
 export type ShortcutState = {
 	id: ShortcutId
@@ -30,7 +27,7 @@ export function ShortcutsList({
 	onShortcutChange,
 	onResetShortcut,
 	onStartRecording,
-	onStopRecording,
+	onStopRecording
 }: ShortcutsListProps) {
 	// Group shortcuts by category (based on id prefix)
 	const groupedShortcuts = useMemo(() => {
@@ -55,11 +52,11 @@ export function ShortcutsList({
 		save: 'Saving',
 		search: 'Searching',
 		delete: 'Deletion',
-		other: 'Other',
+		other: 'Other'
 	}
 
 	return (
-		<div className="space-y-4">
+		<div className='space-y-4'>
 			{Object.entries(groupedShortcuts)
 				.sort(([a], [b]) => {
 					if (a === 'other') return 1
@@ -68,40 +65,47 @@ export function ShortcutsList({
 				})
 				.map(([category, categoryShortcuts]) => (
 					<div key={category}>
-						<h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
-							{categoryLabels[category] || category.charAt(0).toUpperCase() + category.slice(1)}
+						<h3 className='text-sm font-semibold text-muted-foreground mb-2 px-1'>
+							{categoryLabels[category] ||
+								category.charAt(0).toUpperCase() + category.slice(1)}
 						</h3>
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead className="w-[50%]">Action</TableHead>
+									<TableHead className='w-[50%]'>Action</TableHead>
 									<TableHead>Shortcut</TableHead>
-									<TableHead className="text-right">Reset</TableHead>
+									<TableHead className='text-right'>Reset</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{categoryShortcuts.map((shortcut) => (
 									<TableRow key={shortcut.id}>
-										<TableCell className="font-medium">{shortcut.description}</TableCell>
+										<TableCell className='font-medium'>
+											{shortcut.description}
+										</TableCell>
 										<TableCell>
 											<ShortcutRecorder
 												value={shortcut.currentKeys}
-												onChange={(keys) => onShortcutChange(shortcut.id, keys)}
+												onChange={(keys) =>
+													onShortcutChange(shortcut.id, keys)
+												}
 												isRecording={recordingId === shortcut.id}
-												onStartRecording={() => onStartRecording(shortcut.id)}
+												onStartRecording={() =>
+													onStartRecording(shortcut.id)
+												}
 												onStopRecording={onStopRecording}
 												onCancel={onStopRecording}
 											/>
 										</TableCell>
-										<TableCell className="text-right">
+										<TableCell className='text-right'>
 											{shortcut.isCustomized && (
 												<button
 													onClick={() => onResetShortcut(shortcut.id)}
-													className="p-1.5 rounded-md hover:bg-accent/50 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-ring"
+													className='p-1.5 rounded-md hover:bg-accent/50 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-ring'
 													aria-label={`Reset ${shortcut.description} to default`}
-													title="Reset to default"
+													title='Reset to default'
 												>
-													<RotateCcw className="w-4 h-4 text-muted-foreground" />
+													<RotateCcw className='w-4 h-4 text-muted-foreground' />
 												</button>
 											)}
 										</TableCell>
