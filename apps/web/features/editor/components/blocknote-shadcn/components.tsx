@@ -227,15 +227,55 @@ const SuggestionMenuRoot = ({
 	</div>
 )
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+function getItemText(value: unknown): string | undefined {
+	if (typeof value === 'string') return value
+	if (typeof value === 'number') return String(value)
+	if (!isRecord(value)) return undefined
+	if (typeof value.name === 'string') return value.name
+	if (typeof value.label === 'string') return value.label
+	return undefined
+}
+
+function getItemTitle(item: unknown): string {
+	if (!isRecord(item)) return ''
+	return (
+		getItemText(item.title) ||
+		getItemText(item.label) ||
+		getItemText(item.name) ||
+		''
+	)
+}
+
+function getItemIcon(item: unknown): React.ReactNode | null {
+	if (!isRecord(item)) return null
+	const icon = item.icon
+	if (React.isValidElement(icon)) return icon
+	if (typeof icon === 'string' || typeof icon === 'number') return icon
+	const emoji = getItemText(item.emoji)
+	if (emoji) return emoji
+	const native = getItemText(item.native)
+	if (native) return native
+	return null
+}
+
+function getItemDesc(item: unknown): string | undefined {
+	if (!isRecord(item)) return undefined
+	return getItemText(item.description) || getItemText(item.subtext)
+}
+
 const SuggestionMenuItem = ({
 	className,
 	isSelected,
 	onClick,
 	item,
 }: BlockNoteComponentProps['SuggestionMenu']['Item']) => {
-	const title = (item as any).title || (item as any).label || String(item)
-	const description = (item as any).description || (item as any).subtext
-	const icon = (item as any).icon
+	const title = getItemTitle(item)
+	const description = getItemDesc(item)
+	const icon = getItemIcon(item)
 
 	// Determine category based on title for better organization
 	function getCategory(title: string) {
@@ -282,14 +322,16 @@ const SuggestionMenuItem = ({
 				className
 			)}
 		>
-			<div
-				className={cn(
-					'mt-0.5 shrink-0 text-lg opacity-80 flex items-center justify-center w-5 h-5',
-					categoryColors[category as keyof typeof categoryColors]
-				)}
-			>
-				{icon || '•'}
-			</div>
+			{icon ? (
+				<div
+					className={cn(
+						'mt-0.5 shrink-0 text-lg opacity-80 flex items-center justify-center w-5 h-5',
+						categoryColors[category as keyof typeof categoryColors]
+					)}
+				>
+					{icon}
+				</div>
+			) : null}
 			<div className="flex-1 min-w-0">
 				<div className="font-semibold leading-tight flex items-center gap-2">
 					{title}
@@ -376,29 +418,35 @@ const GridSuggestionMenuItem = ({
 	isSelected,
 	onClick,
 	item,
-}: BlockNoteComponentProps['GridSuggestionMenu']['Item']) => (
-	<button
-		type="button"
-		onClick={onClick}
-		className={cn(
-			'bn-grid-suggestion-item flex flex-col items-center justify-center',
-			'rounded-lg border border-transparent bg-muted/50',
-			'p-3.5 text-xs transition-all duration-150',
-			'hover:border-border hover:bg-muted/80 hover:shadow-md',
-			'active:scale-[0.96]',
-			isSelected &&
-			'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
-			className
-		)}
-	>
-		<div className="text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110">
-			{(item as any).icon}
-		</div>
-		<span className="font-semibold truncate w-full text-center leading-tight">
-			{(item as any).title || (item as any).label || String(item)}
-		</span>
-	</button>
-)
+}: BlockNoteComponentProps['GridSuggestionMenu']['Item']) => {
+	const icon = getItemIcon(item)
+
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className={cn(
+				'bn-grid-suggestion-item flex flex-col items-center justify-center',
+				'rounded-lg border border-transparent bg-muted/50',
+				'p-3.5 text-xs transition-all duration-150',
+				'hover:border-border hover:bg-muted/80 hover:shadow-md',
+				'active:scale-[0.96]',
+				isSelected &&
+				'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
+				className
+			)}
+		>
+			{icon ? (
+				<div className="text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110">
+					{icon}
+				</div>
+			) : null}
+			<span className="font-semibold truncate w-full text-center leading-tight">
+				{getItemTitle(item)}
+			</span>
+		</button>
+	)
+}
 
 const GridSuggestionMenuEmpty = ({
 	className,
