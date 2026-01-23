@@ -1,62 +1,92 @@
-import { getDatabase, notes } from './index'
+import { getDatabase, notes } from "./index";
 
 const welcomeContent = [
 	{
 		id: 'welcome-h1',
 		type: 'heading',
-		props: { level: 1, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+		props: {
+			level: 1,
+			textColor: 'default',
+			backgroundColor: 'default',
+			textAlignment: 'left'
+		},
 		content: [{ type: 'text', text: '👋 Welcome to Skriuw', styles: {} }],
-		children: [],
+		children: []
 	},
 	{
 		id: 'welcome-p1',
 		type: 'paragraph',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-		content: [{ type: 'text', text: 'A blazingly fast, privacy-focused note-taking app built with modern web technologies.', styles: {} }],
-		children: [],
+		content: [
+			{
+				type: 'text',
+				text: 'A blazingly fast, privacy-focused note-taking app built with modern web technologies.',
+				styles: {}
+			}
+		],
+		children: []
 	},
 	{
 		id: 'features-h2',
 		type: 'heading',
-		props: { level: 2, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+		props: {
+			level: 2,
+			textColor: 'default',
+			backgroundColor: 'default',
+			textAlignment: 'left'
+		},
 		content: [{ type: 'text', text: '✨ Key Features', styles: {} }],
-		children: [],
+		children: []
 	},
 	{
 		id: 'feature-1',
 		type: 'bulletListItem',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-		content: [{ type: 'text', text: '📝 Rich text editor with slash commands and markdown support', styles: {} }],
-		children: [],
+		content: [
+			{
+				type: 'text',
+				text: '📝 Rich text editor with slash commands and markdown support',
+				styles: {}
+			}
+		],
+		children: []
 	},
 	{
 		id: 'feature-2',
 		type: 'bulletListItem',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-		content: [{ type: 'text', text: '⌨️ Keyboard-first navigation with customizable shortcuts', styles: {} }],
-		children: [],
+		content: [
+			{
+				type: 'text',
+				text: '⌨️ Keyboard-first navigation with customizable shortcuts',
+				styles: {}
+			}
+		],
+		children: []
 	},
 	{
 		id: 'feature-3',
 		type: 'bulletListItem',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-		content: [{ type: 'text', text: '📂 Hierarchical folders to organize your notes', styles: {} }],
-		children: [],
+		content: [
+			{ type: 'text', text: '📂 Hierarchical folders to organize your notes', styles: {} }
+		],
+		children: []
 	},
 	{
 		id: 'feature-4',
 		type: 'bulletListItem',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: [{ type: 'text', text: '🔒 Privacy-focused: your data stays yours', styles: {} }],
-		children: [],
+		children: []
 	},
 	{
 		id: 'happy-writing',
 		type: 'paragraph',
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: [{ type: 'text', text: 'Happy writing! 🎉', styles: {} }],
-		children: [],
-	},
+		children: []
+	}
 ]
 
 async function seed() {
@@ -79,7 +109,7 @@ async function seed() {
 			favorite: 0,
 			createdAt: now,
 			updatedAt: now,
-			type: 'note',
+			type: 'note'
 		})
 
 		console.log('Created welcome note')

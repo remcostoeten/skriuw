@@ -1,19 +1,4 @@
-/**
- * @fileoverview API Storage Adapter
- * @description Implements StorageAdapter for authenticated users via REST API.
- */
-
-import type {
-	StorageAdapter,
-	ReadAdapterOptions,
-	CreateAdapterOptions,
-	UpdateAdapterOptions,
-	DeleteAdapterOptions,
-	BatchReadAdapterOptions,
-	BatchCreateAdapterOptions,
-	BatchUpdateAdapterOptions,
-	BatchDeleteAdapterOptions
-} from './types'
+import type { StorageAdapter, ReadAdapterOptions, CreateAdapterOptions, UpdateAdapterOptions, DeleteAdapterOptions, BatchReadAdapterOptions, BatchCreateAdapterOptions, BatchUpdateAdapterOptions, BatchDeleteAdapterOptions } from "./types";
 
 export class AuthRequiredError extends Error {
 	status: number
@@ -80,8 +65,7 @@ export async function apiRequest<T>(
 	options: RequestInit = {},
 	baseUrl?: string
 ): Promise<T | null> {
-	const apiBaseUrl =
-		baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
+	const apiBaseUrl = baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
 	const url = endpoint.startsWith('http')
 		? endpoint
@@ -139,23 +123,14 @@ export class ApiAdapter implements StorageAdapter {
 	private baseUrl: string
 
 	constructor(baseUrl?: string) {
-		this.baseUrl =
-			baseUrl ??
-			(typeof window !== 'undefined' ? window.location.origin : '')
+		this.baseUrl = baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')
 	}
 
-	private async apiCall<T>(
-		endpoint: string,
-		options: RequestInit = {}
-	): Promise<T | null> {
+	private async apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
 		return apiRequest<T>(endpoint, options, this.baseUrl)
 	}
 
-	async create<T>(
-		storageKey: string,
-		data: any,
-		options?: CreateAdapterOptions
-	): Promise<T> {
+	async create<T>(storageKey: string, data: any, options?: CreateAdapterOptions): Promise<T> {
 		const endpoint = getEndpoint(storageKey)
 		const body: any = { ...data }
 
@@ -173,10 +148,7 @@ export class ApiAdapter implements StorageAdapter {
 		return result
 	}
 
-	async read<T>(
-		storageKey: string,
-		options?: ReadAdapterOptions
-	): Promise<T[] | T | undefined> {
+	async read<T>(storageKey: string, options?: ReadAdapterOptions): Promise<T[] | T | undefined> {
 		const endpoint = getEndpoint(storageKey)
 		const params: Record<string, string | null | undefined> = {}
 
@@ -231,10 +203,7 @@ export class ApiAdapter implements StorageAdapter {
 		}
 	}
 
-	async readMany<T>(
-		storageKey: string,
-		options?: BatchReadAdapterOptions
-	): Promise<T[]> {
+	async readMany<T>(storageKey: string, options?: BatchReadAdapterOptions): Promise<T[]> {
 		const endpoint = getEndpoint(storageKey)
 		const params: Record<string, string | null | undefined> = {}
 
@@ -286,11 +255,7 @@ export class ApiAdapter implements StorageAdapter {
 		}
 	}
 
-	async delete(
-		storageKey: string,
-		id: string,
-		options?: DeleteAdapterOptions
-	): Promise<boolean> {
+	async delete(storageKey: string, id: string, options?: DeleteAdapterOptions): Promise<boolean> {
 		const endpoint = getEndpoint(storageKey)
 		const params: Record<string, string | null | undefined> = {
 			id

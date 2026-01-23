@@ -1,6 +1,5 @@
-
-import { BlockNoteEditor, Block } from '@blocknote/core'
-import { generateId } from '@skriuw/shared'
+import { BlockNoteEditor, Block } from "@blocknote/core";
+import { generateId } from "@skriuw/shared";
 
 /**
  * @description Converts markdown text to BlockNote blocks
@@ -16,11 +15,11 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 				props: {
 					backgroundColor: 'default',
 					textColor: 'default',
-					textAlignment: 'left',
+					textAlignment: 'left'
 				},
 				content: [],
-				children: [],
-			} as Block,
+				children: []
+			} as Block
 		]
 	}
 
@@ -36,12 +35,12 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 					props: {
 						backgroundColor: 'default',
 						textColor: 'default',
-						textAlignment: 'left',
+						textAlignment: 'left'
 					},
 					content: [],
-					children: [],
-				},
-			],
+					children: []
+				}
+			]
 		})
 
 		// Method 1: Try using tryParseMarkdownToBlocks (async method)
@@ -108,17 +107,17 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 				props: {
 					backgroundColor: 'default',
 					textColor: 'default',
-					textAlignment: 'left',
+					textAlignment: 'left'
 				},
 				content: [
 					{
 						type: 'text',
 						text: markdown,
-						styles: {},
-					},
+						styles: {}
+					}
 				],
-				children: [],
-			} as Block,
+				children: []
+			} as Block
 		]
 	} catch (error) {
 		console.error('Failed to parse markdown to blocks:', error)
@@ -140,17 +139,17 @@ export async function markdownToBlocks(markdown: string): Promise<Block[]> {
 				props: {
 					backgroundColor: 'default',
 					textColor: 'default',
-					textAlignment: 'left',
+					textAlignment: 'left'
 				},
 				content: [
 					{
 						type: 'text',
 						text: markdown,
-						styles: {},
-					},
+						styles: {}
+					}
 				],
-				children: [],
-			} as Block,
+				children: []
+			} as Block
 		]
 	}
 }

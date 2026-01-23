@@ -1,14 +1,12 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
-import { Upload, FileJson, FileText, Check, Loader2, AlertCircle, X, Cloud, Clock } from 'lucide-react'
-
-import { Button } from '@skriuw/ui/button'
-import { cn } from '@skriuw/shared'
-
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import { processImportFiles, type ImportResult } from '../utils/import-notes'
-import { FormatInfoCard, StatCard } from './shared/import-export-ui'
-import { useStorageConnectors } from '../hooks/use-storage-connectors'
-import type { BackupManifest } from '../core/types'
+import type { BackupManifest } from "../core/types";
+import { useStorageConnectors } from "../hooks/use-storage-connectors";
+import { processImportFiles, type ImportResult } from "../utils/import-notes";
+import { FormatInfoCard, StatCard } from "./shared/import-export-ui";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { cn } from "@skriuw/shared";
+import { Button } from "@skriuw/ui/button";
+import { Upload, FileJson, FileText, Check, Loader2, AlertCircle, X, Cloud, Clock } from "lucide-react";
+import { useState, useCallback, useRef, useMemo } from "react";
 
 type TImportStep = 'select' | 'preview' | 'importing' | 'complete' | 'cloud-select'
 
@@ -27,7 +25,10 @@ export function ImportPanel() {
 
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	const connectedProviders = useMemo(() => connectors.filter(c => c.status === 'connected'), [connectors])
+	const connectedProviders = useMemo(
+		() => connectors.filter((c) => c.status === 'connected'),
+		[connectors]
+	)
 
 	const handleDragOver = useCallback(function (e: React.DragEvent) {
 		e.preventDefault()
@@ -84,13 +85,13 @@ export function ImportPanel() {
 			setImportResult((prev) =>
 				prev
 					? {
-						...prev,
-						success: false,
-						errors: [
-							...prev.errors,
-							`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-						],
-					}
+							...prev,
+							success: false,
+							errors: [
+								...prev.errors,
+								`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+							]
+						}
 					: null
 			)
 		} finally {
@@ -128,7 +129,7 @@ export function ImportPanel() {
 		setAvailableBackups([])
 
 		try {
-			const connector = connectors.find(c => c.type === type)
+			const connector = connectors.find((c) => c.type === type)
 			if (!connector) throw new Error('Provider not found')
 
 			let driver: any
@@ -158,7 +159,7 @@ export function ImportPanel() {
 		setStep('importing')
 
 		try {
-			const connector = connectors.find(c => c.type === selectedProvider)
+			const connector = connectors.find((c) => c.type === selectedProvider)
 			if (!connector) throw new Error('Provider not found')
 
 			let driver: any
@@ -216,7 +217,6 @@ export function ImportPanel() {
 
 			await refreshItems()
 			setStep('complete')
-
 		} catch (error) {
 			console.error('Restore failed:', error)
 			// Fallback to select to show error
@@ -227,7 +227,7 @@ export function ImportPanel() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className='space-y-6'>
 			{step === 'select' && (
 				<>
 					<div
@@ -243,11 +243,11 @@ export function ImportPanel() {
 					>
 						<input
 							ref={fileInputRef}
-							type="file"
-							accept=".json,.md,.markdown"
+							type='file'
+							accept='.json,.md,.markdown'
 							multiple
 							onChange={handleFileSelect}
-							className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+							className='absolute inset-0 w-full h-full opacity-0 cursor-pointer'
 						/>
 						<Upload
 							className={cn(
@@ -255,28 +255,30 @@ export function ImportPanel() {
 								isDragging ? 'text-primary' : 'text-muted-foreground'
 							)}
 						/>
-						<p className="text-sm font-medium mb-1">
+						<p className='text-sm font-medium mb-1'>
 							{isDragging ? 'Drop files here' : 'Drag & drop files here'}
 						</p>
-						<p className="text-xs text-muted-foreground">or click to browse</p>
+						<p className='text-xs text-muted-foreground'>or click to browse</p>
 					</div>
 
 					{connectedProviders.length > 0 && (
-						<div className="space-y-3 pt-2">
-							<div className="flex items-center gap-2">
-								<div className="h-px bg-border flex-1" />
-								<span className="text-xs text-muted-foreground font-medium uppercase">Or restore from cloud</span>
-								<div className="h-px bg-border flex-1" />
+						<div className='space-y-3 pt-2'>
+							<div className='flex items-center gap-2'>
+								<div className='h-px bg-border flex-1' />
+								<span className='text-xs text-muted-foreground font-medium uppercase'>
+									Or restore from cloud
+								</span>
+								<div className='h-px bg-border flex-1' />
 							</div>
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-								{connectedProviders.map(p => (
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+								{connectedProviders.map((p) => (
 									<Button
 										key={p.type}
-										variant="outline"
-										className="justify-start"
+										variant='outline'
+										className='justify-start'
 										onClick={() => handleProviderSelect(p.type)}
 									>
-										<Cloud className="h-4 w-4 mr-2" />
+										<Cloud className='h-4 w-4 mr-2' />
 										{p.name}
 									</Button>
 								))}
@@ -284,18 +286,20 @@ export function ImportPanel() {
 						</div>
 					)}
 
-					<div className="space-y-3">
-						<h3 className="text-sm font-medium text-muted-foreground">Supported Formats</h3>
-						<div className="grid gap-2">
+					<div className='space-y-3'>
+						<h3 className='text-sm font-medium text-muted-foreground'>
+							Supported Formats
+						</h3>
+						<div className='grid gap-2'>
 							<FormatInfoCard
-								icon={<FileJson className="h-4 w-4" />}
-								title="Skriuw Backup"
-								description=".json file from Skriuw export"
+								icon={<FileJson className='h-4 w-4' />}
+								title='Skriuw Backup'
+								description='.json file from Skriuw export'
 							/>
 							<FormatInfoCard
-								icon={<FileText className="h-4 w-4" />}
-								title="Markdown Files"
-								description=".md files from Obsidian, Notion, etc."
+								icon={<FileText className='h-4 w-4' />}
+								title='Markdown Files'
+								description='.md files from Obsidian, Notion, etc.'
 							/>
 						</div>
 					</div>
@@ -303,43 +307,48 @@ export function ImportPanel() {
 			)}
 
 			{step === 'cloud-select' && (
-				<div className="space-y-4">
-					<div className="flex items-center justify-between">
-						<h3 className="font-medium flex items-center gap-2">
-							<Cloud className="h-4 w-4" />
+				<div className='space-y-4'>
+					<div className='flex items-center justify-between'>
+						<h3 className='font-medium flex items-center gap-2'>
+							<Cloud className='h-4 w-4' />
 							Select Backup
 						</h3>
-						<Button variant="ghost" size="sm" onClick={handleReset}>
-							<X className="h-4 w-4" />
+						<Button variant='ghost' size='sm' onClick={handleReset}>
+							<X className='h-4 w-4' />
 						</Button>
 					</div>
 
 					{isLoadingBackups ? (
-						<div className="py-8 flex justify-center">
-							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+						<div className='py-8 flex justify-center'>
+							<Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
 						</div>
 					) : availableBackups.length === 0 ? (
-						<div className="text-center py-8 text-muted-foreground space-y-2">
+						<div className='text-center py-8 text-muted-foreground space-y-2'>
 							<p>No backups found.</p>
-							<Button variant="link" onClick={handleReset}>Go back</Button>
+							<Button variant='link' onClick={handleReset}>
+								Go back
+							</Button>
 						</div>
 					) : (
-						<div className="grid gap-2 max-h-[300px] overflow-y-auto">
-							{availableBackups.map(backup => (
+						<div className='grid gap-2 max-h-[300px] overflow-y-auto'>
+							{availableBackups.map((backup) => (
 								<div
 									key={backup.id}
-									className="flex items-center justify-between p-3 rounded-md border border-border hover:bg-muted/50 transition-colors"
+									className='flex items-center justify-between p-3 rounded-md border border-border hover:bg-muted/50 transition-colors'
 								>
-									<div className="space-y-1">
-										<div className="font-medium text-sm flex items-center gap-2">
-											<Clock className="h-3 w-3 text-muted-foreground" />
+									<div className='space-y-1'>
+										<div className='font-medium text-sm flex items-center gap-2'>
+											<Clock className='h-3 w-3 text-muted-foreground' />
 											{new Date(backup.createdAt).toLocaleString()}
 										</div>
-										<div className="text-xs text-muted-foreground">
-											{backup.totalBytes ? `${(backup.totalBytes / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'} • v{backup.version}
+										<div className='text-xs text-muted-foreground'>
+											{backup.totalBytes
+												? `${(backup.totalBytes / 1024 / 1024).toFixed(2)} MB`
+												: 'Unknown size'}{' '}
+											• v{backup.version}
 										</div>
 									</div>
-									<Button size="sm" onClick={() => handleRestoreBackup(backup)}>
+									<Button size='sm' onClick={() => handleRestoreBackup(backup)}>
 										Restore
 									</Button>
 								</div>
@@ -351,33 +360,33 @@ export function ImportPanel() {
 
 			{step === 'preview' && importResult && (
 				<>
-					<div className="rounded-lg border border-border p-4 space-y-4">
-						<div className="flex items-center justify-between">
-							<h3 className="font-medium">Import Preview</h3>
-							<Button variant="ghost" size="sm" onClick={handleReset}>
-								<X className="h-4 w-4" />
+					<div className='rounded-lg border border-border p-4 space-y-4'>
+						<div className='flex items-center justify-between'>
+							<h3 className='font-medium'>Import Preview</h3>
+							<Button variant='ghost' size='sm' onClick={handleReset}>
+								<X className='h-4 w-4' />
 							</Button>
 						</div>
 
 						{importResult.success ? (
-							<div className="flex gap-4">
+							<div className='flex gap-4'>
 								<StatCard
-									label="Notes"
+									label='Notes'
 									value={importResult.importedNotes}
-									variant="success"
+									variant='success'
 								/>
 								<StatCard
-									label="Folders"
+									label='Folders'
 									value={importResult.importedFolders}
-									variant="info"
+									variant='info'
 								/>
 							</div>
 						) : (
-							<div className="flex items-start gap-3 rounded-lg bg-destructive/10 p-3">
-								<AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-								<div className="space-y-1">
+							<div className='flex items-start gap-3 rounded-lg bg-destructive/10 p-3'>
+								<AlertCircle className='h-5 w-5 text-destructive shrink-0 mt-0.5' />
+								<div className='space-y-1'>
 									{importResult.errors.map((error, i) => (
-										<p key={i} className="text-sm text-destructive">
+										<p key={i} className='text-sm text-destructive'>
 											{error}
 										</p>
 									))}
@@ -386,16 +395,16 @@ export function ImportPanel() {
 						)}
 					</div>
 
-					<div className="flex gap-3">
-						<Button variant="outline" onClick={handleReset} className="flex-1">
+					<div className='flex gap-3'>
+						<Button variant='outline' onClick={handleReset} className='flex-1'>
 							Cancel
 						</Button>
 						<Button
 							onClick={handleImport}
 							disabled={!importResult.success || importResult.importedNotes === 0}
-							className="flex-1"
+							className='flex-1'
 						>
-							<Upload className="h-4 w-4 mr-2" />
+							<Upload className='h-4 w-4 mr-2' />
 							Import {importResult.importedNotes} Notes
 						</Button>
 					</div>
@@ -403,21 +412,22 @@ export function ImportPanel() {
 			)}
 
 			{step === 'importing' && (
-				<div className="text-center py-8">
-					<Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-					<p className="text-sm font-medium">Importing notes...</p>
-					<p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
+				<div className='text-center py-8'>
+					<Loader2 className='h-10 w-10 animate-spin text-primary mx-auto mb-4' />
+					<p className='text-sm font-medium'>Importing notes...</p>
+					<p className='text-xs text-muted-foreground mt-1'>This may take a moment</p>
 				</div>
 			)}
 
 			{step === 'complete' && (
-				<div className="text-center py-8">
-					<div className="rounded-full bg-green-500/10 p-4 w-fit mx-auto mb-4">
-						<Check className="h-8 w-8 text-green-500" />
+				<div className='text-center py-8'>
+					<div className='rounded-full bg-green-500/10 p-4 w-fit mx-auto mb-4'>
+						<Check className='h-8 w-8 text-green-500' />
 					</div>
-					<p className="text-lg font-medium mb-1">Import Complete!</p>
-					<p className="text-sm text-muted-foreground mb-6">
-						{importResult?.importedNotes} notes and {importResult?.importedFolders} folders imported
+					<p className='text-lg font-medium mb-1'>Import Complete!</p>
+					<p className='text-sm text-muted-foreground mb-6'>
+						{importResult?.importedNotes} notes and {importResult?.importedFolders}{' '}
+						folders imported
 					</p>
 					<Button onClick={handleReset}>Import More</Button>
 				</div>

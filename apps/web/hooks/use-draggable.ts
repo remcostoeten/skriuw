@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from "react";
 
 type Position = {
 	x: number
@@ -23,7 +23,7 @@ export function useDraggable({
 	initialPosition = { x: 0, y: 0 },
 	storageKey,
 	disabled = false,
-	bounds = {},
+	bounds = {}
 }: UseDraggableOptions = {}) {
 	const [position, setPosition] = useState<Position>(initialPosition)
 	const [isDragging, setIsDragging] = useState(false)
@@ -111,8 +111,6 @@ export function useDraggable({
 		[bounds]
 	)
 
-
-
 	const handleMouseDown = useCallback(
 		(e: React.MouseEvent) => {
 			if (disabled) return
@@ -138,7 +136,7 @@ export function useDraggable({
 
 			const newPosition = {
 				x: elementStartPos.current.x + deltaX,
-				y: elementStartPos.current.y + deltaY,
+				y: elementStartPos.current.y + deltaY
 			}
 
 			const constrainedPosition = constrainToBounds(newPosition)
@@ -179,7 +177,7 @@ export function useDraggable({
 
 			const newPosition = {
 				x: elementStartPos.current.x + deltaX,
-				y: elementStartPos.current.y + deltaY,
+				y: elementStartPos.current.y + deltaY
 			}
 
 			const constrainedPosition = constrainToBounds(newPosition)
@@ -226,6 +224,6 @@ export function useDraggable({
 		isDragging,
 		handleMouseDown,
 		handleTouchStart,
-		resetPosition,
+		resetPosition
 	}
 }

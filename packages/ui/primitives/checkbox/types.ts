@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode } from "react";
 
 /**
  * Atimation variant types for the checkbox component
@@ -23,7 +23,7 @@ export type CheckboxVariant = 'default' | 'outline' | 'filled' | 'minimal'
 /**
  * Custom color configuration for the checkbox
  */
-export interface CheckboxColors {
+export type CheckboxColors = {
 	/** Border color when unchecked */
 	borderUnchecked?: string
 	/** Background color when unchecked */
@@ -48,7 +48,7 @@ export interface CheckboxColors {
  * Comprehensive props interface for the Checkbox component
  * Covers all enterprise requirements including accessibility, callbacks, and customization
  */
-export interface CheckboxProps {
+export type CheckboxProps = {
 	/** Controlled checked state */
 	checked?: boolean
 

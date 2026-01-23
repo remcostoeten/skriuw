@@ -1,18 +1,9 @@
-import { type ComponentProps as BlockNoteComponentProps, type Components } from '@blocknote/react'
-import React, { forwardRef } from 'react'
-
-import {
-	DropdownMenu,
-	DropdownMenuTrigger,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-} from '@skriuw/ui/dropdown-menu'
-import { Input } from '@skriuw/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@skriuw/ui/popover'
-
-import { cn } from '@skriuw/shared'
+import { type ComponentProps as BlockNoteComponentProps, type Components } from "@blocknote/react";
+import { cn } from "@skriuw/shared";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@skriuw/ui/dropdown-menu";
+import { Input } from "@skriuw/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@skriuw/ui/popover";
+import React, { forwardRef } from "react";
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,
@@ -38,7 +29,10 @@ const ToolbarRoot = forwardRef<
 			case 'ArrowLeft':
 			case 'ArrowUp':
 				event.preventDefault()
-				nextIndex = currentIndex === -1 ? buttons.length - 1 : (currentIndex - 1 + buttons.length) % buttons.length
+				nextIndex =
+					currentIndex === -1
+						? buttons.length - 1
+						: (currentIndex - 1 + buttons.length) % buttons.length
 				break
 			case 'Home':
 				event.preventDefault()
@@ -58,8 +52,8 @@ const ToolbarRoot = forwardRef<
 	return (
 		<div
 			ref={ref}
-			role="toolbar"
-			aria-label="Formatting options"
+			role='toolbar'
+			aria-label='Formatting options'
 			onMouseEnter={onMouseEnter}
 			onMouseLeave={onMouseLeave}
 			onKeyDown={handleKeyDown}
@@ -74,7 +68,6 @@ const ToolbarRoot = forwardRef<
 	)
 })
 
-
 const ToolbarButton = ({
 	className,
 	children,
@@ -84,11 +77,11 @@ const ToolbarButton = ({
 	isSelected,
 	isDisabled,
 	mainTooltip,
-	secondaryTooltip,
+	secondaryTooltip
 }: BlockNoteComponentProps['FormattingToolbar']['Button']) => {
 	return (
 		<button
-			type="button"
+			type='button'
 			tabIndex={0}
 			className={cn(
 				'bn-toolbar-button inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
@@ -115,7 +108,7 @@ const ToolbarButton = ({
 			}}
 		>
 			{icon}
-			{label && !children ? <span className="ml-0.5">{label}</span> : children}
+			{label && !children ? <span className='ml-0.5'>{label}</span> : children}
 		</button>
 	)
 }
@@ -123,7 +116,7 @@ const ToolbarButton = ({
 const ToolbarSelect = ({
 	className,
 	items,
-	isDisabled,
+	isDisabled
 }: BlockNoteComponentProps['FormattingToolbar']['Select']) => {
 	const selected = items.find((item) => item.isSelected) ?? items[0]
 
@@ -131,7 +124,7 @@ const ToolbarSelect = ({
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<button
-					type="button"
+					type='button'
 					className={cn(
 						'bn-toolbar-select inline-flex h-7 items-center justify-between rounded px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground',
 						'max-sm:h-8 max-sm:px-2',
@@ -140,14 +133,14 @@ const ToolbarSelect = ({
 					)}
 					disabled={isDisabled}
 				>
-					<span className="flex items-center gap-0.5">
+					<span className='flex items-center gap-0.5'>
 						{selected?.icon}
-						<span className="bn-toolbar-select-text">{selected?.text}</span>
+						<span className='bn-toolbar-select-text'>{selected?.text}</span>
 					</span>
-					<span className="bn-toolbar-select-arrow text-muted-foreground">v</span>
+					<span className='bn-toolbar-select-arrow text-muted-foreground'>v</span>
 				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="bn-toolbar-select-menu">
+			<DropdownMenuContent className='bn-toolbar-select-menu'>
 				{items.map((item) => (
 					<DropdownMenuItem
 						key={item.text}
@@ -159,7 +152,7 @@ const ToolbarSelect = ({
 							item.onClick?.()
 						}}
 					>
-						<span className="mr-2 inline-flex items-center gap-1">
+						<span className='mr-2 inline-flex items-center gap-1'>
 							{item.icon}
 							{item.text}
 						</span>
@@ -186,7 +179,7 @@ const SideMenuButton = forwardRef<HTMLButtonElement, BlockNoteComponentProps['Si
 	({ className, icon, label, onClick, draggable, onDragEnd, onDragStart, children }, ref) => (
 		<button
 			ref={ref}
-			type="button"
+			type='button'
 			draggable={draggable}
 			onDragStart={onDragStart}
 			onDragEnd={onDragEnd}
@@ -207,7 +200,7 @@ SideMenuButton.displayName = 'SideMenuButton'
 const SuggestionMenuRoot = ({
 	id,
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['SuggestionMenu']['Root']) => (
 	<div
 		id={id}
@@ -242,12 +235,7 @@ function getItemText(value: unknown): string | undefined {
 
 function getItemTitle(item: unknown): string {
 	if (!isRecord(item)) return ''
-	return (
-		getItemText(item.title) ||
-		getItemText(item.label) ||
-		getItemText(item.name) ||
-		''
-	)
+	return getItemText(item.title) || getItemText(item.label) || getItemText(item.name) || ''
 }
 
 function getItemIcon(item: unknown): React.ReactNode | null {
@@ -271,7 +259,7 @@ const SuggestionMenuItem = ({
 	className,
 	isSelected,
 	onClick,
-	item,
+	item
 }: BlockNoteComponentProps['SuggestionMenu']['Item']) => {
 	const title = getItemTitle(item)
 	const description = getItemDesc(item)
@@ -286,7 +274,8 @@ const SuggestionMenuItem = ({
 			title.includes('Text')
 		)
 			return 'Text'
-		if (title.includes('List') || title.includes('Task') || title.includes('Todo')) return 'Lists'
+		if (title.includes('List') || title.includes('Task') || title.includes('Todo'))
+			return 'Lists'
 		if (title.includes('Image') || title.includes('Video') || title.includes('Media'))
 			return 'Media'
 		if (title.includes('Code') || title.includes('Table') || title.includes('Advanced'))
@@ -302,12 +291,12 @@ const SuggestionMenuItem = ({
 		Media: 'text-foreground',
 		Advanced: 'text-foreground',
 		Custom: 'text-foreground',
-		Basic: 'text-foreground',
+		Basic: 'text-foreground'
 	}
 
 	return (
 		<button
-			type="button"
+			type='button'
 			onClick={onClick}
 			className={cn(
 				'bn-suggestion-item flex w-full items-start gap-3 rounded-lg px-3 py-2',
@@ -317,7 +306,7 @@ const SuggestionMenuItem = ({
 				'active:scale-[0.98] active:bg-accent',
 				'border border-transparent hover:border-border/50',
 				isSelected &&
-				'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
+					'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
 				!isSelected && 'text-foreground',
 				className
 			)}
@@ -332,8 +321,8 @@ const SuggestionMenuItem = ({
 					{icon}
 				</div>
 			) : null}
-			<div className="flex-1 min-w-0">
-				<div className="font-semibold leading-tight flex items-center gap-2">
+			<div className='flex-1 min-w-0'>
+				<div className='font-semibold leading-tight flex items-center gap-2'>
 					{title}
 					<span
 						className={cn(
@@ -345,7 +334,7 @@ const SuggestionMenuItem = ({
 					</span>
 				</div>
 				{description && (
-					<div className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-1">
+					<div className='mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-1'>
 						{description}
 					</div>
 				)}
@@ -356,7 +345,7 @@ const SuggestionMenuItem = ({
 
 const SuggestionMenuEmpty = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['SuggestionMenu']['EmptyItem']) => (
 	<div className={cn('bn-suggestion-empty px-2 py-1 text-sm text-muted-foreground', className)}>
 		{children}
@@ -365,7 +354,7 @@ const SuggestionMenuEmpty = ({
 
 const SuggestionMenuLabel = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['SuggestionMenu']['Label']) => (
 	<div
 		className={cn(
@@ -381,7 +370,7 @@ const SuggestionMenuLabel = ({
 )
 
 const SuggestionMenuLoader = ({
-	className,
+	className
 }: BlockNoteComponentProps['SuggestionMenu']['Loader']) => (
 	<div className={cn('bn-suggestion-loader px-2 py-2 text-sm text-muted-foreground', className)}>
 		Loading...
@@ -392,7 +381,7 @@ const GridSuggestionMenuRoot = ({
 	id,
 	className,
 	columns,
-	children,
+	children
 }: BlockNoteComponentProps['GridSuggestionMenu']['Root']) => (
 	<div
 		id={id}
@@ -406,7 +395,7 @@ const GridSuggestionMenuRoot = ({
 		style={{
 			display: 'grid',
 			gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-			gap: '0.5rem',
+			gap: '0.5rem'
 		}}
 	>
 		{children}
@@ -417,13 +406,13 @@ const GridSuggestionMenuItem = ({
 	className,
 	isSelected,
 	onClick,
-	item,
+	item
 }: BlockNoteComponentProps['GridSuggestionMenu']['Item']) => {
 	const icon = getItemIcon(item)
 
 	return (
 		<button
-			type="button"
+			type='button'
 			onClick={onClick}
 			className={cn(
 				'bn-grid-suggestion-item flex flex-col items-center justify-center',
@@ -432,16 +421,16 @@ const GridSuggestionMenuItem = ({
 				'hover:border-border hover:bg-muted/80 hover:shadow-md',
 				'active:scale-[0.96]',
 				isSelected &&
-				'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
+					'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
 				className
 			)}
 		>
 			{icon ? (
-				<div className="text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110">
+				<div className='text-2xl mb-2 opacity-90 transition-transform duration-150 group-hover:scale-110'>
 					{icon}
 				</div>
 			) : null}
-			<span className="font-semibold truncate w-full text-center leading-tight">
+			<span className='font-semibold truncate w-full text-center leading-tight'>
 				{getItemTitle(item)}
 			</span>
 		</button>
@@ -450,7 +439,7 @@ const GridSuggestionMenuItem = ({
 
 const GridSuggestionMenuEmpty = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['GridSuggestionMenu']['EmptyItem']) => (
 	<div
 		className={cn(
@@ -464,7 +453,7 @@ const GridSuggestionMenuEmpty = ({
 
 const GridSuggestionMenuLoader = ({
 	className,
-	columns,
+	columns
 }: BlockNoteComponentProps['GridSuggestionMenu']['Loader']) => (
 	<div
 		className={cn(
@@ -482,7 +471,7 @@ const TableHandleRoot = ({
 	children,
 	draggable,
 	onDragEnd,
-	onDragStart,
+	onDragStart
 }: BlockNoteComponentProps['TableHandle']['Root']) => (
 	<div
 		className={cn(
@@ -501,10 +490,10 @@ const TableExtendButton = ({
 	className,
 	onClick,
 	onMouseDown,
-	children,
+	children
 }: BlockNoteComponentProps['TableHandle']['ExtendButton']) => (
 	<button
-		type="button"
+		type='button'
 		className={cn(
 			'bn-table-extend-button rounded-md border border-border bg-muted px-2 py-1 text-xs',
 			className
@@ -531,10 +520,10 @@ const FilePanelButton = ({
 	className,
 	onClick,
 	children,
-	label,
+	label
 }: BlockNoteComponentProps['FilePanel']['Button']) => (
 	<button
-		type="button"
+		type='button'
 		className={cn(
 			'bn-file-panel-button inline-flex items-center justify-center rounded-md border border-border bg-muted px-3 py-1 text-sm font-medium',
 			className
@@ -566,10 +555,10 @@ const FilePanelInput = ({
 const FilePanelFileInput = ({
 	className,
 	onChange,
-	accept,
+	accept
 }: BlockNoteComponentProps['FilePanel']['FileInput']) => (
 	<input
-		type="file"
+		type='file'
 		className={cn('bn-file-panel-file-input text-sm', className)}
 		accept={accept}
 		onChange={(event) => onChange?.(event.target.files?.[0] ?? null)}
@@ -578,7 +567,7 @@ const FilePanelFileInput = ({
 
 const FilePanelTab = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['FilePanel']['TabPanel']) => (
 	<div className={cn('bn-file-panel-tab space-y-2', className)}>{children}</div>
 )
@@ -587,10 +576,10 @@ const BadgeRoot = ({
 	className,
 	text,
 	icon,
-	onClick,
+	onClick
 }: BlockNoteComponentProps['Generic']['Badge']['Root']) => (
 	<button
-		type="button"
+		type='button'
 		onClick={onClick}
 		className={cn(
 			'bn-badge inline-flex items-center gap-2 rounded-full border border-border px-2 py-0.5 text-xs',
@@ -604,13 +593,13 @@ const BadgeRoot = ({
 
 const BadgeGroup = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Generic']['Badge']['Group']) => (
 	<div className={cn('bn-badge-group flex flex-wrap gap-1', className)}>{children}</div>
 )
 
 const FormRoot = ({ children }: BlockNoteComponentProps['Generic']['Form']['Root']) => (
-	<div className="bn-form space-y-2">{children}</div>
+	<div className='bn-form space-y-2'>{children}</div>
 )
 
 const FormTextInput = ({
@@ -625,7 +614,7 @@ const FormTextInput = ({
 	...rest
 }: BlockNoteComponentProps['Generic']['Form']['TextInput']) => (
 	<div className={cn('bn-form-input relative flex items-center', className)}>
-		{icon && <span className="pointer-events-none pl-2 text-muted-foreground">{icon}</span>}
+		{icon && <span className='pointer-events-none pl-2 text-muted-foreground'>{icon}</span>}
 		<Input
 			className={cn(icon ? 'pl-8' : '', rightSection ? 'pr-8' : '')}
 			placeholder={placeholder}
@@ -635,13 +624,15 @@ const FormTextInput = ({
 			onKeyDown={onKeyDown}
 			{...rest}
 		/>
-		{rightSection && <span className="absolute right-2 text-muted-foreground">{rightSection}</span>}
+		{rightSection && (
+			<span className='absolute right-2 text-muted-foreground'>{rightSection}</span>
+		)}
 	</div>
 )
 
 const MenuRoot = ({
 	children,
-	onOpenChange,
+	onOpenChange
 }: BlockNoteComponentProps['Generic']['Menu']['Root']) => (
 	<DropdownMenu onOpenChange={onOpenChange}>{children}</DropdownMenu>
 )
@@ -652,7 +643,7 @@ const MenuTrigger = ({ children }: BlockNoteComponentProps['Generic']['Menu']['T
 
 const MenuDropdown = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Generic']['Menu']['Dropdown']) => (
 	<DropdownMenuContent className={cn('bn-menu min-w-[220px]', className)}>
 		{children}
@@ -681,7 +672,7 @@ const MenuItem = ({
 
 const MenuLabel = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Generic']['Menu']['Label']) => (
 	<DropdownMenuLabel className={className}>{children}</DropdownMenuLabel>
 )
@@ -693,10 +684,10 @@ const MenuDivider = ({ className }: BlockNoteComponentProps['Generic']['Menu']['
 const MenuButton = ({
 	className,
 	children,
-	onClick,
+	onClick
 }: BlockNoteComponentProps['Generic']['Menu']['Button']) => (
 	<button
-		type="button"
+		type='button'
 		className={cn(
 			'bn-menu-button inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted',
 			className
@@ -707,22 +698,19 @@ const MenuButton = ({
 	</button>
 )
 
-const PopoverRoot = ({
-	children,
-	open,
-}: BlockNoteComponentProps['Generic']['Popover']['Root']) => (
+const PopoverRoot = ({ children, open }: BlockNoteComponentProps['Generic']['Popover']['Root']) => (
 	<Popover open={open}>{children}</Popover>
 )
 
 const PopoverTriggerWrapper = ({
-	children,
+	children
 }: BlockNoteComponentProps['Generic']['Popover']['Trigger']) => (
 	<PopoverTrigger asChild>{children}</PopoverTrigger>
 )
 
 const PopoverContentWrapper = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Generic']['Popover']['Content']) => (
 	<PopoverContent className={cn('bn-popover-content', className)}>{children}</PopoverContent>
 )
@@ -744,14 +732,14 @@ const CommentsCard = ({ className, children }: BlockNoteComponentProps['Comments
 
 const CommentsCardSection = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Comments']['CardSection']) => (
 	<div className={cn('bn-comments-card-section py-2', className)}>{children}</div>
 )
 
 const CommentsExpandPrompt = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Comments']['ExpandSectionsPrompt']) => (
 	<div className={cn('bn-comments-expand text-xs text-muted-foreground', className)}>
 		{children}
@@ -766,7 +754,7 @@ const CommentsEditor = ({ className, ...props }: BlockNoteComponentProps['Commen
 
 const CommentsComment = ({
 	className,
-	children,
+	children
 }: BlockNoteComponentProps['Comments']['Comment']) => (
 	<div
 		className={cn(
@@ -782,56 +770,56 @@ export const shadcnComponents: Components = {
 	FormattingToolbar: {
 		Root: ToolbarRoot,
 		Button: ToolbarButton,
-		Select: ToolbarSelect,
+		Select: ToolbarSelect
 	},
 	LinkToolbar: {
 		Root: ToolbarRoot,
 		Button: ToolbarButton,
-		Select: ToolbarSelect,
+		Select: ToolbarSelect
 	},
 	SideMenu: {
 		Root: SideMenuRoot,
-		Button: SideMenuButton,
+		Button: SideMenuButton
 	},
 	SuggestionMenu: {
 		Root: SuggestionMenuRoot,
 		Item: SuggestionMenuItem,
 		EmptyItem: SuggestionMenuEmpty,
 		Label: SuggestionMenuLabel,
-		Loader: SuggestionMenuLoader,
+		Loader: SuggestionMenuLoader
 	},
 	GridSuggestionMenu: {
 		Root: GridSuggestionMenuRoot,
 		Item: GridSuggestionMenuItem,
 		EmptyItem: GridSuggestionMenuEmpty,
-		Loader: GridSuggestionMenuLoader,
+		Loader: GridSuggestionMenuLoader
 	},
 	FilePanel: {
 		Root: FilePanelRoot,
 		Button: FilePanelButton,
 		FileInput: FilePanelFileInput,
 		TabPanel: FilePanelTab,
-		TextInput: FilePanelInput,
+		TextInput: FilePanelInput
 	},
 	TableHandle: {
 		Root: TableHandleRoot,
-		ExtendButton: TableExtendButton,
+		ExtendButton: TableExtendButton
 	},
 	Comments: {
 		Card: CommentsCard,
 		CardSection: CommentsCardSection,
 		ExpandSectionsPrompt: CommentsExpandPrompt,
 		Editor: CommentsEditor,
-		Comment: CommentsComment,
+		Comment: CommentsComment
 	},
 	Generic: {
 		Badge: {
 			Root: BadgeRoot,
-			Group: BadgeGroup,
+			Group: BadgeGroup
 		},
 		Form: {
 			Root: FormRoot,
-			TextInput: FormTextInput,
+			TextInput: FormTextInput
 		},
 		Menu: {
 			Root: MenuRoot,
@@ -840,17 +828,17 @@ export const shadcnComponents: Components = {
 			Divider: MenuDivider,
 			Item: MenuItem,
 			Label: MenuLabel,
-			Button: MenuButton,
+			Button: MenuButton
 		},
 		Popover: {
 			Root: PopoverRoot,
 			Trigger: PopoverTriggerWrapper,
-			Content: PopoverContentWrapper,
+			Content: PopoverContentWrapper
 		},
 		Toolbar: {
 			Root: GenericToolbarRoot,
 			Button: GenericToolbarButton,
-			Select: GenericToolbarSelect,
-		},
-	},
+			Select: GenericToolbarSelect
+		}
+	}
 } as Components

@@ -1,5 +1,5 @@
-import { AUTH_CLIENT_ENABLED } from '@/lib/auth-client'
-import { apiRequest } from '@/lib/storage/adapters/client-api'
+import { AUTH_CLIENT_ENABLED } from "@/lib/auth-client";
+import { apiRequest } from "@/lib/storage/adapters/client-api";
 
 export type LinkedAccount = {
 	id: string
@@ -22,7 +22,6 @@ export type DeleteResponse = {
 
 const AUTH_API_BASE = '/api/auth'
 
-
 export async function getLinkedAccounts(): Promise<LinkedAccount[]> {
 	if (!AUTH_CLIENT_ENABLED) return []
 	const result = await apiRequest<LinkedAccount[]>(`${AUTH_API_BASE}/list-accounts`, {
@@ -32,10 +31,7 @@ export async function getLinkedAccounts(): Promise<LinkedAccount[]> {
 	return result ?? []
 }
 
-export async function linkAccount(
-	provider: string,
-	callbackURL: string
-): Promise<LinkResponse> {
+export async function linkAccount(provider: string, callbackURL: string): Promise<LinkResponse> {
 	if (!AUTH_CLIENT_ENABLED) {
 		throw new Error('Authentication client not configured')
 	}
@@ -52,24 +48,18 @@ export async function linkAccount(
 	return result
 }
 
-export async function unlinkAccount(
-	providerId: string,
-	accountId?: string
-): Promise<boolean> {
+export async function unlinkAccount(providerId: string, accountId?: string): Promise<boolean> {
 	if (!AUTH_CLIENT_ENABLED) {
 		throw new Error('Authentication client not configured')
 	}
-	const result = await apiRequest<{ status: boolean }>(
-		`${AUTH_API_BASE}/unlink-account`,
-		{
-			method: 'POST',
-			body: JSON.stringify({
-				providerId,
-				accountId
-			}),
-			credentials: 'include'
-		}
-	)
+	const result = await apiRequest<{ status: boolean }>(`${AUTH_API_BASE}/unlink-account`, {
+		method: 'POST',
+		body: JSON.stringify({
+			providerId,
+			accountId
+		}),
+		credentials: 'include'
+	})
 	return Boolean(result?.status)
 }
 
@@ -80,14 +70,11 @@ export async function updateProfile(fields: {
 	if (!AUTH_CLIENT_ENABLED) {
 		throw new Error('Authentication client not configured')
 	}
-	const result = await apiRequest<{ status: boolean }>(
-		`${AUTH_API_BASE}/update-user`,
-		{
-			method: 'POST',
-			body: JSON.stringify(fields),
-			credentials: 'include'
-		}
-	)
+	const result = await apiRequest<{ status: boolean }>(`${AUTH_API_BASE}/update-user`, {
+		method: 'POST',
+		body: JSON.stringify(fields),
+		credentials: 'include'
+	})
 	return Boolean(result?.status)
 }
 

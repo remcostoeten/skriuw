@@ -1,13 +1,7 @@
-import { generateId } from '@skriuw/shared'
+import type { BackupManifest, BackupVerificationResult, DestinationConfig, StorageDriver } from "../types";
+import { generateId } from "@skriuw/shared";
 
-import type {
-	BackupManifest,
-	BackupVerificationResult,
-	DestinationConfig,
-	StorageDriver,
-} from '../types'
-
-interface StoredEntry {
+type StoredEntry = {
 	manifest: BackupManifest | null
 	chunks: Map<string, Uint8Array>
 }
@@ -69,7 +63,7 @@ export function createMemoryDriver(): StorageDriver {
 				return {
 					manifestId,
 					ok: false,
-					details: `Missing chunk ${missing.id}`,
+					details: `Missing chunk ${missing.id}`
 				}
 			}
 
@@ -78,7 +72,7 @@ export function createMemoryDriver(): StorageDriver {
 
 		async dispose() {
 			manifests.clear()
-		},
+		}
 	}
 }
 
@@ -98,9 +92,9 @@ export function seedMemoryArchive(): {
 			name: 'In-memory',
 			enabled: true,
 			encrypt: false,
-			config: {},
+			config: {}
 		},
 		driver: createMemoryDriver(),
-		manifestId,
+		manifestId
 	}
 }

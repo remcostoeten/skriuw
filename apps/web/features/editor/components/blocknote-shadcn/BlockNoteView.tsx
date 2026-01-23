@@ -1,27 +1,18 @@
-import {
-	type BlockSchema,
-	type InlineContentSchema,
-	type StyleSchema,
-	mergeCSSClasses,
-} from '@blocknote/core'
-import {
-	type BlockNoteViewProps,
-	BlockNoteViewRaw,
-	ComponentsContext,
-	useBlockNoteContext,
-	usePrefersColorScheme,
-} from '@blocknote/react'
-
-import { shadcnComponents } from './components'
+import { shadcnComponents } from "./components";
+import { type BlockSchema, type InlineContentSchema, type StyleSchema, mergeCSSClasses } from "@blocknote/core";
+import { type BlockNoteViewProps, BlockNoteViewRaw, ComponentsContext, useBlockNoteContext, usePrefersColorScheme } from "@blocknote/react";
 
 type ThemeChoice = 'light' | 'dark'
 
 export const BlockNoteView = <
 	BSchema extends BlockSchema,
 	ISchema extends InlineContentSchema,
-	SSchema extends StyleSchema,
+	SSchema extends StyleSchema
 >(
-	props: BlockNoteViewProps<BSchema, ISchema, SSchema> & { theme?: ThemeChoice; className?: string }
+	props: BlockNoteViewProps<BSchema, ISchema, SSchema> & {
+		theme?: ThemeChoice
+		className?: string
+	}
 ) => {
 	const { className, theme, ...rest } = props
 	const existingContext = useBlockNoteContext()

@@ -1,5 +1,5 @@
-import type { ShortcutId, KeyCombo } from './shortcut-definitions'
-import type { BaseEntity } from '@skriuw/shared'
+import type { ShortcutId, KeyCombo } from "./shortcut-definitions";
+import type { BaseEntity } from "@skriuw/shared";
 
 /**
  * Strongly typed keyboard shortcut system
@@ -114,7 +114,7 @@ export const MODIFIER_ICONS: Record<Modifier, string> = {
 	Cmd: '⌘',
 	Alt: '⌥',
 	Shift: '⇧',
-	Meta: '⌘',
+	Meta: '⌘'
 }
 
 export const KEY_ICONS: Partial<Record<RegularKey, string>> = {
@@ -131,7 +131,7 @@ export const KEY_ICONS: Partial<Record<RegularKey, string>> = {
 	Home: '⇱',
 	End: '⇲',
 	PageUp: '⇞',
-	PageDown: '⇟',
+	PageDown: '⇟'
 }
 
 export type KeyboardShortcut = {
@@ -155,16 +155,16 @@ export type SequenceBuilder = {
 	build: () => KeyboardShortcut
 }
 
-export interface CustomShortcut extends BaseEntity {
+export type CustomShortcut = {
 	id: ShortcutId
 	keys: KeyCombo[]
 	customizedAt: string
-}
+} & BaseEntity
 
 /**
  * Data required to create a custom shortcut
  */
-export interface CreateCustomShortcutData {
+export type CreateCustomShortcutData = {
 	id: ShortcutId
 	keys: KeyCombo[]
 }

@@ -1,30 +1,18 @@
 'use client'
 
-import {
-	Database,
-	Bug,
-	GripVertical,
-	Users,
-	Clock,
-	Activity,
-	Sprout,
-	X,
-	Server,
-	Grip
-} from 'lucide-react'
-import { useEffect, useState, useCallback } from 'react'
-import { cn } from '@skriuw/shared'
-import { useNotesContext } from '@/features/notes'
-import { useDraggable } from '@/hooks/use-draggable'
-import { HintPopover } from '@skriuw/ui'
+import { CronTab } from "./dev/cron-tab";
+import { DatabaseTab } from "./dev/database-tab";
+import { HealthTab } from "./dev/health-tab";
+import { SeedingTab } from "./dev/seeding-tab";
+import { UsersTab } from "./dev/users-tab";
+import { useNotesContext } from "@/features/notes";
+import { useDraggable } from "@/hooks/use-draggable";
+import { cn } from "@skriuw/shared";
+import { HintPopover } from "@skriuw/ui";
+import { Database, Bug, GripVertical, Users, Clock, Activity, Sprout, X, Server, Grip } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
 
 // Modular Components
-import { DatabaseTab } from './dev/database-tab'
-import { UsersTab } from './dev/users-tab'
-import { CronTab } from './dev/cron-tab'
-import { HealthTab } from './dev/health-tab'
-import { SeedingTab } from './dev/seeding-tab'
-
 type TabType = 'database' | 'users' | 'cron' | 'health' | 'seeding'
 
 type DbStats = {
@@ -116,26 +104,20 @@ export function DevWidget() {
 	} | null>(null)
 	const [hasMoved, setHasMoved] = useState(false)
 
-	const {
-		dragRef,
-		position,
-		isDragging,
-		handleMouseDown,
-		handleTouchStart,
-		resetPosition
-	} = useDraggable({
-		initialPosition: {
-			x: typeof window !== 'undefined' ? window.innerWidth - 470 : 0,
-			y: typeof window !== 'undefined' ? window.innerHeight - 520 : 0
-		},
-		storageKey: 'dev-widget-position',
-		bounds: {
-			left: 0,
-			top: 0,
-			right: typeof window !== 'undefined' ? window.innerWidth : 1000,
-			bottom: typeof window !== 'undefined' ? window.innerHeight : 1000
-		}
-	})
+	const { dragRef, position, isDragging, handleMouseDown, handleTouchStart, resetPosition } =
+		useDraggable({
+			initialPosition: {
+				x: typeof window !== 'undefined' ? window.innerWidth - 470 : 0,
+				y: typeof window !== 'undefined' ? window.innerHeight - 520 : 0
+			},
+			storageKey: 'dev-widget-position',
+			bounds: {
+				left: 0,
+				top: 0,
+				right: typeof window !== 'undefined' ? window.innerWidth : 1000,
+				bottom: typeof window !== 'undefined' ? window.innerHeight : 1000
+			}
+		})
 
 	const fetchStats = useCallback(async () => {
 		setLoading(true)
@@ -233,7 +215,7 @@ export function DevWidget() {
 					)}
 					style={{ left: position.x, top: position.y }}
 				>
-					<Bug className="h-5 w-5" />
+					<Bug className='h-5 w-5' />
 				</button>
 			)}
 
@@ -254,9 +236,9 @@ export function DevWidget() {
 					onTouchStart={handleTouchStart}
 				>
 					{/* Header */}
-					<div className="flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm cursor-grab active:cursor-grabbing">
-						<div className="flex items-center gap-2">
-							<GripVertical className="h-4 w-4 text-muted-foreground" />
+					<div className='flex items-center justify-between p-3 border-b bg-background/95 backdrop-blur-sm cursor-grab active:cursor-grabbing'>
+						<div className='flex items-center gap-2'>
+							<GripVertical className='h-4 w-4 text-muted-foreground' />
 							<div
 								className={cn(
 									'flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
@@ -268,9 +250,7 @@ export function DevWidget() {
 								<div
 									className={cn(
 										'h-1.5 w-1.5 rounded-full animate-pulse',
-										isConnected
-											? 'bg-emerald-500'
-											: 'bg-red-500'
+										isConnected ? 'bg-emerald-500' : 'bg-red-500'
 									)}
 								/>
 								{isConnected ? 'ACTIVE' : 'DOWN'}
@@ -293,7 +273,7 @@ export function DevWidget() {
 											: 'bg-blue-500/10 border-blue-500/20 text-blue-600'
 									)}
 								>
-									<Server className="h-2 w-2" />
+									<Server className='h-2 w-2' />
 									{provider === 'neon' ? 'NEON' : 'DOCKER'}
 								</div>
 							)}
@@ -304,14 +284,14 @@ export function DevWidget() {
 								setIsOpen(false)
 							}}
 							onMouseDown={(e) => e.stopPropagation()}
-							className="hover:bg-muted rounded p-1 transition-colors cursor-pointer"
+							className='hover:bg-muted rounded p-1 transition-colors cursor-pointer'
 						>
-							<X className="h-4 w-4 text-muted-foreground" />
+							<X className='h-4 w-4 text-muted-foreground' />
 						</button>
 					</div>
 
 					{/* Tab Navigation */}
-					<div className="flex border-b bg-muted/30 overflow-x-auto scrollbar-hide">
+					<div className='flex border-b bg-muted/30 overflow-x-auto scrollbar-hide'>
 						{[
 							{
 								id: 'database' as TabType,
@@ -356,9 +336,9 @@ export function DevWidget() {
 								title={`Shortcut: ${tab.shortcut}`}
 								onMouseDown={(e) => e.stopPropagation()}
 							>
-								<tab.icon className="h-3.5 w-3.5" />
+								<tab.icon className='h-3.5 w-3.5' />
 								{tab.label}
-								<span className="ml-1 text-[9px] opacity-50 group-hover:opacity-100 transition-opacity font-mono">
+								<span className='ml-1 text-[9px] opacity-50 group-hover:opacity-100 transition-opacity font-mono'>
 									{tab.shortcut}
 								</span>
 							</button>
@@ -366,7 +346,7 @@ export function DevWidget() {
 					</div>
 
 					<div
-						className="p-3 space-y-4 text-sm flex-1 overflow-y-auto custom-scrollbar"
+						className='p-3 space-y-4 text-sm flex-1 overflow-y-auto custom-scrollbar'
 						onMouseDown={(e) => e.stopPropagation()}
 						onTouchStart={(e) => e.stopPropagation()}
 					>
@@ -393,7 +373,7 @@ export function DevWidget() {
 
 					{/* Resize Handle */}
 					<div
-						className="absolute bottom-0 right-0 p-1 cursor-nwse-resize hover:bg-muted transition-colors rounded-tl z-50"
+						className='absolute bottom-0 right-0 p-1 cursor-nwse-resize hover:bg-muted transition-colors rounded-tl z-50'
 						onMouseDown={(e) => {
 							e.stopPropagation()
 							e.preventDefault()
@@ -405,7 +385,7 @@ export function DevWidget() {
 							})
 						}}
 					>
-						<Grip className="h-4 w-4 text-muted-foreground/50" />
+						<Grip className='h-4 w-4 text-muted-foreground/50' />
 					</div>
 				</div>
 			)}

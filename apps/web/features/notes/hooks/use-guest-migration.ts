@@ -1,104 +1,101 @@
-
-import { useEffect, useState, useRef } from 'react'
-import { useSession } from '@/lib/auth-client'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { useCreateNoteMutation, useCreateFolderMutation } from './use-notes-query'
-import type { Item, Note, Folder } from '../types'
+import type { Item, Note, Folder } from "../types";
+import { useCreateNoteMutation, useCreateFolderMutation } from "./use-notes-query";
+import { useSession } from "@/lib/auth-client";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useEffect, useState, useRef } from "react";
 
 export function useGuestMigration() {
-    const { data: session } = useSession()
-    const [isMigrating, setIsMigrating] = useState(false)
-    
-    const createNoteMutation = useCreateNoteMutation()
-    const createFolderMutation = useCreateFolderMutation()
-    
-    const createNoteMutationRef = useRef(createNoteMutation)
-    const createFolderMutationRef = useRef(createFolderMutation)
-    
-    useEffect(() => {
-        createNoteMutationRef.current = createNoteMutation
-        createFolderMutationRef.current = createFolderMutation
-    })
+	const { data: session } = useSession()
+	const [isMigrating, setIsMigrating] = useState(false)
 
-    useEffect(() => {
-        const userId = session?.user?.id
-        if (!userId) return
+	const createNoteMutation = useCreateNoteMutation()
+	const createFolderMutation = useCreateFolderMutation()
 
-        const checkAndMigrate = async () => {
-            const localData = localStorage.getItem(STORAGE_KEYS.NOTES)
-            if (!localData) return
+	const createNoteMutationRef = useRef(createNoteMutation)
+	const createFolderMutationRef = useRef(createFolderMutation)
 
-            let guestItems: Item[] = []
-            try {
-                guestItems = JSON.parse(localData)
-            } catch (e) {
-                console.error('Failed to parse guest notes for migration', e)
-                return
-            }
+	useEffect(() => {
+		createNoteMutationRef.current = createNoteMutation
+		createFolderMutationRef.current = createFolderMutation
+	})
 
-            if (guestItems.length === 0) return
+	useEffect(() => {
+		const userId = session?.user?.id
+		if (!userId) return
 
-            if (localStorage.getItem('skriuw:migrated_to_' + userId)) return
+		const checkAndMigrate = async () => {
+			const localData = localStorage.getItem(STORAGE_KEYS.NOTES)
+			if (!localData) return
 
-            setIsMigrating(true)
-            console.info('Starting guest data migration...')
+			let guestItems: Item[] = []
+			try {
+				guestItems = JSON.parse(localData)
+			} catch (e) {
+				console.error('Failed to parse guest notes for migration', e)
+				return
+			}
 
-            try {
-                const idMap = new Map<string, string>()
+			if (guestItems.length === 0) return
 
-                const migrateItem = async (item: Item, newParentId?: string) => {
-                    let newId: string | undefined
+			if (localStorage.getItem('skriuw:migrated_to_' + userId)) return
 
-                    try {
-                        if (item.type === 'note') {
-                            const note = item as Note
-                            const result = await createNoteMutationRef.current.mutateAsync({
-                                name: note.name,
-                                content: note.content,
-                                parentFolderId: newParentId
-                            })
-                            newId = result.id
-                        } else if (item.type === 'folder') {
-                            const folder = item as Folder
-                            const result = await createFolderMutationRef.current.mutateAsync({
-                                name: folder.name,
-                                parentFolderId: newParentId
-                            })
-                            newId = result.id
-                            
-                            if (folder.children?.length) {
-                                for (const child of folder.children) {
-                                    await migrateItem(child, newId)
-                                }
-                            }
-                        }
+			setIsMigrating(true)
+			console.info('Starting guest data migration...')
 
-                        if (newId) {
-                            idMap.set(item.id, newId)
-                        }
-                    } catch (err) {
-                        console.error(`Failed to migrate item ${item.name} (${item.id})`, err)
-                    }
-                }
+			try {
+				const idMap = new Map<string, string>()
 
-                for (const item of guestItems) {
-                    await migrateItem(item)
-                }
+				const migrateItem = async (item: Item, newParentId?: string) => {
+					let newId: string | undefined
 
-                console.info('Guest data migration completed.')
-                localStorage.setItem('skriuw:migrated_to_' + userId, 'true')
-                localStorage.removeItem(STORAGE_KEYS.NOTES)
+					try {
+						if (item.type === 'note') {
+							const note = item as Note
+							const result = await createNoteMutationRef.current.mutateAsync({
+								name: note.name,
+								content: note.content,
+								parentFolderId: newParentId
+							})
+							newId = result.id
+						} else if (item.type === 'folder') {
+							const folder = item as Folder
+							const result = await createFolderMutationRef.current.mutateAsync({
+								name: folder.name,
+								parentFolderId: newParentId
+							})
+							newId = result.id
 
-            } catch (error) {
-                console.error('Migration failed:', error)
-            } finally {
-                setIsMigrating(false)
-            }
-        }
+							if (folder.children?.length) {
+								for (const child of folder.children) {
+									await migrateItem(child, newId)
+								}
+							}
+						}
 
-        checkAndMigrate()
-    }, [session?.user?.id])
+						if (newId) {
+							idMap.set(item.id, newId)
+						}
+					} catch (err) {
+						console.error(`Failed to migrate item ${item.name} (${item.id})`, err)
+					}
+				}
 
-    return { isMigrating }
+				for (const item of guestItems) {
+					await migrateItem(item)
+				}
+
+				console.info('Guest data migration completed.')
+				localStorage.setItem('skriuw:migrated_to_' + userId, 'true')
+				localStorage.removeItem(STORAGE_KEYS.NOTES)
+			} catch (error) {
+				console.error('Migration failed:', error)
+			} finally {
+				setIsMigrating(false)
+			}
+		}
+
+		checkAndMigrate()
+	}, [session?.user?.id])
+
+	return { isMigrating }
 }
-

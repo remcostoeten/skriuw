@@ -1,12 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { STORAGE_CONNECTOR_DEFINITIONS } from '../../features/backup/core/connectors'
-import {
-	decryptConnectorStates,
-	encryptConnectorStates,
-} from '../../features/backup/core/connector-secrets'
+vi.mock("../../lib/env", () => ({
+	env: {
+		CONNECTOR_ENCRYPTION_KEY: '00000000000000000000000000000000',
+		BETTER_AUTH_SECRET: 'test-better-auth-secret-min-32-chars-long'
+	}
+}))
 
-
+import { decryptConnectorStates, encryptConnectorStates } from "../../features/backup/core/connector-secrets";
+import { STORAGE_CONNECTOR_DEFINITIONS } from "../../features/backup/core/connectors";
 
 const baseConnectors = [
 	{
@@ -18,9 +20,9 @@ const baseConnectors = [
 			accessKeyId: 'AKIA123',
 			secretAccessKey: 'secret',
 			region: 'us-east-1',
-			bucket: 'bucket',
+			bucket: 'bucket'
 		},
-		oauth2Tokens: undefined,
+		oauth2Tokens: undefined
 	},
 	{
 		id: 'two',
@@ -28,14 +30,14 @@ const baseConnectors = [
 		name: 'Dropbox',
 		status: 'connected' as const,
 		config: {
-			rootPath: '/Apps/Skriuw',
+			rootPath: '/Apps/Skriuw'
 		},
 		oauth2Tokens: {
 			access_token: 'token',
 			refresh_token: 'refresh',
 			token_type: 'bearer',
-			expires_in: 3600,
-		},
+			expires_in: 3600
+		}
 	},
 	{
 		id: 'three',
@@ -43,15 +45,15 @@ const baseConnectors = [
 		name: 'Drive',
 		status: 'connected' as const,
 		config: {
-			folderId: 'folder',
+			folderId: 'folder'
 		},
 		oauth2Tokens: {
 			access_token: 'drive-token',
 			refresh_token: 'drive-refresh',
 			scope: 'drive.file',
-			token_type: 'bearer',
-		},
-	},
+			token_type: 'bearer'
+		}
+	}
 ]
 
 describe('connector-secrets', () => {
@@ -62,8 +64,8 @@ describe('connector-secrets', () => {
 	it('encrypts and decrypts secret fields while preserving non-secret fields', () => {
 		const encrypted = encryptConnectorStates(baseConnectors as any)
 		encrypted.forEach((c) => {
-			const definition = STORAGE_CONNECTOR_DEFINITIONS.find(d => d.type === c.type)
-			const base = baseConnectors.find(b => b.id === c.id)
+			const definition = STORAGE_CONNECTOR_DEFINITIONS.find((d) => d.type === c.type)
+			const base = baseConnectors.find((b) => b.id === c.id)
 			expect(definition).toBeDefined()
 			expect(base).toBeDefined()
 			definition!.fields

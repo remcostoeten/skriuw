@@ -240,14 +240,14 @@ find /path/to/servo/ -name "servo*" | head -5
 
 ## Comparison: Local vs Remote Installation
 
-| Feature | Local (`--source`) | Remote (Default) |
-|---------|-------------------|------------------|
-| **Internet Required** | ❌ No | ✅ Yes |
-| **Git Required** | ❌ No | ✅ Yes |
-| **Speed** | ⚡ Instant | 🐢 Download + Clone |
-| **Local Changes** | ✅ Yes | ❌ No |
-| **Version** | Your local version | Latest from repo |
-| **Offline Use** | ✅ Yes | ❌ No |
+| Feature               | Local (`--source`) | Remote (Default)    |
+| --------------------- | ------------------ | ------------------- |
+| **Internet Required** | ❌ No              | ✅ Yes              |
+| **Git Required**      | ❌ No              | ✅ Yes              |
+| **Speed**             | ⚡ Instant         | 🐢 Download + Clone |
+| **Local Changes**     | ✅ Yes             | ❌ No               |
+| **Version**           | Your local version | Latest from repo    |
+| **Offline Use**       | ✅ Yes             | ❌ No               |
 
 ## Advanced Usage
 

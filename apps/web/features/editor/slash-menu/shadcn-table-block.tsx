@@ -1,18 +1,10 @@
-import { createReactBlockSpec } from '@blocknote/react'
-import type { BlockNoteEditor } from '@blocknote/core'
-import { Plus, Trash } from 'lucide-react'
-import { useEffect, useState } from 'react'
-
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow
-} from '@skriuw/ui/table'
-import { Button } from '@skriuw/ui/button'
-import { Input } from '@skriuw/ui/input'
+import type { BlockNoteEditor } from "@blocknote/core";
+import { createReactBlockSpec } from "@blocknote/react";
+import { Button } from "@skriuw/ui/button";
+import { Input } from "@skriuw/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@skriuw/ui/table";
+import { Plus, Trash } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type TableBlockProps = {
 	id: string
@@ -22,13 +14,7 @@ type TableBlockProps = {
 	}
 }
 
-const ShadcnTableBlock = ({
-	block,
-	editor
-}: {
-	block: TableBlockProps
-	editor: any
-}) => {
+const ShadcnTableBlock = ({ block, editor }: { block: TableBlockProps; editor: any }) => {
 	const [data, setData] = useState<string[][]>([])
 
 	useEffect(() => {
@@ -92,26 +78,26 @@ const ShadcnTableBlock = ({
 	if (!data.length) return null
 
 	return (
-		<div className="my-4 rounded-md border p-1 group/table relative">
+		<div className='my-4 rounded-md border p-1 group/table relative'>
 			{/* Controls Overlay - Visible on Hover */}
-			<div className="absolute -top-8 right-0 hidden gap-2 group-hover/table:flex bg-background border rounded-md p-1 shadow-sm z-10">
+			<div className='absolute -top-8 right-0 hidden gap-2 group-hover/table:flex bg-background border rounded-md p-1 shadow-sm z-10'>
 				<Button
-					variant="ghost"
-					size="sm"
-					className="h-6 px-2 text-xs"
+					variant='ghost'
+					size='sm'
+					className='h-6 px-2 text-xs'
 					onClick={addColumn}
-					title="Add Column"
+					title='Add Column'
 				>
-					<Plus className="mr-1 h-3 w-3" /> Col
+					<Plus className='mr-1 h-3 w-3' /> Col
 				</Button>
 				<Button
-					variant="ghost"
-					size="sm"
-					className="h-6 px-2 text-xs"
+					variant='ghost'
+					size='sm'
+					className='h-6 px-2 text-xs'
 					onClick={addRow}
-					title="Add Row"
+					title='Add Row'
 				>
-					<Plus className="mr-1 h-3 w-3" /> Row
+					<Plus className='mr-1 h-3 w-3' /> Row
 				</Button>
 			</div>
 
@@ -121,31 +107,23 @@ const ShadcnTableBlock = ({
 						{data[0]?.map((cell, colIndex) => (
 							<TableHead
 								key={`header-${colIndex}`}
-								className="relative group/col min-w-[100px]"
+								className='relative group/col min-w-[100px]'
 							>
-								<div className="flex items-center gap-1">
+								<div className='flex items-center gap-1'>
 									<Input
 										value={cell}
-										onChange={(e) =>
-											updateCell(
-												0,
-												colIndex,
-												e.target.value
-											)
-										}
-										className="h-8 border-transparent bg-transparent px-1 focus-visible:ring-1 font-bold"
-										placeholder="Header"
+										onChange={(e) => updateCell(0, colIndex, e.target.value)}
+										className='h-8 border-transparent bg-transparent px-1 focus-visible:ring-1 font-bold'
+										placeholder='Header'
 									/>
 									{data[0].length > 1 && (
 										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 opacity-0 group-hover/col:opacity-100 transition-opacity absolute right-0 top-1/2 -translate-y-1/2"
-											onClick={() =>
-												removeColumn(colIndex)
-											}
+											variant='ghost'
+											size='icon'
+											className='h-6 w-6 opacity-0 group-hover/col:opacity-100 transition-opacity absolute right-0 top-1/2 -translate-y-1/2'
+											onClick={() => removeColumn(colIndex)}
 										>
-											<Trash className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+											<Trash className='h-3 w-3 text-muted-foreground hover:text-destructive' />
 										</Button>
 									)}
 								</div>
@@ -159,31 +137,27 @@ const ShadcnTableBlock = ({
 							{row.map((cell, colIndex) => (
 								<TableCell
 									key={`cell-${rowIndex + 1}-${colIndex}`}
-									className="p-2 relative group/cell"
+									className='p-2 relative group/cell'
 								>
 									<Input
 										value={cell}
 										onChange={(e) =>
-											updateCell(
-												rowIndex + 1,
-												colIndex,
-												e.target.value
-											)
+											updateCell(rowIndex + 1, colIndex, e.target.value)
 										}
-										className="h-9 border-transparent bg-transparent hover:bg-muted/30 px-2 focus-visible:ring-1 focus-visible:bg-background"
+										className='h-9 border-transparent bg-transparent hover:bg-muted/30 px-2 focus-visible:ring-1 focus-visible:bg-background'
 									/>
 								</TableCell>
 							))}
 							{/* Row Actions */}
-							<td className="w-8 opacity-0 group-hover/table:opacity-100 transition-opacity text-center p-0">
+							<td className='w-8 opacity-0 group-hover/table:opacity-100 transition-opacity text-center p-0'>
 								<Button
-									variant="ghost"
-									size="icon"
-									className="h-6 w-6"
+									variant='ghost'
+									size='icon'
+									className='h-6 w-6'
 									onClick={() => removeRow(rowIndex + 1)}
-									title="Remove Row"
+									title='Remove Row'
 								>
-									<Trash className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+									<Trash className='h-3 w-3 text-muted-foreground hover:text-destructive' />
 								</Button>
 							</td>
 						</TableRow>
@@ -210,10 +184,7 @@ export const shadcnTableBlockSpec = createReactBlockSpec(
 	},
 	{
 		render: ({ block, editor }) => (
-			<ShadcnTableBlock
-				block={block as TableBlockProps}
-				editor={editor}
-			/>
+			<ShadcnTableBlock block={block as TableBlockProps} editor={editor} />
 		)
 	}
 )

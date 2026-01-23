@@ -1,17 +1,14 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "jsx": "react-jsx",
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "exclude": [
-    "node_modules",
-    "apps/web/src-tauri/target"
-  ]
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"jsx": "react-jsx",
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"exclude": ["node_modules", "apps/web/src-tauri/target"]
 }

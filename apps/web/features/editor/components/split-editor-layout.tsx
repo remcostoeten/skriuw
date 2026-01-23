@@ -1,18 +1,9 @@
 'use client'
 
-import { ReactNode, useCallback, useMemo, useRef, useState } from 'react'
-
-import { cn } from '@skriuw/shared'
-import { IconButton } from '@skriuw/ui/icons'
-
-import {
-	LayoutPanelLeft,
-	RotateCcw,
-	Split,
-	StretchHorizontal,
-	StretchVertical,
-	X,
-} from 'lucide-react'
+import { cn } from "@skriuw/shared";
+import { IconButton } from "@skriuw/ui/icons";
+import { LayoutPanelLeft, RotateCcw, Split, StretchHorizontal, StretchVertical, X } from "lucide-react";
+import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
 
 type SplitPane = {
 	id: string
@@ -50,7 +41,7 @@ export function SplitEditorLayout({
 	onResize,
 	onToggleOrientation,
 	onAssignNote,
-	renderPane,
+	renderPane
 }: SplitEditorLayoutProps) {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const [isDragging, setIsDragging] = useState(false)
@@ -67,7 +58,8 @@ export function SplitEditorLayout({
 			setIsDragging(true)
 			const startPosition = orientation === 'vertical' ? event.clientX : event.clientY
 			const containerRect = containerRef.current.getBoundingClientRect()
-			const containerSize = orientation === 'vertical' ? containerRect.width : containerRect.height
+			const containerSize =
+				orientation === 'vertical' ? containerRect.width : containerRect.height
 			const startRatio = clampedRatio
 
 			function handleMove(moveEvent: PointerEvent) {
@@ -95,7 +87,8 @@ export function SplitEditorLayout({
 		(event: React.DragEvent, paneId: string) => {
 			if (!onAssignNote) return
 			const noteId =
-				event.dataTransfer.getData(NOTE_DATA_TYPE) || event.dataTransfer.getData('text/plain')
+				event.dataTransfer.getData(NOTE_DATA_TYPE) ||
+				event.dataTransfer.getData('text/plain')
 			if (!noteId) return
 			event.preventDefault()
 			onAssignNote(paneId, noteId)
@@ -116,20 +109,20 @@ export function SplitEditorLayout({
 	}, [])
 
 	const renderPaneControls = (pane: SplitPane, isPrimary: boolean) => (
-		<div className="absolute right-2 top-2 flex items-center gap-1 text-muted-foreground">
+		<div className='absolute right-2 top-2 flex items-center gap-1 text-muted-foreground'>
 			{isSplit && panes.length > 1 && (
 				<IconButton
-					icon={<RotateCcw className="w-3.5 h-3.5" />}
-					tooltip="Swap panes"
-					variant="toolbar"
+					icon={<RotateCcw className='w-3.5 h-3.5' />}
+					tooltip='Swap panes'
+					variant='toolbar'
 					onClick={onSwapPanes}
 				/>
 			)}
 			{isSplit && (!isPrimary || panes.length > 1) && (
 				<IconButton
-					icon={<X className="w-3.5 h-3.5" />}
-					tooltip="Close pane"
-					variant="toolbar"
+					icon={<X className='w-3.5 h-3.5' />}
+					tooltip='Close pane'
+					variant='toolbar'
 					onClick={() => onClosePane(pane.id)}
 				/>
 			)}
@@ -152,7 +145,7 @@ export function SplitEditorLayout({
 			onDrop={(event) => handleDrop(event, pane.id)}
 		>
 			{renderPaneControls(pane, isPrimary)}
-			<div className="h-full w-full" data-pane-active={activePaneId === pane.id}>
+			<div className='h-full w-full' data-pane-active={activePaneId === pane.id}>
 				{renderPane(pane)}
 			</div>
 		</div>
@@ -160,12 +153,12 @@ export function SplitEditorLayout({
 
 	if (!isSplit || panes.length < 2 || !secondaryPane) {
 		return (
-			<div className="flex h-full flex-col gap-2">
-				<div className="flex items-center justify-end gap-2">
+			<div className='flex h-full flex-col gap-2'>
+				<div className='flex items-center justify-end gap-2'>
 					<IconButton
-						icon={<LayoutPanelLeft className="w-4 h-4" />}
-						tooltip="Split editor"
-						variant="toolbar"
+						icon={<LayoutPanelLeft className='w-4 h-4' />}
+						tooltip='Split editor'
+						variant='toolbar'
 						onClick={onToggleSplit}
 					/>
 				</div>
@@ -175,42 +168,52 @@ export function SplitEditorLayout({
 	}
 
 	return (
-		<div className="flex h-full flex-col" ref={containerRef}>
-			<div className="flex items-center justify-end gap-2 pb-2">
+		<div className='flex h-full flex-col' ref={containerRef}>
+			<div className='flex items-center justify-end gap-2 pb-2'>
 				<IconButton
-					icon={<Split className="w-4 h-4" />}
-					tooltip="Toggle split"
-					variant="toolbar"
+					icon={<Split className='w-4 h-4' />}
+					tooltip='Toggle split'
+					variant='toolbar'
 					onClick={onToggleSplit}
 				/>
 				{isSplit && onToggleOrientation && (
 					<IconButton
 						icon={
 							orientation === 'vertical' ? (
-								<StretchVertical className="w-4 h-4" />
+								<StretchVertical className='w-4 h-4' />
 							) : (
-								<StretchHorizontal className="w-4 h-4" />
+								<StretchHorizontal className='w-4 h-4' />
 							)
 						}
 						tooltip={
-							orientation === 'vertical' ? 'Switch to horizontal split' : 'Switch to vertical split'
+							orientation === 'vertical'
+								? 'Switch to horizontal split'
+								: 'Switch to vertical split'
 						}
-						variant="toolbar"
+						variant='toolbar'
 						onClick={onToggleOrientation}
 					/>
 				)}
 			</div>
 			<div
-				className={cn('flex min-h-0 flex-1', orientation === 'vertical' ? 'flex-row' : 'flex-col')}
+				className={cn(
+					'flex min-h-0 flex-1',
+					orientation === 'vertical' ? 'flex-row' : 'flex-col'
+				)}
 			>
-				<div className="flex-1 min-h-0 min-w-0" style={{ flexBasis: `${clampedRatio * 100}%` }}>
+				<div
+					className='flex-1 min-h-0 min-w-0'
+					style={{ flexBasis: `${clampedRatio * 100}%` }}
+				>
 					{renderPaneContainer(primaryPane, true)}
 				</div>
 
 				<div
 					className={cn(
 						'relative select-none transition-colors',
-						orientation === 'vertical' ? 'mx-1 w-1 cursor-col-resize' : 'my-1 h-1 cursor-row-resize'
+						orientation === 'vertical'
+							? 'mx-1 w-1 cursor-col-resize'
+							: 'my-1 h-1 cursor-row-resize'
 					)}
 					onPointerDown={handlePointerDown}
 				>
@@ -226,7 +229,7 @@ export function SplitEditorLayout({
 				</div>
 
 				<div
-					className="flex-1 min-h-0 min-w-0"
+					className='flex-1 min-h-0 min-w-0'
 					style={{ flexBasis: `${(1 - clampedRatio) * 100}%` }}
 				>
 					{renderPaneContainer(secondaryPane, false)}

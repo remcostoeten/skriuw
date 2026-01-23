@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
-import type { Task } from '@/features/tasks/api/queries/get-tasks'
-import { generateId } from '@skriuw/shared'
-import { db } from '@/lib/storage/adapters/server-db'
+import type { ExtractedTask } from "@/features/notes/utils/extract-tasks";
+import type { Task } from "@/features/tasks/api/queries/get-tasks";
+import { db } from "@/lib/storage/adapters/server-db";
+import { generateId } from "@skriuw/shared";
+import { NextRequest, NextResponse } from "next/server";
 
 type SyncPayload = {
 	noteId: string
@@ -15,14 +15,16 @@ export async function POST(request: NextRequest) {
 		if (!body.noteId) return NextResponse.json({ error: 'noteId is required' }, { status: 400 })
 
 		const incoming = Array.isArray(body.tasks) ? body.tasks : []
-		const existing = (await db.findAll<Task>('tasks')).filter(t => t.noteId === body.noteId)
+		const existing = (await db.findAll<Task>('tasks')).filter((t) => t.noteId === body.noteId)
 
-		const existingMap = new Map(existing.map(t => [t.blockId, t]))
-		const incomingMap = new Map(incoming.map(t => [t.blockId, t]))
+		const existingMap = new Map(existing.map((t) => [t.blockId, t]))
+		const incomingMap = new Map(incoming.map((t) => [t.blockId, t]))
 		const now = Date.now()
 
 		// Delete removed
-		const toDelete = existing.filter(t => !incomingMap.has(t.blockId)).map(t => (t as any).id)
+		const toDelete = existing
+			.filter((t) => !incomingMap.has(t.blockId))
+			.map((t) => (t as any).id)
 		if (toDelete.length > 0) await db.deleteMany('tasks', toDelete)
 
 		// Prepare inserts and updates
@@ -46,8 +48,8 @@ export async function POST(request: NextRequest) {
 							checked: task.checked ? 1 : 0,
 							parentTaskId: task.parentTaskId ?? null,
 							position: task.position ?? current.position,
-							updatedAt: now,
-						},
+							updatedAt: now
+						}
 					})
 				}
 			} else {
@@ -60,14 +62,14 @@ export async function POST(request: NextRequest) {
 					parentTaskId: task.parentTaskId ?? null,
 					position: task.position ?? 0,
 					createdAt: now,
-					updatedAt: now,
+					updatedAt: now
 				})
 			}
 		}
 
 		if (toInsert.length > 0) await db.createMany('tasks', toInsert)
 		if (toUpdate.length > 0) {
-			await Promise.all(toUpdate.map(u => db.update('tasks', u.id, u.data)))
+			await Promise.all(toUpdate.map((u) => db.update('tasks', u.id, u.data)))
 		}
 
 		return NextResponse.json({ success: true })

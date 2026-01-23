@@ -1,19 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef, useCallback, type ComponentType } from 'react'
-import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-import { Button } from '@skriuw/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
-import { Input } from '@skriuw/ui/input'
-import { Label } from '@skriuw/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
-import { cn } from '@skriuw/shared'
-
-import { useStorageConnectors } from '../hooks/use-storage-connectors'
-import type { StorageConnectorType } from '../core/types'
-import { initiateOAuth2Flow, validateOAuth2State } from '../core/oauth2'
+import { initiateOAuth2Flow, validateOAuth2State } from "../core/oauth2";
+import type { StorageConnectorType } from "../core/types";
+import { useStorageConnectors } from "../hooks/use-storage-connectors";
+import { cn } from "@skriuw/shared";
+import { Button } from "@skriuw/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
+import { Input } from "@skriuw/ui/input";
+import { Label } from "@skriuw/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@skriuw/ui/tabs";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from "lucide-react";
+import { useEffect, useMemo, useState, useRef, useCallback, type ComponentType } from "react";
 
 type FormState = Record<StorageConnectorType, Record<string, string>>
 type NameState = Record<StorageConnectorType, string>
@@ -25,7 +23,7 @@ type FeedbackState = Record<
 const connectorIcons: Record<StorageConnectorType, ComponentType<{ className?: string }>> = {
 	s3: Cloud,
 	dropbox: PlugZap,
-	'google-drive': HardDrive,
+	'google-drive': HardDrive
 }
 
 const inputClass =
@@ -36,18 +34,14 @@ function connectionDot(status?: string) {
 	const isError = status === 'error'
 
 	return (
-		<span className="relative inline-flex h-3 w-3">
+		<span className='relative inline-flex h-3 w-3'>
 			{isConnected && (
-				<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+				<span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75' />
 			)}
 			<span
 				className={cn(
 					'relative inline-flex h-3 w-3 rounded-full',
-					isConnected
-						? 'bg-green-500'
-						: isError
-							? 'bg-red-500'
-							: 'bg-muted-foreground/40'
+					isConnected ? 'bg-green-500' : isError ? 'bg-red-500' : 'bg-muted-foreground/40'
 				)}
 			/>
 		</span>
@@ -69,7 +63,7 @@ const contentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
 		x: direction * 50,
-		scale: 0.96,
+		scale: 0.96
 	}),
 	animate: {
 		opacity: 1,
@@ -78,8 +72,8 @@ const contentVariants = {
 		transition: {
 			duration: 0.35,
 			ease: snappyEase,
-			delay: 0.08,
-		},
+			delay: 0.08
+		}
 	},
 	exit: (direction: number) => ({
 		opacity: 0,
@@ -87,16 +81,16 @@ const contentVariants = {
 		scale: 0.98,
 		transition: {
 			duration: 0.2,
-			ease: smoothEase,
-		},
-	}),
+			ease: smoothEase
+		}
+	})
 }
 
 const leftContentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
 		x: direction * 40,
-		scale: 0.95,
+		scale: 0.95
 	}),
 	animate: {
 		opacity: 1,
@@ -105,8 +99,8 @@ const leftContentVariants = {
 		transition: {
 			duration: 0.32,
 			ease: snappyEase,
-			delay: 0,
-		},
+			delay: 0
+		}
 	},
 	exit: (direction: number) => ({
 		opacity: 0,
@@ -115,15 +109,15 @@ const leftContentVariants = {
 		transition: {
 			duration: 0.18,
 			ease: smoothEase,
-			delay: 0.06,
-		},
-	}),
+			delay: 0.06
+		}
+	})
 }
 const rightContentVariants = {
 	initial: (direction: number) => ({
 		opacity: 0,
 		x: direction * 60,
-		scale: 0.92,
+		scale: 0.92
 	}),
 	animate: {
 		opacity: 1,
@@ -132,8 +126,8 @@ const rightContentVariants = {
 		transition: {
 			duration: 0.3,
 			ease: snappyEase,
-			delay: 0.04, // Slight delay after left
-		},
+			delay: 0.04 // Slight delay after left
+		}
 	},
 	exit: (direction: number) => ({
 		opacity: 0,
@@ -142,9 +136,9 @@ const rightContentVariants = {
 		transition: {
 			duration: 0.15,
 			ease: smoothEase,
-			delay: 0,
-		},
-	}),
+			delay: 0
+		}
+	})
 }
 
 export function StorageAdaptersPanel({
@@ -152,7 +146,7 @@ export function StorageAdaptersPanel({
 	onTypeChange,
 	showHeader = true,
 	showTabs = true,
-	direction: externalDirection = 1,
+	direction: externalDirection = 1
 }: StorageAdaptersPanelProps) {
 	const {
 		definitions,
@@ -160,7 +154,7 @@ export function StorageAdaptersPanel({
 		testConnector,
 		disconnectConnector,
 		removeConnector,
-		testingConnector,
+		testingConnector
 	} = useStorageConnectors()
 
 	const [formState, setFormState] = useState<FormState>({} as FormState)
@@ -227,8 +221,8 @@ export function StorageAdaptersPanel({
 					...prev,
 					dropbox: {
 						type: 'error',
-						message: `OAuth2 error: ${error}`,
-					},
+						message: `OAuth2 error: ${error}`
+					}
 				}))
 				return
 			}
@@ -238,7 +232,7 @@ export function StorageAdaptersPanel({
 				const tokens = {
 					access_token: accessToken,
 					...(refreshToken && { refresh_token: refreshToken }),
-					...(expiresIn && { expires_in: parseInt(expiresIn) }),
+					...(expiresIn && { expires_in: parseInt(expiresIn) })
 				}
 
 				// Clear URL parameters and hash
@@ -254,7 +248,7 @@ export function StorageAdaptersPanel({
 					.then(() => {
 						setFeedback((prev) => ({
 							...prev,
-							[type]: { type: 'success', message: 'OAuth2 connection verified!' },
+							[type]: { type: 'success', message: 'OAuth2 connection verified!' }
 						}))
 					})
 					.catch((error) => {
@@ -262,8 +256,11 @@ export function StorageAdaptersPanel({
 							...prev,
 							[type]: {
 								type: 'error',
-								message: error instanceof Error ? error.message : 'OAuth2 validation failed',
-							},
+								message:
+									error instanceof Error
+										? error.message
+										: 'OAuth2 validation failed'
+							}
 						}))
 					})
 			}
@@ -272,49 +269,55 @@ export function StorageAdaptersPanel({
 		handleOAuth2Callback()
 	}, [testConnector, nameState, formState, definitionMap])
 
-	const handleFieldChange = useCallback((type: StorageConnectorType, field: string, value: string) => {
-		setFormState((prev) => ({
-			...prev,
-			[type]: {
-				...(prev[type] || {}),
-				[field]: value,
-			},
-		}))
-	}, [])
+	const handleFieldChange = useCallback(
+		(type: StorageConnectorType, field: string, value: string) => {
+			setFormState((prev) => ({
+				...prev,
+				[type]: {
+					...prev[type],
+					[field]: value
+				}
+			}))
+		},
+		[]
+	)
 
 	const handleNameChange = useCallback((type: StorageConnectorType, value: string) => {
 		setNameState((prev) => ({
 			...prev,
-			[type]: value,
+			[type]: value
 		}))
 	}, [])
 
-	const handleConnect = useCallback(async (type: StorageConnectorType) => {
-		const definition = definitionMap[type]
-		if (!definition) return
+	const handleConnect = useCallback(
+		async (type: StorageConnectorType) => {
+			const definition = definitionMap[type]
+			if (!definition) return
 
-		setFeedback((prev) => ({ ...prev, [type]: null }))
+			setFeedback((prev) => ({ ...prev, [type]: null }))
 
-		// Get existing OAuth tokens if any (for re-validation)
-		const existingConnector = connectors.find((c) => c.type === type)
-		const existingTokens = existingConnector?.oauth2Tokens
+			// Get existing OAuth tokens if any (for re-validation)
+			const existingConnector = connectors.find((c) => c.type === type)
+			const existingTokens = existingConnector?.oauth2Tokens
 
-		try {
-			await testConnector(type, formState[type] || {}, nameState[type], existingTokens)
-			setFeedback((prev) => ({
-				...prev,
-				[type]: { type: 'success', message: 'Connection saved and validated.' },
-			}))
-		} catch (error) {
-			setFeedback((prev) => ({
-				...prev,
-				[type]: {
-					type: 'error',
-					message: error instanceof Error ? error.message : 'Failed to connect',
-				},
-			}))
-		}
-	}, [definitionMap, testConnector, formState, nameState])
+			try {
+				await testConnector(type, formState[type] || {}, nameState[type], existingTokens)
+				setFeedback((prev) => ({
+					...prev,
+					[type]: { type: 'success', message: 'Connection saved and validated.' }
+				}))
+			} catch (error) {
+				setFeedback((prev) => ({
+					...prev,
+					[type]: {
+						type: 'error',
+						message: error instanceof Error ? error.message : 'Failed to connect'
+					}
+				}))
+			}
+		},
+		[definitionMap, testConnector, formState, nameState]
+	)
 
 	const handleOAuth2Connect = useCallback(async (type: StorageConnectorType) => {
 		try {
@@ -325,8 +328,8 @@ export function StorageAdaptersPanel({
 				...prev,
 				[type]: {
 					type: 'error',
-					message: error instanceof Error ? error.message : 'Failed to start OAuth2 flow',
-				},
+					message: error instanceof Error ? error.message : 'Failed to start OAuth2 flow'
+				}
 			}))
 		}
 	}, [])
@@ -360,11 +363,11 @@ export function StorageAdaptersPanel({
 				)}
 			>
 				{isConnected ? (
-					<CheckCircle2 className="h-3.5 w-3.5" />
+					<CheckCircle2 className='h-3.5 w-3.5' />
 				) : isError ? (
-					<AlertCircle className="h-3.5 w-3.5" />
+					<AlertCircle className='h-3.5 w-3.5' />
 				) : (
-					<Cloud className="h-3.5 w-3.5 opacity-50" />
+					<Cloud className='h-3.5 w-3.5 opacity-50' />
 				)}
 				{label}
 			</span>
@@ -372,20 +375,29 @@ export function StorageAdaptersPanel({
 	}
 
 	const currentType = controlledType ?? internalType
-	const handleTypeChange = useCallback((next: string) => {
-		const type = next as StorageConnectorType
-		if (onTypeChange) onTypeChange(type)
-		else setInternalType(type)
-	}, [onTypeChange])
+	const handleTypeChange = useCallback(
+		(next: string) => {
+			const type = next as StorageConnectorType
+			if (onTypeChange) onTypeChange(type)
+			else setInternalType(type)
+		},
+		[onTypeChange]
+	)
 
 	// Additional memoized handlers for form inputs
-	const handleFormNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		handleNameChange(currentType, e.target.value)
-	}, [currentType, handleNameChange])
+	const handleFormNameChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			handleNameChange(currentType, e.target.value)
+		},
+		[currentType, handleNameChange]
+	)
 
-	const handleFormInputChange = useCallback((field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-		handleFieldChange(currentType, field, e.target.value)
-	}, [currentType, handleFieldChange])
+	const handleFormInputChange = useCallback(
+		(field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+			handleFieldChange(currentType, field, e.target.value)
+		},
+		[currentType, handleFieldChange]
+	)
 
 	const handleConnectClick = useCallback(() => {
 		handleConnect(currentType)
@@ -404,38 +416,34 @@ export function StorageAdaptersPanel({
 	}, [currentType, removeConnector])
 
 	return (
-		<div className="space-y-5 w-full max-w-5xl mx-auto">
+		<div className='space-y-5 w-full max-w-5xl mx-auto'>
 			{showHeader && (
-				<div className="space-y-3">
-					<h2 className="text-xl font-semibold">Cloud storage adapters</h2>
-					<p className="text-sm text-muted-foreground">
-						Connect a destination for automatic backups. Credentials are stored securely in your
-						settings.
+				<div className='space-y-3'>
+					<h2 className='text-xl font-semibold'>Cloud storage adapters</h2>
+					<p className='text-sm text-muted-foreground'>
+						Connect a destination for automatic backups. Credentials are stored securely
+						in your settings.
 					</p>
-					<div className="rounded-md border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground space-y-1.5">
+					<div className='rounded-md border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground space-y-1.5'>
 						<p>
-							<strong>One place for credentials:</strong> Manage S3, Dropbox, or Google Drive
-							without leaving the app.
+							<strong>One place for credentials:</strong> Manage S3, Dropbox, or
+							Google Drive without leaving the app.
 						</p>
 						<p>
-							<strong>Validate before use:</strong> Each connector runs a quick check so you know it
-							is ready for backups.
+							<strong>Validate before use:</strong> Each connector runs a quick check
+							so you know it is ready for backups.
 						</p>
 						<p>
-							<strong>You own the keys:</strong> Swap or revoke connectors anytime from your
-							settings.
+							<strong>You own the keys:</strong> Swap or revoke connectors anytime
+							from your settings.
 						</p>
 					</div>
 				</div>
 			)}
 
-			<Tabs
-				value={currentType}
-				onValueChange={handleTypeChange}
-				className="space-y-4"
-			>
+			<Tabs value={currentType} onValueChange={handleTypeChange} className='space-y-4'>
 				{showTabs && (
-					<TabsList className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full bg-muted/40 border border-border/60 rounded-lg p-1">
+					<TabsList className='flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full bg-muted/40 border border-border/60 rounded-lg p-1'>
 						{definitions.map((definition) => {
 							const connector = connectors.find((c) => c.type === definition.type)
 							const Icon = connectorIcons[definition.type]
@@ -443,10 +451,14 @@ export function StorageAdaptersPanel({
 								<TabsTrigger
 									key={definition.type}
 									value={definition.type}
-									className="flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-md flex-1 min-w-[180px]"
+									className='flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-md flex-1 min-w-[180px]'
 								>
-									<span className="flex items-center gap-2 truncate">
-										{Icon ? <Icon className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
+									<span className='flex items-center gap-2 truncate'>
+										{Icon ? (
+											<Icon className='h-4 w-4' />
+										) : (
+											<Cloud className='h-4 w-4' />
+										)}
 										{definition.label}
 									</span>
 									<span
@@ -460,7 +472,7 @@ export function StorageAdaptersPanel({
 										)}
 									>
 										{connectionDot(connector?.status)}
-										<span className="hidden sm:inline">
+										<span className='hidden sm:inline'>
 											{connector?.status === 'connected'
 												? 'Connected'
 												: connector?.status === 'error'
@@ -488,30 +500,38 @@ export function StorageAdaptersPanel({
 					const currentFeedback = feedback?.[currentType]
 
 					return (
-						<Card className="border-border/70 shadow-sm w-full overflow-hidden">
-							<CardHeader className="flex flex-row items-start justify-between gap-4">
-								<AnimatePresence mode="wait" initial={false}>
+						<Card className='border-border/70 shadow-sm w-full overflow-hidden'>
+							<CardHeader className='flex flex-row items-start justify-between gap-4'>
+								<AnimatePresence mode='wait' initial={false}>
 									<motion.div
 										key={`left-${currentType}`}
-										className="flex items-start gap-3"
+										className='flex items-start gap-3'
 										variants={leftContentVariants as any}
-										initial="initial"
-										animate="animate"
-										exit="exit"
+										initial='initial'
+										animate='animate'
+										exit='exit'
 										custom={externalDirection}
 									>
-										<div className="rounded-lg bg-muted p-2 text-muted-foreground">
-											{Icon ? <Icon className="h-5 w-5" /> : <Cloud className="h-5 w-5" />}
+										<div className='rounded-lg bg-muted p-2 text-muted-foreground'>
+											{Icon ? (
+												<Icon className='h-5 w-5' />
+											) : (
+												<Cloud className='h-5 w-5' />
+											)}
 										</div>
 										<div>
-											<CardTitle className="flex items-center gap-2">{definition.label}</CardTitle>
-											<CardDescription>{definition.description}</CardDescription>
+											<CardTitle className='flex items-center gap-2'>
+												{definition.label}
+											</CardTitle>
+											<CardDescription>
+												{definition.description}
+											</CardDescription>
 											{definition.docsUrl && (
 												<a
 													href={definition.docsUrl}
-													target="_blank"
-													rel="noreferrer"
-													className="text-xs text-primary hover:underline"
+													target='_blank'
+													rel='noreferrer'
+													className='text-xs text-primary hover:underline'
 												>
 													View setup guide
 												</a>
@@ -519,70 +539,88 @@ export function StorageAdaptersPanel({
 										</div>
 									</motion.div>
 								</AnimatePresence>
-								<AnimatePresence mode="wait" initial={false}>
+								<AnimatePresence mode='wait' initial={false}>
 									<motion.div
 										key={`right-${currentType}`}
-										className="flex flex-col items-end gap-2"
+										className='flex flex-col items-end gap-2'
 										variants={rightContentVariants as any}
-										initial="initial"
-										animate="animate"
-										exit="exit"
+										initial='initial'
+										animate='animate'
+										exit='exit'
 										custom={externalDirection}
 									>
 										{statusBadge(connector?.status)}
 										{connector?.lastValidatedAt && (
-											<span className="text-[11px] text-muted-foreground">
-												Last checked {new Date(connector.lastValidatedAt).toLocaleString()}
+											<span className='text-[11px] text-muted-foreground'>
+												Last checked{' '}
+												{new Date(
+													connector.lastValidatedAt
+												).toLocaleString()}
 											</span>
 										)}
 									</motion.div>
 								</AnimatePresence>
 							</CardHeader>
-							<CardContent className="space-y-6">
-								<AnimatePresence mode="wait" initial={false}>
+							<CardContent className='space-y-6'>
+								<AnimatePresence mode='wait' initial={false}>
 									<motion.div
 										key={`content-${currentType}`}
-										className="grid gap-3"
+										className='grid gap-3'
 										variants={contentVariants}
-										initial="initial"
-										animate="animate"
-										exit="exit"
+										initial='initial'
+										animate='animate'
+										exit='exit'
 										custom={externalDirection}
 									>
-										<div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-											<p className="font-medium text-foreground mb-1">
+										<div className='rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground'>
+											<p className='font-medium text-foreground mb-1'>
 												Where to find these credentials
 											</p>
 											{currentType === 's3' && (
-												<ul className="list-disc list-inside space-y-1">
-													<li>Use an access key with programmatic access.</li>
+												<ul className='list-disc list-inside space-y-1'>
 													<li>
-														Bucket name and region must match the bucket you will store backups in.
+														Use an access key with programmatic access.
 													</li>
-													<li>Custom endpoint is for S3-compatible services (e.g., R2, MinIO).</li>
+													<li>
+														Bucket name and region must match the bucket
+														you will store backups in.
+													</li>
+													<li>
+														Custom endpoint is for S3-compatible
+														services (e.g., R2, MinIO).
+													</li>
 												</ul>
 											)}
 											{currentType === 'dropbox' && (
-												<ul className="list-disc list-inside space-y-1">
+												<ul className='list-disc list-inside space-y-1'>
 													<li>
-														Click "Connect with Dropbox" to authorize Skriuw to access your Dropbox.
+														Click "Connect with Dropbox" to authorize
+														Skriuw to access your Dropbox.
 													</li>
-													<li>Root path controls where backups are stored (e.g., /Apps/Skriuw).</li>
+													<li>
+														Root path controls where backups are stored
+														(e.g., /Apps/Skriuw).
+													</li>
 												</ul>
 											)}
 											{currentType === 'google-drive' && (
-												<ul className="list-disc list-inside space-y-1">
+												<ul className='list-disc list-inside space-y-1'>
 													<li>
-														Click "Connect with Google Drive" to authorize Skriuw to access your
-														Drive.
+														Click "Connect with Google Drive" to
+														authorize Skriuw to access your Drive.
 													</li>
-													<li>Folder ID is optional - leave blank to use root folder.</li>
+													<li>
+														Folder ID is optional - leave blank to use
+														root folder.
+													</li>
 												</ul>
 											)}
 										</div>
 
-										<div className="grid gap-2">
-											<Label className="text-xs text-muted-foreground">Connection name</Label>
+										<div className='grid gap-2'>
+											<Label className='text-xs text-muted-foreground'>
+												Connection name
+											</Label>
 											<Input
 												value={friendlyName}
 												onChange={handleFormNameChange}
@@ -591,52 +629,65 @@ export function StorageAdaptersPanel({
 											/>
 										</div>
 
-										<div className="grid gap-4 md:grid-cols-2">
+										<div className='grid gap-4 md:grid-cols-2'>
 											{definition.fields.map((field) => (
-												<div key={field.name} className="flex flex-col gap-2">
+												<div
+													key={field.name}
+													className='flex flex-col gap-2'
+												>
 													{field.type === 'oauth2' ? (
 														<>
-															<div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-																<Label className="text-muted-foreground">{field.label}</Label>
+															<div className='flex items-center justify-between text-xs font-medium text-muted-foreground'>
+																<Label className='text-muted-foreground'>
+																	{field.label}
+																</Label>
 																{field.required && (
-																	<span className="text-[11px] text-amber-600 dark:text-amber-300">
+																	<span className='text-[11px] text-amber-600 dark:text-amber-300'>
 																		Required
 																	</span>
 																)}
 															</div>
 															<Button
 																onClick={handleOAuth2ConnectClick}
-																variant="outline"
-																className="w-full justify-start"
+																variant='outline'
+																className='w-full justify-start'
 															>
-																<PlugZap className="h-4 w-4 mr-2" />
+																<PlugZap className='h-4 w-4 mr-2' />
 																{field.label}
 															</Button>
 															{field.help && (
-																<p className="text-[11px] text-muted-foreground leading-relaxed">
+																<p className='text-[11px] text-muted-foreground leading-relaxed'>
 																	{field.help}
 																</p>
 															)}
 														</>
 													) : (
 														<>
-															<div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-																<Label className="text-muted-foreground">{field.label}</Label>
+															<div className='flex items-center justify-between text-xs font-medium text-muted-foreground'>
+																<Label className='text-muted-foreground'>
+																	{field.label}
+																</Label>
 																{field.required && (
-																	<span className="text-[11px] text-amber-600 dark:text-amber-300">
+																	<span className='text-[11px] text-amber-600 dark:text-amber-300'>
 																		Required
 																	</span>
 																)}
 															</div>
 															<Input
-																type={field.secret ? 'password' : 'text'}
+																type={
+																	field.secret
+																		? 'password'
+																		: 'text'
+																}
 																value={formValues[field.name] || ''}
-																onChange={handleFormInputChange(field.name)}
+																onChange={handleFormInputChange(
+																	field.name
+																)}
 																placeholder={field.placeholder}
 																className={inputClass}
 															/>
 															{field.help && (
-																<p className="text-[11px] text-muted-foreground leading-relaxed">
+																<p className='text-[11px] text-muted-foreground leading-relaxed'>
 																	{field.help}
 																</p>
 															)}
@@ -661,32 +712,32 @@ export function StorageAdaptersPanel({
 									</div>
 								)}
 
-								<div className="flex flex-wrap gap-3 pt-2">
+								<div className='flex flex-wrap gap-3 pt-2'>
 									<Button
 										onClick={handleConnectClick}
 										disabled={isTesting}
-										className="flex items-center gap-2"
+										className='flex items-center gap-2'
 									>
 										{isTesting ? (
 											<>
-												<RefreshCcw className="h-4 w-4 animate-spin" />
+												<RefreshCcw className='h-4 w-4 animate-spin' />
 												Checking...
 											</>
 										) : (
 											<>
-												<CheckCircle2 className="h-4 w-4" />
+												<CheckCircle2 className='h-4 w-4' />
 												Save & Test
 											</>
 										)}
 									</Button>
 
 									{connector?.status === 'connected' && (
-										<Button variant="outline" onClick={handleDisconnectClick}>
+										<Button variant='outline' onClick={handleDisconnectClick}>
 											Disconnect
 										</Button>
 									)}
 									{connector && (
-										<Button variant="ghost" onClick={handleRemoveClick}>
+										<Button variant='ghost' onClick={handleRemoveClick}>
 											Remove
 										</Button>
 									)}

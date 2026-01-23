@@ -6,5 +6,5 @@ export type {
 	SettingsConfig,
 	UserSetting,
 	SettingsCategory,
-	SettingsGroup as SettingsGroupType,
+	SettingsGroup as SettingsGroupType
 } from './types'

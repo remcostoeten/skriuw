@@ -1,8 +1,8 @@
 'use client'
 
-import { useSession } from '@/lib/auth-client'
-import { useCallback } from 'react'
-import { notify } from '@/lib/notify'
+import { useSession } from "@/lib/auth-client";
+import { notify } from "@/lib/notify";
+import { useCallback } from "react";
 
 type MutationGuardOptions = {
 	message?: string
@@ -11,10 +11,7 @@ type MutationGuardOptions = {
 type MutationGuardResult = {
 	isAuthenticated: boolean
 	isLoading: boolean
-	guard: <T>(
-		action: () => T | Promise<T>,
-		options?: MutationGuardOptions
-	) => Promise<T | null>
+	guard: <T>(action: () => T | Promise<T>, options?: MutationGuardOptions) => Promise<T | null>
 }
 
 export function useMutationGuard(): MutationGuardResult {
@@ -27,8 +24,7 @@ export function useMutationGuard(): MutationGuardResult {
 			action: () => T | Promise<T>,
 			options: MutationGuardOptions = {}
 		): Promise<T | null> => {
-			const { message = 'You need an account to perform this action' } =
-				options
+			const { message = 'You need an account to perform this action' } = options
 
 			if (isPending) {
 				return null

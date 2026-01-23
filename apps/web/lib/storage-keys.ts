@@ -5,28 +5,28 @@
 
 // Notes feature storage keys
 export const STORAGE_KEYS = {
-    // Notes and Folders
-    NOTES: 'skriuw:notes',
+	// Notes and Folders
+	NOTES: 'skriuw:notes',
 
-    // Settings
-    SETTINGS: 'skriuw:settings',
-    
-    // Tasks
-    TASKS: 'skriuw:tasks',
+	// Settings
+	SETTINGS: 'skriuw:settings',
 
-    // Shortcuts
-    SHORTCUTS: 'skriuw:shortcuts',
+	// Tasks
+	TASKS: 'skriuw:tasks',
 
-    // Editor tabs state
-    EDITOR_TABS: 'skriuw:editor-tabs',
+	// Shortcuts
+	SHORTCUTS: 'skriuw:shortcuts',
 
-    // Split view state
-    NOTE_SPLIT_VIEW: 'skriuw:noteSplitView:state',
+	// Editor tabs state
+	EDITOR_TABS: 'skriuw:editor-tabs',
+
+	// Split view state
+	NOTE_SPLIT_VIEW: 'skriuw:noteSplitView:state'
 } as const
 
 // Default entity IDs
 export const DEFAULT_IDS = {
-    SETTINGS: 'app-settings',
+	SETTINGS: 'app-settings'
 } as const
 
 // Type for storage keys

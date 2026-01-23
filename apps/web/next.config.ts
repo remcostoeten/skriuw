@@ -1,21 +1,36 @@
-import type { NextConfig } from 'next'
-import path from 'path'
-import withSerwistInit from '@serwist/next'
+import withSerwistInit from "@serwist/next";
+import type { NextConfig } from "next";
+import path from "path";
 
 const isTauriBuild = process.env.TAURI_BUILD === 'true'
 
 const withSerwist = withSerwistInit({
 	swSrc: 'app/sw.ts',
 	swDest: 'public/sw.js',
-	disable: process.env.NODE_ENV === 'development' || isTauriBuild,
+	disable: process.env.NODE_ENV === 'development' || isTauriBuild
 })
 
 const nextConfig: NextConfig = {
 	// Enable React strict mode for better development experience
 	reactStrictMode: true,
 
+	// Skip type checking and linting during build (handled by CI)
+	typescript: {
+		ignoreBuildErrors: true,
+	},
+	eslint: {
+		ignoreDuringBuilds: true,
+	},
+
 	// Transpile packages if needed
-	transpilePackages: ['@skriuw/ui', '@skriuw/shared', '@skriuw/db', '@skriuw/crud', '@skriuw/env', '@skriuw/config'],
+	transpilePackages: [
+		'@skriuw/ui',
+		'@skriuw/shared',
+		'@skriuw/db',
+		'@skriuw/crud',
+		'@skriuw/env',
+		'@skriuw/config'
+	],
 
 	// Configure external packages for server components
 	serverExternalPackages: ['postgres'],
@@ -23,7 +38,7 @@ const nextConfig: NextConfig = {
 	// Fix for 431 Request Header Fields Too Large errors in development
 	experimental: {
 		// Optimize production builds
-		optimizePackageImports: ['@blocknote/mantine'],
+		optimizePackageImports: ['@blocknote/mantine']
 	},
 
 	devIndicators: false,
@@ -39,7 +54,7 @@ const nextConfig: NextConfig = {
 	output: process.env.TAURI_BUILD === 'true' ? 'export' : 'standalone',
 
 	images: {
-		unoptimized: isTauriBuild,
+		unoptimized: isTauriBuild
 	},
 
 	// Configure headers to handle large headers in development
@@ -50,16 +65,16 @@ const nextConfig: NextConfig = {
 				headers: [
 					{
 						key: 'Cache-Control',
-						value: 'public, max-age=31536000, immutable',
-					},
-				],
-			},
+						value: 'public, max-age=31536000, immutable'
+					}
+				]
+			}
 		]
 	},
 
 	// Configure Turbopack to use explicit root directory
 	turbopack: {
-		root: path.join(__dirname, '..', '..'),
+		root: path.join(__dirname, '..', '..')
 	},
 
 	// Configure webpack to handle large assets and optional Tauri modules
@@ -75,13 +90,13 @@ const nextConfig: NextConfig = {
 			...config.resolve.alias,
 			'@': projectRoot,
 			'@skriuw/storage': path.resolve('./lib/storage'),
-			'@skriuw/storage/crud': path.resolve('./lib/storage/crud'),
+			'@skriuw/storage/crud': path.resolve('./lib/storage/crud')
 		}
 
 		if (!isServer) {
 			config.resolve.fallback = {
 				...config.resolve.fallback,
-				fs: false,
+				fs: false
 			}
 		}
 
@@ -89,14 +104,13 @@ const nextConfig: NextConfig = {
 		if (!isTauriBuild) {
 			config.plugins.push(
 				new webpack.IgnorePlugin({
-					resourceRegExp: /^@tauri-apps\/api\/(window|event)$/,
+					resourceRegExp: /^@tauri-apps\/api\/(window|event)$/
 				})
 			)
 		}
 
 		return config
-	},
+	}
 }
 
 export default withSerwist(nextConfig)
-

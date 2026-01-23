@@ -1,9 +1,6 @@
-import {
-	getDefaultReactSlashMenuItems,
-	type DefaultReactSuggestionItem
-} from '@blocknote/react'
-import { createElement } from 'react'
-import { CheckSquare, FolderTree, Info, LayoutTemplate } from 'lucide-react'
+import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from "@blocknote/react";
+import { CheckSquare, FolderTree, Info, LayoutTemplate } from "lucide-react";
+import { createElement } from "react";
 
 // At symbol icon for note mention
 const AtIcon = () =>
@@ -26,9 +23,7 @@ const AtIcon = () =>
 		})
 	)
 
-export const getCustomSlashMenuItems = (
-	editor: any
-): DefaultReactSuggestionItem[] => {
+export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem[] => {
 	const defaultItems = getDefaultReactSlashMenuItems(editor)
 
 	// Add custom items to the default list
@@ -37,11 +32,7 @@ export const getCustomSlashMenuItems = (
 			title: 'Properties',
 			onItemClick: () => {
 				const currentBlock = editor.getTextCursorPosition().block
-				editor.insertBlocks(
-					[{ type: 'header' }],
-					currentBlock,
-					'after'
-				)
+				editor.insertBlocks([{ type: 'header' }], currentBlock, 'after')
 			},
 			aliases: ['header', 'meta', 'frontmatter', 'props'],
 			subtext: 'Add page properties and metadata',
@@ -81,10 +72,7 @@ export const getCustomSlashMenuItems = (
 				])
 				// Move cursor after @ to trigger mention menu
 				const cursorPos = editor.getTextCursorPosition()
-				editor.setTextCursorPosition(
-					cursorPos.block,
-					cursorPos.offset + 1
-				)
+				editor.setTextCursorPosition(cursorPos.block, cursorPos.offset + 1)
 			},
 			aliases: ['mention', 'link', 'reference', 'note'],
 			subtext: 'Link to another note',
