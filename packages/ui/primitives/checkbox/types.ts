@@ -3,7 +3,7 @@ import { ReactNode } from 'react'
 /**
  * Atimation variant types for the checkbox component
  */
-export type CheckboxAnimationVariant = 'fade' | 'scale' | 'bounce' | 'slide' | 'rotate'
+export type CheckboxAnimationVariant = 'fade' | 'scale' | 'bounce' | 'slide' | 'rotate' | 'gooey'
 
 /**
  * Checkbox state types
