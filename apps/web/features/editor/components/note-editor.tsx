@@ -174,9 +174,14 @@ export function NoteEditor({
 
 	const handleDelete = useCallback(
 		async function handleDelete(active: SurfaceContext) {
-			await deleteItem(active.noteId)
-			notify('Note moved to trash').duration(2000)
-			router.push('/')
+			try {
+				await deleteItem(active.noteId)
+				notify('Note moved to trash').duration(2000)
+				router.push('/')
+			} catch (err) {
+				const message = err instanceof Error ? err.message : 'Unknown error'
+				notify(`Failed to delete: ${message}`).duration(3000)
+			}
 		},
 		[deleteItem, router]
 	)
