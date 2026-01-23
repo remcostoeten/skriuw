@@ -91,22 +91,24 @@ export function InstallPrompt() {
         setVisible(!open);
     }
 
-    if (!isVisible || isDismissed) return null;
+    const showBanner = isVisible && !isDismissed;
+    if (!showBanner && !iosOpen) return null;
 
     return (
         <>
-            <div className={cn(
-                "fixed z-[60] transition-all duration-300 ease-out",
-                "bottom-[calc(56px+env(safe-area-inset-bottom)+12px)] left-3 right-3",
-                "sm:left-auto sm:right-4 sm:bottom-20 sm:w-auto sm:max-w-[320px]"
-            )}>
+            {showBanner && (
                 <div className={cn(
-                    "flex items-center gap-3",
-                    "bg-[#1a1a1a] border border-white/[0.08]",
-                    "p-3 rounded-2xl",
-                    "shadow-[0_8px_32px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]",
-                    "animate-in fade-in slide-in-from-bottom-4 duration-300"
+                    "fixed z-[60] transition-all duration-300 ease-out",
+                    "bottom-[calc(56px+env(safe-area-inset-bottom)+12px)] left-3 right-3",
+                    "sm:left-auto sm:right-4 sm:bottom-20 sm:w-auto sm:max-w-[320px]"
                 )}>
+                    <div className={cn(
+                        "flex items-center gap-3",
+                        "bg-[#1a1a1a] border border-white/[0.08]",
+                        "p-3 rounded-2xl",
+                        "shadow-[0_8px_32px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]",
+                        "animate-in fade-in slide-in-from-bottom-4 duration-300"
+                    )}>
                     <div className={cn(
                         "flex h-11 w-11 shrink-0 items-center justify-center",
                         "rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10",
@@ -150,8 +152,9 @@ export function InstallPrompt() {
                             <X className="h-4 w-4" />
                         </button>
                     </div>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <IosInstallInstructions
                 isOpen={iosOpen}
