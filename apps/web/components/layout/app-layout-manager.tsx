@@ -35,7 +35,6 @@ import { Sidebar } from '../sidebar'
 
 import { TaskPanelStack } from '../../features/tasks'
 import { RightSidebar } from '../right-sidebar'
-import { MobileBottomNav } from './mobile-bottom-nav'
 
 type AppLayoutManagerProps = {
 	children: ReactNode
@@ -459,8 +458,6 @@ export function AppLayoutManager({
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
 					<RightSidebar noteId={sidebarActiveNoteId || undefined} content={currentNote?.content} />
-					<MobileBottomNav onSettingsClick={() => setSettingsOpen(true)} />
-
 					{/* <AlphaBanner
 						href="/docs"
 						text="New! PrismUI Components"
