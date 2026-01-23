@@ -10,17 +10,18 @@ import "@blocknote/core/style.css";
 import "@blocknote/react/style.css";
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
 
-type Props = {
-	editor: BlockNoteEditor | null
-	className?: string
-}
-
 export type EditorWrapperHandle = {
 	focusEditor: () => void
 }
 
+type Props = {
+	editor: BlockNoteEditor | null
+	className?: string
+	header?: React.ReactNode
+}
+
 export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
-	({ editor, className }, ref) => {
+	({ editor, className, header }, ref) => {
 		const editorRef = useRef<HTMLDivElement>(null)
 		const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
 		const {
@@ -64,7 +65,6 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 			}
 		}, [editor])
 
-		// Highlight code blocks on mount and when content changes
 		useEffect(() => {
 			if (!editorRef.current || hasRawMDXMode || !editor) return
 
@@ -142,19 +142,16 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 			}
 		}, [editorContent, hasRawMDXMode, editor])
 
-		// Apply word wrap data attribute
 		useEffect(() => {
 			if (!editorRef.current) return
 			editorRef.current.setAttribute('data-word-wrap', hasWordWrap ? 'enabled' : 'disabled')
 		}, [hasWordWrap])
 
-		// Apply centered layout class
 		useEffect(() => {
 			if (!editorRef.current) return
 
 			if (centeredLayout) {
 				editorRef.current.classList.add('centered-layout')
-				// Apply max-width variable
 				editorRef.current.style.setProperty(
 					'--editor-max-width',
 					getMaxWidthPx(maxWidth ?? 'medium')
@@ -181,6 +178,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 				ref={editorRef}
 				className={`editor-container w-full h-full overflow-y-auto ${centeredLayout ? 'centered-layout' : ''}`}
 			>
+				{header}
 				<DualModeEditor
 					editor={editor}
 					value={editorContent}
