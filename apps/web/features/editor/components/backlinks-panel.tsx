@@ -54,15 +54,15 @@ export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelPr
             )
 
             if (!success) {
-                notify("Could not find mention in note content").error()
+                notify("Could not find mention in note content")
                 return
             }
 
             await updateNote(sourceNote.id, newBlocks)
-            notify("Note linked successfully").success()
+            notify("Note linked successfully")
         } catch (err) {
             console.error("Failed to link mention", err)
-            notify("Failed to link mention").error()
+            notify("Failed to link mention")
         }
     }
 

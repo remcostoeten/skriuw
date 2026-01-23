@@ -2,6 +2,7 @@
 
 import { useShortcut } from "../features/shortcuts";
 import { SkriuwExplanation } from "@/components/landing/skriuw-explanation";
+import Integrations from "@/modules/landing-page/components/integrations";
 import { NoteSplitView } from "@/features/notes/components/note-split-view";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
@@ -98,16 +99,24 @@ export default function Index() {
 			)}
 
 			{session ? (
-				<div className='flex-1 flex items-center justify-center translate-y-[30%]'>
-					<SkriuwExplanation onCreateNote={handleCreateNote} />
+				<div className='flex-1 flex flex-col w-full overflow-y-auto no-scrollbar'>
+					<div className='min-h-[90vh] flex items-center justify-center p-4'>
+						<SkriuwExplanation onCreateNote={handleCreateNote} />
+					</div>
+					<Integrations />
+					<div className='py-12' />
 				</div>
 			) : (
 				<div className='flex-1 flex flex-col h-full'>
 					{welcomeNoteId ? (
 						<NoteSplitView noteId={welcomeNoteId} />
 					) : (
-						<div className='flex-1 flex items-center justify-center'>
-							<SkriuwExplanation onCreateNote={handleCreateNote} />
+						<div className='flex-1 flex flex-col w-full overflow-y-auto no-scrollbar'>
+							<div className='min-h-[90vh] flex items-center justify-center p-4'>
+								<SkriuwExplanation onCreateNote={handleCreateNote} />
+							</div>
+							<Integrations />
+							<div className='py-12' />
 						</div>
 					)}
 				</div>
