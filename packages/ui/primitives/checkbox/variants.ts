@@ -184,6 +184,21 @@ export const checkboxAnimations: Record<
 			transition: 'all 350ms cubic-bezier(0.65, 0, 0.35, 1)',
 		},
 	},
+	gooey: {
+		name: 'Gooey',
+		description: 'Elastic gooey pop with overshoot',
+		timing: 'cubic-bezier(0.16, 1.4, 0.3, 1)',
+		duration: '360ms',
+		iconTransform: {
+			unchecked: 'opacity-0 scale-0 rotate(-12deg)',
+			checked: 'opacity-100 scale-110 rotate(0deg)',
+			indeterminate: 'opacity-100 scale-95 rotate(0deg)',
+			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)',
+		},
+		containerTransform: {
+			transition: 'all 360ms cubic-bezier(0.16, 1.4, 0.3, 1)',
+		},
+	},
 }
 
 /**
