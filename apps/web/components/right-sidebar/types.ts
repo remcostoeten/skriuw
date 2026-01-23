@@ -6,9 +6,6 @@ import type { Block } from '@blocknote/core'
 export const SECTION_KEYS = {
     TOC: 'toc',
     METADATA: 'metadata',
-    SHARING: 'sharing',
-    TAGS: 'tags',
-    HISTORY: 'history',
 } as const
 
 export type SectionKey = (typeof SECTION_KEYS)[keyof typeof SECTION_KEYS]
