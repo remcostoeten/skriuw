@@ -1,19 +1,10 @@
-import { useCallback } from 'react'
-import { Link2 } from 'lucide-react'
-import {
-	SuggestionMenuController,
-	type SuggestionMenuProps,
-	useBlockNoteEditor,
-} from '@blocknote/react'
-
-import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import {
-	searchNoteMentions,
-	type HighlightPart,
-	type NoteMentionSearchResult,
-} from '../utils/note-mention-search'
+import { useNoteMentionCandidates } from "../hooks/use-note-mentions";
+import { searchNoteMentions, type HighlightPart, type NoteMentionSearchResult } from "../utils/note-mention-search";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor } from "@blocknote/react";
+import { Link2 } from "lucide-react";
+import { useCallback } from "react";
 
 type MentionSuggestionItem = NoteMentionSearchResult & {
 	url: string
@@ -23,7 +14,7 @@ type MentionGetItems = (query: string) => Promise<MentionSuggestionItem[]>
 const MentionMenuList = ({
 	items,
 	selectedIndex,
-	onItemClick,
+	onItemClick
 }: SuggestionMenuProps<MentionSuggestionItem>) => {
 	const activeOptionId =
 		selectedIndex !== undefined && selectedIndex >= 0
@@ -32,17 +23,21 @@ const MentionMenuList = ({
 
 	if (!items.length) {
 		return (
-			<div className="skriuw-mention-menu empty" role="listbox" aria-label="Mention suggestions">
-				<span className="skriuw-mention-menu__empty">No notes found</span>
+			<div
+				className='skriuw-mention-menu empty'
+				role='listbox'
+				aria-label='Mention suggestions'
+			>
+				<span className='skriuw-mention-menu__empty'>No notes found</span>
 			</div>
 		)
 	}
 
 	return (
 		<div
-			className="skriuw-mention-menu"
-			role="listbox"
-			aria-label="Mention suggestions"
+			className='skriuw-mention-menu'
+			role='listbox'
+			aria-label='Mention suggestions'
 			aria-activedescendant={activeOptionId}
 		>
 			{items.map((item: MentionSuggestionItem, index: number) => {
@@ -51,21 +46,23 @@ const MentionMenuList = ({
 					<button
 						key={item.id}
 						id={optionId}
-						type="button"
-						role="option"
+						type='button'
+						role='option'
 						aria-selected={selectedIndex === index}
 						className={`skriuw-mention-menu__item ${selectedIndex === index ? 'is-selected' : ''}`}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={() => onItemClick?.(item)}
 					>
-						<span className="skriuw-mention-menu__icon" aria-hidden="true">
+						<span className='skriuw-mention-menu__icon' aria-hidden='true'>
 							<Link2 size={14} />
 						</span>
-						<span className="skriuw-mention-menu__content">
-							<span className="skriuw-mention-menu__title">
+						<span className='skriuw-mention-menu__content'>
+							<span className='skriuw-mention-menu__title'>
 								{renderHighlightedText(item.titleHighlights)}
 							</span>
-							{item.path && <span className="skriuw-mention-menu__path">{item.path}</span>}
+							{item.path && (
+								<span className='skriuw-mention-menu__path'>{item.path}</span>
+							)}
 						</span>
 					</button>
 				)
@@ -98,7 +95,7 @@ export function NoteMentionSuggestionMenu() {
 			const results = searchNoteMentions(query, candidates)
 			return results.map((result) => ({
 				...result,
-				url: getNoteUrl(result.id),
+				url: getNoteUrl(result.id)
 			}))
 		},
 		[candidates, getNoteUrl]
@@ -117,7 +114,7 @@ export function NoteMentionSuggestionMenu() {
 
 	return (
 		<SuggestionMenuController<MentionGetItems>
-			triggerCharacter="@"
+			triggerCharacter='@'
 			minQueryLength={0}
 			getItems={getItems}
 			onItemClick={handleItemClick}

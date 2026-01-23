@@ -1,11 +1,4 @@
-/**
- * @fileoverview Adapter Registry
- * @description Centralized storage adapter management.
- * Single registration point for testing isolation.
- * @module @skriuw/crud/adapter
- */
-
-import type { StorageAdapter } from '../types/adapter'
+import type { StorageAdapter } from "../types/adapter";
 
 let currentAdapter: StorageAdapter | null = null
 
@@ -24,7 +17,7 @@ let currentAdapter: StorageAdapter | null = null
  * ```
  */
 export function setAdapter(adapter: StorageAdapter): void {
-    currentAdapter = adapter
+	currentAdapter = adapter
 }
 
 /**
@@ -33,19 +26,19 @@ export function setAdapter(adapter: StorageAdapter): void {
  * @returns The registered storage adapter
  */
 export function getAdapter(): StorageAdapter {
-    if (!currentAdapter) {
-        throw new Error(
-            'Storage adapter not configured. Call setAdapter() before using CRUD operations.'
-        )
-    }
-    return currentAdapter
+	if (!currentAdapter) {
+		throw new Error(
+			'Storage adapter not configured. Call setAdapter() before using CRUD operations.'
+		)
+	}
+	return currentAdapter
 }
 
 /**
  * Checks if an adapter is currently registered.
  */
 export function hasAdapter(): boolean {
-    return currentAdapter !== null
+	return currentAdapter !== null
 }
 
 /**
@@ -55,5 +48,5 @@ export function hasAdapter(): boolean {
  * @internal
  */
 export function resetAdapter(): void {
-    currentAdapter = null
+	currentAdapter = null
 }

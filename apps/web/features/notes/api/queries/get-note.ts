@@ -1,7 +1,6 @@
-import { readOne } from '@skriuw/crud'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import type { Note } from '../../types'
+import type { Note } from "../../types";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { readOne } from "@skriuw/crud";
 
 const CACHE_TTL_MS = 60000
 
@@ -23,4 +22,3 @@ export async function getNote(id: string, userId?: string): Promise<Note | undef
 		)
 	}
 }
-

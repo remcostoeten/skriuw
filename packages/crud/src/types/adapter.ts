@@ -1,11 +1,4 @@
-/**
- * @fileoverview Unified Storage Adapter Interface
- * @description Single source of truth for storage adapter type.
- * All CRUD operations use this interface.
- * @module @skriuw/crud/types/adapter
- */
-
-import type { BaseEntity } from './base'
+import type { BaseEntity } from "./base";
 
 /**
  * Storage adapter interface that backends must implement.
@@ -32,93 +25,88 @@ import type { BaseEntity } from './base'
  * }
  * ```
  */
-export interface StorageAdapter {
-    /**
-     * Creates a new entity in storage.
-     * @param storageKey - Collection/table name
-     * @param data - Entity data (id may be provided or auto-generated)
-     * @param options - Create options including userId
-     * @returns Created entity with all fields populated
-     */
-    create<T extends BaseEntity>(
-        storageKey: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
-        options?: CreateAdapterOptions
-    ): Promise<T>
+export type StorageAdapter = {
+	/**
+	 * Creates a new entity in storage.
+	 * @param storageKey - Collection/table name
+	 * @param data - Entity data (id may be provided or auto-generated)
+	 * @param options - Create options including userId
+	 * @returns Created entity with all fields populated
+	 */
+	create<T extends BaseEntity>(
+		storageKey: string,
+		data: Omit<T, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+		options?: CreateAdapterOptions
+	): Promise<T>
 
-    /**
-     * Reads entities from storage.
-     * @param storageKey - Collection/table name
-     * @param options - Query options including userId for filtering
-     * @returns Single entity, array, or undefined
-     */
-    read<T extends BaseEntity>(
-        storageKey: string,
-        options?: ReadAdapterOptions
-    ): Promise<T[] | T | undefined>
+	/**
+	 * Reads entities from storage.
+	 * @param storageKey - Collection/table name
+	 * @param options - Query options including userId for filtering
+	 * @returns Single entity, array, or undefined
+	 */
+	read<T extends BaseEntity>(
+		storageKey: string,
+		options?: ReadAdapterOptions
+	): Promise<T[] | T | undefined>
 
-    /**
-     * Updates an existing entity.
-     * @param storageKey - Collection/table name
-     * @param id - Entity ID to update
-     * @param data - Partial data to merge
-     * @param options - Update options including userId for ownership verification
-     * @returns Updated entity or undefined if not found
-     */
-    update<T extends BaseEntity>(
-        storageKey: string,
-        id: string,
-        data: Partial<T>,
-        options?: UpdateAdapterOptions
-    ): Promise<T | undefined>
+	/**
+	 * Updates an existing entity.
+	 * @param storageKey - Collection/table name
+	 * @param id - Entity ID to update
+	 * @param data - Partial data to merge
+	 * @param options - Update options including userId for ownership verification
+	 * @returns Updated entity or undefined if not found
+	 */
+	update<T extends BaseEntity>(
+		storageKey: string,
+		id: string,
+		data: Partial<T>,
+		options?: UpdateAdapterOptions
+	): Promise<T | undefined>
 
-    /**
-     * Deletes an entity from storage.
-     * @param storageKey - Collection/table name
-     * @param id - Entity ID to delete
-     * @param options - Delete options including userId for ownership verification
-     * @returns True if deleted, false if not found
-     */
-    delete(
-        storageKey: string,
-        id: string,
-        options?: DeleteAdapterOptions
-    ): Promise<boolean>
+	/**
+	 * Deletes an entity from storage.
+	 * @param storageKey - Collection/table name
+	 * @param id - Entity ID to delete
+	 * @param options - Delete options including userId for ownership verification
+	 * @returns True if deleted, false if not found
+	 */
+	delete(storageKey: string, id: string, options?: DeleteAdapterOptions): Promise<boolean>
 }
 
 /**
  * Options for the create adapter method.
  */
-export interface CreateAdapterOptions {
-    /** User ID to associate with the created entity */
-    userId?: string | null
+export type CreateAdapterOptions = {
+	/** User ID to associate with the created entity */
+	userId?: string | null
 }
 
 /**
  * Options for the read adapter method.
  */
-export interface ReadAdapterOptions {
-    /** Fetch single entity by ID */
-    getById?: string
-    /** Fetch all entities */
-    getAll?: boolean
-    /** Filter results to entities owned by this user */
-    userId?: string | null
+export type ReadAdapterOptions = {
+	/** Fetch single entity by ID */
+	getById?: string
+	/** Fetch all entities */
+	getAll?: boolean
+	/** Filter results to entities owned by this user */
+	userId?: string | null
 }
 
 /**
  * Options for the update adapter method.
  */
-export interface UpdateAdapterOptions {
-    /** Only update if entity belongs to this user */
-    userId?: string | null
+export type UpdateAdapterOptions = {
+	/** Only update if entity belongs to this user */
+	userId?: string | null
 }
 
 /**
  * Options for the delete adapter method.
  */
-export interface DeleteAdapterOptions {
-    /** Only delete if entity belongs to this user */
-    userId?: string | null
+export type DeleteAdapterOptions = {
+	/** Only delete if entity belongs to this user */
+	userId?: string | null
 }
-

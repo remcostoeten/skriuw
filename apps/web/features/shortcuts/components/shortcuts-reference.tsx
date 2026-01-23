@@ -1,11 +1,9 @@
-import { Search, Keyboard } from 'lucide-react'
-import { useState, useEffect, useRef, useMemo } from 'react'
-
-import { Card, CardContent, CardHeader, CardTitle } from '@skriuw/ui/card'
-import { Input } from '@skriuw/ui/input'
-
-import { getShortcuts } from '../api/queries/get-shortcuts'
-import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions'
+import { getShortcuts } from "../api/queries/get-shortcuts";
+import { ShortcutId, shortcutDefinitions, KeyCombo } from "../shortcut-definitions";
+import { Card, CardContent, CardHeader, CardTitle } from "@skriuw/ui/card";
+import { Input } from "@skriuw/ui/input";
+import { Search, Keyboard } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 type ShortcutState = {
 	id: ShortcutId
@@ -45,17 +43,18 @@ export function ShortcutsReference() {
 	const loadShortcuts = async () => {
 		const customShortcuts = await getShortcuts()
 
-		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
-			.map(([id, definition]) => {
+		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions).map(
+			([id, definition]) => {
 				const shortcutId = id as ShortcutId
 				const customKeys = customShortcuts[shortcutId]
 
 				return {
 					id: shortcutId,
 					currentKeys: customKeys || definition.keys,
-					description: definition.description || id,
+					description: definition.description || id
 				}
-			})
+			}
+		)
 
 		setShortcuts(shortcutStates)
 	}
@@ -99,48 +98,55 @@ export function ShortcutsReference() {
 		save: 'Save',
 		search: 'Search',
 		delete: 'Delete',
-		other: 'Other',
+		other: 'Other'
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className='space-y-6'>
 			{/* Header */}
-			<div className="space-y-2">
-				<div className="flex items-center gap-2">
-					<Keyboard className="w-5 h-5 text-muted-foreground" />
-					<h3 className="text-lg font-semibold text-foreground">Keyboard Shortcuts Reference</h3>
+			<div className='space-y-2'>
+				<div className='flex items-center gap-2'>
+					<Keyboard className='w-5 h-5 text-muted-foreground' />
+					<h3 className='text-lg font-semibold text-foreground'>
+						Keyboard Shortcuts Reference
+					</h3>
 				</div>
-				<p className="text-sm text-muted-foreground">
+				<p className='text-sm text-muted-foreground'>
 					View all available keyboard shortcuts. Press{' '}
-					<kbd className="px-1.5 py-0.5 rounded bg-secondary text-xs font-mono">Ctrl+/</kbd> or{' '}
-					<kbd className="px-1.5 py-0.5 rounded bg-secondary text-xs font-mono">Meta+/</kbd> to
-					customize shortcuts.
+					<kbd className='px-1.5 py-0.5 rounded bg-secondary text-xs font-mono'>
+						Ctrl+/
+					</kbd>{' '}
+					or{' '}
+					<kbd className='px-1.5 py-0.5 rounded bg-secondary text-xs font-mono'>
+						Meta+/
+					</kbd>{' '}
+					to customize shortcuts.
 				</p>
 			</div>
 
 			{/* Search */}
-			<div className="relative">
-				<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+			<div className='relative'>
+				<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none' />
 				<Input
 					ref={searchInputRef}
-					type="text"
-					placeholder="Search shortcuts..."
+					type='text'
+					placeholder='Search shortcuts...'
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
-					className="pl-9 h-10 w-full"
-					aria-label="Search shortcuts"
+					className='pl-9 h-10 w-full'
+					aria-label='Search shortcuts'
 				/>
 			</div>
 
 			{/* Shortcuts List */}
 			{filteredShortcuts.length === 0 ? (
-				<div className="py-12 text-center">
-					<p className="text-sm text-muted-foreground">
+				<div className='py-12 text-center'>
+					<p className='text-sm text-muted-foreground'>
 						{searchQuery.trim() ? 'No shortcuts found' : 'No shortcuts available'}
 					</p>
 				</div>
 			) : (
-				<div className="space-y-6">
+				<div className='space-y-6'>
 					{Object.entries(groupedShortcuts)
 						.sort(([a], [b]) => {
 							// Sort categories: put "other" last
@@ -151,42 +157,55 @@ export function ShortcutsReference() {
 						.map(([category, categoryShortcuts]) => (
 							<Card key={category}>
 								<CardHeader>
-									<CardTitle className="text-base">
+									<CardTitle className='text-base'>
 										{categoryLabels[category] ||
 											category.charAt(0).toUpperCase() + category.slice(1)}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
-									<div className="space-y-3">
+									<div className='space-y-3'>
 										{categoryShortcuts.map((shortcut) => (
 											<div
 												key={shortcut.id}
-												className="flex items-start justify-between gap-4 py-2 border-b border-border last:border-0"
+												className='flex items-start justify-between gap-4 py-2 border-b border-border last:border-0'
 											>
-												<div className="flex-1 min-w-0">
-													<p className="text-sm font-medium text-foreground">
+												<div className='flex-1 min-w-0'>
+													<p className='text-sm font-medium text-foreground'>
 														{shortcut.description}
 													</p>
-													<p className="text-xs text-muted-foreground/60 mt-0.5">{shortcut.id}</p>
+													<p className='text-xs text-muted-foreground/60 mt-0.5'>
+														{shortcut.id}
+													</p>
 												</div>
-												<div className="flex items-center gap-2 shrink-0">
-													{shortcut.currentKeys.map((combo, comboIndex) => (
-														<span key={comboIndex} className="inline-flex items-center gap-1">
-															{comboIndex > 0 && (
-																<span className="text-xs text-muted-foreground mx-1">or</span>
-															)}
-															<kbd className="pointer-events-none inline-flex h-[22px] min-w-[22px] px-2 tracking-widest select-none items-center justify-center gap-1 rounded bg-secondary px-2 font-mono text-xs text-muted-foreground opacity-100">
-																{combo.map((key, keyIndex) => (
-																	<span key={keyIndex}>
-																		{key}
-																		{keyIndex < combo.length - 1 && (
-																			<span className="mx-0.5">+</span>
-																		)}
+												<div className='flex items-center gap-2 shrink-0'>
+													{shortcut.currentKeys.map(
+														(combo, comboIndex) => (
+															<span
+																key={comboIndex}
+																className='inline-flex items-center gap-1'
+															>
+																{comboIndex > 0 && (
+																	<span className='text-xs text-muted-foreground mx-1'>
+																		or
 																	</span>
-																))}
-															</kbd>
-														</span>
-													))}
+																)}
+																<kbd className='pointer-events-none inline-flex h-[22px] min-w-[22px] px-2 tracking-widest select-none items-center justify-center gap-1 rounded bg-secondary px-2 font-mono text-xs text-muted-foreground opacity-100'>
+																	{combo.map((key, keyIndex) => (
+																		<span key={keyIndex}>
+																			{key}
+																			{keyIndex <
+																				combo.length -
+																					1 && (
+																				<span className='mx-0.5'>
+																					+
+																				</span>
+																			)}
+																		</span>
+																	))}
+																</kbd>
+															</span>
+														)
+													)}
 												</div>
 											</div>
 										))}

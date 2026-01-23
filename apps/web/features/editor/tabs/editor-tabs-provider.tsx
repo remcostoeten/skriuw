@@ -1,14 +1,5 @@
-import {
-	createContext,
-	useCallback,
-	useContext,
-	useEffect,
-	useMemo,
-	useState,
-	type ReactNode,
-} from 'react'
-
-import type { EditorTab, EditorTabInput, EditorTabsContextValue } from './types'
+import type { EditorTab, EditorTabInput, EditorTabsContextValue } from "./types";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const STORAGE_KEY = 'skriuw_editor_tabs_state'
 const MAX_TABS = 12
@@ -20,7 +11,7 @@ type PersistedState = {
 
 const createDefaultState = (): PersistedState => ({
 	tabs: [],
-	activeNoteId: null,
+	activeNoteId: null
 })
 
 function readPersistedState(): PersistedState {
@@ -34,21 +25,21 @@ function readPersistedState(): PersistedState {
 		const parsed = JSON.parse(raw) as PersistedState
 		const deduped = Array.isArray(parsed.tabs)
 			? parsed.tabs.reduce<EditorTab[]>((acc, tab) => {
-				if (!tab?.noteId) return acc
-				if (acc.some((existing) => existing.noteId === tab.noteId)) {
+					if (!tab?.noteId) return acc
+					if (acc.some((existing) => existing.noteId === tab.noteId)) {
+						return acc
+					}
+					acc.push({
+						noteId: tab.noteId,
+						title: tab.title ?? 'Untitled',
+						lastVisitedAt: tab.lastVisitedAt ?? Date.now()
+					})
 					return acc
-				}
-				acc.push({
-					noteId: tab.noteId,
-					title: tab.title ?? 'Untitled',
-					lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
-				})
-				return acc
-			}, [])
+				}, [])
 			: []
 		return {
 			tabs: deduped.slice(-MAX_TABS),
-			activeNoteId: parsed.activeNoteId ?? null,
+			activeNoteId: parsed.activeNoteId ?? null
 		}
 	} catch {
 		return createDefaultState()
@@ -72,7 +63,9 @@ type EditorTabsProviderProps = {
 
 export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
 	// Read persisted state only once to ensure consistent hydration
-	const [{ tabs: initialTabs, activeNoteId: initialActiveNoteId }] = useState(() => readPersistedState())
+	const [{ tabs: initialTabs, activeNoteId: initialActiveNoteId }] = useState(() =>
+		readPersistedState()
+	)
 	const [tabs, setTabs] = useState<EditorTab[]>(initialTabs)
 	const [activeNoteId, setActiveNoteId] = useState<string | null>(initialActiveNoteId)
 
@@ -89,12 +82,14 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
 			if (!tab.noteId) return
 			setTabs((prev) => {
 				const nextTitle =
-					tab.title?.trim() || prev.find((t) => t.noteId === tab.noteId)?.title || 'Untitled'
+					tab.title?.trim() ||
+					prev.find((t) => t.noteId === tab.noteId)?.title ||
+					'Untitled'
 				const existingIndex = prev.findIndex((t) => t.noteId === tab.noteId)
 				const nextTab: EditorTab = {
 					noteId: tab.noteId,
 					title: nextTitle,
-					lastVisitedAt: Date.now(),
+					lastVisitedAt: Date.now()
 				}
 				if (existingIndex >= 0) {
 					const updated = [...prev]
@@ -193,7 +188,8 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
 					return prev
 				}
 				if (activeNoteId && !validIds.has(activeNoteId)) {
-					const fallback = filtered[filtered.length - 1]?.noteId ?? filtered[0]?.noteId ?? null
+					const fallback =
+						filtered[filtered.length - 1]?.noteId ?? filtered[0]?.noteId ?? null
 					setActiveNoteId(fallback)
 				}
 				return filtered
@@ -234,7 +230,7 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
 			pruneTabs,
 			reorderTabs,
 			moveTabLeft,
-			moveTabRight,
+			moveTabRight
 		}),
 		[
 			tabs,
@@ -249,7 +245,7 @@ export function EditorTabsProvider({ children }: EditorTabsProviderProps) {
 			pruneTabs,
 			reorderTabs,
 			moveTabLeft,
-			moveTabRight,
+			moveTabRight
 		]
 	)
 

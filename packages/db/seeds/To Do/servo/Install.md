@@ -98,13 +98,13 @@ The installer adds these scripts to your `package.json`:
 
 ```json
 {
-  "scripts": {
-    "dev": "bash scripts/dev.sh",
-    "dev:direct": "next dev",
-    "dev:legacy": "next dev",
-    "servo": "tools/servo/servo || tools/servo/bin/servo-linux-amd64",
-    "kill:dev": "bash scripts/kill-dev.sh || pkill -f \"next dev\" || true"
-  }
+	"scripts": {
+		"dev": "bash scripts/dev.sh",
+		"dev:direct": "next dev",
+		"dev:legacy": "next dev",
+		"servo": "tools/servo/servo || tools/servo/bin/servo-linux-amd64",
+		"kill:dev": "bash scripts/kill-dev.sh || pkill -f \"next dev\" || true"
+	}
 }
 ```
 
@@ -181,13 +181,13 @@ Servo works with any Node.js project that has:
 - `package.json` file
 - Development scripts in `package.json.scripts`
 - Any of these frameworks (auto-detected):
-  - Next.js
-  - Vite
-  - Create React App
-  - Express
-  - Nuxt.js
-  - SvelteKit
-  - And more...
+    - Next.js
+    - Vite
+    - Create React App
+    - Express
+    - Nuxt.js
+    - SvelteKit
+    - And more...
 
 ### Monorepo Support
 

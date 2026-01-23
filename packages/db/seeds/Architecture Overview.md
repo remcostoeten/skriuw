@@ -5,16 +5,19 @@ This document describes the current architecture of Skriuw, a Next.js-based note
 ## Technology Stack
 
 ### Frontend Framework
+
 - **Next.js 15.1.0** with App Router
 - **React 18.3.1** with Server Components for maximum SSR/SEO benefits
 - **TypeScript** for type safety
 
 ### Database & ORM
+
 - **PostgreSQL** hosted on **Neon** (serverless PostgreSQL)
 - **Drizzle ORM** for type-safe database queries
 - Auto-detects Neon from `DATABASE_URL` or uses standard PostgreSQL
 
 ### UI Components
+
 - **BlockNote** - Rich text editor with block-based content
 - **Radix UI** - Accessible component primitives
 - **Tailwind CSS** - Utility-first styling
@@ -64,10 +67,10 @@ The application uses a generic storage adapter pattern:
 
 - **Location**: `lib/storage/`
 - **Adapter**: `serverless-api` - Makes HTTP requests to Next.js API routes
-- **Benefits**: 
-  - Separation of concerns
-  - Easy to swap storage backends
-  - Consistent API across different storage types
+- **Benefits**:
+    - Separation of concerns
+    - Easy to swap storage backends
+    - Consistent API across different storage types
 
 ## Key Design Principles
 

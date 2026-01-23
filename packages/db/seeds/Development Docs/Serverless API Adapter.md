@@ -27,25 +27,25 @@ PostgreSQL Database
 ## Adapter Creation
 
 ```typescript
-export function createServerlessApiAdapter(
-  baseUrl?: string
-): GenericStorageAdapter
+export function createServerlessApiAdapter(baseUrl?: string): GenericStorageAdapter
 ```
 
 **Parameters:**
+
 - `baseUrl` - Optional base URL (defaults to `window.location.origin`)
 
 **Returns:**
+
 - A `GenericStorageAdapter` instance implementing all CRUD operations
 
 ## Storage Key Mapping
 
 The adapter maps storage keys to API endpoints:
 
-| Storage Key | API Endpoint | Purpose |
-|------------|--------------|---------|
-| `Skriuw_notes` | `/api/notes` | Notes and folders |
-| `app:settings` | `/api/settings` | User settings |
+| Storage Key                      | API Endpoint     | Purpose            |
+| -------------------------------- | ---------------- | ------------------ |
+| `Skriuw_notes`                   | `/api/notes`     | Notes and folders  |
+| `app:settings`                   | `/api/settings`  | User settings      |
 | `quantum-works:shortcuts:custom` | `/api/shortcuts` | Keyboard shortcuts |
 
 ## Core Components
@@ -57,21 +57,24 @@ const apiCall = async (endpoint: string, options: RequestInit = {})
 ```
 
 **Features:**
+
 - Constructs full URL: `${apiBaseUrl}/api${endpoint}`
 - Handles JSON request/response
 - Error parsing and formatting
 - Content-Type validation
 
 **Error Handling:**
+
 - Parses error messages from API responses
 - Handles non-JSON responses
 - Provides descriptive error messages
 
 **Example:**
+
 ```typescript
 const result = await apiCall('/notes', {
-  method: 'POST',
-  body: JSON.stringify({ name: 'My Note' })
+	method: 'POST',
+	body: JSON.stringify({ name: 'My Note' })
 })
 ```
 
@@ -83,20 +86,23 @@ const emit = (event: StorageEvent): void => { ... }
 ```
 
 **Purpose:**
+
 - Emits storage events for real-time updates
 - Allows components to react to data changes
 
 **Event Types:**
+
 - `created` - Entity created
 - `updated` - Entity updated
 - `deleted` - Entity deleted
 
 **Example:**
+
 ```typescript
 adapter.addEventListener((event) => {
-  if (event.type === 'created' && event.storageKey === 'Skriuw_notes') {
-    console.log('New note created:', event.data)
-  }
+	if (event.type === 'created' && event.storageKey === 'Skriuw_notes') {
+		console.log('New note created:', event.data)
+	}
 })
 ```
 
@@ -109,6 +115,7 @@ async create<T>(storageKey: string, data: ...): Promise<T>
 ```
 
 **Process:**
+
 1. Maps storage key to API endpoint
 2. Removes `children` property (not stored in DB)
 3. Makes `POST` request
@@ -116,6 +123,7 @@ async create<T>(storageKey: string, data: ...): Promise<T>
 5. Returns created entity
 
 **Example:**
+
 ```typescript
 // Storage key: 'Skriuw_notes'
 // API call: POST /api/notes
@@ -129,15 +137,18 @@ async read<T>(storageKey: string, options?: ReadOptions): Promise<T[] | T | unde
 ```
 
 **Options:**
+
 - `getById` - Get single entity: `GET /api/notes?id=...`
 - No options - Get all: `GET /api/notes`
 
 **Special Handling:**
+
 - Returns `undefined` for 404 errors (entity not found)
 - Returns array for list operations
 - Returns single entity for `getById`
 
 **Example:**
+
 ```typescript
 // Get all notes
 const notes = await adapter.read('Skriuw_notes')
@@ -155,12 +166,14 @@ async update<T>(storageKey: string, id: string, data: Partial<T>): Promise<T | u
 ```
 
 **Process:**
+
 1. Maps storage key to API endpoint
 2. Makes `PUT` request with entity ID and data
 3. Emits `updated` event
 4. Returns updated entity
 
 **Example:**
+
 ```typescript
 // API: PUT /api/notes
 // Body: { id: 'note-123', name: 'Updated Name', ... }
@@ -173,12 +186,14 @@ async delete(storageKey: string, id: string): Promise<boolean>
 ```
 
 **Process:**
+
 1. Maps storage key to API endpoint
 2. Makes `DELETE` request with entity ID
 3. Emits `deleted` event
 4. Returns `true` if successful, `false` if not found
 
 **Example:**
+
 ```typescript
 // API: DELETE /api/notes?id=note-123
 ```
@@ -190,12 +205,14 @@ async move<T>(storageKey: string, entityId: string, targetParentId: string | nul
 ```
 
 **Process:**
+
 1. Maps storage key to API endpoint
 2. Makes `PUT` request with move operation
 3. Updates `parentFolderId` in database
 4. Returns `true` if successful
 
 **Example:**
+
 ```typescript
 // Move note to folder
 // API: PUT /api/notes
@@ -209,6 +226,7 @@ async getStorageInfo(): Promise<StorageInfo>
 ```
 
 **Returns:**
+
 - Adapter name: `'serverless-api'`
 - Type: `'remote'`
 - Total items count (recursive for folders)
@@ -216,6 +234,7 @@ async getStorageInfo(): Promise<StorageInfo>
 - Capabilities
 
 **Capabilities:**
+
 ```typescript
 {
   realtime: false,      // No real-time updates
@@ -233,9 +252,9 @@ async getStorageInfo(): Promise<StorageInfo>
 
 ```typescript
 if (!response.ok) {
-  // Parse error from response
-  const errorJson = JSON.parse(responseText)
-  throw new Error(errorJson.message || errorJson.error)
+	// Parse error from response
+	const errorJson = JSON.parse(responseText)
+	throw new Error(errorJson.message || errorJson.error)
 }
 ```
 
@@ -249,12 +268,12 @@ For `read` operations with `getById`, 404 errors return `undefined` instead of t
 
 ```typescript
 try {
-  return await apiCall(`/notes?id=${id}`)
+	return await apiCall(`/notes?id=${id}`)
 } catch (error) {
-  if (message.includes('404') || message.includes('not found')) {
-    return undefined  // Entity doesn't exist
-  }
-  throw error  // Other errors are re-thrown
+	if (message.includes('404') || message.includes('not found')) {
+		return undefined // Entity doesn't exist
+	}
+	throw error // Other errors are re-thrown
 }
 ```
 
@@ -265,11 +284,13 @@ async initialize(): Promise<void>
 ```
 
 **Process:**
+
 1. Makes a test request to `/api/notes`
 2. Verifies API is accessible
 3. Throws error if connection fails
 
 **Purpose:**
+
 - Early detection of API issues
 - Validates configuration
 - Ensures adapter is ready
@@ -281,11 +302,13 @@ async isHealthy(): Promise<boolean>
 ```
 
 **Process:**
+
 1. Makes test request to `/api/notes`
 2. Returns `true` if successful
 3. Returns `false` if request fails
 
 **Use Cases:**
+
 - Connection status monitoring
 - UI indicators
 - Retry logic
@@ -297,11 +320,13 @@ const apiBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.o
 ```
 
 **Logic:**
+
 1. Use provided `baseUrl` if given
 2. Fall back to `window.location.origin` (current domain)
 3. Fall back to empty string (for SSR)
 
 **Examples:**
+
 - Web: `https://skriuw.vercel.app`
 - Local dev: `http://localhost:3000`
 - Custom: `https://api.example.com`
@@ -322,7 +347,7 @@ headers: {
 ```typescript
 const isJson = contentType?.includes('application/json')
 if (!isJson) {
-  throw new Error(`API endpoint returned non-JSON response`)
+	throw new Error(`API endpoint returned non-JSON response`)
 }
 ```
 
@@ -339,43 +364,44 @@ The adapter expects API routes to follow REST conventions:
 ## Benefits
 
 1. **Separation of Concerns**
-   - Frontend doesn't know about database
-   - API routes handle business logic
+    - Frontend doesn't know about database
+    - API routes handle business logic
 
 2. **Type Safety**
-   - Full TypeScript support
-   - Type-safe request/response
+    - Full TypeScript support
+    - Type-safe request/response
 
 3. **Error Handling**
-   - Consistent error format
-   - Descriptive error messages
+    - Consistent error format
+    - Descriptive error messages
 
 4. **Event System**
-   - Real-time update notifications
-   - Reactive UI updates
+    - Real-time update notifications
+    - Reactive UI updates
 
 5. **Flexibility**
-   - Easy to change API endpoints
-   - Can add caching layer
-   - Can add retry logic
+    - Easy to change API endpoints
+    - Can add caching layer
+    - Can add retry logic
 
 ## Limitations
 
 1. **Requires Network**
-   - No offline support
-   - Requires API to be available
+    - No offline support
+    - Requires API to be available
 
 2. **No Real-time**
-   - Polling required for updates
-   - No WebSocket support
+    - Polling required for updates
+    - No WebSocket support
 
 3. **Single Source**
-   - All requests go through API
-   - No local caching
+    - All requests go through API
+    - No local caching
 
 ## Future Enhancements
 
 Potential improvements:
+
 - Request caching
 - Retry logic with exponential backoff
 - Request batching

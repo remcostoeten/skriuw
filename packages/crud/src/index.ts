@@ -55,13 +55,13 @@ export { setAdapter, getAdapter, hasAdapter, resetAdapter } from './adapter'
 // ============================================================================
 
 export {
-    setUserContext,
-    getUserContext,
-    clearUserContext,
-    getCrudUserId,
-    withUser,
-    withUserSync,
-    createScopedContext,
+	setUserContext,
+	getUserContext,
+	clearUserContext,
+	getCrudUserId,
+	withUser,
+	withUserSync,
+	createScopedContext
 } from './context'
 export type { UserContext } from './context'
 
@@ -70,13 +70,13 @@ export type { UserContext } from './context'
 // ============================================================================
 
 export {
-    create,
-    batchCreate,
-    readOne,
-    readMany,
-    batchRead,
-    update,
-    batchUpdate,
-    destroy,
-    batchDestroy,
+	create,
+	batchCreate,
+	readOne,
+	readMany,
+	batchRead,
+	update,
+	batchUpdate,
+	destroy,
+	batchDestroy
 } from './operations'

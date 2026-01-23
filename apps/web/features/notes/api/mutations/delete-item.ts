@@ -1,11 +1,10 @@
 'use server'
-import { update, readOne } from '@skriuw/crud'
 
-import { invalidateItemsCache } from '../queries/get-items'
-
-import type { Item } from '../../types'
-import { trackActivity } from '@/features/activity'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { Item } from "../../types";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { update, readOne } from "@skriuw/crud";
 
 /**
  * Soft delete an item by setting deletedAt timestamp.
@@ -15,14 +14,9 @@ export async function deleteItem(id: string): Promise<boolean> {
 	try {
 		// Get item name before deletion for activity tracking
 		const itemResult = await readOne<Item>(STORAGE_KEYS.NOTES, id)
-		const itemName =
-			itemResult.success && itemResult.data
-				? itemResult.data.name
-				: 'Unknown'
+		const itemName = itemResult.success && itemResult.data ? itemResult.data.name : 'Unknown'
 		const entityType =
-			itemResult.success && itemResult.data?.type === 'folder'
-				? 'folder'
-				: 'note'
+			itemResult.success && itemResult.data?.type === 'folder' ? 'folder' : 'note'
 
 		const result = await update<Item>(STORAGE_KEYS.NOTES, id, {
 			deletedAt: Date.now()

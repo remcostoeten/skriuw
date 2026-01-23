@@ -2,6 +2,9 @@
 	"name": "@skriuw/shared",
 	"version": "0.1.0",
 	"description": "Shared utilities, hooks, and components for the Skriuw monorepo",
+	"files": [
+		"dist"
+	],
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
 	"types": "dist/index.d.ts",
@@ -17,17 +20,19 @@
 			"require": "./dist/client.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"build": "tsup",
 		"dev": "tsup --watch",
 		"type-check": "tsc --noEmit"
 	},
-	"peerDependencies": {
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+	"dependencies": {
+		"@blocknote/core": "^0.44.2",
+		"clsx": "^2.1.1",
+		"tailwind-merge": "^2.5.4",
+		"tailwindcss-animate": "^1.0.7"
 	},
 	"devDependencies": {
 		"@skriuw/config": "workspace:*",
@@ -36,13 +41,8 @@
 		"tsup": "latest",
 		"typescript": "latest"
 	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"dependencies": {
-		"@blocknote/core": "^0.44.2",
-		"clsx": "^2.1.1",
-		"tailwind-merge": "^2.5.4",
-		"tailwindcss-animate": "^1.0.7"
+	"peerDependencies": {
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
 	}
 }

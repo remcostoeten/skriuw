@@ -1,40 +1,40 @@
-import type { Item, Note, Folder } from '@/features/notes/types'
-import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
+import type { Item, Note, Folder } from "@/features/notes/types";
+import { blocksToMarkdown } from "@/features/notes/utils/blocks-to-markdown";
 
 export type ExportFormat = 'json' | 'markdown'
 
-export interface ExportOptions {
+export type ExportOptions = {
 	format: ExportFormat
-    /**
-     * Include metadata in the export
-     */
-    includeMetadata?: boolean
-    /**
-     * Only export these items
-     */
+	/**
+	 * Include metadata in the export
+	 */
+	includeMetadata?: boolean
+	/**
+	 * Only export these items
+	 */
 	selectedIds?: string[]
 }
 
-export interface SkriuwExportData {
+export type SkriuwExportData = {
 	version: '1.0'
-	
-    /**
-     * When the export was created
-     */
-    exportedAt: string
 
-    /**
-     * The name of the app that created the export
-     */
-    appName: 'Skriuw'
+	/**
+	 * When the export was created
+	 */
+	exportedAt: string
 
-    /**
-     * The items to export
-     */
+	/**
+	 * The name of the app that created the export
+	 */
+	appName: 'Skriuw'
+
+	/**
+	 * The items to export
+	 */
 	items: Item[]
-    /**
-     * Metadata about the export
-     */
+	/**
+	 * Metadata about the export
+	 */
 	metadata?: {
 		totalNotes: number
 		totalFolders: number
@@ -79,7 +79,7 @@ function filterItems(items: Item[], selectedIds: Set<string>): Item[] {
 			if (selectedIds.has(item.id) || filteredChildren.length > 0) {
 				result.push({
 					...item,
-					children: filteredChildren.length > 0 ? filteredChildren : item.children,
+					children: filteredChildren.length > 0 ? filteredChildren : item.children
 				})
 			}
 		}
@@ -106,10 +106,13 @@ export function exportAsJson(items: Item[], options: ExportOptions = { format: '
 		exportedAt: new Date().toISOString(),
 		appName: 'Skriuw',
 		items: exportItems,
-		metadata: options.includeMetadata !== false ? {
-			totalNotes: counts.notes,
-			totalFolders: counts.folders,
-		} : undefined,
+		metadata:
+			options.includeMetadata !== false
+				? {
+						totalNotes: counts.notes,
+						totalFolders: counts.folders
+					}
+				: undefined
 	}
 
 	return JSON.stringify(exportData, null, 2)
@@ -118,7 +121,10 @@ export function exportAsJson(items: Item[], options: ExportOptions = { format: '
 /**
  * Convert a note to markdown with frontmatter
  */
-function noteToMarkdown(note: Note, folderPath: string = ''): { filename: string; content: string } {
+function noteToMarkdown(
+	note: Note,
+	folderPath: string = ''
+): { filename: string; content: string } {
 	const frontmatter = [
 		'---',
 		`title: "${note.name.replace(/"/g, '\\"')}"`,
@@ -129,8 +135,10 @@ function noteToMarkdown(note: Note, folderPath: string = ''): { filename: string
 		note.favorite ? 'favorite: true' : null,
 		folderPath ? `folder: "${folderPath}"` : null,
 		'---',
-		'',
-	].filter(Boolean).join('\n')
+		''
+	]
+		.filter(Boolean)
+		.join('\n')
 
 	const markdownContent = blocksToMarkdown(note.content || [])
 	const fullContent = frontmatter + markdownContent
@@ -142,9 +150,7 @@ function noteToMarkdown(note: Note, folderPath: string = ''): { filename: string
 		.toLowerCase()
 		.substring(0, 100)
 
-	const filename = folderPath 
-		? `${folderPath}/${safeFilename}.md`
-		: `${safeFilename}.md`
+	const filename = folderPath ? `${folderPath}/${safeFilename}.md` : `${safeFilename}.md`
 
 	return { filename, content: fullContent }
 }
@@ -168,7 +174,7 @@ function collectMarkdownFiles(
 			// Folder
 			const shouldIncludeFolder = !selectedIds || selectedIds.has(item.id)
 			const newPath = folderPath ? `${folderPath}/${item.name}` : item.name
-			
+
 			// Recursively collect from children
 			const childFiles = collectMarkdownFiles(
 				item.children,
@@ -189,9 +195,7 @@ export function exportAsMarkdown(
 	items: Item[],
 	options: ExportOptions = { format: 'markdown' }
 ): Array<{ filename: string; content: string }> {
-	const selectedIds = options.selectedIds 
-		? new Set(options.selectedIds)
-		: undefined
+	const selectedIds = options.selectedIds ? new Set(options.selectedIds) : undefined
 
 	return collectMarkdownFiles(items, '', selectedIds)
 }
@@ -224,13 +228,18 @@ export function downloadJsonExport(items: Item[], options?: Omit<ExportOptions, 
  * Download markdown export as a single combined file
  * (For zip export, use a library like JSZip)
  */
-export function downloadMarkdownExport(items: Item[], options?: Omit<ExportOptions, 'format'>): void {
+export function downloadMarkdownExport(
+	items: Item[],
+	options?: Omit<ExportOptions, 'format'>
+): void {
 	const files = exportAsMarkdown(items, { ...options, format: 'markdown' })
-	
+
 	// Combine all markdown files into one with separators
-	const combined = files.map(f => {
-		return `<!-- FILE: ${f.filename} -->\n\n${f.content}`
-	}).join('\n\n---\n\n')
+	const combined = files
+		.map((f) => {
+			return `<!-- FILE: ${f.filename} -->\n\n${f.content}`
+		})
+		.join('\n\n---\n\n')
 
 	const timestamp = new Date().toISOString().split('T')[0]
 	downloadFile(combined, `skriuw-notes-${timestamp}.md`, 'text/markdown')

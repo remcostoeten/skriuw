@@ -1,10 +1,8 @@
-
-import type { CustomShortcut } from '../types'
-import type { KeyCombo } from '../../shortcut-definitions'
-import { readOne, update, create } from '@skriuw/crud'
-import { invalidateShortcutsCache } from '../queries/get-shortcuts'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { KeyCombo } from "../../shortcut-definitions";
+import { invalidateShortcutsCache } from "../queries/get-shortcuts";
+import type { CustomShortcut } from "../types";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { readOne, update, create } from "@skriuw/crud";
 
 /**
  * Save or update a custom shortcut
@@ -17,7 +15,7 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 		if (result.success && result.data) {
 			const updated = await update<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, id, {
 				keys,
-				customizedAt: new Date().toISOString(),
+				customizedAt: new Date().toISOString()
 			})
 
 			if (!updated.success || !updated.data) {
@@ -30,7 +28,7 @@ export async function saveShortcut(id: string, keys: KeyCombo[]): Promise<Custom
 			const newShortcut = await create<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, {
 				id,
 				keys,
-				customizedAt: new Date().toISOString(),
+				customizedAt: new Date().toISOString()
 			})
 
 			if (!newShortcut.success || !newShortcut.data) {

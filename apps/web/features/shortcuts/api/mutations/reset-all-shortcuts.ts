@@ -1,8 +1,6 @@
-import { readMany, destroy } from '@skriuw/crud'
-
-import type { CustomShortcut } from '../types'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { CustomShortcut } from "../types";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { readMany, destroy } from "@skriuw/crud";
 
 /**
  * Reset all custom shortcuts (delete all)
@@ -13,7 +11,9 @@ export async function resetAllShortcuts(): Promise<boolean> {
 		const result = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS)
 
 		if (result.success && result.data && result.data.length > 0) {
-			await Promise.all(result.data.map((shortcut: any) => destroy(STORAGE_KEYS.SHORTCUTS, shortcut.id)))
+			await Promise.all(
+				result.data.map((shortcut: any) => destroy(STORAGE_KEYS.SHORTCUTS, shortcut.id))
+			)
 			return true
 		}
 

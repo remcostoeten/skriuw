@@ -1,9 +1,4 @@
-import {
-	StorageDriver,
-	DestinationConfig,
-	BackupManifest,
-	BackupChunkMeta
-} from '../types'
+import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from "../types";
 
 const DROPBOX_API_BASE = 'https://content.dropboxapi.com/2'
 const DROPBOX_RPC_BASE = 'https://api.dropboxapi.com/2'
@@ -17,9 +12,8 @@ export class DropboxDriver implements StorageDriver {
 		// Or via OAuth2 tokens if the system unifies them.
 		// For simplicity, we assume `config.accessToken` is populated.
 
-
 		const config = destination.config as Record<string, string>
-		
+
 		// Prioritize OAuth2 tokens if available
 		if (destination.oauth2Tokens?.access_token) {
 			this.accessToken = destination.oauth2Tokens.access_token
@@ -50,11 +44,7 @@ export class DropboxDriver implements StorageDriver {
 		return `${this.rootPath}/${manifestId}/${fileName}`
 	}
 
-	async putChunk(
-		manifestId: string,
-		chunkMeta: BackupChunkMeta,
-		data: Uint8Array
-	) {
+	async putChunk(manifestId: string, chunkMeta: BackupChunkMeta, data: Uint8Array) {
 		if (!this.accessToken) throw new Error('Driver not initialized')
 
 		const path = this.getPath(manifestId, `chunks/${chunkMeta.id}`)
@@ -166,9 +156,7 @@ export class DropboxDriver implements StorageDriver {
 		}>
 
 		// Filter for folders
-		const folders = entries
-			.filter((e) => e['.tag'] === 'folder')
-			.map((e) => e.name)
+		const folders = entries.filter((e) => e['.tag'] === 'folder').map((e) => e.name)
 
 		const manifests: BackupManifest[] = []
 
@@ -197,9 +185,7 @@ export class DropboxDriver implements StorageDriver {
 		}
 
 		return manifests.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() -
-				new Date(a.createdAt).getTime()
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 		)
 	}
 }

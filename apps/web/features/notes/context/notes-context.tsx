@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useContext, ReactNode } from 'react'
-import { useNotes } from '../hooks/use-notes'
-import type { Item, Note, Folder } from '../types'
-import type { Block } from '@blocknote/core'
+import { useGuestMigration } from "../hooks/use-guest-migration";
+import { useNotes } from "../hooks/use-notes";
+import type { Item, Note, Folder } from "../types";
+import type { Block } from "@blocknote/core";
+import { createContext, useContext, ReactNode } from "react";
 
 type NotesContextValue = {
 	items: Item[]
@@ -11,21 +12,26 @@ type NotesContextValue = {
 	isRefreshing: boolean
 	getNote: (id: string) => Promise<Note | undefined>
 	getItem: (id: string) => Promise<Item | undefined>
-	createNote: (name?: string, content?: string | Block[], parentFolderId?: string) => Promise<Note>
+	createNote: (
+		name?: string,
+		content?: string | Block[],
+		parentFolderId?: string
+	) => Promise<Note>
 	createFolder: (name?: string, parentFolderId?: string) => Promise<Folder>
 	updateNote: (id: string, content: Block[], name?: string) => Promise<Note | null | undefined>
 	renameItem: (id: string, newName: string) => Promise<Item | null | undefined>
 	deleteItem: (id: string) => Promise<boolean>
 	moveItem: (itemId: string, targetFolderId: string | null) => Promise<Item | null | undefined>
 	countChildren: (folderId: string) => Promise<number>
-	pinItem: (itemId: string, itemType: 'note' | 'folder', pinned: boolean) => Promise<Item | null | undefined>
+	pinItem: (
+		itemId: string,
+		itemType: 'note' | 'folder',
+		pinned: boolean
+	) => Promise<Item | null | undefined>
 	favoriteNote: (noteId: string, favorite: boolean) => Promise<Note | null | undefined>
 	setNoteVisibility: (noteId: string, isPublic: boolean) => Promise<Note | null | undefined>
 	refreshItems: () => Promise<void>
 }
-
-import { useGuestMigration } from '../hooks/use-guest-migration'
-
 const NotesContext = createContext<NotesContextValue | null>(null)
 
 export function NotesProvider({ children }: { children: ReactNode }) {

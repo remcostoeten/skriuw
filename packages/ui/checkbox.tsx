@@ -6,5 +6,5 @@ export type {
 	CheckboxSize,
 	CheckboxAnimationVariant,
 	CheckboxVariant,
-	CheckboxColors,
+	CheckboxColors
 } from './primitives/checkbox'

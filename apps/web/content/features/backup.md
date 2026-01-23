@@ -18,33 +18,37 @@ A multi-provider storage system designed to back up user notes and data to exter
 ## Architecture
 
 The backup system is modular, consisting of:
+
 - **Engine**: Orchestrates the backup process (`features/backup/core/engine.ts`).
 - **Connectors**: Handle authentication and API communication with specific providers.
 - **Drivers**: Low-level file system operations (if applicable).
 
 ### Providers
+
 1. **Google Drive**
-   - OAuth2 flow
-   - Scope: `drive.file` (app data folder only)
-   
+    - OAuth2 flow
+    - Scope: `drive.file` (app data folder only)
 2. **Dropbox**
-   - OAuth2 flow
-   - App folder access
+    - OAuth2 flow
+    - App folder access
 
 3. **Local (Tauri)**
-   - OS-native file system access
-   - Requires Tauri allowlist configuration
+    - OS-native file system access
+    - Requires Tauri allowlist configuration
 
 ## Security
 
 ### Encryption
+
 Sensitive data (like refresh tokens) should be encrypted before storage.
+
 - **Env**: `CONNECTOR_ENCRYPTION_KEY`
 - **Fallback**: `BETTER_AUTH_SECRET`
 
 ## Configuration
 
 Ensure the following environment variables are set:
+
 ```env
 # Google
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
@@ -59,6 +63,7 @@ CONNECTOR_ENCRYPTION_KEY=...
 ```
 
 ## Future Plans
+
 - Automated background backups (Cron/Service Worker)
 - Versioning support for backups
 - "Restore" UI flow (currently backup-only or manual restore)

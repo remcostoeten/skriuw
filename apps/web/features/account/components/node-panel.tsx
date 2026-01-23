@@ -1,14 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { ExternalLink, FileText, Folder, RefreshCcw } from 'lucide-react'
-
-import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
-import { Button } from '@skriuw/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
-import { Input } from '@skriuw/ui/input'
-
-import { getItems } from '@/features/notes/api/queries/get-items'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import type { Item } from '@/features/notes/types'
+import { getItems } from "@/features/notes/api/queries/get-items";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import type { Item } from "@/features/notes/types";
+import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
+import { Button } from "@skriuw/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
+import { Input } from "@skriuw/ui/input";
+import { ExternalLink, FileText, Folder, RefreshCcw } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 export type NodeEntry = {
 	id: string
@@ -19,7 +17,11 @@ export type NodeEntry = {
 	updatedAt?: number
 }
 
-function flattenNodes(items: Item[], parentPath: string[], getNoteUrl: (id: string) => string): NodeEntry[] {
+function flattenNodes(
+	items: Item[],
+	parentPath: string[],
+	getNoteUrl: (id: string) => string
+): NodeEntry[] {
 	const entries: NodeEntry[] = []
 
 	function walk(list: Item[], trail: string[]) {
@@ -70,34 +72,33 @@ export default function NodePanel() {
 
 	const { getNoteUrl } = useNoteSlug(items)
 
-	useEffect(
-		function loadNodes() {
-			let active = true
-			async function fetchNodes() {
-				setLoading(true)
-				setError(null)
-				try {
-					const fetched = await getItems({ forceRefresh: true })
-					if (active) {
-						setItems(fetched)
-					}
-				} catch (loadError) {
-					if (active) {
-						setError(loadError instanceof Error ? loadError.message : 'Unable to load nodes')
-					}
-				} finally {
-					if (active) {
-						setLoading(false)
-					}
+	useEffect(function loadNodes() {
+		let active = true
+		async function fetchNodes() {
+			setLoading(true)
+			setError(null)
+			try {
+				const fetched = await getItems({ forceRefresh: true })
+				if (active) {
+					setItems(fetched)
+				}
+			} catch (loadError) {
+				if (active) {
+					setError(
+						loadError instanceof Error ? loadError.message : 'Unable to load nodes'
+					)
+				}
+			} finally {
+				if (active) {
+					setLoading(false)
 				}
 			}
-			fetchNodes()
-			return function cleanup() {
-				active = false
-			}
-		},
-		[]
-	)
+		}
+		fetchNodes()
+		return function cleanup() {
+			active = false
+		}
+	}, [])
 
 	const allNodes = useMemo(
 		function collectNodes() {
@@ -111,7 +112,9 @@ export default function NodePanel() {
 			if (!deferredQuery.trim()) return allNodes
 			const term = deferredQuery.toLowerCase()
 			return allNodes.filter(function match(node) {
-				return node.name.toLowerCase().includes(term) || node.path.toLowerCase().includes(term)
+				return (
+					node.name.toLowerCase().includes(term) || node.path.toLowerCase().includes(term)
+				)
 			})
 		},
 		[allNodes, deferredQuery]
@@ -148,19 +151,26 @@ export default function NodePanel() {
 	function renderNode(entry: NodeEntry) {
 		const Icon = entry.type === 'note' ? FileText : Folder
 		return (
-			<li key={entry.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-card/50 px-3 py-2 shadow-sm">
-				<div className="flex min-w-0 flex-col gap-1">
-					<span className="flex items-center gap-2 text-sm font-medium text-foreground">
-						<Icon className="h-4 w-4 text-muted-foreground" />
+			<li
+				key={entry.id}
+				className='flex items-center justify-between rounded-lg border border-border/70 bg-card/50 px-3 py-2 shadow-sm'
+			>
+				<div className='flex min-w-0 flex-col gap-1'>
+					<span className='flex items-center gap-2 text-sm font-medium text-foreground'>
+						<Icon className='h-4 w-4 text-muted-foreground' />
 						{entry.name}
 					</span>
-					<span className="text-xs text-muted-foreground truncate" title={entry.path}>
+					<span className='text-xs text-muted-foreground truncate' title={entry.path}>
 						{entry.path}
 					</span>
 				</div>
-				<a className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:underline" href={entry.url} aria-label={`Open ${entry.name}`}>
+				<a
+					className='inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:underline'
+					href={entry.url}
+					aria-label={`Open ${entry.name}`}
+				>
 					Open
-					<ExternalLink className="h-3.5 w-3.5" />
+					<ExternalLink className='h-3.5 w-3.5' />
 				</a>
 			</li>
 		)
@@ -168,58 +178,83 @@ export default function NodePanel() {
 
 	return (
 		<Card>
-			<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<div className="space-y-2">
-					<CardTitle className="text-xl">Your nodes</CardTitle>
-					<CardDescription>Live stats from your notes and folders. Links take you straight to the source.</CardDescription>
+			<CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+				<div className='space-y-2'>
+					<CardTitle className='text-xl'>Your nodes</CardTitle>
+					<CardDescription>
+						Live stats from your notes and folders. Links take you straight to the
+						source.
+					</CardDescription>
 				</div>
-				<div className="flex items-center gap-2">
-					<Button variant="outline" size="sm" onClick={function clearQuery() { setQuery('') }}>
+				<div className='flex items-center gap-2'>
+					<Button
+						variant='outline'
+						size='sm'
+						onClick={function clearQuery() {
+							setQuery('')
+						}}
+					>
 						Clear
 					</Button>
-					<Button variant="secondary" size="sm" onClick={reloadNodes} className="inline-flex items-center gap-2">
-						<RefreshCcw className="h-4 w-4" />
+					<Button
+						variant='secondary'
+						size='sm'
+						onClick={reloadNodes}
+						className='inline-flex items-center gap-2'
+					>
+						<RefreshCcw className='h-4 w-4' />
 						Reload
 					</Button>
 				</div>
 			</CardHeader>
-			<CardContent className="space-y-4">
-				<div className="grid gap-3 rounded-lg border border-border/70 bg-muted/40 p-3 sm:grid-cols-3">
-					<div className="space-y-1">
-						<p className="text-xs text-muted-foreground">Total nodes</p>
-						<p className="text-2xl font-semibold">{nodeCounts.total}</p>
+			<CardContent className='space-y-4'>
+				<div className='grid gap-3 rounded-lg border border-border/70 bg-muted/40 p-3 sm:grid-cols-3'>
+					<div className='space-y-1'>
+						<p className='text-xs text-muted-foreground'>Total nodes</p>
+						<p className='text-2xl font-semibold'>{nodeCounts.total}</p>
 					</div>
-					<div className="space-y-1">
-						<p className="text-xs text-muted-foreground">Notes</p>
-						<p className="text-lg font-medium">{nodeCounts.noteTotal}</p>
+					<div className='space-y-1'>
+						<p className='text-xs text-muted-foreground'>Notes</p>
+						<p className='text-lg font-medium'>{nodeCounts.noteTotal}</p>
 					</div>
-					<div className="space-y-1">
-						<p className="text-xs text-muted-foreground">Folders</p>
-						<p className="text-lg font-medium">{nodeCounts.folderTotal}</p>
+					<div className='space-y-1'>
+						<p className='text-xs text-muted-foreground'>Folders</p>
+						<p className='text-lg font-medium'>{nodeCounts.folderTotal}</p>
 					</div>
 				</div>
 
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<p className="text-sm text-muted-foreground">Search and open any node, even with hundreds in your workspace.</p>
-					<div className="w-full max-w-sm">
-						<Input value={query} onChange={updateQuery} placeholder="Search nodes by name or path" aria-label="Search nodes" />
+				<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+					<p className='text-sm text-muted-foreground'>
+						Search and open any node, even with hundreds in your workspace.
+					</p>
+					<div className='w-full max-w-sm'>
+						<Input
+							value={query}
+							onChange={updateQuery}
+							placeholder='Search nodes by name or path'
+							aria-label='Search nodes'
+						/>
 					</div>
 				</div>
 
 				{error && (
-					<Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+					<Alert variant='destructive' className='border-destructive/30 bg-destructive/5'>
 						<AlertTitle>Could not load nodes</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				)}
 
-				<div className="max-h-[440px] space-y-2 overflow-y-auto rounded-lg border border-border/70 bg-card/60 p-2">
+				<div className='max-h-[440px] space-y-2 overflow-y-auto rounded-lg border border-border/70 bg-card/60 p-2'>
 					{loading ? (
-						<div className="flex items-center justify-center py-12 text-muted-foreground">Loading nodes…</div>
+						<div className='flex items-center justify-center py-12 text-muted-foreground'>
+							Loading nodes…
+						</div>
 					) : filteredNodes.length === 0 ? (
-						<div className="py-10 text-center text-sm text-muted-foreground">No nodes found. Create a note to see it appear here.</div>
+						<div className='py-10 text-center text-sm text-muted-foreground'>
+							No nodes found. Create a note to see it appear here.
+						</div>
 					) : (
-						<ul className="space-y-2">{filteredNodes.map(renderNode)}</ul>
+						<ul className='space-y-2'>{filteredNodes.map(renderNode)}</ul>
 					)}
 				</div>
 			</CardContent>

@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-
-import { EmptyState } from '@skriuw/ui'
+import { EmptyState } from "@skriuw/ui";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export const dynamic = 'force-dynamic'
 
@@ -17,15 +16,15 @@ export default function NotFound() {
 
 	return (
 		<EmptyState
-			message="404 - Page Not Found"
+			message='404 - Page Not Found'
 			isFull
 			isError
 			description={`The route "${pathname}" does not exist.`}
 			actions={[
 				{
 					label: 'Return to Home',
-					onClick: () => router.push('/'),
-				},
+					onClick: () => router.push('/')
+				}
 			]}
 		/>
 	)

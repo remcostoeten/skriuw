@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useRef } from 'react'
-import {
-	SuggestionMenuController,
-	type SuggestionMenuProps,
-	useBlockNoteEditor,
-	type DefaultReactSuggestionItem,
-} from '@blocknote/react'
-import { getCustomSlashMenuItems } from '../hooks/useCustomSlashMenu'
+import { getCustomSlashMenuItems } from "../hooks/useCustomSlashMenu";
+import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor, type DefaultReactSuggestionItem } from "@blocknote/react";
+import { useCallback, useEffect, useRef } from "react";
 
-function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProps<DefaultReactSuggestionItem>) {
+function SlashMenuList({
+	items,
+	selectedIndex,
+	onItemClick
+}: SuggestionMenuProps<DefaultReactSuggestionItem>) {
 	const activeOptionId =
-		selectedIndex !== undefined && selectedIndex >= 0 ? `slash-menu-${selectedIndex}` : undefined
+		selectedIndex !== undefined && selectedIndex >= 0
+			? `slash-menu-${selectedIndex}`
+			: undefined
 
 	// Ref for the currently selected item
 	const selectedItemRef = useRef<HTMLButtonElement>(null)
@@ -19,24 +20,28 @@ function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProp
 		if (selectedItemRef.current) {
 			selectedItemRef.current.scrollIntoView({
 				behavior: 'smooth',
-				block: 'nearest',
+				block: 'nearest'
 			})
 		}
 	}, [selectedIndex])
 
 	if (!items.length) {
 		return (
-			<div className="bn-suggestion-menu empty" role="listbox" aria-label="Slash menu suggestions">
-				<span className="bn-suggestion-menu__empty">No items found</span>
+			<div
+				className='bn-suggestion-menu empty'
+				role='listbox'
+				aria-label='Slash menu suggestions'
+			>
+				<span className='bn-suggestion-menu__empty'>No items found</span>
 			</div>
 		)
 	}
 
 	return (
 		<div
-			className="bn-suggestion-menu"
-			role="listbox"
-			aria-label="Slash menu suggestions"
+			className='bn-suggestion-menu'
+			role='listbox'
+			aria-label='Slash menu suggestions'
 			aria-activedescendant={activeOptionId}
 		>
 			{items.map((item: DefaultReactSuggestionItem, index: number) => {
@@ -47,17 +52,19 @@ function SlashMenuList({ items, selectedIndex, onItemClick }: SuggestionMenuProp
 						key={optionId}
 						id={optionId}
 						ref={isSelected ? selectedItemRef : null}
-						type="button"
-						role="option"
+						type='button'
+						role='option'
 						aria-selected={isSelected}
 						className={`bn-suggestion-item ${isSelected ? 'is-selected' : ''}`}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={() => onItemClick?.(item)}
 					>
-						{item.icon && <span className="bn-suggestion-item__icon">{item.icon}</span>}
-						<div className="bn-suggestion-item__content">
-							<span className="bn-suggestion-item__title">{item.title}</span>
-							{item.subtext && <span className="bn-suggestion-item__subtext">{item.subtext}</span>}
+						{item.icon && <span className='bn-suggestion-item__icon'>{item.icon}</span>}
+						<div className='bn-suggestion-item__content'>
+							<span className='bn-suggestion-item__title'>{item.title}</span>
+							{item.subtext && (
+								<span className='bn-suggestion-item__subtext'>{item.subtext}</span>
+							)}
 						</div>
 					</button>
 				)
@@ -100,7 +107,7 @@ export function SlashSuggestionMenu() {
 
 	return (
 		<SuggestionMenuController
-			triggerCharacter="/"
+			triggerCharacter='/'
 			minQueryLength={0}
 			getItems={getItems}
 			onItemClick={handleItemClick}

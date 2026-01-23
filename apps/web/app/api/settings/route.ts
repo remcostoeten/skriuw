@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '../../../lib/storage/adapters/server-db'
-import { requireAuth } from '../../../lib/api-auth'
-import { getSafeTimestamp } from '@skriuw/db'
-import { decryptConnectorStates, encryptConnectorStates } from '@/features/backup/core/connector-secrets'
+import { requireAuth } from "../../../lib/api-auth";
+import { db } from "../../../lib/storage/adapters/server-db";
+import { decryptConnectorStates, encryptConnectorStates } from "@/features/backup/core/connector-secrets";
+import { getSafeTimestamp } from "@skriuw/db";
+import { NextRequest, NextResponse } from "next/server";
 
 type SettingsRecord = {
 	id: string
@@ -37,7 +37,7 @@ export async function GET() {
 				const decrypted = decryptConnectorStates(result.value.storageConnectors)
 				return NextResponse.json({
 					...result,
-					value: { ...result.value, storageConnectors: decrypted },
+					value: { ...result.value, storageConnectors: decrypted }
 				})
 			} catch (decryptError) {
 				console.error('Failed to decrypt storage connectors:', decryptError)
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 			...rawSettings,
 			storageConnectors: rawSettings.storageConnectors
 				? encryptConnectorStates(rawSettings.storageConnectors)
-				: undefined,
+				: undefined
 		}
 
 		const data = {
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 			key: settingsKey,
 			value: encryptedSettings,
 			createdAt: now,
-			updatedAt: now,
+			updatedAt: now
 		}
 
 		const result = await db.upsert('settings', data, userId)
@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest) {
 			...rawSettings,
 			storageConnectors: rawSettings.storageConnectors
 				? encryptConnectorStates(rawSettings.storageConnectors)
-				: undefined,
+				: undefined
 		}
 
 		const data = {
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest) {
 			key: settingsKey,
 			value: encryptedSettings,
 			createdAt: now,
-			updatedAt: now,
+			updatedAt: now
 		}
 
 		const result = await db.upsert('settings', data, userId)

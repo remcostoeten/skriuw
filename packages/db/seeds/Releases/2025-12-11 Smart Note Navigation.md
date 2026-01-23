@@ -12,11 +12,13 @@ Intelligent note routing system that automatically directs users to the appropri
 ## Features
 
 ### 1. URL Redirect: `/notes` → `/note`
+
 - Automatically redirects `/notes` to `/note` for URL consistency
 - Implemented in `proxy.ts` middleware
 - Seamless user experience with no visible redirect delay
 
 ### 2. Last Active Note Tracking
+
 - Persists the last viewed note ID in localStorage
 - Survives page refreshes and browser sessions
 - Integrated with Zustand store for reactive state management
@@ -25,13 +27,13 @@ Intelligent note routing system that automatically directs users to the appropri
 
 When users visit `/note` (or click the note icon), the app intelligently routes based on their note collection:
 
-| Scenario | Behavior |
-|----------|----------|
-| **No notes exist** | Display `SkriuwExplanation` welcome screen |
-| **Single note exists** | Auto-navigate to that note |
-| **Multiple notes + last active exists** | Navigate to last active note |
-| **Multiple notes + last active deleted** | Navigate to first available note |
-| **Multiple notes + no history** | Navigate to first note |
+| Scenario                                 | Behavior                                   |
+| ---------------------------------------- | ------------------------------------------ |
+| **No notes exist**                       | Display `SkriuwExplanation` welcome screen |
+| **Single note exists**                   | Auto-navigate to that note                 |
+| **Multiple notes + last active exists**  | Navigate to last active note               |
+| **Multiple notes + last active deleted** | Navigate to first available note           |
+| **Multiple notes + no history**          | Navigate to first note                     |
 
 ## API
 
@@ -55,22 +57,22 @@ import { useUIStore } from '@/stores/ui-store'
 import { useRouter } from 'next/navigation'
 
 function MyComponent() {
-  const { lastActiveNoteId, setLastActiveNote } = useUIStore()
-  const router = useRouter()
-  
-  // Track when a note becomes active
-  useEffect(() => {
-    if (currentNoteId) {
-      setLastActiveNote(currentNoteId)
-    }
-  }, [currentNoteId, setLastActiveNote])
-  
-  // Navigate to last active note
-  const goToLastNote = () => {
-    if (lastActiveNoteId) {
-      router.push(`/note/${lastActiveNoteId}`)
-    }
-  }
+	const { lastActiveNoteId, setLastActiveNote } = useUIStore()
+	const router = useRouter()
+
+	// Track when a note becomes active
+	useEffect(() => {
+		if (currentNoteId) {
+			setLastActiveNote(currentNoteId)
+		}
+	}, [currentNoteId, setLastActiveNote])
+
+	// Navigate to last active note
+	const goToLastNote = () => {
+		if (lastActiveNoteId) {
+			router.push(`/note/${lastActiveNoteId}`)
+		}
+	}
 }
 ```
 
@@ -101,23 +103,23 @@ function MyComponent() {
 
 ```typescript
 useEffect(() => {
-  if (isBaseNoteRoute && !isInitialLoading) {
-    if (allNotes.length === 0) {
-      // Stay on /note to show SkriuwExplanation
-      return
-    } else if (allNotes.length === 1) {
-      router.replace(getNoteUrl(allNotes[0].id))
-    } else if (lastActiveNoteId) {
-      const noteExists = allNotes.some(note => note.id === lastActiveNoteId)
-      if (noteExists) {
-        router.replace(getNoteUrl(lastActiveNoteId))
-      } else {
-        router.replace(getNoteUrl(allNotes[0].id))
-      }
-    } else {
-      router.replace(getNoteUrl(allNotes[0].id))
-    }
-  }
+	if (isBaseNoteRoute && !isInitialLoading) {
+		if (allNotes.length === 0) {
+			// Stay on /note to show SkriuwExplanation
+			return
+		} else if (allNotes.length === 1) {
+			router.replace(getNoteUrl(allNotes[0].id))
+		} else if (lastActiveNoteId) {
+			const noteExists = allNotes.some((note) => note.id === lastActiveNoteId)
+			if (noteExists) {
+				router.replace(getNoteUrl(lastActiveNoteId))
+			} else {
+				router.replace(getNoteUrl(allNotes[0].id))
+			}
+		} else {
+			router.replace(getNoteUrl(allNotes[0].id))
+		}
+	}
 }, [isBaseNoteRoute, isInitialLoading, allNotes, lastActiveNoteId, router, getNoteUrl])
 ```
 
@@ -155,6 +157,7 @@ useEffect(() => {
 ## Changelog
 
 ### v1.0.0 (2025-12-11)
+
 - ✨ Initial implementation
 - ✨ Added `/notes` → `/note` redirect
 - ✨ Implemented last active note tracking with localStorage

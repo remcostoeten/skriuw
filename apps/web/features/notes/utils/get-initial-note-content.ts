@@ -1,5 +1,5 @@
-import type { Block } from '@blocknote/core'
-import { generateId } from '@skriuw/shared'
+import type { Block } from "@blocknote/core";
+import { generateId } from "@skriuw/shared";
 
 /**
  * Get initial content for a new note based on the default note template setting
@@ -15,11 +15,11 @@ export function getInitialNoteContent(template: 'empty' | 'h1' | 'h2' = 'empty')
 				props: {
 					backgroundColor: 'default',
 					textColor: 'default',
-					textAlignment: 'left',
+					textAlignment: 'left'
 				},
 				content: [],
-				children: [],
-			} as Block,
+				children: []
+			} as Block
 		]
 	}
 
@@ -35,10 +35,10 @@ export function getInitialNoteContent(template: 'empty' | 'h1' | 'h2' = 'empty')
 				level,
 				backgroundColor: 'default',
 				textColor: 'default',
-				textAlignment: 'left',
+				textAlignment: 'left'
 			},
 			content: [],
-			children: [],
-		} as Block,
+			children: []
+		} as Block
 	]
 }

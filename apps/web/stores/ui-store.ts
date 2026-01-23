@@ -1,7 +1,7 @@
 'use client'
 
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 type UIState = {
 	isDesktopSidebarOpen: boolean
@@ -39,11 +39,11 @@ function safeStorage() {
 	if (typeof window === 'undefined') {
 		const noopStorage: Storage = {
 			getItem: () => null,
-			setItem: () => { },
-			removeItem: () => { },
-			clear: () => { },
+			setItem: () => {},
+			removeItem: () => {},
+			clear: () => {},
 			key: () => null,
-			length: 0,
+			length: 0
 		}
 		return noopStorage
 	}
@@ -57,21 +57,21 @@ export const useUIStore = create<UIState>()(
 			isDesktopSidebarOpen: true,
 			toggleDesktopSidebar: () =>
 				set((state) => ({
-					isDesktopSidebarOpen: !state.isDesktopSidebarOpen,
+					isDesktopSidebarOpen: !state.isDesktopSidebarOpen
 				})),
 			setDesktopSidebarOpen: (open) => set({ isDesktopSidebarOpen: open }),
 
 			isMobileSidebarOpen: false,
 			toggleMobileSidebar: () =>
 				set((state) => ({
-					isMobileSidebarOpen: !state.isMobileSidebarOpen,
+					isMobileSidebarOpen: !state.isMobileSidebarOpen
 				})),
 			setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
 
 			isSettingsOpen: false,
 			toggleSettings: () =>
 				set((state) => ({
-					isSettingsOpen: !state.isSettingsOpen,
+					isSettingsOpen: !state.isSettingsOpen
 				})),
 			setSettingsOpen: (open) => set({ isSettingsOpen: open }),
 
@@ -81,18 +81,22 @@ export const useUIStore = create<UIState>()(
 				const stack = get().taskStack
 				return stack.length > 0 ? stack[stack.length - 1] : null
 			},
-			setActiveTask: (taskId) => set({
-				taskStack: taskId ? [taskId] : [],
-			}),
-			openTaskPanel: (taskId) => set({
-				taskStack: [taskId],
-			}),
-			pushTask: (taskId) => set((state) => ({
-				taskStack: [...state.taskStack, taskId],
-			})),
-			popTask: () => set((state) => ({
-				taskStack: state.taskStack.slice(0, -1),
-			})),
+			setActiveTask: (taskId) =>
+				set({
+					taskStack: taskId ? [taskId] : []
+				}),
+			openTaskPanel: (taskId) =>
+				set({
+					taskStack: [taskId]
+				}),
+			pushTask: (taskId) =>
+				set((state) => ({
+					taskStack: [...state.taskStack, taskId]
+				})),
+			popTask: () =>
+				set((state) => ({
+					taskStack: state.taskStack.slice(0, -1)
+				})),
 			closeAllTasks: () => set({ taskStack: [] }),
 
 			// Last Active Note Tracking
@@ -103,17 +107,17 @@ export const useUIStore = create<UIState>()(
 			isRightSidebarOpen: false,
 			toggleRightSidebar: () =>
 				set((state) => ({
-					isRightSidebarOpen: !state.isRightSidebarOpen,
+					isRightSidebarOpen: !state.isRightSidebarOpen
 				})),
-			setRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
+			setRightSidebarOpen: (open) => set({ isRightSidebarOpen: open })
 		}),
 		{
 			name: 'ui-storage',
 			partialize: (state) => ({
 				isDesktopSidebarOpen: state.isDesktopSidebarOpen,
-				lastActiveNoteId: state.lastActiveNoteId,
+				lastActiveNoteId: state.lastActiveNoteId
 			}),
-			storage: createJSONStorage(safeStorage),
+			storage: createJSONStorage(safeStorage)
 		}
 	)
 )

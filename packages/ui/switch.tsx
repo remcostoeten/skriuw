@@ -5,5 +5,5 @@ export type {
 	SwitchState,
 	SwitchSize,
 	SwitchAnimationVariant,
-	SwitchColors,
+	SwitchColors
 } from './primitives/switch'

@@ -40,16 +40,16 @@ Implement multi-selection capabilities in the file tree and bulk operations (del
 import { create } from 'zustand'
 
 interface SelectionState {
-  selectedIds: Set<string>
-  lastSelectedId: string | null // For Shift+Click range calculation
-  isMultiSelectMode: boolean
-  
-  // Actions
-  selectId: (id: string, multi: boolean, range: boolean) => void
-  deselectId: (id: string) => void
-  clearSelection: () => void
-  selectAll: (ids: string[]) => void
-  toggleSelection: (id: string) => void
+	selectedIds: Set<string>
+	lastSelectedId: string | null // For Shift+Click range calculation
+	isMultiSelectMode: boolean
+
+	// Actions
+	selectId: (id: string, multi: boolean, range: boolean) => void
+	deselectId: (id: string) => void
+	clearSelection: () => void
+	selectAll: (ids: string[]) => void
+	toggleSelection: (id: string) => void
 }
 ```
 
@@ -80,10 +80,12 @@ interface SelectionState {
 #### Floating Action Bar (FAB) or Context Menu
 
 When multiple items are selected:
+
 - Show a floating toolbar at the bottom or top of the tree
 - Or update the context menu to show bulk actions
 
 **Actions:**
+
 - 🗑️ Delete ({n} items)
 - 📁 Move to...
 - ⭐ Favorite / Unfavorite
@@ -97,11 +99,11 @@ When multiple items are selected:
 We need to ensure our API can handle bulk operations efficiently.
 
 - `POST /api/notes/bulk-delete`
-  - Body: `{ ids: string[] }`
+    - Body: `{ ids: string[] }`
 - `POST /api/notes/bulk-move`
-  - Body: `{ ids: string[], targetFolderId: string }`
+    - Body: `{ ids: string[], targetFolderId: string }`
 - `POST /api/notes/bulk-update`
-  - Body: `{ ids: string[], updates: Partial<Note> }` (for favorites/pins)
+    - Body: `{ ids: string[], updates: Partial<Note> }` (for favorites/pins)
 
 #### Optimistic Updates
 
@@ -151,24 +153,24 @@ To implement Shift+Click, we need a linear representation of the visible tree it
 ```typescript
 // Helper to flatten visible tree
 const getVisibleItems = (nodes: TreeNode[], expandedFolders: Set<string>): string[] => {
-  let items: string[] = []
-  
-  nodes.forEach(node => {
-    items.push(node.id)
-    if (node.type === 'folder' && expandedFolders.has(node.id)) {
-      items = [...items, ...getVisibleItems(node.children, expandedFolders)]
-    }
-  })
-  
-  return items
+	let items: string[] = []
+
+	nodes.forEach((node) => {
+		items.push(node.id)
+		if (node.type === 'folder' && expandedFolders.has(node.id)) {
+			items = [...items, ...getVisibleItems(node.children, expandedFolders)]
+		}
+	})
+
+	return items
 }
 
 // In store action
 selectRange: (targetId: string, visibleIds: string[]) => {
-  const start = visibleIds.indexOf(lastSelectedId)
-  const end = visibleIds.indexOf(targetId)
-  const range = visibleIds.slice(Math.min(start, end), Math.max(start, end) + 1)
-  // Add range to selectedIds
+	const start = visibleIds.indexOf(lastSelectedId)
+	const end = visibleIds.indexOf(targetId)
+	const range = visibleIds.slice(Math.min(start, end), Math.max(start, end) + 1)
+	// Add range to selectedIds
 }
 ```
 

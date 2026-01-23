@@ -1,9 +1,9 @@
 'use client'
 
-import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from 'framer-motion'
-import Link from 'next/link'
-import { useState } from 'react'
-import { cn } from '@skriuw/shared'
+import { cn } from "@skriuw/shared";
+import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from "framer-motion";
+import Link from "next/link";
+import { useState } from "react";
 
 type props = {
 	href?: string
@@ -59,11 +59,8 @@ export function HeroBadge({
 	)
 
 	return (
-		<BadgeWrapper
-			{...wrapperProps}
-			className={cn('group', href ? 'cursor-pointer' : '')}
-		>
-			<AnimatePresence mode="wait" onExitComplete={onCancel}>
+		<BadgeWrapper {...wrapperProps} className={cn('group', href ? 'cursor-pointer' : '')}>
+			<AnimatePresence mode='wait' onExitComplete={onCancel}>
 				{!isClosed && (
 					<motion.div
 						className={baseClassName}
@@ -75,7 +72,7 @@ export function HeroBadge({
 							scale: 0.65,
 							transition: { duration: 0.4, ease: cubicBezier(0.56, 0.2, 0.1, 1) }
 						}}
-						drag="y"
+						drag='y'
 						dragConstraints={{ top: 0, bottom: 0 }}
 						dragElastic={{ top: 0, bottom: 0.5 }}
 						onDragEnd={(_, info) => {
@@ -90,9 +87,9 @@ export function HeroBadge({
 					>
 						{icon && (
 							<motion.div
-								className="text-foreground/60 transition-colors group-hover:text-primary"
+								className='text-foreground/60 transition-colors group-hover:text-primary'
 								variants={iconAnimationVariants}
-								initial="initial"
+								initial='initial'
 								animate={controls}
 								transition={{
 									type: 'spring',

@@ -80,8 +80,7 @@ function createBlockHelpers() {
 }
 
 export function generateSampleData() {
-	const { heading, paragraph, bulletItem, numberedItem, codeBlock } =
-		createBlockHelpers()
+	const { heading, paragraph, bulletItem, numberedItem, codeBlock } = createBlockHelpers()
 
 	const sampleNotes = [
 		{
@@ -94,12 +93,8 @@ export function generateSampleData() {
 				),
 				paragraph(''),
 				heading(2, '✨ Key Features'),
-				bulletItem(
-					'📝 Rich text editor with slash commands and markdown support'
-				),
-				bulletItem(
-					'⌨️ Keyboard-first navigation with customizable shortcuts'
-				),
+				bulletItem('📝 Rich text editor with slash commands and markdown support'),
+				bulletItem('⌨️ Keyboard-first navigation with customizable shortcuts'),
 				bulletItem('📂 Hierarchical folders to organize your notes'),
 				bulletItem('🔍 Fast search across all your notes'),
 				bulletItem('🌓 Dark/light mode with beautiful UI'),
@@ -107,9 +102,7 @@ export function generateSampleData() {
 				bulletItem('🔒 Privacy-focused: your data stays yours'),
 				paragraph(''),
 				heading(2, '🚀 Quick Start'),
-				numberedItem(
-					'Press Ctrl+N (or ⌘N on Mac) to create a new note'
-				),
+				numberedItem('Press Ctrl+N (or ⌘N on Mac) to create a new note'),
 				numberedItem('Press Ctrl+F to create a new folder'),
 				numberedItem('Type / in the editor to see all block types'),
 				numberedItem('Press Ctrl+/ to view all keyboard shortcuts'),
@@ -233,9 +226,7 @@ PostgreSQL`,
 			name: 'Storage & Backup',
 			content: [
 				heading(1, '☁️ Storage & Backup'),
-				paragraph(
-					'Keep your notes safe with cloud backup integration.'
-				),
+				paragraph('Keep your notes safe with cloud backup integration.'),
 				paragraph(''),
 				heading(2, '📦 Backup Providers'),
 				bulletItem('Google Drive — Sync notes to your Google account'),

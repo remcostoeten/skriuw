@@ -1,15 +1,15 @@
 'use client'
 
-import * as React from 'react'
-import { motion, SVGMotionProps } from 'framer-motion'
-import { RawLogo } from './raw-logo'
+import { RawLogo } from "./raw-logo";
+import { motion, SVGMotionProps } from "framer-motion";
+import * as React from "react";
 
-interface BrandLogoProps extends SVGMotionProps<SVGSVGElement> {
+type BrandLogoProps = {
 	size?: number
 	animated?: boolean
 	className?: string
 	variant?: 'sidebar' | 'explanation'
-}
+} & SVGMotionProps<SVGSVGElement>
 
 export function BrandLogo({
 	size = 120,
@@ -58,10 +58,7 @@ export function BrandLogo({
 									{ x: 330, y: 250 }
 								]
 
-					const spawn =
-						spawnPoints[
-							Math.floor(Math.random() * spawnPoints.length)
-						]
+					const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)]
 
 					newParticles.push({
 						id: Date.now() + Math.random(),
@@ -102,7 +99,7 @@ export function BrandLogo({
 	const Wrapper = (animated ? motion.svg : 'svg') as any
 
 	return (
-		<div className="relative inline-block">
+		<div className='relative inline-block'>
 			<Wrapper
 				initial={animated ? 'hidden' : undefined}
 				animate={animated ? 'visible' : undefined}
@@ -113,12 +110,12 @@ export function BrandLogo({
 				<RawLogo size={size} variant={variant} className={className} />
 			</Wrapper>
 			<svg
-				xmlns="http://www.w3.org/2000/svg"
+				xmlns='http://www.w3.org/2000/svg'
 				viewBox={variant === 'sidebar' ? '0 0 40 40' : '0 0 390 513'}
 				width={size}
 				height={size}
-				preserveAspectRatio="xMidYMid meet"
-				className="absolute inset-0 pointer-events-none"
+				preserveAspectRatio='xMidYMid meet'
+				className='absolute inset-0 pointer-events-none'
 			>
 				{particles.map((particle) => (
 					<circle
@@ -126,7 +123,7 @@ export function BrandLogo({
 						cx={particle.x}
 						cy={particle.y}
 						r={2}
-						fill="currentColor"
+						fill='currentColor'
 						opacity={particle.life * 0.6}
 					/>
 				))}

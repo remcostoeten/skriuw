@@ -1,5 +1,4 @@
 'use client'
-
 export default function GlobalError({
 	error,
 	reset
@@ -8,7 +7,7 @@ export default function GlobalError({
 	reset: () => void
 }) {
 	return (
-		<html lang="en">
+		<html lang='en'>
 			<body style={{ backgroundColor: 'hsl(0 0% 7%)', color: 'white' }}>
 				<div
 					style={{

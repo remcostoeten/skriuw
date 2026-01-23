@@ -1,17 +1,14 @@
 'use server'
-import { invalidateItemsCache } from '../queries/get-items'
-import type { Note, UpdateNoteData } from '../../types'
-import { update } from '@skriuw/crud'
-import { syncTasksToDatabase } from '../../../tasks'
-import { extractTasksFromBlocks } from '../../utils/extract-tasks'
-import { trackActivity } from '@/features/activity'
 
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { syncTasksToDatabase } from "../../../tasks";
+import type { Note, UpdateNoteData } from "../../types";
+import { extractTasksFromBlocks } from "../../utils/extract-tasks";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { update } from "@skriuw/crud";
 
-export async function updateNote(
-	id: string,
-	data: UpdateNoteData
-): Promise<Note | undefined> {
+export async function updateNote(id: string, data: UpdateNoteData): Promise<Note | undefined> {
 	try {
 		const result = await update<Note>(STORAGE_KEYS.NOTES, id, {
 			name: data.name,
@@ -19,9 +16,7 @@ export async function updateNote(
 		})
 
 		if (!result.success) {
-			throw new Error(
-				(result as any).error?.message || 'Failed to update note'
-			)
+			throw new Error((result as any).error?.message || 'Failed to update note')
 		}
 
 		// Invalidate cache after update

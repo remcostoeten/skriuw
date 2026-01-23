@@ -1,4 +1,4 @@
-import type { Folder, Item } from '../types'
+import type { Folder, Item } from "../types";
 
 export async function getArchiveId(
 	items: Item[],

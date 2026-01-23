@@ -1,12 +1,11 @@
-#!/usr/bin/env bun
-import { execSync } from 'child_process'
-import { writeFileSync, mkdirSync, existsSync } from 'fs'
-import { homedir } from 'os'
-import { join } from 'path'
+import { execSync } from "child_process";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 
 const LOG_DIR = join(process.cwd(), 'logs', 'dev-cli')
 
-interface Options {
+type Options = {
 	user?: string
 	'dry-run'?: boolean
 	output?: string
@@ -113,7 +112,7 @@ async function handleFigmaImport(options: Options) {
 	logMessage(`Importing from Figma URL: ${figmaUrl}`, 'info')
 
 	try {
-		const fileId = figmaUrl.match(/file\/([^\/]+)/)?.[1]
+		const fileId = figmaUrl.match(/file\/([^/]+)/)?.[1]
 		if (!fileId) {
 			logMessage('Invalid Figma URL. Could not extract file ID.', 'error')
 			process.exit(1)
@@ -128,9 +127,7 @@ async function handleFigmaImport(options: Options) {
 
 		if (!response.ok) {
 			const errorText = await response.text()
-			throw new Error(
-				`Figma API request failed with status ${response.status}: ${errorText}`
-			)
+			throw new Error(`Figma API request failed with status ${response.status}: ${errorText}`)
 		}
 
 		const figmaData = await response.json()
@@ -162,7 +159,9 @@ async function handleAction(action: string, options: Options) {
 
 	// Validate action to prevent command injection
 	if (!/^[a-zA-Z0-9-]+$/.test(action)) {
-		throw new Error(`Invalid action: ${action}. Must contain only alphanumeric characters and dashes.`)
+		throw new Error(
+			`Invalid action: ${action}. Must contain only alphanumeric characters and dashes.`
+		)
 	}
 
 	logMessage(`Starting action: ${action}`, 'info')
@@ -175,23 +174,14 @@ async function handleAction(action: string, options: Options) {
 
 	if (snapshot && !dryRun) {
 		preSnapshot = await captureSnapshot(
-			tables?.split(',') || [
-				'notes',
-				'folders',
-				'tasks',
-				'settings',
-				'shortcuts'
-			]
+			tables?.split(',') || ['notes', 'folders', 'tasks', 'settings', 'shortcuts']
 		)
 	}
 
 	if (authTokens) {
 		logMessage('Using provided auth tokens', 'info')
 	} else {
-		logMessage(
-			'No auth tokens provided, using development mode bypass',
-			'info'
-		)
+		logMessage('No auth tokens provided, using development mode bypass', 'info')
 	}
 
 	const url = `http://localhost:3000/api/dev`
@@ -209,19 +199,19 @@ async function handleAction(action: string, options: Options) {
 				tables || 'notes,folders,tasks,settings,shortcuts'
 			)
 		} else {
-logMessage(`Executing request to: ${url}`, verbose ? 'info' : undefined)
-const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body
-})
-if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`Request failed with status ${res.status}: ${errorText}`)
-}
-response = await res.text()
+			logMessage(`Executing request to: ${url}`, verbose ? 'info' : undefined)
+			const res = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body
+			})
+			if (!res.ok) {
+				const errorText = await res.text()
+				throw new Error(`Request failed with status ${res.status}: ${errorText}`)
+			}
+			response = await res.text()
 		}
 
 		const endTime = Date.now()
@@ -231,13 +221,7 @@ response = await res.text()
 
 		if (snapshot && !dryRun) {
 			postSnapshot = await captureSnapshot(
-				tables?.split(',') || [
-					'notes',
-					'folders',
-					'tasks',
-					'settings',
-					'shortcuts'
-				]
+				tables?.split(',') || ['notes', 'folders', 'tasks', 'settings', 'shortcuts']
 			)
 		}
 
@@ -259,10 +243,7 @@ response = await res.text()
 		writeOutput(result, output || 'text', logFile)
 		printSummary(result)
 	} catch (error) {
-		logMessage(
-			`Error: ${error instanceof Error ? error.message : String(error)}`,
-			'error'
-		)
+		logMessage(`Error: ${error instanceof Error ? error.message : String(error)}`, 'error')
 		process.exit(1)
 	}
 }
@@ -333,17 +314,13 @@ function calculateDifferences(pre: any, post: any): Record<string, number> {
 	const differences: Record<string, number> = {}
 
 	for (const table in pre.tables) {
-		const preCount =
-			typeof pre.tables[table] === 'number' ? pre.tables[table] : 0
-		const postCount =
-			typeof post.tables[table] === 'number' ? post.tables[table] : 0
+		const preCount = typeof pre.tables[table] === 'number' ? pre.tables[table] : 0
+		const postCount = typeof post.tables[table] === 'number' ? post.tables[table] : 0
 		differences[table] = postCount - preCount
 	}
 
 	return differences
 }
-
-
 
 function writeOutput(data: any, format: string, customLogPath?: string) {
 	if (!existsSync(LOG_DIR)) {
@@ -512,10 +489,7 @@ function printSummary(data: any) {
 	console.log('')
 }
 
-function logMessage(
-	message: string,
-	level: 'info' | 'warn' | 'error' | 'success' = 'info'
-) {
+function logMessage(message: string, level: 'info' | 'warn' | 'error' | 'success' = 'info') {
 	const timestamp = new Date().toISOString()
 	const levelUpper = level.toUpperCase()
 
@@ -590,10 +564,7 @@ async function handleAuthExtraction(options: Options) {
 	console.log(extractionScript)
 	logMessage('', 'info')
 	logMessage('4. The tokens will be copied to your clipboard', 'info')
-	logMessage(
-		'5. Run the CLI command with --auth-tokens <pasted-tokens>',
-		'info'
-	)
+	logMessage('5. Run the CLI command with --auth-tokens <pasted-tokens>', 'info')
 	logMessage('')
 
 	try {
@@ -636,9 +607,7 @@ function getBrowserPath(browser: string): string | null {
 }
 
 function printUsage() {
-	console.log(
-		'Skriuw Dev CLI - Professional CLI tool for Skriuw development operations'
-	)
+	console.log('Skriuw Dev CLI - Professional CLI tool for Skriuw development operations')
 	console.log('')
 	console.log('Usage: bun run scripts/dev-cli.ts <action> [options]')
 	console.log('')
@@ -658,19 +627,11 @@ function printUsage() {
 	console.log('')
 	console.log('Options:')
 	console.log('  -u, --user <userId>         Target specific user ID')
-	console.log(
-		'  -d, --dry-run               Preview changes without executing'
-	)
-	console.log(
-		'  -o, --output <format>       Output format (json, text, markdown)'
-	)
+	console.log('  -d, --dry-run               Preview changes without executing')
+	console.log('  -o, --output <format>       Output format (json, text, markdown)')
 	console.log('  -l, --log-file <path>       Custom log file path')
-	console.log(
-		'  -s, --snapshot              Capture pre/post database snapshots'
-	)
-	console.log(
-		'  -t, --tables <tables>       Tables to snapshot (comma-separated)'
-	)
+	console.log('  -s, --snapshot              Capture pre/post database snapshots')
+	console.log('  -t, --tables <tables>       Tables to snapshot (comma-separated)')
 	console.log('  -v, --verbose               Verbose output')
 	console.log('  --auth-tokens <tokens>      Use pre-existing auth cookies')
 	console.log(
@@ -682,9 +643,7 @@ function printUsage() {
 	console.log('')
 	console.log('Examples:')
 	console.log('  bun run scripts/dev-cli.ts seed --dry-run --snapshot')
-	console.log(
-		'  bun run scripts/dev-cli.ts clear-all --output json --snapshot'
-	)
+	console.log('  bun run scripts/dev-cli.ts clear-all --output json --snapshot')
 	console.log('  bun run scripts/dev-cli.ts auth --browser brave')
 	console.log('  bun run scripts/dev-cli.ts stats --verbose')
 	console.log('')

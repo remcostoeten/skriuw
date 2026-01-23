@@ -13,14 +13,14 @@
  * User context for scoping CRUD operations.
  * When userId is provided, operations are filtered to that user's data.
  */
-export interface UserContext {
-    /**
-     * The current user's ID.
-     * - `string`: Filter operations to this user
-     * - `null`: Explicitly no user (anonymous/guest)
-     * - `undefined`: No user context set (return all data)
-     */
-    userId?: string | null
+export type UserContext = {
+	/**
+	 * The current user's ID.
+	 * - `string`: Filter operations to this user
+	 * - `null`: Explicitly no user (anonymous/guest)
+	 * - `undefined`: No user context set (return all data)
+	 */
+	userId?: string | null
 }
 
 // ============================================================================
@@ -48,7 +48,7 @@ let currentContext: UserContext = {}
  * ```
  */
 export function setUserContext(ctx: UserContext): void {
-    currentContext = ctx
+	currentContext = ctx
 }
 
 /**
@@ -57,7 +57,7 @@ export function setUserContext(ctx: UserContext): void {
  * @returns The current user context
  */
 export function getUserContext(): UserContext {
-    return currentContext
+	return currentContext
 }
 
 /**
@@ -65,7 +65,7 @@ export function getUserContext(): UserContext {
  * Call this at the end of each request to prevent context leakage.
  */
 export function clearUserContext(): void {
-    currentContext = {}
+	currentContext = {}
 }
 
 /**
@@ -75,7 +75,7 @@ export function clearUserContext(): void {
  * @returns The current user ID or undefined
  */
 export function getCrudUserId(): string | null | undefined {
-    return currentContext.userId
+	return currentContext.userId
 }
 
 // ============================================================================
@@ -99,18 +99,15 @@ export function getCrudUserId(): string | null | undefined {
  * // notes are filtered to user-123
  * ```
  */
-export async function withUser<T>(
-    userId: string | null,
-    fn: () => Promise<T>
-): Promise<T> {
-    const previousContext = currentContext
-    currentContext = { ...previousContext, userId }
+export async function withUser<T>(userId: string | null, fn: () => Promise<T>): Promise<T> {
+	const previousContext = currentContext
+	currentContext = { ...previousContext, userId }
 
-    try {
-        return await fn()
-    } finally {
-        currentContext = previousContext
-    }
+	try {
+		return await fn()
+	} finally {
+		currentContext = previousContext
+	}
 }
 
 /**
@@ -121,18 +118,15 @@ export async function withUser<T>(
  * @param fn - The function to execute
  * @returns The result of the function
  */
-export function withUserSync<T>(
-    userId: string | null,
-    fn: () => T
-): T {
-    const previousContext = currentContext
-    currentContext = { ...previousContext, userId }
+export function withUserSync<T>(userId: string | null, fn: () => T): T {
+	const previousContext = currentContext
+	currentContext = { ...previousContext, userId }
 
-    try {
-        return fn()
-    } finally {
-        currentContext = previousContext
-    }
+	try {
+		return fn()
+	} finally {
+		currentContext = previousContext
+	}
 }
 
 /**
@@ -143,8 +137,8 @@ export function withUserSync<T>(
  * @returns Functions that operate within this context
  */
 export function createScopedContext(ctx: UserContext) {
-    return {
-        getUserId: () => ctx.userId,
-        getContext: () => ctx,
-    }
+	return {
+		getUserId: () => ctx.userId,
+		getContext: () => ctx
+	}
 }
