@@ -9,7 +9,7 @@ const WikiLinkComponent = ({ noteName, noteId }: { noteName: string, noteId: str
     const { items } = useNotesContext(); // Access context to get slugs/urls
     const { getNoteUrl } = useNoteSlug(items);
 
-    const handleClick = (e: React.MouseEvent) => {
+    const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -22,10 +22,19 @@ const WikiLinkComponent = ({ noteName, noteId }: { noteName: string, noteId: str
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            handleClick(e);
+        }
+    };
+
     return (
         <span
             className="wikilink-chip text-primary underline decoration-dotted cursor-pointer hover:bg-muted/50 rounded px-1 transition-colors"
             onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+            role="link"
             title={`Go to ${noteName}`}
         >
             [[{noteName}]]
