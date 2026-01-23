@@ -4,6 +4,7 @@ import { useShortcut } from "../../shortcuts/use-shortcut";
 import { useEditor } from "../hooks/use-editor";
 import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
 import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
+import { EditorHeader } from "./editor-header";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
 import type { Folder, Item } from "@/features/notes/types";
@@ -34,12 +35,12 @@ export function NoteEditor({
 }: Props) {
 	const { data: session } = useSession()
 	const router = useRouter()
-	const { editor, note, isLoading, error } = useEditor({
+	const { editor, note, isLoading, error, noteName, setNoteName } = useEditor({
 		noteId,
 		autoSave,
 		autoSaveDelay
 	})
-	const { items, createNote, createFolder, moveItem, deleteItem } = useNotesContext()
+	const { items, createNote, createFolder, moveItem, deleteItem, updateNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 	const { toggleMobileSidebar } = useUIStore()
 
@@ -48,6 +49,32 @@ export function NoteEditor({
 	const hasFocusedRef = useRef(false)
 	const [surfaceOpen, setSurfaceOpen] = useState(false)
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
+	const [icon, setIcon] = useState<string | undefined>(undefined)
+	const [tags, setTags] = useState<string[]>([])
+
+	useEffect(() => {
+		if (note) {
+			setIcon(note.icon || undefined)
+			setTags(note.tags || [])
+		}
+	}, [note])
+
+	const handleIconChange = useCallback((newIcon: string) => {
+		setIcon(newIcon)
+		if (editor && note) {
+			updateNote(note.id, editor.document, undefined, newIcon)
+		}
+	}, [editor, note, updateNote])
+
+	const handleTitleChange = useCallback((newTitle: string) => {
+		setNoteName(newTitle)
+		if (editor && note) {
+			const timeoutId = setTimeout(() => {
+				updateNote(note.id, editor.document, newTitle)
+			}, 500)
+			return () => clearTimeout(timeoutId)
+		}
+	}, [editor, note, updateNote, setNoteName])
 
 	useShortcut('editor-focus', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement
@@ -60,12 +87,10 @@ export function NoteEditor({
 		editorRef.current?.focusEditor()
 	})
 
-	// Reset focus ref when noteId changes
 	useEffect(() => {
 		hasFocusedRef.current = false
 	}, [noteId])
 
-	// Focus editor when note is newly created or when navigating with ?focus=true
 	useEffect(() => {
 		if (editor && note && !hasFocusedRef.current) {
 			const isEmptyParagraph =
@@ -84,7 +109,6 @@ export function NoteEditor({
 			const shouldFocus = isNewNote || searchParams.get('focus') === 'true'
 
 			if (shouldFocus) {
-				// Reduced timeout for snappier feel, especially on mobile
 				const focusTimeout = isNewNote ? 50 : 100
 				setTimeout(() => {
 					editorRef.current?.focusEditor()
@@ -245,7 +269,6 @@ export function NoteEditor({
 		)
 	}
 
-	// Show loading skeleton while fetching note data
 	if (isLoading || !note) {
 		return (
 			<div
@@ -274,7 +297,22 @@ export function NoteEditor({
 						submessage='Please wait while we prepare your editor'
 					/>
 				) : editor ? (
-					<EditorWrapper ref={editorRef} editor={editor} />
+					<EditorWrapper
+						ref={editorRef}
+						editor={editor}
+						header={
+							<EditorHeader
+								title={noteName}
+								setTitle={handleTitleChange}
+								icon={icon}
+								setIcon={handleIconChange}
+								createdAt={note?.createdAt}
+								updatedAt={note?.updatedAt}
+								tags={tags}
+								className="max-w-[655px]"
+							/>
+						}
+					/>
 				) : (
 					<EmptyState
 						message='No editor available'
