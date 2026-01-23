@@ -5,6 +5,7 @@ import { useEditor } from "../hooks/use-editor";
 import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
 import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
 import { EditorHeader } from "./editor-header";
+import { BacklinksPanel } from "./backlinks-panel";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
 import type { Folder, Item } from "@/features/notes/types";
@@ -310,6 +311,13 @@ export function NoteEditor({
 								updatedAt={note?.updatedAt}
 								tags={tags}
 								className="max-w-[655px]"
+							/>
+						}
+						footer={
+							<BacklinksPanel
+								noteId={noteId}
+								noteName={noteName}
+								className="max-w-[655px] mx-auto border-t border-border/30"
 							/>
 						}
 					/>

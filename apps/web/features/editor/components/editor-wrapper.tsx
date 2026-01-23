@@ -18,10 +18,11 @@ type Props = {
 	editor: BlockNoteEditor | null
 	className?: string
 	header?: React.ReactNode
+	footer?: React.ReactNode
 }
 
 export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
-	({ editor, className, header }, ref) => {
+	({ editor, className, header, footer }, ref) => {
 		const editorRef = useRef<HTMLDivElement>(null)
 		const { hasWordWrap, hasRawMDXMode } = useUserPreferences()
 		const {
@@ -192,6 +193,7 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 					className='w-full h-full'
 				/>
 				<TaskCheckboxReplacer editor={editor} editorContainerRef={editorRef} />
+				{footer}
 			</div>
 		)
 	}
