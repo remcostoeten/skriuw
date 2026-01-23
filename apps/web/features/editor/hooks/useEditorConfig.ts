@@ -8,6 +8,7 @@ import { createPasteHandler } from "@/features/editor/utils/markdown-paste-handl
 import { useSettings, useUserPreferences } from "@/features/settings";
 import { BlockNoteSchema } from "@blocknote/core";
 import { useMemo } from "react";
+import { WikiLink } from "../inline-content/wikilink-content";
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
@@ -23,6 +24,9 @@ export function createEditorSchema() {
 			fileTree: fileTreeBlockSpec(),
 			callout: calloutBlockSpec(),
 			header: headerBlockSpec()
+		},
+		inlineContentSpecs: {
+			wikilink: WikiLink
 		}
 	})
 }
