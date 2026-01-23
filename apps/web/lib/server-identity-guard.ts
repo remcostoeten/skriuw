@@ -1,27 +1,22 @@
-/**
- * Server-side identity guard utilities
- * Use these in server actions and API routes
- */
-
 'use server'
 
-import { headers } from 'next/headers'
-import { auth } from './auth'
+import { auth } from "./auth";
+import { headers } from "next/headers";
 
 /**
  * Session result from Better Auth
  */
-export interface Session {
-  user: {
-    id: string
-    email: string
-    name: string | null
-    isAnonymous?: boolean
-  }
-  session: {
-    id: string
-    expiresAt: Date
-  }
+export type Session = {
+	user: {
+		id: string
+		email: string
+		name: string | null
+		isAnonymous?: boolean
+	}
+	session: {
+		id: string
+		expiresAt: Date
+	}
 }
 
 /**
@@ -29,15 +24,15 @@ export interface Session {
  * Uses Better Auth's getSession API.
  */
 async function getSession(): Promise<Session | null> {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers()
-    })
-    return session as Session | null
-  } catch (error) {
-    console.error('Failed to get session:', error)
-    return null
-  }
+	try {
+		const session = await auth.api.getSession({
+			headers: await headers()
+		})
+		return session as Session | null
+	} catch (error) {
+		console.error('Failed to get session:', error)
+		return null
+	}
 }
 
 /**
@@ -45,20 +40,20 @@ async function getSession(): Promise<Session | null> {
  * Use this in server actions to ensure user has proper identity
  */
 export async function withServerIdentity<T>(
-  operation: () => Promise<T>,
-  allowAnonymous: boolean = true
+	operation: () => Promise<T>,
+	allowAnonymous: boolean = true
 ): Promise<T> {
-  const session = await getSession()
+	const session = await getSession()
 
-  const hasSession = !!session?.user
-  const isAnonymous = session?.user?.isAnonymous ?? false
-  const isAuthenticated = hasSession && !isAnonymous
+	const hasSession = !!session?.user
+	const isAnonymous = session?.user?.isAnonymous ?? false
+	const isAuthenticated = hasSession && !isAnonymous
 
-  // Check if user has required identity
-  if (!hasSession || (!allowAnonymous && isAnonymous)) {
-    throw new Error('Authentication required')
-  }
+	// Check if user has required identity
+	if (!hasSession || (!allowAnonymous && isAnonymous)) {
+		throw new Error('Authentication required')
+	}
 
-  // User has proper identity - proceed with operation
-  return await operation()
+	// User has proper identity - proceed with operation
+	return await operation()
 }

@@ -1,15 +1,13 @@
 'use client'
 
-import { Download, FileJson, FileText, Check, Loader2, Cloud } from 'lucide-react'
-
-import { Button } from '@skriuw/ui/button'
-import { cn } from '@skriuw/shared'
-
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import { useStorageConnectors } from '../hooks/use-storage-connectors'
-import { downloadJsonExport, downloadMarkdownExport, exportAsJson, type ExportFormat } from '../utils/export-notes'
-import { FormatOptionCard, StatCard } from './shared/import-export-ui'
-import { useState, useMemo } from 'react'
+import { useStorageConnectors } from "../hooks/use-storage-connectors";
+import { downloadJsonExport, downloadMarkdownExport, exportAsJson, type ExportFormat } from "../utils/export-notes";
+import { FormatOptionCard, StatCard } from "./shared/import-export-ui";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { cn } from "@skriuw/shared";
+import { Button } from "@skriuw/ui/button";
+import { Download, FileJson, FileText, Check, Loader2, Cloud } from "lucide-react";
+import { useState, useMemo } from "react";
 
 type TExportOption = {
 	id: ExportFormat
@@ -24,16 +22,16 @@ const exportOptions: TExportOption[] = [
 		id: 'json',
 		title: 'Skriuw Backup',
 		description: 'Full backup with all data. Best for restoring later.',
-		icon: <FileJson className="h-5 w-5" />,
-		fileType: '.json',
+		icon: <FileJson className='h-5 w-5' />,
+		fileType: '.json'
 	},
 	{
 		id: 'markdown',
 		title: 'Markdown Export',
 		description: 'Portable markdown files. Works with Obsidian, Notion, etc.',
-		icon: <FileText className="h-5 w-5" />,
-		fileType: '.md',
-	},
+		icon: <FileText className='h-5 w-5' />,
+		fileType: '.md'
+	}
 ]
 
 function countItems(itemList: any[]): { notes: number; folders: number } {
@@ -71,7 +69,7 @@ export function ExportPanel() {
 				dests.push({
 					id: c.type,
 					label: c.name,
-					icon: Cloud,
+					icon: Cloud
 				})
 			}
 		})
@@ -83,7 +81,9 @@ export function ExportPanel() {
 
 		setIsExporting(true)
 		setExportSuccess(false)
-		setStatusMessage(selectedDestination === 'download' ? 'Preparing download...' : 'Uploading backup...')
+		setStatusMessage(
+			selectedDestination === 'download' ? 'Preparing download...' : 'Uploading backup...'
+		)
 
 		try {
 			// 1. Generate Data
@@ -99,16 +99,16 @@ export function ExportPanel() {
 			} else {
 				// Cloud Backup (JSON only to keep it simple for restore)
 				if (selectedFormat !== 'json') {
-					// Force JSON for cloud backups for now, or warn user. 
+					// Force JSON for cloud backups for now, or warn user.
 					// Ideally we zip markdown but we don't have zip lib here yet.
-					// Implicitly doing JSON for cloud backup. 
+					// Implicitly doing JSON for cloud backup.
 				}
 				const jsonContent = exportAsJson(items, { includeMetadata: true, format: 'json' })
 				const encoder = new TextEncoder()
 				const data = encoder.encode(jsonContent)
 
 				// 2. Create Driver
-				const connector = connectors.find(c => c.type === selectedDestination)
+				const connector = connectors.find((c) => c.type === selectedDestination)
 				if (!connector) throw new Error('Destination not found')
 
 				let driver: any
@@ -176,54 +176,64 @@ export function ExportPanel() {
 
 	if (isInitialLoading) {
 		return (
-			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+			<div className='flex items-center justify-center py-12'>
+				<Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
 			</div>
 		)
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="flex gap-4">
-				<StatCard label="Notes ready to export" value={noteCount} />
-				<StatCard label="Folders" value={folderCount} />
+		<div className='space-y-6'>
+			<div className='flex gap-4'>
+				<StatCard label='Notes ready to export' value={noteCount} />
+				<StatCard label='Folders' value={folderCount} />
 			</div>
 
-			<div className="space-y-3">
-				<h3 className="text-sm font-medium text-muted-foreground">Destination</h3>
-				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-					{availableDestinations.map(dest => (
+			<div className='space-y-3'>
+				<h3 className='text-sm font-medium text-muted-foreground'>Destination</h3>
+				<div className='grid gap-3 grid-cols-1 sm:grid-cols-2'>
+					{availableDestinations.map((dest) => (
 						<div
 							key={dest.id}
 							onClick={() => setSelectedDestination(dest.id)}
 							className={cn(
-								"flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+								'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all',
 								selectedDestination === dest.id
-									? "border primary/55	"
-									: "border hover:bg-muted/50"
+									? 'border primary/55	'
+									: 'border hover:bg-muted/50'
 							)}
 						>
-							<div className={cn("p-2 rounded-md", selectedDestination === dest.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-								<dest.icon className="h-5 w-5" />
+							<div
+								className={cn(
+									'p-2 rounded-md',
+									selectedDestination === dest.id
+										? 'bg-primary/10 text-primary'
+										: 'bg-muted text-muted-foreground'
+								)}
+							>
+								<dest.icon className='h-5 w-5' />
 							</div>
-							<div className="flex-1">
-								<div className="font-medium text-sm">{dest.label}</div>
+							<div className='flex-1'>
+								<div className='font-medium text-sm'>{dest.label}</div>
 							</div>
-							{selectedDestination === dest.id && <Check className="h-4 w-4 text-primary" />}
+							{selectedDestination === dest.id && (
+								<Check className='h-4 w-4 text-primary' />
+							)}
 						</div>
 					))}
 				</div>
 				{connectors.length === 0 && (
-					<p className="text-xs text-muted-foreground px-1">
-						Connect cloud providers in the <strong>Storage</strong> tab to enable cloud backups.
+					<p className='text-xs text-muted-foreground px-1'>
+						Connect cloud providers in the <strong>Storage</strong> tab to enable cloud
+						backups.
 					</p>
 				)}
 			</div>
 
 			{selectedDestination === 'download' && (
-				<div className="space-y-3">
-					<h3 className="text-sm font-medium text-muted-foreground">Format</h3>
-					<div className="grid gap-3">
+				<div className='space-y-3'>
+					<h3 className='text-sm font-medium text-muted-foreground'>Format</h3>
+					<div className='grid gap-3'>
 						{exportOptions.map((option) => (
 							<FormatOptionCard
 								key={option.id}
@@ -239,31 +249,31 @@ export function ExportPanel() {
 				</div>
 			)}
 
-			<Button
-				onClick={handleExport}
-				disabled={!hasContent || isExporting}
-				className="w-full"
-			>
+			<Button onClick={handleExport} disabled={!hasContent || isExporting} className='w-full'>
 				{isExporting ? (
 					<>
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						<Loader2 className='h-4 w-4 mr-2 animate-spin' />
 						{statusMessage || 'Processing...'}
 					</>
 				) : exportSuccess ? (
 					<>
-						<Check className="h-4 w-4 mr-2" />
+						<Check className='h-4 w-4 mr-2' />
 						{statusMessage || 'Done!'}
 					</>
 				) : (
 					<>
-						{selectedDestination === 'download' ? <Download className="h-4 w-4 mr-2" /> : <Cloud className="h-4 w-4 mr-2" />}
+						{selectedDestination === 'download' ? (
+							<Download className='h-4 w-4 mr-2' />
+						) : (
+							<Cloud className='h-4 w-4 mr-2' />
+						)}
 						{selectedDestination === 'download' ? 'Export' : 'Upload Backup'}
 					</>
 				)}
 			</Button>
 
 			{!hasContent && (
-				<p className="text-sm text-muted-foreground text-center">
+				<p className='text-sm text-muted-foreground text-center'>
 					No notes to export. Create some notes first!
 				</p>
 			)}

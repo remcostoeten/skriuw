@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-import type { StorageConnectorType } from '@/features/backup/core/types'
-import { runConnectorHandshake } from '@/features/backup/core/handshake'
-import { requireAuth } from '../../../../../lib/api-auth'
+import { requireAuth } from "../../../../../lib/api-auth";
+import { runConnectorHandshake } from "@/features/backup/core/handshake";
+import type { StorageConnectorType } from "@/features/backup/core/types";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

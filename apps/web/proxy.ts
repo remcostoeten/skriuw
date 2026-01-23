@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
 	// Redirect /notes to /note
@@ -14,6 +14,6 @@ export function proxy(request: NextRequest) {
 export const config = {
 	matcher: [
 		// Skip static files and API routes
-		'/((?!_next/static|_next/image|favicon.ico|api/).*)',
-	],
+		'/((?!_next/static|_next/image|favicon.ico|api/).*)'
+	]
 }

@@ -1,9 +1,4 @@
-/**
- * @fileoverview Preseed Data for All User Types
- * @description Provides comprehensive default notes and folders that showcase Skriuw's features
- */
-
-import type { Note, Folder, Item } from '@/features/notes/types'
+import type { Note, Folder, Item } from "@/features/notes/types";
 
 // ============================================================================
 // Block Helpers - Create BlockNote-compatible blocks
@@ -25,7 +20,7 @@ export function heading(level: 1 | 2 | 3, text: string) {
 		type: 'heading' as const,
 		props: { level, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: [{ type: 'text' as const, text, styles: {} }],
-		children: [],
+		children: []
 	}
 }
 
@@ -35,7 +30,7 @@ export function paragraph(text: string, styles: Record<string, boolean> = {}) {
 		type: 'paragraph' as const,
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: text ? [{ type: 'text' as const, text, styles }] : [],
-		children: [],
+		children: []
 	}
 }
 
@@ -45,7 +40,7 @@ export function bulletItem(text: string) {
 		type: 'bulletListItem' as const,
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: [{ type: 'text' as const, text, styles: {} }],
-		children: [],
+		children: []
 	}
 }
 
@@ -55,7 +50,7 @@ export function numberedItem(text: string) {
 		type: 'numberedListItem' as const,
 		props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
 		content: [{ type: 'text' as const, text, styles: {} }],
-		children: [],
+		children: []
 	}
 }
 
@@ -65,7 +60,7 @@ export function codeBlock(code: string, language = 'text') {
 		type: 'codeBlock' as const,
 		props: { language },
 		content: [{ type: 'text' as const, text: code, styles: {} }],
-		children: [],
+		children: []
 	}
 }
 
@@ -75,7 +70,9 @@ export function codeBlock(code: string, language = 'text') {
 
 const WELCOME_CONTENT = [
 	heading(1, '👋 Welcome to Skriuw'),
-	paragraph('A blazingly fast, privacy-focused note-taking app built with modern web technologies.'),
+	paragraph(
+		'A blazingly fast, privacy-focused note-taking app built with modern web technologies.'
+	),
 	paragraph(''),
 	heading(2, '✨ Key Features'),
 	bulletItem('📝 Rich text editor with slash commands and markdown support'),
@@ -98,12 +95,14 @@ const WELCOME_CONTENT = [
 	bulletItem('Use Ctrl+P to open the command palette'),
 	bulletItem('Pin important notes to keep them at the top'),
 	paragraph(''),
-	paragraph('Happy writing! 🎉'),
+	paragraph('Happy writing! 🎉')
 ]
 
 const SHORTCUTS_CONTENT = [
 	heading(1, '⌨️ Keyboard Shortcuts'),
-	paragraph('Master Skriuw with these keyboard shortcuts. All shortcuts are customizable in Settings.'),
+	paragraph(
+		'Master Skriuw with these keyboard shortcuts. All shortcuts are customizable in Settings.'
+	),
 	paragraph(''),
 	heading(2, '📋 General'),
 	bulletItem('Ctrl+P / Cmd+K — Open Command Palette'),
@@ -140,7 +139,7 @@ const SHORTCUTS_CONTENT = [
 	bulletItem('Delete — Delete Item'),
 	bulletItem('Ctrl+Click — Multi-select'),
 	bulletItem('Shift+Click — Range Select'),
-	bulletItem('Arrow Keys — Navigate Items'),
+	bulletItem('Arrow Keys — Navigate Items')
 ]
 
 const EDITOR_FEATURES_CONTENT = [
@@ -172,12 +171,14 @@ const EDITOR_FEATURES_CONTENT = [
 	bulletItem('Build your personal knowledge graph'),
 	paragraph(''),
 	heading(2, '💾 Auto-Save'),
-	paragraph('Your notes are automatically saved as you type. No need to manually save!'),
+	paragraph('Your notes are automatically saved as you type. No need to manually save!')
 ]
 
 const ARCHITECTURE_CONTENT = [
 	heading(1, '🏗️ Architecture Overview'),
-	paragraph('Skriuw is built with modern web technologies for maximum performance and developer experience.'),
+	paragraph(
+		'Skriuw is built with modern web technologies for maximum performance and developer experience.'
+	),
 	paragraph(''),
 	heading(2, '🛠️ Technology Stack'),
 	bulletItem('Next.js 15 — React framework with App Router'),
@@ -200,7 +201,8 @@ Next.js API Routes
       ↓
 Drizzle ORM
       ↓
-PostgreSQL`, 'text'
+PostgreSQL`,
+		'text'
 	),
 	paragraph(''),
 	heading(2, '📁 Key Directories'),
@@ -212,7 +214,7 @@ PostgreSQL`, 'text'
 	heading(2, '🚀 Deployment'),
 	bulletItem('Platform: Vercel'),
 	bulletItem('Database: Neon (serverless PostgreSQL)'),
-	bulletItem('Desktop: Tauri (optional)'),
+	bulletItem('Desktop: Tauri (optional)')
 ]
 
 const BACKUP_CONTENT = [
@@ -238,7 +240,7 @@ const BACKUP_CONTENT = [
 	heading(2, '🔮 Coming Soon'),
 	bulletItem('Automated background backups'),
 	bulletItem('Version history for backups'),
-	bulletItem('One-click restore'),
+	bulletItem('One-click restore')
 ]
 
 // ============================================================================
@@ -259,15 +261,23 @@ const NOTES: NoteDefinition[] = [
 	{ name: 'Editor Features', content: EDITOR_FEATURES_CONTENT, folder: 'Getting Started' },
 	{ name: 'Architecture Overview', content: ARCHITECTURE_CONTENT, folder: 'Documentation' },
 	{ name: 'Storage & Backup', content: BACKUP_CONTENT, folder: 'Documentation' },
-	{ name: 'Project Ideas', content: [heading(2, 'Project Ideas'), paragraph('Add your project ideas here...')], folder: 'Work' },
-	{ name: 'Meeting Notes', content: [heading(2, 'Meeting Notes'), paragraph('Capture your meeting notes here...')], folder: 'Work' },
+	{
+		name: 'Project Ideas',
+		content: [heading(2, 'Project Ideas'), paragraph('Add your project ideas here...')],
+		folder: 'Work'
+	},
+	{
+		name: 'Meeting Notes',
+		content: [heading(2, 'Meeting Notes'), paragraph('Capture your meeting notes here...')],
+		folder: 'Work'
+	}
 ]
 
 const FOLDERS = [
 	{ name: 'Getting Started', pinned: true },
 	{ name: 'Documentation' },
 	{ name: 'Personal' },
-	{ name: 'Work' },
+	{ name: 'Work' }
 ]
 
 // ============================================================================
@@ -275,7 +285,10 @@ const FOLDERS = [
 // ============================================================================
 
 function stableId(prefix: string, name: string): string {
-	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '')
 	return `${prefix}-preseed-${slug}`
 }
 
@@ -301,7 +314,7 @@ export function generatePreseededItems(userId: string): Item[] {
 			pinned: folderDef.pinned ?? false,
 			createdAt: now,
 			updatedAt: now,
-			userId,
+			userId
 		}
 		items.push(folder)
 	}
@@ -321,7 +334,7 @@ export function generatePreseededItems(userId: string): Item[] {
 			favorite: noteDef.favorite ?? false,
 			createdAt: now,
 			updatedAt: now,
-			userId,
+			userId
 		}
 		items.push(note)
 	}
@@ -343,4 +356,3 @@ export function clearPreseededFlag(): void {
 	if (typeof window === 'undefined') return
 	localStorage.removeItem('zero_session:preseeded')
 }
-

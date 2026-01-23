@@ -1,17 +1,17 @@
-import type { Folder as FolderType, Item } from '../types'
+import type { Folder as FolderType, Item } from "../types";
 
 /**
  * Recursively finds an item by its ID in a tree of items.
  */
 export function findItemById(items: Item[], id: string): Item | undefined {
-    for (const item of items) {
-        if (item.id === id) return item
-        if (item.type === 'folder') {
-            const found = findItemById(item.children, id)
-            if (found) return found
-        }
-    }
-    return undefined
+	for (const item of items) {
+		if (item.id === id) return item
+		if (item.type === 'folder') {
+			const found = findItemById(item.children, id)
+			if (found) return found
+		}
+	}
+	return undefined
 }
 
 /**
@@ -19,28 +19,28 @@ export function findItemById(items: Item[], id: string): Item | undefined {
  * Returns null if not found or if found item is not a folder.
  */
 export function findFolderById(items: Item[], id: string): FolderType | null {
-    const item = findItemById(items, id)
-    return item?.type === 'folder' ? (item as FolderType) : null
+	const item = findItemById(items, id)
+	return item?.type === 'folder' ? (item as FolderType) : null
 }
 
 /**
  * Checks if a child item is a descendant of a parent folder.
  */
 export function isDescendant(items: Item[], parentId: string, childId: string): boolean {
-    const parent = findFolderById(items, parentId)
-    if (!parent) return false
+	const parent = findFolderById(items, parentId)
+	if (!parent) return false
 
-    function checkChildren(folder: FolderType): boolean {
-        return folder.children.some((child) => {
-            if (child.id === childId) return true
-            if (child.type === 'folder') {
-                return checkChildren(child as FolderType)
-            }
-            return false
-        })
-    }
+	function checkChildren(folder: FolderType): boolean {
+		return folder.children.some((child) => {
+			if (child.id === childId) return true
+			if (child.type === 'folder') {
+				return checkChildren(child as FolderType)
+			}
+			return false
+		})
+	}
 
-    return checkChildren(parent)
+	return checkChildren(parent)
 }
 
 /**

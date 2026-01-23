@@ -1,15 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type {
-	CSSProperties,
-	ChangeEvent,
-	FormEvent,
-	MouseEvent,
-	PointerEvent,
-} from 'react'
-import { cn } from '@skriuw/shared'
-import type { PartialBlock, BlockNoteEditor } from '@blocknote/core'
+import type { PartialBlock, BlockNoteEditor } from "@blocknote/core";
+import { cn } from "@skriuw/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ChangeEvent, FormEvent, MouseEvent, PointerEvent } from "react";
 
 type Point = {
 	x: number
@@ -64,7 +58,7 @@ export function CommandSurface({
 	onFiles,
 	onArchive,
 	onDelete,
-	className,
+	className
 }: Props) {
 	const [menu, setMenu] = useState<Menu>('root')
 	const [linkValue, setLinkValue] = useState('')
@@ -74,41 +68,50 @@ export function CommandSurface({
 		active: false,
 		pointerId: null,
 		startY: 0,
-		startTime: 0,
+		startTime: 0
 	})
 
 	const canEdit = Boolean(context.editor)
 
 	const baseOffset = open ? '0px' : `calc(100% - ${handleHeight}px)`
 
-	const sheetStyle = useMemo(function sheetStyle() {
-		return {
-			'--sheet-offset': baseOffset,
-			'--drag-offset': `${dragOffset}px`,
-		} as CSSProperties
-	}, [baseOffset, dragOffset])
+	const sheetStyle = useMemo(
+		function sheetStyle() {
+			return {
+				'--sheet-offset': baseOffset,
+				'--drag-offset': `${dragOffset}px`
+			} as CSSProperties
+		},
+		[baseOffset, dragOffset]
+	)
 
-	useEffect(function resetMenu() {
-		if (!open) {
-			setMenu('root')
-			setLinkValue('')
-		}
-	}, [open])
-
-	useEffect(function handleKeys() {
-		if (!open) return undefined
-
-		function handleKey(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				onOpenChange(false)
+	useEffect(
+		function resetMenu() {
+			if (!open) {
+				setMenu('root')
+				setLinkValue('')
 			}
-		}
+		},
+		[open]
+	)
 
-		window.addEventListener('keydown', handleKey)
-		return function cleanup() {
-			window.removeEventListener('keydown', handleKey)
-		}
-	}, [open, onOpenChange])
+	useEffect(
+		function handleKeys() {
+			if (!open) return undefined
+
+			function handleKey(event: KeyboardEvent) {
+				if (event.key === 'Escape') {
+					onOpenChange(false)
+				}
+			}
+
+			window.addEventListener('keydown', handleKey)
+			return function cleanup() {
+				window.removeEventListener('keydown', handleKey)
+			}
+		},
+		[open, onOpenChange]
+	)
 
 	const handleAction = useCallback(
 		function handleAction(event: MouseEvent<HTMLButtonElement>) {
@@ -184,20 +187,17 @@ export function CommandSurface({
 		[context, linkValue, onLink, onOpenChange]
 	)
 
-	const startDrag = useCallback(
-		function startDrag(event: PointerEvent<HTMLDivElement>) {
-			if (event.pointerType === 'mouse' && event.button !== 0) return
-			event.currentTarget.setPointerCapture(event.pointerId)
-			dragRef.current = {
-				active: true,
-				pointerId: event.pointerId,
-				startY: event.clientY,
-				startTime: performance.now(),
-			}
-			setIsDragging(true)
-		},
-		[]
-	)
+	const startDrag = useCallback(function startDrag(event: PointerEvent<HTMLDivElement>) {
+		if (event.pointerType === 'mouse' && event.button !== 0) return
+		event.currentTarget.setPointerCapture(event.pointerId)
+		dragRef.current = {
+			active: true,
+			pointerId: event.pointerId,
+			startY: event.clientY,
+			startTime: performance.now()
+		}
+		setIsDragging(true)
+	}, [])
 
 	const moveDrag = useCallback(
 		function moveDrag(event: PointerEvent<HTMLDivElement>) {
@@ -236,7 +236,7 @@ export function CommandSurface({
 				active: false,
 				pointerId: null,
 				startY: 0,
-				startTime: 0,
+				startTime: 0
 			}
 		},
 		[onOpenChange, open]
@@ -266,7 +266,7 @@ export function CommandSurface({
 				{ key: 'notes', label: 'Navigate to Notes' },
 				{ key: 'files', label: 'Navigate to Files' },
 				{ key: 'archive', label: 'Archive note' },
-				{ key: 'delete', label: 'Delete note' },
+				{ key: 'delete', label: 'Delete note' }
 			]
 		},
 		[canEdit]
@@ -278,7 +278,7 @@ export function CommandSurface({
 			{ key: 'bullet', label: 'Bullet list' },
 			{ key: 'check', label: 'Checkbox' },
 			{ key: 'code', label: 'Code block' },
-			{ key: 'divider', label: 'Divider' },
+			{ key: 'divider', label: 'Divider' }
 		]
 	}, [])
 
@@ -286,7 +286,7 @@ export function CommandSurface({
 		<div className={cn('fixed inset-0 z-[80]', className)}>
 			{open ? (
 				<button
-					type="button"
+					type='button'
 					onClick={handleClose}
 					className={cn(
 						'fixed inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200',
@@ -303,35 +303,35 @@ export function CommandSurface({
 				)}
 				style={{
 					transform: 'translate3d(0, calc(var(--sheet-offset) + var(--drag-offset)), 0)',
-					...sheetStyle,
+					...sheetStyle
 				}}
-				role="dialog"
-				aria-modal="true"
+				role='dialog'
+				aria-modal='true'
 				aria-hidden={!open}
 			>
 				<div
-					className="flex items-center justify-center"
+					className='flex items-center justify-center'
 					onPointerDown={startDrag}
 					onPointerMove={moveDrag}
 					onPointerUp={endDrag}
 					onPointerCancel={endDrag}
 				>
 					<button
-						type="button"
+						type='button'
 						onClick={handleToggle}
-						className="h-7 w-12 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm"
+						className='h-7 w-12 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm'
 						aria-label={open ? 'Close command surface' : 'Open command surface'}
 					/>
 				</div>
 				{open ? (
-					<div className="mt-3 rounded-t-2xl border-t border-white/10 bg-[#0b0b0b]/95 backdrop-blur-xl px-4 pb-6 pt-2">
+					<div className='mt-3 rounded-t-2xl border-t border-white/10 bg-[#0b0b0b]/95 backdrop-blur-xl px-4 pb-6 pt-2'>
 						{menu === 'root' && (
-							<div className="flex flex-col gap-2">
+							<div className='flex flex-col gap-2'>
 								{rootItems.map(function renderItem(item) {
 									return (
 										<button
 											key={item.key}
-											type="button"
+											type='button'
 											data-action={item.key}
 											onClick={handleAction}
 											disabled={item.disabled}
@@ -348,11 +348,11 @@ export function CommandSurface({
 							</div>
 						)}
 						{menu === 'blocks' && (
-							<div className="flex flex-col gap-2">
+							<div className='flex flex-col gap-2'>
 								<button
-									type="button"
+									type='button'
 									onClick={handleBack}
-									className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
+									className='flex items-center gap-2 text-xs uppercase tracking-wide text-white/50'
 								>
 									Back
 								</button>
@@ -360,10 +360,10 @@ export function CommandSurface({
 									return (
 										<button
 											key={item.key}
-											type="button"
+											type='button'
 											data-kind={item.key}
 											onClick={handleBlock}
-											className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99]"
+											className='flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99]'
 										>
 											<span>{item.label}</span>
 										</button>
@@ -372,29 +372,29 @@ export function CommandSurface({
 							</div>
 						)}
 						{menu === 'link' && (
-							<form onSubmit={handleLinkSubmit} className="flex flex-col gap-3">
+							<form onSubmit={handleLinkSubmit} className='flex flex-col gap-3'>
 								<button
-									type="button"
+									type='button'
 									onClick={handleBack}
-									className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
+									className='flex items-center gap-2 text-xs uppercase tracking-wide text-white/50'
 								>
 									Back
 								</button>
-								<label className="flex flex-col gap-2 text-sm text-white/70">
+								<label className='flex flex-col gap-2 text-sm text-white/70'>
 									<span>Link URL</span>
 									<input
-										type="url"
-										inputMode="url"
-										placeholder="https://"
+										type='url'
+										inputMode='url'
+										placeholder='https://'
 										value={linkValue}
 										onChange={handleLinkChange}
-										className="h-11 rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white/90 outline-none focus:border-white/30"
+										className='h-11 rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white/90 outline-none focus:border-white/30'
 									/>
 								</label>
 								<button
-									type="submit"
+									type='submit'
 									disabled={!linkValue.trim()}
-									className="h-11 rounded-xl border border-white/10 bg-white/10 text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99] disabled:opacity-40"
+									className='h-11 rounded-xl border border-white/10 bg-white/10 text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99] disabled:opacity-40'
 								>
 									Insert link
 								</button>
@@ -417,14 +417,14 @@ export function createBlock(kind: BlockKind): PartialBlock {
 			type: 'heading',
 			props: { level: 2 },
 			content: [],
-			children: [],
+			children: []
 		}
 	}
 	if (kind === 'bullet') {
 		return {
 			type: 'bulletListItem',
 			content: [],
-			children: [],
+			children: []
 		}
 	}
 	if (kind === 'check') {
@@ -432,7 +432,7 @@ export function createBlock(kind: BlockKind): PartialBlock {
 			type: 'checkListItem',
 			props: { checked: false },
 			content: [],
-			children: [],
+			children: []
 		}
 	}
 	if (kind === 'code') {
@@ -440,12 +440,13 @@ export function createBlock(kind: BlockKind): PartialBlock {
 			type: 'codeBlock',
 			props: { language: 'text' },
 			content: [],
-			children: [],
+			children: []
 		}
 	}
-	return {
-		type: 'divider',
-		content: [],
-		children: [],
+	if (kind === 'divider') {
+		return {
+			type: 'divider'
+		}
 	}
+	throw new Error(`Unknown block kind: ${kind}`)
 }

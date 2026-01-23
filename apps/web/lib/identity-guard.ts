@@ -1,16 +1,16 @@
 'use client'
 
-import { useSession } from './auth-client'
-import { useCallback, useRef } from 'react'
+import { useSession } from "./auth-client";
+import { useCallback, useRef } from "react";
 
-export interface IdentityState {
+export type IdentityState = {
 	hasIdentity: boolean
 	isAuthenticated: boolean
 	isAnonymous: boolean
 	userId?: string
 }
 
-export interface IdentityGuardResult<T = void> {
+export type IdentityGuardResult<T = void> = {
 	success: boolean
 	data?: T
 	error?: string
@@ -40,7 +40,7 @@ export function useIdentityState(): IdentityState {
 	}
 }
 
-export interface WithIdentityOptions {
+export type WithIdentityOptions = {
 	action?: string
 	errorMessage?: string
 	showModal?: boolean
@@ -98,9 +98,7 @@ export function useWithIdentity() {
 			fn: T,
 			options: WithIdentityOptions = {}
 		): ((...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>) => {
-			return async (
-				...args: Parameters<T>
-			): Promise<Awaited<ReturnType<T>>> => {
+			return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
 				const { errorMessage = 'Authentication required' } = options
 
 				if (!identity.hasIdentity) {
@@ -125,9 +123,10 @@ export function useWithIdentity() {
 	)
 }
 
-export function createCrudGuard<
-	T extends Record<string, (...args: any[]) => Promise<any>>
->(operations: T, defaultOptions: WithIdentityOptions = {}): T {
+export function createCrudGuard<T extends Record<string, (...args: any[]) => Promise<any>>>(
+	operations: T,
+	defaultOptions: WithIdentityOptions = {}
+): T {
 	const wrapped = {} as T
 
 	for (const [key, fn] of Object.entries(operations)) {

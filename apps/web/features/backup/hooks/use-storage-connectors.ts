@@ -1,13 +1,8 @@
-import { useCallback, useMemo, useState, useEffect } from 'react'
-
-import { STORAGE_CONNECTOR_DEFINITIONS } from '../core/connectors'
-import type {
-	StorageConnectorDefinition,
-	StorageConnectorState,
-	StorageConnectorType,
-} from '../core/types'
-import { validateConnectorConfig } from '../core/validation'
-import type { OAuth2Tokens } from '../core/types'
+import { STORAGE_CONNECTOR_DEFINITIONS } from "../core/connectors";
+import type { StorageConnectorDefinition, StorageConnectorState, StorageConnectorType } from "../core/types";
+import type { OAuth2Tokens } from "../core/types";
+import { validateConnectorConfig } from "../core/validation";
+import { useCallback, useMemo, useState, useEffect } from "react";
 
 function generateConnectorId(type: StorageConnectorType): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -29,10 +24,14 @@ function normalizeConfig(definition: StorageConnectorDefinition, config: Record<
 }
 
 function findMissingFields(definition: StorageConnectorDefinition, config: Record<string, string>) {
-	return definition.fields
-		// Skip OAuth2 fields - they use oauth2Tokens, not config values
-		.filter((field) => field.type !== 'oauth2' && field.required && !config[field.name]?.trim())
-		.map((field) => field.label)
+	return (
+		definition.fields
+			// Skip OAuth2 fields - they use oauth2Tokens, not config values
+			.filter(
+				(field) => field.type !== 'oauth2' && field.required && !config[field.name]?.trim()
+			)
+			.map((field) => field.label)
+	)
 }
 
 export function useStorageConnectors() {
@@ -75,7 +74,7 @@ export function useStorageConnectors() {
 			const res = await fetch('/api/storage/connectors', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(connector),
+				body: JSON.stringify(connector)
 			})
 			if (!res.ok) {
 				throw new Error('Failed to save connector')
@@ -127,7 +126,7 @@ export function useStorageConnectors() {
 				lastValidatedAt: now,
 				lastError: null,
 				config: normalizedConfig,
-				oauth2Tokens,
+				oauth2Tokens
 			}
 
 			await persist(updated)
@@ -157,7 +156,9 @@ export function useStorageConnectors() {
 				}
 
 				// Check if OAuth is required but no tokens are provided
-				const hasOAuth2Field = definition.fields.some((f) => f.type === 'oauth2' && f.required)
+				const hasOAuth2Field = definition.fields.some(
+					(f) => f.type === 'oauth2' && f.required
+				)
 				if (hasOAuth2Field && !oauth2Tokens?.access_token) {
 					throw new Error('Please connect via OAuth first using the "Connect" button')
 				}
@@ -172,7 +173,7 @@ export function useStorageConnectors() {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ type, config: normalized, oauth2Tokens }),
-						signal: controller.signal,
+						signal: controller.signal
 					})
 				} finally {
 					clearTimeout(timeoutId)
@@ -194,13 +195,14 @@ export function useStorageConnectors() {
 					lastValidatedAt: now,
 					lastError: null,
 					config: normalized,
-					oauth2Tokens,
+					oauth2Tokens
 				}
 
 				await persist(success)
 				return success
 			} catch (error) {
-				let message = error instanceof Error ? error.message : 'Failed to validate connector'
+				let message =
+					error instanceof Error ? error.message : 'Failed to validate connector'
 				if (error instanceof Error && error.name === 'AbortError') {
 					message = 'Connection timed out after 10s'
 				}
@@ -211,9 +213,9 @@ export function useStorageConnectors() {
 						...existing,
 						status: 'error',
 						lastError: message,
-						lastValidatedAt: new Date().toISOString(),
+						lastValidatedAt: new Date().toISOString()
 					}
-					await persist(errorState).catch(() => { })
+					await persist(errorState).catch(() => {})
 				}
 				throw error
 			} finally {
@@ -231,7 +233,7 @@ export function useStorageConnectors() {
 			const updated: StorageConnectorState = {
 				...existing,
 				status: 'disconnected',
-				lastValidatedAt: new Date().toISOString(),
+				lastValidatedAt: new Date().toISOString()
 			}
 			await persist(updated)
 		},
@@ -241,7 +243,7 @@ export function useStorageConnectors() {
 	const removeConnector = useCallback(async (type: StorageConnectorType) => {
 		try {
 			const res = await fetch(`/api/storage/connectors?type=${type}`, {
-				method: 'DELETE',
+				method: 'DELETE'
 			})
 			if (!res.ok) {
 				throw new Error('Failed to delete connector')
@@ -274,7 +276,7 @@ export function useStorageConnectors() {
 				lastValidatedAt: now,
 				lastError: null,
 				config: normalizeConfig(definition, config),
-				oauth2Tokens,
+				oauth2Tokens
 			}
 
 			await persist(updated)
@@ -292,6 +294,6 @@ export function useStorageConnectors() {
 		testConnector,
 		disconnectConnector,
 		removeConnector,
-		connectWithOAuth2,
+		connectWithOAuth2
 	}
 }

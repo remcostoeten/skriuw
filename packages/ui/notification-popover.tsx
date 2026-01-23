@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import * as PopoverPrimitive from '@radix-ui/react-popover'
-import { Button } from './button'
-import { cn } from '@skriuw/shared'
+import { Button } from "./button";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { cn } from "@skriuw/shared";
+import { useState, useCallback, useRef, useEffect } from "react";
 
-export interface NotificationPopoverOptions {
+export type NotificationPopoverOptions = {
 	message: string
 	variant?: 'default' | 'info' | 'success' | 'warning'
 	duration?: number
@@ -13,7 +13,7 @@ export interface NotificationPopoverOptions {
 	}
 }
 
-interface NotificationPopoverState {
+type NotificationPopoverState = {
 	isOpen: boolean
 	options: NotificationPopoverOptions | null
 }
@@ -34,7 +34,7 @@ interface NotificationPopoverState {
 export function useNotificationPopover() {
 	const [state, setState] = useState<NotificationPopoverState>({
 		isOpen: false,
-		options: null,
+		options: null
 	})
 
 	const anchorRef = useRef<HTMLDivElement | null>(null)
@@ -48,7 +48,7 @@ export function useNotificationPopover() {
 
 		setState({
 			isOpen: true,
-			options,
+			options
 		})
 
 		// Auto-hide after duration
@@ -70,7 +70,7 @@ export function useNotificationPopover() {
 		if (state.isOpen && anchorRef.current) {
 			const position = state.options?.position || {
 				x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
-				y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0,
+				y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0
 			}
 			anchorRef.current.style.position = 'fixed'
 			anchorRef.current.style.left = `${position.x}px`
@@ -98,12 +98,12 @@ export function useNotificationPopover() {
 		return (
 			<PopoverPrimitive.Root open={state.isOpen}>
 				<PopoverPrimitive.Anchor asChild>
-					<div ref={anchorRef} aria-hidden="true" />
+					<div ref={anchorRef} aria-hidden='true' />
 				</PopoverPrimitive.Anchor>
 				<PopoverPrimitive.Portal>
 					<PopoverPrimitive.Content
-						align="center"
-						side="top"
+						align='center'
+						side='top'
 						sideOffset={8}
 						className={cn(
 							'z-50 w-80 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden',
@@ -113,18 +113,20 @@ export function useNotificationPopover() {
 							'data-[side=top]:slide-in-from-bottom-2',
 							{
 								'border-blue-200 bg-blue-50 text-blue-900': variant === 'info',
-								'border-green-200 bg-green-50 text-green-900': variant === 'success',
-								'border-yellow-200 bg-yellow-50 text-yellow-900': variant === 'warning',
+								'border-green-200 bg-green-50 text-green-900':
+									variant === 'success',
+								'border-yellow-200 bg-yellow-50 text-yellow-900':
+									variant === 'warning'
 							}
 						)}
 					>
-						<div className="flex items-center gap-2">
-							<div className="flex-1 text-sm">{message}</div>
+						<div className='flex items-center gap-2'>
+							<div className='flex-1 text-sm'>{message}</div>
 							<Button
-								variant="ghost"
-								size="sm"
+								variant='ghost'
+								size='sm'
 								onClick={handleClose}
-								className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+								className='h-6 w-6 p-0 text-muted-foreground hover:text-foreground'
 							>
 								×
 							</Button>
@@ -137,6 +139,6 @@ export function useNotificationPopover() {
 
 	return {
 		showNotification,
-		NotificationPopover: NotificationPopoverComponent,
+		NotificationPopover: NotificationPopoverComponent
 	}
 }

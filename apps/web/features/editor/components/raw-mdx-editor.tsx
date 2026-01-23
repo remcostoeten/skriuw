@@ -1,18 +1,17 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import dynamic from 'next/dynamic'
-import type { OnMount, Monaco } from '@monaco-editor/react'
-import { cn } from '@skriuw/shared'
-import { useSettingsContext } from '../../settings/settings-provider'
+import { useSettingsContext } from "../../settings/settings-provider";
+import type { OnMount, Monaco } from "@monaco-editor/react";
+import { cn } from "@skriuw/shared";
+import dynamic from "next/dynamic";
+import React, { useState, useRef, useEffect } from "react";
 
 // Dynamically import Monaco - no SSR, loads only when needed
-const MonacoEditor = dynamic(
-	() => import('@monaco-editor/react').then((mod) => mod.default),
-	{ ssr: false }
-)
+const MonacoEditor = dynamic(() => import('@monaco-editor/react').then((mod) => mod.default), {
+	ssr: false
+})
 
-interface RawMDXEditorProps {
+type RawMDXEditorProps = {
 	value: string
 	onChange: (value: string) => void
 	className?: string
@@ -34,8 +33,8 @@ export const EDITOR_THEMES = {
 			'editor.background': '#161616',
 			'editor.lineHighlightBackground': '#1e1e1e',
 			'editorLineNumber.foreground': '#555555',
-			'editorLineNumber.activeForeground': '#888888',
-		},
+			'editorLineNumber.activeForeground': '#888888'
+		}
 	},
 	'github-dark': {
 		label: 'GitHub Dark',
@@ -44,18 +43,18 @@ export const EDITOR_THEMES = {
 			'editor.background': '#0d1117',
 			'editor.lineHighlightBackground': '#161b22',
 			'editorLineNumber.foreground': '#484f58',
-			'editorLineNumber.activeForeground': '#7d8590',
-		},
+			'editorLineNumber.activeForeground': '#7d8590'
+		}
 	},
-	'dracula': {
+	dracula: {
 		label: 'Dracula',
 		base: 'vs-dark' as const,
 		colors: {
 			'editor.background': '#282a36',
 			'editor.lineHighlightBackground': '#44475a',
 			'editorLineNumber.foreground': '#6272a4',
-			'editorLineNumber.activeForeground': '#f8f8f2',
-		},
+			'editorLineNumber.activeForeground': '#f8f8f2'
+		}
 	},
 	'one-dark': {
 		label: 'One Dark',
@@ -64,29 +63,29 @@ export const EDITOR_THEMES = {
 			'editor.background': '#282c34',
 			'editor.lineHighlightBackground': '#2c313c',
 			'editorLineNumber.foreground': '#495162',
-			'editorLineNumber.activeForeground': '#abb2bf',
-		},
+			'editorLineNumber.activeForeground': '#abb2bf'
+		}
 	},
-	'monokai': {
+	monokai: {
 		label: 'Monokai',
 		base: 'vs-dark' as const,
 		colors: {
 			'editor.background': '#272822',
 			'editor.lineHighlightBackground': '#3e3d32',
 			'editorLineNumber.foreground': '#90908a',
-			'editorLineNumber.activeForeground': '#c2c2bf',
-		},
+			'editorLineNumber.activeForeground': '#c2c2bf'
+		}
 	},
 	'vs-dark': {
 		label: 'VS Code Dark',
 		base: 'vs-dark' as const,
-		colors: {}, // Use Monaco's built-in vs-dark
+		colors: {} // Use Monaco's built-in vs-dark
 	},
 	'vs-light': {
 		label: 'VS Code Light',
 		base: 'vs' as const,
-		colors: {},
-	},
+		colors: {}
+	}
 } as const
 
 export type EditorTheme = keyof typeof EDITOR_THEMES
@@ -99,7 +98,7 @@ function defineAllThemes(monaco: Monaco) {
 				base: themeConfig.base,
 				inherit: true,
 				rules: [],
-				colors: themeConfig.colors,
+				colors: themeConfig.colors
 			})
 		}
 	})
@@ -118,7 +117,7 @@ export function RawMDXEditor({
 	wordWrap = true,
 	fontSize = '14px',
 	fontFamily = '"Fira Code", "Menlo", "Monaco", monospace',
-	lineHeight = 1.4,
+	lineHeight = 1.4
 }: RawMDXEditorProps) {
 	const [isReady, setIsReady] = useState(false)
 	const monacoRef = useRef<Monaco | null>(null)
@@ -178,9 +177,9 @@ export function RawMDXEditor({
 				disabled && 'opacity-50 pointer-events-none',
 				className
 			)}
-			role="textbox"
-			aria-label="MDX Editor"
-			aria-multiline="true"
+			role='textbox'
+			aria-label='MDX Editor'
+			aria-multiline='true'
 			aria-readonly={disabled}
 		>
 			<div
@@ -190,12 +189,12 @@ export function RawMDXEditor({
 				)}
 			>
 				<MonacoEditor
-					height="100%"
-					defaultLanguage="markdown"
+					height='100%'
+					defaultLanguage='markdown'
 					value={value}
 					onChange={handleChange}
 					onMount={handleEditorDidMount}
-					theme="vs-dark"
+					theme='vs-dark'
 					loading={null}
 					options={{
 						readOnly: disabled,
@@ -221,18 +220,18 @@ export function RawMDXEditor({
 							vertical: 'auto',
 							horizontal: 'auto',
 							verticalScrollbarSize: 8,
-							horizontalScrollbarSize: 8,
+							horizontalScrollbarSize: 8
 						},
 						accessibilitySupport: 'on',
-						ariaLabel: 'MDX Code Editor',
+						ariaLabel: 'MDX Code Editor'
 					}}
 				/>
 			</div>
 
 			{isReady && (
 				<div
-					className="absolute bottom-4 right-4 text-xs text-muted-foreground pointer-events-none bg-background/80 backdrop-blur-sm px-2 py-1 rounded border border-border z-10"
-					aria-hidden="true"
+					className='absolute bottom-4 right-4 text-xs text-muted-foreground pointer-events-none bg-background/80 backdrop-blur-sm px-2 py-1 rounded border border-border z-10'
+					aria-hidden='true'
 				>
 					MDX Mode
 				</div>

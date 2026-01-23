@@ -1,7 +1,7 @@
-import type { Item, Note, Folder } from '@/features/notes/types'
-import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
-import type { SkriuwExportData } from './export-notes'
-import { generateId } from '@skriuw/shared'
+import type { SkriuwExportData } from "./export-notes";
+import type { Item, Note, Folder } from "@/features/notes/types";
+import { markdownToBlocks } from "@/features/notes/utils/markdown-to-blocks";
+import { generateId } from "@skriuw/shared";
 
 export type ImportFormat = 'json' | 'markdown'
 
@@ -13,14 +13,14 @@ export type ImportMode = 'merge' | 'replace'
 /**
  * The import options
  */
-export interface ImportOptions {
+export type ImportOptions = {
 	mode: ImportMode
 }
 
 /**
  * The import result
  */
-export interface ImportResult {
+export type ImportResult = {
 	success: boolean
 	importedNotes: number
 	importedFolders: number
@@ -31,7 +31,7 @@ export interface ImportResult {
 /**
  * The parsed markdown note
  */
-export interface ParsedMarkdownNote {
+export type ParsedMarkdownNote = {
 	title: string
 	content: string
 	metadata: {
@@ -69,8 +69,10 @@ function parseFrontmatter(markdown: string): { frontmatter: Record<string, any>;
 		let value = line.substring(colonIndex + 1).trim()
 
 		// Remove quotes
-		if ((value.startsWith('"') && value.endsWith('"')) ||
-			(value.startsWith("'") && value.endsWith("'"))) {
+		if (
+			(value.startsWith('"') && value.endsWith('"')) ||
+			(value.startsWith("'") && value.endsWith("'"))
+		) {
 			value = value.slice(1, -1)
 		}
 
@@ -94,8 +96,7 @@ function parseMarkdownFile(content: string, filename: string): ParsedMarkdownNot
 	const { frontmatter, content: markdownContent } = parseFrontmatter(content)
 
 	// Extract title from frontmatter or filename
-	const title = frontmatter.title ||
-		filename.replace(/\.md$/i, '').replace(/-/g, ' ')
+	const title = frontmatter.title || filename.replace(/\.md$/i, '').replace(/-/g, ' ')
 
 	return {
 		title,
@@ -106,8 +107,8 @@ function parseMarkdownFile(content: string, filename: string): ParsedMarkdownNot
 			updatedAt: frontmatter.updatedAt,
 			pinned: frontmatter.pinned,
 			favorite: frontmatter.favorite,
-			folder: frontmatter.folder,
-		},
+			folder: frontmatter.folder
+		}
 	}
 }
 
@@ -145,13 +146,13 @@ function sanitizeItems(items: any[]): Item[] {
 				pinnedAt: item.pinnedAt,
 				favorite: Boolean(item.favorite),
 				createdAt: item.createdAt || now,
-				updatedAt: item.updatedAt || now,
+				updatedAt: item.updatedAt || now
 			} as Note
 		}
 
 		if (item.type === 'folder') {
 			const children = Array.isArray(item.children)
-				? item.children.map(sanitizeItem).filter(Boolean) as Item[]
+				? (item.children.map(sanitizeItem).filter(Boolean) as Item[])
 				: []
 
 			return {
@@ -163,7 +164,7 @@ function sanitizeItems(items: any[]): Item[] {
 				pinned: Boolean(item.pinned),
 				pinnedAt: item.pinnedAt,
 				createdAt: item.createdAt || now,
-				updatedAt: item.updatedAt || now,
+				updatedAt: item.updatedAt || now
 			} as Folder
 		}
 
@@ -187,7 +188,9 @@ export async function importFromJson(jsonContent: string): Promise<ImportResult>
 				success: false,
 				importedNotes: 0,
 				importedFolders: 0,
-				errors: ['Invalid Skriuw backup format. Please use a valid Skriuw JSON export file.'],
+				errors: [
+					'Invalid Skriuw backup format. Please use a valid Skriuw JSON export file.'
+				]
 			}
 		}
 
@@ -213,14 +216,16 @@ export async function importFromJson(jsonContent: string): Promise<ImportResult>
 			importedNotes: notes,
 			importedFolders: folders,
 			errors,
-			items,
+			items
 		}
 	} catch (error) {
 		return {
 			success: false,
 			importedNotes: 0,
 			importedFolders: 0,
-			errors: [`Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`],
+			errors: [
+				`Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+			]
 		}
 	}
 }
@@ -255,7 +260,7 @@ export async function importFromMarkdown(
 					: now,
 				updatedAt: parsed.metadata.updatedAt
 					? new Date(parsed.metadata.updatedAt).getTime()
-					: now,
+					: now
 			}
 
 			// Handle folder structure from metadata or file path
@@ -271,7 +276,7 @@ export async function importFromMarkdown(
 						type: 'folder',
 						children: [],
 						createdAt: now,
-						updatedAt: now,
+						updatedAt: now
 					}
 					folderMap.set(folderPath, folder)
 					items.push(folder)
@@ -282,7 +287,9 @@ export async function importFromMarkdown(
 				items.push(note)
 			}
 		} catch (error) {
-			errors.push(`Failed to import ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+			errors.push(
+				`Failed to import ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+			)
 		}
 	}
 
@@ -306,7 +313,7 @@ export async function importFromMarkdown(
 		importedNotes: noteCount,
 		importedFolders: folderCount,
 		errors,
-		items,
+		items
 	}
 }
 
@@ -342,20 +349,20 @@ export async function processImportFiles(files: FileList | File[]): Promise<Impo
 			success: false,
 			importedNotes: 0,
 			importedFolders: 0,
-			errors: ['No files selected'],
+			errors: ['No files selected']
 		}
 	}
 
 	// Check if it's a JSON file (Skriuw backup)
-	const jsonFile = fileArray.find(f => f.name.endsWith('.json'))
+	const jsonFile = fileArray.find((f) => f.name.endsWith('.json'))
 	if (jsonFile) {
 		const content = await readFileAsText(jsonFile)
 		return importFromJson(content)
 	}
 
 	// Otherwise, treat as markdown files
-	const markdownFiles = fileArray.filter(f =>
-		f.name.endsWith('.md') || f.name.endsWith('.markdown')
+	const markdownFiles = fileArray.filter(
+		(f) => f.name.endsWith('.md') || f.name.endsWith('.markdown')
 	)
 
 	if (markdownFiles.length === 0) {
@@ -363,14 +370,14 @@ export async function processImportFiles(files: FileList | File[]): Promise<Impo
 			success: false,
 			importedNotes: 0,
 			importedFolders: 0,
-			errors: ['No valid files found. Please upload .json or .md files.'],
+			errors: ['No valid files found. Please upload .json or .md files.']
 		}
 	}
 
 	const filesWithContent = await Promise.all(
 		markdownFiles.map(async (file) => ({
 			name: file.name,
-			content: await readFileAsText(file),
+			content: await readFileAsText(file)
 		}))
 	)
 

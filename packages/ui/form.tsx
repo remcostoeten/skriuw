@@ -1,24 +1,15 @@
-import * as LabelPrimitive from '@radix-ui/react-label'
-import { Slot } from '@radix-ui/react-slot'
-import * as React from 'react'
-import {
-	Controller,
-	ControllerProps,
-	FieldPath,
-	FieldValues,
-	FormProvider,
-	useFormContext,
-} from 'react-hook-form'
-
-import { Label } from './label'
-
-import { cn } from '@skriuw/shared'
+import { Label } from "./label";
+import * as LabelPrimitive from "@radix-ui/react-label";
+import { Slot } from "@radix-ui/react-slot";
+import { cn } from "@skriuw/shared";
+import * as React from "react";
+import { Controller, ControllerProps, FieldPath, FieldValues, FormProvider, useFormContext } from "react-hook-form";
 
 const Form = FormProvider
 
 type FormFieldContextValue<
 	TFieldValues extends FieldValues = FieldValues,
-	TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+	TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
 > = {
 	name: TName
 }
@@ -27,7 +18,7 @@ const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFi
 
 const FormField = <
 	TFieldValues extends FieldValues = FieldValues,
-	TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+	TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
 >({
 	...props
 }: ControllerProps<TFieldValues, TName>) => {
@@ -57,7 +48,7 @@ const useFormField = () => {
 		formItemId: `${id}-form-item`,
 		formDescriptionId: `${id}-form-item-description`,
 		formMessageId: `${id}-form-item-message`,
-		...fieldState,
+		...fieldState
 	}
 }
 
@@ -107,7 +98,9 @@ const FormControl = React.forwardRef<
 		<Slot
 			ref={ref}
 			id={formItemId}
-			aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
+			aria-describedby={
+				!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`
+			}
 			aria-invalid={!!error}
 			{...props}
 		/>
@@ -164,5 +157,5 @@ export {
 	FormControl,
 	FormDescription,
 	FormMessage,
-	FormField,
+	FormField
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 
 export const MOBILE_BREAKPOINT = '(max-width: 767px)'
 

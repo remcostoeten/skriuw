@@ -1,4 +1,4 @@
-import type { Item, Note, Folder } from '@/features/notes'
+import type { Item, Note, Folder } from "@/features/notes";
 
 export type NoteMentionCandidate = {
 	id: string
@@ -34,7 +34,7 @@ export function buildMentionCandidates(items: Item[]): NoteMentionCandidate[] {
 			id: current.id,
 			title: current.name,
 			path,
-			updatedAt: current.updatedAt,
+			updatedAt: current.updatedAt
 		})
 	}
 
@@ -57,7 +57,7 @@ export function searchNoteMentions(
 				? {
 						...candidate,
 						score: match.score,
-						titleHighlights: buildHighlightParts(candidate.title, match.matches),
+						titleHighlights: buildHighlightParts(candidate.title, match.matches)
 					}
 				: null
 		})
@@ -81,7 +81,7 @@ function fuzzyScore(text: string, query: string): FuzzyMatch | null {
 	if (!query) {
 		return {
 			score: 0,
-			matches: [],
+			matches: []
 		}
 	}
 

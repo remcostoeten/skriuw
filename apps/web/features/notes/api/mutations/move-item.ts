@@ -1,11 +1,10 @@
 'use server'
-import { update, readOne } from '@skriuw/crud'
 
-import { invalidateItemsCache } from '../queries/get-items'
-
-import type { Item } from '../../types'
-import { trackActivity } from '@/features/activity'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { Item } from "../../types";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { update, readOne } from "@skriuw/crud";
 
 export async function moveItem(
 	itemId: string,
@@ -13,14 +12,9 @@ export async function moveItem(
 ): Promise<boolean> {
 	try {
 		const itemResult = await readOne<Item>(STORAGE_KEYS.NOTES, itemId)
-		const itemName =
-			itemResult.success && itemResult.data
-				? itemResult.data.name
-				: 'Unknown'
+		const itemName = itemResult.success && itemResult.data ? itemResult.data.name : 'Unknown'
 		const entityType =
-			itemResult.success && itemResult.data?.type === 'folder'
-				? 'folder'
-				: 'note'
+			itemResult.success && itemResult.data?.type === 'folder' ? 'folder' : 'note'
 
 		const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, {
 			parentFolderId: targetFolderId

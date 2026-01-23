@@ -1,10 +1,10 @@
-import type { RecordActivityInput } from '../types'
-import { recordActivity } from '../api/mutations/record-activity'
+import { recordActivity } from "../api/mutations/record-activity";
+import type { RecordActivityInput } from "../types";
 
 /**
  * Fire-and-forget activity tracking.
  * Use this in mutations to track user actions without blocking the main operation.
- * 
+ *
  * @example
  * ```ts
  * trackActivity({
@@ -21,7 +21,7 @@ export function trackActivity(input: RecordActivityInput): void {
 			if (!result.success) {
 				// Ignore auth errors for guest users
 				if (result.error === 'Authentication required') return
-				
+
 				console.error('Activity tracking failed:', result.error)
 			}
 		})

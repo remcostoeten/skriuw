@@ -1,8 +1,8 @@
-import React, { useId, useRef, useState, useEffect } from 'react'
-import { cn } from '@skriuw/shared'
-import { CheckboxProps, CheckboxState } from './types'
-import { checkboxStyles, checkboxAnimations, checkboxSizes, focusRingStyles } from './variants'
-import { Loader2, Check, Minus } from 'lucide-react'
+import { CheckboxProps, CheckboxState } from "./types";
+import { checkboxStyles, checkboxAnimations, checkboxSizes, focusRingStyles } from "./variants";
+import { cn } from "@skriuw/shared";
+import { Loader2, Check, Minus } from "lucide-react";
+import React, { useId, useRef, useState, useEffect } from "react";
 
 /**
  * Enterprise-grade Checkbox Component
@@ -118,7 +118,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 				const syntheticEvent = {
 					...event,
 					target: { ...inputRef.current!, checked: !checked },
-					currentTarget: { ...inputRef.current!, checked: !checked },
+					currentTarget: { ...inputRef.current!, checked: !checked }
 				} as React.ChangeEvent<HTMLInputElement>
 				handleChange(syntheticEvent)
 			}
@@ -150,12 +150,12 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 		...(colors?.borderChecked && { '--checkbox-border-checked': colors.borderChecked }),
 		...(colors?.bgChecked && { '--checkbox-bg-checked': colors.bgChecked }),
 		...(colors?.borderIndeterminate && {
-			'--checkbox-border-indeterminate': colors.borderIndeterminate,
+			'--checkbox-border-indeterminate': colors.borderIndeterminate
 		}),
 		...(colors?.bgIndeterminate && { '--checkbox-bg-indeterminate': colors.bgIndeterminate }),
 		...(colors?.checkmark && { '--checkbox-checkmark': colors.checkmark }),
 		...(colors?.focusRing && { '--checkbox-focus-ring': colors.focusRing }),
-		...(colors?.hover && { '--checkbox-hover': colors.hover }),
+		...(colors?.hover && { '--checkbox-hover': colors.hover })
 	} as React.CSSProperties
 
 	const ariaAttributes = {
@@ -170,7 +170,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 		'aria-readonly': readOnly,
 		...Object.keys(restProps)
 			.filter((key) => key.startsWith('aria-'))
-			.reduce((acc, key) => ({ ...acc, [key]: restProps[key as keyof typeof restProps] }), {}),
+			.reduce((acc, key) => ({ ...acc, [key]: restProps[key as keyof typeof restProps] }), {})
 	}
 
 	const dataAttributes = Object.keys(restProps)
@@ -202,7 +202,11 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 
 	const getIconClasses = () => {
 		const iconState =
-			state === 'indeterminate' ? 'indeterminate' : state === 'checked' ? 'checked' : 'unchecked'
+			state === 'indeterminate'
+				? 'indeterminate'
+				: state === 'checked'
+					? 'checked'
+					: 'unchecked'
 
 		return cn(
 			'absolute flex items-center justify-center text-[hsl(var(--checkbox-checkmark,var(--primary-foreground)))]',
@@ -216,8 +220,8 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 		)
 	}
 
-	const defaultCheckedIcon = <Check className="w-full h-full" />
-	const defaultIndeterminateIcon = <Minus className="w-full h-full" />
+	const defaultCheckedIcon = <Check className='w-full h-full' />
+	const defaultIndeterminateIcon = <Minus className='w-full h-full' />
 
 	const checkboxElement = (
 		<div
@@ -235,7 +239,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 		>
 			<input
 				ref={inputRef}
-				type="checkbox"
+				type='checkbox'
 				id={checkboxId}
 				name={name}
 				value={value}
@@ -250,7 +254,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 				onBlur={handleBlur}
 				onKeyDown={handleKeyDown}
 				onKeyUp={onKeyUp}
-				className="sr-only"
+				className='sr-only'
 				{...ariaAttributes}
 			/>
 
@@ -278,11 +282,13 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 				)}
 
 				{!loading && state === 'indeterminate' && (
-					<div className={getIconClasses()}>{indeterminateIcon || defaultIndeterminateIcon}</div>
+					<div className={getIconClasses()}>
+						{indeterminateIcon || defaultIndeterminateIcon}
+					</div>
 				)}
 
 				{ripple && rippleActive && (
-					<div className="absolute inset-0 bg-[hsl(var(--checkbox-hover,var(--primary-20)))] rounded animate-ping" />
+					<div className='absolute inset-0 bg-[hsl(var(--checkbox-hover,var(--primary-20)))] rounded animate-ping' />
 				)}
 			</div>
 		</div>
@@ -310,12 +316,13 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 						className={cn(
 							'font-medium leading-none cursor-pointer select-none',
 							sizeConfig.label,
-							disabled && 'cursor-not-allowed opacity-[var(--checkbox-disabled-opacity)]',
+							disabled &&
+								'cursor-not-allowed opacity-[var(--checkbox-disabled-opacity)]',
 							labelClassName
 						)}
 					>
 						{label}
-						{required && <span className="ml-1 text-destructive">*</span>}
+						{required && <span className='ml-1 text-destructive'>*</span>}
 					</label>
 				)}
 			</div>
@@ -334,7 +341,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
 			)}
 
 			{error && (
-				<p id={errorId} className="text-sm text-destructive" role="alert">
+				<p id={errorId} className='text-sm text-destructive' role='alert'>
 					{error}
 				</p>
 			)}

@@ -1,4 +1,4 @@
-import type { Item, Note } from '../types'
+import type { Item, Note } from "../types";
 
 /**
  * Flattens all notes from the tree structure in order (depth-first)

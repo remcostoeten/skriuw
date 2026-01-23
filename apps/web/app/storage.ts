@@ -1,5 +1,5 @@
-import { setAdapter, hasAdapter } from '@skriuw/crud'
-import { createClientApiAdapter } from '../lib/storage/adapters/client-api'
+import { createClientApiAdapter } from "../lib/storage/adapters/client-api";
+import { setAdapter, hasAdapter } from "@skriuw/crud";
 
 let initializationPromise: Promise<void> | null = null
 

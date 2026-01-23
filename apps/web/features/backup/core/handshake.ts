@@ -1,7 +1,6 @@
-import { createHash, createHmac } from 'crypto'
-
-import { validateConnectorConfig } from './validation'
-import type { StorageConnectorType } from './types'
+import type { StorageConnectorType } from "./types";
+import { validateConnectorConfig } from "./validation";
+import { createHash, createHmac } from "crypto";
 
 export type HandshakeResult = { ok: true; message: string }
 
@@ -34,7 +33,7 @@ async function testS3(config: Record<string, string>): Promise<HandshakeResult> 
 		canonicalQuery,
 		canonicalHeaders,
 		signedHeaders,
-		payloadHash,
+		payloadHash
 	].join('\n')
 
 	const algorithm = 'AWS4-HMAC-SHA256'
@@ -43,7 +42,7 @@ async function testS3(config: Record<string, string>): Promise<HandshakeResult> 
 		algorithm,
 		amzDate,
 		credentialScope,
-		createHash('sha256').update(canonicalRequest).digest('hex'),
+		createHash('sha256').update(canonicalRequest).digest('hex')
 	].join('\n')
 
 	const kDate = createHmac('sha256', 'AWS4' + secretAccessKey)
@@ -62,8 +61,8 @@ async function testS3(config: Record<string, string>): Promise<HandshakeResult> 
 			host,
 			'x-amz-date': amzDate,
 			'x-amz-content-sha256': payloadHash,
-			Authorization: authorization,
-		},
+			Authorization: authorization
+		}
 	})
 
 	if (!res.ok) {
@@ -92,8 +91,8 @@ async function testDropbox(
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
-			'Content-Type': 'application/json',
-		},
+			'Content-Type': 'application/json'
+		}
 	})
 	if (!res.ok) {
 		const text = await res.text()
@@ -119,8 +118,8 @@ async function testDrive(
 				client_id: config.clientId,
 				client_secret: config.clientSecret,
 				refresh_token: config.refreshToken,
-				grant_type: 'refresh_token',
-			}),
+				grant_type: 'refresh_token'
+			})
 		})
 		if (!tokenRes.ok) {
 			const text = await tokenRes.text()
@@ -138,7 +137,7 @@ async function testDrive(
 	const aboutRes = await fetch(
 		'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',
 		{
-			headers: { Authorization: `Bearer ${accessToken}` },
+			headers: { Authorization: `Bearer ${accessToken}` }
 		}
 	)
 	if (!aboutRes.ok) {

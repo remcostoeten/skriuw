@@ -10,11 +10,6 @@
 		"lint": "eslint . --max-warnings 0",
 		"check-types": "tsc --noEmit"
 	},
-	"peerDependencies": {
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0",
-		"framer-motion": "^12.23.12"
-	},
 	"dependencies": {
 		"@internationalized/date": "^3.10.0",
 		"@radix-ui/react-alert-dialog": "^1.1.15",
@@ -53,5 +48,10 @@
 		"@types/react-dom": "^19.2.0",
 		"tsup": "^8.0.0",
 		"typescript": "^5.9.3"
+	},
+	"peerDependencies": {
+		"framer-motion": "^12.23.12",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
 	}
 }

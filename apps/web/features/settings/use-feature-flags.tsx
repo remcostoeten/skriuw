@@ -1,8 +1,6 @@
-import React, { useCallback, useMemo } from 'react'
-
-import { useSettingsContext } from './settings-provider'
-
-import type { UserSetting } from './types'
+import { useSettingsContext } from "./settings-provider";
+import type { UserSetting } from "./types";
+import React, { useCallback, useMemo } from "react";
 
 /**
  * Hook for accessing and managing user preferences
@@ -24,7 +22,7 @@ export function useUserPreferences() {
 		autoBackup: (value) => Boolean(value), // default false
 		rawMDXMode: (value) => Boolean(value), // default false (start with rich editor)
 		sideBySideMode: (value) => Boolean(value), // default false
-		'ui.animations': (value) => value !== false, // default true
+		'ui.animations': (value) => value !== false // default true
 	}
 
 	const isEnabled = useCallback(
@@ -78,91 +76,91 @@ export function useUserPreferences() {
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Automatically save notes while typing',
-				category: 'behavior',
+				category: 'behavior'
 			},
 			wordWrap: {
 				value: settings.wordWrap !== false, // default true
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Enable word wrapping in the editor',
-				category: 'editor',
+				category: 'editor'
 			},
 			spellCheck: {
 				value: settings.spellCheck !== false, // default true
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Enable spell checking',
-				category: 'editor',
+				category: 'editor'
 			},
 			showLineNumbers: {
 				value: settings.showLineNumbers || false,
 				defaultValue: false,
 				type: 'boolean',
 				description: 'Show line numbers in the editor',
-				category: 'editor',
+				category: 'editor'
 			},
 			markdownShortcuts: {
 				value: settings.markdownShortcuts !== false, // default true
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Enable markdown keyboard shortcuts',
-				category: 'editor',
+				category: 'editor'
 			},
 			previewPanel: {
 				value: settings.previewPanel !== false, // default true
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Show preview panel for markdown',
-				category: 'appearance',
+				category: 'appearance'
 			},
 			focusMode: {
 				value: settings.focusMode || false,
 				defaultValue: false,
 				type: 'boolean',
 				description: 'Enable focus mode (distraction-free writing)',
-				category: 'editor',
+				category: 'editor'
 			},
 			darkMode: {
 				value: settings.darkMode !== false, // default true
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Use dark mode theme',
-				category: 'appearance',
+				category: 'appearance'
 			},
 			autoBackup: {
 				value: settings.autoBackup || false,
 				defaultValue: false,
 				type: 'boolean',
 				description: 'Automatically backup notes',
-				category: 'backup',
+				category: 'backup'
 			},
 			rawMDXMode: {
 				value: settings.rawMDXMode || false,
 				defaultValue: false,
 				type: 'boolean',
 				description: 'Use raw MDX editor instead of rich editor',
-				category: 'editor',
+				category: 'editor'
 			},
 			sideBySideMode: {
 				value: settings.sideBySideMode || false,
 				defaultValue: false,
 				type: 'boolean',
 				description: 'Show rich editor and MDX editor side by side',
-				category: 'editor',
+				category: 'editor'
 			},
 			'ui.animations': {
 				value: settings['ui.animations'] !== false,
 				defaultValue: true,
 				type: 'boolean',
 				description: 'Enable interface animations (tab transitions, subtle motion)',
-				category: 'appearance',
-			},
+				category: 'appearance'
+			}
 		}
 
 		Object.entries(commonPreferences).forEach(([key, pref]) => {
 			preferences.push({
 				key,
-				...pref,
+				...pref
 			})
 		})
 
@@ -205,7 +203,7 @@ export function useUserPreferences() {
 		hasDarkMode,
 		hasAutoBackup,
 		hasRawMDXMode,
-		hasSideBySideMode,
+		hasSideBySideMode
 	}
 }
 
@@ -218,7 +216,7 @@ export function useUserPreference(preferenceKey: string, fallback?: React.ReactN
 	return {
 		isEnabled: isEnabled(preferenceKey),
 		shouldRender: isEnabled(preferenceKey),
-		fallback,
+		fallback
 	}
 }
 

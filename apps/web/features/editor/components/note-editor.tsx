@@ -1,22 +1,21 @@
 'use client'
 
-import { AlertCircle } from 'lucide-react'
-import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useSession } from '@/lib/auth-client'
-import { notify } from '@/lib/notify'
-import { haptic } from '@skriuw/shared'
-
-import { useShortcut } from '../../shortcuts/use-shortcut'
-import { useEditor } from '../hooks/use-editor'
-import { EmptyState } from '@skriuw/ui'
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { useUIStore } from '@/stores/ui-store'
-import { getArchiveId } from '@/features/notes/utils/archive-folder'
-
-import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
-import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from './bottom-command-surface'
+import { useShortcut } from "../../shortcuts/use-shortcut";
+import { useEditor } from "../hooks/use-editor";
+import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
+import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
+import type { Folder, Item } from "@/features/notes/types";
+import { getArchiveId } from "@/features/notes/utils/archive-folder";
+import { useSession } from "@/lib/auth-client";
+import { notify } from "@/lib/notify";
+import { useUIStore } from "@/stores/ui-store";
+import { haptic } from "@skriuw/shared";
+import { EmptyState } from "@skriuw/ui";
+import { AlertCircle } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 
 type Props = {
 	noteId: string
@@ -31,14 +30,14 @@ export function NoteEditor({
 	className = '',
 	showHeader = true,
 	autoSave = true,
-	autoSaveDelay = 1000,
+	autoSaveDelay = 1000
 }: Props) {
 	const { data: session } = useSession()
 	const router = useRouter()
 	const { editor, note, isLoading, error } = useEditor({
 		noteId,
 		autoSave,
-		autoSaveDelay,
+		autoSaveDelay
 	})
 	const { items, createNote, createFolder, moveItem, deleteItem } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
@@ -53,9 +52,7 @@ export function NoteEditor({
 	useShortcut('editor-focus', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement
 		const isInput =
-			target.tagName === 'INPUT' ||
-			target.tagName === 'TEXTAREA' ||
-			target.isContentEditable
+			target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
 		if (isInput) return
 
@@ -97,13 +94,16 @@ export function NoteEditor({
 		}
 	}, [editor, note, searchParams, noteId])
 
-	const context = useMemo<SurfaceContext>(function contextValue() {
-		return {
-			editor,
-			noteId,
-			cursor,
-		}
-	}, [cursor, editor, noteId])
+	const context = useMemo<SurfaceContext>(
+		function contextValue() {
+			return {
+				editor,
+				noteId,
+				cursor
+			}
+		},
+		[cursor, editor, noteId]
+	)
 
 	const handleCreate = useCallback(
 		async function handleCreate() {
@@ -125,28 +125,25 @@ export function NoteEditor({
 		[createNote, getNoteUrl, router]
 	)
 
-	const handleInsert = useCallback(
-		function handleInsert(kind: BlockKind, active: SurfaceContext) {
-			if (!active.editor) return
-			const position = active.editor.getTextCursorPosition()
-			const block = createBlock(kind)
-			const inserted = active.editor.insertBlocks([block], position.block, 'after')
-			if (inserted.length > 0) {
-				active.editor.setTextCursorPosition(inserted[0], 'end')
-			}
-		},
-		[]
-	)
+	const handleInsert = useCallback(function handleInsert(
+		kind: BlockKind,
+		active: SurfaceContext
+	) {
+		if (!active.editor) return
+		const position = active.editor.getTextCursorPosition()
+		const block = createBlock(kind)
+		const inserted = active.editor.insertBlocks([block], position.block, 'after')
+		if (inserted.length > 0) {
+			active.editor.setTextCursorPosition(inserted[0], 'end')
+		}
+	}, [])
 
-	const handleLink = useCallback(
-		function handleLink(url: string, active: SurfaceContext) {
-			if (!active.editor) return
-			const text = window.getSelection()?.toString() || url
-			active.editor.createLink(url, text)
-			active.editor.insertInlineContent(' ')
-		},
-		[]
-	)
+	const handleLink = useCallback(function handleLink(url: string, active: SurfaceContext) {
+		if (!active.editor) return
+		const text = window.getSelection()?.toString() || url
+		active.editor.createLink(url, text)
+		active.editor.insertInlineContent(' ')
+	}, [])
 
 	const handleNotes = useCallback(
 		function handleNotes() {
@@ -219,26 +216,29 @@ export function NoteEditor({
 		setCursor({ x: rect.left, y: rect.top })
 	}, [])
 
-	useEffect(function watchSelection() {
-		if (!surfaceOpen) return undefined
-		updateCursor()
-		document.addEventListener('selectionchange', updateCursor)
-		return function cleanup() {
-			document.removeEventListener('selectionchange', updateCursor)
-		}
-	}, [surfaceOpen, updateCursor])
+	useEffect(
+		function watchSelection() {
+			if (!surfaceOpen) return undefined
+			updateCursor()
+			document.addEventListener('selectionchange', updateCursor)
+			return function cleanup() {
+				document.removeEventListener('selectionchange', updateCursor)
+			}
+		},
+		[surfaceOpen, updateCursor]
+	)
 
 	if (error) {
 		return (
 			<EmptyState
-				message="Failed to load note"
+				message='Failed to load note'
 				submessage={error}
-				icon={<AlertCircle className="h-8 w-8 text-destructive" />}
+				icon={<AlertCircle className='h-8 w-8 text-destructive' />}
 				actions={[
 					{
 						label: 'Refresh page',
-						onClick: () => window.location.reload(),
-					},
+						onClick: () => window.location.reload()
+					}
 				]}
 				isFull
 			/>
@@ -248,13 +248,15 @@ export function NoteEditor({
 	// Show loading skeleton while fetching note data
 	if (isLoading || !note) {
 		return (
-			<div className={`flex-1 bg-background-secondary overflow-hidden flex flex-col touch-pan-y overscroll-none ${className}`}>
-				<div className="flex-1 p-8 animate-pulse">
-					<div className="h-8 w-48 bg-muted/50 rounded mb-6" />
-					<div className="space-y-3">
-						<div className="h-4 w-full bg-muted/30 rounded" />
-						<div className="h-4 w-5/6 bg-muted/30 rounded" />
-						<div className="h-4 w-4/6 bg-muted/30 rounded" />
+			<div
+				className={`flex-1 bg-background-secondary overflow-hidden flex flex-col touch-pan-y overscroll-none ${className}`}
+			>
+				<div className='flex-1 p-8 animate-pulse'>
+					<div className='h-8 w-48 bg-muted/50 rounded mb-6' />
+					<div className='space-y-3'>
+						<div className='h-4 w-full bg-muted/30 rounded' />
+						<div className='h-4 w-5/6 bg-muted/30 rounded' />
+						<div className='h-4 w-4/6 bg-muted/30 rounded' />
 					</div>
 				</div>
 			</div>
@@ -262,19 +264,21 @@ export function NoteEditor({
 	}
 
 	return (
-		<div className={`flex-1 bg-background-secondary overflow-y-auto flex flex-col touch-pan-y overscroll-none ${className}`}>
-			<div className="flex-1">
+		<div
+			className={`flex-1 bg-background-secondary overflow-y-auto flex flex-col touch-pan-y overscroll-none ${className}`}
+		>
+			<div className='flex-1'>
 				{isLoading ? (
 					<EmptyState
-						message="Loading editor..."
-						submessage="Please wait while we prepare your editor"
+						message='Loading editor...'
+						submessage='Please wait while we prepare your editor'
 					/>
 				) : editor ? (
 					<EditorWrapper ref={editorRef} editor={editor} />
 				) : (
 					<EmptyState
-						message="No editor available"
-						submessage="Unable to initialize the editor"
+						message='No editor available'
+						submessage='Unable to initialize the editor'
 						isFull
 					/>
 				)}
@@ -295,10 +299,7 @@ export function NoteEditor({
 	)
 }
 
-function getArchive(
-	items: Item[],
-	createFolder: (name?: string) => Promise<Folder>
-) {
+function getArchive(items: Item[], createFolder: (name?: string) => Promise<Folder>) {
 	const archive = findFolder(items, 'archive')
 	if (archive) {
 		return Promise.resolve(archive.id)

@@ -12,7 +12,8 @@
 			"es2022",
 			"es2015",
 			"es2017",
-			"es2015.promise"
+			"es2015.promise",
+			"webworker"
 		],
 		"types": [
 			"node"

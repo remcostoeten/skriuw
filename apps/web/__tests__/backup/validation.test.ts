@@ -1,6 +1,5 @@
-import { describe, it, expect } from 'vitest'
-
-import { validateConnectorConfig } from '../../features/backup/core/validation'
+import { validateConnectorConfig } from "../../features/backup/core/validation";
+import { describe, it, expect } from "vitest";
 
 describe('validateConnectorConfig', () => {
 	it('validates s3 config', () => {
@@ -8,7 +7,7 @@ describe('validateConnectorConfig', () => {
 			accessKeyId: 'AKIA123',
 			secretAccessKey: 'secret',
 			region: 'us-east-1',
-			bucket: 'my-bucket',
+			bucket: 'my-bucket'
 		})
 		expect(result.bucket).toBe('my-bucket')
 	})
@@ -19,7 +18,7 @@ describe('validateConnectorConfig', () => {
 				accessKeyId: '',
 				secretAccessKey: '',
 				region: '???',
-				bucket: '',
+				bucket: ''
 			})
 		).toThrow()
 	})
@@ -27,7 +26,7 @@ describe('validateConnectorConfig', () => {
 	it('validates dropbox config', () => {
 		const result = validateConnectorConfig('dropbox', {
 			accessToken: 'token',
-			rootPath: '/Apps/Skriuw',
+			rootPath: '/Apps/Skriuw'
 		})
 		expect(result.rootPath).toBe('/Apps/Skriuw')
 	})
@@ -37,7 +36,7 @@ describe('validateConnectorConfig', () => {
 			clientId: 'client',
 			clientSecret: 'secret',
 			refreshToken: 'refresh',
-			folderId: 'folder',
+			folderId: 'folder'
 		})
 		expect(result.clientSecret).toBe('secret')
 	})

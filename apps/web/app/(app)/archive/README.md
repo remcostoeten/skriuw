@@ -46,7 +46,7 @@ export default function ArchivePage() {
 import {
 	ExportPanelSkeleton,
 	ImportPanelSkeleton,
-	TrashPanelSkeleton,
+	TrashPanelSkeleton
 } from '@/app/archive/components'
 
 export function ArchiveContent({ activeTab, isTabLoading }) {
@@ -74,7 +74,7 @@ import {
 	ImportPanelSkeleton,
 	ImportPreviewSkeleton,
 	ImportingSkeleton,
-	ImportCompleteSkeleton,
+	ImportCompleteSkeleton
 } from '@/app/archive/components'
 
 export function ImportPanel() {
@@ -125,18 +125,18 @@ Each skeleton can be customized by editing the individual component files:
 // Example: Modify ExportPanelSkeleton
 export function ExportPanelSkeleton() {
 	return (
-		<div className="space-y-6">
+		<div className='space-y-6'>
 			{/* Custom stats layout */}
-			<div className="grid grid-cols-3 gap-4">
-				<Skeleton className="h-16 w-full" />
-				<Skeleton className="h-16 w-full" />
-				<Skeleton className="h-16 w-full" />
+			<div className='grid grid-cols-3 gap-4'>
+				<Skeleton className='h-16 w-full' />
+				<Skeleton className='h-16 w-full' />
+				<Skeleton className='h-16 w-full' />
 			</div>
 
 			{/* Custom format options */}
-			<div className="space-y-2">
+			<div className='space-y-2'>
 				{Array.from({ length: 3 }).map((_, i) => (
-					<Skeleton key={i} className="h-20 w-full" />
+					<Skeleton key={i} className='h-20 w-full' />
 				))}
 			</div>
 		</div>

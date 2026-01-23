@@ -6,10 +6,10 @@
 /**
  * Cache entry structure.
  */
-export interface CacheEntry<T> {
-    data: T
-    cachedAt: number
-    expiresAt: number
-    stale: boolean
-    key: string
+export type CacheEntry<T> = {
+	data: T
+	cachedAt: number
+	expiresAt: number
+	stale: boolean
+	key: string
 }

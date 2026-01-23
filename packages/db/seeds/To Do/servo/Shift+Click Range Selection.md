@@ -25,24 +25,24 @@ To determine "start" and "end" of a range, we need a linear list of **currently 
 
 ```typescript
 interface FlatItem {
-  id: string
-  parentId: string | null
-  level: number
-  node: TreeNode
+	id: string
+	parentId: string | null
+	level: number
+	node: TreeNode
 }
 
 const flattenTree = (nodes: TreeNode[], expandedIds: Set<string>, level = 0): FlatItem[] => {
-  let result: FlatItem[] = []
-  
-  for (const node of nodes) {
-    result.push({ id: node.id, parentId: node.parentId, level, node })
-    
-    if (node.type === 'folder' && expandedIds.has(node.id)) {
-      result = [...result, ...flattenTree(node.children, expandedIds, level + 1)]
-    }
-  }
-  
-  return result
+	let result: FlatItem[] = []
+
+	for (const node of nodes) {
+		result.push({ id: node.id, parentId: node.parentId, level, node })
+
+		if (node.type === 'folder' && expandedIds.has(node.id)) {
+			result = [...result, ...flattenTree(node.children, expandedIds, level + 1)]
+		}
+	}
+
+	return result
 }
 ```
 
@@ -56,15 +56,15 @@ const flattenTree = (nodes: TreeNode[], expandedIds: Set<string>, level = 0): Fl
 #### Interaction
 
 1. **Click (without Shift)**:
-   - Set `anchorId` = current ID.
-   - Set `selectedIds` = [current ID].
+    - Set `anchorId` = current ID.
+    - Set `selectedIds` = [current ID].
 
 2. **Shift+Click (target ID)**:
-   - Get linear list of visible items.
-   - Find index of `anchorId`.
-   - Find index of `target ID`.
-   - Select all items between `min(index1, index2)` and `max(index1, index2)`.
-   - Update `selectedIds`.
+    - Get linear list of visible items.
+    - Find index of `anchorId`.
+    - Find index of `target ID`.
+    - Select all items between `min(index1, index2)` and `max(index1, index2)`.
+    - Update `selectedIds`.
 
 ### 3. Visual Feedback
 
@@ -78,42 +78,42 @@ const flattenTree = (nodes: TreeNode[], expandedIds: Set<string>, level = 0): Fl
 
 ```typescript
 export function useSelection(items: TreeNode[], expandedIds: Set<string>) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [anchorId, setAnchorId] = useState<string | null>(null)
-  
-  const handleSelect = (id: string, event: React.MouseEvent) => {
-    if (event.shiftKey && anchorId) {
-      // Perform range selection
-      const flatList = flattenTree(items, expandedIds)
-      const startIdx = flatList.findIndex(item => item.id === anchorId)
-      const endIdx = flatList.findIndex(item => item.id === id)
-      
-      const newSelection = new Set<string>()
-      const [lower, upper] = [Math.min(startIdx, endIdx), Math.max(startIdx, endIdx)]
-      
-      for (let i = lower; i <= upper; i++) {
-        newSelection.add(flatList[i].id)
-      }
-      
-      setSelectedIds(newSelection)
-    } else if (event.metaKey || event.ctrlKey) {
-      // Toggle selection (Multi-select plan)
-      // ...
-    } else {
-      // Single select
-      setAnchorId(id)
-      setSelectedIds(new Set([id]))
-    }
-  }
-  
-  return { selectedIds, handleSelect }
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+	const [anchorId, setAnchorId] = useState<string | null>(null)
+
+	const handleSelect = (id: string, event: React.MouseEvent) => {
+		if (event.shiftKey && anchorId) {
+			// Perform range selection
+			const flatList = flattenTree(items, expandedIds)
+			const startIdx = flatList.findIndex((item) => item.id === anchorId)
+			const endIdx = flatList.findIndex((item) => item.id === id)
+
+			const newSelection = new Set<string>()
+			const [lower, upper] = [Math.min(startIdx, endIdx), Math.max(startIdx, endIdx)]
+
+			for (let i = lower; i <= upper; i++) {
+				newSelection.add(flatList[i].id)
+			}
+
+			setSelectedIds(newSelection)
+		} else if (event.metaKey || event.ctrlKey) {
+			// Toggle selection (Multi-select plan)
+			// ...
+		} else {
+			// Single select
+			setAnchorId(id)
+			setSelectedIds(new Set([id]))
+		}
+	}
+
+	return { selectedIds, handleSelect }
 }
 ```
 
 ## Edge Cases
 
 - **Collapsed Folders**: If a folder is collapsed, its children are not visible and should not be part of the selection range (unless the folder itself is selected). The `flattenTree` logic handles this by checking `expandedIds`.
-- **Hidden Items**: Ensure filtered-out items (search results) are handled correctly. The `flattenTree` should operate on the *rendered* list.
+- **Hidden Items**: Ensure filtered-out items (search results) are handled correctly. The `flattenTree` should operate on the _rendered_ list.
 - **Keyboard Navigation**: `Shift+ArrowDown` / `Shift+ArrowUp` should extend the selection from the anchor.
 
 ## Integration Steps

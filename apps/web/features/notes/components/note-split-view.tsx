@@ -1,27 +1,17 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-	type DragEvent,
-	type PointerEvent as ReactPointerEvent,
-} from 'react'
-
-
-import { EmptyState } from '@skriuw/ui'
-import { useShortcut } from '../../shortcuts'
-import { NoteEditor } from '../../editor/components/note-editor'
-import { useNotesContext } from '@/features/notes/context/notes-context'
-import { useNoteSlug } from '../hooks/use-note-slug'
-import { NOTE_TAB_DRAG_TYPE } from '../constants'
-import type { NoteTabDragPayload } from '../types'
-import { useSplitViewStore } from '../split-view/store'
-import { cn } from '@skriuw/shared'
-import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { NoteEditor } from "../../editor/components/note-editor";
+import { useShortcut } from "../../shortcuts";
+import { NOTE_TAB_DRAG_TYPE } from "../constants";
+import { useNoteSlug } from "../hooks/use-note-slug";
+import { useSplitViewStore } from "../split-view/store";
+import type { NoteTabDragPayload } from "../types";
+import { useNotesContext } from "@/features/notes/context/notes-context";
+import { cn } from "@skriuw/shared";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "@skriuw/shared/client";
+import { EmptyState } from "@skriuw/ui";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type NoteSplitViewProps = {
 	noteId: string
@@ -115,7 +105,11 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 		const currentActivePaneId = useSplitViewStore.getState().activePaneId
 		const currentPanes = useSplitViewStore.getState().panes
 		const pane = currentPanes.find((p) => p.id === currentActivePaneId)
-		if (pane && pane.noteId !== noteId && useSplitViewStore.getState().orientation === 'single') {
+		if (
+			pane &&
+			pane.noteId !== noteId &&
+			useSplitViewStore.getState().orientation === 'single'
+		) {
 			updatePaneNote(pane.id, noteId)
 		}
 
@@ -185,7 +179,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 			const startPos = event.nativeEvent[axis]
 			dragStartRef.current = {
 				pos: startPos,
-				sizes: renderedSizes,
+				sizes: renderedSizes
 			}
 			setIsResizing(true)
 
@@ -198,7 +192,8 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 				if (!containerSize) return
 
 				const delta =
-					(moveEvent[axis as 'clientX' | 'clientY'] - dragStartRef.current.pos) / containerSize
+					(moveEvent[axis as 'clientX' | 'clientY'] - dragStartRef.current.pos) /
+					containerSize
 
 				const nextSizes = [...dragStartRef.current.sizes]
 				nextSizes[0] = Math.min(Math.max(nextSizes[0] + delta, MIN_SIZE), 1 - MIN_SIZE)
@@ -272,7 +267,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 			panes,
 			router,
 			setActivePane,
-			updatePaneNote,
+			updatePaneNote
 		]
 	)
 
@@ -314,7 +309,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 	})
 
 	return (
-		<div className="flex h-full flex-1 flex-col overflow-hidden">
+		<div className='flex h-full flex-1 flex-col overflow-hidden'>
 			<div
 				ref={containerRef}
 				className={cn(
@@ -333,7 +328,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 							key={pane.id}
 							style={{
 								width: orientation === 'vertical' ? basis : '100%',
-								height: orientation === 'horizontal' ? basis : '100%',
+								height: orientation === 'horizontal' ? basis : '100%'
 							}}
 							className={cn(
 								'relative flex flex-1 flex-col overflow-hidden',
@@ -344,17 +339,20 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 							onDragLeave={handleDragLeave(pane.id)}
 							onDrop={handleDrop(pane.id)}
 						>
-							<div className="flex-1 overflow-auto" onScroll={handlePaneScroll(pane.id)}>
+							<div
+								className='flex-1 overflow-auto'
+								onScroll={handlePaneScroll(pane.id)}
+							>
 								{pane.noteId ? (
 									<NoteEditor
 										key={`${pane.id}-${pane.editorKey}-${pane.noteId}`}
 										noteId={pane.noteId}
-										className="h-full"
+										className='h-full'
 									/>
 								) : (
 									<EmptyState
-										message="Select a note"
-										submessage="Drop a tab or choose a note from the sidebar"
+										message='Select a note'
+										submessage='Drop a tab or choose a note from the sidebar'
 										isFull
 									/>
 								)}
@@ -365,7 +363,7 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 
 				{orientation !== 'single' && renderedPanes.length > 1 && (
 					<div
-						role="separator"
+						role='separator'
 						aria-orientation={orientation === 'vertical' ? 'vertical' : 'horizontal'}
 						onPointerDown={handleDividerPointerDown}
 						className={cn(

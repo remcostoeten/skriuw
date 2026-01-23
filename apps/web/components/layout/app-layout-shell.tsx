@@ -1,10 +1,8 @@
-import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from 'react'
-
-import { cn } from '@skriuw/shared'
-import { MOBILE_BREAKPOINT } from '@skriuw/shared/client'
-import { useMediaQuery } from '@skriuw/shared/client'
-import { Icons } from '@skriuw/ui'
-
+import { cn } from "@skriuw/shared";
+import { MOBILE_BREAKPOINT } from "@skriuw/shared/client";
+import { useMediaQuery } from "@skriuw/shared/client";
+import { Icons } from "@skriuw/ui";
+import { ReactNode, useRef, useState, type TouchEvent, type MouseEvent } from "react";
 
 type props = {
 	leftToolbar?: ReactNode
@@ -39,7 +37,7 @@ export function AppLayoutShell({
 	isTaskPanelOpen = false,
 	isSidebarOpen = false,
 	isDesktopSidebarOpen = true,
-	onSidebarClose,
+	onSidebarClose
 }: props) {
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 	const sidebarRef = useRef<HTMLDivElement>(null)
@@ -86,15 +84,17 @@ export function AppLayoutShell({
 	}
 
 	return (
-		<div className="h-screen w-screen flex flex-col bg-background overflow-hidden touch-pan-y pt-[env(safe-area-inset-top)]">
-			<div className="flex flex-1 overflow-hidden relative">
-
+		<div className='h-screen w-screen flex flex-col bg-background overflow-hidden touch-pan-y pt-[env(safe-area-inset-top)]'>
+			<div className='flex flex-1 overflow-hidden relative'>
 				{/* Enhanced backdrop for mobile - better z-index and handling */}
 				{isSidebarOpen && isMobile && (
-					<div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={handleBackdropClick} />
+					<div
+						className='fixed inset-0 bg-black/50 z-40 md:hidden'
+						onClick={handleBackdropClick}
+					/>
 				)}
 
-				{leftToolbar && <div className="hidden md:block">{leftToolbar}</div>}
+				{leftToolbar && <div className='hidden md:block'>{leftToolbar}</div>}
 
 				{/* Enhanced Sidebar with improved mobile behavior */}
 				{sidebar && (
@@ -114,7 +114,9 @@ export function AppLayoutShell({
 							isMobile && (isSidebarOpen ? 'translate-x-0' : '-translate-x-full'),
 							// Desktop toggle behavior
 							!isMobile &&
-							(isDesktopSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'),
+								(isDesktopSidebarOpen
+									? 'translate-x-0'
+									: '-translate-x-full md:translate-x-0'),
 							// Hide on desktop when closed
 							!isMobile && !isDesktopSidebarOpen && 'md:hidden',
 							// Hide via CSS when sidebarVisible is false (SPA-like, stays mounted)
@@ -122,12 +124,13 @@ export function AppLayoutShell({
 						)}
 						style={{
 							// Add shadow for mobile
-							boxShadow: isMobile && isSidebarOpen ? '2px 0 8px rgba(0,0,0,0.15)' : 'none',
+							boxShadow:
+								isMobile && isSidebarOpen ? '2px 0 8px rgba(0,0,0,0.15)' : 'none',
 							// Apply drag offset on mobile
 							transform:
 								isMobile && isSidebarOpen && dragOffset > 0
 									? `translateX(calc(-100% + ${dragOffset}px))`
-									: undefined,
+									: undefined
 						}}
 						onTouchStart={handleDragStart}
 						onTouchMove={handleDragMove}
@@ -149,10 +152,10 @@ export function AppLayoutShell({
 						isRightPanelOpen && !isTaskPanelOpen && 'pr-[500px]'
 					)}
 				>
-					<div className="sticky z-[60] top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+					<div className='sticky z-[60] top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border'>
 						{topToolbar}
 					</div>
-					<div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))] lg:pb-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
+					<div className='flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-background-secondary pb-[calc(2.25rem+env(safe-area-inset-bottom))] lg:pb-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[calc(5rem+env(safe-area-inset-bottom))]'>
 						{mainContent}
 					</div>
 					{footer}

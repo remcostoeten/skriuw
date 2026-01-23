@@ -1,14 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import {
-	getDatabase,
-	notes,
-	folders,
-	tasks,
-	settings,
-	shortcuts,
-	schema
-} from '@skriuw/db'
-import { eq } from 'drizzle-orm'
+import { getDatabase, notes, folders, tasks, settings, shortcuts, schema } from "@skriuw/db";
+import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic'
 
@@ -32,10 +24,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 	const { userId } = await context.params
 
 	if (!userId) {
-		return NextResponse.json(
-			{ error: 'User ID is required' },
-			{ status: 400 }
-		)
+		return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
 	}
 
 	try {
@@ -47,10 +36,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 		})
 
 		if (!existingUser) {
-			return NextResponse.json(
-				{ error: 'User not found' },
-				{ status: 404 }
-			)
+			return NextResponse.json({ error: 'User not found' }, { status: 404 })
 		}
 
 		// Delete the user - cascade will handle related data due to onDelete: 'cascade' in schema
@@ -89,10 +75,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 	const { userId } = await context.params
 
 	if (!userId) {
-		return NextResponse.json(
-			{ error: 'User ID is required' },
-			{ status: 400 }
-		)
+		return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
 	}
 
 	try {
@@ -106,10 +89,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 		})
 
 		if (!existingUser) {
-			return NextResponse.json(
-				{ error: 'User not found' },
-				{ status: 404 }
-			)
+			return NextResponse.json({ error: 'User not found' }, { status: 404 })
 		}
 
 		if (action === 'reset') {
@@ -123,17 +103,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 			}
 
 			// Delete tasks first (they reference notes)
-			const deletedTasks = await db
-				.delete(tasks)
-				.where(eq(tasks.userId, userId))
-				.returning()
+			const deletedTasks = await db.delete(tasks).where(eq(tasks.userId, userId)).returning()
 			deletedCounts.tasks = deletedTasks.length
 
 			// Delete notes
-			const deletedNotes = await db
-				.delete(notes)
-				.where(eq(notes.userId, userId))
-				.returning()
+			const deletedNotes = await db.delete(notes).where(eq(notes.userId, userId)).returning()
 			deletedCounts.notes = deletedNotes.length
 
 			// Delete folders
@@ -157,10 +131,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 				.returning()
 			deletedCounts.shortcuts = deletedShortcuts.length
 
-			const totalDeleted = Object.values(deletedCounts).reduce(
-				(a, b) => a + b,
-				0
-			)
+			const totalDeleted = Object.values(deletedCounts).reduce((a, b) => a + b, 0)
 
 			return NextResponse.json({
 				success: true,
@@ -175,10 +146,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 			})
 		}
 
-		return NextResponse.json(
-			{ error: 'Invalid action. Use action: "reset"' },
-			{ status: 400 }
-		)
+		return NextResponse.json({ error: 'Invalid action. Use action: "reset"' }, { status: 400 })
 	} catch (error) {
 		console.error('Failed to manage user:', error)
 		return NextResponse.json(

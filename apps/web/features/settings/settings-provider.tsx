@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useSettingsQuery, useSaveSettingsMutation } from "./hooks/use-settings-query";
+import React, { createContext, useContext, useEffect, type ReactNode } from "react";
 
 type SettingsContextValue = {
 	settings: Record<string, any>
@@ -44,17 +45,12 @@ const DEFAULT_SETTINGS = {
 
 	// UI preferences
 	'ui.animations': true,
-	sidebarHierarchyGuides: false,
+	sidebarHierarchyGuides: false
 } as const
-
-import {
-	useSettingsQuery,
-	useSaveSettingsMutation
-} from './hooks/use-settings-query'
 
 export function SettingsProvider({
 	children,
-	defaultSettings = DEFAULT_SETTINGS,
+	defaultSettings = DEFAULT_SETTINGS
 }: SettingsProviderProps) {
 	const { data: settingsEntity, isLoading: isQueryLoading } = useSettingsQuery()
 	const { mutate: saveSettings } = useSaveSettingsMutation()
@@ -63,14 +59,14 @@ export function SettingsProvider({
 	const settings = React.useMemo(() => {
 		return {
 			...defaultSettings,
-			...(settingsEntity?.settings ?? {})
+			...settingsEntity?.settings
 		}
 	}, [defaultSettings, settingsEntity])
 
-	// Initial loading state effectively handled by RQ, 
-	// but we can expose it if needed. 
-	// The original provider initialized isLoading=false and then set to true? 
-	// No, initialized false, then loadSettings set it? 
+	// Initial loading state effectively handled by RQ,
+	// but we can expose it if needed.
+	// The original provider initialized isLoading=false and then set to true?
+	// No, initialized false, then loadSettings set it?
 	// "const [isLoading, setIsLoading] = useState(false)"
 	// It seems it didn't block UI.
 	const isLoading = isQueryLoading
@@ -84,7 +80,9 @@ export function SettingsProvider({
 		// Determine the actual theme to apply
 		let themeToApply: string
 		if (settings.theme === 'system') {
-			themeToApply = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+			themeToApply = window.matchMedia('(prefers-color-scheme: dark)').matches
+				? 'dark'
+				: 'light'
 		} else {
 			themeToApply = settings.theme
 		}
@@ -95,7 +93,6 @@ export function SettingsProvider({
 			root.classList.add(themeToApply)
 		}
 	}, [settings.theme])
-
 
 	function updateSetting(key: string, value: any) {
 		// Optimistically update via mutation
@@ -113,7 +110,7 @@ export function SettingsProvider({
 		settings,
 		updateSetting,
 		resetSettings,
-		isLoading,
+		isLoading
 	}
 
 	return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

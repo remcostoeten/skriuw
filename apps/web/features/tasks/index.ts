@@ -8,5 +8,5 @@ export { TaskBreadcrumbs } from './components/task-breadcrumbs'
 export { TaskDescriptionEditor } from './components/task-description-editor'
 export * from './hooks/use-task-context'
 
-// Type exports  
+// Type exports
 export type { Task } from './types'

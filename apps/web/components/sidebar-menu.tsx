@@ -1,49 +1,23 @@
 'use client'
 
-import {
-	Pencil,
-	Hand,
-	Keyboard,
-	Settings,
-	Palette,
-	Sliders,
-	Search,
-	X,
-	ChevronDown,
-	ChevronRight,
-} from 'lucide-react'
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { useGesture } from '@use-gesture/react'
+import { useSettings, SettingsGroup as SettingsGroupComponent } from "../features/settings";
+import { EDITOR_SETTINGS_GROUPS } from "../features/settings/editor-settings";
+import type { SettingsGroup as SettingsGroupDefinition } from "../features/settings/types";
+import { resetAllShortcuts } from "../features/shortcuts/api/mutations/reset-all-shortcuts";
+import { resetShortcut } from "../features/shortcuts/api/mutations/reset-shortcut";
+import { saveShortcut } from "../features/shortcuts/api/mutations/save-shortcut";
+import { getShortcuts } from "../features/shortcuts/api/queries/get-shortcuts";
+import { ShortcutsList, ShortcutState } from "../features/shortcuts/components/shortcuts-list";
+import { ShortcutId, shortcutDefinitions, KeyCombo } from "../features/shortcuts/shortcut-definitions";
+import { StorageAdaptersPanel } from "@/features/backup/components/storage-adapters-panel";
+import { Button } from "@skriuw/ui/button";
+import { DrawerDialog, DrawerContent, DrawerClose, DrawerHeader, DrawerTitle, DrawerFooter, DialogAside, DialogContentArea, DialogNavGroup, DialogSection, DialogSeparator } from "@skriuw/ui/dialog-drawer";
+import { Input } from "@skriuw/ui/input";
+import { useGesture } from "@use-gesture/react";
+import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import {
-	DrawerDialog,
-	DrawerContent,
-	DrawerClose,
-	DrawerHeader,
-	DrawerTitle,
-	DrawerFooter,
-	DialogAside,
-	DialogContentArea,
-	DialogNavGroup,
-	DialogSection,
-	DialogSeparator,
-} from '@skriuw/ui/dialog-drawer'
-import { Input } from '@skriuw/ui/input'
-import { Button } from '@skriuw/ui/button'
-
-import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
-import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
-
-import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
-import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
-import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
-import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
-import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
-import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
-import { ShortcutId, shortcutDefinitions, KeyCombo } from '../features/shortcuts/shortcut-definitions'
-import type { SettingsGroup as SettingsGroupDefinition } from '../features/settings/types'
-
-interface MobileSettingsSectionProps {
+type MobileSettingsSectionProps = {
 	title: string
 	children: React.ReactNode
 	defaultExpanded?: boolean
@@ -55,31 +29,35 @@ function MobileSettingsSection({
 	title,
 	children,
 	defaultExpanded = false,
-	description,
+	description
 }: MobileSettingsSectionProps) {
 	const [isExpanded, setIsExpanded] = useState(defaultExpanded)
 	const sectionId = title.toLowerCase().replace(/\s+/g, '-')
 
 	return (
-		<div className="border-b border-border last:border-b-0">
+		<div className='border-b border-border last:border-b-0'>
 			<button
-				type="button"
-				className="w-full px-4 py-4 flex items-center justify-between touch-manipulation hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+				type='button'
+				className='w-full px-4 py-4 flex items-center justify-between touch-manipulation hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
 				onClick={() => setIsExpanded(!isExpanded)}
 				aria-expanded={isExpanded}
 				aria-controls={`${sectionId}-content`}
 				aria-describedby={description ? `${sectionId}-description` : undefined}
 			>
-				<div className="flex items-center gap-3 flex-1 text-left">
+				<div className='flex items-center gap-3 flex-1 text-left'>
 					<ChevronRight
-						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${isExpanded ? 'rotate-90' : ''
-							}`}
-						aria-hidden="true"
+						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${
+							isExpanded ? 'rotate-90' : ''
+						}`}
+						aria-hidden='true'
 					/>
 					<div>
-						<h3 className="text-base font-medium text-foreground">{title}</h3>
+						<h3 className='text-base font-medium text-foreground'>{title}</h3>
 						{description && (
-							<p id={`${sectionId}-description`} className="text-sm text-muted-foreground mt-1">
+							<p
+								id={`${sectionId}-description`}
+								className='text-sm text-muted-foreground mt-1'
+							>
 								{description}
 							</p>
 						)}
@@ -88,13 +66,12 @@ function MobileSettingsSection({
 			</button>
 			<div
 				id={`${sectionId}-content`}
-				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
-					}`}
+				className={`overflow-hidden transition-all duration-200 ${
+					isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
+				}`}
 				aria-hidden={!isExpanded}
 			>
-				<div className="px-4 pb-4 pt-2">
-					{children}
-				</div>
+				<div className='px-4 pb-4 pt-2'>{children}</div>
 			</div>
 		</div>
 	)
@@ -191,8 +168,8 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	const loadShortcuts = async () => {
 		const customShortcuts = await getShortcuts()
 
-		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions)
-			.map(([id, definition]) => {
+		const shortcutStates: ShortcutState[] = Object.entries(shortcutDefinitions).map(
+			([id, definition]) => {
 				const shortcutId = id as ShortcutId
 				const customKeys = customShortcuts[shortcutId]
 
@@ -201,9 +178,10 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					currentKeys: customKeys || definition.keys,
 					defaultKeys: definition.keys,
 					description: definition.description || id,
-					isCustomized: !!customKeys,
+					isCustomized: !!customKeys
 				}
-			})
+			}
+		)
 
 		setShortcuts(shortcutStates)
 	}
@@ -244,50 +222,53 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		}
 	}
 
-	const handleSettingChange = useCallback((key: string, value: unknown) => {
-		updateMultipleSettings({ [key]: value })
-	}, [updateMultipleSettings])
+	const handleSettingChange = useCallback(
+		(key: string, value: unknown) => {
+			updateMultipleSettings({ [key]: value })
+		},
+		[updateMultipleSettings]
+	)
 
 	const appItems = [
 		{
 			id: 'editor',
 			label: 'Editor',
-			icon: <Pencil className="w-4 h-4" />,
+			icon: <Pencil className='w-4 h-4' />,
 			active: activeItem === 'editor',
-			onClick: () => setActiveItem('editor'),
+			onClick: () => setActiveItem('editor')
 		},
 		{
 			id: 'appearance',
 			label: 'Appearance',
-			icon: <Palette className="w-4 h-4" />,
+			icon: <Palette className='w-4 h-4' />,
 			active: activeItem === 'appearance',
-			onClick: () => setActiveItem('appearance'),
+			onClick: () => setActiveItem('appearance')
 		},
 
 		{
 			id: 'advanced',
 			label: 'Advanced',
-			icon: <Sliders className="w-4 h-4" />,
+			icon: <Sliders className='w-4 h-4' />,
 			active: activeItem === 'advanced',
-			onClick: () => setActiveItem('advanced'),
+			onClick: () => setActiveItem('advanced')
 		},
 		{
 			id: 'shortcuts',
 			label: 'Shortcuts',
-			icon: <Keyboard className="w-4 h-4" />,
+			icon: <Keyboard className='w-4 h-4' />,
 			active: activeItem === 'shortcuts',
-			onClick: () => setActiveItem('shortcuts'),
-		},
+			onClick: () => setActiveItem('shortcuts')
+		}
 	]
 
 	const syncItems = [
 		{
 			id: 'Skriuw',
 			label: 'Skriuw Sync',
-			icon: <Hand className="w-4 h-4" />,
+			icon: <Hand className='w-4 h-4' />,
 			active: activeItem === 'Skriuw',
-			onClick: () => setActiveItem('Skriuw'),
-		},
+			onClick: () => setActiveItem('Skriuw')
+		}
 	]
 
 	function renderSettingsContent() {
@@ -304,9 +285,9 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					type: 'boolean',
 					description: 'Enable interface transitions and motion effects across the app',
 					category: 'appearance',
-					implemented: true,
-				},
-			],
+					implemented: true
+				}
+			]
 		}
 
 		const allSettingsGroups = [...EDITOR_SETTINGS_GROUPS, animationSetting]
@@ -315,7 +296,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		if (settingsGroup) {
 			if (isMobile) {
 				return (
-					<div className="space-y-1">
+					<div className='space-y-1'>
 						<MobileSettingsSection
 							title={settingsGroup.title}
 							description={settingsGroup.description}
@@ -343,34 +324,40 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		switch (activeItem) {
 			case 'shortcuts':
 				return (
-					<div className="space-y-6">
+					<div className='space-y-6'>
 						<div className={`${isMobile ? 'px-4 pt-4' : ''} space-y-2`}>
-							<h3 className={`${isMobile ? 'text-xl' : 'text-lg'} font-semibold text-foreground`}>Keyboard Shortcuts</h3>
-							<p className="text-sm text-muted-foreground">
+							<h3
+								className={`${isMobile ? 'text-xl' : 'text-lg'} font-semibold text-foreground`}
+							>
+								Keyboard Shortcuts
+							</h3>
+							<p className='text-sm text-muted-foreground'>
 								Customize keyboard shortcuts for quick access to common actions.
 							</p>
 						</div>
 
 						{/* Search */}
 						<div className={`${isMobile ? 'px-4' : ''} relative`}>
-							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+							<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none' />
 							<Input
 								ref={searchInputRef}
-								type="text"
-								placeholder="Search shortcuts..."
+								type='text'
+								placeholder='Search shortcuts...'
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className={`pl-9 ${isMobile ? 'h-11' : 'h-9'} w-full ${isMobile ? 'text-base' : ''}`}
-								aria-label="Search shortcuts"
+								aria-label='Search shortcuts'
 							/>
 						</div>
 
 						{/* Content */}
 						<div className={`flex-1 overflow-y-auto ${isMobile ? 'px-4' : ''}`}>
 							{filteredShortcuts.length === 0 ? (
-								<div className="py-12 text-center">
-									<p className="text-sm text-muted-foreground">
-										{searchQuery.trim() ? 'No shortcuts found' : 'No shortcuts available'}
+								<div className='py-12 text-center'>
+									<p className='text-sm text-muted-foreground'>
+										{searchQuery.trim()
+											? 'No shortcuts found'
+											: 'No shortcuts available'}
 									</p>
 								</div>
 							) : (
@@ -386,20 +373,22 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 						</div>
 
 						{/* Footer */}
-						<div className={`${isMobile ? 'px-4 py-4' : 'pt-4'} border-t border-border`}>
+						<div
+							className={`${isMobile ? 'px-4 py-4' : 'pt-4'} border-t border-border`}
+						>
 							{isMobile ? (
 								<Button
 									onClick={handleResetAll}
-									variant="outline"
-									size="lg"
-									className="w-full touch-manipulation"
+									variant='outline'
+									size='lg'
+									className='w-full touch-manipulation'
 								>
 									Reset All to Defaults
 								</Button>
 							) : (
 								<button
 									onClick={handleResetAll}
-									className="px-4 py-2 rounded-md border border-border hover:bg-accent/30 transition-colors text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+									className='px-4 py-2 rounded-md border border-border hover:bg-accent/30 transition-colors text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 								>
 									Reset All to Defaults
 								</button>
@@ -409,10 +398,10 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 				)
 			case 'Skriuw':
 				return (
-					<div className="space-y-4">
-						<div className="pb-4 mb-2 border-b border-border">
-							<h3 className="text-xl font-semibold text-foreground">Skriuw Sync</h3>
-							<p className="text-sm text-muted-foreground mt-1">
+					<div className='space-y-4'>
+						<div className='pb-4 mb-2 border-b border-border'>
+							<h3 className='text-xl font-semibold text-foreground'>Skriuw Sync</h3>
+							<p className='text-sm text-muted-foreground mt-1'>
 								Connect a cloud destination for backups and syncing.
 							</p>
 						</div>
@@ -429,33 +418,33 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		{
 			id: 'editor',
 			label: 'Editor',
-			icon: <Pencil className="w-5 h-5" />,
-			description: 'Editor preferences and behavior',
+			icon: <Pencil className='w-5 h-5' />,
+			description: 'Editor preferences and behavior'
 		},
 		{
 			id: 'appearance',
 			label: 'Appearance',
-			icon: <Palette className="w-5 h-5" />,
-			description: 'Theme and visual settings',
+			icon: <Palette className='w-5 h-5' />,
+			description: 'Theme and visual settings'
 		},
 		{
 			id: 'advanced',
 			label: 'Advanced',
-			icon: <Sliders className="w-5 h-5" />,
-			description: 'Advanced configuration options',
+			icon: <Sliders className='w-5 h-5' />,
+			description: 'Advanced configuration options'
 		},
 		{
 			id: 'shortcuts',
 			label: 'Shortcuts',
-			icon: <Keyboard className="w-5 h-5" />,
-			description: 'Keyboard shortcuts customization',
+			icon: <Keyboard className='w-5 h-5' />,
+			description: 'Keyboard shortcuts customization'
 		},
 		{
 			id: 'Skriuw',
 			label: 'Sync',
-			icon: <Hand className="w-5 h-5" />,
-			description: 'Data synchronization settings',
-		},
+			icon: <Hand className='w-5 h-5' />,
+			description: 'Data synchronization settings'
+		}
 	]
 
 	// Mobile layout
@@ -463,39 +452,38 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 		return (
 			<DrawerDialog open={open} onOpenChange={onOpenChange}>
 				<DrawerContent
-					className="flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation"
+					className='flex flex-col p-0 overflow-hidden max-h-[90vh] touch-manipulation'
 					enableDragToClose
 					dragThreshold={100}
 				>
-					<div
-						ref={drawerRef}
-						className="flex flex-col h-full"
-					>
+					<div ref={drawerRef} className='flex flex-col h-full'>
 						{/* Drag handle for mobile */}
-						<div className="flex justify-center py-2 cursor-grab active:cursor-grabbing">
-							<div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
+						<div className='flex justify-center py-2 cursor-grab active:cursor-grabbing'>
+							<div className='w-12 h-1 bg-muted-foreground/30 rounded-full' />
 						</div>
 
-
 						{/* Navigation */}
-						<div className="border-b border-border">
-							<nav role="navigation" aria-label="Settings sections">
+						<div className='border-b border-border'>
+							<nav role='navigation' aria-label='Settings sections'>
 								{navigationItems.map((item) => (
 									<button
 										key={item.id}
-										type="button"
+										type='button'
 										onClick={() => setActiveItem(item.id)}
-										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${activeItem === item.id
-											? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
-											: 'hover:bg-accent/30'
-											}`}
+										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
+											activeItem === item.id
+												? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
+												: 'hover:bg-accent/30'
+										}`}
 										aria-current={activeItem === item.id ? 'page' : undefined}
 									>
-										<span className="flex-shrink-0">{item.icon}</span>
-										<div className="text-left">
-											<div className="font-medium">{item.label}</div>
+										<span className='flex-shrink-0'>{item.icon}</span>
+										<div className='text-left'>
+											<div className='font-medium'>{item.label}</div>
 											{item.description && (
-												<div className="text-sm text-muted-foreground">{item.description}</div>
+												<div className='text-sm text-muted-foreground'>
+													{item.description}
+												</div>
 											)}
 										</div>
 									</button>
@@ -504,9 +492,7 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 						</div>
 
 						{/* Content */}
-						<div className="flex-1 overflow-y-auto">
-							{renderSettingsContent()}
-						</div>
+						<div className='flex-1 overflow-y-auto'>{renderSettingsContent()}</div>
 					</div>
 				</DrawerContent>
 			</DrawerDialog>
@@ -516,26 +502,26 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 	// Desktop layout (preserve existing 2-column design)
 	return (
 		<DrawerDialog open={open} onOpenChange={onOpenChange}>
-			<DrawerContent className="flex flex-col p-0 overflow-hidden">
-				<DrawerClose aria-label="Close settings" />
-				<div className="flex flex-row flex-1 min-h-0 max-w-5xl mx-auto w-full">
-					<DialogAside className="min-w-[220px] max-w-[220px] border-r border-border/50 bg-background/50 p-6 overflow-y-auto h-full">
-						<DrawerHeader className="w-full pb-6">
-							<DrawerTitle className="text-xl">Settings</DrawerTitle>
+			<DrawerContent className='flex flex-col p-0 overflow-hidden'>
+				<DrawerClose aria-label='Close settings' />
+				<div className='flex flex-row flex-1 min-h-0 max-w-5xl mx-auto w-full'>
+					<DialogAside className='min-w-[220px] max-w-[220px] border-r border-border/50 bg-background/50 p-6 overflow-y-auto h-full'>
+						<DrawerHeader className='w-full pb-6'>
+							<DrawerTitle className='text-xl'>Settings</DrawerTitle>
 						</DrawerHeader>
-						<DialogSection label="App">
+						<DialogSection label='App'>
 							<DialogNavGroup items={appItems} />
 						</DialogSection>
 
-						<DialogSeparator className="my-4 bg-border/50" />
+						<DialogSeparator className='my-4 bg-border/50' />
 
-						<DialogSection label="Synchronization">
+						<DialogSection label='Synchronization'>
 							<DialogNavGroup items={syncItems} />
 						</DialogSection>
 					</DialogAside>
 
-					<DialogContentArea className="flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background">
-						<div className="max-w-2xl mx-auto w-full">{renderSettingsContent()}</div>
+					<DialogContentArea className='flex-1 min-w-0 p-8 overflow-y-auto h-full bg-background'>
+						<div className='max-w-2xl mx-auto w-full'>{renderSettingsContent()}</div>
 					</DialogContentArea>
 				</div>
 			</DrawerContent>

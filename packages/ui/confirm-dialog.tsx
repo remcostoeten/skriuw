@@ -1,18 +1,8 @@
-import { useState } from 'react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./alert-dialog";
+import { Button } from "./button";
+import { useState } from "react";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from './alert-dialog'
-import { Button } from './button'
-
-export interface ConfirmDialogOptions {
+export type ConfirmDialogOptions = {
 	title: string
 	description: string
 	confirmText?: string
@@ -20,7 +10,7 @@ export interface ConfirmDialogOptions {
 	variant?: 'default' | 'destructive'
 }
 
-export interface ConfirmDialogState {
+export type ConfirmDialogState = {
 	isOpen: boolean
 	options: ConfirmDialogOptions | null
 	resolve: ((value: boolean) => void) | null
@@ -45,7 +35,7 @@ export function useConfirmDialog() {
 	const [state, setState] = useState<ConfirmDialogState>({
 		isOpen: false,
 		options: null,
-		resolve: null,
+		resolve: null
 	})
 
 	const confirm = (options: ConfirmDialogOptions): Promise<boolean> => {
@@ -53,7 +43,7 @@ export function useConfirmDialog() {
 			setState({
 				isOpen: true,
 				options,
-				resolve,
+				resolve
 			})
 		})
 	}
@@ -80,7 +70,7 @@ export function useConfirmDialog() {
 			description,
 			confirmText = 'Confirm',
 			cancelText = 'Cancel',
-			variant = 'default',
+			variant = 'default'
 		} = state.options
 
 		return (
@@ -99,7 +89,7 @@ export function useConfirmDialog() {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel asChild>
-							<Button variant="outline" onClick={handleCancel}>
+							<Button variant='outline' onClick={handleCancel}>
 								{cancelText}
 							</Button>
 						</AlertDialogCancel>
@@ -119,6 +109,6 @@ export function useConfirmDialog() {
 
 	return {
 		confirm,
-		ConfirmDialog: ConfirmDialogComponent,
+		ConfirmDialog: ConfirmDialogComponent
 	}
 }

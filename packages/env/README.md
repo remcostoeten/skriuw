@@ -17,20 +17,20 @@ Unified, type-safe environment configuration for the Skriuw monorepo.
 import { env, database, auth, ai } from '@skriuw/env/server'
 
 // Direct access - fully typed!
-const dbUrl = env.DATABASE_URL          // string (validated)
-const provider = env.DATABASE_PROVIDER  // 'neon' | 'postgres'
-const nodeEnv = env.NODE_ENV            // 'development' | 'test' | 'production'
+const dbUrl = env.DATABASE_URL // string (validated)
+const provider = env.DATABASE_PROVIDER // 'neon' | 'postgres'
+const nodeEnv = env.NODE_ENV // 'development' | 'test' | 'production'
 
 // Convenience getters
 if (database.isNeon) {
-  console.log('Using Neon serverless')
+	console.log('Using Neon serverless')
 }
 
 if (auth.github.isConfigured) {
-  // GitHub OAuth is available
+	// GitHub OAuth is available
 }
 
-const geminiKey = ai.geminiKey  // Uses backup key if primary is missing
+const geminiKey = ai.geminiKey // Uses backup key if primary is missing
 ```
 
 ### Client-side (React components)
@@ -39,7 +39,7 @@ const geminiKey = ai.geminiKey  // Uses backup key if primary is missing
 import { env, getAppUrl } from '@skriuw/env/client'
 
 // Only NEXT_PUBLIC_* variables are available
-const appUrl = getAppUrl()  // Auto-detects Vercel preview URLs
+const appUrl = getAppUrl() // Auto-detects Vercel preview URLs
 ```
 
 ## Error Messages
@@ -64,11 +64,11 @@ If environment variables are invalid, you'll see helpful messages:
 ```typescript
 // In schema.ts
 export const serverSchema = z.object({
-  // existing...
-  MY_NEW_VAR: z.string().min(1, 'MY_NEW_VAR is required'),
+	// existing...
+	MY_NEW_VAR: z.string().min(1, 'MY_NEW_VAR is required')
 })
 
 // Now accessible with types
 import { env } from '@skriuw/env/server'
-const value = env.MY_NEW_VAR  // TypeScript knows this is a string!
+const value = env.MY_NEW_VAR // TypeScript knows this is a string!
 ```

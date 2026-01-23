@@ -1,4 +1,4 @@
-import { SwitchAnimationVariant } from './types'
+import { SwitchAnimationVariant } from "./types";
 
 /**
  * Animation configurations for each switch variant
@@ -26,8 +26,8 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0)',
 			on: 'translateX(var(--switch-thumb-travel))',
-			transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-		},
+			transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)'
+		}
 	},
 	'slide-snappy': {
 		name: 'Slide Snappy',
@@ -37,8 +37,8 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0)',
 			on: 'translateX(var(--switch-thumb-travel))',
-			transition: 'transform 150ms cubic-bezier(0.65, 0, 0.35, 1)',
-		},
+			transition: 'transform 150ms cubic-bezier(0.65, 0, 0.35, 1)'
+		}
 	},
 	'slide-gentle': {
 		name: 'Slide Gentle',
@@ -48,8 +48,8 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0)',
 			on: 'translateX(var(--switch-thumb-travel))',
-			transition: 'transform 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
-		},
+			transition: 'transform 300ms cubic-bezier(0.25, 0.1, 0.25, 1)'
+		}
 	},
 	'slide-elastic': {
 		name: 'Slide Elastic',
@@ -59,8 +59,8 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0)',
 			on: 'translateX(var(--switch-thumb-travel))',
-			transition: 'transform 350ms cubic-bezier(0.68, -0.2, 0.32, 1.2)',
-		},
+			transition: 'transform 350ms cubic-bezier(0.68, -0.2, 0.32, 1.2)'
+		}
 	},
 	'slide-linear': {
 		name: 'Slide Linear',
@@ -70,8 +70,8 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0)',
 			on: 'translateX(var(--switch-thumb-travel))',
-			transition: 'transform 200ms linear',
-		},
+			transition: 'transform 200ms linear'
+		}
 	},
 	superlist: {
 		name: 'Superlist',
@@ -81,9 +81,9 @@ export const switchAnimations: Record<
 		thumbTransform: {
 			off: 'translateX(0) scale(1)',
 			on: 'translateX(var(--switch-thumb-travel)) scale(1)',
-			transition: 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-		},
-	},
+			transition: 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+		}
+	}
 }
 
 /**
@@ -99,7 +99,7 @@ export const switchSizes = {
 		thumbHeight: '16px',
 		thumbOffset: '2px',
 		thumbTravel: '16px',
-		label: 'text-sm',
+		label: 'text-sm'
 	},
 	md: {
 		track: 'w-11 h-6',
@@ -110,7 +110,7 @@ export const switchSizes = {
 		thumbHeight: '20px',
 		thumbOffset: '2px',
 		thumbTravel: '20px',
-		label: 'text-base',
+		label: 'text-base'
 	},
 	lg: {
 		track: 'w-14 h-7',
@@ -121,6 +121,6 @@ export const switchSizes = {
 		thumbHeight: '24px',
 		thumbOffset: '2px',
 		thumbTravel: '28px',
-		label: 'text-lg',
-	},
+		label: 'text-lg'
+	}
 }

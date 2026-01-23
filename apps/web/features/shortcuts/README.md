@@ -36,10 +36,10 @@ export const shortcutDefinitions = {
 	'my-action': {
 		keys: [
 			['Ctrl', 'k'],
-			['Meta', 'k'],
+			['Meta', 'k']
 		],
-		description: 'My action',
-	},
+		description: 'My action'
+	}
 }
 ```
 

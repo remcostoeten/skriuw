@@ -1,20 +1,9 @@
-import {
-	Menu,
-	PanelLeftClose,
-	PanelRightClose,
-	ChevronLeft,
-	ChevronRight,
-	Code,
-	Type,
-	Square,
-	SplitSquareHorizontal,
-} from 'lucide-react'
-
-import { IconButton } from '@skriuw/ui/icons'
-import { WindowControls } from './window-controls'
-import { isTauriAvailable, cn } from '@skriuw/shared'
-import { useIsTouchDevice } from '@skriuw/shared/client'
-import { UserMenu } from '../auth/user-menu'
+import { UserMenu } from "../auth/user-menu";
+import { WindowControls } from "./window-controls";
+import { isTauriAvailable, cn } from "@skriuw/shared";
+import { useIsTouchDevice } from "@skriuw/shared/client";
+import { IconButton } from "@skriuw/ui/icons";
+import { Menu, PanelLeftClose, PanelRightClose, ChevronLeft, ChevronRight, Code, Type, Square, SplitSquareHorizontal } from "lucide-react";
 
 type props = {
 	noteName: string
@@ -51,7 +40,7 @@ export function TopToolbar({
 	showSplitToggle = false,
 	isSplitViewActive = false,
 	onSplitToggle,
-	splitOrientation = 'single',
+	splitOrientation = 'single'
 }: props) {
 	const isTauri = isTauriAvailable()
 	const isTouchDevice = useIsTouchDevice()
@@ -71,37 +60,37 @@ export function TopToolbar({
 			>
 				{showSidebar && (
 					<IconButton
-						icon={<Menu className="w-4 h-4 text-muted-foreground" />}
-						tooltip="Toggle sidebar"
-						variant="toolbar"
+						icon={<Menu className='w-4 h-4 text-muted-foreground' />}
+						tooltip='Toggle sidebar'
+						variant='toolbar'
 						onClick={onToggleSidebar}
-						className="flex lg:hidden"
+						className='flex lg:hidden'
 					/>
 				)}
 
 				{showSidebar && (
 					<IconButton
-						icon={<PanelLeftClose className="w-4 h-4 text-muted-foreground" />}
-						tooltip="Toggle file tree"
-						variant="toolbar"
+						icon={<PanelLeftClose className='w-4 h-4 text-muted-foreground' />}
+						tooltip='Toggle file tree'
+						variant='toolbar'
 						onClick={onToggleDesktopSidebar}
-						className="hidden lg:flex"
+						className='hidden lg:flex'
 					/>
 				)}
 
 				{onNavigatePrevious && onNavigateNext && (
-					<div className="flex items-center gap-0.5 ml-1">
+					<div className='flex items-center gap-0.5 ml-1'>
 						<IconButton
-							icon={<ChevronLeft className="w-4 h-4 text-muted-foreground" />}
-							tooltip="Previous note"
-							variant="toolbar"
+							icon={<ChevronLeft className='w-4 h-4 text-muted-foreground' />}
+							tooltip='Previous note'
+							variant='toolbar'
 							onClick={onNavigatePrevious}
 							disabled={!canNavigatePrevious}
 						/>
 						<IconButton
-							icon={<ChevronRight className="w-4 h-4 text-muted-foreground" />}
-							tooltip="Next note"
-							variant="toolbar"
+							icon={<ChevronRight className='w-4 h-4 text-muted-foreground' />}
+							tooltip='Next note'
+							variant='toolbar'
 							onClick={onNavigateNext}
 							disabled={!canNavigateNext}
 						/>
@@ -127,24 +116,25 @@ export function TopToolbar({
 			</div>
 
 			<div
-				className={cn('flex items-center gap-1.5', isTouchDevice && 'gap-2 pr-[env(safe-area-inset-right)]')}
+				className={cn(
+					'flex items-center gap-1.5',
+					isTouchDevice && 'gap-2 pr-[env(safe-area-inset-right)]'
+				)}
 				data-tauri-drag-region={isTauri ? 'false' : undefined}
 			>
 				{showSplitToggle && (
 					<IconButton
 						icon={
 							splitOrientation === 'single' ? (
-								<SplitSquareHorizontal className="w-4 h-4 text-muted-foreground" />
+								<SplitSquareHorizontal className='w-4 h-4 text-muted-foreground' />
 							) : (
-								<Square className="w-4 h-4 text-muted-foreground" />
+								<Square className='w-4 h-4 text-muted-foreground' />
 							)
 						}
 						tooltip={
-							splitOrientation === 'single'
-								? 'Enable split view'
-								: 'Close split view'
+							splitOrientation === 'single' ? 'Enable split view' : 'Close split view'
 						}
-						variant="toolbar"
+						variant='toolbar'
 						className={cn(
 							'transition-colors',
 							isSplitViewActive && 'bg-accent/50 text-foreground'
@@ -157,27 +147,27 @@ export function TopToolbar({
 					<IconButton
 						icon={
 							isRawMDXMode ? (
-								<Type className="w-4 h-4 text-muted-foreground" />
+								<Type className='w-4 h-4 text-muted-foreground' />
 							) : (
-								<Code className="w-4 h-4 text-muted-foreground" />
+								<Code className='w-4 h-4 text-muted-foreground' />
 							)
 						}
 						tooltip={isRawMDXMode ? 'Switch to rich editor' : 'Switch to MDX mode'}
-						variant="toolbar"
-						shortcut="Ctrl+M / Meta+M"
+						variant='toolbar'
+						shortcut='Ctrl+M / Meta+M'
 						onClick={onToggleEditorMode}
 					/>
 				)}
 				{onToggleRightSidebar && (
 					<IconButton
-						icon={<PanelRightClose className="w-4 h-4 text-muted-foreground" />}
-						tooltip="Toggle note details"
-						variant="toolbar"
+						icon={<PanelRightClose className='w-4 h-4 text-muted-foreground' />}
+						tooltip='Toggle note details'
+						variant='toolbar'
 						onClick={onToggleRightSidebar}
 					/>
 				)}
 				<UserMenu />
-				{isTauri && <div className="ml-2 border-l border-border h-6" />}
+				{isTauri && <div className='ml-2 border-l border-border h-6' />}
 				{isTauri && <WindowControls />}
 			</div>
 		</div>

@@ -41,10 +41,10 @@ Created Tauri configuration and icons in `/apps/web/src-tauri/`:
 ### Configuration
 
 - `tauri.conf.json` - Tauri 2.0 configuration with:
-  - App metadata and identifiers
-  - Window settings (1200x800 default, 800x600 minimum)
-  - Bundle configuration for all platforms
-  - Icon references
+    - App metadata and identifiers
+    - Window settings (1200x800 default, 800x600 minimum)
+    - Bundle configuration for all platforms
+    - Icon references
 
 ## Mobile Assets (Ready for use)
 

@@ -1,26 +1,7 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { X } from 'lucide-react'
-import {
-	type ReactNode,
-	createContext,
-	useContext,
-	useEffect,
-	useRef,
-	useState,
-	type MouseEvent as ReactMouseEvent,
-	type TouchEvent as ReactTouchEvent,
-	type CSSProperties,
-	forwardRef,
-	useImperativeHandle,
-	type HTMLAttributes
-} from 'react'
-
-import {
-	createFocusTrap,
-	Portal,
-	useMediaQuery,
-	MOBILE_BREAKPOINT
-} from '@skriuw/shared/client'
+import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from "@skriuw/shared/client";
+import { AnimatePresence, motion } from "framer-motion";
+import { X } from "lucide-react";
+import { type ReactNode, createContext, useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent, type CSSProperties, forwardRef, useImperativeHandle, type HTMLAttributes } from "react";
 
 type DialogContextValue = {
 	open: boolean
@@ -34,15 +15,13 @@ const DialogContext = createContext<DialogContextValue | undefined>(undefined)
 // Centralized z-index tiersdd for app overlays
 const Z_INDEX = {
 	overlay: 60,
-	dialog: 70,
+	dialog: 70
 } as const
 
 function useDialogContext(): DialogContextValue {
 	const context = useContext(DialogContext)
 	if (!context) {
-		throw new Error(
-			'Dialog components must be used within a Dialog provider'
-		)
+		throw new Error('Dialog components must be used within a Dialog provider')
 	}
 	return context
 }
@@ -106,9 +85,7 @@ export function DrawerDialog({
 	}, [open])
 
 	return (
-		<DialogContext.Provider
-			value={{ open, onOpenChange, isMobile, fullscreen }}
-		>
+		<DialogContext.Provider value={{ open, onOpenChange, isMobile, fullscreen }}>
 			<DrawerDialogOverlay closeOnOutsideClick={closeOnOutsideClick} />
 			{children}
 		</DialogContext.Provider>
@@ -119,9 +96,7 @@ type DrawerDialogOverlayProps = {
 	closeOnOutsideClick?: boolean
 }
 
-function DrawerDialogOverlay({
-	closeOnOutsideClick = true
-}: DrawerDialogOverlayProps) {
+function DrawerDialogOverlay({ closeOnOutsideClick = true }: DrawerDialogOverlayProps) {
 	const { open, onOpenChange } = useDialogContext()
 
 	if (!open) return null
@@ -144,10 +119,10 @@ function DrawerDialogOverlay({
 							duration: 0.3,
 							ease: [0.25, 0.46, 0.45, 0.94]
 						}}
-						className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+						className='fixed inset-0 bg-black/70 backdrop-blur-sm'
 						style={{ zIndex: Z_INDEX.overlay }}
 						onClick={handleClick}
-						aria-hidden="true"
+						aria-hidden='true'
 					/>
 				</Portal>
 			)}
@@ -163,37 +138,28 @@ type MotionConflictingProps =
 	| 'onDrag'
 	| 'transition'
 
-export interface DrawerContentProps extends HTMLAttributes<HTMLDivElement> {
+export type DrawerContentProps = {
 	children: ReactNode
 	className?: string
 	enableDragToClose?: boolean
 	dragThreshold?: number
-}
+} & HTMLAttributes<HTMLDivElement>
 
 // Filter out props that conflict with Framer Motion
 function filterMotionProps(
-	props: Omit<DrawerContentProps, 'children' | 'className' | 'enableDragToClose' | 'dragThreshold'>
+	props: Omit<
+		DrawerContentProps,
+		'children' | 'className' | 'enableDragToClose' | 'dragThreshold'
+	>
 ): Omit<typeof props, MotionConflictingProps> {
-	const {
-		onAnimationStart,
-		onDragStart,
-		onDragEnd,
-		onDrag,
-		transition,
-		...safeProps
-	} = props as any
+	const { onAnimationStart, onDragStart, onDragEnd, onDrag, transition, ...safeProps } =
+		props as any
 	return safeProps
 }
 
 export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 	(
-		{
-			children,
-			className = '',
-			enableDragToClose = true,
-			dragThreshold = 100,
-			...props
-		},
+		{ children, className = '', enableDragToClose = true, dragThreshold = 100, ...props },
 		ref
 	) => {
 		const { open, onOpenChange, isMobile, fullscreen } = useDialogContext()
@@ -222,8 +188,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 
 			if (!isMobile || !enableDragToClose) return
 
-			const clientY =
-				'touches' in event ? event.touches[0].clientY : event.clientY
+			const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
 			startYRef.current = clientY
 			isDraggingRef.current = true
 		}
@@ -238,8 +203,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 
 			if (!isDraggingRef.current || startYRef.current === 0) return
 
-			const clientY =
-				'touches' in event ? event.touches[0].clientY : event.clientY
+			const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY
 			const diff = clientY - startYRef.current
 
 			if (diff > 0) {
@@ -277,16 +241,16 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 			return (
 				<Portal container={typeof window !== 'undefined' ? document.body : undefined}>
 					<div
-						className="fixed inset-0 flex flex-col pointer-events-none"
+						className='fixed inset-0 flex flex-col pointer-events-none'
 						style={{ zIndex: Z_INDEX.dialog, top: `${dragOffset}px` }}
 					>
-						<div className="flex-1 pointer-events-auto" />
+						<div className='flex-1 pointer-events-auto' />
 
 						<div
 							{...props}
 							ref={contentRef}
-							role="dialog"
-							aria-modal="true"
+							role='dialog'
+							aria-modal='true'
 							tabIndex={-1}
 							className={`bg-popover text-popover-foreground border-t border-border rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto max-h-[95vh] transition-transform ${className}`}
 							style={{
@@ -308,8 +272,8 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 							}}
 						>
 							{enableDragToClose && (
-								<div className="flex items-center justify-center pt-2 pb-2">
-									<div className="h-1 w-12 bg-border rounded-full" />
+								<div className='flex items-center justify-center pt-2 pb-2'>
+									<div className='h-1 w-12 bg-border rounded-full' />
 								</div>
 							)}
 							{children}
@@ -324,14 +288,14 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 				{open && (
 					<Portal container={typeof window !== 'undefined' ? document.body : undefined}>
 						<div
-							className="fixed inset-0 flex items-center justify-center p-6"
+							className='fixed inset-0 flex items-center justify-center p-6'
 							style={{ zIndex: Z_INDEX.dialog }}
 						>
 							<motion.div
 								{...filterMotionProps(props)}
 								ref={contentRef}
-								role="dialog"
-								aria-modal="true"
+								role='dialog'
+								aria-modal='true'
 								tabIndex={-1}
 								initial={{ opacity: 0, scale: 0.95 }}
 								animate={{ opacity: 1, scale: 1 }}
@@ -340,10 +304,11 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(
 									duration: 0.2,
 									ease: [0.4, 0, 0.2, 1]
 								}}
-								className={`${fullscreen
-									? 'w-full h-full'
-									: 'w-full h-full max-w-[1400px] max-h-[900px]'
-									} bg-popover text-popover-foreground rounded-xl shadow-2xl border border-border/40 flex flex-col overflow-hidden ${className}`}
+								className={`${
+									fullscreen
+										? 'w-full h-full'
+										: 'w-full h-full max-w-[1400px] max-h-[900px]'
+								} bg-popover text-popover-foreground rounded-xl shadow-2xl border border-border/40 flex flex-col overflow-hidden ${className}`}
 								onClick={handleContentClick}
 							>
 								{children}
@@ -374,10 +339,7 @@ export function DrawerTitle({
 	...props
 }: HTMLAttributes<HTMLHeadingElement>) {
 	return (
-		<h2
-			className={`text-lg font-semibold text-foreground ${className}`}
-			{...props}
-		>
+		<h2 className={`text-lg font-semibold text-foreground ${className}`} {...props}>
 			{children}
 		</h2>
 	)
@@ -395,10 +357,9 @@ export function DrawerDescription({
 	)
 }
 
-export interface DrawerCloseProps
-	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export type DrawerCloseProps = {
 	className?: string
-}
+} & React.ButtonHTMLAttributes<HTMLButtonElement>
 
 export const DrawerClose = forwardRef<HTMLButtonElement, DrawerCloseProps>(
 	({ className = '', children, onClick, ...props }, ref) => {
@@ -411,13 +372,13 @@ export const DrawerClose = forwardRef<HTMLButtonElement, DrawerCloseProps>(
 
 		return (
 			<button
-				type="button"
+				type='button'
 				ref={ref}
 				onClick={handleClick}
 				className={`absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring ${className}`}
 				{...props}
 			>
-				{children || <X className="h-4 w-4 text-muted-foreground" />}
+				{children || <X className='h-4 w-4 text-muted-foreground' />}
 			</button>
 		)
 	}
@@ -472,20 +433,12 @@ export type DialogSectionProps = {
 	labelClassName?: string
 }
 
-export function DialogSection({
-	label,
-	children,
-	className,
-	labelClassName
-}: DialogSectionProps) {
+export function DialogSection({ label, children, className, labelClassName }: DialogSectionProps) {
 	return (
 		<div className={className || 'flex flex-col items-start gap-2 w-full'}>
 			{label && (
 				<label
-					className={
-						labelClassName ||
-						'font-medium text-muted-foreground text-xs pl-2'
-					}
+					className={labelClassName || 'font-medium text-muted-foreground text-xs pl-2'}
 				>
 					{label}
 				</label>
@@ -502,8 +455,8 @@ export type DialogSeparatorProps = {
 export function DialogSeparator({ className }: DialogSeparatorProps) {
 	return (
 		<div
-			role="none"
-			aria-hidden="true"
+			role='none'
+			aria-hidden='true'
 			className={className || 'shrink-0 bg-border h-px w-full'}
 		/>
 	)
@@ -514,10 +467,7 @@ export type DialogContentAreaProps = {
 	className?: string
 }
 
-export function DialogContentArea({
-	children,
-	className
-}: DialogContentAreaProps) {
+export function DialogContentArea({ children, className }: DialogContentAreaProps) {
 	return (
 		<div
 			className={
@@ -546,11 +496,7 @@ export type DialogNavGroupProps = {
 	className?: string
 }
 
-export function DialogNavGroup({
-	label,
-	items,
-	className
-}: DialogNavGroupProps) {
+export function DialogNavGroup({ label, items, className }: DialogNavGroupProps) {
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 	const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
@@ -559,11 +505,7 @@ export function DialogNavGroup({
 
 	const activeIndex = items.findIndex((item) => item.active)
 	const currentIndex =
-		hoveredIndex !== null
-			? hoveredIndex
-			: focusedIndex !== null
-				? focusedIndex
-				: activeIndex
+		hoveredIndex !== null ? hoveredIndex : focusedIndex !== null ? focusedIndex : activeIndex
 
 	useEffect(() => {
 		if (currentIndex === -1 || !containerRef.current) return
@@ -589,29 +531,19 @@ export function DialogNavGroup({
 
 			// Only handle if focus is within this nav group
 			const focusedElement = document.activeElement
-			const isInGroup = itemRefs.current.some(
-				(ref) => ref === focusedElement
-			)
+			const isInGroup = itemRefs.current.some((ref) => ref === focusedElement)
 			if (!isInGroup) return
 
 			e.preventDefault()
 
-			const currentFocusIndex = itemRefs.current.findIndex(
-				(ref) => ref === focusedElement
-			)
+			const currentFocusIndex = itemRefs.current.findIndex((ref) => ref === focusedElement)
 			if (currentFocusIndex === -1) return
 
 			let newIndex = currentFocusIndex
 			if (e.key === 'ArrowDown') {
-				newIndex =
-					currentFocusIndex < items.length - 1
-						? currentFocusIndex + 1
-						: 0
+				newIndex = currentFocusIndex < items.length - 1 ? currentFocusIndex + 1 : 0
 			} else {
-				newIndex =
-					currentFocusIndex > 0
-						? currentFocusIndex - 1
-						: items.length - 1
+				newIndex = currentFocusIndex > 0 ? currentFocusIndex - 1 : items.length - 1
 			}
 
 			setFocusedIndex(newIndex)
@@ -625,19 +557,16 @@ export function DialogNavGroup({
 	}, [items.length])
 
 	return (
-		<div
-			ref={containerRef}
-			className={className || 'relative flex flex-col gap-1 w-full'}
-		>
+		<div ref={containerRef} className={className || 'relative flex flex-col gap-1 w-full'}>
 			{label && (
-				<span className="text-xs font-medium text-muted-foreground/50 px-2 py-1">
+				<span className='text-xs font-medium text-muted-foreground/50 px-2 py-1'>
 					{label}
 				</span>
 			)}
 			{/* Sliding indicator */}
 			{activeIndex !== -1 && (
 				<div
-					className="absolute left-0 right-0 bg-accent rounded-md transition-all duration-300 ease-out pointer-events-none"
+					className='absolute left-0 right-0 bg-accent rounded-md transition-all duration-300 ease-out pointer-events-none'
 					style={indicatorStyle}
 				/>
 			)}
@@ -666,12 +595,13 @@ export function DialogNavGroup({
 							}
 						}, 0)
 					}}
-					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-ring ${item.disabled
-						? 'text-muted-foreground/60 cursor-not-allowed opacity-70'
-						: item.active
-							? 'text-accent-foreground bg-accent'
-							: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
-						}`}
+					className={`relative z-10 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-ring ${
+						item.disabled
+							? 'text-muted-foreground/60 cursor-not-allowed opacity-70'
+							: item.active
+								? 'text-accent-foreground bg-accent'
+								: 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
+					}`}
 					title={item.disabled ? item.disabledReason || 'Disabled' : undefined}
 					aria-disabled={item.disabled ? true : undefined}
 				>

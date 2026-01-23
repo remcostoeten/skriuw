@@ -1,4 +1,4 @@
-import type { BlockNoteEditor } from '@blocknote/core'
+import type { BlockNoteEditor } from "@blocknote/core";
 
 /**
  * BlockNote paste handler type
@@ -82,7 +82,7 @@ function isMarkdownContent(text: string): boolean {
 		/\[.*?\]\(.*?\)/, // Links
 		/^>\s+/, // Blockquotes
 		/^\|\s.*\s\|/, // Tables
-		/^---+$/, // Horizontal rules
+		/^---+$/ // Horizontal rules
 	]
 
 	// Check if content contains multiple markdown patterns
@@ -108,10 +108,12 @@ function isMDXContent(text: string): boolean {
 		/<[^>]+>/, // JSX-like tags
 		/{[^}]*}/, // JSX expressions
 		/export\s+/, // Export statements
-		/import\s+/, // Import statements
+		/import\s+/ // Import statements
 	]
 
-	return mdxPatterns.some((pattern) => pattern.test(trimmedText)) && isMarkdownContent(trimmedText)
+	return (
+		mdxPatterns.some((pattern) => pattern.test(trimmedText)) && isMarkdownContent(trimmedText)
+	)
 }
 
 /**

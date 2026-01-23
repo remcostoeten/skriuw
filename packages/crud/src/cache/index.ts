@@ -4,18 +4,18 @@
  */
 
 export {
-    get,
-    set,
-    invalidate,
-    invalidateForStorageKey,
-    clear,
-    getStats,
-    registerRevalidation,
-    isRevalidating,
-    startCleanup,
-    stopCleanup,
-    CACHE_CONFIG,
-    type CacheStats,
+	get,
+	set,
+	invalidate,
+	invalidateForStorageKey,
+	clear,
+	getStats,
+	registerRevalidation,
+	isRevalidating,
+	startCleanup,
+	stopCleanup,
+	CACHE_CONFIG,
+	type CacheStats
 } from './store'
 
 export { generateKey } from './utils'

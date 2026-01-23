@@ -1,19 +1,6 @@
-/**
- * Display utilities for keyboard shortcuts
- * Supports text, icon, and mixed display formats with platform awareness
- */
-
-import React from 'react'
-
-import { MODIFIER_ICONS, KEY_ICONS } from './types'
-
-import type {
-	KeyboardShortcut,
-	DisplayKeyCombo,
-	Modifier,
-	RegularKey,
-	DisplayFormat,
-} from './types'
+import { MODIFIER_ICONS, KEY_ICONS } from "./types";
+import type { KeyboardShortcut, DisplayKeyCombo, Modifier, RegularKey, DisplayFormat } from "./types";
+import React from "react";
 
 /**
  * Detects if the user is on macOS
@@ -66,7 +53,7 @@ function normalizeKey(key: RegularKey, format: DisplayFormat = 'text'): string {
 		ArrowUp: '↑',
 		ArrowDown: '↓',
 		ArrowLeft: '←',
-		ArrowRight: '→',
+		ArrowRight: '→'
 	}
 
 	return keyMap[key] || key
@@ -130,14 +117,14 @@ export function shortcutToParts(
 				keyCombo.modifiers.forEach((mod) => {
 					parts.push({
 						type: 'modifier',
-						value: normalizeModifier(mod, formatToUse),
+						value: normalizeModifier(mod, formatToUse)
 					})
 				})
 			}
 
 			parts.push({
 				type: 'key',
-				value: normalizeKey(keyCombo.key, formatToUse),
+				value: normalizeKey(keyCombo.key, formatToUse)
 			})
 
 			return parts
@@ -162,7 +149,7 @@ export function ShortcutDisplay({
 	shortcut,
 	format = 'text',
 	separator = true,
-	className = '',
+	className = ''
 }: ShortcutDisplayProps) {
 	const formatToUse = shortcut.displayFormat || format
 	const parts = shortcutToParts(shortcut, formatToUse)
@@ -171,21 +158,23 @@ export function ShortcutDisplay({
 		<span className={`inline-flex items-center gap-1 ${className}`}>
 			{parts.map((sequence, seqIndex) => (
 				<React.Fragment key={seqIndex}>
-					{seqIndex > 0 && <span className="mx-1 text-muted-foreground">then</span>}
+					{seqIndex > 0 && <span className='mx-1 text-muted-foreground'>then</span>}
 					{sequence.map((combo, comboIndex) => (
 						<React.Fragment key={comboIndex}>
 							{comboIndex > 0 && (
-								<span className="mx-0.5 text-muted-foreground">
+								<span className='mx-0.5 text-muted-foreground'>
 									{formatToUse === 'icon' ? '' : ' '}
 								</span>
 							)}
-							<kbd className="pointer-events-none inline-flex h-6 min-w-[24px] tracking-wider select-none items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground shadow-sm">
+							<kbd className='pointer-events-none inline-flex h-6 min-w-[24px] tracking-wider select-none items-center justify-center gap-1 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-foreground shadow-sm'>
 								{combo.map((part, partIndex) => (
 									<React.Fragment key={partIndex}>
 										<span>{part.value}</span>
-										{separator && partIndex < combo.length - 1 && formatToUse !== 'icon' && (
-											<span className="text-muted-foreground/60">+</span>
-										)}
+										{separator &&
+											partIndex < combo.length - 1 &&
+											formatToUse !== 'icon' && (
+												<span className='text-muted-foreground/60'>+</span>
+											)}
 									</React.Fragment>
 								))}
 							</kbd>

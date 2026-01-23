@@ -1,11 +1,11 @@
 'use server'
-import { create } from '@skriuw/crud'
 
-import { invalidateItemsCache } from '../queries/get-items'
-import type { Folder, CreateFolderData } from '../../types'
-import { trackActivity } from '@/features/activity'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
-import { getCurrentUserId } from '@/lib/api-auth'
+import type { Folder, CreateFolderData } from "../../types";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { getCurrentUserId } from "@/lib/api-auth";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { create } from "@skriuw/crud";
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
 	try {
@@ -23,9 +23,7 @@ export async function createFolder(data: CreateFolderData): Promise<Folder> {
 		})
 
 		if (!result.success || !result.data) {
-			throw new Error(
-				(result as any).error?.message || 'Failed to create folder'
-			)
+			throw new Error((result as any).error?.message || 'Failed to create folder')
 		}
 
 		invalidateItemsCache()
