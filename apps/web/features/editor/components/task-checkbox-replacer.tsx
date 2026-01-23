@@ -54,6 +54,12 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 							checked={currentChecked}
 							size="sm"
 							variant="default"
+							animation="gooey"
+							colors={{
+								bgChecked: 'hsl(var(--foreground))',
+								borderChecked: 'hsl(var(--foreground))',
+								checkmark: 'hsl(var(--background))',
+							}}
 							onChange={(checked) => {
 								// Use BlockNote's API to toggle the task
 								if (existing.blockId && editor) {
@@ -123,6 +129,12 @@ export function TaskCheckboxReplacer({ editor, editorContainerRef }: TaskCheckbo
 						checked={isChecked}
 						size="sm"
 						variant="default"
+						animation="gooey"
+						colors={{
+							bgChecked: 'hsl(var(--foreground))',
+							borderChecked: 'hsl(var(--foreground))',
+							checkmark: 'hsl(var(--background))',
+						}}
 						onChange={(checked) => {
 							// Use BlockNote's API to toggle the task
 							if (blockId && editor) {
