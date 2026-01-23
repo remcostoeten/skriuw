@@ -10,8 +10,6 @@ import {
   HardDrive,
   Share2,
   Eye,
-  Tag,
-  GitBranch,
   X,
 } from 'lucide-react'
 import { IconButton } from '@skriuw/ui/icons'
@@ -188,31 +186,6 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
           )}
         </div>
 
-        {/* Tags - Placeholder */}
-        <CollapsibleSection
-          id={SECTION_KEYS.TAGS}
-          title="Tags"
-          icon={<Tag className="w-4 h-4" />}
-          isExpanded={expandedSections.has(SECTION_KEYS.TAGS)}
-          onToggle={toggleSection}
-        >
-          <p className="text-sm text-muted-foreground">
-            Tagging system coming soon...
-          </p>
-        </CollapsibleSection>
-
-        {/* Version History - Placeholder */}
-        <CollapsibleSection
-          id={SECTION_KEYS.HISTORY}
-          title="Version History"
-          icon={<GitBranch className="w-4 h-4" />}
-          isExpanded={expandedSections.has(SECTION_KEYS.HISTORY)}
-          onToggle={toggleSection}
-        >
-          <p className="text-sm text-muted-foreground">
-            Git-like versioning coming soon...
-          </p>
-        </CollapsibleSection>
       </div>
     </div>
   )
