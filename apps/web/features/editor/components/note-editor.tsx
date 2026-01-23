@@ -294,3 +294,29 @@ export function NoteEditor({
 		</div>
 	)
 }
+
+function getArchive(
+	items: Item[],
+	createFolder: (name?: string) => Promise<Folder>
+) {
+	const archive = findFolder(items, 'archive')
+	if (archive) {
+		return Promise.resolve(archive.id)
+	}
+	return createFolder('Archive').then(function handleFolder(folder) {
+		return folder.id
+	})
+}
+
+function findFolder(items: Item[], name: string): Folder | null {
+	for (const item of items) {
+		if (item.type === 'folder' && item.name.toLowerCase() === name.toLowerCase()) {
+			return item
+		}
+		if (item.type === 'folder' && item.children) {
+			const found = findFolder(item.children, name)
+			if (found) return found
+		}
+	}
+	return null
+}
