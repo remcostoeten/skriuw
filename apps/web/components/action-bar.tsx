@@ -1,21 +1,10 @@
 'use client'
 
-import { Plus, FolderPlus, Search, X, Minimize2, Maximize2 } from 'lucide-react'
-import {
-	type FocusEvent,
-	type KeyboardEvent,
-	type MouseEvent,
-	type ReactNode,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from 'react'
-
-import { IconButton } from '@skriuw/ui/icons'
-import { cn } from '@skriuw/shared'
-import { useIsTouchDevice } from '@skriuw/shared/client'
+import { cn } from "@skriuw/shared";
+import { useIsTouchDevice } from "@skriuw/shared/client";
+import { IconButton } from "@skriuw/ui/icons";
+import { Plus, FolderPlus, Search, X, Minimize2, Maximize2 } from "lucide-react";
+import { type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ActionButton = {
 	icon: ReactNode
@@ -50,7 +39,7 @@ type ActionBarProps = {
 
 function TopSectionWrapper({
 	isInputVisible,
-	children,
+	children
 }: {
 	isInputVisible: boolean
 	children: ReactNode
@@ -71,14 +60,15 @@ export function ActionBar({
 	onCreateNote,
 	onCreateFolder,
 	searchConfig,
-	expandConfig,
+	expandConfig
 }: ActionBarProps) {
 	const searchInputRef = useRef<HTMLInputElement>(null)
 	const searchContainerRef = useRef<HTMLDivElement>(null)
 	const isTouchDevice = useIsTouchDevice()
 
 	const [localSearchVisible, setLocalSearchVisible] = useState(false)
-	const isSearchOpen = searchConfig?.isOpen !== undefined ? searchConfig.isOpen : localSearchVisible
+	const isSearchOpen =
+		searchConfig?.isOpen !== undefined ? searchConfig.isOpen : localSearchVisible
 
 	useEffect(() => {
 		if (isSearchOpen && searchInputRef.current) {
@@ -103,15 +93,21 @@ export function ActionBar({
 		}
 	}, [searchConfig])
 
-	const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-		searchConfig?.setQuery(event.target.value)
-	}, [searchConfig])
+	const handleSearchChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			searchConfig?.setQuery(event.target.value)
+		},
+		[searchConfig]
+	)
 
-	const handleSearchKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
-		if (event.key === 'Escape') {
-			handleSearchClose()
-		}
-	}, [handleSearchClose])
+	const handleSearchKeyDown = useCallback(
+		(event: React.KeyboardEvent<HTMLInputElement>) => {
+			if (event.key === 'Escape') {
+				handleSearchClose()
+			}
+		},
+		[handleSearchClose]
+	)
 
 	const handleSearchBlur = useCallback(
 		(event: FocusEvent<HTMLDivElement>) => {
@@ -128,12 +124,12 @@ export function ActionBar({
 
 	const icons = useMemo(
 		() => ({
-			search: <Search className="w-[18px] h-[18px] text-muted-foreground" />,
-			plus: <Plus className="w-[18px] h-[18px] text-muted-foreground" />,
-			folderPlus: <FolderPlus className="w-[18px] h-[18px] text-muted-foreground" />,
-			close: <X className="w-[18px] h-[18px] text-muted-foreground" />,
-			minimize: <Minimize2 className="w-[18px] h-[18px] text-muted-foreground" />,
-			maximize: <Maximize2 className="w-[18px] h-[18px] text-muted-foreground" />,
+			search: <Search className='w-[18px] h-[18px] text-muted-foreground' />,
+			plus: <Plus className='w-[18px] h-[18px] text-muted-foreground' />,
+			folderPlus: <FolderPlus className='w-[18px] h-[18px] text-muted-foreground' />,
+			close: <X className='w-[18px] h-[18px] text-muted-foreground' />,
+			minimize: <Minimize2 className='w-[18px] h-[18px] text-muted-foreground' />,
+			maximize: <Maximize2 className='w-[18px] h-[18px] text-muted-foreground' />
 		}),
 		[]
 	)
@@ -143,20 +139,20 @@ export function ActionBar({
 			{
 				icon: icons.plus,
 				tooltip: 'Create new note',
-				onClick: onCreateNote,
+				onClick: onCreateNote
 			},
 			{
 				icon: icons.folderPlus,
 				tooltip: 'Create new folder',
-				onClick: onCreateFolder,
-			},
+				onClick: onCreateFolder
+			}
 		]
 
 		if (expandConfig) {
 			result.push({
 				icon: expandConfig.isExpanded ? icons.minimize : icons.maximize,
 				tooltip: expandConfig.isExpanded ? 'Collapse All' : 'Expand All',
-				onClick: expandConfig.onToggle,
+				onClick: expandConfig.onToggle
 			})
 		}
 
@@ -176,7 +172,7 @@ export function ActionBar({
 					}
 				},
 				'aria-expanded': isSearchOpen,
-				'aria-controls': 'notesSearch',
+				'aria-controls': 'notesSearch'
 			})
 		}
 
@@ -188,7 +184,7 @@ export function ActionBar({
 		isSearchOpen,
 		onCreateFolder,
 		onCreateNote,
-		searchConfig,
+		searchConfig
 	])
 
 	return (
@@ -204,7 +200,7 @@ export function ActionBar({
 						key={button.tooltip}
 						icon={button.icon}
 						tooltip={button.tooltip}
-						variant="action-bar"
+						variant='action-bar'
 						className={cn(button.className, isTouchDevice && 'h-10 w-10 rounded-lg')}
 						onClick={button.onClick}
 						disabled={button.disabled}
@@ -236,24 +232,24 @@ export function ActionBar({
 					>
 						<input
 							ref={searchInputRef}
-							id="notesSearch"
+							id='notesSearch'
 							className={cn(
 								'w-full bg-transparent outline-none placeholder:text-muted-foreground h-[30px] text-sm text-sidebar-foreground',
 								isTouchDevice && 'h-8 text-sm'
 							)}
-							type="text"
-							placeholder="Search..."
-							aria-label="Search notes"
-							autoComplete="off"
-							autoCorrect="off"
+							type='text'
+							placeholder='Search...'
+							aria-label='Search notes'
+							autoComplete='off'
+							autoCorrect='off'
 							value={searchConfig.query}
 							onChange={handleSearchChange}
 							onKeyDown={handleSearchKeyDown}
 						/>
 						<IconButton
 							icon={icons.close}
-							tooltip="Close"
-							variant="action-bar"
+							tooltip='Close'
+							variant='action-bar'
 							onClick={handleSearchClose}
 							className={cn('w-6 h-6', isTouchDevice && 'w-9 h-9 rounded-lg')}
 						/>

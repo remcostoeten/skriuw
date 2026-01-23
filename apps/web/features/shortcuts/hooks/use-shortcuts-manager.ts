@@ -1,11 +1,6 @@
-import { useCallback } from 'react'
-import {
-	useShortcutsQuery,
-	useSaveShortcutMutation,
-	useResetShortcutMutation,
-	useResetAllShortcutsMutation
-} from './use-shortcuts-query'
-import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
+import type { ShortcutId, KeyCombo } from "../shortcut-definitions";
+import { useShortcutsQuery, useSaveShortcutMutation, useResetShortcutMutation, useResetAllShortcutsMutation } from "./use-shortcuts-query";
+import { useCallback } from "react";
 
 /**
  * Hook to manage shortcuts programmatically
@@ -49,6 +44,6 @@ export function useShortcutsManager() {
 		saveShortcut: saveShortcutHandler,
 		resetShortcut: resetShortcutHandler,
 		resetAllShortcuts: resetAllShortcutsHandler,
-		reload: refetch,
+		reload: refetch
 	}
 }

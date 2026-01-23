@@ -1,7 +1,6 @@
-import { Minimize2, Maximize2, X, Square } from 'lucide-react'
-import { useEffect, useState } from 'react'
-
-import { isTauriAvailable, cn } from '@skriuw/shared'
+import { isTauriAvailable, cn } from "@skriuw/shared";
+import { Minimize2, Maximize2, X, Square } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function WindowControls() {
 	const [isMaximized, setIsMaximized] = useState(false)
@@ -76,9 +75,9 @@ export function WindowControls() {
 	}
 
 	return (
-		<div className="flex items-center h-full" data-tauri-drag-region="false">
+		<div className='flex items-center h-full' data-tauri-drag-region='false'>
 			<button
-				type="button"
+				type='button'
 				onClick={handleMinimize}
 				className={cn(
 					'h-full px-3 flex items-center justify-center',
@@ -87,14 +86,14 @@ export function WindowControls() {
 					'transition-colors duration-150',
 					'group cursor-pointer'
 				)}
-				aria-label="Minimize"
-				data-tauri-drag-region="false"
+				aria-label='Minimize'
+				data-tauri-drag-region='false'
 			>
-				<Minimize2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+				<Minimize2 className='w-3.5 h-3.5 group-hover:scale-110 transition-transform' />
 			</button>
 
 			<button
-				type="button"
+				type='button'
 				onClick={handleMaximize}
 				className={cn(
 					'h-full px-3 flex items-center justify-center',
@@ -104,20 +103,20 @@ export function WindowControls() {
 					'group cursor-pointer'
 				)}
 				aria-label={isMaximized ? 'Restore' : 'Maximize'}
-				data-tauri-drag-region="false"
+				data-tauri-drag-region='false'
 			>
 				{isMaximized ? (
 					<Square
-						className="w-3 h-3 group-hover:scale-110 transition-transform"
+						className='w-3 h-3 group-hover:scale-110 transition-transform'
 						strokeWidth={2.5}
 					/>
 				) : (
-					<Maximize2 className="w-3 h-3 group-hover:scale-110 transition-transform" />
+					<Maximize2 className='w-3 h-3 group-hover:scale-110 transition-transform' />
 				)}
 			</button>
 
 			<button
-				type="button"
+				type='button'
 				onClick={handleClose}
 				className={cn(
 					'h-full px-3 flex items-center justify-center',
@@ -127,10 +126,10 @@ export function WindowControls() {
 					'transition-colors duration-150',
 					'group cursor-pointer'
 				)}
-				aria-label="Close"
-				data-tauri-drag-region="false"
+				aria-label='Close'
+				data-tauri-drag-region='false'
 			>
-				<X className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+				<X className='w-3.5 h-3.5 group-hover:scale-110 transition-transform' />
 			</button>
 		</div>
 	)

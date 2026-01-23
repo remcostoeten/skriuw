@@ -1,8 +1,7 @@
-import { readMany, invalidateForStorageKey } from '@skriuw/crud'
-import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
-import type { CustomShortcut } from '../types'
-
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { ShortcutId, KeyCombo } from "../../shortcut-definitions";
+import type { CustomShortcut } from "../types";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { readMany, invalidateForStorageKey } from "@skriuw/crud";
 
 const CACHE_TTL_MS = 60000 // 1 minute cache for shortcuts
 
@@ -16,14 +15,11 @@ export function invalidateShortcutsCache(): void {
  */
 export async function getShortcuts(): Promise<Record<ShortcutId, KeyCombo[]>> {
 	try {
-		const crudResult = await readMany<CustomShortcut>(
-			STORAGE_KEYS.SHORTCUTS,
-			{
-				cache: {
-					ttl: CACHE_TTL_MS
-				}
+		const crudResult = await readMany<CustomShortcut>(STORAGE_KEYS.SHORTCUTS, {
+			cache: {
+				ttl: CACHE_TTL_MS
 			}
-		)
+		})
 
 		const result: Record<ShortcutId, KeyCombo[]> = {
 			'editor-focus': [],

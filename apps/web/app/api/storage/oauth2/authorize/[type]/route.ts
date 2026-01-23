@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-import { requireAuth } from '@/lib/api-auth'
-import { OAUTH2_CONFIGS } from '@/lib/storage/oauth2'
+import { requireAuth } from "@/lib/api-auth";
+import { OAUTH2_CONFIGS } from "@/lib/storage/oauth2";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,10 +9,7 @@ function jsonError(message: string, status = 400) {
 	return NextResponse.json({ ok: false, message }, { status })
 }
 
-export async function GET(
-	request: NextRequest,
-	{ params }: { params: Promise<{ type: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ type: string }> }) {
 	try {
 		const auth = await requireAuth()
 		if (!auth.authenticated) return auth.response
@@ -54,8 +50,7 @@ export async function GET(
 
 		return response
 	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : 'OAuth2 initiation failed'
+		const message = error instanceof Error ? error.message : 'OAuth2 initiation failed'
 		console.error('OAuth2 initiation failed:', message)
 		return jsonError(message, 500)
 	}

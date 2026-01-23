@@ -126,9 +126,7 @@ const authData = {
 	cookies: cookies,
 	localStorage: {
 		better_auth_session: localStorage.getItem('better_auth_session'),
-		better_auth_session_token: localStorage.getItem(
-			'better_auth_session_token'
-		)
+		better_auth_session_token: localStorage.getItem('better_auth_session_token')
 	},
 	sessionStorage: {
 		better_auth_session: sessionStorage.getItem('better_auth_session')

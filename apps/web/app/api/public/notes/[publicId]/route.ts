@@ -1,16 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, sql } from 'drizzle-orm'
-import crypto from 'crypto'
-
-import {
-	getDatabase,
-	notes,
-	user,
-	storageConnectors,
-	noteVisitors
-} from '@skriuw/db'
-import type { Note } from '@/features/notes/types'
-import { auth } from '@/lib/auth'
+import type { Note } from "@/features/notes/types";
+import { auth } from "@/lib/auth";
+import { getDatabase, notes, user, storageConnectors, noteVisitors } from "@skriuw/db";
+import crypto from "crypto";
+import { eq, and, sql } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 type PublicNoteResponse = {
 	note: {
@@ -65,20 +58,12 @@ async function findPublicNote(
 
 async function fetchAuthor(userId: string | null | undefined) {
 	if (!userId) return null
-	const rows = await getDatabase()
-		.select()
-		.from(user)
-		.where(eq(user.id, userId))
-		.limit(1)
+	const rows = await getDatabase().select().from(user).where(eq(user.id, userId)).limit(1)
 	if (rows.length === 0) return null
 	return rows[0]
 }
 
-async function trackVisitor(
-	noteId: string,
-	visitorKey: string,
-	viewerId?: string | null
-) {
+async function trackVisitor(noteId: string, visitorKey: string, viewerId?: string | null) {
 	const db = getDatabase()
 	try {
 		const inserted = await db
@@ -148,18 +133,15 @@ export async function GET(
 		note: {
 			id: note.id,
 			name: note.name,
-			content:
-				typeof note.content === 'string'
-					? note.content
-					: JSON.stringify(note.content),
+			content: typeof note.content === 'string' ? note.content : JSON.stringify(note.content),
 			createdAt: Number(note.createdAt),
 			updatedAt: Number(note.updatedAt),
 			publicViews: Number(note.publicViews ?? 0),
 			author: author
 				? {
-					id: author.id,
-					name: author.name
-				}
+						id: author.id,
+						name: author.name
+					}
 				: undefined
 		}
 	}

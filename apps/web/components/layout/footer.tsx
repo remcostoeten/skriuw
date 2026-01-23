@@ -1,26 +1,24 @@
 'use client'
 
-import { CloudOff, Globe, Zap, Upload, type LucideIcon } from 'lucide-react'
-import { useState, useMemo, useCallback, useEffect } from 'react'
-
-import { useSettingsContext } from '../../features/settings/settings-provider'
-import { createShortcut } from '../../features/shortcuts/builder'
-import { useShortcut } from '../../features/shortcuts/use-shortcut'
-
-import { SidebarMenu } from '../sidebar-menu'
-import { Kbd, ThemeToggle, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
-import { cn } from '@skriuw/shared'
-import { useIsTouchDevice } from '@skriuw/shared/client'
+import { useSettingsContext } from "../../features/settings/settings-provider";
+import { createShortcut } from "../../features/shortcuts/builder";
+import { useShortcut } from "../../features/shortcuts/use-shortcut";
+import { SidebarMenu } from "../sidebar-menu";
+import { cn } from "@skriuw/shared";
+import { useIsTouchDevice } from "@skriuw/shared/client";
+import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from "@skriuw/ui";
+import { CloudOff, Globe, Zap, Upload, Moon, Sun, type LucideIcon } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 
 const MENU_KEYS = {
 	THEME: 'theme',
 	OFFLINE: 'offline',
 	LANGUAGE: 'language',
 	PERFORMANCE: 'performance',
-	SYNC: 'sync',
+	SYNC: 'sync'
 } as const
 
-type MenuKey = typeof MENU_KEYS[keyof typeof MENU_KEYS]
+type MenuKey = (typeof MENU_KEYS)[keyof typeof MENU_KEYS]
 
 export function Footer() {
 	const [activeMenu, setActiveMenu] = useState<MenuKey | null>(null)
@@ -43,9 +41,12 @@ export function Footer() {
 		return true // default to dark
 	}, [currentTheme, isMounted])
 
-	const handleThemeToggle = useCallback((isDarkMode: boolean) => {
-		updateSetting('theme', isDarkMode ? 'dark' : 'light')
-	}, [updateSetting])
+	const handleThemeToggle = useCallback(
+		(isDarkMode: boolean) => {
+			updateSetting('theme', isDarkMode ? 'dark' : 'light')
+		},
+		[updateSetting]
+	)
 
 	const handleOpenChange = useCallback((open: boolean) => {
 		if (!open) setActiveMenu(null)
@@ -58,8 +59,8 @@ export function Footer() {
 
 	return (
 		<>
-			<footer className="hidden lg:block fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]">
-				<div className="flex items-center gap-1.5">
+			<footer className='hidden lg:flex fixed bottom-0 left-0 right-0 bg-sidebar-background border-t border-border flex flex-row items-center justify-between px-1.5 min-h-[2.25rem] pb-[env(safe-area-inset-bottom)]'>
+				<div className='flex items-center gap-1.5'>
 					<ThemeButton
 						isTouchDevice={isTouchDevice}
 						isDark={isDark}
@@ -69,34 +70,31 @@ export function Footer() {
 					<FooterButton
 						icon={CloudOff}
 						onClick={() => setActiveMenu(MENU_KEYS.OFFLINE)}
-						ariaLabel="Offline mode"
+						ariaLabel='Offline mode'
 					/>
 				</div>
 
-				<div className="flex items-center gap-1.5">
+				<div className='flex items-center gap-1.5'>
 					<FooterButton
 						icon={Globe}
 						onClick={() => setActiveMenu(MENU_KEYS.LANGUAGE)}
-						ariaLabel="Language settings"
+						ariaLabel='Language settings'
 					/>
 					<FooterButton
 						icon={Zap}
 						onClick={() => setActiveMenu(MENU_KEYS.PERFORMANCE)}
-						ariaLabel="Performance settings"
+						ariaLabel='Performance settings'
 					/>
 					<FooterButton
 						icon={Upload}
 						onClick={() => setActiveMenu(MENU_KEYS.SYNC)}
-						ariaLabel="Sync settings"
+						ariaLabel='Sync settings'
 					/>
 				</div>
 			</footer>
 
 			{/* Only need one instance of the menu - it internally handles state Based on whatever triggers it */}
-			<SidebarMenu
-				open={activeMenu !== null}
-				onOpenChange={handleOpenChange}
-			/>
+			<SidebarMenu open={activeMenu !== null} onOpenChange={handleOpenChange} />
 		</>
 	)
 }
@@ -110,21 +108,21 @@ function FooterButton({
 	ariaLabel,
 	className
 }: {
-	icon: LucideIcon,
-	onClick: () => void,
-	ariaLabel: string,
+	icon: LucideIcon
+	onClick: () => void
+	ariaLabel: string
 	className?: string
 }) {
 	return (
 		<button
 			onClick={onClick}
 			className={cn(
-				"w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				'w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
 				className
 			)}
 			aria-label={ariaLabel}
 		>
-			<Icon className="w-4 h-4 text-muted-foreground" />
+			<Icon className='w-4 h-4 text-muted-foreground' />
 		</button>
 	)
 }
@@ -137,14 +135,16 @@ function ThemeButton({
 	isDark,
 	onToggle
 }: {
-	isTouchDevice: boolean,
-	isDark: boolean,
+	isTouchDevice: boolean
+	isDark: boolean
 	onToggle: (v: boolean) => void
 }) {
 	const content = (
-		<div className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-accent/50 transition-colors">
-			<ThemeToggle size={24} isDark={isDark} onChange={onToggle} />
-		</div>
+		<FooterButton
+			icon={isDark ? Moon : Sun}
+			onClick={() => onToggle(!isDark)}
+			ariaLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+		/>
 	)
 
 	if (isTouchDevice) return content
@@ -152,10 +152,10 @@ function ThemeButton({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<span className="cursor-pointer">{content}</span>
+				<span className='cursor-pointer'>{content}</span>
 			</TooltipTrigger>
-			<TooltipContent side="top" align="center">
-				<div className="flex items-center gap-2">
+			<TooltipContent side='top' align='center'>
+				<div className='flex items-center gap-2'>
 					<span>Theme settings</span>
 					<Kbd shortcut={createShortcut('Alt', 't')} />
 				</div>
@@ -163,4 +163,3 @@ function ThemeButton({
 		</Tooltip>
 	)
 }
-

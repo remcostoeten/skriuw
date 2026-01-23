@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-import { requireAuth } from '@/lib/api-auth'
-import { OAUTH2_CONFIGS } from '@/lib/storage/oauth2'
+import { requireAuth } from "@/lib/api-auth";
+import { OAUTH2_CONFIGS } from "@/lib/storage/oauth2";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -26,7 +25,7 @@ async function exchangeCodeForTokens(
 			'Content-Type': 'application/x-www-form-urlencoded'
 		},
 		body: new URLSearchParams({
-			grant_type: 'authorization_code',
+			grant_type: 'authorization_code'
 		})
 	})
 
@@ -38,10 +37,7 @@ async function exchangeCodeForTokens(
 	return response.json()
 }
 
-export async function GET(
-	request: NextRequest,
-	{ params }: { params: Promise<{ type: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ type: string }> }) {
 	try {
 		const auth = await requireAuth()
 		if (!auth.authenticated) return auth.response
@@ -81,9 +77,7 @@ export async function GET(
 
 		// Here you would typically store the tokens in your database
 		// For now, we'll redirect back with success and tokens in URL hash
-		const redirectUrl = new URL(
-			`${process.env.NEXT_PUBLIC_APP_URL}/archive`
-		)
+		const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/archive`)
 		redirectUrl.hash = new URLSearchParams({
 			success: 'true',
 			provider: type,
@@ -103,8 +97,7 @@ export async function GET(
 
 		return response
 	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : 'OAuth2 callback failed'
+		const message = error instanceof Error ? error.message : 'OAuth2 callback failed'
 		console.error('OAuth2 callback failed:', message)
 		// Return JSON error for debugging visibility
 		return jsonError(message, 500)

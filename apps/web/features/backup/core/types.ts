@@ -2,7 +2,7 @@ export type DestinationType = 'memory' | 'download' | (string & {})
 
 export type DestinationFieldType = 'text' | 'secret' | 'url' | 'path' | 'number' | 'switch'
 
-export interface DestinationField {
+export type DestinationField = {
 	name: string
 	label: string
 	type: DestinationFieldType
@@ -13,7 +13,7 @@ export interface DestinationField {
 	options?: Array<{ label: string; value: string }>
 }
 
-export interface DestinationSchema {
+export type DestinationSchema = {
 	type: DestinationType
 	label: string
 	description: string
@@ -25,7 +25,7 @@ export interface DestinationSchema {
 	notes?: string
 }
 
-export interface DestinationConfig {
+export type DestinationConfig = {
 	id: string
 	type: DestinationType
 	name: string
@@ -36,14 +36,14 @@ export interface DestinationConfig {
 	oauth2Tokens?: OAuth2Tokens
 }
 
-export interface BackupChunkMeta {
+export type BackupChunkMeta = {
 	id: string
 	index: number
 	size: number
 	checksum: string
 }
 
-export interface BackupManifest {
+export type BackupManifest = {
 	id: string
 	destinationId: string
 	version: string
@@ -55,7 +55,7 @@ export interface BackupManifest {
 	metadata?: Record<string, unknown>
 }
 
-export interface BackupPayload {
+export type BackupPayload = {
 	id?: string
 	version?: string
 	createdAt?: string
@@ -63,13 +63,13 @@ export interface BackupPayload {
 	metadata?: Record<string, unknown>
 }
 
-export interface BackupVerificationResult {
+export type BackupVerificationResult = {
 	manifestId: string
 	ok: boolean
 	details?: string
 }
 
-export interface StorageDriver {
+export type StorageDriver = {
 	init?(destination: DestinationConfig): Promise<void> | void
 	putChunk(manifestId: string, chunk: BackupChunkMeta, data: Uint8Array): Promise<void>
 	getChunk?(manifestId: string, chunkId: string): Promise<Uint8Array>
@@ -79,12 +79,12 @@ export interface StorageDriver {
 	dispose?(): Promise<void>
 }
 
-export interface EncryptionHandler {
+export type EncryptionHandler = {
 	encrypt(data: Uint8Array, context: { manifestId: string; chunkId: string }): Promise<Uint8Array>
 	decrypt(data: Uint8Array, context: { manifestId: string; chunkId: string }): Promise<Uint8Array>
 }
 
-export interface BackupJob {
+export type BackupJob = {
 	manifest: BackupManifest
 	status: 'pending' | 'running' | 'succeeded' | 'failed'
 	error?: string
@@ -95,7 +95,7 @@ export type StorageConnectorType = 's3' | 'dropbox' | 'google-drive'
 
 export type StorageConnectorStatus = 'disconnected' | 'configured' | 'connected' | 'error'
 
-export interface StorageConnectorField {
+export type StorageConnectorField = {
 	name: string
 	label: string
 	placeholder?: string
@@ -105,7 +105,7 @@ export interface StorageConnectorField {
 	type?: 'text' | 'oauth2'
 }
 
-export interface OAuth2Config {
+export type OAuth2Config = {
 	clientId: string
 	redirectUri: string
 	scope: string
@@ -113,7 +113,7 @@ export interface OAuth2Config {
 	tokenUrl: string
 }
 
-export interface OAuth2Tokens {
+export type OAuth2Tokens = {
 	access_token: string
 	refresh_token?: string
 	expires_in?: number
@@ -121,7 +121,7 @@ export interface OAuth2Tokens {
 	token_type?: string
 }
 
-export interface StorageConnectorDefinition {
+export type StorageConnectorDefinition = {
 	type: StorageConnectorType
 	label: string
 	description: string
@@ -129,7 +129,7 @@ export interface StorageConnectorDefinition {
 	docsUrl?: string
 }
 
-export interface StorageConnectorState {
+export type StorageConnectorState = {
 	id: string
 	type: StorageConnectorType
 	name: string

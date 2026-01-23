@@ -1,7 +1,6 @@
-import { useContext, useEffect, useRef } from 'react'
-
-import { ShortcutContext } from './global-shortcut-provider'
-import { ShortcutId } from './shortcut-definitions'
+import { ShortcutContext } from "./global-shortcut-provider";
+import { ShortcutId } from "./shortcut-definitions";
+import { useContext, useEffect, useRef } from "react";
 
 /**
  * Hook to access the shortcut context.

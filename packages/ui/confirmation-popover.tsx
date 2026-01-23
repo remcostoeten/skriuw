@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import * as PopoverPrimitive from '@radix-ui/react-popover'
-import { Button } from './button'
-import { cn } from '@skriuw/shared'
+import { Button } from "./button";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { cn } from "@skriuw/shared";
+import { useState, useCallback, useRef, useEffect } from "react";
 
-export interface ConfirmationPopoverOptions {
+export type ConfirmationPopoverOptions = {
 	title: string
 	description?: string
 	confirmText?: string
@@ -17,7 +17,7 @@ export interface ConfirmationPopoverOptions {
 	}
 }
 
-interface ConfirmationPopoverState {
+type ConfirmationPopoverState = {
 	isOpen: boolean
 	options: ConfirmationPopoverOptions | null
 }
@@ -41,7 +41,7 @@ interface ConfirmationPopoverState {
 export function useConfirmationPopover() {
 	const [state, setState] = useState<ConfirmationPopoverState>({
 		isOpen: false,
-		options: null,
+		options: null
 	})
 
 	const anchorRef = useRef<HTMLDivElement | null>(null)
@@ -49,7 +49,7 @@ export function useConfirmationPopover() {
 	const showConfirm = useCallback((options: ConfirmationPopoverOptions) => {
 		setState({
 			isOpen: true,
-			options,
+			options
 		})
 	}, [])
 
@@ -76,7 +76,7 @@ export function useConfirmationPopover() {
 		if (state.isOpen && anchorRef.current) {
 			const position = state.options?.position || {
 				x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
-				y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0,
+				y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0
 			}
 			anchorRef.current.style.position = 'fixed'
 			anchorRef.current.style.left = `${position.x}px`
@@ -95,7 +95,7 @@ export function useConfirmationPopover() {
 			description,
 			confirmText = 'Confirm',
 			cancelText = 'Cancel',
-			variant = 'default',
+			variant = 'default'
 		} = state.options
 
 		return (
@@ -108,12 +108,12 @@ export function useConfirmationPopover() {
 				}}
 			>
 				<PopoverPrimitive.Anchor asChild>
-					<div ref={anchorRef} aria-hidden="true" />
+					<div ref={anchorRef} aria-hidden='true' />
 				</PopoverPrimitive.Anchor>
 				<PopoverPrimitive.Portal>
 					<PopoverPrimitive.Content
-						align="center"
-						side="top"
+						align='center'
+						side='top'
 						sideOffset={8}
 						className={cn(
 							'z-50 w-80 rounded-md border border-border bg-popover p-0 text-popover-foreground shadow-md outline-hidden',
@@ -124,20 +124,27 @@ export function useConfirmationPopover() {
 						)}
 						onOpenAutoFocus={(e) => e.preventDefault()}
 					>
-						<div className="p-4 space-y-4">
-							<div className="space-y-2">
-								<h4 className="font-semibold text-sm leading-none">{title}</h4>
-								{description && <p className="text-sm text-muted-foreground">{description}</p>}
+						<div className='p-4 space-y-4'>
+							<div className='space-y-2'>
+								<h4 className='font-semibold text-sm leading-none'>{title}</h4>
+								{description && (
+									<p className='text-sm text-muted-foreground'>{description}</p>
+								)}
 							</div>
-							<div className="flex items-center justify-end gap-2">
-								<Button variant="outline" size="sm" onClick={handleCancel} className="h-8 text-xs">
+							<div className='flex items-center justify-end gap-2'>
+								<Button
+									variant='outline'
+									size='sm'
+									onClick={handleCancel}
+									className='h-8 text-xs'
+								>
 									{cancelText}
 								</Button>
 								<Button
 									variant={variant === 'destructive' ? 'destructive' : 'default'}
-									size="sm"
+									size='sm'
 									onClick={handleConfirm}
-									className="h-8 text-xs"
+									className='h-8 text-xs'
 								>
 									{confirmText}
 								</Button>
@@ -151,6 +158,6 @@ export function useConfirmationPopover() {
 
 	return {
 		showConfirm,
-		ConfirmationPopover: ConfirmationPopoverComponent,
+		ConfirmationPopover: ConfirmationPopoverComponent
 	}
 }

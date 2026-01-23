@@ -1,4 +1,4 @@
-import { env } from '../env'
+import { env } from "../env";
 
 /**
  * Validates that a required environment variable is present.
@@ -25,10 +25,7 @@ export const OAUTH2_CONFIGS = {
 			)
 		},
 		get clientSecret() {
-			return requireEnv(
-				'DROPBOX_CLIENT_SECRET',
-				env.DROPBOX_CLIENT_SECRET
-			)
+			return requireEnv('DROPBOX_CLIENT_SECRET', env.DROPBOX_CLIENT_SECRET)
 		},
 		get redirectUri() {
 			return `${requireEnv('NEXT_PUBLIC_APP_URL', process.env.NEXT_PUBLIC_APP_URL)}/api/storage/oauth2/callback/dropbox`
@@ -45,10 +42,7 @@ export const OAUTH2_CONFIGS = {
 			)
 		},
 		get clientSecret() {
-			return requireEnv(
-				'GOOGLE_DRIVE_CLIENT_SECRET',
-				env.GOOGLE_DRIVE_CLIENT_SECRET
-			)
+			return requireEnv('GOOGLE_DRIVE_CLIENT_SECRET', env.GOOGLE_DRIVE_CLIENT_SECRET)
 		},
 		get redirectUri() {
 			return `${requireEnv('NEXT_PUBLIC_APP_URL', process.env.NEXT_PUBLIC_APP_URL)}/api/storage/oauth2/callback/google-drive`

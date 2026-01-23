@@ -1,12 +1,10 @@
-import { useState } from 'react'
-import { ShieldAlert } from 'lucide-react'
-
-import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
-import { Button } from '@skriuw/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
-
-import { deleteAccount } from '../api/account-client'
-import { signOut } from '@/lib/auth-client'
+import { deleteAccount } from "../api/account-client";
+import { signOut } from "@/lib/auth-client";
+import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
+import { Button } from "@skriuw/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
+import { ShieldAlert } from "lucide-react";
+import { useState } from "react";
 
 function audioContext(): AudioContext | null {
 	if (typeof window === 'undefined') return null
@@ -51,38 +49,45 @@ export default function DangerPanel() {
 					await signOut()
 				} catch (signOutError) {
 					// Account deleted but signout failed - inform user to re-login
-					setError('Account deleted successfully, but automatic sign-out failed. Please refresh the page.')
+					setError(
+						'Account deleted successfully, but automatic sign-out failed. Please refresh the page.'
+					)
 					return
 				}
 			}
 		} catch (deleteError) {
-			setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete account')
+			setError(
+				deleteError instanceof Error ? deleteError.message : 'Unable to delete account'
+			)
 		} finally {
 			setIsDeleting(false)
 			setIsDialogOpen(false)
 		}
 	}
 	return (
-		<Card className="border border-destructive/40 bg-destructive/5">
-			<CardHeader className="pb-3">
-				<CardTitle className="flex items-center gap-2 text-xl text-destructive">
-					<ShieldAlert className="h-5 w-5" />
+		<Card className='border border-destructive/40 bg-destructive/5'>
+			<CardHeader className='pb-3'>
+				<CardTitle className='flex items-center gap-2 text-xl text-destructive'>
+					<ShieldAlert className='h-5 w-5' />
 					Danger zone
 				</CardTitle>
-				<CardDescription>Delete your account and all related data. This action cannot be undone once confirmed.</CardDescription>
+				<CardDescription>
+					Delete your account and all related data. This action cannot be undone once
+					confirmed.
+				</CardDescription>
 			</CardHeader>
-			<CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<div className="text-sm text-muted-foreground space-y-1">
+			<CardContent className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+				<div className='text-sm text-muted-foreground space-y-1'>
 					<p>Removing your account will revoke access to synced content across Skriuw.</p>
 					<p>Deletion is immediate and signs you out automatically.</p>
 				</div>
 				<Button
-					variant="outline"
+					variant='outline'
 					onClick={function openDialog() {
 						soundAlert()
 						setIsDialogOpen(true)
 					}}
-					className="w-full sm:w-auto text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/5"
+					className='w-full sm:w-auto text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/5'
 					disabled={isDeleting}
 				>
 					{isDeleting ? 'Processing…' : 'Delete account'}
@@ -90,19 +95,18 @@ export default function DangerPanel() {
 			</CardContent>
 
 			{status && (
-				<Alert variant="default" className="mx-4 mb-4 border-border">
+				<Alert variant='default' className='mx-4 mb-4 border-border'>
 					<AlertTitle>Deletion started</AlertTitle>
 					<AlertDescription>{status}</AlertDescription>
 				</Alert>
 			)}
 
 			{error && (
-				<Alert variant="destructive" className="mx-4 mb-4 border-destructive/40">
+				<Alert variant='destructive' className='mx-4 mb-4 border-destructive/40'>
 					<AlertTitle>Deletion failed</AlertTitle>
 					<AlertDescription>{error}</AlertDescription>
 				</Alert>
 			)}
-
 		</Card>
 	)
 }

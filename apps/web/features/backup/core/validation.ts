@@ -1,11 +1,7 @@
-import { z } from 'zod'
+import type { StorageConnectorType } from "./types";
+import { z } from "zod";
 
-import type { StorageConnectorType } from './types'
-
-const nonEmpty = z
-	.string({ message: 'Required' })
-	.trim()
-	.min(1, 'Required')
+const nonEmpty = z.string({ message: 'Required' }).trim().min(1, 'Required')
 const optionalUrlish = z
 	.string()
 	.trim()
@@ -24,18 +20,18 @@ export const connectorSchemas: Record<StorageConnectorType, z.ZodTypeAny> = {
 			.trim()
 			.regex(regionPattern, 'Invalid region format'),
 		bucket: nonEmpty,
-		endpoint: optionalUrlish,
+		endpoint: optionalUrlish
 	}),
 	dropbox: z.object({
 		accessToken: nonEmpty,
-		rootPath: z.string().trim().optional(),
+		rootPath: z.string().trim().optional()
 	}),
 	'google-drive': z.object({
 		clientId: nonEmpty,
 		clientSecret: nonEmpty,
 		refreshToken: nonEmpty,
-		folderId: z.string().trim().optional(),
-	}),
+		folderId: z.string().trim().optional()
+	})
 }
 
 export function validateConnectorConfig(

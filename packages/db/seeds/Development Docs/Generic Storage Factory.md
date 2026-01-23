@@ -5,6 +5,7 @@ The Generic Storage Factory (`lib/storage/generic-storage-factory.ts`) is the ce
 ## Purpose
 
 The factory pattern allows the application to:
+
 - **Register** different storage adapters
 - **Create** adapter instances based on configuration
 - **Manage** adapter lifecycle (initialize, destroy)
@@ -30,20 +31,22 @@ Creates a new adapter instance based on the configuration:
 
 ```typescript
 export async function createGenericStorageAdapter(
-  config: StorageConfig
+	config: StorageConfig
 ): Promise<GenericStorageAdapter>
 ```
 
 **Process:**
+
 1. Looks up the adapter factory from the registry
 2. Calls the factory function with config options
 3. Returns the adapter instance
 
 **Example:**
+
 ```typescript
 const adapter = await createGenericStorageAdapter({
-  adapter: 'serverless-api',
-  options: { apiBaseUrl: 'https://api.example.com' }
+	adapter: 'serverless-api',
+	options: { apiBaseUrl: 'https://api.example.com' }
 })
 ```
 
@@ -53,11 +56,12 @@ Initializes and sets the global storage adapter:
 
 ```typescript
 export async function initializeGenericStorage(
-  config: StorageConfig
+	config: StorageConfig
 ): Promise<GenericStorageAdapter>
 ```
 
 **Process:**
+
 1. Destroys existing adapter if one exists
 2. Creates new adapter from config
 3. Calls `adapter.initialize()` to set it up
@@ -65,6 +69,7 @@ export async function initializeGenericStorage(
 5. Returns the initialized adapter
 
 **Lifecycle:**
+
 ```
 Existing Adapter? → destroy() → create() → initialize() → store globally
 ```
@@ -78,11 +83,13 @@ export function getGenericStorage(): GenericStorageAdapter
 ```
 
 **Usage:**
+
 - Called by CRUD functions to get the current adapter
 - Throws error if storage not initialized
 - Ensures single source of truth for storage access
 
 **Example:**
+
 ```typescript
 const storage = getGenericStorage()
 const notes = await storage.read('Skriuw_notes')
@@ -97,6 +104,7 @@ export async function destroyGenericStorage(): Promise<void>
 ```
 
 **Process:**
+
 1. Calls `adapter.destroy()` for cleanup
 2. Sets current adapter to `null`
 3. Used during app shutdown or adapter switching
@@ -115,7 +123,7 @@ Adapters are registered using `adapters.set()`:
 
 ```typescript
 adapters.set('serverless-api', (config) =>
-  createServerlessApiAdapter(config?.apiBaseUrl as string | undefined)
+	createServerlessApiAdapter(config?.apiBaseUrl as string | undefined)
 )
 ```
 
@@ -125,20 +133,22 @@ adapters.set('serverless-api', (config) =>
 
 ```typescript
 export function registerGenericStorageAdapter(
-  name: StorageConfig['adapter'],
-  factory: AdapterFactory
+	name: StorageConfig['adapter'],
+	factory: AdapterFactory
 ): void
 ```
 
 **Use Cases:**
+
 - Adding custom adapters
 - Plugin system
 - Testing with mock adapters
 
 **Example:**
+
 ```typescript
 registerGenericStorageAdapter('localStorage', (config) => {
-  return createLocalStorageAdapter(config)
+	return createLocalStorageAdapter(config)
 })
 ```
 
@@ -151,6 +161,7 @@ export function getAvailableGenericAdapters(): StorageConfig['adapter'][]
 ```
 
 **Use Cases:**
+
 - Debugging
 - UI for adapter selection
 - Validation
@@ -159,11 +170,12 @@ export function getAvailableGenericAdapters(): StorageConfig['adapter'][]
 
 ```typescript
 type AdapterFactory = (
-  config?: StorageConfig['options']
+	config?: StorageConfig['options']
 ) => GenericStorageAdapter | Promise<GenericStorageAdapter>
 ```
 
 **Characteristics:**
+
 - Takes optional config options
 - Returns adapter instance (sync or async)
 - Must implement `GenericStorageAdapter` interface
@@ -177,11 +189,13 @@ let currentGenericStorage: GenericStorageAdapter | null = null
 ```
 
 **Benefits:**
+
 - Single source of truth
 - Prevents multiple adapter instances
 - Easy access throughout the app
 
 **Initialization Flow:**
+
 ```
 App Startup
   ↓
@@ -198,9 +212,7 @@ getGenericStorage() returns adapter
 
 ```typescript
 if (!factory) {
-  throw new Error(
-    `Storage adapter '${config.adapter}' not found. Available: ...`
-  )
+	throw new Error(`Storage adapter '${config.adapter}' not found. Available: ...`)
 }
 ```
 
@@ -208,7 +220,7 @@ if (!factory) {
 
 ```typescript
 if (!currentGenericStorage) {
-  throw new Error('Generic storage not initialized. Call initializeGenericStorage first.')
+	throw new Error('Generic storage not initialized. Call initializeGenericStorage first.')
 }
 ```
 
@@ -220,9 +232,9 @@ Storage is initialized in `app/storage/index.ts`:
 
 ```typescript
 export async function initializeAppStorage(): Promise<void> {
-  const storage = await initializeGenericStorage(DEFAULT_STORAGE_CONFIG)
-  await storage.getStorageInfo()
-  // ... other initialization
+	const storage = await initializeGenericStorage(DEFAULT_STORAGE_CONFIG)
+	await storage.getStorageInfo()
+	// ... other initialization
 }
 ```
 
@@ -232,43 +244,43 @@ Storage config is defined in `app/storage/config.ts`:
 
 ```typescript
 export const DEFAULT_STORAGE_CONFIG: StorageConfig = {
-  adapter: "serverless-api",
-  options: {}
+	adapter: 'serverless-api',
+	options: {}
 }
 ```
 
 ## Benefits
 
 1. **Separation of Concerns**
-   - Factory handles adapter management
-   - Business logic doesn't know about adapter creation
+    - Factory handles adapter management
+    - Business logic doesn't know about adapter creation
 
 2. **Extensibility**
-   - Easy to add new adapters
-   - Runtime registration support
+    - Easy to add new adapters
+    - Runtime registration support
 
 3. **Type Safety**
-   - Full TypeScript support
-   - Compile-time adapter validation
+    - Full TypeScript support
+    - Compile-time adapter validation
 
 4. **Lifecycle Management**
-   - Proper initialization/cleanup
-   - Prevents resource leaks
+    - Proper initialization/cleanup
+    - Prevents resource leaks
 
 5. **Singleton Pattern**
-   - Single adapter instance
-   - Consistent state across app
+    - Single adapter instance
+    - Consistent state across app
 
 ## Example: Adding a New Adapter
 
 ```typescript
 // 1. Create adapter implementation
 function createIndexedDBAdapter(config?: StorageConfig['options']): GenericStorageAdapter {
-  return {
-    name: 'indexeddb',
-    type: 'local',
-    // ... implement interface
-  }
+	return {
+		name: 'indexeddb',
+		type: 'local'
+		// ... implement interface
+	}
 }
 
 // 2. Register adapter
@@ -276,8 +288,8 @@ registerGenericStorageAdapter('indexeddb', createIndexedDBAdapter)
 
 // 3. Use in config
 const config: StorageConfig = {
-  adapter: 'indexeddb',
-  options: { dbName: 'skriuw-db' }
+	adapter: 'indexeddb',
+	options: { dbName: 'skriuw-db' }
 }
 
 // 4. Initialize

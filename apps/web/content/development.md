@@ -16,16 +16,16 @@ NEXT_PUBLIC_DEBUG=auth,shortcuts,network
 
 ## Available Flags
 
-| Flag | Description |
-|------|-------------|
-| `auth` | Auth operations + demo mode (infinite loading) |
-| `shortcuts` | Keyboard shortcut logging |
-| `network` | Network request logging |
-| `perf` | Performance monitoring |
-| `render` | Component render tracking |
-| `state` | State change logging |
-| `general` | General/misc logging |
-| `all` / `true` | Enable everything |
+| Flag           | Description                                    |
+| -------------- | ---------------------------------------------- |
+| `auth`         | Auth operations + demo mode (infinite loading) |
+| `shortcuts`    | Keyboard shortcut logging                      |
+| `network`      | Network request logging                        |
+| `perf`         | Performance monitoring                         |
+| `render`       | Component render tracking                      |
+| `state`        | State change logging                           |
+| `general`      | General/misc logging                           |
+| `all` / `true` | Enable everything                              |
 
 ## Usage in Code
 
@@ -49,6 +49,7 @@ logger.warn('network', 'Slow request', { ms: 500 })
 ## Legacy Support
 
 These still work:
+
 - `NEXT_PUBLIC_ENABLE_AUTH_LOGGING=true`
 - `NEXT_PUBLIC_ENABLE_SHORTCUT_LOGGING=true`
 - `NEXT_PUBLIC_ENABLE_GENERAL_LOGGING=true`

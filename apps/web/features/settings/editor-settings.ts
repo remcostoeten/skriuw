@@ -1,4 +1,4 @@
-import type { UserSetting, SettingsGroup } from './types'
+import type { UserSetting, SettingsGroup } from "./types";
 
 /**
  * Editor-specific user settings
@@ -15,8 +15,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'editor',
 		implemented: true,
 		preview: {
-			component: 'word-wrap',
-		},
+			component: 'word-wrap'
+		}
 	},
 	{
 		key: 'blockIndicator',
@@ -26,7 +26,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'boolean',
 		description: 'Show block indicator (drag handle) on hover, like in Linear or Notion',
 		category: 'editor',
-		implemented: true,
+		implemented: true
 	},
 	{
 		key: 'multiNoteTabs',
@@ -38,8 +38,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'editor',
 		implemented: true,
 		preview: {
-			component: 'multi-tab',
-		},
+			component: 'multi-tab'
+		}
 	},
 	{
 		key: 'rawMDXMode',
@@ -49,7 +49,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'boolean',
 		description: 'Use raw MDX editor instead of rich editor (Ctrl+M to toggle)',
 		category: 'editor',
-		implemented: true,
+		implemented: true
 	},
 	{
 		key: 'showFormattingToolbar',
@@ -59,7 +59,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'boolean',
 		description: 'Show the formatting toolbar',
 		category: 'editor',
-		implemented: true,
+		implemented: true
 	},
 	{
 		key: 'ui.animations',
@@ -69,7 +69,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'boolean',
 		description: 'Enable interface transitions and motion effects across the app',
 		category: 'appearance',
-		implemented: true,
+		implemented: true
 	},
 	{
 		key: 'sidebarHierarchyGuides',
@@ -81,8 +81,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'appearance',
 		implemented: true,
 		preview: {
-			component: 'sidebar-tree-guides',
-		},
+			component: 'sidebar-tree-guides'
+		}
 	},
 
 	{
@@ -96,8 +96,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		implemented: true,
 		preview: {
 			component: 'layout',
-			props: { type: 'centeredLayout' },
-		},
+			props: { type: 'centeredLayout' }
+		}
 	},
 	// Disabled typography options (future)
 	{
@@ -115,8 +115,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
-			props: { type: 'fontSize' },
-		},
+			props: { type: 'fontSize' }
+		}
 	},
 	{
 		key: 'fontFamily',
@@ -133,8 +133,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
-			props: { type: 'fontFamily' },
-		},
+			props: { type: 'fontFamily' }
+		}
 	},
 	{
 		key: 'lineHeight',
@@ -152,8 +152,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		disabledReason: 'Coming soon – not wired to the editor yet.',
 		preview: {
 			component: 'typography',
-			props: { type: 'lineHeight' },
-		},
+			props: { type: 'lineHeight' }
+		}
 	},
 	{
 		key: 'maxWidth',
@@ -168,8 +168,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		condition: (settings) => settings.centeredLayout === true,
 		preview: {
 			component: 'layout',
-			props: { type: 'maxWidth' },
-		},
+			props: { type: 'maxWidth' }
+		}
 	},
 	{
 		key: 'editorTheme',
@@ -179,11 +179,19 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		type: 'enum',
 		description: 'Color theme for the MDX code editor',
 		category: 'appearance',
-		options: ['skriuw-dark', 'github-dark', 'dracula', 'one-dark', 'monokai', 'vs-dark', 'vs-light'],
+		options: [
+			'skriuw-dark',
+			'github-dark',
+			'dracula',
+			'one-dark',
+			'monokai',
+			'vs-dark',
+			'vs-light'
+		],
 		implemented: true,
 		preview: {
-			component: 'editor-theme',
-		},
+			component: 'editor-theme'
+		}
 	},
 	{
 		key: 'titleDisplayMode',
@@ -194,7 +202,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'How the title in the top bar should be displayed',
 		category: 'appearance',
 		options: ['filename', 'firstHeading', 'aiGenerated'],
-		implemented: false,
+		implemented: false
 	},
 	{
 		key: 'searchInContent',
@@ -207,9 +215,9 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		category: 'advanced',
 		implemented: true,
 		preview: {
-			component: 'search',
-		},
-	},
+			component: 'search'
+		}
+	}
 ]
 
 /**
@@ -348,47 +356,47 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 		category: 'editor',
 		title: 'Editor',
 		description: 'Editor behavior and editing preferences',
-		settings: EDITOR_SETTINGS.filter((s) => s.category === 'editor' && s.implemented !== false),
+		settings: EDITOR_SETTINGS.filter((s) => s.category === 'editor' && s.implemented !== false)
 	},
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)
 		? [
-			{
-				category: 'appearance' as const,
-				title: 'Appearance',
-				description: 'Editor appearance and display settings',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'appearance' && s.implemented !== false
-				),
-			},
-		]
+				{
+					category: 'appearance' as const,
+					title: 'Appearance',
+					description: 'Editor appearance and display settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'appearance' && s.implemented !== false
+					)
+				}
+			]
 		: []),
 	// Only include behavior group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'behavior' && s.implemented !== false)
 		? [
-			{
-				category: 'behavior' as const,
-				title: 'Behavior',
-				description: 'Editor behavior and automation settings',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'behavior' && s.implemented !== false
-				),
-			},
-		]
+				{
+					category: 'behavior' as const,
+					title: 'Behavior',
+					description: 'Editor behavior and automation settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'behavior' && s.implemented !== false
+					)
+				}
+			]
 		: []),
 	// Only include advanced group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'advanced' && s.implemented !== false)
 		? [
-			{
-				category: 'advanced' as const,
-				title: 'Advanced',
-				description: 'Advanced settings and features',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'advanced' && s.implemented !== false
-				),
-			},
-		]
-		: []),
+				{
+					category: 'advanced' as const,
+					title: 'Advanced',
+					description: 'Advanced settings and features',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'advanced' && s.implemented !== false
+					)
+				}
+			]
+		: [])
 ]
 
 /**
@@ -408,7 +416,7 @@ export const DEFAULT_EDITOR_SETTINGS = EDITOR_SETTINGS.reduce(
 export function getEditorSettings(settings: Record<string, any>): UserSetting[] {
 	return EDITOR_SETTINGS.map((setting) => ({
 		...setting,
-		value: settings[setting.key] ?? setting.defaultValue,
+		value: settings[setting.key] ?? setting.defaultValue
 	}))
 }
 

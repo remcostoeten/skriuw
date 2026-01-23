@@ -1,12 +1,4 @@
-import type {
-	KeyboardShortcut,
-	DisplayKeyCombo,
-	Modifier,
-	RegularKey,
-	SequenceBuilder,
-	SequenceDelay,
-	ShortcutBuilder,
-} from './types'
+import type { KeyboardShortcut, DisplayKeyCombo, Modifier, RegularKey, SequenceBuilder, SequenceDelay, ShortcutBuilder } from "./types";
 
 /**
  * Creates a new shortcut builder for easy DX
@@ -49,7 +41,9 @@ export function shortcut(): ShortcutBuilder {
 							: [nextModifiers]
 						: []
 					const nextCombo: DisplayKeyCombo =
-						nextMods.length > 0 ? { modifiers: nextMods, key: nextKey } : { key: nextKey }
+						nextMods.length > 0
+							? { modifiers: nextMods, key: nextKey }
+							: { key: nextKey }
 
 					const currentSequence = sequences[0] as any[]
 					if (currentSequence.length === 1) {
@@ -72,11 +66,11 @@ export function shortcut(): ShortcutBuilder {
 				},
 				build: (): KeyboardShortcut => {
 					return { sequences }
-				},
+				}
 			}
 
 			return sequenceBuilder
-		},
+		}
 	}
 
 	return builder
@@ -94,7 +88,7 @@ export function createShortcut(
 ): KeyboardShortcut {
 	const mods = Array.isArray(modifiers) ? modifiers : [modifiers]
 	return {
-		sequences: [[{ modifiers: mods, key }]],
+		sequences: [[{ modifiers: mods, key }]]
 	}
 }
 
@@ -114,6 +108,6 @@ export function createSequence(...combos: DisplayKeyCombo[]): KeyboardShortcut {
 		throw new Error('Sequence can have at most 3 key combinations')
 	}
 	return {
-		sequences: [combos as any],
+		sequences: [combos as any]
 	}
 }

@@ -1,16 +1,13 @@
-import { BlockNoteSchema } from '@blocknote/core'
-import { customCodeBlockSpec } from '../blocks/custom-code-block'
-import { useMemo } from 'react'
-
-import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handler'
-import { useSettings, useUserPreferences } from '@/features/settings'
-
-import { taskBlockSpec } from '../slash-menu/task-block'
-
-import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
-import { fileTreeBlockSpec } from '../slash-menu/file-tree-block'
-import { calloutBlockSpec } from '../blocks/callout-block'
-import { headerBlockSpec } from '../blocks/header-block'
+import { calloutBlockSpec } from "../blocks/callout-block";
+import { customCodeBlockSpec } from "../blocks/custom-code-block";
+import { headerBlockSpec } from "../blocks/header-block";
+import { fileTreeBlockSpec } from "../slash-menu/file-tree-block";
+import { shadcnTableBlockSpec } from "../slash-menu/shadcn-table-block";
+import { taskBlockSpec } from "../slash-menu/task-block";
+import { createPasteHandler } from "@/features/editor/utils/markdown-paste-handler";
+import { useSettings, useUserPreferences } from "@/features/settings";
+import { BlockNoteSchema } from "@blocknote/core";
+import { useMemo } from "react";
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
@@ -34,8 +31,7 @@ export function createEditorSchema() {
  * Hook for configuring BlockNote editor based on user settings
  */
 export function useEditorConfig() {
-	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } =
-		useUserPreferences()
+	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences()
 	const { settings } = useSettings()
 
 	const fontSize = settings.fontSize || 'medium'
@@ -56,7 +52,7 @@ export function useEditorConfig() {
 				heading: 'Heading',
 				bulletListItem: 'List item',
 				numberedListItem: 'List item',
-				checkListItem: 'To-do',
+				checkListItem: 'To-do'
 			},
 			editorProps: {
 				attributes: {

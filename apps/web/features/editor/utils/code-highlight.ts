@@ -1,4 +1,4 @@
-import Prism from 'prismjs'
+import Prism from "prismjs";
 
 /**
  * Language component import map for dynamic loading
@@ -62,7 +62,7 @@ const languageImports: Record<string, () => Promise<void>> = {
 		// @ts-ignore
 		await import('prismjs/components/prism-markdown')
 		return Promise.resolve()
-	},
+	}
 }
 
 /**
@@ -126,7 +126,7 @@ const languageMap: Record<string, string> = {
 	// HTML/CSS
 	html: 'markup',
 	xml: 'markup',
-	css: 'css',
+	css: 'css'
 }
 
 /**
@@ -204,7 +204,7 @@ export function highlightCodeSync(code: string, language?: string): string {
 /**
  * BlockNote block structure (minimal type for language extraction)
  */
-interface BlockNoteBlock {
+type BlockNoteBlock = {
 	id: string
 	type: string
 	props?: {
@@ -216,7 +216,7 @@ interface BlockNoteBlock {
 /**
  * BlockNote editor interface (minimal type for language extraction)
  */
-interface BlockNoteEditorLike {
+type BlockNoteEditorLike = {
 	document?: BlockNoteBlock[]
 }
 
@@ -307,7 +307,7 @@ export async function highlightCodeBlocks(
 		'pre code',
 		'.bn-code-block code',
 		'[data-content-type="codeBlock"] code',
-		'[data-node-type="codeBlock"] code',
+		'[data-node-type="codeBlock"] code'
 	]
 
 	const codeBlocks = Array.from(container.querySelectorAll(codeBlockSelectors.join(', ')))

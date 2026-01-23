@@ -1,11 +1,10 @@
 'use server'
-import { update } from '@skriuw/crud'
 
-import { invalidateItemsCache } from '../queries/get-items'
-
-import type { Note, Folder, Item } from '../../types'
-import { trackActivity } from '@/features/activity'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import type { Note, Folder, Item } from "../../types";
+import { invalidateItemsCache } from "../queries/get-items";
+import { trackActivity } from "@/features/activity";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { update } from "@skriuw/crud";
 
 export async function pinItem(
 	itemId: string,
@@ -23,11 +22,7 @@ export async function pinItem(
 					// Omit pinnedAt when unpinning - let storage layer handle undefined/null
 				}
 
-		const result = await update<Item>(
-			STORAGE_KEYS.NOTES,
-			itemId,
-			updateData
-		)
+		const result = await update<Item>(STORAGE_KEYS.NOTES, itemId, updateData)
 		invalidateItemsCache()
 
 		if (result.data) {

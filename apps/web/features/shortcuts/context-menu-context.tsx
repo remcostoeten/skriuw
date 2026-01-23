@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from "react";
 
 type ContextMenuState = {
 	itemId: string | null
@@ -23,7 +23,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
 		onCreateNote: null,
 		onCreateFolder: null,
 		onRename: null,
-		onPinItem: null,
+		onPinItem: null
 	})
 
 	return (

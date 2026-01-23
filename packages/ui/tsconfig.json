@@ -1,18 +1,10 @@
 {
-  "extends": "@skriuw/config/typescript/react-library",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "moduleResolution": "bundler",
-    "types": [
-      "node"
-    ]
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+	"extends": "@skriuw/config/typescript/react-library",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"moduleResolution": "bundler",
+		"types": ["node"]
+	},
+	"include": ["**/*.ts", "**/*.tsx"],
+	"exclude": ["node_modules", "dist"]
 }

@@ -1,30 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '../../../lib/storage/adapters/server-db'
-import {
-	requireMutation,
-	allowReadAccess,
-	GUEST_USER_ID
-} from '../../../lib/api-auth'
-import type { Item, Note, Folder } from '@/features/notes/types/index'
+import { requireMutation, allowReadAccess, GUEST_USER_ID } from "../../../lib/api-auth";
+import { db } from "../../../lib/storage/adapters/server-db";
+import type { Item, Note, Folder } from "@/features/notes/types/index";
+import { NextRequest, NextResponse } from "next/server";
 
 function createPublicId() {
 	return `pub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 }
 
 async function hasCloudStorage(userId: string): Promise<boolean> {
-	const connectors = await db.findAll<{ id: string }>(
-		'storageConnectors',
-		userId
-	)
+	const connectors = await db.findAll<{ id: string }>('storageConnectors', userId)
 	return connectors.length > 0
 }
 
 function sortItems(items: Item[]): Item[] {
 	const comparator = (a: Item, b: Item) => {
-		if (a.pinned !== b.pinned)
-			return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
-		if (a.updatedAt !== b.updatedAt)
-			return (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+		if (a.pinned !== b.pinned) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
+		if (a.updatedAt !== b.updatedAt) return (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
 		return a.name.localeCompare(b.name)
 	}
 	const sorted = [...items].sort(comparator)
@@ -78,24 +69,16 @@ export async function GET(request: NextRequest) {
 			db.findAll<Folder>('folders', userId)
 		])
 
-
 		if (id) {
 			const item = [...notes, ...folders].find((i) => i.id === id)
-			if (!item)
-				return NextResponse.json(
-					{ error: 'Item not found' },
-					{ status: 404 }
-				)
+			if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 			return NextResponse.json(item)
 		}
 
 		return NextResponse.json(buildTree(notes, folders))
 	} catch (error) {
 		console.error('API Error:', error)
-		return NextResponse.json(
-			{ error: 'Failed to fetch items' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 })
 	}
 }
 
@@ -107,11 +90,7 @@ export async function POST(request: NextRequest) {
 		const { userId } = auth
 
 		const body = await request.json()
-		if (!body.name)
-			return NextResponse.json(
-				{ error: 'Name is required' },
-				{ status: 400 }
-			)
+		if (!body.name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
 		const now = Date.now()
 		const type = body.type === 'folder' ? 'folder' : 'note'
@@ -129,10 +108,7 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(created, { status: 201 })
 	} catch (error) {
 		console.error('API Error:', error)
-		return NextResponse.json(
-			{ error: 'Failed to create item' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Failed to create item' }, { status: 500 })
 	}
 }
 
@@ -145,21 +121,14 @@ export async function PUT(request: NextRequest) {
 
 		const body = await request.json()
 		const { id, ...updates } = body
-		if (!id)
-			return NextResponse.json(
-				{ error: 'ID is required' },
-				{ status: 400 }
-			)
+		if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
 		updates.updatedAt = Date.now()
 
 		if (typeof updates.isPublic === 'boolean') {
 			const existing = await db.findById<Note>('notes', id, userId)
 			if (!existing) {
-				return NextResponse.json(
-					{ error: 'Item not found' },
-					{ status: 404 }
-				)
+				return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 			}
 
 			if (updates.isPublic) {
@@ -183,19 +152,12 @@ export async function PUT(request: NextRequest) {
 		// Pass userId to ensure user can only update their own items
 		let result = await db.update('notes', id, updates, userId)
 		if (!result) result = await db.update('folders', id, updates, userId)
-		if (!result)
-			return NextResponse.json(
-				{ error: 'Item not found' },
-				{ status: 404 }
-			)
+		if (!result) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 
 		return NextResponse.json(result)
 	} catch (error) {
 		console.error('API Error:', error)
-		return NextResponse.json(
-			{ error: 'Failed to update item' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Failed to update item' }, { status: 500 })
 	}
 }
 
@@ -208,27 +170,16 @@ export async function DELETE(request: NextRequest) {
 
 		const { searchParams } = new URL(request.url)
 		const id = searchParams.get('id')
-		if (!id)
-			return NextResponse.json(
-				{ error: 'ID is required' },
-				{ status: 400 }
-			)
+		if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
 
 		// Pass userId to ensure user can only delete their own items
 		let deleted = await db.delete('notes', id, userId)
 		if (!deleted) deleted = await db.delete('folders', id, userId)
-		if (!deleted)
-			return NextResponse.json(
-				{ error: 'Item not found' },
-				{ status: 404 }
-			)
+		if (!deleted) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
 
 		return NextResponse.json({ id, success: true })
 	} catch (error) {
 		console.error('API Error:', error)
-		return NextResponse.json(
-			{ error: 'Failed to delete item' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 })
 	}
 }

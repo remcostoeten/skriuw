@@ -1,25 +1,21 @@
 'use client'
 
-import { Slot } from '@radix-ui/react-slot'
-import { cva, type VariantProps } from 'class-variance-authority'
-import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-import { cn, haptic } from '@skriuw/shared'
+import { Slot } from "@radix-ui/react-slot";
+import { cn, haptic } from "@skriuw/shared";
+import { cva, type VariantProps } from "class-variance-authority";
+import { motion, AnimatePresence } from "framer-motion";
+import * as React from "react";
 
 const buttonVariants = cva(
 	'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 relative',
 	{
 		variants: {
 			variant: {
-				default:
-					'bg-primary text-primary-foreground hover:bg-primary/90',
-				destructive:
-					'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+				default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+				destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
 				outline:
 					'border border-border background hover:bg-accent hover:text-accent-foreground',
-				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+				secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
 				ghost: 'hover:bg-accent hover:text-accent-foreground',
 				link: 'text-primary underline-offset-4 hover:underline'
 			},
@@ -43,17 +39,15 @@ type Ripple = {
 	y: number
 }
 
-export interface ButtonProps
-	extends
-	React.ButtonHTMLAttributes<HTMLButtonElement>,
-	VariantProps<typeof buttonVariants> {
+export type ButtonProps = {
 	asChild?: boolean
 	ripple?: boolean
 	rippleColor?: string
 	rippleScale?: number
 	hoverScale?: number
 	onHaptic?: () => void
-}
+} & React.ButtonHTMLAttributes<HTMLButtonElement> &
+	VariantProps<typeof buttonVariants>
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 	(
@@ -102,9 +96,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				setRipples((prev) => [...prev, newRipple])
 
 				setTimeout(() => {
-					setRipples((prev) =>
-						prev.filter((r) => r.id !== newRipple.id)
-					)
+					setRipples((prev) => prev.filter((r) => r.id !== newRipple.id))
 				}, 600)
 			}
 
@@ -113,8 +105,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 		const motionProps = hoverScale
 			? {
-				whileHover: { scale: hoverScale }
-			}
+					whileHover: { scale: hoverScale }
+				}
 			: {}
 
 		if (asChild) {
@@ -139,16 +131,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				onClick={handleClick}
 				{...restProps}
 			>
-				<span className="relative z-10 flex items-center gap-1">
-					{children}
-				</span>
+				<span className='relative z-10 flex items-center gap-1'>{children}</span>
 				{ripple && (
-					<span className="absolute inset-0 z-0">
+					<span className='absolute inset-0 z-0'>
 						<AnimatePresence>
 							{ripples.map((ripple) => (
 								<motion.span
 									key={ripple.id}
-									className="absolute rounded-full pointer-events-none"
+									className='absolute rounded-full pointer-events-none'
 									style={{
 										left: ripple.x,
 										top: ripple.y,

@@ -1,34 +1,34 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1765571648418,
-      "tag": "0000_luxuriant_expediter",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1765131009709,
-      "tag": "0002_reflective_menace",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1765201764345,
-      "tag": "0003_public_shaman",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1765220648671,
-      "tag": "0004_early_siren",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1765571648418,
+			"tag": "0000_luxuriant_expediter",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1765131009709,
+			"tag": "0002_reflective_menace",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1765201764345,
+			"tag": "0003_public_shaman",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1765220648671,
+			"tag": "0004_early_siren",
+			"breakpoints": true
+		}
+	]
 }

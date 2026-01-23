@@ -1,9 +1,7 @@
-import { useCallback } from 'react'
-
-import { EDITOR_SETTINGS, validateEditorSetting } from './editor-settings'
-import { useSettingsContext } from './settings-provider'
-
-import type { SettingsConfig } from './types'
+import { EDITOR_SETTINGS, validateEditorSetting } from "./editor-settings";
+import { useSettingsContext } from "./settings-provider";
+import type { SettingsConfig } from "./types";
+import { useCallback } from "react";
 
 export function useSettings<T extends Record<string, any> = any>() {
 	const { settings, updateSetting, resetSettings, isLoading } = useSettingsContext()
@@ -90,7 +88,7 @@ export function useSettings<T extends Record<string, any> = any>() {
 		...editorSettings,
 
 		// State
-		isLoading,
+		isLoading
 	}
 }
 
@@ -126,7 +124,7 @@ export function useEditorSetting<T = any>(key: string) {
 		setValue: updateValue,
 		setting,
 		isDefault: value === setting.defaultValue,
-		reset: () => updateValue(setting.defaultValue as T),
+		reset: () => updateValue(setting.defaultValue as T)
 	}
 }
 
@@ -162,7 +160,9 @@ export function useTypedSettings<T extends Record<string, any>>(
 					}
 					return value as T[K]
 				case 'object':
-					return typeof value === 'object' ? (value as T[K]) : (config.defaultValue as T[K])
+					return typeof value === 'object'
+						? (value as T[K])
+						: (config.defaultValue as T[K])
 				default:
 					return value as T[K]
 			}
@@ -185,7 +185,9 @@ export function useTypedSettings<T extends Record<string, any>>(
 				throw new Error(`Setting ${key as string} must be a string`)
 			}
 			if (config.type === 'enum' && config.options && !config.options.includes(value)) {
-				throw new Error(`Setting ${key as string} must be one of: ${config.options.join(', ')}`)
+				throw new Error(
+					`Setting ${key as string} must be one of: ${config.options.join(', ')}`
+				)
 			}
 			if (config.type === 'object' && typeof value !== 'object') {
 				throw new Error(`Setting ${key as string} must be an object`)
@@ -207,6 +209,6 @@ export function useTypedSettings<T extends Record<string, any>>(
 	return {
 		getSetting: getTypedSetting,
 		setSetting: setTypedSetting,
-		schema,
+		schema
 	}
 }
