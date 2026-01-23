@@ -1,7 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type {
+	CSSProperties,
+	ChangeEvent,
+	FormEvent,
+	MouseEvent,
+	PointerEvent,
+} from 'react'
 import { cn } from '@skriuw/shared'
 import type { PartialBlock, BlockNoteEditor } from '@blocknote/core'
 
@@ -105,7 +111,7 @@ export function CommandSurface({
 	}, [open, onOpenChange])
 
 	const handleAction = useCallback(
-		function handleAction(event: React.MouseEvent<HTMLButtonElement>) {
+		function handleAction(event: MouseEvent<HTMLButtonElement>) {
 			const action = event.currentTarget.dataset.action
 			if (!action) return
 
@@ -149,7 +155,7 @@ export function CommandSurface({
 	}, [])
 
 	const handleBlock = useCallback(
-		function handleBlock(event: React.MouseEvent<HTMLButtonElement>) {
+		function handleBlock(event: MouseEvent<HTMLButtonElement>) {
 			const kind = event.currentTarget.dataset.kind as BlockKind | undefined
 			if (!kind) return
 			onInsert(kind, context)
@@ -160,13 +166,13 @@ export function CommandSurface({
 	)
 
 	const handleLinkChange = useCallback(function handleLinkChange(
-		event: React.ChangeEvent<HTMLInputElement>
+		event: ChangeEvent<HTMLInputElement>
 	) {
 		setLinkValue(event.target.value)
 	}, [])
 
 	const handleLinkSubmit = useCallback(
-		function handleLinkSubmit(event: React.FormEvent<HTMLFormElement>) {
+		function handleLinkSubmit(event: FormEvent<HTMLFormElement>) {
 			event.preventDefault()
 			const trimmed = linkValue.trim()
 			if (!trimmed) return
@@ -179,7 +185,7 @@ export function CommandSurface({
 	)
 
 	const startDrag = useCallback(
-		function startDrag(event: React.PointerEvent<HTMLDivElement>) {
+		function startDrag(event: PointerEvent<HTMLDivElement>) {
 			if (event.pointerType === 'mouse' && event.button !== 0) return
 			event.currentTarget.setPointerCapture(event.pointerId)
 			dragRef.current = {
@@ -194,7 +200,7 @@ export function CommandSurface({
 	)
 
 	const moveDrag = useCallback(
-		function moveDrag(event: React.PointerEvent<HTMLDivElement>) {
+		function moveDrag(event: PointerEvent<HTMLDivElement>) {
 			if (!dragRef.current.active || dragRef.current.pointerId !== event.pointerId) return
 			const delta = event.clientY - dragRef.current.startY
 			if (open) {
@@ -209,7 +215,7 @@ export function CommandSurface({
 	)
 
 	const endDrag = useCallback(
-		function endDrag(event: React.PointerEvent<HTMLDivElement>) {
+		function endDrag(event: PointerEvent<HTMLDivElement>) {
 			if (!dragRef.current.active || dragRef.current.pointerId !== event.pointerId) return
 			event.currentTarget.releasePointerCapture(event.pointerId)
 			const delta = event.clientY - dragRef.current.startY
@@ -278,17 +284,17 @@ export function CommandSurface({
 
 	return (
 		<div className={cn('fixed inset-0 z-[80]', className)}>
-			<button
-				type="button"
-				aria-hidden={!open}
-				tabIndex={open ? 0 : -1}
-				onClick={handleClose}
-				className={cn(
-					'fixed inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200',
-					open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
-					isDragging && 'transition-none'
-				)}
-			/>
+			{open ? (
+				<button
+					type="button"
+					onClick={handleClose}
+					className={cn(
+						'fixed inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200',
+						open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+						isDragging && 'transition-none'
+					)}
+				/>
+			) : null}
 			<div
 				className={cn(
 					'fixed inset-x-0 bottom-0 pointer-events-auto',
@@ -317,83 +323,85 @@ export function CommandSurface({
 						aria-label={open ? 'Close command surface' : 'Open command surface'}
 					/>
 				</div>
-				<div className="mt-3 rounded-t-2xl border-t border-white/10 bg-[#0b0b0b]/95 backdrop-blur-xl px-4 pb-6 pt-2">
-					{menu === 'root' && (
-						<div className="flex flex-col gap-2">
-							{rootItems.map(function renderItem(item) {
-								return (
-									<button
-										key={item.key}
-										type="button"
-										data-action={item.key}
-										onClick={handleAction}
-										disabled={item.disabled}
-										className={cn(
-											'flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90',
-											'transition-transform duration-150 ease-out active:scale-[0.99]',
-											item.disabled && 'opacity-40 pointer-events-none'
-										)}
-									>
-										<span>{item.label}</span>
-									</button>
-								)
-							})}
-						</div>
-					)}
-					{menu === 'blocks' && (
-						<div className="flex flex-col gap-2">
-							<button
-								type="button"
-								onClick={handleBack}
-								className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
-							>
-								Back
-							</button>
-							{blockItems.map(function renderItem(item) {
-								return (
-									<button
-										key={item.key}
-										type="button"
-										data-kind={item.key}
-										onClick={handleBlock}
-										className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99]"
-									>
-										<span>{item.label}</span>
-									</button>
-								)
-							})}
-						</div>
-					)}
-					{menu === 'link' && (
-						<form onSubmit={handleLinkSubmit} className="flex flex-col gap-3">
-							<button
-								type="button"
-								onClick={handleBack}
-								className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
-							>
-								Back
-							</button>
-							<label className="flex flex-col gap-2 text-sm text-white/70">
-								<span>Link URL</span>
-								<input
-									type="url"
-									inputMode="url"
-									placeholder="https://"
-									value={linkValue}
-									onChange={handleLinkChange}
-									className="h-11 rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white/90 outline-none focus:border-white/30"
-								/>
-							</label>
-							<button
-								type="submit"
-								disabled={!linkValue.trim()}
-								className="h-11 rounded-xl border border-white/10 bg-white/10 text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99] disabled:opacity-40"
-							>
-								Insert link
-							</button>
-						</form>
-					)}
-				</div>
+				{open ? (
+					<div className="mt-3 rounded-t-2xl border-t border-white/10 bg-[#0b0b0b]/95 backdrop-blur-xl px-4 pb-6 pt-2">
+						{menu === 'root' && (
+							<div className="flex flex-col gap-2">
+								{rootItems.map(function renderItem(item) {
+									return (
+										<button
+											key={item.key}
+											type="button"
+											data-action={item.key}
+											onClick={handleAction}
+											disabled={item.disabled}
+											className={cn(
+												'flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90',
+												'transition-transform duration-150 ease-out active:scale-[0.99]',
+												item.disabled && 'opacity-40 pointer-events-none'
+											)}
+										>
+											<span>{item.label}</span>
+										</button>
+									)
+								})}
+							</div>
+						)}
+						{menu === 'blocks' && (
+							<div className="flex flex-col gap-2">
+								<button
+									type="button"
+									onClick={handleBack}
+									className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
+								>
+									Back
+								</button>
+								{blockItems.map(function renderItem(item) {
+									return (
+										<button
+											key={item.key}
+											type="button"
+											data-kind={item.key}
+											onClick={handleBlock}
+											className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99]"
+										>
+											<span>{item.label}</span>
+										</button>
+									)
+								})}
+							</div>
+						)}
+						{menu === 'link' && (
+							<form onSubmit={handleLinkSubmit} className="flex flex-col gap-3">
+								<button
+									type="button"
+									onClick={handleBack}
+									className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/50"
+								>
+									Back
+								</button>
+								<label className="flex flex-col gap-2 text-sm text-white/70">
+									<span>Link URL</span>
+									<input
+										type="url"
+										inputMode="url"
+										placeholder="https://"
+										value={linkValue}
+										onChange={handleLinkChange}
+										className="h-11 rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white/90 outline-none focus:border-white/30"
+									/>
+								</label>
+								<button
+									type="submit"
+									disabled={!linkValue.trim()}
+									className="h-11 rounded-xl border border-white/10 bg-white/10 text-sm text-white/90 transition-transform duration-150 ease-out active:scale-[0.99] disabled:opacity-40"
+								>
+									Insert link
+								</button>
+							</form>
+						)}
+					</div>
+				) : null}
 			</div>
 		</div>
 	)
@@ -430,7 +438,7 @@ export function createBlock(kind: BlockKind): PartialBlock {
 	if (kind === 'code') {
 		return {
 			type: 'codeBlock',
-			props: {},
+			props: { language: 'text' },
 			content: [],
 			children: [],
 		}
