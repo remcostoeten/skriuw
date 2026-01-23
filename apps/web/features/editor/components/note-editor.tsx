@@ -12,8 +12,8 @@ import { useEditor } from '../hooks/use-editor'
 import { EmptyState } from '@skriuw/ui'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import type { Folder, Item } from '@/features/notes'
 import { useUIStore } from '@/stores/ui-store'
+import { getArchiveId } from '@/features/notes/utils/archive-folder'
 
 import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
 import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from './bottom-command-surface'
@@ -162,14 +162,27 @@ export function NoteEditor({
 		[toggleMobileSidebar]
 	)
 
+	const exitNote = useCallback(
+		function exitNote() {
+			router.push('/')
+		},
+		[router]
+	)
+
 	const handleArchive = useCallback(
 		async function handleArchive(active: SurfaceContext) {
-			const archiveId = await getArchive(items, createFolder)
-			if (!archiveId) return
-			await moveItem(active.noteId, archiveId)
-			notify('Note archived').duration(2000)
+			try {
+				const archiveId = await getArchiveId(items, createFolder)
+				await moveItem(active.noteId, archiveId)
+				notify('Note archived').duration(2000)
+				exitNote()
+			} catch (err) {
+				const message = err instanceof Error ? err.message : 'Unknown error'
+				notify(`Failed to archive note: ${message}`).duration(3000)
+				console.error('Failed to archive note', err)
+			}
 		},
-		[createFolder, items, moveItem]
+		[createFolder, exitNote, items, moveItem]
 	)
 
 	const handleDelete = useCallback(
@@ -177,13 +190,14 @@ export function NoteEditor({
 			try {
 				await deleteItem(active.noteId)
 				notify('Note moved to trash').duration(2000)
-				router.push('/')
+				exitNote()
 			} catch (err) {
 				const message = err instanceof Error ? err.message : 'Unknown error'
-				notify(`Failed to delete: ${message}`).duration(3000)
+				notify(`Failed to delete note: ${message}`).duration(3000)
+				console.error('Failed to delete note', err)
 			}
 		},
-		[deleteItem, router]
+		[deleteItem, exitNote]
 	)
 
 	const handleSurfaceChange = useCallback(function handleSurfaceChange(open: boolean) {
