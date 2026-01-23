@@ -11,7 +11,7 @@ type TOCItemProps = {
 }
 
 export const TOCItem = memo(function TOCItem({ item, depth = 0, onNavigate }: TOCItemProps) {
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback(function handleClick() {
         onNavigate(item.id)
     }, [item.id, onNavigate])
 
@@ -21,25 +21,27 @@ export const TOCItem = memo(function TOCItem({ item, depth = 0, onNavigate }: TO
                 type="button"
                 onClick={handleClick}
                 className={cn(
-                    'w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md transition-colors',
-                    'flex items-center gap-2 text-muted-foreground hover:text-foreground',
-                    depth > 0 && 'ml-4'
+                    'w-full text-left px-3 py-2 text-sm rounded-lg transition-colors',
+                    'flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5',
+                    depth > 0 && 'ml-3 border-l border-border/60 pl-4'
                 )}
             >
                 <span className="truncate">{item.title}</span>
             </button>
-            {item.children.length > 0 && (
+            {item.children.length > 0 ? (
                 <div className="space-y-0.5">
-                    {item.children.map((child) => (
-                        <TOCItem
-                            key={child.id}
-                            item={child}
-                            depth={depth + 1}
-                            onNavigate={onNavigate}
-                        />
-                    ))}
+                    {item.children.map(function renderChild(child) {
+                        return (
+                            <TOCItem
+                                key={child.id}
+                                item={child}
+                                depth={depth + 1}
+                                onNavigate={onNavigate}
+                            />
+                        )
+                    })}
                 </div>
-            )}
+            ) : null}
         </div>
     )
 })

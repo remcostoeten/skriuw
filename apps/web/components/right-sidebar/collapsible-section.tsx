@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@skriuw/shared'
@@ -30,12 +31,16 @@ export function CollapsibleSection({
     children,
     className,
 }: CollapsibleSectionProps) {
+    const handleToggle = useCallback(function handleToggle() {
+        onToggle(id)
+    }, [id, onToggle])
+
     return (
-        <div className={cn('border border-border rounded-lg', className)}>
+        <div className={cn('rounded-2xl border border-border/60 bg-muted/10', className)}>
             <button
                 type="button"
-                onClick={() => onToggle(id)}
-                className="w-full flex items-center justify-between p-3 text-left hover:bg-accent transition-colors"
+                onClick={handleToggle}
+                className="w-full flex items-center justify-between px-3 py-3 text-left hover:bg-white/5 transition-colors rounded-2xl"
                 aria-expanded={isExpanded}
                 aria-controls={`section-content-${id}`}
             >
@@ -50,11 +55,11 @@ export function CollapsibleSection({
                 )}
             </button>
 
-            {isExpanded && (
+            {isExpanded ? (
                 <div id={`section-content-${id}`} className="px-3 pb-3">
                     {children}
                 </div>
-            )}
+            ) : null}
         </div>
     )
 }

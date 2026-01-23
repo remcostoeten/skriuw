@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import type { ComponentType } from 'react'
 import { notify } from '@/lib/notify'
 import {
   FileText,
@@ -39,25 +40,25 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   const { items, setNoteVisibility } = useNotesContext()
 
   const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(
-    () => new Set(DEFAULT_EXPANDED_SECTIONS)
+    initSections
   )
   const [isToggling, setIsToggling] = useState(false)
 
-  // Find current note with proper typing
-  const currentNote = useMemo((): Note | null => {
+  const currentNote = useMemo(function currentNote(): Note | null {
     if (!noteId) return null
-    const found = items.find((item) => item.id === noteId && item.type === 'note')
+    const found = items.find(function matchItem(item) {
+      return item.id === noteId && item.type === 'note'
+    })
     return (found as Note) ?? null
   }, [noteId, items])
 
-  // Use extracted hooks
   const tableOfContents = useTableOfContents(content)
   const metadata = useNoteMetadata(currentNote, content)
   const shareUrl = useShareUrl(currentNote?.publicId)
   const scrollToHeading = useScrollToHeading()
 
-  const toggleSection = useCallback((section: string) => {
-    setExpandedSections((prev) => {
+  const toggleSection = useCallback(function toggleSection(section: string) {
+    setExpandedSections(function updateSections(prev) {
       const next = new Set(prev)
       if (next.has(section as SectionKey)) {
         next.delete(section as SectionKey)
@@ -69,7 +70,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   }, [])
 
   const handleToggleVisibility = useCallback(
-    async (nextState: boolean) => {
+    async function handleToggleVisibility(nextState: boolean) {
       if (!currentNote) return
       setIsToggling(true)
       try {
@@ -90,10 +91,19 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
   if (!isRightSidebarOpen) return null
 
   return (
-    <div className="fixed right-0 top-0 h-full w-80 bg-background border-l border-border shadow-lg z-40 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-lg font-semibold">Note Details</h2>
+    <aside className="fixed right-0 top-0 h-full w-[340px] bg-background/95 backdrop-blur border-l border-border/60 shadow-[0_0_40px_rgba(0,0,0,0.35)] z-40 flex flex-col">
+      <div className="flex items-start justify-between gap-3 px-4 pt-5 pb-4 border-b border-border/60">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            Note panel
+          </p>
+          <h2 className="text-base font-semibold text-foreground truncate">
+            {currentNote?.name ?? 'Note details'}
+          </h2>
+          <p className="text-xs text-muted-foreground truncate">
+            {metadata?.updatedAt ?? 'No note selected'}
+          </p>
+        </div>
         <IconButton
           icon={<X className="w-4 h-4" />}
           tooltip="Close sidebar"
@@ -102,35 +112,69 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
         />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Table of Contents */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 space-y-4">
+        <div className="rounded-2xl border border-border/60 bg-muted/10 px-3 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Public share</span>
+            </div>
+            <Switch
+              checked={currentNote?.isPublic ?? false}
+              onCheckedChange={handleToggleVisibility}
+              disabled={isToggling || !currentNote}
+              aria-label="Toggle public visibility"
+            />
+          </div>
+          <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+            {currentNote?.isPublic ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                  <span>Unique visitors</span>
+                  <span className="text-foreground">{currentNote.publicViews ?? 0}</span>
+                </div>
+                {shareUrl ? (
+                  <div className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-[11px] text-foreground/80 break-all">
+                    {shareUrl}
+                  </div>
+                ) : (
+                  <span>Enable cloud storage to generate a public link.</span>
+                )}
+              </div>
+            ) : (
+              <span>Keep notes private by default. Enable sharing to create a link.</span>
+            )}
+          </div>
+        </div>
+
         <CollapsibleSection
           id={SECTION_KEYS.TOC}
-          title="Table of Contents"
+          title="Table of contents"
           icon={<FileText className="w-4 h-4" />}
           isExpanded={expandedSections.has(SECTION_KEYS.TOC)}
           onToggle={toggleSection}
         >
           {tableOfContents.length > 0 ? (
             <div className="space-y-1">
-              {tableOfContents.map((item) => (
-                <TOCItem
-                  key={item.id}
-                  item={item}
-                  onNavigate={scrollToHeading}
-                />
-              ))}
+              {tableOfContents.map(function renderItem(item) {
+                return (
+                  <TOCItem
+                    key={item.id}
+                    item={item}
+                    onNavigate={scrollToHeading}
+                  />
+                )
+              })}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No headings found</p>
           )}
         </CollapsibleSection>
 
-        {/* Metadata */}
         <CollapsibleSection
           id={SECTION_KEYS.METADATA}
-          title="Metadata"
+          title="Info"
           icon={<Hash className="w-4 h-4" />}
           isExpanded={expandedSections.has(SECTION_KEYS.METADATA)}
           onToggle={toggleSection}
@@ -147,48 +191,6 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
           )}
         </CollapsibleSection>
 
-        {/* Sharing */}
-        <div className="border border-border rounded-lg">
-          <div className="flex items-center justify-between p-3">
-            <div className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />
-              <span className="font-medium">Public Share</span>
-            </div>
-            <Switch
-              checked={currentNote?.isPublic ?? false}
-              onCheckedChange={handleToggleVisibility}
-              disabled={isToggling || !currentNote}
-              aria-label="Toggle public visibility"
-            />
-          </div>
-          {currentNote?.isPublic ? (
-            <div className="px-3 pb-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Eye className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Unique visitors:</span>
-                <span>{currentNote.publicViews ?? 0}</span>
-              </div>
-              {shareUrl ? (
-                <div
-                  className="bg-muted rounded-md p-2 break-all text-xs"
-                  aria-label="Share URL"
-                >
-                  {shareUrl}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground px-1">
-                  Enable cloud storage to generate a public link.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground px-3 pb-3">
-              Keep notes private by default. Enable sharing to generate a public link.
-            </p>
-          )}
-        </div>
-
-        {/* Tags - Placeholder */}
         <CollapsibleSection
           id={SECTION_KEYS.TAGS}
           title="Tags"
@@ -201,26 +203,24 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
           </p>
         </CollapsibleSection>
 
-        {/* Version History - Placeholder */}
         <CollapsibleSection
           id={SECTION_KEYS.HISTORY}
-          title="Version History"
+          title="Version history"
           icon={<GitBranch className="w-4 h-4" />}
           isExpanded={expandedSections.has(SECTION_KEYS.HISTORY)}
           onToggle={toggleSection}
         >
           <p className="text-sm text-muted-foreground">
-            Git-like versioning coming soon...
+            Version history coming soon...
           </p>
         </CollapsibleSection>
       </div>
-    </div>
+    </aside>
   )
 }
 
-// Small helper component to reduce repetition in metadata rows
 type MetadataRowProps = {
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   label: string
   value: string | number
 }
@@ -233,4 +233,8 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
       <span>{value}</span>
     </div>
   )
+}
+
+function initSections() {
+  return new Set(DEFAULT_EXPANDED_SECTIONS)
 }
