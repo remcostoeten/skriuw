@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth"
-import { getDatabase } from "@skriuw/db"
-import { aiProviderConfig } from "@skriuw/db/src/schema"
-import { eq } from "drizzle-orm"
+import { readOne, readMany, create, update } from "@skriuw/crud"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 import { encryptPrompt, decryptPrompt } from "@/features/ai/utilities"
+import { validateConfigBody } from "@/features/ai/utilities/validation"
+import { generateId } from "@skriuw/shared"
 
 export async function GET() {
     const session = await auth.api.getSession({ headers: await headers() })
@@ -13,18 +14,16 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const db = getDatabase()
-    const configs = await db
-        .select()
-        .from(aiProviderConfig)
-        .where(eq(aiProviderConfig.userId, session.user.id))
-        .limit(1)
+    const result = await readMany(STORAGE_KEYS.AI_PROVIDER_CONFIG, {
+        userId: session.user.id,
+        isActive: true
+    })
 
-    const config = configs[0]
-
-    if (!config) {
+    if (!result.success || !result.data || result.data.length === 0) {
         return NextResponse.json(null)
     }
+
+    const config = result.data[0]
 
     return NextResponse.json({
         id: config.id,
@@ -51,33 +50,46 @@ export async function POST(request: Request) {
     }
 
     const now = Date.now()
-    const id = crypto.randomUUID()
     const db = getDatabase()
 
-    await db.insert(aiProviderConfig).values({
-        id,
-        userId: session.user.id,
-        provider,
-        model,
-        basePrompt: basePrompt ? encryptPrompt(basePrompt) : null,
-        temperature,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now
-    }).onConflictDoUpdate({
-        target: aiProviderConfig.userId,
-        set: {
+    // Check if config already exists
+    const existingConfigs = await db
+        .select()
+        .from(aiProviderConfig)
+        .where(eq(aiProviderConfig.userId, session.user.id))
+        .limit(1)
+
+    const isUpdate = existingConfigs.length > 0
+    const configId = isUpdate ? existingConfigs[0].id : crypto.randomUUID()
+
+    if (isUpdate) {
+        await db
+            .update(aiProviderConfig)
+            .set({
+                provider,
+                model,
+                basePrompt: basePrompt ? encryptPrompt(basePrompt) : null,
+                temperature,
+                isActive: true,
+                updatedAt: now
+            })
+            .where(eq(aiProviderConfig.id, configId))
+    } else {
+        await db.insert(aiProviderConfig).values({
+            id: configId,
+            userId: session.user.id,
             provider,
             model,
             basePrompt: basePrompt ? encryptPrompt(basePrompt) : null,
             temperature,
             isActive: true,
+            createdAt: now,
             updatedAt: now
-        }
-    })
+        })
+    }
 
     return NextResponse.json({
-        id,
+        id: configId,
         provider,
         model,
         basePrompt,

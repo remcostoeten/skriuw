@@ -132,11 +132,25 @@
 
 	body {
 		@apply bg-background text-foreground;
+		/* Mobile optimizations */
+		overscroll-behavior-y: none;
+		/* Prevent elastic scrolling */
+		touch-action: manipulation;
+		/* Disable double-tap zoom delay */
+		-webkit-tap-highlight-color: transparent;
+		/* Remove tap highlight */
+		-webkit-font-smoothing: antialiased;
+		min-height: 100dvh;
 	}
 
 	:where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
 		overflow-wrap: anywhere;
 		word-break: break-word;
+	}
+
+	/* Disable text selection on UI elements for app-like feel */
+	:where(button, a, label, [role="button"]) {
+		user-select: none;
 	}
 
 	pre,
@@ -148,6 +162,19 @@
 	.font-brand {
 		font-family: Georgia, 'Playfair Display', 'Times New Roman', serif;
 	}
+}
+
+/* Safe area utilities for iPhone notch/home bar */
+.pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+	padding-top: env(safe-area-inset-top);
+}
+
+.h-safe-screen {
+	height: 100dvh;
 }
 
 .z-20 {

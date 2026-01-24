@@ -414,6 +414,19 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 					</div>
 				)
 			case 'storage':
+				if (isMobile) {
+					return (
+						<div className='space-y-1'>
+							<MobileSettingsSection
+								title='Storage'
+								description='Configure file upload providers'
+								defaultExpanded
+							>
+								<StorageSettings />
+							</MobileSettingsSection>
+						</div>
+					)
+				}
 				return <StorageSettings />
 			default:
 				return null
@@ -451,6 +464,12 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			label: 'Sync',
 			icon: <Hand className='w-5 h-5' />,
 			description: 'Data synchronization settings'
+		},
+		{
+			id: 'storage',
+			label: 'Storage',
+			icon: <HardDrive className='w-5 h-5' />,
+			description: 'Configure file storage locations'
 		}
 	]
 

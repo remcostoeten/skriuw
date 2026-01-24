@@ -4,6 +4,7 @@ import { useShortcut } from "../../shortcuts/use-shortcut";
 import { useEditor } from "../hooks/use-editor";
 import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
 import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
+import { MobileFormattingBar } from "./mobile-formatting-bar";
 import { EditorHeader } from "./editor-header";
 import { BacklinksPanel } from "./backlinks-panel";
 import { useNotesContext } from "@/features/notes/context/notes-context";
@@ -366,6 +367,7 @@ export function NoteEditor({
 					/>
 				)}
 			</div>
+			<MobileFormattingBar editor={editor} />
 			<CommandSurface
 				open={surfaceOpen}
 				onOpenChange={handleSurfaceChange}

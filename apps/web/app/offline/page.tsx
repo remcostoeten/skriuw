@@ -9,7 +9,7 @@ export default function OfflinePage() {
 			<div className='text-center space-y-2'>
 				<h1 className='text-3xl font-bold tracking-tight'>You are offline</h1>
 				<p className='text-muted-foreground max-w-[400px]'>
-					It simple couldn't connect to the internet. Please check your connection and try
+					It simply couldn't connect to the internet. Please check your connection and try
 					again.
 				</p>
 			</div>
