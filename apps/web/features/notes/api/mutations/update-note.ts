@@ -12,7 +12,9 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 	try {
 		const result = await update<Note>(STORAGE_KEYS.NOTES, id, {
 			name: data.name,
-			content: data.content
+			content: data.content,
+			icon: data.icon,
+			tags: data.tags,
 		})
 
 		if (!result.success) {

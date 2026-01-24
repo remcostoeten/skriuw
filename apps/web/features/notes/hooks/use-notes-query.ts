@@ -2,15 +2,12 @@ import type { Item, Note, Folder } from "../types";
 import { extractTasksFromBlocks } from "../utils/extract-tasks";
 import { trackActivity } from "@/features/activity";
 import { useSession } from "@/lib/auth-client";
-import { getWelcomeTunnelContent } from "@/lib/seed-content/welcome-tunnel";
+import { getWelcomeContent } from "@/lib/seed-content/welcome";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { readMany, readOne, create, update, destroy } from "@skriuw/crud";
 import { generateId } from "@skriuw/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-
-// Type definitions
-type NoteContent = any[] // Block[]
 
 // Keys factory for query invalidation
 export const notesKeys = {
@@ -44,9 +41,9 @@ export function useNotesQuery() {
 			const now = Date.now()
 			const welcomeNote: Note = {
 				id: `welcome-${now}`,
-				name: 'Welcome to Skriuw',
+				name: 'Your workspace is ready',
 				type: 'note',
-				content: getWelcomeTunnelContent(),
+				content: getWelcomeContent(),
 				parentFolderId: undefined,
 				pinned: true,
 				favorite: false,
@@ -240,13 +237,23 @@ export function useUpdateNoteMutation() {
 		mutationFn: async ({
 			id,
 			content,
-			name
+			name,
+			icon,
+			tags
 		}: {
 			id: string
 			content?: any[]
 			name?: string
+			icon?: string
+			tags?: string[]
 		}) => {
-			const result = await update<Note>(STORAGE_KEYS.NOTES, id, { content, name }, { userId })
+			const updateData: Partial<Note> = {}
+			if (content !== undefined) updateData.content = content
+			if (name !== undefined) updateData.name = name
+			if (icon !== undefined) updateData.icon = icon
+			if (tags !== undefined) updateData.tags = tags
+
+			const result = await update<Note>(STORAGE_KEYS.NOTES, id, updateData, { userId })
 			if (!result.success) throw new Error('Failed to update note')
 
 			// Sync tasks if content was updated (parity with update-note.ts)

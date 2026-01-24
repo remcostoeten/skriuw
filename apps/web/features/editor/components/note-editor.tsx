@@ -12,7 +12,9 @@ import type { Folder, Item } from "@/features/notes/types";
 import { getArchiveId } from "@/features/notes/utils/archive-folder";
 import { useSession } from "@/lib/auth-client";
 import { notify } from "@/lib/notify";
+import { notify } from "@/lib/notify";
 import { useUIStore } from "@/stores/ui-store";
+import { useSettings } from "@/features/settings";
 import { haptic } from "@skriuw/shared";
 import { EmptyState } from "@skriuw/ui";
 import { AlertCircle } from "lucide-react";
@@ -44,6 +46,7 @@ export function NoteEditor({
 	const { items, createNote, createFolder, moveItem, deleteItem, updateNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 	const { toggleMobileSidebar } = useUIStore()
+	const { settings } = useSettings()
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)
 	const searchParams = useSearchParams()
@@ -60,10 +63,17 @@ export function NoteEditor({
 		}
 	}, [note])
 
-	const handleIconChange = useCallback((newIcon: string) => {
+	const handleIconChange = useCallback((newIcon?: string) => {
 		setIcon(newIcon)
 		if (editor && note) {
 			updateNote(note.id, editor.document, undefined, newIcon)
+		}
+	}, [editor, note, updateNote])
+
+	const handleTagsChange = useCallback((newTags: string[]) => {
+		setTags(newTags)
+		if (editor && note) {
+			updateNote(note.id, editor.document, undefined, undefined, newTags)
 		}
 	}, [editor, note, updateNote])
 
@@ -310,7 +320,9 @@ export function NoteEditor({
 								createdAt={note?.createdAt}
 								updatedAt={note?.updatedAt}
 								tags={tags}
-								className="max-w-[655px]"
+								setTags={handleTagsChange}
+								className="editor-header"
+								showMetadata={settings.showEditorMetadata ?? true}
 							/>
 						}
 						footer={

@@ -24,6 +24,10 @@ export type Note = BaseEntity & {
 	name: string
 	/** Rich text content blocks (BlockNote format) */
 	content: NoteContent
+	/** Emoji icon for the note */
+	icon?: string
+	/** Tags for categorization */
+	tags?: string[]
 	/** ID of the parent folder, if any */
 	parentFolderId?: UUID
 	/** Whether is note is pinned to the top of lists */
@@ -91,6 +95,10 @@ export type UpdateNoteData = {
 	name?: string
 	/** New content blocks */
 	content?: NoteContent
+	/** Emoji icon */
+	icon?: string
+	/** Tags for categorization */
+	tags?: string[]
 	/** Toggle public visibility */
 	isPublic?: boolean
 }
