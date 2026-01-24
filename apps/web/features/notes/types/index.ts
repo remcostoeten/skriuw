@@ -26,6 +26,8 @@ export type Note = BaseEntity & {
 	content: NoteContent
 	/** Emoji icon for the note */
 	icon?: string
+	/** Cover image URL for the note */
+	coverImage?: string
 	/** Tags for categorization */
 	tags?: string[]
 	/** ID of the parent folder, if any */
@@ -97,6 +99,8 @@ export type UpdateNoteData = {
 	content?: NoteContent
 	/** Emoji icon */
 	icon?: string
+	/** Cover image URL */
+	coverImage?: string
 	/** Tags for categorization */
 	tags?: string[]
 	/** Toggle public visibility */

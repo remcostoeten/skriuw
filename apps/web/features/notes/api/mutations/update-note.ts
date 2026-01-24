@@ -14,6 +14,7 @@ export async function updateNote(id: string, data: UpdateNoteData): Promise<Note
 			name: data.name,
 			content: data.content,
 			icon: data.icon,
+			coverImage: data.coverImage,
 			tags: data.tags,
 		})
 
