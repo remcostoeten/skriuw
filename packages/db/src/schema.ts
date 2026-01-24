@@ -281,7 +281,7 @@ export const aiProviderConfig = pgTable(
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
 	},
 	(table) => ({
-		userIdx: createUserIndex('ai_provider_config', table.userId),
+		userUniqueIdx: uniqueIndex('ai_provider_config_user_unique_idx').on(table.userId),
 		userActiveIdx: createUserCompositeIndex('ai_provider_config', 'active', table.userId, table.isActive)
 	})
 )

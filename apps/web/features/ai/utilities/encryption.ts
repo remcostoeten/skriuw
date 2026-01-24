@@ -8,6 +8,11 @@ export function decryptPrompt(encrypted: string): string {
     return decryptSecret(encrypted)
 }
 
+/**
+ * Lightweight non-cryptographic hash for prompt deduplication and analytics only.
+ * NOT suitable for security, privacy, or abuse-detection purposes due to
+ * small output space and high collision probability.
+ */
 export function hashPrompt(prompt: string): string {
     let hash = 0
     for (let i = 0; i < prompt.length; i++) {

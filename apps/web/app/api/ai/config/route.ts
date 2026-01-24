@@ -64,6 +64,16 @@ export async function POST(request: Request) {
         isActive: true,
         createdAt: now,
         updatedAt: now
+    }).onConflictDoUpdate({
+        target: aiProviderConfig.userId,
+        set: {
+            provider,
+            model,
+            basePrompt: basePrompt ? encryptPrompt(basePrompt) : null,
+            temperature,
+            isActive: true,
+            updatedAt: now
+        }
     })
 
     return NextResponse.json({

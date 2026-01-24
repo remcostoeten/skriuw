@@ -1,16 +1,14 @@
 import { auth } from "@/lib/auth"
 import { getDatabase } from "@skriuw/db"
-import { aiPromptLog, aiProviderConfig, aiApiKeys, type AIApiKey } from "@skriuw/db/src/schema"
-import { eq, and, gt } from "drizzle-orm"
+import { aiPromptLog, aiProviderConfig, aiApiKeys } from "@skriuw/db/src/schema"
+import { eq, and } from "drizzle-orm"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
-import { DAILY_PROMPT_LIMIT, type AIProvider } from "@/features/ai/types"
+import { type AIProvider } from "@/features/ai/types"
 import { getProvider } from "@/features/ai/providers"
-import { hashPrompt, selectApiKey } from "@/features/ai/utilities"
+import { hashPrompt, decryptPrompt, selectApiKey, checkRateLimit } from "@/features/ai/utilities"
 import { decryptSecret } from "@/lib/crypto/secret"
 import { env } from "@/lib/env"
-
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
 export async function POST(request: Request) {
     const session = await auth.api.getSession({ headers: await headers() })
@@ -27,20 +25,16 @@ export async function POST(request: Request) {
     }
 
     const now = Date.now()
-    const cutoff = now - TWENTY_FOUR_HOURS_MS
     const db = getDatabase()
 
-    const recentPrompts = await db
-        .select()
+    const allPrompts = await db
+        .select({ createdAt: aiPromptLog.createdAt })
         .from(aiPromptLog)
-        .where(
-            and(
-                eq(aiPromptLog.userId, session.user.id),
-                gt(aiPromptLog.createdAt, cutoff)
-            )
-        )
+        .where(eq(aiPromptLog.userId, session.user.id))
 
-    if (!isTest && recentPrompts.length >= DAILY_PROMPT_LIMIT) {
+    const rateLimitResult = checkRateLimit(allPrompts.map((p) => p.createdAt), now)
+
+    if (!isTest && !rateLimitResult.allowed) {
         return NextResponse.json(
             { error: 'Daily prompt limit reached', code: 'RATE_LIMIT' },
             { status: 429 }
@@ -59,8 +53,11 @@ export async function POST(request: Request) {
     const temperature = config?.temperature ?? 70
     const basePrompt = config?.basePrompt || undefined
 
-    const allKeys = await db.select().from(aiApiKeys)
-    const keySelection = selectApiKey(allKeys, provider, now)
+    const providerKeys = await db
+        .select()
+        .from(aiApiKeys)
+        .where(and(eq(aiApiKeys.provider, provider), eq(aiApiKeys.isActive, true)))
+    const keySelection = selectApiKey(providerKeys, provider, now)
 
     let apiKey: string
 
@@ -87,7 +84,7 @@ export async function POST(request: Request) {
             model: model as Parameters<typeof providerAdapter.sendPrompt>[1]['model'],
             temperature,
             apiKey,
-            basePrompt: basePrompt ? decryptSecret(basePrompt) : undefined
+            basePrompt: basePrompt ? decryptPrompt(basePrompt) : undefined
         })
 
         if (!isTest) {
@@ -116,19 +113,29 @@ export async function POST(request: Request) {
         return NextResponse.json(response)
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error'
+        const isRateLimitedError =
+            message.includes('429') || message.toLowerCase().includes('rate limit')
 
-        if (message.includes('429') || message.includes('rate limit')) {
-            if (keySelection.key) {
-                await db
-                    .update(aiApiKeys)
-                    .set({
-                        rateLimitedUntil: now + 60 * 60 * 1000,
-                        updatedAt: now
-                    })
-                    .where(eq(aiApiKeys.id, keySelection.key.id))
-            }
+        if (isRateLimitedError && keySelection.key) {
+            await db
+                .update(aiApiKeys)
+                .set({
+                    rateLimitedUntil: now + 60 * 60 * 1000,
+                    updatedAt: now
+                })
+                .where(eq(aiApiKeys.id, keySelection.key.id))
         }
 
-        return NextResponse.json({ error: message }, { status: 500 })
+        console.error('[AI_PROMPT_ROUTE] Provider error', {
+            error,
+            keyId: keySelection.key?.id
+        })
+
+        return NextResponse.json(
+            isRateLimitedError
+                ? { error: 'The AI provider is currently rate limiting requests. Please try again later.', code: 'PROVIDER_RATE_LIMITED' }
+                : { error: 'An error occurred while calling the AI provider.', code: 'PROVIDER_ERROR' },
+            { status: isRateLimitedError ? 429 : 502 }
+        )
     }
 }
