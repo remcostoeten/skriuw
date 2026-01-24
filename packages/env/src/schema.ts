@@ -47,7 +47,10 @@ export const aiSchema = z.object({
 	GEMINI_API_KEY: z.string().optional(),
 	GEMINI_BACKUP_KEY: z.string().optional(),
 	OPENAI_API_KEY: z.string().optional(),
-	ANTHROPIC_API_KEY: z.string().optional()
+	ANTHROPIC_API_KEY: z.string().optional(),
+	GROK_API_KEY: z.string().optional(),
+	GROK_BACKUP_KEY: z.string().optional(),
+	AI_PROMPT_ENCRYPTION_KEY: z.string().optional()
 })
 
 /**
