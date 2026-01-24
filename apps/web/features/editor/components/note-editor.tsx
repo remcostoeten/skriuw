@@ -12,9 +12,9 @@ import type { Folder, Item } from "@/features/notes/types";
 import { getArchiveId } from "@/features/notes/utils/archive-folder";
 import { useSession } from "@/lib/auth-client";
 import { notify } from "@/lib/notify";
-import { notify } from "@/lib/notify";
 import { useUIStore } from "@/stores/ui-store";
 import { useSettings } from "@/features/settings";
+import { useUpload } from "@/features/uploads";
 import { haptic } from "@skriuw/shared";
 import { EmptyState } from "@skriuw/ui";
 import { AlertCircle } from "lucide-react";
@@ -54,11 +54,13 @@ export function NoteEditor({
 	const [surfaceOpen, setSurfaceOpen] = useState(false)
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
 	const [icon, setIcon] = useState<string | undefined>(undefined)
+	const [coverImage, setCoverImage] = useState<string | undefined>(undefined)
 	const [tags, setTags] = useState<string[]>([])
 
 	useEffect(() => {
 		if (note) {
 			setIcon(note.icon || undefined)
+			setCoverImage(note.coverImage || undefined)
 			setTags(note.tags || [])
 		}
 	}, [note])
@@ -69,6 +71,26 @@ export function NoteEditor({
 			updateNote(note.id, editor.document, undefined, newIcon)
 		}
 	}, [editor, note, updateNote])
+
+	const handleCoverImageChange = useCallback((newCover?: string) => {
+		setCoverImage(newCover)
+		if (note) {
+			updateNote(note.id, undefined, undefined, undefined, undefined, newCover)
+		}
+	}, [note, updateNote])
+
+	const { upload: uploadCover, isUploading: isUploadingCover } = useUpload({
+		onSuccess: (result) => {
+			handleCoverImageChange(result.url)
+		},
+		onError: (err) => {
+			notify(`Upload failed: ${err.message}`).duration(3000)
+		}
+	})
+
+	const handleCoverUpload = useCallback((file: File) => {
+		uploadCover(file)
+	}, [uploadCover])
 
 	const handleTagsChange = useCallback((newTags: string[]) => {
 		setTags(newTags)
@@ -323,6 +345,9 @@ export function NoteEditor({
 								setTags={handleTagsChange}
 								className="editor-header"
 								showMetadata={settings.showEditorMetadata ?? true}
+								coverImage={coverImage}
+								setCoverImage={handleCoverImageChange}
+								onCoverUpload={handleCoverUpload}
 							/>
 						}
 						footer={

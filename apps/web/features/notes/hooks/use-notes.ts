@@ -134,8 +134,8 @@ export function useNotes() {
 	)
 
 	const updateNote = useCallback(
-		async (id: string, content: Block[], name?: string, icon?: string, tags?: string[]) => {
-			return await updateNoteMutation.mutateAsync({ id, content, name, icon, tags })
+		async (id: string, content?: Block[], name?: string, icon?: string, tags?: string[], coverImage?: string) => {
+			return await updateNoteMutation.mutateAsync({ id, content, name, icon, tags, coverImage })
 		},
 		[updateNoteMutation]
 	)

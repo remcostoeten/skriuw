@@ -239,19 +239,22 @@ export function useUpdateNoteMutation() {
 			content,
 			name,
 			icon,
-			tags
+			tags,
+			coverImage
 		}: {
 			id: string
 			content?: any[]
 			name?: string
 			icon?: string
 			tags?: string[]
+			coverImage?: string
 		}) => {
 			const updateData: Partial<Note> = {}
 			if (content !== undefined) updateData.content = content
 			if (name !== undefined) updateData.name = name
 			if (icon !== undefined) updateData.icon = icon
 			if (tags !== undefined) updateData.tags = tags
+			if (coverImage !== undefined) updateData.coverImage = coverImage
 
 			const result = await update<Note>(STORAGE_KEYS.NOTES, id, updateData, { userId })
 			if (!result.success) throw new Error('Failed to update note')

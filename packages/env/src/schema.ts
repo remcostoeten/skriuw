@@ -77,7 +77,10 @@ export const serverSchema = z.object({
 	NODE_ENV: z.enum(['development', 'test', 'production']).optional().default('development'),
 
 	// Admin access
-	ADMIN_EMAILS: z.string().optional()
+	ADMIN_EMAILS: z.string().optional(),
+
+	// File uploads (UploadThing)
+	UPLOADTHING_TOKEN: z.string().optional()
 })
 
 /**
