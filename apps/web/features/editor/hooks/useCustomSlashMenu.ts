@@ -1,5 +1,5 @@
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from "@blocknote/react";
-import { CheckSquare, FolderTree, Info, LayoutTemplate } from "lucide-react";
+import { CheckSquare, FolderTree, Info, LayoutTemplate, Link } from "lucide-react";
 import { createElement } from "react";
 
 // At symbol icon for note mention
@@ -117,6 +117,21 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 			subtext: 'Insert an information box',
 			icon: createElement(Info, { size: 18 }),
 			group: 'Custom'
+		},
+		{
+			title: 'Link',
+			onItemClick: () => {
+				const url = window.prompt("Enter URL")
+				if (url) {
+					const text = window.getSelection()?.toString() || url
+					editor.createLink(url, text)
+					editor.insertInlineContent(" ")
+				}
+			},
+			aliases: ['link', 'url', 'href'],
+			subtext: 'Insert a link',
+			icon: createElement(Link, { size: 18 }),
+			group: 'Basic blocks'
 		}
 	]
 

@@ -1,7 +1,7 @@
 import { useUserPreferences } from "../../settings/use-feature-flags";
 import { NoteMentionSuggestionMenu } from "../slash-menu/note-suggestions-menu";
 import { SlashSuggestionMenu } from "../slash-menu/slash-suggestions-menu";
-import { WikilinkSuggestionMenu } from "../slash-menu/wikilink-suggestion-menu";
+
 import { BlockNoteView } from "./blocknote-shadcn/BlockNoteView";
 import { RawMDXEditor } from "./raw-mdx-editor";
 import { blocksToMarkdown } from "@/features/notes/utils/blocks-to-markdown";
@@ -231,6 +231,7 @@ export function DualModeEditor({
 					</BlockNoteView>
 				</div>
 
+
 				{/* Resizable Splitter */}
 				<div
 					ref={splitterRef}
@@ -297,7 +298,7 @@ export function DualModeEditor({
 			>
 				<NoteMentionSuggestionMenu />
 				<SlashSuggestionMenu />
-				<WikilinkSuggestionMenu />
+
 			</BlockNoteView>
 		</div>
 	)

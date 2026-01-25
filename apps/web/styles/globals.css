@@ -279,3 +279,10 @@ button:not(.bn-toolbar button):focus-visible,
 }
 
 /* Keep Tailwind focus utilities intact */
+
+/* Sidebar search input should not show the global focus ring */
+#notesSearch:focus,
+#notesSearch:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+}

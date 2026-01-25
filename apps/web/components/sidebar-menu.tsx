@@ -14,7 +14,6 @@ import { StorageSettings } from "@/features/settings/components/StorageSettings"
 import { Button } from "@skriuw/ui/button";
 import { DrawerDialog, DrawerContent, DrawerClose, DrawerHeader, DrawerTitle, DrawerFooter, DialogAside, DialogContentArea, DialogNavGroup, DialogSection, DialogSeparator } from "@skriuw/ui/dialog-drawer";
 import { Input } from "@skriuw/ui/input";
-import { useGesture } from "@use-gesture/react";
 import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, ChevronDown, ChevronRight, HardDrive } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
