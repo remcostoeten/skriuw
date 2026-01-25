@@ -93,7 +93,7 @@ export function createLinkInBlocks(
             }
 
             return block;
-        });
+        }) as Block[];
     }
 
     // Clone blocks deeply to avoid mutating original state if needed,

@@ -4,6 +4,7 @@ import DangerPanel from "../components/danger-panel";
 import NodePanel from "../components/node-panel";
 import OAuthPanel from "../components/oauth-panel";
 import ProfileSummary from "../components/profile-summary";
+import { AIConfigPanel } from "@/features/ai";
 import { useSession } from "@/lib/auth-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
 import { Separator } from "@skriuw/ui/separator";
@@ -105,6 +106,8 @@ function ProfileShell({ user, isPending, onRefresh }: ProfileViewProps) {
 			<ProfileSummary user={user} onRefresh={onRefresh} />
 			<Separator />
 			<NodePanel />
+			<Separator />
+			<AIConfigPanel />
 			<OAuthPanel userEmail={user.email as string} />
 			<DangerPanel />
 		</div>

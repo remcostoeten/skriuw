@@ -153,10 +153,12 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 
 			if (centeredLayout) {
 				editorRef.current.classList.add('centered-layout')
-				editorRef.current.style.setProperty(
-					'--editor-max-width',
-					getMaxWidthPx(maxWidth ?? 'medium')
-				)
+				const resolvedWidth = getMaxWidthPx(maxWidth ?? 'medium')
+				if (resolvedWidth === 'none') {
+					editorRef.current.style.removeProperty('--editor-max-width')
+				} else {
+					editorRef.current.style.setProperty('--editor-max-width', resolvedWidth)
+				}
 			} else {
 				editorRef.current.classList.remove('centered-layout')
 				editorRef.current.style.removeProperty('--editor-max-width')

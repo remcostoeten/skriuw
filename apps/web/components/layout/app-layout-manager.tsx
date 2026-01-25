@@ -14,6 +14,7 @@ import { SidebarSkeleton } from "../sidebar/sidebar-skeleton";
 import type { SidebarContentType } from "../sidebar/types";
 import { AppLayoutShell } from "./app-layout-shell";
 import { Footer } from "./footer";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { TopToolbar } from "./top-toolbar";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
@@ -437,7 +438,12 @@ export function AppLayoutManager({
 					</div>
 				</div>
 			}
-			footer={<Footer />}
+			footer={
+				<>
+					<MobileBottomNav onSettingsClick={() => setSettingsOpen(true)} />
+					<Footer />
+				</>
+			}
 			rightPanel={
 				<>
 					<TaskPanelStack />
