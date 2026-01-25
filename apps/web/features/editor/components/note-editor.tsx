@@ -4,6 +4,7 @@ import { useShortcut } from "../../shortcuts/use-shortcut";
 import { useEditor } from "../hooks/use-editor";
 import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
 import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
+import { MobileFormattingBar } from "./mobile-formatting-bar";
 import { EditorHeader } from "./editor-header";
 import { BacklinksPanel } from "./backlinks-panel";
 import { useNotesContext } from "@/features/notes/context/notes-context";
@@ -13,6 +14,8 @@ import { getArchiveId } from "@/features/notes/utils/archive-folder";
 import { useSession } from "@/lib/auth-client";
 import { notify } from "@/lib/notify";
 import { useUIStore } from "@/stores/ui-store";
+import { useSettings } from "@/features/settings";
+import { useUpload } from "@/features/uploads";
 import { haptic } from "@skriuw/shared";
 import { EmptyState } from "@skriuw/ui";
 import { AlertCircle } from "lucide-react";
@@ -44,6 +47,7 @@ export function NoteEditor({
 	const { items, createNote, createFolder, moveItem, deleteItem, updateNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 	const { toggleMobileSidebar } = useUIStore()
+	const { settings } = useSettings()
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)
 	const searchParams = useSearchParams()
@@ -51,19 +55,48 @@ export function NoteEditor({
 	const [surfaceOpen, setSurfaceOpen] = useState(false)
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
 	const [icon, setIcon] = useState<string | undefined>(undefined)
+	const [coverImage, setCoverImage] = useState<string | undefined>(undefined)
 	const [tags, setTags] = useState<string[]>([])
 
 	useEffect(() => {
 		if (note) {
 			setIcon(note.icon || undefined)
+			setCoverImage(note.coverImage || undefined)
 			setTags(note.tags || [])
 		}
 	}, [note])
 
-	const handleIconChange = useCallback((newIcon: string) => {
+	const handleIconChange = useCallback((newIcon?: string) => {
 		setIcon(newIcon)
 		if (editor && note) {
 			updateNote(note.id, editor.document, undefined, newIcon)
+		}
+	}, [editor, note, updateNote])
+
+	const handleCoverImageChange = useCallback((newCover?: string) => {
+		setCoverImage(newCover)
+		if (note) {
+			updateNote(note.id, undefined, undefined, undefined, undefined, newCover)
+		}
+	}, [note, updateNote])
+
+	const { upload: uploadCover, isUploading: isUploadingCover } = useUpload({
+		onSuccess: (result) => {
+			handleCoverImageChange(result.url)
+		},
+		onError: (err) => {
+			notify(`Upload failed: ${err.message}`).duration(3000)
+		}
+	})
+
+	const handleCoverUpload = useCallback((file: File) => {
+		uploadCover(file)
+	}, [uploadCover])
+
+	const handleTagsChange = useCallback((newTags: string[]) => {
+		setTags(newTags)
+		if (editor && note) {
+			updateNote(note.id, editor.document, undefined, undefined, newTags)
 		}
 	}, [editor, note, updateNote])
 
@@ -310,7 +343,12 @@ export function NoteEditor({
 								createdAt={note?.createdAt}
 								updatedAt={note?.updatedAt}
 								tags={tags}
-								className="max-w-[655px]"
+								setTags={handleTagsChange}
+								className="editor-header"
+								showMetadata={settings.showEditorMetadata ?? true}
+								coverImage={coverImage}
+								setCoverImage={handleCoverImageChange}
+								onCoverUpload={handleCoverUpload}
 							/>
 						}
 						footer={
@@ -329,6 +367,7 @@ export function NoteEditor({
 					/>
 				)}
 			</div>
+			<MobileFormattingBar editor={editor} />
 			<CommandSurface
 				open={surfaceOpen}
 				onOpenChange={handleSurfaceChange}

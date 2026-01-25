@@ -2,15 +2,15 @@ import type { Item, Note } from '../types'
 import { flattenNotes } from './flatten-notes'
 import { extractWikilinksFromBlocks } from './wikilink-parser'
 
-type Props = {
+export type Backlink = {
 	noteId: string
 	noteName: string
 	context: string
 	linkText: string
 }
 
-export function getBacklinks(items: Item[], currentNoteId: string, currentNoteName: string): Props[] {
-	const backlinks: Props[] = []
+export function getBacklinks(items: Item[], currentNoteId: string, currentNoteName: string): Backlink[] {
+	const backlinks: Backlink[] = []
 	const allNotes = flattenNotes(items).filter((item): item is Note => item.type === 'note')
 	const lowerNoteName = currentNoteName.toLowerCase()
 
@@ -36,8 +36,8 @@ export function getBacklinks(items: Item[], currentNoteId: string, currentNoteNa
 	return backlinks
 }
 
-export function getUnlinkedMentions(items: Item[], currentNoteId: string, currentNoteName: string): Props[] {
-	const unlinkedMentions: Props[] = []
+export function getUnlinkedMentions(items: Item[], currentNoteId: string, currentNoteName: string): Backlink[] {
+	const unlinkedMentions: Backlink[] = []
 	const allNotes = flattenNotes(items).filter((item): item is Note => item.type === 'note')
 	const lowerNoteName = currentNoteName.toLowerCase()
 

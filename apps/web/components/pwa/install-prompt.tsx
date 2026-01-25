@@ -100,8 +100,8 @@ export function InstallPrompt() {
 			{showBanner && (
 				<div
 					className={cn(
-						'fixed z-[60] transition-all duration-300 ease-out',
-						'bottom-[calc(56px+env(safe-area-inset-bottom)+12px)] left-3 right-3',
+						'fixed z-[80] transition-all duration-300 ease-out',
+						'bottom-[calc(56px_+_env(safe-area-inset-bottom)_+_12px)] left-3 right-3',
 						'sm:left-auto sm:right-4 sm:bottom-20 sm:w-auto sm:max-w-[320px]'
 					)}
 				>

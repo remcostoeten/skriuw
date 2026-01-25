@@ -9,10 +9,27 @@ import "prismjs/themes/prism-tomorrow.css";
 // Force dynamic rendering to avoid SSR issues with BlockNote
 export const dynamic = 'force-dynamic'
 
+export const viewport = {
+	themeColor: [
+		{ media: '(prefers-color-scheme: light)', color: 'white' },
+		{ media: '(prefers-color-scheme: dark)', color: '#0a0a0a' }
+	],
+	width: 'device-width',
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
+	viewportFit: 'cover'
+}
+
 export const metadata: Metadata = {
 	title: 'Skriuw',
 	description: 'A blazingly fast, privacy-focused note-taking app',
 	manifest: '/manifest.json',
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: 'black-translucent',
+		title: 'Skriuw'
+	},
 	icons: {
 		icon: [
 			{ url: '/favicon.svg', media: '(prefers-color-scheme: light)' },
@@ -46,15 +63,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 						`
 					}}
 				/>
-				<link rel='apple-touch-icon' sizes='180x180' href='/apple-touch-icon.png' />
-				<link rel='apple-touch-icon' sizes='152x152' href='/icons/Square150x150Logo.png' />
-				<link rel='apple-touch-icon' sizes='310x310' href='/icons/Square310x310Logo.png' />
-				<meta name='apple-mobile-web-app-capable' content='yes' />
-				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
-				<meta name='apple-mobile-web-app-title' content='Skriuw' />
 			</head>
-			<body className='font-sans antialiased dark bg-background' suppressHydrationWarning>
-				<div id='main-content'>
+			<body className='font-sans antialiased dark bg-background overscroll-none' suppressHydrationWarning>
+				<div id='main-content' className='h-safe-screen w-full pb-safe pt-safe'>
 					<Providers>
 						{children}
 						<CommandExecutor />

@@ -135,11 +135,15 @@
    Centered Layout Mode
    ============================================================================= */
 
+.editor-container.centered-layout .editor-header,
 .editor-container.centered-layout .bn-editor {
 	width: 100%;
 	max-width: var(--editor-max-width, 655px);
 	margin-left: auto;
 	margin-right: auto;
+}
+
+.editor-container.centered-layout .bn-editor {
 	padding: 0 1.5rem 1.5rem;
 	position: relative;
 }

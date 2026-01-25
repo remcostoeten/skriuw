@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNotesContext } from '../context/notes-context'
-import { getBacklinks, getUnlinkedMentions } from '../utils/backlinks'
+import { getBacklinks, getUnlinkedMentions, type Backlink } from '../utils/backlinks'
 
 type UseBacklinksResult = {
 	backlinks: Backlink[]
