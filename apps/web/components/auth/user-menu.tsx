@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession, signOut } from "@/lib/auth-client";
-import { Button, buttonVariants } from "@skriuw/ui/button";
+import { Button } from "@skriuw/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@skriuw/ui/dropdown-menu";
 import { User, LogOut, UserRoundCog } from "lucide-react";
 import Link from "next/link";
@@ -13,7 +13,7 @@ export function UserMenu() {
 		return <div className='h-7 w-7 animate-pulse rounded-full bg-muted' />
 	}
 
-	if (!session) {
+	if (!session || (session.user as any).isAnonymous) {
 		return (
 			<Button
 				asChild

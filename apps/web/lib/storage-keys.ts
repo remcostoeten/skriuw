@@ -21,7 +21,16 @@ export const STORAGE_KEYS = {
 	EDITOR_TABS: 'skriuw:editor-tabs',
 
 	// Split view state
-	NOTE_SPLIT_VIEW: 'skriuw:noteSplitView:state'
+	NOTE_SPLIT_VIEW: 'skriuw:noteSplitView:state',
+
+	// AI Provider Config
+	AI_PROVIDER_CONFIG: 'skriuw:ai-provider-config',
+
+	// AI Prompt Log
+	AI_PROMPT_LOG: 'skriuw:ai-prompt-log',
+
+	// AI API Keys
+	AI_API_KEYS: 'skriuw:ai-api-keys'
 } as const
 
 // Default entity IDs
