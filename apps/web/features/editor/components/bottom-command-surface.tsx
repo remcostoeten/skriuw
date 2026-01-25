@@ -283,7 +283,7 @@ export function CommandSurface({
 	}, [])
 
 	return (
-		<div className={cn('fixed inset-0 z-[80]', className)}>
+		<div className={cn('fixed inset-0 z-[80] pointer-events-none', className)}>
 			{open ? (
 				<button
 					type='button'

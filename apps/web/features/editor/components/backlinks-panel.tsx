@@ -42,7 +42,7 @@ export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelPr
             const sourceNote = allNotes.find(n => n.id === mention.noteId)
 
             if (!sourceNote || !sourceNote.content) {
-                notify("Could not find source note").error()
+                notify("Could not find source note")
                 return
             }
 

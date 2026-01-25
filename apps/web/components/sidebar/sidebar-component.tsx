@@ -1360,6 +1360,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	const draggedItemRef = useRef<Item | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [isSearchOpen, setIsSearchOpen] = useState(false)
+	const [activeTags, setActiveTags] = useState<string[]>([])
 	const { contextMenuState, setContextMenuState } = useContextMenuState()
 	const { getSetting } = useSettings()
 	const searchInContent = getSetting('searchInContent') ?? false
@@ -1717,6 +1718,42 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		setSearchQuery('')
 	}, [])
 
+	const availableTags = useMemo(() => {
+		const tagMap = new Map<string, string>()
+
+		const collectTags = (itemList: Item[]) => {
+			for (const item of itemList) {
+				if (item.type === 'note') {
+					const noteTags = item.tags || []
+					for (const tag of noteTags) {
+						const cleaned = tag.trim()
+						if (!cleaned) continue
+						const key = cleaned.toLowerCase()
+						if (!tagMap.has(key)) {
+							tagMap.set(key, cleaned)
+						}
+					}
+				} else if (item.type === 'folder') {
+					collectTags(item.children || [])
+				}
+			}
+		}
+
+		collectTags(items)
+
+		return Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b))
+	}, [items])
+
+	const activeTagSet = useMemo(() => {
+		return new Set(activeTags.map((tag) => tag.toLowerCase()))
+	}, [activeTags])
+
+	useEffect(() => {
+		if (activeTags.length === 0) return
+		const availableSet = new Set(availableTags.map((tag) => tag.toLowerCase()))
+		setActiveTags((prev) => prev.filter((tag) => availableSet.has(tag.toLowerCase())))
+	}, [availableTags, activeTags.length])
+
 	const handleContextMenuOpenChange = useCallback(
 		(
 			open: boolean,
@@ -1916,7 +1953,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	}, [])
 
 	const filteredItems = useMemo(() => {
-		if (!searchQuery.trim()) {
+		const hasSearchQuery = searchQuery.trim().length > 0
+		const hasTagFilter = activeTags.length > 0
+
+		if (!hasSearchQuery && !hasTagFilter) {
 			return sortItems(items)
 		}
 
@@ -1926,10 +1966,10 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 			const filtered: Item[] = []
 
 			for (const item of itemList) {
-				const nameMatches = item.name.toLowerCase().includes(query)
+				const nameMatches = hasSearchQuery ? item.name.toLowerCase().includes(query) : true
 
 				let contentMatches = false
-				if (searchInContent && item.type === 'note' && 'content' in item) {
+				if (hasSearchQuery && searchInContent && item.type === 'note' && 'content' in item) {
 					const note = item as { content?: Block[] }
 					if (note.content && Array.isArray(note.content)) {
 						try {
@@ -1942,24 +1982,33 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					}
 				}
 
-				if (nameMatches || contentMatches) {
-					if (item.type === 'folder') {
-						const filteredChildren = filterItems(item.children)
-						filtered.push({
-							...item,
-							children: filteredChildren
-						} as Item)
-					} else {
+				const matchesSearch = hasSearchQuery ? nameMatches || contentMatches : true
+
+				if (item.type === 'note') {
+					const noteTags = item.tags || []
+					const matchesTag = hasTagFilter
+						? noteTags.some((tag) => activeTagSet.has(tag.toLowerCase()))
+						: true
+					if (matchesSearch && matchesTag) {
 						filtered.push(item)
 					}
-				} else if (item.type === 'folder') {
-					const filteredChildren = filterItems(item.children)
-					if (filteredChildren.length > 0) {
-						filtered.push({
-							...item,
-							children: filteredChildren
-						} as Item)
-					}
+					continue
+				}
+
+				const filteredChildren = filterItems(item.children)
+				if (filteredChildren.length > 0) {
+					filtered.push({
+						...item,
+						children: filteredChildren
+					} as Item)
+					continue
+				}
+
+				if (matchesSearch && !hasTagFilter) {
+					filtered.push({
+						...item,
+						children: []
+					} as Item)
 				}
 			}
 
@@ -1967,7 +2016,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		}
 
 		return sortItems(filterItems(items))
-	}, [items, searchQuery, sortItems, searchInContent])
+	}, [items, searchQuery, sortItems, searchInContent, activeTags, activeTagSet])
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -2078,6 +2127,58 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					onToggle: handleExpandCollapseAll
 				}}
 			/>
+			{availableTags.length > 0 && (
+				<div className='px-2 pt-2'>
+					<div className='flex flex-wrap items-center gap-1'>
+						<button
+							type='button'
+							onClick={() => setActiveTags([])}
+							className={cn(
+								'text-[11px] px-2 py-1 rounded-md border transition-colors',
+								activeTags.length === 0
+									? 'bg-accent text-accent-foreground border-accent'
+									: 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+							)}
+						>
+							All
+						</button>
+						{availableTags.map((tag) => {
+							const isActive = activeTagSet.has(tag.toLowerCase())
+							return (
+								<button
+									key={tag}
+									type='button'
+									onClick={() => {
+										setActiveTags((prev) => {
+											if (prev.some((item) => item.toLowerCase() === tag.toLowerCase())) {
+												return prev.filter((item) => item.toLowerCase() !== tag.toLowerCase())
+											}
+											return [...prev, tag]
+										})
+									}}
+									className={cn(
+										'text-[11px] px-2 py-1 rounded-md border transition-colors',
+										isActive
+											? 'bg-muted text-foreground border-muted-foreground/20'
+											: 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+									)}
+								>
+									{tag}
+								</button>
+							)
+						})}
+						{activeTags.length > 0 && (
+							<button
+								type='button'
+								onClick={() => setActiveTags([])}
+								className='text-[11px] px-2 py-1 rounded-md text-muted-foreground hover:text-foreground'
+							>
+								Clear
+							</button>
+						)}
+					</div>
+				</div>
+			)}
 			<div className='flex-1 overflow-y-auto px-2 pt-2 pb-4' onClick={handleSidebarClick}>
 				<div
 					className='flex flex-col items-start gap-1 w-full'
@@ -2131,7 +2232,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						</div>
 					) : filteredItems.length === 0 ? (
 						<div className='flex-1 w-full'>
-							<SidebarEmptyState hasSearchQuery={!!searchQuery} />
+							<SidebarEmptyState hasSearchQuery={!!searchQuery || activeTags.length > 0} />
 						</div>
 					) : (
 						filteredItems.map((item, index, arr) => (

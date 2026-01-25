@@ -47,7 +47,10 @@ export const aiSchema = z.object({
 	GEMINI_API_KEY: z.string().optional(),
 	GEMINI_BACKUP_KEY: z.string().optional(),
 	OPENAI_API_KEY: z.string().optional(),
-	ANTHROPIC_API_KEY: z.string().optional()
+	ANTHROPIC_API_KEY: z.string().optional(),
+	GROK_API_KEY: z.string().optional(),
+	GROK_BACKUP_KEY: z.string().optional(),
+	AI_PROMPT_ENCRYPTION_KEY: z.string().optional()
 })
 
 /**
@@ -74,7 +77,10 @@ export const serverSchema = z.object({
 	NODE_ENV: z.enum(['development', 'test', 'production']).optional().default('development'),
 
 	// Admin access
-	ADMIN_EMAILS: z.string().optional()
+	ADMIN_EMAILS: z.string().optional(),
+
+	// File uploads (UploadThing)
+	UPLOADTHING_TOKEN: z.string().optional()
 })
 
 /**

@@ -47,8 +47,10 @@ function TopSectionWrapper({
 	return (
 		<div
 			className={cn(
-				'flex items-center gap-2 px-3.5 transition-all',
-				isInputVisible && 'opacity-0 pointer-events-none'
+				'flex items-center gap-2 px-3.5 transition-[transform,opacity] duration-200 ease-out will-change-transform',
+				isInputVisible
+					? '-translate-y-12 opacity-0 pointer-events-none'
+					: 'translate-y-0 opacity-100'
 			)}
 		>
 			{children}
@@ -217,7 +219,7 @@ export function ActionBar({
 					className={cn(
 						'absolute pb-[0.5px] flex flex-row items-center justify-center',
 						'w-full h-full px-[5px] gap-1 shrink-0',
-						'transform transition-all duration-200',
+						'transform transition-[transform,opacity] duration-200 ease-out will-change-transform',
 						isSearchOpen
 							? 'translate-y-0 opacity-100'
 							: 'translate-y-12 opacity-0 pointer-events-none'
@@ -226,7 +228,7 @@ export function ActionBar({
 				>
 					<div
 						className={cn(
-							'rounded-md w-full flex items-center justify-start bg-sidebar-background pl-2 pr-1 gap-0.5 border border-sidebar-border focus-within:ring-1 focus-within:ring-sidebar-ring transition-all',
+							'rounded-md w-full flex items-center justify-start bg-sidebar-background pl-2 pr-1 gap-0.5 border border-sidebar-border transition-all',
 							isTouchDevice && 'h-12 px-3 py-2 gap-2 rounded-lg'
 						)}
 					>
@@ -234,7 +236,7 @@ export function ActionBar({
 							ref={searchInputRef}
 							id='notesSearch'
 							className={cn(
-								'w-full bg-transparent outline-none placeholder:text-muted-foreground h-[30px] text-sm text-sidebar-foreground',
+								'w-full appearance-none bg-sidebar-background outline-none placeholder:text-muted-foreground h-[30px] text-sm text-sidebar-foreground',
 								isTouchDevice && 'h-8 text-sm'
 							)}
 							type='text'

@@ -105,8 +105,9 @@ export function WikilinkSuggestionMenu() {
                     title: `Create "${query}"`,
                     titleHighlights: [{ text: `Create "${query}"`, matched: true }],
                     path: 'New Note',
-                    updatedAt: new Date(),
-                    isCreateOption: true
+                    updatedAt: Date.now(),
+                    isCreateOption: true,
+                    score: 1
                 }
                 return [...results, createOption]
             }
@@ -131,7 +132,7 @@ export function WikilinkSuggestionMenu() {
                             noteName: noteName,
                             noteId: "" // Empty ID signals it needs creation
                         }
-                    },
+                    } as any,
                     " "
                 ])
                 return
@@ -145,7 +146,7 @@ export function WikilinkSuggestionMenu() {
                         noteName: item.title,
                         noteId: item.id
                     }
-                },
+                } as any,
                 " " // trailing space
             ])
         },

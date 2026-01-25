@@ -18,7 +18,14 @@ type NotesContextValue = {
 		parentFolderId?: string
 	) => Promise<Note>
 	createFolder: (name?: string, parentFolderId?: string) => Promise<Folder>
-	updateNote: (id: string, content: Block[], name?: string) => Promise<Note | null | undefined>
+	updateNote: (
+		id: string,
+		content?: Block[],
+		name?: string,
+		icon?: string,
+		tags?: string[],
+		coverImage?: string
+	) => Promise<Note | null | undefined>
 	renameItem: (id: string, newName: string) => Promise<Item | null | undefined>
 	deleteItem: (id: string) => Promise<boolean>
 	moveItem: (itemId: string, targetFolderId: string | null) => Promise<Item | null | undefined>
