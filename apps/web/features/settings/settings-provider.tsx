@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = {
 	blockIndicator: true,
 	showFormattingToolbar: true,
 
-	centeredLayout: false,
+	centeredLayout: true,
 	spellCheck: true,
 	autoBackup: false,
 	backupInterval: 3600000, // 1 hour

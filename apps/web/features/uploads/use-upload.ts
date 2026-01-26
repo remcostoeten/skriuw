@@ -11,12 +11,12 @@ export function useUpload(options: UseUploadOptions = {}) {
     const [error, setError] = useState<Error | null>(null)
 
     const upload = useCallback(
-        async (file: File): Promise<UploadResult | null> => {
+        async (file: File, isGuest = false): Promise<UploadResult | null> => {
             setIsUploading(true)
             setError(null)
 
             try {
-                const result = await uploadFile(file)
+                const result = await uploadFile(file, isGuest)
                 options.onSuccess?.(result)
                 return result
             } catch (err) {

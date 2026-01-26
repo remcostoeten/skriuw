@@ -54,7 +54,12 @@ export function useGuestMigration() {
 							const result = await createNoteMutationRef.current.mutateAsync({
 								name: note.name,
 								content: note.content,
-								parentFolderId: newParentId
+								parentFolderId: newParentId,
+								icon: note.icon,
+								tags: note.tags,
+								coverImage: note.coverImage,
+								favorite: note.favorite,
+								pinned: note.pinned
 							})
 							newId = result.id
 						} else if (item.type === 'folder') {

@@ -98,8 +98,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 	{
 		key: 'centeredLayout',
 		label: 'Centered Layout',
-		value: false,
-		defaultValue: false,
+		value: true,
+		defaultValue: true,
 		type: 'boolean',
 		description: 'Center the editor content with a max-width container',
 		category: 'appearance',
@@ -406,7 +406,14 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 				)
 			}
 		]
-		: [])
+		: []),
+	{
+		category: 'tags' as const,
+		title: 'My Tags',
+		description: 'Manage your tags, customize colors, and see usage across notes',
+		settings: [],
+		customComponent: 'tags-settings'
+	}
 ]
 
 /**

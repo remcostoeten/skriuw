@@ -1,0 +1,5 @@
+export * from './types'
+export * from './hooks/use-tags-query'
+export { TagBadge } from './components/tag-badge'
+export { TagAutocompleteInput } from './components/tag-autocomplete-input'
+export { TagsSettings } from './components/tags-settings'

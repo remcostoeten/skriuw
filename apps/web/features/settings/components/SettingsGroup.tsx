@@ -7,6 +7,14 @@ import { Label } from "@skriuw/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@skriuw/ui/select";
 import { Switch } from "@skriuw/ui/switch";
 import React, { Suspense } from "react";
+import { TagsSettings } from "@/features/tags";
+
+function getCustomComponent(key: string): React.ComponentType | null {
+	const components: Record<string, React.ComponentType> = {
+		'tags-settings': TagsSettings
+	}
+	return components[key] ?? null
+}
 
 type props = {
 	group: SettingsGroup
@@ -230,6 +238,12 @@ export function SettingsGroup({ group, values, onChange, disabled = false }: pro
 		group.category === 'ai'
 			? 'AI settings are coming soon and are currently disabled.'
 			: undefined
+
+	const CustomComponent = group.customComponent ? getCustomComponent(group.customComponent) : null
+
+	if (CustomComponent) {
+		return <CustomComponent />
+	}
 
 	return (
 		<div className='w-full max-w-2xl'>
