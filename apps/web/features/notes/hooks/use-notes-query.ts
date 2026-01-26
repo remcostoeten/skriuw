@@ -41,12 +41,13 @@ export function useNotesQuery() {
 			const now = Date.now()
 			const welcomeNote: Note = {
 				id: `welcome-${now}`,
-				name: 'Your workspace is ready',
+				name: 'Welcome',
 				type: 'note',
 				content: getWelcomeContent(),
 				parentFolderId: undefined,
 				pinned: true,
 				favorite: false,
+				tags: ['getting-started', 'tutorial', 'skriuw'],
 				createdAt: now,
 				updatedAt: now,
 				userId
@@ -108,11 +109,21 @@ export function useCreateNoteMutation() {
 		mutationFn: async ({
 			name,
 			content,
-			parentFolderId
+			parentFolderId,
+			icon,
+			tags,
+			coverImage,
+			favorite,
+			pinned
 		}: {
 			name: string
 			content: any[]
 			parentFolderId?: string
+			icon?: string
+			tags?: string[]
+			coverImage?: string
+			favorite?: boolean
+			pinned?: boolean
 		}) => {
 			const newNote: Note = {
 				id: generateId('temp-'), // will be overwritten by server/local
@@ -120,8 +131,11 @@ export function useCreateNoteMutation() {
 				type: 'note',
 				content: content,
 				parentFolderId,
-				pinned: false,
-				favorite: false,
+				icon,
+				tags,
+				coverImage,
+				pinned: pinned ?? false,
+				favorite: favorite ?? false,
 				createdAt: Date.now(),
 				updatedAt: Date.now()
 			}

@@ -250,6 +250,13 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			onClick: () => setActiveItem('advanced')
 		},
 		{
+			id: 'tags',
+			label: 'My Tags',
+			icon: <Settings className='w-4 h-4' />,
+			active: activeItem === 'tags',
+			onClick: () => setActiveItem('tags')
+		},
+		{
 			id: 'shortcuts',
 			label: 'Shortcuts',
 			icon: <Keyboard className='w-4 h-4' />,
@@ -451,6 +458,12 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 			label: 'Advanced',
 			icon: <Sliders className='w-5 h-5' />,
 			description: 'Advanced configuration options'
+		},
+		{
+			id: 'tags',
+			label: 'My Tags',
+			icon: <Settings className='w-5 h-5' />,
+			description: 'Manage your tags and colors'
 		},
 		{
 			id: 'shortcuts',
