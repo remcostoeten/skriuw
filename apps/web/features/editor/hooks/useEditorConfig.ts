@@ -9,6 +9,7 @@ import { useSettings, useUserPreferences } from "@/features/settings";
 import { BlockNoteSchema } from "@blocknote/core";
 import { useMemo } from "react";
 import { WikiLink } from "../inline-content/wikilink-content";
+import { TagInline } from "../inline-content/tag-mention-content";
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
@@ -26,7 +27,8 @@ export function createEditorSchema() {
 			header: headerBlockSpec()
 		},
 		inlineContentSpecs: {
-			wikilink: WikiLink
+			wikilink: WikiLink,
+			tag: TagInline
 		}
 	})
 }

@@ -3,6 +3,7 @@
 import { useEditorConfig } from "./useEditorConfig";
 import type { Note } from "@/features/notes";
 import { useNotesContext } from "@/features/notes/context/notes-context";
+import { extractTags } from "@/features/notes/utils/extract-tags";
 import { BlockNoteEditor, Block } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
@@ -252,7 +253,8 @@ export function useEditor({
 
 		try {
 			const blocks = editor.document
-			updateNote(noteId, blocks, noteName)
+			const tags = extractTags(blocks)
+			updateNote(noteId, blocks, noteName, undefined, tags)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save note')
 		}
