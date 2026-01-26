@@ -42,10 +42,34 @@ async function uploadWithTauriFs(file: File): Promise<UploadResult> {
 	}
 }
 
-export async function uploadFile(file: File): Promise<UploadResult> {
+async function uploadWithLocalStorage(file: File): Promise<UploadResult> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => {
+			if (typeof reader.result === 'string') {
+				resolve({
+					url: reader.result,
+					name: file.name
+				})
+			} else {
+				reject(new Error('Failed to convert file to base64'))
+			}
+		}
+		reader.onerror = () => reject(reader.error)
+		reader.readAsDataURL(file)
+	})
+}
+
+export async function uploadFile(file: File, isGuest = false): Promise<UploadResult> {
 	if (isTauriAvailable()) {
 		return uploadWithTauriFs(file)
 	}
+
+	// If guest, use local storage (base64)
+	if (isGuest) {
+		return uploadWithLocalStorage(file)
+	}
+
 	return uploadWithUploadThing(file)
 }
 
