@@ -54,15 +54,18 @@ export function NoteEditor({
 	const hasFocusedRef = useRef(false)
 	const [surfaceOpen, setSurfaceOpen] = useState(false)
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
-	const [icon, setIcon] = useState<string | undefined>(undefined)
-	const [coverImage, setCoverImage] = useState<string | undefined>(undefined)
-	const [tags, setTags] = useState<string[]>([])
+	const [icon, setIcon] = useState<string | undefined>(note?.icon || undefined)
+	const [coverImage, setCoverImage] = useState<string | undefined>(note?.coverImage || undefined)
+	const [tags, setTags] = useState<string[]>(note?.tags || [])
 
 	useEffect(() => {
 		if (note) {
-			setIcon(note.icon || undefined)
-			setCoverImage(note.coverImage || undefined)
-			setTags(note.tags || [])
+			// Only update if different to avoid potential loops/redundant renders,
+			// though React handles same-value updates well.
+			if (note.icon !== icon) setIcon(note.icon || undefined)
+			if (note.coverImage !== coverImage) setCoverImage(note.coverImage || undefined)
+			// tags comparison is harder, relying on ref/effect might be fine or just strict set
+			if (JSON.stringify(note.tags) !== JSON.stringify(tags)) setTags(note.tags || [])
 		}
 	}, [note])
 
@@ -90,8 +93,9 @@ export function NoteEditor({
 	})
 
 	const handleCoverUpload = useCallback((file: File) => {
-		uploadCover(file)
-	}, [uploadCover])
+		const isGuest = !session?.user
+		uploadCover(file, isGuest)
+	}, [uploadCover, session?.user])
 
 	const handleTagsChange = useCallback((newTags: string[]) => {
 		setTags(newTags)

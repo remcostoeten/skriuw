@@ -171,6 +171,39 @@ export const noteVisitors = pgTable(
 	})
 )
 
+export const tags = pgTable(
+	'tags',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		color: text('color').default('#6366f1'),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	},
+	(table) => ({
+		userIdx: createUserIndex('tags', table.userId),
+		userNameIdx: uniqueIndex('tags_user_name_idx').on(table.userId, table.name)
+	})
+)
+
+export const noteTags = pgTable(
+	'note_tags',
+	{
+		noteId: text('note_id')
+			.notNull()
+			.references(() => notes.id, { onDelete: 'cascade' }),
+		tagId: text('tag_id')
+			.notNull()
+			.references(() => tags.id, { onDelete: 'cascade' })
+	},
+	(table) => ({
+		pk: uniqueIndex('note_tags_pk').on(table.noteId, table.tagId),
+		noteIdx: index('note_tags_note_idx').on(table.noteId),
+		tagIdx: index('note_tags_tag_idx').on(table.tagId)
+	})
+)
+
 // Type exports for use in app
 export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
@@ -183,6 +216,10 @@ export type StorageConnector = typeof storageConnectors.$inferSelect
 export type NewStorageConnector = typeof storageConnectors.$inferInsert
 export type NoteVisitor = typeof noteVisitors.$inferSelect
 export type NewNoteVisitor = typeof noteVisitors.$inferInsert
+export type Tag = typeof tags.$inferSelect
+export type NewTag = typeof tags.$inferInsert
+export type NoteTag = typeof noteTags.$inferSelect
+export type NewNoteTag = typeof noteTags.$inferInsert
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -327,6 +364,23 @@ export const aiApiKeys = pgTable(
 	})
 )
 
+export const files = pgTable(
+	'files',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+		url: text('url').notNull(),
+		name: text('name').notNull(),
+		size: integer('size').notNull(),
+		type: text('type').notNull(), // mimetype
+		createdAt: bigint('created_at', { mode: 'number' }).notNull()
+	},
+	(table) => ({
+		userIdx: createUserIndex('files', table.userId),
+		createdIdx: index('files_created_at_idx').on(table.createdAt)
+	})
+)
+
 export type User = typeof user.$inferSelect
 export type Session = typeof session.$inferSelect
 export type Account = typeof account.$inferSelect
@@ -341,3 +395,5 @@ export type AIPromptLog = typeof aiPromptLog.$inferSelect
 export type NewAIPromptLog = typeof aiPromptLog.$inferInsert
 export type AIApiKey = typeof aiApiKeys.$inferSelect
 export type NewAIApiKey = typeof aiApiKeys.$inferInsert
+export type File = typeof files.$inferSelect
+export type NewFile = typeof files.$inferInsert
