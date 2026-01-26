@@ -28,12 +28,14 @@ export type SettingsCategory =
 	| 'backup'
 	| 'advanced'
 	| 'ai'
+	| 'tags'
 
 export type SettingsGroup = {
 	category: SettingsCategory
 	title: string
 	description: string
 	settings: UserSetting[]
+	customComponent?: string
 }
 
 export type SettingsConfig = {

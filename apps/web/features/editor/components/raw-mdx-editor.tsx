@@ -173,7 +173,7 @@ export function RawMDXEditor({
 	return (
 		<div
 			className={cn(
-				'relative w-full max-w-[655px] mx-auto h-full bg-background-secondary',
+				'relative w-full mx-auto h-full bg-background-secondary',
 				disabled && 'opacity-50 pointer-events-none',
 				className
 			)}
@@ -181,6 +181,7 @@ export function RawMDXEditor({
 			aria-label='MDX Editor'
 			aria-multiline='true'
 			aria-readonly={disabled}
+			style={{ maxWidth: 'var(--editor-max-width, 100%)' }}
 		>
 			<div
 				className={cn(

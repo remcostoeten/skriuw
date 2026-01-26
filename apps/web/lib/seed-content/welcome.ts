@@ -52,10 +52,6 @@ export function getWelcomeContent(): any[] {
 	idCounter = 0
 
 	return [
-		h(1, 'Welcome.'),
-
-		empty(),
-
 		p([
 			{ text: 'You\'re looking at a ' },
 			{ text: 'Skriuw', styles: { bold: true } },
