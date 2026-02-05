@@ -1,5 +1,5 @@
 import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from "@blocknote/react";
-import { CheckSquare, FolderTree, Info, LayoutTemplate, Link } from "lucide-react";
+import { CheckSquare, FolderTree, Info, LayoutTemplate, Link, Image as ImageIcon } from "lucide-react";
 import { createElement } from "react";
 
 // At symbol icon for note mention
@@ -132,6 +132,19 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 			subtext: 'Insert a link',
 			icon: createElement(Link, { size: 18 }),
 			group: 'Basic blocks'
+		},
+		{
+			title: 'Media Library',
+			onItemClick: () => {
+				// This event is handled by the editor component to show the media picker
+				// checking for a specific custom custom event or by passing this handler in
+				// For now we'll dispatch a custom event that the editor can listen to
+				window.dispatchEvent(new CustomEvent('open-media-library'))
+			},
+			aliases: ['media', 'image', 'gallery', 'lib'],
+			subtext: 'Insert from uploaded files',
+			icon: createElement(ImageIcon, { size: 18 }),
+			group: 'Media'
 		}
 	]
 
