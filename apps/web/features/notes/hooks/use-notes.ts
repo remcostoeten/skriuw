@@ -169,18 +169,20 @@ export function useNotes() {
 				noteIcon = defaultEmoji
 			}
 
+			const coverImage = noteCreationMode === 'simple' ? undefined : undefined
+
 			return await createNoteMutation.mutateAsync({
 				name: name ?? titlePlaceholder,
 				content: noteContent,
 				parentFolderId,
 				icon: noteIcon,
+				coverImage,
 				tags: options?.tags
 			})
 		},
 		[createNoteMutation, getSetting, findItemInTree]
 	)
 
-	// Duplicate an existing note
 	const duplicateNote = useCallback(
 		async (noteId: string, newName?: string) => {
 			const sourceNote = findNoteInTree(noteId)

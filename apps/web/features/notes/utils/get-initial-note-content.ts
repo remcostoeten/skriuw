@@ -114,6 +114,12 @@ function getMeetingTemplate(): Block[] {
  * Journal/daily note template - structured for daily reflection
  */
 function getJournalTemplate(): Block[] {
+	const today = new Date().toLocaleDateString('en-US', {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric'
+	})
 	return [
 		createHeading(3, 'Today\'s Focus'),
 		createParagraph(),
