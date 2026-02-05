@@ -1,8 +1,10 @@
 import type { Note, Folder, Item } from "../types";
 import { stringToBlocks } from "../utils/string-to-blocks";
+import { getInitialNoteContent, type NoteTemplate } from "../utils/get-initial-note-content";
 import { useNotesQuery, useNoteQuery, useCreateNoteMutation, useCreateFolderMutation, useUpdateNoteMutation, useDeleteMutation, useMoveItemMutation, useRenameItemMutation, usePinItemMutation, useFavoriteNoteMutation, useSetNoteVisibilityMutation } from "./use-notes-query";
 import { Block } from "@blocknote/core";
 import { useCallback } from "react";
+import { useSettings } from "../../settings/use-settings";
 
 /**
 
@@ -96,7 +98,10 @@ export function useNotes() {
 		refetch
 	} = useNotesQuery()
 
-	// 2. Mutations
+	// 2. Settings for note experience
+	const { getSetting } = useSettings()
+
+	// 3. Mutations
 	const createNoteMutation = useCreateNoteMutation()
 	const createFolderMutation = useCreateFolderMutation()
 	const updateNoteMutation = useUpdateNoteMutation()
@@ -107,20 +112,98 @@ export function useNotes() {
 	const favoriteNoteMutation = useFavoriteNoteMutation()
 	const setVisibilityMutation = useSetNoteVisibilityMutation()
 
-	// 3. Wrappers to match original API signature
+	// Helper function to find an item in the tree (used by multiple functions)
+	const findItemInTree = useCallback((id: string): Item | undefined => {
+		const search = (list: Item[]): Item | undefined => {
+			for (const item of list) {
+				if (item.id === id) return item
+				if (item.type === 'folder') {
+					const found = search((item as Folder).children)
+					if (found) return found
+				}
+			}
+			return undefined
+		}
+		return search(items)
+	}, [items])
+
+	// Helper to find a note specifically
+	const findNoteInTree = useCallback((id: string): Note | undefined => {
+		const item = findItemInTree(id)
+		return item?.type === 'note' ? (item as Note) : undefined
+	}, [findItemInTree])
+
+	// 4. Wrappers to match original API signature
 	const createNote = useCallback(
-		async (name?: string, content?: string | Block[], parentFolderId?: string) => {
-			// Handle content conversion if string
-			const noteContent: Block[] =
-				typeof content === 'string' ? stringToBlocks(content) : content || []
+		async (name?: string, content?: string | Block[], parentFolderId?: string, options?: {
+			template?: NoteTemplate
+			icon?: string
+			tags?: string[]
+		}) => {
+			// Get note experience settings
+			const noteCreationMode = getSetting('noteCreationMode') ?? 'rich'
+			const defaultEmoji = getSetting('defaultEmoji') ?? ''
+			const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled Note'
+			const defaultTemplate = (getSetting('defaultNoteTemplate') ?? 'empty') as NoteTemplate
+			const autoIconFromFolder = getSetting('autoIconFromFolder') ?? false
+
+			// Determine content: explicit content > template > default template
+			let noteContent: Block[]
+			if (content) {
+				noteContent = typeof content === 'string' ? stringToBlocks(content) : content
+			} else {
+				const templateToUse = options?.template ?? defaultTemplate
+				noteContent = getInitialNoteContent(templateToUse)
+			}
+
+			// Determine icon: explicit icon > option icon > folder icon (if enabled) > default emoji
+			let noteIcon = options?.icon
+			if (!noteIcon && autoIconFromFolder && parentFolderId) {
+				// Try to get parent folder's icon
+				const parentFolder = findItemInTree(parentFolderId)
+				if (parentFolder?.type === 'folder' && (parentFolder as any).icon) {
+					noteIcon = (parentFolder as any).icon
+				}
+			}
+			if (!noteIcon && defaultEmoji) {
+				noteIcon = defaultEmoji
+			}
+
+			// Apply settings based on note creation mode (simple mode = no cover images)
+			const coverImage = noteCreationMode === 'simple' ? undefined : undefined
 
 			return await createNoteMutation.mutateAsync({
-				name: name ?? 'Untitled Note',
+				name: name ?? titlePlaceholder,
 				content: noteContent,
-				parentFolderId
+				parentFolderId,
+				icon: noteIcon,
+				coverImage,
+				tags: options?.tags
 			})
 		},
-		[createNoteMutation]
+		[createNoteMutation, getSetting, findItemInTree]
+	)
+
+	// Duplicate an existing note
+	const duplicateNote = useCallback(
+		async (noteId: string, newName?: string) => {
+			const sourceNote = findNoteInTree(noteId)
+			if (!sourceNote) {
+				throw new Error('Note not found')
+			}
+
+			const duplicatedName = newName ?? `${sourceNote.name} (copy)`
+
+			return await createNoteMutation.mutateAsync({
+				name: duplicatedName,
+				content: sourceNote.content || [],
+				parentFolderId: sourceNote.parentFolderId,
+				icon: sourceNote.icon,
+				coverImage: sourceNote.coverImage,
+				tags: sourceNote.tags
+			})
+		},
+		[createNoteMutation, findNoteInTree]
 	)
 
 	const createFolder = useCallback(
@@ -211,45 +294,19 @@ export function useNotes() {
 		[items]
 	)
 
-	// getNote and getItem are slightly different - they fetch fresh
-	// But usage in app might expect them to check cache first.
-	// The useNoteQuery hook handles specific single note requirements,
-	// but the original `getNote` was an imperative async call.
-	// We can bridge this by using queryClient.fetchQuery or just keeping the original API query usage
-	// wrapped in a promise if needed.
-	// Ideally components switch to `useNoteQuery(id)`, but for now:
-
-	// We need access to direct queries for imperative calls
-	// Since we can't easily hookify imperative calls without direct client access
-	// We will leave getNote/getItem as async fetchers that might bypass RQ cache for now
-	// OR we use the queryClient to fetch.
-
-	// For this refactor step, let's keep it simple: relying on the list for `getItem` if possible
-	// or falling back to a fetch if not found, to mimic "cache first".
-
+	// getNote and getItem - use the tree helpers for cache-first lookup
 	const getItem = useCallback(
 		async (id: string): Promise<Item | undefined> => {
-			const findItem = (list: Item[]): Item | undefined => {
-				for (const item of list) {
-					if (item.id === id) return item
-					if (item.type === 'folder') {
-						const found = findItem((item as Folder).children)
-						if (found) return found
-					}
-				}
-				return undefined
-			}
-			return findItem(items)
+			return findItemInTree(id)
 		},
-		[items]
+		[findItemInTree]
 	)
 
 	const getNote = useCallback(
 		async (id: string): Promise<Note | undefined> => {
-			const item = await getItem(id)
-			return item?.type === 'note' ? (item as Note) : undefined
+			return findNoteInTree(id)
 		},
-		[getItem]
+		[findNoteInTree]
 	)
 
 	return {
@@ -268,6 +325,7 @@ export function useNotes() {
 		pinItem,
 		favoriteNote,
 		refreshItems,
-		setNoteVisibility
+		setNoteVisibility,
+		duplicateNote
 	}
 }
