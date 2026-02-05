@@ -279,6 +279,90 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		description: 'Placeholder text for the empty note body.',
 		category: 'note-experience',
 		implemented: true
+	},
+	{
+		key: 'defaultNoteTemplate',
+		label: 'Default Note Template',
+		value: 'empty',
+		defaultValue: 'empty',
+		type: 'enum',
+		description: 'Starting template for new notes.',
+		category: 'note-experience',
+		options: ['empty', 'h1', 'h2', 'meeting', 'journal', 'project'],
+		implemented: true
+	},
+	{
+		key: 'autoIconFromFolder',
+		label: 'Auto-inherit Folder Icon',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'New notes automatically inherit their parent folder icon.',
+		category: 'note-experience',
+		implemented: true
+	},
+	// Daily Notes Settings
+	{
+		key: 'enableDailyNotes',
+		label: 'Enable Daily Notes',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Enable the daily notes feature for journaling.',
+		category: 'daily-notes',
+		implemented: true
+	},
+	{
+		key: 'dailyNoteFormat',
+		label: 'Daily Note Title Format',
+		value: 'YYYY-MM-DD',
+		defaultValue: 'YYYY-MM-DD',
+		type: 'enum',
+		description: 'How daily note titles are formatted.',
+		category: 'daily-notes',
+		options: ['YYYY-MM-DD', 'MMM D, YYYY', 'D MMMM YYYY', 'dddd, MMMM D'],
+		implemented: true
+	},
+	{
+		key: 'dailyNoteFolder',
+		label: 'Daily Notes Folder',
+		value: 'Journal',
+		defaultValue: 'Journal',
+		type: 'string',
+		description: 'Folder where daily notes are created.',
+		category: 'daily-notes',
+		implemented: true
+	},
+	{
+		key: 'dailyNoteTemplate',
+		label: 'Daily Note Template',
+		value: 'journal',
+		defaultValue: 'journal',
+		type: 'enum',
+		description: 'Template used for new daily notes.',
+		category: 'daily-notes',
+		options: ['empty', 'journal', 'h1', 'h2'],
+		implemented: true
+	},
+	{
+		key: 'autoOpenDailyNote',
+		label: 'Auto-open Daily Note',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Automatically open or create today\'s note on startup.',
+		category: 'daily-notes',
+		implemented: true
+	},
+	{
+		key: 'dailyNoteEmoji',
+		label: 'Daily Note Emoji',
+		value: '📅',
+		defaultValue: '📅',
+		type: 'string',
+		description: 'Default emoji for daily notes.',
+		category: 'daily-notes',
+		implemented: true
 	}
 ]
 
@@ -425,6 +509,12 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 		title: 'Note Experience',
 		description: 'Customize the default experience when creating new notes',
 		settings: EDITOR_SETTINGS.filter((s) => s.category === 'note-experience' && s.implemented !== false)
+	},
+	{
+		category: 'daily-notes',
+		title: 'Daily Notes',
+		description: 'Configure your daily journaling workflow',
+		settings: EDITOR_SETTINGS.filter((s) => s.category === 'daily-notes' && s.implemented !== false)
 	},
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)

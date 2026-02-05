@@ -30,6 +30,7 @@ export type SettingsCategory =
 	| 'ai'
 	| 'tags'
 	| 'note-experience'
+	| 'daily-notes'
 
 export type SettingsGroup = {
 	category: SettingsCategory

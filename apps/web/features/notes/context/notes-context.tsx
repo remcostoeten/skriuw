@@ -3,8 +3,15 @@
 import { useGuestMigration } from "../hooks/use-guest-migration";
 import { useNotes } from "../hooks/use-notes";
 import type { Item, Note, Folder } from "../types";
+import type { NoteTemplate } from "../utils/get-initial-note-content";
 import type { Block } from "@blocknote/core";
 import { createContext, useContext, ReactNode } from "react";
+
+type CreateNoteOptions = {
+	template?: NoteTemplate
+	icon?: string
+	tags?: string[]
+}
 
 type NotesContextValue = {
 	items: Item[]
@@ -15,7 +22,8 @@ type NotesContextValue = {
 	createNote: (
 		name?: string,
 		content?: string | Block[],
-		parentFolderId?: string
+		parentFolderId?: string,
+		options?: CreateNoteOptions
 	) => Promise<Note>
 	createFolder: (name?: string, parentFolderId?: string) => Promise<Folder>
 	updateNote: (
@@ -38,6 +46,7 @@ type NotesContextValue = {
 	favoriteNote: (noteId: string, favorite: boolean) => Promise<Note | null | undefined>
 	setNoteVisibility: (noteId: string, isPublic: boolean) => Promise<Note | null | undefined>
 	refreshItems: () => Promise<void>
+	duplicateNote: (noteId: string, newName?: string) => Promise<Note>
 }
 const NotesContext = createContext<NotesContextValue | null>(null)
 
