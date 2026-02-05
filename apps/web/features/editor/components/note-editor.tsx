@@ -147,11 +147,11 @@ export function NoteEditor({
 			const shouldFocus = isNewNote || searchParams.get('focus') === 'true'
 
 			if (shouldFocus) {
-				const focusTimeout = isNewNote ? 50 : 100
-				setTimeout(() => {
+				// Use requestAnimationFrame for near-instant focus, avoiding layout thrash
+				requestAnimationFrame(() => {
 					editorRef.current?.focusEditor()
 					hasFocusedRef.current = true
-				}, focusTimeout)
+				})
 			}
 		}
 	}, [editor, note, searchParams, noteId])
