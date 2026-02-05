@@ -27,14 +27,13 @@ import {
 	Button,
 	Badge,
 	Separator,
-	Kbd
+	Kbd,
+	VisuallyHidden
 } from '@skriuw/ui'
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useShortcut } from '@/features/shortcuts/use-shortcut'
 import { useAdvancedSearch, buildHighlightParts, type SearchResult } from '@/lib/search'
-import { getQueryHighlightRanges } from '@/lib/search/query-parser'
 import type { Note, Folder as FolderType } from '@/features/notes/types'
 
 type Props = {
@@ -171,11 +170,7 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 		}
 	}, [query, createNote, getNoteUrl, router, setOpen])
 
-	// Generate highlighted input
-	const highlightRanges = React.useMemo(
-		() => getQueryHighlightRanges(query),
-		[query]
-	)
+
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>

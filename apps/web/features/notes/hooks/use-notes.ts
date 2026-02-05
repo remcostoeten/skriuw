@@ -169,15 +169,11 @@ export function useNotes() {
 				noteIcon = defaultEmoji
 			}
 
-			// Apply settings based on note creation mode (simple mode = no cover images)
-			const coverImage = noteCreationMode === 'simple' ? undefined : undefined
-
 			return await createNoteMutation.mutateAsync({
 				name: name ?? titlePlaceholder,
 				content: noteContent,
 				parentFolderId,
 				icon: noteIcon,
-				coverImage,
 				tags: options?.tags
 			})
 		},

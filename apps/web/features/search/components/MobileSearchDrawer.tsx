@@ -18,8 +18,7 @@ import {
 	ChevronUp
 } from 'lucide-react'
 import { cn, haptic } from '@skriuw/shared'
-import { Button, Badge, Drawer, DrawerContent, DrawerTitle } from '@skriuw/ui'
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
+import { Button, Badge, Drawer, DrawerContent, DrawerTitle, VisuallyHidden } from '@skriuw/ui'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { useAdvancedSearch, buildHighlightParts, type SearchResult } from '@/lib/search'

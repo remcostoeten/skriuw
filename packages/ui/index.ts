@@ -70,3 +70,6 @@ export * from './empty-state'
 export * from './hint-popover'
 export * from './input-group'
 export * from './slider'
+
+// Re-export VisuallyHidden for accessibility
+export { Root as VisuallyHidden } from '@radix-ui/react-visually-hidden'
