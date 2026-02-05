@@ -1,11 +1,11 @@
-import { setAdapter, resetAdapter } from "../adapter";
-import * as cache from "../cache";
-import type { BaseEntity } from "../types";
-import type { StorageAdapter } from "../types/adapter";
-import { batchCreate } from "./create";
-import { batchDestroy } from "./destroy";
-import { batchUpdate } from "./update";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setAdapter, resetAdapter } from '../adapter'
+import * as cache from '../cache'
+import type { BaseEntity } from '../types'
+import type { StorageAdapter } from '../types/adapter'
+import { batchCreate } from './create'
+import { batchDestroy } from './destroy'
+import { batchUpdate } from './update'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 type TestEntity = {
 	name: string

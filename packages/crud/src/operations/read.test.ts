@@ -1,9 +1,9 @@
-import { setAdapter, resetAdapter } from "../adapter";
-import * as cache from "../cache";
-import type { BaseEntity } from "../types";
-import type { StorageAdapter } from "../types/adapter";
-import { readOne, readMany, batchRead } from "./read";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setAdapter, resetAdapter } from '../adapter'
+import * as cache from '../cache'
+import type { BaseEntity } from '../types'
+import type { StorageAdapter } from '../types/adapter'
+import { readOne, readMany, batchRead } from './read'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 type TestNote = {
 	name: string

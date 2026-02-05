@@ -1,4 +1,14 @@
-import type { StorageAdapter, ReadAdapterOptions, CreateAdapterOptions, UpdateAdapterOptions, DeleteAdapterOptions, BatchReadAdapterOptions, BatchCreateAdapterOptions, BatchUpdateAdapterOptions, BatchDeleteAdapterOptions } from "./types";
+import type {
+	StorageAdapter,
+	ReadAdapterOptions,
+	CreateAdapterOptions,
+	UpdateAdapterOptions,
+	DeleteAdapterOptions,
+	BatchReadAdapterOptions,
+	BatchCreateAdapterOptions,
+	BatchUpdateAdapterOptions,
+	BatchDeleteAdapterOptions
+} from './types'
 
 // Base interface for items in storage
 type StorageItem = {

@@ -1,6 +1,6 @@
-import { isTauriAvailable, cn } from "@skriuw/shared";
-import { Minimize2, Maximize2, X, Square } from "lucide-react";
-import { useEffect, useState } from "react";
+import { isTauriAvailable, cn } from '@skriuw/shared'
+import { Minimize2, Maximize2, X, Square } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function WindowControls() {
 	const [isMaximized, setIsMaximized] = useState(false)

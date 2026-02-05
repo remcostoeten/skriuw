@@ -1,6 +1,6 @@
-import type { Item } from "../../types";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany } from "@skriuw/crud";
+import type { Item } from '../../types'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany } from '@skriuw/crud'
 
 /** Number of days to keep deleted items in trash */
 export const TRASH_RETENTION_DAYS = 30

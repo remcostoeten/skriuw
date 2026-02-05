@@ -1,4 +1,4 @@
-import { spawn } from "bun";
+import { spawn } from 'bun'
 
 export async function checkDockerDB() {
 	console.log('\n🔍 Checking Database Status...')

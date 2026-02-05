@@ -1,7 +1,7 @@
-import { identityGuardNoteContent } from "@/lib/seed-content/identity-guard-content";
-import { getDatabase, notes, user } from "@skriuw/db";
-import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { identityGuardNoteContent } from '@/lib/seed-content/identity-guard-content'
+import { getDatabase, notes, user } from '@skriuw/db'
+import { eq, and } from 'drizzle-orm'
+import { NextResponse } from 'next/server'
 
 /**
  * Seeds the Identity Guard knowledge note to all users in the database

@@ -1,5 +1,5 @@
-import type { Note } from "../../types";
-import { readMany } from "@skriuw/crud";
+import type { Note } from '../../types'
+import { readMany } from '@skriuw/crud'
 
 const STORAGE_KEY = 'Skriuw_notes'
 

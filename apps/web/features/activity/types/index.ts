@@ -1,4 +1,4 @@
-import type { EntityType, ActionType } from "@skriuw/db";
+import type { EntityType, ActionType } from '@skriuw/db'
 
 export type ActivityEvent = {
 	id: string

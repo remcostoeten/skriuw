@@ -1,10 +1,10 @@
-import { deleteAccount } from "../api/account-client";
-import { signOut } from "@/lib/auth-client";
-import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
-import { Button } from "@skriuw/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { deleteAccount } from '../api/account-client'
+import { signOut } from '@/lib/auth-client'
+import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
+import { Button } from '@skriuw/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { ShieldAlert } from 'lucide-react'
+import { useState } from 'react'
 
 function audioContext(): AudioContext | null {
 	if (typeof window === 'undefined') return null

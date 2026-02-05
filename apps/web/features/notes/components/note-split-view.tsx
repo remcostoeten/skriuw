@@ -1,17 +1,25 @@
 'use client'
 
-import { NoteEditor } from "../../editor/components/note-editor";
-import { useShortcut } from "../../shortcuts";
-import { NOTE_TAB_DRAG_TYPE } from "../constants";
-import { useNoteSlug } from "../hooks/use-note-slug";
-import { useSplitViewStore } from "../split-view/store";
-import type { NoteTabDragPayload } from "../types";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { cn } from "@skriuw/shared";
-import { useMediaQuery, MOBILE_BREAKPOINT } from "@skriuw/shared/client";
-import { EmptyState } from "@skriuw/ui";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { NoteEditor } from '../../editor/components/note-editor'
+import { useShortcut } from '../../shortcuts'
+import { NOTE_TAB_DRAG_TYPE } from '../constants'
+import { useNoteSlug } from '../hooks/use-note-slug'
+import { useSplitViewStore } from '../split-view/store'
+import type { NoteTabDragPayload } from '../types'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { cn } from '@skriuw/shared'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { EmptyState } from '@skriuw/ui'
+import { useRouter } from 'next/navigation'
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type DragEvent,
+	type PointerEvent as ReactPointerEvent
+} from 'react'
 
 type NoteSplitViewProps = {
 	noteId: string

@@ -1,5 +1,9 @@
-import { buildMentionCandidates, searchNoteMentions, type NoteMentionCandidate } from "../../features/editor/utils/note-mention-search";
-import { describe, expect, it } from "vitest";
+import {
+	buildMentionCandidates,
+	searchNoteMentions,
+	type NoteMentionCandidate
+} from '../../features/editor/utils/note-mention-search'
+import { describe, expect, it } from 'vitest'
 
 describe('note mention search utilities', () => {
 	it('builds mention candidates from nested folders', () => {

@@ -1,32 +1,32 @@
-import { EditorTabsBar } from "../../features/editor/components/editor-tabs-bar";
-import { useEditorTabs } from "../../features/editor/tabs";
-import { useSplitViewStore } from "../../features/notes/split-view/store";
-import { UnifiedSearch } from "../../features/search";
-import { useSettings, useUserPreferences } from "../../features/settings";
-import { useShortcut } from "../../features/shortcuts/use-shortcut";
-import { TaskPanelStack } from "../../features/tasks";
-import { useUIStore } from "../../stores/ui-store";
-import { DevWidget } from "../dev-widget";
-import { LeftToolbar } from "../left-toolbar";
-import { RightSidebar } from "../right-sidebar";
-import { Sidebar } from "../sidebar";
-import { SidebarMenu } from "../sidebar-menu";
-import { SidebarSkeleton } from "../sidebar/sidebar-skeleton";
-import type { SidebarContentType } from "../sidebar/types";
-import { AppLayoutShell } from "./app-layout-shell";
-import { Footer } from "./footer";
-import { MobileBottomNav } from "./mobile-bottom-nav";
-import { TopToolbar } from "./top-toolbar";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import { extractFirstHeading } from "@/features/notes/utils/extract-first-heading";
-import { flattenNotes } from "@/features/notes/utils/flatten-notes";
-import { useSession } from "@/lib/auth-client";
-import { isAuthPath } from "@/lib/auth-paths";
-import { MOBILE_BREAKPOINT } from "@skriuw/shared/client";
-import { useMediaQuery } from "@skriuw/shared/client";
-import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useMemo, useCallback, useEffect, useRef } from "react";
+import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
+import { useEditorTabs } from '../../features/editor/tabs'
+import { useSplitViewStore } from '../../features/notes/split-view/store'
+import { UnifiedSearch } from '../../features/search'
+import { useSettings, useUserPreferences } from '../../features/settings'
+import { useShortcut } from '../../features/shortcuts/use-shortcut'
+import { TaskPanelStack } from '../../features/tasks'
+import { useUIStore } from '../../stores/ui-store'
+import { DevWidget } from '../dev-widget'
+import { LeftToolbar } from '../left-toolbar'
+import { RightSidebar } from '../right-sidebar'
+import { Sidebar } from '../sidebar'
+import { SidebarMenu } from '../sidebar-menu'
+import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
+import type { SidebarContentType } from '../sidebar/types'
+import { AppLayoutShell } from './app-layout-shell'
+import { Footer } from './footer'
+import { MobileBottomNav } from './mobile-bottom-nav'
+import { TopToolbar } from './top-toolbar'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { extractFirstHeading } from '@/features/notes/utils/extract-first-heading'
+import { flattenNotes } from '@/features/notes/utils/flatten-notes'
+import { useSession } from '@/lib/auth-client'
+import { isAuthPath } from '@/lib/auth-paths'
+import { MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { useMediaQuery } from '@skriuw/shared/client'
+import { usePathname, useRouter } from 'next/navigation'
+import { ReactNode, useMemo, useCallback, useEffect, useRef } from 'react'
 
 // import { AlphaBanner } from '../alpha-banner'
 type AppLayoutManagerProps = {

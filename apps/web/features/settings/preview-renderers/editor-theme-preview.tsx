@@ -1,10 +1,10 @@
 'use client'
 
-import { EDITOR_THEMES, type EditorTheme } from "../../editor/components/raw-mdx-editor";
-import type { PreviewProps } from "../types";
-import type { Monaco } from "@monaco-editor/react";
-import dynamic from "next/dynamic";
-import React, { useState, useRef, useEffect } from "react";
+import { EDITOR_THEMES, type EditorTheme } from '../../editor/components/raw-mdx-editor'
+import type { PreviewProps } from '../types'
+import type { Monaco } from '@monaco-editor/react'
+import dynamic from 'next/dynamic'
+import React, { useState, useRef, useEffect } from 'react'
 
 // Dynamically import Monaco for preview - even smaller footprint
 const MonacoEditor = dynamic(() => import('@monaco-editor/react').then((mod) => mod.default), {

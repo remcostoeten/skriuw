@@ -1,9 +1,9 @@
-import { getShortcuts } from "../api/queries/get-shortcuts";
-import { ShortcutId, shortcutDefinitions, KeyCombo } from "../shortcut-definitions";
-import { Card, CardContent, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Input } from "@skriuw/ui/input";
-import { Search, Keyboard } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { getShortcuts } from '../api/queries/get-shortcuts'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions'
+import { Card, CardContent, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Input } from '@skriuw/ui/input'
+import { Search, Keyboard } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 type ShortcutState = {
 	id: ShortcutId

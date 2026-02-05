@@ -1,6 +1,6 @@
-import { Item } from "@/features/notes/types";
-import { getDatabase, notes, folders, getSafeTimestamp } from "@skriuw/db";
-import { NextRequest, NextResponse } from "next/server";
+import { Item } from '@/features/notes/types'
+import { getDatabase, notes, folders, getSafeTimestamp } from '@skriuw/db'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
 	try {

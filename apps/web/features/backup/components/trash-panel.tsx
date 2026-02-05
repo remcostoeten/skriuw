@@ -1,16 +1,25 @@
 'use client'
 
-import { emptyTrash } from "@/features/notes/api/mutations/empty-trash";
-import { permanentDeleteItem } from "@/features/notes/api/mutations/permanent-delete-item";
-import { restoreItem } from "@/features/notes/api/mutations/restore-item";
-import { getTrashItems, TRASH_RETENTION_DAYS } from "@/features/notes/api/queries/get-trash";
-import type { Item } from "@/features/notes/types";
-import { cn } from "@skriuw/shared";
-import { EmptyState } from "@skriuw/ui";
-import { Button } from "@skriuw/ui/button";
-import { useConfirmationPopover } from "@skriuw/ui/confirmation-popover";
-import { Trash2, RotateCcw, Loader2, AlertTriangle, FileText, Folder, Clock, Info } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { emptyTrash } from '@/features/notes/api/mutations/empty-trash'
+import { permanentDeleteItem } from '@/features/notes/api/mutations/permanent-delete-item'
+import { restoreItem } from '@/features/notes/api/mutations/restore-item'
+import { getTrashItems, TRASH_RETENTION_DAYS } from '@/features/notes/api/queries/get-trash'
+import type { Item } from '@/features/notes/types'
+import { cn } from '@skriuw/shared'
+import { EmptyState } from '@skriuw/ui'
+import { Button } from '@skriuw/ui/button'
+import { useConfirmationPopover } from '@skriuw/ui/confirmation-popover'
+import {
+	Trash2,
+	RotateCcw,
+	Loader2,
+	AlertTriangle,
+	FileText,
+	Folder,
+	Clock,
+	Info
+} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 
 function formatTimeAgo(timestamp: number): string {
 	const now = Date.now()

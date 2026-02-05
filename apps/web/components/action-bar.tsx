@@ -1,10 +1,20 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { useIsTouchDevice } from "@skriuw/shared/client";
-import { IconButton } from "@skriuw/ui/icons";
-import { Plus, FolderPlus, Search, X, Minimize2, Maximize2 } from "lucide-react";
-import { type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
+import { IconButton } from '@skriuw/ui/icons'
+import { Plus, FolderPlus, Search, X, Minimize2, Maximize2 } from 'lucide-react'
+import {
+	type FocusEvent,
+	type KeyboardEvent,
+	type MouseEvent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState
+} from 'react'
 
 type ActionButton = {
 	icon: ReactNode

@@ -8,15 +8,15 @@ import { type PgTable } from 'drizzle-orm/pg-core'
  * Throws if unauthorized.
  */
 export async function requireAuth() {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    })
+	const session = await auth.api.getSession({
+		headers: await headers()
+	})
 
-    if (!session?.user) {
-        throw new Error('Unauthorized')
-    }
+	if (!session?.user) {
+		throw new Error('Unauthorized')
+	}
 
-    return session
+	return session
 }
 
 /**
@@ -24,17 +24,10 @@ export async function requireAuth() {
  * Enforces `where id = ? AND userId = ?`.
  */
 export async function destroyOwned(table: any, id: string) {
-    const session = await requireAuth()
-    const db = getDatabase()
+	const session = await requireAuth()
+	const db = getDatabase()
 
-    return await db
-        .delete(table)
-        .where(
-            and(
-                eq(table.id, id),
-                eq(table.userId, session.user.id)
-            )
-        )
+	return await db.delete(table).where(and(eq(table.id, id), eq(table.userId, session.user.id)))
 }
 
 /**
@@ -43,12 +36,12 @@ export async function destroyOwned(table: any, id: string) {
  * Default sort: createdAt desc.
  */
 export async function readOwned<T>(table: any) {
-    const session = await requireAuth()
-    const db = getDatabase()
+	const session = await requireAuth()
+	const db = getDatabase()
 
-    return await db
-        .select()
-        .from(table)
-        .where(eq(table.userId, session.user.id))
-        .orderBy(desc(table.createdAt))
+	return await db
+		.select()
+		.from(table)
+		.where(eq(table.userId, session.user.id))
+		.orderBy(desc(table.createdAt))
 }

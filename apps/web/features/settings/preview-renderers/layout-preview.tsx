@@ -1,7 +1,7 @@
 'use client'
 
-import type { PreviewProps } from "../types";
-import React from "react";
+import type { PreviewProps } from '../types'
+import React from 'react'
 
 type LayoutType = 'maxWidth' | 'centeredLayout'
 

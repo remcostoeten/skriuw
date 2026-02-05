@@ -1,9 +1,9 @@
-import { GUEST_USER_ID } from "../../../../lib/api-auth";
-import { db } from "../../../../lib/storage/adapters/server-db";
-import { sampleNotes, sampleFolders } from "@/app/api/(dev)/dev/seeds";
-import { seedTemplateNotes, seedTemplateFolders, notes, folders, user } from "@skriuw/db";
-import { eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { GUEST_USER_ID } from '../../../../lib/api-auth'
+import { db } from '../../../../lib/storage/adapters/server-db'
+import { sampleNotes, sampleFolders } from '@/app/api/(dev)/dev/seeds'
+import { seedTemplateNotes, seedTemplateFolders, notes, folders, user } from '@skriuw/db'
+import { eq } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
 
 // This endpoint is administrative - normally you'd protect this with an admin check
 // For now, we'll leave it open for development or check for a specific header/secret if needed.

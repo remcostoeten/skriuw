@@ -1,4 +1,4 @@
-import type { CacheEntry } from "./types";
+import type { CacheEntry } from './types'
 
 /** Default cache configuration */
 export const CACHE_CONFIG = {

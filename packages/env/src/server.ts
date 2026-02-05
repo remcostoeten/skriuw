@@ -1,5 +1,5 @@
-import { serverSchema, type ServerEnv } from "./schema";
-import { validateEnvCached } from "./validate";
+import { serverSchema, type ServerEnv } from './schema'
+import { validateEnvCached } from './validate'
 
 // ============================================================================
 // SERVER ENVIRONMENT

@@ -1,6 +1,17 @@
-import { shadcnComponents } from "./components";
-import { type BlockSchema, type InlineContentSchema, type StyleSchema, mergeCSSClasses } from "@blocknote/core";
-import { type BlockNoteViewProps, BlockNoteViewRaw, ComponentsContext, useBlockNoteContext, usePrefersColorScheme } from "@blocknote/react";
+import { shadcnComponents } from './components'
+import {
+	type BlockSchema,
+	type InlineContentSchema,
+	type StyleSchema,
+	mergeCSSClasses
+} from '@blocknote/core'
+import {
+	type BlockNoteViewProps,
+	BlockNoteViewRaw,
+	ComponentsContext,
+	useBlockNoteContext,
+	usePrefersColorScheme
+} from '@blocknote/react'
 
 type ThemeChoice = 'light' | 'dark'
 

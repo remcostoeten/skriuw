@@ -1,14 +1,14 @@
 'use client'
 
-import { useUIStore } from "../../stores/ui-store";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import { notify } from "@/lib/notify";
-import { cn } from "@skriuw/shared";
-import { haptic } from "@skriuw/shared";
-import { Plus, FolderOpen, Trash2, Archive, FileText, Sparkles } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useUIStore } from '../../stores/ui-store'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { notify } from '@/lib/notify'
+import { cn } from '@skriuw/shared'
+import { haptic } from '@skriuw/shared'
+import { Plus, FolderOpen, Trash2, Archive, FileText, Sparkles } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 type MobileBottomNavProps = {
 	onSettingsClick?: () => void

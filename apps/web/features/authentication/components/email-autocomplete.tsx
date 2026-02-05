@@ -1,7 +1,7 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from '@skriuw/shared'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const DOMAINS = [
 	'gmail.com',

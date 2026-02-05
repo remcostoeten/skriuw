@@ -1,7 +1,7 @@
-import { EDITOR_SETTINGS, validateEditorSetting } from "./editor-settings";
-import { useSettingsContext } from "./settings-provider";
-import type { SettingsConfig } from "./types";
-import { useCallback } from "react";
+import { EDITOR_SETTINGS, validateEditorSetting } from './editor-settings'
+import { useSettingsContext } from './settings-provider'
+import type { SettingsConfig } from './types'
+import { useCallback } from 'react'
 
 export function useSettings<T extends Record<string, any> = any>() {
 	const { settings, updateSetting, resetSettings, isLoading } = useSettingsContext()

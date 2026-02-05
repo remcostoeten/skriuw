@@ -1,6 +1,6 @@
-import { cn } from "@skriuw/shared";
-import { Eye, EyeOff } from "lucide-react";
-import { useState, InputHTMLAttributes } from "react";
+import { cn } from '@skriuw/shared'
+import { Eye, EyeOff } from 'lucide-react'
+import { useState, InputHTMLAttributes } from 'react'
 
 type PasswordInputProps = {
 	showToggle?: boolean

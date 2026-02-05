@@ -1,9 +1,9 @@
-import type { Task, TaskWithNote } from "../types";
-import type { ExtractedTask } from "@/features/notes/utils/extract-tasks";
-import { useSession } from "@/lib/auth-client";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, create, update, destroy, batchCreate, batchDestroy } from "@skriuw/crud";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Task, TaskWithNote } from '../types'
+import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
+import { useSession } from '@/lib/auth-client'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, create, update, destroy, batchCreate, batchDestroy } from '@skriuw/crud'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const tasksKeys = {
 	all: ['tasks'] as const,

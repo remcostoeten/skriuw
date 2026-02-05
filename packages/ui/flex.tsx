@@ -1,6 +1,6 @@
-import { cn } from "@skriuw/shared";
-import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
+import { cn } from '@skriuw/shared'
+import { cva, type VariantProps } from 'class-variance-authority'
+import * as React from 'react'
 
 const flexVariants = cva('flex', {
 	variants: {

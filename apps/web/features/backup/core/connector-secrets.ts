@@ -1,7 +1,12 @@
-import { STORAGE_CONNECTOR_DEFINITIONS } from "./connectors";
-import type { StorageConnectorDefinition, StorageConnectorState, StorageConnectorType, OAuth2Tokens } from "./types";
-import { encryptSecret, decryptSecret } from "@/lib/crypto/secret";
-import { logger } from "@/lib/debug";
+import { STORAGE_CONNECTOR_DEFINITIONS } from './connectors'
+import type {
+	StorageConnectorDefinition,
+	StorageConnectorState,
+	StorageConnectorType,
+	OAuth2Tokens
+} from './types'
+import { encryptSecret, decryptSecret } from '@/lib/crypto/secret'
+import { logger } from '@/lib/debug'
 
 type MaybeEncrypted = StorageConnectorState & { encrypted?: boolean }
 

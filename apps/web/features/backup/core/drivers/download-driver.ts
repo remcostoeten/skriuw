@@ -1,4 +1,9 @@
-import type { BackupManifest, DestinationConfig, StorageDriver, BackupVerificationResult } from "../types";
+import type {
+	BackupManifest,
+	DestinationConfig,
+	StorageDriver,
+	BackupVerificationResult
+} from '../types'
 
 type DownloadArchive = {
 	manifest: BackupManifest | null

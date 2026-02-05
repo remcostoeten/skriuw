@@ -1,7 +1,7 @@
-import { execSync } from "child_process";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+import { execSync } from 'child_process'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
 
 const LOG_DIR = join(process.cwd(), 'logs', 'dev-cli')
 

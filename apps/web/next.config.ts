@@ -1,6 +1,6 @@
-import withSerwistInit from "@serwist/next";
-import type { NextConfig } from "next";
-import path from "path";
+import withSerwistInit from '@serwist/next'
+import type { NextConfig } from 'next'
+import path from 'path'
 
 const isTauriBuild = process.env.TAURI_BUILD === 'true'
 
@@ -16,9 +16,8 @@ const nextConfig: NextConfig = {
 
 	// Skip type checking and linting during build (handled by CI)
 	typescript: {
-		ignoreBuildErrors: true,
+		ignoreBuildErrors: true
 	},
-
 
 	// Transpile packages if needed
 	transpilePackages: [

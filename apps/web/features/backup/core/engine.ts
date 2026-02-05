@@ -1,5 +1,12 @@
-import type { BackupChunkMeta, BackupManifest, BackupPayload, DestinationConfig, EncryptionHandler, StorageDriver } from "./types";
-import { generateId } from "@skriuw/shared";
+import type {
+	BackupChunkMeta,
+	BackupManifest,
+	BackupPayload,
+	DestinationConfig,
+	EncryptionHandler,
+	StorageDriver
+} from './types'
+import { generateId } from '@skriuw/shared'
 
 const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024 // 8 MB
 

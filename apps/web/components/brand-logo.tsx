@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { motion, SVGMotionProps } from "framer-motion";
-import * as React from "react";
+import { cn } from '@skriuw/shared'
+import { motion, SVGMotionProps } from 'framer-motion'
+import * as React from 'react'
 
 type BrandLogoProps = {
 	size?: number

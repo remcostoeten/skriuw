@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { LocalStorageAdapter } from "../../lib/storage/adapters/local-storage-adapter";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { LocalStorageAdapter } from '../../lib/storage/adapters/local-storage-adapter'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 describe('Guest Storage Persistence', () => {
 	let adapter: LocalStorageAdapter
@@ -71,4 +71,3 @@ describe('Guest Storage Persistence', () => {
 		expect(folder.children[0].id).toBe('note-child')
 	})
 })
-

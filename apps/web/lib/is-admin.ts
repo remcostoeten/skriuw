@@ -1,4 +1,4 @@
-import { env } from "./env";
+import { env } from './env'
 
 /**
  * Check if a user email is an admin

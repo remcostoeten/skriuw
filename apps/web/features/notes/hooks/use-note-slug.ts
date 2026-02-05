@@ -1,7 +1,7 @@
-import type { Item } from "@/features/notes/types";
-import { flattenNotes } from "@/features/notes/utils/flatten-notes";
-import { slugify, generateNoteSlug } from "@skriuw/shared";
-import { useMemo } from "react";
+import type { Item } from '@/features/notes/types'
+import { flattenNotes } from '@/features/notes/utils/flatten-notes'
+import { slugify, generateNoteSlug } from '@skriuw/shared'
+import { useMemo } from 'react'
 
 /**
  * Hook to resolve note slugs to IDs and get slugs for notes

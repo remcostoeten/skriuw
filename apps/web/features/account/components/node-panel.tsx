@@ -1,12 +1,12 @@
-import { getItems } from "@/features/notes/api/queries/get-items";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import type { Item } from "@/features/notes/types";
-import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
-import { Button } from "@skriuw/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Input } from "@skriuw/ui/input";
-import { ExternalLink, FileText, Folder, RefreshCcw } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { getItems } from '@/features/notes/api/queries/get-items'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import type { Item } from '@/features/notes/types'
+import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
+import { Button } from '@skriuw/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Input } from '@skriuw/ui/input'
+import { ExternalLink, FileText, Folder, RefreshCcw } from 'lucide-react'
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 
 export type NodeEntry = {
 	id: string

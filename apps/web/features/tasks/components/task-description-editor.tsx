@@ -1,14 +1,14 @@
 'use client'
 
-import { EditorWrapper } from "../../editor/components/editor-wrapper";
-import { useEditorConfig } from "../../editor/hooks/useEditorConfig";
-import { useTaskContext } from "../hooks/use-task-context";
-import { useSyncTasksMutation } from "../hooks/use-tasks-query";
-import { extractTasksFromBlocks } from "@/features/notes/utils/extract-tasks";
-import { PartialBlock, Block } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { EditorWrapper } from '../../editor/components/editor-wrapper'
+import { useEditorConfig } from '../../editor/hooks/useEditorConfig'
+import { useTaskContext } from '../hooks/use-task-context'
+import { useSyncTasksMutation } from '../hooks/use-tasks-query'
+import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
+import { PartialBlock, Block } from '@blocknote/core'
+import { useCreateBlockNote } from '@blocknote/react'
+import { useTheme } from 'next-themes'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 type TaskDescriptionEditorProps = {
 	title: string

@@ -1,8 +1,11 @@
-import { requireAuth } from "../../../lib/api-auth";
-import { db } from "../../../lib/storage/adapters/server-db";
-import { decryptConnectorStates, encryptConnectorStates } from "@/features/backup/core/connector-secrets";
-import { getSafeTimestamp } from "@skriuw/db";
-import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from '../../../lib/api-auth'
+import { db } from '../../../lib/storage/adapters/server-db'
+import {
+	decryptConnectorStates,
+	encryptConnectorStates
+} from '@/features/backup/core/connector-secrets'
+import { getSafeTimestamp } from '@skriuw/db'
+import { NextRequest, NextResponse } from 'next/server'
 
 type SettingsRecord = {
 	id: string

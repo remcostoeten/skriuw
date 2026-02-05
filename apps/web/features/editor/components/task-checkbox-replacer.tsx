@@ -1,7 +1,7 @@
-import type { BlockNoteEditor } from "@blocknote/core";
-import { Checkbox } from "@skriuw/ui/primitives/checkbox";
-import { useEffect, useRef } from "react";
-import { createRoot } from "react-dom/client";
+import type { BlockNoteEditor } from '@blocknote/core'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
+import { useEffect, useRef } from 'react'
+import { createRoot } from 'react-dom/client'
 
 type TaskCheckboxReplacerProps = {
 	editor: BlockNoteEditor | null

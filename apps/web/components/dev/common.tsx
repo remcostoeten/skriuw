@@ -1,6 +1,6 @@
-import { cn } from "@skriuw/shared";
-import { Loader2 } from "lucide-react";
-import { ReactNode } from "react";
+import { cn } from '@skriuw/shared'
+import { Loader2 } from 'lucide-react'
+import { ReactNode } from 'react'
 
 export function StatCard({
 	label,

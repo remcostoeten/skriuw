@@ -1,5 +1,5 @@
-import { useSettingsQuery, useSaveSettingsMutation } from "./hooks/use-settings-query";
-import React, { createContext, useContext, useEffect, type ReactNode } from "react";
+import { useSettingsQuery, useSaveSettingsMutation } from './hooks/use-settings-query'
+import React, { createContext, useContext, useEffect, type ReactNode } from 'react'
 
 type SettingsContextValue = {
 	settings: Record<string, any>

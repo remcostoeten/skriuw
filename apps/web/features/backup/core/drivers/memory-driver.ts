@@ -1,5 +1,10 @@
-import type { BackupManifest, BackupVerificationResult, DestinationConfig, StorageDriver } from "../types";
-import { generateId } from "@skriuw/shared";
+import type {
+	BackupManifest,
+	BackupVerificationResult,
+	DestinationConfig,
+	StorageDriver
+} from '../types'
+import { generateId } from '@skriuw/shared'
 
 type StoredEntry = {
 	manifest: BackupManifest | null

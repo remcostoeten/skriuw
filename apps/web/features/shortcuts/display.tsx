@@ -1,6 +1,12 @@
-import { MODIFIER_ICONS, KEY_ICONS } from "./types";
-import type { KeyboardShortcut, DisplayKeyCombo, Modifier, RegularKey, DisplayFormat } from "./types";
-import React from "react";
+import { MODIFIER_ICONS, KEY_ICONS } from './types'
+import type {
+	KeyboardShortcut,
+	DisplayKeyCombo,
+	Modifier,
+	RegularKey,
+	DisplayFormat
+} from './types'
+import React from 'react'
 
 /**
  * Detects if the user is on macOS

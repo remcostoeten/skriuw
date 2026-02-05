@@ -1,8 +1,8 @@
 'use client'
 
-import { SectionLabel, ActionButton } from "./common";
-import { cn } from "@skriuw/shared";
-import { Activity } from "lucide-react";
+import { SectionLabel, ActionButton } from './common'
+import { cn } from '@skriuw/shared'
+import { Activity } from 'lucide-react'
 
 export function HealthTab({
 	isConnected,

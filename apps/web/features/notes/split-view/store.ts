@@ -1,9 +1,9 @@
 'use client'
 
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { generateId } from "@skriuw/shared";
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { generateId } from '@skriuw/shared'
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 type Orientation = 'single' | 'vertical' | 'horizontal'
 

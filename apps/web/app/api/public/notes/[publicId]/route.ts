@@ -1,9 +1,9 @@
-import type { Note } from "@/features/notes/types";
-import { auth } from "@/lib/auth";
-import { getDatabase, notes, user, storageConnectors, noteVisitors } from "@skriuw/db";
-import crypto from "crypto";
-import { eq, and, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import type { Note } from '@/features/notes/types'
+import { auth } from '@/lib/auth'
+import { getDatabase, notes, user, storageConnectors, noteVisitors } from '@skriuw/db'
+import crypto from 'crypto'
+import { eq, and, sql } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
 
 type PublicNoteResponse = {
 	note: {

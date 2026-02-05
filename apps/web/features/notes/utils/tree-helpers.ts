@@ -1,4 +1,4 @@
-import type { Folder as FolderType, Item } from "../types";
+import type { Folder as FolderType, Item } from '../types'
 
 /**
  * Recursively finds an item by its ID in a tree of items.

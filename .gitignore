@@ -62,3 +62,5 @@ public/swe-worker-*.js
 public/workbox-*.js
 apps/desktop/.next/*
 apps/docs/.next/*
+secrets.weee
+a

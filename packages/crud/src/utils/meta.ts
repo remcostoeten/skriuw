@@ -1,5 +1,5 @@
-import type { CrudMeta } from "../types";
-import { generateRequestId } from "./id";
+import type { CrudMeta } from '../types'
+import { generateRequestId } from './id'
 
 /**
  * Creates metadata for operation results.

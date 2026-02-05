@@ -1,9 +1,9 @@
 'use server'
 
-import type { CalendarData, CalendarDay } from "../../types";
-import { requireAuth } from "@/features/authentication/require-auth";
-import { getDatabase, activityEvents } from "@skriuw/db";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import type { CalendarData, CalendarDay } from '../../types'
+import { requireAuth } from '@/features/authentication/require-auth'
+import { getDatabase, activityEvents } from '@skriuw/db'
+import { eq, and, gte, lte, sql, desc } from 'drizzle-orm'
 
 /**
  * Fetches activity counts grouped by day for the contribution calendar.

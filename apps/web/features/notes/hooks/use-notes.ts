@@ -1,10 +1,22 @@
-import type { Note, Folder, Item } from "../types";
-import { stringToBlocks } from "../utils/string-to-blocks";
-import { getInitialNoteContent, type NoteTemplate } from "../utils/get-initial-note-content";
-import { useNotesQuery, useNoteQuery, useCreateNoteMutation, useCreateFolderMutation, useUpdateNoteMutation, useDeleteMutation, useMoveItemMutation, useRenameItemMutation, usePinItemMutation, useFavoriteNoteMutation, useSetNoteVisibilityMutation } from "./use-notes-query";
-import { Block } from "@blocknote/core";
-import { useCallback } from "react";
-import { useSettings } from "../../settings/use-settings";
+import type { Note, Folder, Item } from '../types'
+import { stringToBlocks } from '../utils/string-to-blocks'
+import { getInitialNoteContent, type NoteTemplate } from '../utils/get-initial-note-content'
+import {
+	useNotesQuery,
+	useNoteQuery,
+	useCreateNoteMutation,
+	useCreateFolderMutation,
+	useUpdateNoteMutation,
+	useDeleteMutation,
+	useMoveItemMutation,
+	useRenameItemMutation,
+	usePinItemMutation,
+	useFavoriteNoteMutation,
+	useSetNoteVisibilityMutation
+} from './use-notes-query'
+import { Block } from '@blocknote/core'
+import { useCallback } from 'react'
+import { useSettings } from '../../settings/use-settings'
 
 /**
 
@@ -113,33 +125,44 @@ export function useNotes() {
 	const setVisibilityMutation = useSetNoteVisibilityMutation()
 
 	// Helper function to find an item in the tree (used by multiple functions)
-	const findItemInTree = useCallback((id: string): Item | undefined => {
-		const search = (list: Item[]): Item | undefined => {
-			for (const item of list) {
-				if (item.id === id) return item
-				if (item.type === 'folder') {
-					const found = search((item as Folder).children)
-					if (found) return found
+	const findItemInTree = useCallback(
+		(id: string): Item | undefined => {
+			const search = (list: Item[]): Item | undefined => {
+				for (const item of list) {
+					if (item.id === id) return item
+					if (item.type === 'folder') {
+						const found = search((item as Folder).children)
+						if (found) return found
+					}
 				}
+				return undefined
 			}
-			return undefined
-		}
-		return search(items)
-	}, [items])
+			return search(items)
+		},
+		[items]
+	)
 
 	// Helper to find a note specifically
-	const findNoteInTree = useCallback((id: string): Note | undefined => {
-		const item = findItemInTree(id)
-		return item?.type === 'note' ? (item as Note) : undefined
-	}, [findItemInTree])
+	const findNoteInTree = useCallback(
+		(id: string): Note | undefined => {
+			const item = findItemInTree(id)
+			return item?.type === 'note' ? (item as Note) : undefined
+		},
+		[findItemInTree]
+	)
 
 	// 4. Wrappers to match original API signature
 	const createNote = useCallback(
-		async (name?: string, content?: string | Block[], parentFolderId?: string, options?: {
-			template?: NoteTemplate
-			icon?: string
-			tags?: string[]
-		}) => {
+		async (
+			name?: string,
+			content?: string | Block[],
+			parentFolderId?: string,
+			options?: {
+				template?: NoteTemplate
+				icon?: string
+				tags?: string[]
+			}
+		) => {
 			// Get note experience settings
 			const noteCreationMode = getSetting('noteCreationMode') ?? 'rich'
 			const defaultEmoji = getSetting('defaultEmoji') ?? ''
@@ -215,8 +238,22 @@ export function useNotes() {
 	)
 
 	const updateNote = useCallback(
-		async (id: string, content?: Block[], name?: string, icon?: string, tags?: string[], coverImage?: string) => {
-			return await updateNoteMutation.mutateAsync({ id, content, name, icon, tags, coverImage })
+		async (
+			id: string,
+			content?: Block[],
+			name?: string,
+			icon?: string,
+			tags?: string[],
+			coverImage?: string
+		) => {
+			return await updateNoteMutation.mutateAsync({
+				id,
+				content,
+				name,
+				icon,
+				tags,
+				coverImage
+			})
 		},
 		[updateNoteMutation]
 	)

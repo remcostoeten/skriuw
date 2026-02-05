@@ -1,21 +1,21 @@
 'use client'
 
-import { CommandExecutor } from "../components/command-executor";
-import { AppLayoutManager } from "../components/layout/app-layout-manager";
-import { EditorTabsProvider } from "../features/editor/tabs";
-import { SettingsProvider } from "../features/settings";
-import { ContextMenuProvider } from "../features/shortcuts/context-menu-context";
-import { ShortcutProvider } from "../features/shortcuts/global-shortcut-provider";
-import { ensureStorageInitialized } from "./storage";
-import { NotesProvider } from "@/features/notes/context/notes-context";
-import { getQueryClient } from "@/lib/query-client";
-import { EmptyState } from "@skriuw/ui";
-import { TooltipProvider } from "@skriuw/ui";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { Analytics } from "@vercel/analytics/react";
-import { AlertCircle } from "lucide-react";
-import { ReactNode, useEffect, useState } from "react";
+import { CommandExecutor } from '../components/command-executor'
+import { AppLayoutManager } from '../components/layout/app-layout-manager'
+import { EditorTabsProvider } from '../features/editor/tabs'
+import { SettingsProvider } from '../features/settings'
+import { ContextMenuProvider } from '../features/shortcuts/context-menu-context'
+import { ShortcutProvider } from '../features/shortcuts/global-shortcut-provider'
+import { ensureStorageInitialized } from './storage'
+import { NotesProvider } from '@/features/notes/context/notes-context'
+import { getQueryClient } from '@/lib/query-client'
+import { EmptyState } from '@skriuw/ui'
+import { TooltipProvider } from '@skriuw/ui'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { Analytics } from '@vercel/analytics/react'
+import { AlertCircle } from 'lucide-react'
+import { ReactNode, useEffect, useState } from 'react'
 
 type props = {
 	children: ReactNode

@@ -1,6 +1,6 @@
-import type { CustomShortcut } from "../types";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, destroy } from "@skriuw/crud";
+import type { CustomShortcut } from '../types'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, destroy } from '@skriuw/crud'
 
 /**
  * Reset all custom shortcuts (delete all)

@@ -1,31 +1,54 @@
 'use client'
 
-import { useShortcut } from "../../features/shortcuts";
-import { useContextMenuState } from "../../features/shortcuts/context-menu-context";
-import { shortcutDefinitions } from "../../features/shortcuts/shortcut-definitions";
-import { useSelectionStore } from "../../stores/selection-store";
-import { useUIStore } from "../../stores/ui-store";
-import { ActionBar } from "../action-bar";
-import { SidebarEmptyState } from "./sidebar-empty-state";
-import { TasksSidebarContent } from "./tasks-sidebar-content";
-import type { SidebarContentType } from "./types";
-import { useSidebarContentType } from "./use-sidebar-content-type";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import type { Folder as FolderType, Item } from "@/features/notes/types";
-import { blocksToText } from "@/features/notes/utils/blocks-to-text";
-import { findItemById, isDescendant } from "@/features/notes/utils/tree-helpers";
-import { useSettings } from "@/features/settings";
-import { useMutationGuard } from "@/hooks/use-mutation-guard";
-import type { Block } from "@blocknote/core";
-import { cn } from "@skriuw/shared";
-import { useMediaQuery, MOBILE_BREAKPOINT } from "@skriuw/shared/client";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger } from "@skriuw/ui";
-import { useConfirmationPopover, type ConfirmationPopoverOptions } from "@skriuw/ui/confirmation-popover";
-import { IconButton, NotesIcon, UIPlaygroundIcon } from "@skriuw/ui/icons";
-import { Edit, FilePlus, FolderOpen, Pin, Star, Trash2, ChevronRight, ChevronDown, Folder } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { useShortcut } from '../../features/shortcuts'
+import { useContextMenuState } from '../../features/shortcuts/context-menu-context'
+import { shortcutDefinitions } from '../../features/shortcuts/shortcut-definitions'
+import { useSelectionStore } from '../../stores/selection-store'
+import { useUIStore } from '../../stores/ui-store'
+import { ActionBar } from '../action-bar'
+import { SidebarEmptyState } from './sidebar-empty-state'
+import { TasksSidebarContent } from './tasks-sidebar-content'
+import type { SidebarContentType } from './types'
+import { useSidebarContentType } from './use-sidebar-content-type'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import type { Folder as FolderType, Item } from '@/features/notes/types'
+import { blocksToText } from '@/features/notes/utils/blocks-to-text'
+import { findItemById, isDescendant } from '@/features/notes/utils/tree-helpers'
+import { useSettings } from '@/features/settings'
+import { useMutationGuard } from '@/hooks/use-mutation-guard'
+import type { Block } from '@blocknote/core'
+import { cn } from '@skriuw/shared'
+import { useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuShortcut,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
+	ContextMenuTrigger
+} from '@skriuw/ui'
+import {
+	useConfirmationPopover,
+	type ConfirmationPopoverOptions
+} from '@skriuw/ui/confirmation-popover'
+import { IconButton, NotesIcon, UIPlaygroundIcon } from '@skriuw/ui/icons'
+import {
+	Edit,
+	FilePlus,
+	FolderOpen,
+	Pin,
+	Star,
+	Trash2,
+	ChevronRight,
+	ChevronDown,
+	Folder
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 
 const EXPANDED_FOLDERS_KEY = 'Skriuw_expanded_folders'
 
@@ -1241,7 +1264,7 @@ function FileTreeItem({
 						<ContextMenuSubContent
 							className={cn(
 								isMobile &&
-								'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+									'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 							)}
 						>
 							<MoveFolderMenu
@@ -1688,7 +1711,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
-					; (item.children || []).forEach(traverse)
+				;(item.children || []).forEach(traverse)
 			}
 		}
 		items.forEach(traverse)
@@ -1969,7 +1992,12 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 				const nameMatches = hasSearchQuery ? item.name.toLowerCase().includes(query) : true
 
 				let contentMatches = false
-				if (hasSearchQuery && searchInContent && item.type === 'note' && 'content' in item) {
+				if (
+					hasSearchQuery &&
+					searchInContent &&
+					item.type === 'note' &&
+					'content' in item
+				) {
 					const note = item as { content?: Block[] }
 					if (note.content && Array.isArray(note.content)) {
 						try {
@@ -2150,8 +2178,16 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 									type='button'
 									onClick={() => {
 										setActiveTags((prev) => {
-											if (prev.some((item) => item.toLowerCase() === tag.toLowerCase())) {
-												return prev.filter((item) => item.toLowerCase() !== tag.toLowerCase())
+											if (
+												prev.some(
+													(item) =>
+														item.toLowerCase() === tag.toLowerCase()
+												)
+											) {
+												return prev.filter(
+													(item) =>
+														item.toLowerCase() !== tag.toLowerCase()
+												)
 											}
 											return [...prev, tag]
 										})
@@ -2232,7 +2268,9 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 						</div>
 					) : filteredItems.length === 0 ? (
 						<div className='flex-1 w-full'>
-							<SidebarEmptyState hasSearchQuery={!!searchQuery || activeTags.length > 0} />
+							<SidebarEmptyState
+								hasSearchQuery={!!searchQuery || activeTags.length > 0}
+							/>
 						</div>
 					) : (
 						filteredItems.map((item, index, arr) => (

@@ -1,7 +1,7 @@
-import { requireMutation, allowReadAccess, GUEST_USER_ID } from "../../../lib/api-auth";
-import { db } from "../../../lib/storage/adapters/server-db";
-import type { Item, Note, Folder } from "@/features/notes/types/index";
-import { NextRequest, NextResponse } from "next/server";
+import { requireMutation, allowReadAccess, GUEST_USER_ID } from '../../../lib/api-auth'
+import { db } from '../../../lib/storage/adapters/server-db'
+import type { Item, Note, Folder } from '@/features/notes/types/index'
+import { NextRequest, NextResponse } from 'next/server'
 
 function createPublicId() {
 	return `pub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`

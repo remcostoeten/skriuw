@@ -1,9 +1,16 @@
-import { getAdapter } from "../adapter";
-import * as cache from "../cache";
-import { createCrudError, createValidationError, createNotFoundError } from "../errors";
-import type { BaseEntity, CrudResult, BatchCrudResult, UpdateOptions, BatchUpdateOptions, BatchUpdateInput } from "../types";
-import { generateRequestId } from "../utils/id";
-import { successResult, errorResult } from "../utils/result";
+import { getAdapter } from '../adapter'
+import * as cache from '../cache'
+import { createCrudError, createValidationError, createNotFoundError } from '../errors'
+import type {
+	BaseEntity,
+	CrudResult,
+	BatchCrudResult,
+	UpdateOptions,
+	BatchUpdateOptions,
+	BatchUpdateInput
+} from '../types'
+import { generateRequestId } from '../utils/id'
+import { successResult, errorResult } from '../utils/result'
 
 /**
  * Updates an existing entity.

@@ -1,9 +1,16 @@
-import { type ComponentProps as BlockNoteComponentProps, type Components } from "@blocknote/react";
-import { cn } from "@skriuw/shared";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@skriuw/ui/dropdown-menu";
-import { Input } from "@skriuw/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@skriuw/ui/popover";
-import React, { forwardRef } from "react";
+import { type ComponentProps as BlockNoteComponentProps, type Components } from '@blocknote/react'
+import { cn } from '@skriuw/shared'
+import {
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator
+} from '@skriuw/ui/dropdown-menu'
+import { Input } from '@skriuw/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@skriuw/ui/popover'
+import React, { forwardRef } from 'react'
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,

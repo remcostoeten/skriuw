@@ -1,4 +1,4 @@
-import type { ShortcutId, KeyCombo } from "../shortcut-definitions";
+import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
 
 // Define types locally since shared package has issues
 type BaseEntity = {

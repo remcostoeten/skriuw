@@ -1,5 +1,5 @@
-import { createReactBlockSpec } from "@blocknote/react";
-import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { createReactBlockSpec } from '@blocknote/react'
+import { AlertCircle, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 
 const calloutTypes = {
 	info: {

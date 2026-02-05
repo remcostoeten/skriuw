@@ -1,6 +1,6 @@
-import type { CrudError } from "../errors";
-import type { CrudResult, CrudMeta } from "../types";
-import { createMeta } from "./meta";
+import type { CrudError } from '../errors'
+import type { CrudResult, CrudMeta } from '../types'
+import { createMeta } from './meta'
 
 /**
  * Creates a success result.

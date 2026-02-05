@@ -1,9 +1,9 @@
-import { setAdapter, resetAdapter } from "../adapter";
-import * as cache from "../cache";
-import type { BaseEntity, ValidationResult } from "../types";
-import type { StorageAdapter } from "../types/adapter";
-import { create } from "./create";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setAdapter, resetAdapter } from '../adapter'
+import * as cache from '../cache'
+import type { BaseEntity, ValidationResult } from '../types'
+import type { StorageAdapter } from '../types/adapter'
+import { create } from './create'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 type TestEntity = {
 	name: string

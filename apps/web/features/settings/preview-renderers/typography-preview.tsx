@@ -1,7 +1,7 @@
 'use client'
 
-import type { PreviewProps } from "../types";
-import React from "react";
+import type { PreviewProps } from '../types'
+import React from 'react'
 
 const SAMPLE_TEXT = `The quick brown fox jumps over the lazy dog.
 1234567890

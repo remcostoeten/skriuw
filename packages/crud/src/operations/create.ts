@@ -1,9 +1,16 @@
-import { getAdapter } from "../adapter";
-import { invalidateForStorageKey } from "../cache";
-import { createCrudError, createValidationError } from "../errors";
-import type { BaseEntity, CrudResult, BatchCrudResult, CreateInput, CreateOptions, BatchCreateOptions } from "../types";
-import { generateEntityId, generateRequestId } from "../utils/id";
-import { successResult, errorResult } from "../utils/result";
+import { getAdapter } from '../adapter'
+import { invalidateForStorageKey } from '../cache'
+import { createCrudError, createValidationError } from '../errors'
+import type {
+	BaseEntity,
+	CrudResult,
+	BatchCrudResult,
+	CreateInput,
+	CreateOptions,
+	BatchCreateOptions
+} from '../types'
+import { generateEntityId, generateRequestId } from '../utils/id'
+import { successResult, errorResult } from '../utils/result'
 
 /**
  * Creates a new entity.

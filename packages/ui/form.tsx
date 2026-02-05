@@ -1,9 +1,16 @@
-import { Label } from "./label";
-import * as LabelPrimitive from "@radix-ui/react-label";
-import { Slot } from "@radix-ui/react-slot";
-import { cn } from "@skriuw/shared";
-import * as React from "react";
-import { Controller, ControllerProps, FieldPath, FieldValues, FormProvider, useFormContext } from "react-hook-form";
+import { Label } from './label'
+import * as LabelPrimitive from '@radix-ui/react-label'
+import { Slot } from '@radix-ui/react-slot'
+import { cn } from '@skriuw/shared'
+import * as React from 'react'
+import {
+	Controller,
+	ControllerProps,
+	FieldPath,
+	FieldValues,
+	FormProvider,
+	useFormContext
+} from 'react-hook-form'
 
 const Form = FormProvider
 

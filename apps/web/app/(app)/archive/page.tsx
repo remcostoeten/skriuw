@@ -1,16 +1,16 @@
 'use client'
 
-import { ExportPanel } from "@/features/backup/components/export-panel";
-import { ImportPanel } from "@/features/backup/components/import-panel";
-import { StorageAdaptersPanel } from "@/features/backup/components/storage-adapters-panel";
-import type { StorageConnectorType } from "@/features/backup/core/types";
-import { useStorageConnectors } from "@/features/backup/hooks/use-storage-connectors";
-import { cn } from "@skriuw/shared";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@skriuw/ui/tabs";
-import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
-import { Download, Upload, HardDrive, Cloud, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { ExportPanel } from '@/features/backup/components/export-panel'
+import { ImportPanel } from '@/features/backup/components/import-panel'
+import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
+import type { StorageConnectorType } from '@/features/backup/core/types'
+import { useStorageConnectors } from '@/features/backup/hooks/use-storage-connectors'
+import { cn } from '@skriuw/shared'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
+import { motion, AnimatePresence, useMotionValue, PanInfo } from 'framer-motion'
+import { Download, Upload, HardDrive, Cloud, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 
 const tabs = [
 	{ value: 'export', label: 'Export', icon: Download },

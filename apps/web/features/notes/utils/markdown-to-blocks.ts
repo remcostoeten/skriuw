@@ -1,5 +1,5 @@
-import { BlockNoteEditor, Block } from "@blocknote/core";
-import { generateId } from "@skriuw/shared";
+import { BlockNoteEditor, Block } from '@blocknote/core'
+import { generateId } from '@skriuw/shared'
 
 /**
  * @description Converts markdown text to BlockNote blocks

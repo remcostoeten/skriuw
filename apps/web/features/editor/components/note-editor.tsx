@@ -1,26 +1,31 @@
 'use client'
 
-import { useShortcut } from "../../shortcuts/use-shortcut";
-import { useEditor } from "../hooks/use-editor";
-import { CommandSurface, type SurfaceContext, type BlockKind, createBlock } from "./bottom-command-surface";
-import { EditorWrapper, EditorWrapperHandle } from "./editor-wrapper";
-import { MobileFormattingBar } from "./mobile-formatting-bar";
-import { EditorHeader } from "./editor-header";
-import { BacklinksPanel } from "./backlinks-panel";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import type { Folder, Item } from "@/features/notes/types";
-import { getArchiveId } from "@/features/notes/utils/archive-folder";
-import { useSession } from "@/lib/auth-client";
-import { notify } from "@/lib/notify";
-import { useUIStore } from "@/stores/ui-store";
-import { useSettings } from "@/features/settings";
-import { useUpload } from "@/features/uploads";
-import { haptic } from "@skriuw/shared";
-import { EmptyState } from "@skriuw/ui";
-import { AlertCircle } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { useShortcut } from '../../shortcuts/use-shortcut'
+import { useEditor } from '../hooks/use-editor'
+import {
+	CommandSurface,
+	type SurfaceContext,
+	type BlockKind,
+	createBlock
+} from './bottom-command-surface'
+import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
+import { MobileFormattingBar } from './mobile-formatting-bar'
+import { EditorHeader } from './editor-header'
+import { BacklinksPanel } from './backlinks-panel'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import type { Folder, Item } from '@/features/notes/types'
+import { getArchiveId } from '@/features/notes/utils/archive-folder'
+import { useSession } from '@/lib/auth-client'
+import { notify } from '@/lib/notify'
+import { useUIStore } from '@/stores/ui-store'
+import { useSettings } from '@/features/settings'
+import { useUpload } from '@/features/uploads'
+import { haptic } from '@skriuw/shared'
+import { EmptyState } from '@skriuw/ui'
+import { AlertCircle } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 
 type Props = {
 	noteId: string
@@ -69,19 +74,25 @@ export function NoteEditor({
 		}
 	}, [note])
 
-	const handleIconChange = useCallback((newIcon?: string) => {
-		setIcon(newIcon)
-		if (editor && note) {
-			updateNote(note.id, editor.document, undefined, newIcon)
-		}
-	}, [editor, note, updateNote])
+	const handleIconChange = useCallback(
+		(newIcon?: string) => {
+			setIcon(newIcon)
+			if (editor && note) {
+				updateNote(note.id, editor.document, undefined, newIcon)
+			}
+		},
+		[editor, note, updateNote]
+	)
 
-	const handleCoverImageChange = useCallback((newCover?: string) => {
-		setCoverImage(newCover)
-		if (note) {
-			updateNote(note.id, undefined, undefined, undefined, undefined, newCover)
-		}
-	}, [note, updateNote])
+	const handleCoverImageChange = useCallback(
+		(newCover?: string) => {
+			setCoverImage(newCover)
+			if (note) {
+				updateNote(note.id, undefined, undefined, undefined, undefined, newCover)
+			}
+		},
+		[note, updateNote]
+	)
 
 	const { upload: uploadCover, isUploading: isUploadingCover } = useUpload({
 		onSuccess: (result) => {
@@ -92,27 +103,36 @@ export function NoteEditor({
 		}
 	})
 
-	const handleCoverUpload = useCallback((file: File) => {
-		const isGuest = !session?.user
-		uploadCover(file, isGuest)
-	}, [uploadCover, session?.user])
+	const handleCoverUpload = useCallback(
+		(file: File) => {
+			const isGuest = !session?.user
+			uploadCover(file, isGuest)
+		},
+		[uploadCover, session?.user]
+	)
 
-	const handleTagsChange = useCallback((newTags: string[]) => {
-		setTags(newTags)
-		if (editor && note) {
-			updateNote(note.id, editor.document, undefined, undefined, newTags)
-		}
-	}, [editor, note, updateNote])
+	const handleTagsChange = useCallback(
+		(newTags: string[]) => {
+			setTags(newTags)
+			if (editor && note) {
+				updateNote(note.id, editor.document, undefined, undefined, newTags)
+			}
+		},
+		[editor, note, updateNote]
+	)
 
-	const handleTitleChange = useCallback((newTitle: string) => {
-		setNoteName(newTitle)
-		if (editor && note) {
-			const timeoutId = setTimeout(() => {
-				updateNote(note.id, editor.document, newTitle)
-			}, 500)
-			return () => clearTimeout(timeoutId)
-		}
-	}, [editor, note, updateNote, setNoteName])
+	const handleTitleChange = useCallback(
+		(newTitle: string) => {
+			setNoteName(newTitle)
+			if (editor && note) {
+				const timeoutId = setTimeout(() => {
+					updateNote(note.id, editor.document, newTitle)
+				}, 500)
+				return () => clearTimeout(timeoutId)
+			}
+		},
+		[editor, note, updateNote, setNoteName]
+	)
 
 	useShortcut('editor-focus', (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement
@@ -348,7 +368,7 @@ export function NoteEditor({
 								updatedAt={note?.updatedAt}
 								tags={tags}
 								setTags={handleTagsChange}
-								className="editor-header"
+								className='editor-header'
 								showMetadata={settings.showEditorMetadata ?? true}
 								coverImage={coverImage}
 								setCoverImage={handleCoverImageChange}
@@ -360,7 +380,7 @@ export function NoteEditor({
 							<BacklinksPanel
 								noteId={noteId}
 								noteName={noteName}
-								className="max-w-[655px] mx-auto border-t border-border/30"
+								className='max-w-[655px] mx-auto border-t border-border/30'
 							/>
 						}
 					/>

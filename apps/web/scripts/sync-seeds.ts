@@ -1,6 +1,6 @@
-import { generatePreseededItems } from "../lib/preseed-data";
-import { resetBlockIdCounter } from "../lib/preseed-data";
-import { getDatabase, seedTemplateFolders, seedTemplateNotes } from "@skriuw/db";
+import { generatePreseededItems } from '../lib/preseed-data'
+import { resetBlockIdCounter } from '../lib/preseed-data'
+import { getDatabase, seedTemplateFolders, seedTemplateNotes } from '@skriuw/db'
 
 async function syncSeeds() {
 	console.log('🌱 Starting seed synchronization...')

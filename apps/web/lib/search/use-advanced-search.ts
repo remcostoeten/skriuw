@@ -96,10 +96,7 @@ export function useAdvancedSearch(
 /**
  * Flatten nested item structure with path tracking
  */
-function flattenItems(
-	items: Item[],
-	path: string[] = []
-): Array<{ item: Item; path: string[] }> {
+function flattenItems(items: Item[], path: string[] = []): Array<{ item: Item; path: string[] }> {
 	const result: Array<{ item: Item; path: string[] }> = []
 
 	for (const item of items) {
@@ -131,7 +128,11 @@ function scoreItem(
 	let allTokensMatch = true
 
 	for (const token of query.tokens) {
-		const tokenResult = matchToken(item, path, token, { caseSensitive, wholeWord, searchContent })
+		const tokenResult = matchToken(item, path, token, {
+			caseSensitive,
+			wholeWord,
+			searchContent
+		})
 
 		if (token.type !== 'text' || !('negated' in token) || !token.negated) {
 			// Positive match required
@@ -194,9 +195,7 @@ function matchToken(
 			const note = item as Note
 			const tags = note.tags || []
 			const hasTag = tags.some((t) =>
-				caseSensitive
-					? t === token.value
-					: t.toLowerCase() === token.value.toLowerCase()
+				caseSensitive ? t === token.value : t.toLowerCase() === token.value.toLowerCase()
 			)
 			if (token.negated) {
 				return { matches: !hasTag, score: 0 }
@@ -372,7 +371,12 @@ function matchText(
 					score: 8,
 					matchInfo: {
 						field: 'tags',
-						indices: [[normalizedTag.indexOf(normalizedQuery), normalizedTag.indexOf(normalizedQuery) + normalizedQuery.length]],
+						indices: [
+							[
+								normalizedTag.indexOf(normalizedQuery),
+								normalizedTag.indexOf(normalizedQuery) + normalizedQuery.length
+							]
+						],
 						text: tag
 					}
 				}
@@ -491,7 +495,10 @@ function extractTextContent(content: any[] | undefined): string {
  */
 function findRegexIndices(text: string, pattern: RegExp): Array<[number, number]> {
 	const indices: Array<[number, number]> = []
-	const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g')
+	const globalPattern = new RegExp(
+		pattern.source,
+		pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'
+	)
 
 	let match
 	while ((match = globalPattern.exec(text)) !== null) {

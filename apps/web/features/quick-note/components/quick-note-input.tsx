@@ -1,8 +1,8 @@
 'use client'
 
-import { useNotesContext } from "../../notes/context/notes-context";
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useNotesContext } from '../../notes/context/notes-context'
+import { Plus } from 'lucide-react'
+import { useState } from 'react'
 
 export function QuickNoteInput() {
 	const [noteTitle, setNoteTitle] = useState('')

@@ -1,9 +1,20 @@
-import { UserMenu } from "../auth/user-menu";
-import { WindowControls } from "./window-controls";
-import { isTauriAvailable, cn } from "@skriuw/shared";
-import { useIsTouchDevice } from "@skriuw/shared/client";
-import { IconButton } from "@skriuw/ui/icons";
-import { Menu, PanelLeftClose, PanelRightClose, PanelRightOpen, ChevronLeft, ChevronRight, Code, Type, Square, SplitSquareHorizontal } from "lucide-react";
+import { UserMenu } from '../auth/user-menu'
+import { WindowControls } from './window-controls'
+import { isTauriAvailable, cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
+import { IconButton } from '@skriuw/ui/icons'
+import {
+	Menu,
+	PanelLeftClose,
+	PanelRightClose,
+	PanelRightOpen,
+	ChevronLeft,
+	ChevronRight,
+	Code,
+	Type,
+	Square,
+	SplitSquareHorizontal
+} from 'lucide-react'
 
 type props = {
 	noteName: string

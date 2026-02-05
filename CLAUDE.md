@@ -35,12 +35,13 @@ bun run validate         # Full validation: lint + types + test + build
 ## Core Philosophy: No DRY Violations
 
 **Every repetitive concern must be abstracted.** Never manually define:
+
 - Error handling (throw & let boundaries handle it)
 - Loading states (wrapped in hooks/utilities)
 - Validation logic (centralized in API layer)
 - UI feedback patterns (use shared utilities)
 
-Components should only define *intent*. Infrastructure (errors, loading, validation, feedback) is always handled by abstraction layers (hooks, utilities, API functions).
+Components should only define _intent_. Infrastructure (errors, loading, validation, feedback) is always handled by abstraction layers (hooks, utilities, API functions).
 
 ## Architecture
 
@@ -94,7 +95,15 @@ features/<feature>/
 ### CRUD Package (`@skriuw/crud`)
 
 ```typescript
-import { create, readOne, readMany, update, destroy, setAdapter, setUserContext } from '@skriuw/crud'
+import {
+	create,
+	readOne,
+	readMany,
+	update,
+	destroy,
+	setAdapter,
+	setUserContext
+} from '@skriuw/crud'
 
 // Operations are user-scoped via setUserContext
 await create<Note>(STORAGE_KEYS.NOTES, { name: 'My Note' })
@@ -106,6 +115,7 @@ await destroy(STORAGE_KEYS.NOTES, 'note-123')
 ### Mutation Pattern
 
 Every mutation must:
+
 1. Execute CRUD operation
 2. Invalidate relevant caches
 3. Track activity via `trackActivity` (fire-and-forget)
@@ -151,6 +161,7 @@ Types are exported from `@skriuw/db`: `Note`, `Folder`, `Task`, `User`, etc.
 ### Environment Variables
 
 Key env vars (see `turbo.json` for full list):
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `BETTER_AUTH_SECRET` - Auth secret (min 32 chars)
 - `BETTER_AUTH_URL` - Auth callback URL

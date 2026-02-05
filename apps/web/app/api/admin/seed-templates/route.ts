@@ -1,7 +1,7 @@
-import { auth } from "@/lib/auth";
-import { isAdmin } from "@/lib/is-admin";
-import { getDatabase, seedTemplateNotes, seedTemplateFolders, eq } from "@skriuw/db";
-import { NextRequest, NextResponse } from "next/server";
+import { auth } from '@/lib/auth'
+import { isAdmin } from '@/lib/is-admin'
+import { getDatabase, seedTemplateNotes, seedTemplateFolders, eq } from '@skriuw/db'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Get all seed templates
 export async function GET(request: NextRequest) {

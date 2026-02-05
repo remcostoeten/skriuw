@@ -1,12 +1,16 @@
 'use client'
 
-import { useTaskByIdQuery, useUpdateTaskMutation, useDeleteTaskMutation } from "@/features/tasks/hooks/use-tasks-query";
-import { notify } from "@/lib/notify";
-import { cn } from "@skriuw/shared";
-import { Checkbox } from "@skriuw/ui/primitives/checkbox";
-import { ArrowLeft, Calendar, CheckSquare, Clock, Trash2, X, ExternalLink } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import {
+	useTaskByIdQuery,
+	useUpdateTaskMutation,
+	useDeleteTaskMutation
+} from '@/features/tasks/hooks/use-tasks-query'
+import { notify } from '@/lib/notify'
+import { cn } from '@skriuw/shared'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
+import { ArrowLeft, Calendar, CheckSquare, Clock, Trash2, X, ExternalLink } from 'lucide-react'
+import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 export default function TaskDetailPage() {
 	const router = useRouter()

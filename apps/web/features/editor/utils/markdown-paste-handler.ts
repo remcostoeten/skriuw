@@ -1,4 +1,4 @@
-import type { BlockNoteEditor } from "@blocknote/core";
+import type { BlockNoteEditor } from '@blocknote/core'
 
 /**
  * BlockNote paste handler type

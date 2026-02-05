@@ -1,6 +1,6 @@
-import type { Item } from "../../types";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, invalidateForStorageKey } from "@skriuw/crud";
+import type { Item } from '../../types'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 
 const CACHE_TTL_MS = 60000
 
