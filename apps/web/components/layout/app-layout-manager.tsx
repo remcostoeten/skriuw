@@ -122,6 +122,7 @@ export function AppLayoutManager({
 		return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
 	}, [sidebarActiveNoteId, notesInOrder])
 	const currentNoteId = currentNote?.id ?? null
+	const isNoteView = Boolean(currentNoteId)
 
 	const currentNoteIndex = useMemo(() => {
 		if (!sidebarActiveNoteId) return -1
@@ -391,7 +392,7 @@ export function AppLayoutManager({
 					noteName={computedTitle}
 					onToggleSidebar={toggleMobileSidebar}
 					onToggleDesktopSidebar={toggleDesktopSidebar}
-					onToggleRightSidebar={toggleRightSidebar}
+					onToggleRightSidebar={isNoteView ? toggleRightSidebar : undefined}
 					// Navigation arrows - only show for note pages when navigation functions are available
 					onNavigatePrevious={sidebarActiveNoteId ? handleNavigatePrevious : undefined}
 					onNavigateNext={sidebarActiveNoteId ? handleNavigateNext : undefined}
@@ -453,10 +454,12 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<RightSidebar
-						noteId={sidebarActiveNoteId || undefined}
-						content={currentNote?.content}
-					/>
+					{isNoteView ? (
+						<RightSidebar
+							noteId={sidebarActiveNoteId || undefined}
+							content={currentNote?.content}
+						/>
+					) : null}
 					<UnifiedSearch />
 					{/* <AlphaBanner
 						href="/docs"

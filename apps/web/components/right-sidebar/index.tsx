@@ -2,11 +2,12 @@
 
 import { useUIStore } from "../../stores/ui-store";
 import { CollapsibleSection } from "./collapsible-section";
-import { useTableOfContents, useNoteMetadata, useShareUrl, useScrollToHeading, useShareAccess } from "./hooks";
+import { useTableOfContents, useNoteMetadata, useShareUrl, useScrollToHeading } from "./hooks";
 import { TOCItem } from "./toc-item";
 import { SECTION_KEYS, type SectionKey, type RightSidebarProps } from "./types";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import type { Note } from "@/features/notes/types";
+import { useIdentityState } from "@/lib/identity-guard";
 import { notify } from "@/lib/notify";
 import { Switch } from "@skriuw/ui";
 import { IconButton } from "@skriuw/ui/icons";
@@ -36,7 +37,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 	const metadata = useNoteMetadata(currentNote, content)
 	const shareUrl = useShareUrl(currentNote?.publicId)
 	const scrollToHeading = useScrollToHeading()
-	const canShare = useShareAccess()
+	const { isAuthenticated } = useIdentityState()
 
 	const toggleSection = useCallback((section: string) => {
 		setExpandedSections((prev) => {
@@ -128,7 +129,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 				</CollapsibleSection>
 
 				{/* Sharing */}
-				{canShare ? (
+				{isAuthenticated ? (
 					<div className='border border-border rounded-lg'>
 						<div className='flex items-center justify-between p-3'>
 							<div className='flex items-center gap-2'>
