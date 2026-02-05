@@ -3,7 +3,7 @@
 ## 1. Deep Dive Architecture Audit
 -   **Current State**:
     -   `drivers/*` are correctly implemented for binary chunk transfer (S3, Dropbox, GDrive).
-    -   `ImportPanel` is a monolithic component found in `apps/web/features/backup/components/import-panel.tsx`.
+    -   `ImportPanel` is a monolithic component found in `apps/web/features/backup/components/import-panel.tsx`. **Goal**: Refactor this to host the new `MigrationWizard`.
     -   **Missing**: Logical layer to transform *Content*. Currently, backups are just raw JSON dumps. We cannot "Export to Markdown" because we lack a `BlockNoteJSON -> Markdown` mapper.
 -   **Risk**: Users importing from Notion will upload a ZIP of Markdown files. Our system must recursively parse this folder structure and convert MD -> BlockNote JSON on the fly.
 -   **Edge Cases**:
@@ -21,7 +21,12 @@ Create a unified **"Data Migration Wizard"** that handles:
 ## 3. Detailed Implementation Specs
 
 ### A. The Transformer Layer (`features/backup/transformers`)
-Create pure functions (testable with Jest) to handle conversion.
+Create pure functions to handle conversion. Note: These functions should NOT perform side effects (like uploads). They should return a description of assets that *need* uploading.
+
+**Dependencies**:
+- Install `jszip` for handling exports.
+- Install `html2pdf.js` for PDF generation.
+- Ensure `@blocknote/core` types are referenced.
 
 **1. Markdown to BlockNote (`markdown-to-blocks.ts`)**
 -   Input: Raw Markdown string.
@@ -59,12 +64,18 @@ A controlled multi-step form:
 -   Display individual file progress (e.g., "Processing 45/120: /Personal/Journal.md").
 -   Cancel button (abort signal).
 
-### C. Handling The "Notion Image" Edge Case
-When parsing Notion Markdown:
-1.  Regex match `![image](image_folder/img.png)`.
-2.  Look up `image_folder/img.png` in the Zip/Folder entries.
-3.  Upload blob to `uploadFile` (via `useUpload`).
-4.  Replace URL in the BlockNote structure with the new remote URL (or local `asset://` URL if using Tauri).
+### C. Handling The "Notion Image" Edge Case (Async Pipeline)
+The transformation must be a two-step process to assume "Pure" conversion:
+
+1.  **Parse**: `markdownToBlocks(md)` returns `{ blocks: Block[], imagePaths: string[] }`.
+2.  **Upload (Wizard Logic)**: 
+    -   Iterate `imagePaths`.
+    -   Find corresponding file in Zip.
+    -   Upload via `useUpload`.
+    -   Map `localPath -> remoteUrl`.
+3.  **Replace**: Traverse `blocks` and replace `src` with `remoteUrl`.
+
+*CRITICAL*: Do not try to upload *inside* the parser. Separating parsing from I/O prevents "async hell" in the recursive parser.
 
 ## 4. Work Checklist
 -   [ ] Create `blocks-to-markdown.ts` and `markdown-to-blocks.ts` with unit tests.

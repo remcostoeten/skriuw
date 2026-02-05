@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+		#!/usr/bin / env bun
 
 /**
  * CLI script to seed the Identity Guard knowledge note to all users
@@ -105,4 +105,4 @@ if (command === 'stats') {
 	process.exit(1)
 }
 
-export {}
+export { }
