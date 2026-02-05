@@ -9,9 +9,9 @@
 		"dev": "tsup --watch",
 		"lint": "eslint . --max-warnings 0",
 		"check-types": "tsc --noEmit",
-		"db:push": "drizzle-kit push",
-		"db:generate": "drizzle-kit generate",
-		"db:studio": "drizzle-kit studio"
+		"db:push": "bun --env-file=../../.env.local drizzle-kit push",
+		"db:generate": "bun --env-file=../../.env.local drizzle-kit generate",
+		"db:studio": "bun --env-file=../../.env.local drizzle-kit studio"
 	},
 	"dependencies": {
 		"@neondatabase/serverless": "^0.10.0",
