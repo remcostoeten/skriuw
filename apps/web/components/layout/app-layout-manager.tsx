@@ -1,6 +1,7 @@
 import { EditorTabsBar } from "../../features/editor/components/editor-tabs-bar";
 import { useEditorTabs } from "../../features/editor/tabs";
 import { useSplitViewStore } from "../../features/notes/split-view/store";
+import { UnifiedSearch } from "../../features/search";
 import { useSettings, useUserPreferences } from "../../features/settings";
 import { useShortcut } from "../../features/shortcuts/use-shortcut";
 import { TaskPanelStack } from "../../features/tasks";
@@ -456,6 +457,7 @@ export function AppLayoutManager({
 						noteId={sidebarActiveNoteId || undefined}
 						content={currentNote?.content}
 					/>
+					<UnifiedSearch />
 					{/* <AlphaBanner
 						href="/docs"
 						text="New! PrismUI Components"
