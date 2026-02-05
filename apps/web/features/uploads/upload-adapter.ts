@@ -7,6 +7,33 @@ export type UploadResult = {
 	name: string
 }
 
+/**
+ * Sync uploaded file to database via API (for Tauri/local uploads)
+ */
+async function syncToDatabase(
+	result: UploadResult,
+	storageProvider: 'tauri' | 'local-fs',
+	file: File
+): Promise<void> {
+	try {
+		await fetch('/api/assets', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				url: result.url,
+				name: result.name,
+				originalName: file.name,
+				size: file.size,
+				type: file.type || 'unknown',
+				storageProvider
+			})
+		})
+	} catch (error) {
+		// Non-critical: log but don't fail the upload
+		console.warn('Failed to sync file to database:', error)
+	}
+}
+
 async function uploadWithUploadThing(file: File): Promise<UploadResult> {
 	const userKey = await getUserUploadKey()
 
@@ -36,21 +63,28 @@ async function uploadWithTauriFs(file: File): Promise<UploadResult> {
 	const buffer = await file.arrayBuffer()
 	await writeFile(filePath, new Uint8Array(buffer))
 
-	return {
+	const result = {
 		url: `asset://${filePath}`,
 		name: fileName
 	}
+
+	// Sync to database
+	await syncToDatabase(result, 'tauri', file)
+
+	return result
 }
 
 async function uploadWithLocalStorage(file: File): Promise<UploadResult> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader()
-		reader.onload = () => {
+		reader.onload = async () => {
 			if (typeof reader.result === 'string') {
-				resolve({
+				const result = {
 					url: reader.result,
 					name: file.name
-				})
+				}
+				// Note: local-fs (base64) uploads are guest-only, skip DB sync
+				resolve(result)
 			} else {
 				reject(new Error('Failed to convert file to base64'))
 			}
