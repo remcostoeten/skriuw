@@ -227,6 +227,58 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		preview: {
 			component: 'search'
 		}
+	},
+	// Note Experience Settings
+	{
+		key: 'noteCreationMode',
+		label: 'Default Note Experience',
+		value: 'rich',
+		defaultValue: 'rich',
+		type: 'enum',
+		description: "Choose 'Rich' for cover images and icons, or 'Simple' for a minimal text-only experience.",
+		category: 'note-experience',
+		options: ['rich', 'simple'],
+		implemented: true
+	},
+	{
+		key: 'defaultEmoji',
+		label: 'Default Emoji',
+		value: '',
+		defaultValue: '',
+		type: 'string',
+		description: 'Automatically assign this emoji to new notes. Leave empty for none.',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'enableCoverImages',
+		label: 'Enable Cover Images',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Allow adding cover images to notes.',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'titlePlaceholder',
+		label: 'Title Placeholder',
+		value: 'Untitled Note',
+		defaultValue: 'Untitled Note',
+		type: 'string',
+		description: 'Placeholder text for the note title.',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'bodyPlaceholder',
+		label: 'Body Placeholder',
+		value: '',
+		defaultValue: '',
+		type: 'string',
+		description: 'Placeholder text for the empty note body.',
+		category: 'note-experience',
+		implemented: true
 	}
 ]
 
@@ -367,6 +419,12 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 		title: 'Editor',
 		description: 'Editor behavior and editing preferences',
 		settings: EDITOR_SETTINGS.filter((s) => s.category === 'editor' && s.implemented !== false)
+	},
+	{
+		category: 'note-experience',
+		title: 'Note Experience',
+		description: 'Customize the default experience when creating new notes',
+		settings: EDITOR_SETTINGS.filter((s) => s.category === 'note-experience' && s.implemented !== false)
 	},
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)

@@ -3,6 +3,7 @@ import { stringToBlocks } from "../utils/string-to-blocks";
 import { useNotesQuery, useNoteQuery, useCreateNoteMutation, useCreateFolderMutation, useUpdateNoteMutation, useDeleteMutation, useMoveItemMutation, useRenameItemMutation, usePinItemMutation, useFavoriteNoteMutation, useSetNoteVisibilityMutation } from "./use-notes-query";
 import { Block } from "@blocknote/core";
 import { useCallback } from "react";
+import { useSettings } from "../../settings/use-settings";
 
 /**
 
@@ -96,7 +97,10 @@ export function useNotes() {
 		refetch
 	} = useNotesQuery()
 
-	// 2. Mutations
+	// 2. Settings for note experience
+	const { getSetting } = useSettings()
+
+	// 3. Mutations
 	const createNoteMutation = useCreateNoteMutation()
 	const createFolderMutation = useCreateFolderMutation()
 	const updateNoteMutation = useUpdateNoteMutation()
@@ -107,20 +111,31 @@ export function useNotes() {
 	const favoriteNoteMutation = useFavoriteNoteMutation()
 	const setVisibilityMutation = useSetNoteVisibilityMutation()
 
-	// 3. Wrappers to match original API signature
+	// 4. Wrappers to match original API signature
 	const createNote = useCallback(
 		async (name?: string, content?: string | Block[], parentFolderId?: string) => {
 			// Handle content conversion if string
 			const noteContent: Block[] =
 				typeof content === 'string' ? stringToBlocks(content) : content || []
 
+			// Get note experience settings
+			const noteCreationMode = getSetting('noteCreationMode') ?? 'rich'
+			const defaultEmoji = getSetting('defaultEmoji') ?? ''
+			const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled Note'
+
+			// Apply settings based on note creation mode
+			const icon = defaultEmoji || undefined
+			const coverImage = noteCreationMode === 'simple' ? undefined : undefined
+
 			return await createNoteMutation.mutateAsync({
-				name: name ?? 'Untitled Note',
+				name: name ?? titlePlaceholder,
 				content: noteContent,
-				parentFolderId
+				parentFolderId,
+				icon,
+				coverImage
 			})
 		},
-		[createNoteMutation]
+		[createNoteMutation, getSetting]
 	)
 
 	const createFolder = useCallback(
