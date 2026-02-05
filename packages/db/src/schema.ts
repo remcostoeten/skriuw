@@ -371,8 +371,11 @@ export const files = pgTable(
 		userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 		url: text('url').notNull(),
 		name: text('name').notNull(),
+		originalName: text('original_name'),
 		size: integer('size').notNull(),
 		type: text('type').notNull(), // mimetype
+		storageProvider: text('storage_provider').notNull().default('uploadthing'),
+		isPublic: boolean('is_public').default(false).notNull(),
 		createdAt: bigint('created_at', { mode: 'number' }).notNull()
 	},
 	(table) => ({

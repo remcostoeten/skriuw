@@ -34,8 +34,11 @@ export const ourFileRouter: FileRouter = {
                 userId: metadata.userId,
                 url: file.ufsUrl,
                 name: file.name,
+                originalName: file.name,
                 size: file.size,
                 type: file.type || 'unknown',
+                storageProvider: 'uploadthing',
+                isPublic: false,
                 createdAt: Date.now()
             })
             return { url: file.ufsUrl }

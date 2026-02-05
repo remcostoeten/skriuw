@@ -19,13 +19,13 @@
 		"check-types": "turbo check-types",
 		"test": "turbo test",
 		"test:verbose": "turbo test:verbose --no-cache --continue",
-		"gen": "cd packages/db && bun drizzle-kit generate",
-		"migrate": "cd packages/db && bun drizzle-kit migrate",
-		"dbpush": "cd packages/db && bun drizzle-kit push",
-		"studio": "cd packages/db && bun drizzle-kit studio",
+		"gen": "cd packages/db && bun --env-file=../../.env.local drizzle-kit generate",
+		"migrate": "cd packages/db && bun --env-file=../../.env.local drizzle-kit migrate",
+		"dbpush": "cd packages/db && bun --env-file=../../.env.local drizzle-kit push",
+		"studio": "cd packages/db && bun --env-file=../../.env.local drizzle-kit studio",
 		"validate": "turbo lint check-types test build",
 		"dev-cli": "bun scripts/dev-cli.ts",
-		"sync-seeds": "cd packages/db && bun scripts/sync-seeds.ts"
+		"sync-seeds": "cd packages/db && bun --env-file=../../.env.local scripts/sync-seeds.ts"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
