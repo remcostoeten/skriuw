@@ -2,7 +2,7 @@ import "../styles/globals.css";
 import "../styles/outlines-accessibility.css";
 import { Providers } from "./providers";
 import { CommandExecutor } from "@/components/command-executor";
-import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { InstallController } from "@/modules/install";
 import type { Metadata } from "next";
 import "prismjs/themes/prism-tomorrow.css";
 
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<Providers>
 						{children}
 						<CommandExecutor />
-						<InstallPrompt />
+						<InstallController />
 					</Providers>
 				</div>
 			</body>
