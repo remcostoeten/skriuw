@@ -388,6 +388,18 @@
 	color: hsl(var(--muted-foreground));
 }
 
+.skriuw-tag-mention {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	padding: 0.125rem 0.5rem;
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.2;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
 /* =============================================================================
    Slash Menu / Suggestion Menu
    ============================================================================= */
