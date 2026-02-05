@@ -353,6 +353,7 @@ export function NoteEditor({
 								coverImage={coverImage}
 								setCoverImage={handleCoverImageChange}
 								onCoverUpload={handleCoverUpload}
+								enableCoverImages={settings.enableCoverImages ?? true}
 							/>
 						}
 						footer={

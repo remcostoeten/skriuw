@@ -41,6 +41,7 @@ type Props = {
 	coverImage?: string
 	setCoverImage?: (url?: string) => void
 	onCoverUpload?: (file: File) => void
+	enableCoverImages?: boolean
 }
 
 function isValidCoverImageUrl(url?: string): boolean {
@@ -69,7 +70,8 @@ export function EditorHeader({
 	showMetadata = true,
 	coverImage,
 	setCoverImage,
-	onCoverUpload
+	onCoverUpload,
+	enableCoverImages = true
 }: Props) {
 	const [isInfoOpen, setIsInfoOpen] = React.useState(true)
 	const [pasteUrlInput, setPasteUrlInput] = React.useState("")
@@ -142,10 +144,10 @@ export function EditorHeader({
 			<div
 				className={cn(
 					"relative w-full group/cover",
-					isValidCoverImageUrl(coverImage) ? "h-48" : "h-0"
+					enableCoverImages && isValidCoverImageUrl(coverImage) ? "h-48" : "h-0"
 				)}
 			>
-				{isValidCoverImageUrl(coverImage) && (
+				{enableCoverImages && isValidCoverImageUrl(coverImage) && (
 					<>
 						<img
 							src={coverImage}
@@ -270,8 +272,8 @@ export function EditorHeader({
 			</div>
 
 			<div className="px-8 pt-6 pb-2 flex flex-col gap-3">
-				{/* Add cover button - only shown when no cover image */}
-				{showMetadata && !isValidCoverImageUrl(coverImage) && (
+				{/* Add cover button - only shown when no cover image and cover images are enabled */}
+				{showMetadata && enableCoverImages && !isValidCoverImageUrl(coverImage) && (
 					<div className="flex items-center">
 						<Popover>
 							<PopoverTrigger asChild>
