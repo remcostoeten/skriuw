@@ -476,7 +476,7 @@ function SearchResultItem({
 					isNote ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
 				)}
 			>
-				{item.icon ? (
+				{'icon' in item && item.icon ? (
 					<span className='text-lg'>{item.icon}</span>
 				) : isNote ? (
 					<FileText className='w-4 h-4' />

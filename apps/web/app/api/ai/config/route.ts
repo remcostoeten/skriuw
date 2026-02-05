@@ -1,11 +1,10 @@
 import { auth } from '@/lib/auth'
-import { readOne, readMany, create, update } from '@skriuw/crud'
+import { readMany } from '@skriuw/crud'
+import { getDatabase, aiProviderConfig, eq } from '@skriuw/db'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { encryptPrompt, decryptPrompt } from '@/features/ai/utilities'
-import { validateConfigBody } from '@/features/ai/utilities/validation'
-import { generateId } from '@skriuw/shared'
 
 export async function GET() {
 	const session = await auth.api.getSession({ headers: await headers() })

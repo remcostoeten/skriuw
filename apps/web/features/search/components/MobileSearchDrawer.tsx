@@ -348,7 +348,7 @@ function MobileResultItem({ result, onSelect }: { result: SearchResult; onSelect
 					isNote ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
 				)}
 			>
-				{item.icon ? (
+				{'icon' in item && item.icon ? (
 					<span className='text-2xl'>{item.icon}</span>
 				) : isNote ? (
 					<FileText className='w-6 h-6' />

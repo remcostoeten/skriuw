@@ -266,7 +266,7 @@ export function EditorHeader({
 
 										{activeTab === 'library' && (
 											<MediaPicker
-												onSelect={(url) => handleCoverImageChange(url)}
+												onSelect={(url) => setCoverImage?.(url)}
 												className='min-h-[150px]'
 											/>
 										)}
@@ -454,7 +454,7 @@ export function EditorHeader({
 								</span>
 								{tags.length > 0 && (
 									<span className='flex items-center'>
-										<Tag className='w-3 h-3 mr-1' /> {tags.length} tags
+										<TagIcon className='w-3 h-3 mr-1' /> {tags.length} tags
 									</span>
 								)}
 							</div>
