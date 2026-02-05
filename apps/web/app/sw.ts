@@ -5,7 +5,7 @@ import { Serwist } from 'serwist'
 /// <reference lib="webworker" />
 
 declare global {
-	// oxlint-disable-next-line typescript-eslint/consistent-type-definitions -- declaration merging requires interface
+	// oxlint-disable-next-line @typescript-eslint/consistent-type-definitions -- declaration merging requires interface
 	interface WorkerGlobalScope extends SerwistGlobalConfig {
 		__SW_MANIFEST: (PrecacheEntry | string)[] | undefined
 	}
