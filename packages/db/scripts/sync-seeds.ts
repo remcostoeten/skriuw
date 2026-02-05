@@ -1,7 +1,7 @@
-import * as schema from "../src/schema";
-import "dotenv/config";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import * as schema from '../src/schema'
+import 'dotenv/config'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 
 const NOTES = [
 	{ name: 'Welcome to Skriuw', pinned: true },
@@ -310,7 +310,8 @@ async function syncSeeds() {
 		for (let i = 0; i < NOTES.length; i++) {
 			const noteDef = NOTES[i]
 			const noteId = stableId('note', noteDef.name)
-			const parentFolderId = noteDef.folder ? (folderMap.get(noteDef.folder) ?? null) : null
+			const folderName = 'folder' in noteDef ? noteDef.folder : null
+			const parentFolderId = folderName ? (folderMap.get(folderName) ?? null) : null
 
 			const content = generateContentForNote(noteDef.name)
 
@@ -319,12 +320,12 @@ async function syncSeeds() {
 				name: noteDef.name,
 				content,
 				parentFolderId,
-				pinned: noteDef.pinned ? 1 : 0,
+				pinned: 'pinned' in noteDef && noteDef.pinned ? 1 : 0,
 				order: i,
 				createdAt: now,
 				updatedAt: now
 			})
-			console.log(`   ✓ ${noteDef.name}${parentFolderId ? ` (in ${noteDef.folder})` : ''}`)
+			console.log(`   ✓ ${noteDef.name}${parentFolderId ? ` (in ${folderName})` : ''}`)
 		}
 	})
 
