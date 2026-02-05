@@ -1,8 +1,21 @@
 import type { TOCItem, NoteMetadata } from "./types";
 import type { Note } from "@/features/notes/types";
+import { useIdentityState } from "@/lib/identity-guard";
 import { blocksToText } from "@/features/notes/utils/blocks-to-text";
 import type { Block } from "@blocknote/core";
+import { usePathname } from "next/navigation";
 import { useMemo, useCallback } from "react";
+
+export function isAuthPath(pathname: string): boolean {
+	return pathname.startsWith('/login')
+}
+
+export function useShareAccess(): boolean {
+	const pathname = usePathname()
+	const { isAuthenticated } = useIdentityState()
+
+	return isAuthenticated && !isAuthPath(pathname)
+}
 
 /**
  * Build a hierarchical table of contents from BlockNote heading blocks

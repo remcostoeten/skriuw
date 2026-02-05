@@ -2,7 +2,7 @@
 
 import { useUIStore } from "../../stores/ui-store";
 import { CollapsibleSection } from "./collapsible-section";
-import { useTableOfContents, useNoteMetadata, useShareUrl, useScrollToHeading } from "./hooks";
+import { useTableOfContents, useNoteMetadata, useShareUrl, useScrollToHeading, useShareAccess } from "./hooks";
 import { TOCItem } from "./toc-item";
 import { SECTION_KEYS, type SectionKey, type RightSidebarProps } from "./types";
 import { useNotesContext } from "@/features/notes/context/notes-context";
@@ -36,6 +36,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 	const metadata = useNoteMetadata(currentNote, content)
 	const shareUrl = useShareUrl(currentNote?.publicId)
 	const scrollToHeading = useScrollToHeading()
+	const canShare = useShareAccess()
 
 	const toggleSection = useCallback((section: string) => {
 		setExpandedSections((prev) => {
@@ -127,45 +128,47 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 				</CollapsibleSection>
 
 				{/* Sharing */}
-				<div className='border border-border rounded-lg'>
-					<div className='flex items-center justify-between p-3'>
-						<div className='flex items-center gap-2'>
-							<Share2 className='w-4 h-4' />
-							<span className='font-medium'>Public Share</span>
-						</div>
-						<Switch
-							checked={currentNote?.isPublic ?? false}
-							onCheckedChange={handleToggleVisibility}
-							disabled={isToggling || !currentNote}
-							aria-label='Toggle public visibility'
-						/>
-					</div>
-					{currentNote?.isPublic ? (
-						<div className='px-3 pb-3 space-y-2'>
-							<div className='flex items-center gap-2 text-sm'>
-								<Eye className='w-4 h-4 text-muted-foreground' />
-								<span className='text-muted-foreground'>Unique visitors:</span>
-								<span>{currentNote.publicViews ?? 0}</span>
+				{canShare ? (
+					<div className='border border-border rounded-lg'>
+						<div className='flex items-center justify-between p-3'>
+							<div className='flex items-center gap-2'>
+								<Share2 className='w-4 h-4' />
+								<span className='font-medium'>Public Share</span>
 							</div>
-							{shareUrl ? (
-								<div
-									className='bg-muted rounded-md p-2 break-all text-xs'
-									aria-label='Share URL'
-								>
-									{shareUrl}
-								</div>
-							) : (
-								<p className='text-sm text-muted-foreground px-1'>
-									Enable cloud storage to generate a public link.
-								</p>
-							)}
+							<Switch
+								checked={currentNote?.isPublic ?? false}
+								onCheckedChange={handleToggleVisibility}
+								disabled={isToggling || !currentNote}
+								aria-label='Toggle public visibility'
+							/>
 						</div>
-					) : (
-						<p className='text-sm text-muted-foreground px-3 pb-3'>
-							Keep notes private by default. Enable sharing to generate a public link.
-						</p>
-					)}
-				</div>
+						{currentNote?.isPublic ? (
+							<div className='px-3 pb-3 space-y-2'>
+								<div className='flex items-center gap-2 text-sm'>
+									<Eye className='w-4 h-4 text-muted-foreground' />
+									<span className='text-muted-foreground'>Unique visitors:</span>
+									<span>{currentNote.publicViews ?? 0}</span>
+								</div>
+								{shareUrl ? (
+									<div
+										className='bg-muted rounded-md p-2 break-all text-xs'
+										aria-label='Share URL'
+									>
+										{shareUrl}
+									</div>
+								) : (
+									<p className='text-sm text-muted-foreground px-1'>
+										Enable cloud storage to generate a public link.
+									</p>
+								)}
+							</div>
+						) : (
+							<p className='text-sm text-muted-foreground px-3 pb-3'>
+								Keep notes private by default. Enable sharing to generate a public link.
+							</p>
+						)}
+					</div>
+				) : null}
 			</div>
 		</div>
 	)
