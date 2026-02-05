@@ -14,7 +14,7 @@ export * from './user-owned'
 export * from './activity-events'
 export * from './timestamps'
 
-export { eq, isNull, and, inArray, or, sql, desc, asc } from 'drizzle-orm'
+export { eq, isNull, and, inArray, or, sql, desc, asc, like } from 'drizzle-orm'
 
 type DatabaseProvider = 'neon' | 'postgres'
 
@@ -58,7 +58,7 @@ export function getDatabase() {
 	if (!url) {
 		throw new Error(
 			'DATABASE_URL environment variable is required.\n' +
-				'Set DATABASE_URL=postgresql://user:password@host:port/database'
+			'Set DATABASE_URL=postgresql://user:password@host:port/database'
 		)
 	}
 

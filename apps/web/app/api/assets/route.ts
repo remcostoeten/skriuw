@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireMutation, allowReadAccess, GUEST_USER_ID } from '@/lib/api-auth'
 import { getDatabase, files, eq, and, desc, asc, like } from '@skriuw/db'
 
-// GET /api/assets - List user's files with pagination, search, sorting
 export async function GET(request: NextRequest) {
     try {
         const userId = await allowReadAccess()

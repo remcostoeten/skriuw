@@ -1,1 +1,16 @@
-{"projectId":"prj_bLKaeZSzZHiuNTtKWQhaVrV34Dal","orgId":"team_9Sx89dTpthtuqHCxRJ8a0jvl","projectName":"skriuw"}
+{
+  "projectId": "prj_bLKaeZSzZHiuNTtKWQhaVrV34Dal",
+  "orgId": "team_9Sx89dTpthtuqHCxRJ8a0jvl",
+  "projectName": "skriuw",
+  "settings": {
+    "createdAt": 1765636187186,
+    "framework": null,
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": "apps/web",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
