@@ -1,0 +1,1821 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg0: "#09090B",
+                        bg1: "#0B0B0F",
+                        bg2: "#121218",
+                        bg3: "#18181B",
+                        bd0: "#27272A",
+                        bd1: "#3F3F46",
+                        tx0: "#F4F4F5",
+                        tx1: "#D4D4D8",
+                        tx2: "#A1A1AA",
+                        tx3: "#71717A",
+                        ac0: "#0070f3",
+                        er0: "#EF4444",
+                        ok0: "#22C55E",
+                        wn0: "#F59E0B",
+                    },
+                    boxShadow: {
+                        lift: "0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.55)",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            border-radius: 0 !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+
+        ::selection {
+            background: rgba(0, 112, 243, 0.35);
+        }
+
+        .focus-ring:focus {
+            outline: 2px solid rgba(0, 112, 243, 0.7);
+            outline-offset: 2px;
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .dragging {
+            opacity: 0.6;
+        }
+
+        .dropzone {
+            outline: 1px dashed rgba(0, 112, 243, 0.7);
+            outline-offset: -6px;
+        }
+
+        .lane-drag-over {
+            outline: 1px dashed rgba(0, 112, 243, 0.7);
+            outline-offset: -2px;
+        }
+
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .mono {
+            font-family:
+                ui-monospace,
+                SFMono-Regular,
+                Menlo,
+                Monaco,
+                Consolas,
+                "Liberation Mono",
+                "Courier New",
+                monospace;
+        }
+    </style>
+</head>
+
+<body class="bg-bg0 text-tx0 antialiased">
+    <div class="min-h-screen flex">
+        <aside class="w-[360px] border-r border-bd0 bg-bg1 flex flex-col">
+            <div class="px-4 py-4 border-b border-bd0">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm tracking-wide text-tx1">Tracker</div>
+                    <div class="flex gap-2">
+                        <button id="btn-seed" class="px-2 py-1 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring"
+                            type="button">
+                            Seed
+                        </button>
+                        <button id="btn-reset"
+                            class="px-2 py-1 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                    <button id="btn-new-project"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                        New project
+                    </button>
+                    <button id="btn-new-issue"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                        New issue
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-4 py-3 border-b border-bd0 space-y-3">
+                <div>
+                    <label class="block text-[11px] text-tx2 mb-2">Search</label>
+                    <input id="q"
+                        class="w-full px-3 py-2 text-sm bg-bg2 border border-bd1 placeholder:text-tx3 focus-ring"
+                        placeholder="Search issues" autocomplete="off" />
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-view-board"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" type="button">
+                        Board
+                    </button>
+                    <button id="btn-view-backlog"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                        Backlog
+                    </button>
+                    <button id="btn-view-list"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                        List
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-4 py-3 border-b border-bd0">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="text-[11px] text-tx2 tracking-wide">Projects</div>
+                    <select id="proj-filter" class="px-3 py-2 text-xs bg-bg2 border border-bd1 focus-ring">
+                        <option value="active">Active</option>
+                        <option value="all">All</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+                <div class="mt-2 text-[11px] text-tx3">Right click a project for actions</div>
+            </div>
+
+            <div id="proj-list" class="flex-1 overflow-auto"></div>
+
+            <div class="px-4 py-4 border-t border-bd0 text-[11px] text-tx3">
+                LocalStorage only. Drag issues into backlog sections or lanes.
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0">
+            <header class="px-6 py-4 border-b border-bd0 bg-bg1">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                        <div id="head-title" class="text-sm text-tx1 tracking-wide truncate"></div>
+                        <div id="head-sub" class="mt-1 text-xs text-tx3 truncate"></div>
+                    </div>
+
+                    <div class="flex gap-2 items-center">
+                        <button id="btn-lanes"
+                            class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" type="button">
+                            Lanes
+                        </button>
+
+                        <select id="prio-filter" class="px-3 py-2 text-xs bg-bg2 border border-bd1 focus-ring">
+                            <option value="all">Priority: all</option>
+                            <option value="p0">Priority: p0</option>
+                            <option value="p1">Priority: p1</option>
+                            <option value="p2">Priority: p2</option>
+                        </select>
+
+                        <select id="place-filter" class="px-3 py-2 text-xs bg-bg2 border border-bd1 focus-ring">
+                            <option value="all">Placement: all</option>
+                            <option value="backlog">Placement: backlog</option>
+                            <option value="lane">Placement: lane</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <section id="view" class="flex-1 overflow-auto p-6"></section>
+        </main>
+    </div>
+
+    <dialog id="dlg-text" class="bg-bg1 border border-bd0 text-tx0 shadow-lift p-0 w-[460px]">
+        <form method="dialog" class="p-4 space-y-3">
+            <div id="dlg-text-title" class="text-sm"></div>
+            <input id="dlg-text-val" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring" />
+            <div class="flex gap-2 pt-2">
+                <button value="cancel" class="flex-1 border border-bd1 bg-bg2 px-3 py-2">Cancel</button>
+                <button id="dlg-text-save" value="ok" class="flex-1 border border-bd1 bg-bg3 px-3 py-2">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="dlg-lanes" class="bg-bg1 border border-bd0 text-tx0 shadow-lift p-0 w-[720px]">
+        <form method="dialog" class="p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="text-sm">Lanes</div>
+                <div class="flex gap-2">
+                    <button id="dlg-back-add" class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring"
+                        value="noop" type="button">
+                        Add backlog section
+                    </button>
+                    <button id="dlg-lanes-add"
+                        class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring" value="noop"
+                        type="button">
+                        Add lane
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-bg2 border border-bd1 p-3">
+                    <div class="text-[11px] text-tx2 mb-2">Backlog sections</div>
+                    <div id="back-list" class="space-y-2"></div>
+                </div>
+
+                <div class="bg-bg2 border border-bd1 p-3">
+                    <div class="text-[11px] text-tx2 mb-2">Lanes</div>
+                    <div class="text-[11px] text-tx3 mb-2">Drag lane headers on the board to reorder lanes</div>
+                    <div id="lane-list" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button value="ok" class="flex-1 border border-bd1 bg-bg3 px-3 py-2">Close</button>
+            </div>
+        </form>
+    </dialog>
+
+    <div id="drawer-wrap" class="fixed inset-0 pointer-events-none">
+        <div id="drawer-backdrop" class="absolute inset-0 bg-black/60 opacity-0 transition-opacity"></div>
+        <div id="drawer"
+            class="absolute right-0 top-0 h-full w-[560px] bg-bg1 border-l border-bd0 shadow-lift translate-x-full transition-transform pointer-events-auto flex flex-col">
+            <div class="px-4 py-4 border-b border-bd0 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-tx3">Issue</div>
+                    <div id="dr-title" class="text-sm text-tx1 truncate"></div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="dr-close" class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring"
+                        type="button">
+                        Close
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto p-4 space-y-4">
+                <div class="space-y-2">
+                    <div class="text-[11px] text-tx2">Title</div>
+                    <input id="f-title" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Project</div>
+                        <select id="f-project" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Placement</div>
+                        <select id="f-place" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring"></select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Priority</div>
+                        <select id="f-prio" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring">
+                            <option value="p0">p0</option>
+                            <option value="p1">p1</option>
+                            <option value="p2">p2</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Tags (comma)</div>
+                        <input id="f-tags" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring"
+                            placeholder="ui, perf, bug" />
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="text-[11px] text-tx2">Description (subtasks: - [ ] / - [x])</div>
+                    <textarea id="f-desc" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring mono text-xs"
+                        rows="11" placeholder="- [ ] subtask&#10;- [x] done subtask"></textarea>
+                    <div id="f-sub" class="text-[11px] text-tx3"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="text-[11px] text-tx2">Linked issues (keys, comma)</div>
+                    <input id="f-links" class="w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring"
+                        placeholder="ISS-ABCDE, ISS-12345" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Created</div>
+                        <div id="f-created" class="px-3 py-2 bg-bg2 border border-bd1 text-xs text-tx1"></div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="text-[11px] text-tx2">Updated</div>
+                        <div id="f-updated" class="px-3 py-2 bg-bg2 border border-bd1 text-xs text-tx1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-bd0 grid grid-cols-2 gap-2">
+                <button id="dr-del" class="px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring"
+                    type="button">
+                    Delete
+                </button>
+                <button id="dr-save" class="px-3 py-2 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring"
+                    type="button">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <template id="tpl-proj">
+        <button class="w-full text-left px-4 py-3 border-b border-bd0 hover:bg-bg2 focus-ring">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <div class="text-xs text-tx1 truncate"></div>
+                    <div class="text-[11px] text-tx3"></div>
+                </div>
+                <span class="text-[10px] text-tx2 border border-bd1 bg-bg2 px-2 py-1"></span>
+            </div>
+        </button>
+    </template>
+
+    <template id="tpl-col">
+        <div class="flex flex-col w-[320px] bg-bg1 border border-bd0 shadow-lift min-h-[220px]">
+            <div class="px-3 py-2 border-b border-bd0 flex items-center justify-between gap-3">
+                <div class="text-xs tracking-wide flex items-center gap-2"></div>
+                <div class="text-[10px] text-tx3"></div>
+            </div>
+            <div class="flex-1 p-2 space-y-2 overflow-auto"></div>
+        </div>
+    </template>
+
+    <template id="tpl-card">
+        <div draggable="true" class="bg-bg2 border border-bd1 px-3 py-2 text-xs cursor-move hover:bg-bg3">
+            <div class="font-medium"></div>
+            <div class="mt-1 text-[11px] text-tx3 line-clamp-2"></div>
+            <div class="mt-2 flex justify-between text-[10px] text-tx2"></div>
+        </div>
+    </template>
+
+    <template id="tpl-row">
+        <tr class="border-b border-bd0 hover:bg-bg2">
+            <td class="px-3 py-2">
+                <input data-sel="1" type="checkbox" class="accent-transparent" />
+            </td>
+            <td class="px-3 py-2 text-xs mono" data-k></td>
+            <td class="px-3 py-2 text-xs" data-t></td>
+            <td class="px-3 py-2 text-xs text-tx2" data-p></td>
+            <td class="px-3 py-2 text-xs text-tx2" data-pl></td>
+            <td class="px-3 py-2 text-xs text-tx2" data-tags></td>
+            <td class="px-3 py-2 text-xs text-tx2 mono" data-up></td>
+        </tr>
+    </template>
+
+    <script>
+        const key = "tracker.v3";
+
+        const ui = {
+            laneDrag: null,
+            listSel: new Set(),
+            listSort: { k: "updatedAt", d: "desc" },
+        };
+
+        function uid() {
+            return crypto.randomUUID();
+        }
+
+        function now() {
+            return new Date().toISOString();
+        }
+
+        function read() {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            try {
+                return JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+
+        function write(v) {
+            localStorage.setItem(key, JSON.stringify(v));
+        }
+
+        function fmtIso(iso) {
+            if (!iso) return "";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return iso;
+            return d.toLocaleString();
+        }
+
+        function byPos(a, b) {
+            return (a.pos ?? 0) - (b.pos ?? 0);
+        }
+
+        function parseTags(s) {
+            return (s || "")
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean)
+                .slice(0, 12);
+        }
+
+        function parseLinks(s) {
+            return (s || "")
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean)
+                .slice(0, 24);
+        }
+
+        function subCount(desc) {
+            const lines = (desc || "").split("\n");
+            let all = 0;
+            let done = 0;
+            for (const l of lines) {
+                const t = l.trim().toLowerCase();
+                if (t.startsWith("- [ ]") || t.startsWith("* [ ]")) all++;
+                else if (t.startsWith("- [x]") || t.startsWith("* [x]")) {
+                    all++;
+                    done++;
+                }
+            }
+            return { all, done };
+        }
+
+        function sel(id) {
+            return document.getElementById(id);
+        }
+
+        function defBacklogs() {
+            return [
+                { id: uid(), name: "Unassigned", pos: 0 },
+                { id: uid(), name: "Triage", pos: 1 },
+                { id: uid(), name: "Blocked", pos: 2 },
+            ];
+        }
+
+        function defLanes() {
+            return [
+                { id: uid(), name: "Todo", pos: 0 },
+                { id: uid(), name: "Doing", pos: 1 },
+                { id: uid(), name: "Done", pos: 2 },
+            ];
+        }
+
+        function mkIssue(v) {
+            const createdAt = now();
+            const id = uid();
+            return {
+                id,
+                key: "ISS-" + id.slice(0, 5).toUpperCase(),
+                title: v.title || "Untitled",
+                desc: v.desc || "",
+                tags: v.tags || [],
+                prio: v.prio || "p1",
+                projectId: v.projectId || null,
+                backlogId: v.backlogId || null,
+                laneId: v.laneId || null,
+                links: v.links || [],
+                createdAt,
+                updatedAt: createdAt,
+            };
+        }
+
+        function updateIssueStamp(i) {
+            i.updatedAt = now();
+        }
+
+        function updateProjectStamp(p) {
+            p.updatedAt = now();
+        }
+
+        function issueMatch(i, q) {
+            if (!q) return true;
+            const t = (i.title + " " + i.key + " " + (i.desc || "") + " " + (i.tags || []).join(" ")).toLowerCase();
+            return t.includes(q.toLowerCase());
+        }
+
+        function activeProject(s) {
+            return s.projects.find((p) => p.id === s.activeProjectId) || null;
+        }
+
+        function issueById(s, id) {
+            return s.issues.find((i) => i.id === id) || null;
+        }
+
+        function seed() {
+            const p1 = {
+                id: uid(),
+                name: "Core",
+                archived: false,
+                backlogs: defBacklogs(),
+                lanes: defLanes(),
+                createdAt: now(),
+                updatedAt: now(),
+            };
+            const p2 = {
+                id: uid(),
+                name: "Website",
+                archived: false,
+                backlogs: defBacklogs(),
+                lanes: defLanes(),
+                createdAt: now(),
+                updatedAt: now(),
+            };
+
+            const b1 = p1.backlogs[0].id;
+            const b2 = p1.backlogs[1].id;
+            const l1 = p1.lanes[0].id;
+            const l2 = p1.lanes[1].id;
+
+            const issues = [
+                mkIssue({
+                    title: "Define tokens",
+                    prio: "p0",
+                    projectId: p1.id,
+                    backlogId: b2,
+                    laneId: null,
+                    tags: ["ui", "tokens"],
+                    desc: "- [ ] map zinc palette\n- [ ] define borders\n- [ ] focus ring",
+                }),
+                mkIssue({
+                    title: "Issue list view",
+                    prio: "p1",
+                    projectId: p1.id,
+                    backlogId: b1,
+                    laneId: null,
+                    tags: ["ux"],
+                    desc: "- [ ] sorting\n- [ ] bulk edit\n- [ ] quick open",
+                }),
+                mkIssue({
+                    title: "Sidebar behavior",
+                    prio: "p1",
+                    projectId: p1.id,
+                    backlogId: null,
+                    laneId: l1,
+                    tags: ["ui"],
+                    desc: "- [ ] active styles\n- [ ] archived filter\n- [x] seed/reset",
+                }),
+                mkIssue({
+                    title: "Drag lanes reorder",
+                    prio: "p1",
+                    projectId: p1.id,
+                    backlogId: null,
+                    laneId: l2,
+                    tags: ["dnd"],
+                    desc: "- [ ] reorder by header drag",
+                }),
+                mkIssue({
+                    title: "Landing copy",
+                    prio: "p2",
+                    projectId: p2.id,
+                    backlogId: p2.backlogs[0].id,
+                    laneId: null,
+                    tags: ["content"],
+                    desc: "",
+                }),
+            ];
+
+            write({
+                v: 3,
+                activeProjectId: p1.id,
+                view: "board",
+                projects: [p1, p2],
+                issues,
+            });
+        }
+
+        function resetAll() {
+            localStorage.removeItem(key);
+        }
+
+        function init() {
+            let s = read();
+            if (!s) {
+                write({
+                    v: 3,
+                    activeProjectId: null,
+                    view: "board",
+                    projects: [],
+                    issues: [],
+                });
+                s = read();
+            }
+
+            for (const p of s.projects) {
+                if (!p.backlogs) p.backlogs = defBacklogs();
+                if (!p.lanes) p.lanes = defLanes();
+            }
+
+            const ap = activeProject(s);
+            if (!ap && s.projects.length) {
+                const next = s.projects.find((x) => !x.archived) || s.projects[0];
+                s.activeProjectId = next ? next.id : null;
+                write(s);
+            }
+        }
+
+        function openTextDlg(title, val, fn) {
+            const dlg = sel("dlg-text");
+            sel("dlg-text-title").textContent = title;
+            sel("dlg-text-val").value = val || "";
+            dlg.showModal();
+            sel("dlg-text-save").onclick = () => fn(sel("dlg-text-val").value.trim());
+        }
+
+        function setView(v) {
+            const s = read();
+            s.view = v;
+            write(s);
+            ui.listSel.clear();
+            render();
+        }
+
+        function setActiveProject(id) {
+            const s = read();
+            s.activeProjectId = id;
+            write(s);
+            ui.listSel.clear();
+            render();
+        }
+
+        function openProjectMenu(id) {
+            const s = read();
+            const p = s.projects.find((x) => x.id === id);
+            if (!p) return;
+
+            const opts = [
+                ["Rename", () => openTextDlg("Rename project", p.name, (v) => doRenameProject(id, v))],
+                [p.archived ? "Unarchive" : "Archive", () => doArchiveProject(id, !p.archived)],
+                ["Delete", () => doDeleteProject(id)],
+            ];
+
+            const text = opts.map((x, idx) => (idx + 1) + ". " + x[0]).join("\n");
+            const pick = prompt("Project actions:\n" + text + "\n\nEnter number:");
+            const n = Number(pick);
+            if (!Number.isFinite(n) || n < 1 || n > opts.length) return;
+            opts[n - 1][1]();
+        }
+
+        function doRenameProject(id, v) {
+            const name = (v || "").trim();
+            if (!name) return;
+            const s = read();
+            const p = s.projects.find((x) => x.id === id);
+            if (!p) return;
+            p.name = name;
+            updateProjectStamp(p);
+            write(s);
+            render();
+        }
+
+        function doArchiveProject(id, on) {
+            const s = read();
+            const p = s.projects.find((x) => x.id === id);
+            if (!p) return;
+            p.archived = on;
+            updateProjectStamp(p);
+            if (on && s.activeProjectId === id) {
+                const next = s.projects.find((x) => !x.archived && x.id !== id);
+                s.activeProjectId = next ? next.id : null;
+            }
+            write(s);
+            ui.listSel.clear();
+            render();
+        }
+
+        function doDeleteProject(id) {
+            if (!confirm("Delete project and move its issues to backlog-only?")) return;
+            const s = read();
+            s.projects = s.projects.filter((x) => x.id !== id);
+            for (const i of s.issues) {
+                if (i.projectId === id) {
+                    i.projectId = null;
+                    i.backlogId = null;
+                    i.laneId = null;
+                    updateIssueStamp(i);
+                }
+            }
+            if (s.activeProjectId === id) {
+                const next = s.projects.find((x) => !x.archived) || null;
+                s.activeProjectId = next ? next.id : null;
+            }
+            write(s);
+            ui.listSel.clear();
+            render();
+        }
+
+        function createProject() {
+            openTextDlg("New project", "", (v) => {
+                const name = (v || "").trim();
+                if (!name) return;
+
+                const s = read();
+                const p = {
+                    id: uid(),
+                    name,
+                    archived: false,
+                    backlogs: defBacklogs(),
+                    lanes: defLanes(),
+                    createdAt: now(),
+                    updatedAt: now(),
+                };
+                s.projects.unshift(p);
+                s.activeProjectId = p.id;
+                write(s);
+                ui.listSel.clear();
+                render();
+            });
+        }
+
+        function createIssue() {
+            const s = read();
+            const p = activeProject(s);
+            if (!p) return;
+
+            const title = prompt("Issue title:");
+            if (!title || !title.trim()) return;
+
+            const b0 = (p.backlogs || []).slice().sort(byPos)[0]?.id || null;
+
+            const i = mkIssue({
+                title: title.trim(),
+                prio: "p1",
+                projectId: p.id,
+                backlogId: b0,
+                laneId: null,
+                tags: [],
+                desc: "",
+            });
+
+            s.issues.unshift(i);
+            write(s);
+            ui.listSel.clear();
+            render();
+            openDrawer(i.id);
+        }
+
+        function showDrawer(on) {
+            const dr = sel("drawer");
+            const bd = sel("drawer-backdrop");
+            const wrap = sel("drawer-wrap");
+            if (on) {
+                wrap.classList.remove("pointer-events-none");
+                bd.classList.remove("opacity-0");
+                bd.classList.add("opacity-100");
+                dr.classList.remove("translate-x-full");
+            } else {
+                bd.classList.add("opacity-0");
+                bd.classList.remove("opacity-100");
+                dr.classList.add("translate-x-full");
+                setTimeout(() => wrap.classList.add("pointer-events-none"), 180);
+            }
+        }
+
+        function closeDrawer() {
+            showDrawer(false);
+        }
+
+        function fillProjectSelect(s, curId) {
+            const pr = sel("f-project");
+            pr.innerHTML = "";
+
+            const optNone = document.createElement("option");
+            optNone.value = "";
+            optNone.textContent = "Backlog only";
+            pr.appendChild(optNone);
+
+            for (const pj of s.projects.filter((x) => !x.archived)) {
+                const o = document.createElement("option");
+                o.value = pj.id;
+                o.textContent = pj.name;
+                pr.appendChild(o);
+            }
+
+            pr.value = curId || "";
+        }
+
+        function fillPlaceSelect(s, projectId, issue) {
+            const f = sel("f-place");
+            f.innerHTML = "";
+
+            if (!projectId) {
+                const o = document.createElement("option");
+                o.value = "b:none";
+                o.textContent = "Backlog";
+                f.appendChild(o);
+                f.value = "b:none";
+                f.disabled = true;
+                return;
+            }
+
+            f.disabled = false;
+
+            const p = s.projects.find((x) => x.id === projectId) || null;
+            const backs = (p?.backlogs || []).slice().sort(byPos);
+            const lanes = (p?.lanes || []).slice().sort(byPos);
+
+            const ob = document.createElement("optgroup");
+            ob.label = "Backlog sections";
+            for (const b of backs) {
+                const o = document.createElement("option");
+                o.value = "b:" + b.id;
+                o.textContent = b.name;
+                ob.appendChild(o);
+            }
+
+            const ol = document.createElement("optgroup");
+            ol.label = "Lanes";
+            for (const l of lanes) {
+                const o = document.createElement("option");
+                o.value = "l:" + l.id;
+                o.textContent = l.name;
+                ol.appendChild(o);
+            }
+
+            f.appendChild(ob);
+            f.appendChild(ol);
+
+            if (issue.laneId) f.value = "l:" + issue.laneId;
+            else if (issue.backlogId) f.value = "b:" + issue.backlogId;
+            else f.value = "b:" + (backs[0]?.id || "");
+        }
+
+        function openDrawer(id) {
+            const s = read();
+            const i = issueById(s, id);
+            if (!i) return;
+
+            sel("dr-title").textContent = i.key + " " + i.title;
+
+            sel("f-title").value = i.title;
+            sel("f-prio").value = i.prio;
+            sel("f-tags").value = (i.tags || []).join(", ");
+            sel("f-desc").value = i.desc || "";
+            sel("f-links").value = (i.links || []).join(", ");
+            sel("f-created").textContent = fmtIso(i.createdAt);
+            sel("f-updated").textContent = fmtIso(i.updatedAt);
+
+            fillProjectSelect(s, i.projectId);
+            fillPlaceSelect(s, i.projectId, i);
+
+            const sc0 = subCount(i.desc);
+            sel("f-sub").textContent = sc0.all ? "Subtasks: " + sc0.done + "/" + sc0.all : "Subtasks: none";
+
+            sel("f-project").onchange = () => {
+                const s2 = read();
+                const i2 = issueById(s2, id);
+                if (!i2) return;
+                const nextProject = sel("f-project").value || null;
+                fillPlaceSelect(s2, nextProject, { ...i2, projectId: nextProject, laneId: null, backlogId: null });
+            };
+
+            sel("dr-save").onclick = () => {
+                const s2 = read();
+                const i2 = issueById(s2, id);
+                if (!i2) return;
+
+                i2.title = sel("f-title").value.trim() || "Untitled";
+                i2.prio = sel("f-prio").value;
+                i2.tags = parseTags(sel("f-tags").value);
+                i2.desc = sel("f-desc").value || "";
+                i2.links = parseLinks(sel("f-links").value);
+
+                const newProj = sel("f-project").value || null;
+                i2.projectId = newProj;
+
+                if (!newProj) {
+                    i2.backlogId = null;
+                    i2.laneId = null;
+                } else {
+                    const pv = sel("f-place").value || "";
+                    const [k, v] = pv.split(":");
+                    if (k === "l") {
+                        i2.laneId = v || null;
+                        i2.backlogId = null;
+                    } else {
+                        i2.backlogId = v || null;
+                        i2.laneId = null;
+                    }
+                }
+
+                updateIssueStamp(i2);
+                write(s2);
+                closeDrawer();
+                render();
+            };
+
+            sel("dr-del").onclick = () => {
+                const s2 = read();
+                s2.issues = s2.issues.filter((x) => x.id !== id);
+                write(s2);
+                closeDrawer();
+                render();
+            };
+
+            showDrawer(true);
+        }
+
+        function laneReorder(projectId, fromId, toId) {
+            const s = read();
+            const p = s.projects.find((x) => x.id === projectId);
+            if (!p) return;
+
+            const lanes = (p.lanes || []).slice().sort(byPos);
+            const a = lanes.findIndex((x) => x.id === fromId);
+            const b = lanes.findIndex((x) => x.id === toId);
+            if (a === -1 || b === -1 || a === b) return;
+
+            const [m] = lanes.splice(a, 1);
+            lanes.splice(b, 0, m);
+
+            for (let i = 0; i < lanes.length; i++) lanes[i].pos = i;
+
+            p.lanes = lanes;
+            updateProjectStamp(p);
+            write(s);
+            render();
+        }
+
+        function backlogReorder(projectId, fromId, toId) {
+            const s = read();
+            const p = s.projects.find((x) => x.id === projectId);
+            if (!p) return;
+
+            const backs = (p.backlogs || []).slice().sort(byPos);
+            const a = backs.findIndex((x) => x.id === fromId);
+            const b = backs.findIndex((x) => x.id === toId);
+            if (a === -1 || b === -1 || a === b) return;
+
+            const [m] = backs.splice(a, 1);
+            backs.splice(b, 0, m);
+
+            for (let i = 0; i < backs.length; i++) backs[i].pos = i;
+
+            p.backlogs = backs;
+            updateProjectStamp(p);
+            write(s);
+            render();
+        }
+
+        function moveIssueTo(issueId, projectId, place) {
+            const s = read();
+            const i = issueById(s, issueId);
+            if (!i) return;
+
+            i.projectId = projectId;
+
+            if (!projectId) {
+                i.backlogId = null;
+                i.laneId = null;
+            } else if (place.startsWith("l:")) {
+                i.laneId = place.slice(2) || null;
+                i.backlogId = null;
+            } else if (place.startsWith("b:")) {
+                i.backlogId = place.slice(2) || null;
+                i.laneId = null;
+            }
+
+            updateIssueStamp(i);
+            write(s);
+            render();
+        }
+
+        function renderHeader(s, p) {
+            const v = s.view;
+            if (!p) {
+                sel("head-title").textContent = "No project";
+                sel("head-sub").textContent = "Create a project to start";
+                return;
+            }
+
+            if (v === "board") {
+                sel("head-title").textContent = p.name + " board";
+                sel("head-sub").textContent = "Backlog sections + lanes, drag to move, drag lane headers to reorder";
+            } else if (v === "backlog") {
+                sel("head-title").textContent = p.name + " backlog";
+                sel("head-sub").textContent = "Backlog sections are triage states before lanes";
+            } else {
+                sel("head-title").textContent = p.name + " list";
+                sel("head-sub").textContent = "Sortable table with bulk edit";
+            }
+        }
+
+        function renderProjects(s) {
+            const list = sel("proj-list");
+            list.innerHTML = "";
+
+            const filter = sel("proj-filter").value;
+            const items = s.projects
+                .slice()
+                .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+            const shown =
+                filter === "all"
+                    ? items
+                    : filter === "archived"
+                        ? items.filter((p) => p.archived)
+                        : items.filter((p) => !p.archived);
+
+            for (const p of shown) {
+                const node = sel("tpl-proj").content.cloneNode(true);
+                const btn = node.querySelector("button");
+                const name = node.querySelectorAll("div")[2];
+                const sub = node.querySelectorAll("div")[3];
+                const badge = node.querySelector("span");
+
+                name.textContent = p.name;
+                sub.textContent = (p.archived ? "archived" : "active") + " • " + fmtIso(p.updatedAt || p.createdAt);
+                badge.textContent = String(s.issues.filter((i) => i.projectId === p.id).length);
+
+                if (p.id === s.activeProjectId) btn.classList.add("bg-bg2");
+
+                btn.onclick = () => setActiveProject(p.id);
+                btn.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    openProjectMenu(p.id);
+                };
+
+                list.appendChild(node);
+            }
+        }
+
+        function filteredIssues(s, p) {
+            const q = sel("q").value.trim();
+            const prio = sel("prio-filter").value;
+            const place = sel("place-filter").value;
+
+            return s.issues
+                .filter((i) => i.projectId === p.id)
+                .filter((i) => (prio === "all" ? true : i.prio === prio))
+                .filter((i) => (place === "all" ? true : place === "lane" ? !!i.laneId : !i.laneId))
+                .filter((i) => issueMatch(i, q));
+        }
+
+        function makeDropBody(body, onDrop) {
+            body.ondragover = (e) => {
+                e.preventDefault();
+                body.classList.add("dropzone");
+            };
+            body.ondragleave = () => body.classList.remove("dropzone");
+            body.ondrop = (e) => {
+                const id = e.dataTransfer.getData("text");
+                onDrop(id);
+            };
+        }
+
+        function makeCard(i) {
+            const card = sel("tpl-card").content.cloneNode(true);
+            const root = card.querySelector("div");
+            root.querySelectorAll("div")[0].textContent = i.key + " " + i.title;
+            root.querySelectorAll("div")[1].textContent = (i.tags || []).slice(0, 4).map((t) => "#" + t).join(" ");
+
+            const sc = subCount(i.desc);
+            root.querySelectorAll("div")[2].innerHTML =
+                "<span>" + i.prio + "</span><span>" + (sc.all ? sc.done + "/" + sc.all : "0/0") + "</span>";
+
+            root.onclick = () => openDrawer(i.id);
+
+            root.ondragstart = (e) => {
+                e.dataTransfer.setData("text", i.id);
+                root.classList.add("dragging");
+            };
+            root.ondragend = () => root.classList.remove("dragging");
+
+            return card;
+        }
+
+        function renderBoard(s, p) {
+            const v = sel("view");
+            v.innerHTML = "";
+
+            const backs = (p.backlogs || []).slice().sort(byPos);
+            const lanes = (p.lanes || []).slice().sort(byPos);
+            const items = filteredIssues(s, p).slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+            const wrap = document.createElement("div");
+            wrap.className = "flex gap-4 items-stretch";
+
+            for (const b of backs) {
+                const col = sel("tpl-col").content.cloneNode(true);
+                const root = col.querySelector("div");
+                const head = root.querySelectorAll("div")[0];
+                const body = root.querySelectorAll("div")[2];
+                const meta = root.querySelectorAll("div")[1].querySelectorAll("div")[1];
+
+                const title = head.querySelectorAll("div")[0];
+                title.textContent = b.name;
+                head.dataset.kind = "back";
+                head.dataset.id = b.id;
+
+                const count = items.filter((i) => !i.laneId && i.backlogId === b.id).length;
+                meta.textContent = count + " items";
+
+                makeDropBody(body, (issueId) => moveIssueTo(issueId, p.id, "b:" + b.id));
+
+                for (const i of items.filter((x) => !x.laneId && x.backlogId === b.id)) body.appendChild(makeCard(i));
+
+                wrap.appendChild(root);
+            }
+
+            for (const l of lanes) {
+                const col = sel("tpl-col").content.cloneNode(true);
+                const root = col.querySelector("div");
+                const head = root.querySelectorAll("div")[0];
+                const body = root.querySelectorAll("div")[2];
+                const meta = root.querySelectorAll("div")[1].querySelectorAll("div")[1];
+
+                const title = head.querySelectorAll("div")[0];
+                title.textContent = l.name;
+
+                head.draggable = true;
+                head.dataset.kind = "lane";
+                head.dataset.id = l.id;
+
+                head.ondragstart = (e) => {
+                    ui.laneDrag = { projectId: p.id, laneId: l.id };
+                    e.dataTransfer.setData("text/lane", l.id);
+                };
+
+                head.ondragover = (e) => {
+                    if (!ui.laneDrag) return;
+                    e.preventDefault();
+                    head.classList.add("lane-drag-over");
+                };
+
+                head.ondragleave = () => head.classList.remove("lane-drag-over");
+
+                head.ondrop = (e) => {
+                    e.preventDefault();
+                    head.classList.remove("lane-drag-over");
+                    const from = ui.laneDrag?.laneId;
+                    ui.laneDrag = null;
+                    if (!from) return;
+                    laneReorder(p.id, from, l.id);
+                };
+
+                head.ondragend = () => {
+                    ui.laneDrag = null;
+                    head.classList.remove("lane-drag-over");
+                };
+
+                const count = items.filter((i) => i.laneId === l.id).length;
+                meta.textContent = count + " items";
+
+                makeDropBody(body, (issueId) => moveIssueTo(issueId, p.id, "l:" + l.id));
+
+                for (const i of items.filter((x) => x.laneId === l.id)) body.appendChild(makeCard(i));
+
+                wrap.appendChild(root);
+            }
+
+            v.appendChild(wrap);
+        }
+
+        function renderBacklog(s, p) {
+            const v = sel("view");
+            v.innerHTML = "";
+
+            const backs = (p.backlogs || []).slice().sort(byPos);
+            const items = filteredIssues(s, p)
+                .filter((i) => !i.laneId)
+                .slice()
+                .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+            const top = document.createElement("div");
+            top.className = "flex items-center justify-between gap-3 mb-3";
+            top.innerHTML =
+                '<div class="text-xs text-tx2">Backlog sections</div><div class="text-[11px] text-tx3">' +
+                items.length +
+                " items</div>";
+            v.appendChild(top);
+
+            const wrap = document.createElement("div");
+            wrap.className = "flex gap-4 items-stretch";
+
+            for (const b of backs) {
+                const col = sel("tpl-col").content.cloneNode(true);
+                const root = col.querySelector("div");
+                const head = root.querySelectorAll("div")[0];
+                const body = root.querySelectorAll("div")[2];
+                const meta = root.querySelectorAll("div")[1].querySelectorAll("div")[1];
+
+                head.querySelectorAll("div")[0].textContent = b.name;
+
+                head.draggable = true;
+                head.dataset.kind = "back";
+                head.dataset.id = b.id;
+
+                head.ondragstart = (e) => {
+                    e.dataTransfer.setData("text/back", b.id);
+                };
+
+                head.ondragover = (e) => {
+                    const drag = e.dataTransfer.types.includes("text/back");
+                    if (!drag) return;
+                    e.preventDefault();
+                    head.classList.add("lane-drag-over");
+                };
+
+                head.ondragleave = () => head.classList.remove("lane-drag-over");
+
+                head.ondrop = (e) => {
+                    e.preventDefault();
+                    head.classList.remove("lane-drag-over");
+                    const from = e.dataTransfer.getData("text/back");
+                    if (!from) return;
+                    backlogReorder(p.id, from, b.id);
+                };
+
+                const count = items.filter((i) => i.backlogId === b.id).length;
+                meta.textContent = count + " items";
+
+                makeDropBody(body, (issueId) => moveIssueTo(issueId, p.id, "b:" + b.id));
+
+                for (const i of items.filter((x) => x.backlogId === b.id)) body.appendChild(makeCard(i));
+
+                wrap.appendChild(root);
+            }
+
+            v.appendChild(wrap);
+        }
+
+        function listSortFn(k, d) {
+            return (a, b) => {
+                let av = a[k];
+                let bv = b[k];
+
+                if (k === "placement") {
+                    av = a.laneId ? "l:" + a.laneId : "b:" + (a.backlogId || "");
+                    bv = b.laneId ? "l:" + b.laneId : "b:" + (b.backlogId || "");
+                }
+
+                if (typeof av === "string" && typeof bv === "string") {
+                    const r = av.localeCompare(bv);
+                    return d === "asc" ? r : -r;
+                }
+
+                if (av > bv) return d === "asc" ? 1 : -1;
+                if (av < bv) return d === "asc" ? -1 : 1;
+                return 0;
+            };
+        }
+
+        function renderList(s, p) {
+            const v = sel("view");
+            v.innerHTML = "";
+
+            const backs = (p.backlogs || []).slice().sort(byPos);
+            const lanes = (p.lanes || []).slice().sort(byPos);
+
+            const items = filteredIssues(s, p).slice();
+            const sk = ui.listSort.k;
+            const sd = ui.listSort.d;
+
+            items.sort(listSortFn(sk, sd));
+
+            const panel = document.createElement("div");
+            panel.className = "bg-bg1 border border-bd0 shadow-lift";
+
+            const bar = document.createElement("div");
+            bar.className = "p-3 border-b border-bd0 flex items-center justify-between gap-3";
+            bar.innerHTML =
+                '<div class="text-xs text-tx2">Issues</div><div class="text-[11px] text-tx3">' + items.length + " items</div>";
+            panel.appendChild(bar);
+
+            const bulk = document.createElement("div");
+            bulk.className = "p-3 border-b border-bd0 bg-bg1";
+            bulk.appendChild(renderBulkControls(s, p, backs, lanes));
+            panel.appendChild(bulk);
+
+            const tableWrap = document.createElement("div");
+            tableWrap.className = "overflow-auto";
+            const table = document.createElement("table");
+            table.className = "w-full text-left";
+            table.innerHTML = `
+          <thead class="bg-bg2 border-b border-bd0">
+            <tr class="text-[11px] text-tx2">
+              <th class="px-3 py-2 w-[44px]"><input id="sel-all" type="checkbox" /></th>
+              <th class="px-3 py-2 cursor-pointer" data-sort="key">Key</th>
+              <th class="px-3 py-2 cursor-pointer" data-sort="title">Title</th>
+              <th class="px-3 py-2 cursor-pointer" data-sort="prio">Prio</th>
+              <th class="px-3 py-2 cursor-pointer" data-sort="placement">Placement</th>
+              <th class="px-3 py-2">Tags</th>
+              <th class="px-3 py-2 cursor-pointer" data-sort="updatedAt">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="list-body"></tbody>
+        `;
+            tableWrap.appendChild(table);
+            panel.appendChild(tableWrap);
+
+            v.appendChild(panel);
+
+            const body = sel("list-body");
+            body.innerHTML = "";
+
+            for (const i of items) {
+                const row = sel("tpl-row").content.cloneNode(true);
+                const tr = row.querySelector("tr");
+
+                const chk = tr.querySelector('input[data-sel="1"]');
+                chk.checked = ui.listSel.has(i.id);
+                chk.onchange = () => {
+                    if (chk.checked) ui.listSel.add(i.id);
+                    else ui.listSel.delete(i.id);
+                    render();
+                };
+
+                tr.querySelector("[data-k]").textContent = i.key;
+                tr.querySelector("[data-t]").textContent = i.title;
+                tr.querySelector("[data-p]").textContent = i.prio;
+
+                const pl = tr.querySelector("[data-pl]");
+                pl.textContent = placeLabel(p, backs, lanes, i);
+
+                const tg = tr.querySelector("[data-tags]");
+                tg.textContent = (i.tags || []).slice(0, 6).map((t) => "#" + t).join(" ");
+
+                tr.querySelector("[data-up]").textContent = fmtIso(i.updatedAt);
+
+                tr.onclick = (e) => {
+                    const isChk = e.target && e.target.tagName === "INPUT";
+                    if (!isChk) openDrawer(i.id);
+                };
+
+                body.appendChild(row);
+            }
+
+            sel("sel-all").checked = items.length > 0 && items.every((x) => ui.listSel.has(x.id));
+            sel("sel-all").onchange = () => {
+                if (sel("sel-all").checked) {
+                    ui.listSel = new Set(items.map((x) => x.id));
+                } else {
+                    ui.listSel.clear();
+                }
+                render();
+            };
+
+            table.querySelectorAll("th[data-sort]").forEach((th) => {
+                th.onclick = () => {
+                    const k = th.dataset.sort;
+                    if (!k) return;
+                    if (ui.listSort.k === k) ui.listSort.d = ui.listSort.d === "asc" ? "desc" : "asc";
+                    else {
+                        ui.listSort.k = k;
+                        ui.listSort.d = k === "updatedAt" ? "desc" : "asc";
+                    }
+                    render();
+                };
+            });
+        }
+
+        function placeLabel(p, backs, lanes, i) {
+            if (i.laneId) {
+                const ln = lanes.find((x) => x.id === i.laneId) || p.lanes.find((x) => x.id === i.laneId);
+                return ln ? "Lane: " + ln.name : "Lane";
+            }
+            const bk = backs.find((x) => x.id === i.backlogId) || p.backlogs.find((x) => x.id === i.backlogId);
+            return bk ? "Backlog: " + bk.name : "Backlog";
+        }
+
+        function renderBulkControls(s, p, backs, lanes) {
+            const wrap = document.createElement("div");
+            wrap.className = "grid grid-cols-12 gap-2 items-end";
+
+            const selCt = ui.listSel.size;
+
+            const left = document.createElement("div");
+            left.className = "col-span-12 md:col-span-3";
+            left.innerHTML = `
+          <div class="text-[11px] text-tx2 mb-2">Selection</div>
+          <div class="px-3 py-2 bg-bg2 border border-bd1 text-xs text-tx1">${selCt} selected</div>
+        `;
+
+            const fPlace = document.createElement("select");
+            fPlace.className = "w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring text-xs";
+            fPlace.innerHTML = `
+          <option value="">Set placement</option>
+          ${backs
+                    .map((b) => `<option value="b:${b.id}">Backlog: ${b.name}</option>`)
+                    .join("")}
+          ${lanes
+                    .map((l) => `<option value="l:${l.id}">Lane: ${l.name}</option>`)
+                    .join("")}
+        `;
+
+            const fPrio = document.createElement("select");
+            fPrio.className = "w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring text-xs";
+            fPrio.innerHTML = `
+          <option value="">Set priority</option>
+          <option value="p0">p0</option>
+          <option value="p1">p1</option>
+          <option value="p2">p2</option>
+        `;
+
+            const fTags = document.createElement("input");
+            fTags.className = "w-full px-3 py-2 bg-bg2 border border-bd1 focus-ring text-xs";
+            fTags.placeholder = "Add tags (comma)";
+
+            const btnApply = document.createElement("button");
+            btnApply.className = "w-full px-3 py-2 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring";
+            btnApply.type = "button";
+            btnApply.textContent = "Apply";
+
+            const btnClear = document.createElement("button");
+            btnClear.className = "w-full px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring";
+            btnClear.type = "button";
+            btnClear.textContent = "Clear selection";
+
+            const btnDel = document.createElement("button");
+            btnDel.className = "w-full px-3 py-2 text-xs border border-bd1 bg-bg2 hover:bg-bg3 focus-ring";
+            btnDel.type = "button";
+            btnDel.textContent = "Delete";
+
+            const c1 = document.createElement("div");
+            c1.className = "col-span-12 md:col-span-3";
+            c1.innerHTML = `<div class="text-[11px] text-tx2 mb-2">Placement</div>`;
+            c1.appendChild(fPlace);
+
+            const c2 = document.createElement("div");
+            c2.className = "col-span-12 md:col-span-2";
+            c2.innerHTML = `<div class="text-[11px] text-tx2 mb-2">Priority</div>`;
+            c2.appendChild(fPrio);
+
+            const c3 = document.createElement("div");
+            c3.className = "col-span-12 md:col-span-3";
+            c3.innerHTML = `<div class="text-[11px] text-tx2 mb-2">Tags</div>`;
+            c3.appendChild(fTags);
+
+            const c4 = document.createElement("div");
+            c4.className = "col-span-12 md:col-span-1";
+            c4.appendChild(btnApply);
+
+            const c5 = document.createElement("div");
+            c5.className = "col-span-12 md:col-span-1";
+            c5.appendChild(btnClear);
+
+            const c6 = document.createElement("div");
+            c6.className = "col-span-12 md:col-span-2";
+            c6.appendChild(btnDel);
+
+            btnApply.onclick = () => {
+                if (!ui.listSel.size) return;
+
+                const s2 = read();
+                const pv = fPlace.value || "";
+                const pr = fPrio.value || "";
+                const tg = parseTags(fTags.value);
+
+                for (const id of ui.listSel) {
+                    const i = issueById(s2, id);
+                    if (!i) continue;
+
+                    if (pv) {
+                        if (pv.startsWith("l:")) {
+                            i.laneId = pv.slice(2) || null;
+                            i.backlogId = null;
+                        } else if (pv.startsWith("b:")) {
+                            i.backlogId = pv.slice(2) || null;
+                            i.laneId = null;
+                        }
+                    }
+
+                    if (pr) i.prio = pr;
+
+                    if (tg.length) {
+                        const set = new Set(i.tags || []);
+                        for (const t of tg) set.add(t);
+                        i.tags = Array.from(set).slice(0, 12);
+                    }
+
+                    updateIssueStamp(i);
+                }
+
+                write(s2);
+                render();
+            };
+
+            btnClear.onclick = () => {
+                ui.listSel.clear();
+                render();
+            };
+
+            btnDel.onclick = () => {
+                if (!ui.listSel.size) return;
+                if (!confirm("Delete selected issues?")) return;
+                const s2 = read();
+                s2.issues = s2.issues.filter((x) => !ui.listSel.has(x.id));
+                write(s2);
+                ui.listSel.clear();
+                render();
+            };
+
+            wrap.appendChild(left);
+            wrap.appendChild(c1);
+            wrap.appendChild(c2);
+            wrap.appendChild(c3);
+            wrap.appendChild(c4);
+            wrap.appendChild(c5);
+            wrap.appendChild(c6);
+
+            return wrap;
+        }
+
+        function openLanesDlg() {
+            const s = read();
+            const p = activeProject(s);
+            if (!p) return;
+
+            const dlg = sel("dlg-lanes");
+            const laneList = sel("lane-list");
+            const backList = sel("back-list");
+            laneList.innerHTML = "";
+            backList.innerHTML = "";
+
+            const lanes = (p.lanes || []).slice().sort(byPos);
+            const backs = (p.backlogs || []).slice().sort(byPos);
+
+            for (const b of backs) {
+                const row = document.createElement("div");
+                row.className = "bg-bg1 border border-bd0 p-3 flex items-center justify-between gap-2";
+                row.innerHTML =
+                    '<div class="text-xs text-tx1"></div>' +
+                    '<div class="flex gap-2">' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="left" type="button">Left</button>' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="right" type="button">Right</button>' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="rename" type="button">Rename</button>' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="del" type="button">Delete</button>' +
+                    "</div>";
+
+                row.querySelector("div").textContent = b.name;
+                row.querySelectorAll("button").forEach((btn) => {
+                    btn.onclick = () => backAction(b.id, btn.dataset.act);
+                });
+
+                backList.appendChild(row);
+            }
+
+            for (const ln of lanes) {
+                const row = document.createElement("div");
+                row.className = "bg-bg1 border border-bd0 p-3 flex items-center justify-between gap-2";
+                row.innerHTML =
+                    '<div class="text-xs text-tx1"></div>' +
+                    '<div class="flex gap-2">' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="rename" type="button">Rename</button>' +
+                    '<button class="px-2 py-1 text-xs border border-bd1 bg-bg3 hover:bg-bg2 focus-ring" data-act="del" type="button">Delete</button>' +
+                    "</div>";
+
+                row.querySelector("div").textContent = ln.name;
+                row.querySelectorAll("button").forEach((btn) => {
+                    btn.onclick = () => laneAction(ln.id, btn.dataset.act);
+                });
+
+                laneList.appendChild(row);
+            }
+
+            sel("dlg-lanes-add").onclick = () => {
+                openTextDlg("New lane", "", (v) => {
+                    const name = (v || "").trim();
+                    if (!name) return;
+
+                    const s2 = read();
+                    const p2 = activeProject(s2);
+                    if (!p2) return;
+
+                    const maxPos = Math.max(-1, ...(p2.lanes || []).map((x) => x.pos ?? 0));
+                    p2.lanes.push({ id: uid(), name, pos: maxPos + 1 });
+                    updateProjectStamp(p2);
+                    write(s2);
+                    openLanesDlg();
+                    render();
+                });
+            };
+
+            sel("dlg-back-add").onclick = () => {
+                openTextDlg("New backlog section", "", (v) => {
+                    const name = (v || "").trim();
+                    if (!name) return;
+
+                    const s2 = read();
+                    const p2 = activeProject(s2);
+                    if (!p2) return;
+
+                    const maxPos = Math.max(-1, ...(p2.backlogs || []).map((x) => x.pos ?? 0));
+                    p2.backlogs.push({ id: uid(), name, pos: maxPos + 1 });
+                    updateProjectStamp(p2);
+                    write(s2);
+                    openLanesDlg();
+                    render();
+                });
+            };
+
+            function laneAction(id, act) {
+                const s2 = read();
+                const p2 = activeProject(s2);
+                if (!p2) return;
+
+                if (act === "rename") {
+                    const ln = p2.lanes.find((x) => x.id === id);
+                    if (!ln) return;
+                    openTextDlg("Rename lane", ln.name, (v) => {
+                        const name = (v || "").trim();
+                        if (!name) return;
+                        const s3 = read();
+                        const p3 = activeProject(s3);
+                        if (!p3) return;
+                        const ln3 = p3.lanes.find((x) => x.id === id);
+                        if (!ln3) return;
+                        ln3.name = name;
+                        updateProjectStamp(p3);
+                        write(s3);
+                        openLanesDlg();
+                        render();
+                    });
+                    return;
+                }
+
+                if (act === "del") {
+                    const ln = p2.lanes.find((x) => x.id === id);
+                    if (!ln) return;
+                    if (!confirm("Delete lane '" + ln.name + "' and move its issues to backlog?")) return;
+
+                    const s3 = read();
+                    const p3 = activeProject(s3);
+                    if (!p3) return;
+
+                    const b0 = (p3.backlogs || []).slice().sort(byPos)[0]?.id || null;
+
+                    p3.lanes = p3.lanes.filter((x) => x.id !== id);
+                    for (const i of s3.issues) {
+                        if (i.projectId === p3.id && i.laneId === id) {
+                            i.laneId = null;
+                            i.backlogId = b0;
+                            updateIssueStamp(i);
+                        }
+                    }
+                    updateProjectStamp(p3);
+                    write(s3);
+                    openLanesDlg();
+                    render();
+                }
+            }
+
+            function backAction(id, act) {
+                const s2 = read();
+                const p2 = activeProject(s2);
+                if (!p2) return;
+
+                const backs2 = (p2.backlogs || []).slice().sort(byPos);
+                const idx = backs2.findIndex((x) => x.id === id);
+                if (idx === -1) return;
+
+                if (act === "rename") {
+                    const b = backs2[idx];
+                    openTextDlg("Rename backlog section", b.name, (v) => {
+                        const name = (v || "").trim();
+                        if (!name) return;
+                        const s3 = read();
+                        const p3 = activeProject(s3);
+                        if (!p3) return;
+                        const b3 = p3.backlogs.find((x) => x.id === id);
+                        if (!b3) return;
+                        b3.name = name;
+                        updateProjectStamp(p3);
+                        write(s3);
+                        openLanesDlg();
+                        render();
+                    });
+                    return;
+                }
+
+                if (act === "del") {
+                    const b = backs2[idx];
+                    if (!confirm("Delete backlog section '" + b.name + "' and move its issues to first backlog section?")) return;
+
+                    const s3 = read();
+                    const p3 = activeProject(s3);
+                    if (!p3) return;
+
+                    const rem = id;
+                    p3.backlogs = p3.backlogs.filter((x) => x.id !== rem);
+                    const b0 = (p3.backlogs || []).slice().sort(byPos)[0]?.id || null;
+
+                    for (const i of s3.issues) {
+                        if (i.projectId === p3.id && !i.laneId && i.backlogId === rem) {
+                            i.backlogId = b0;
+                            updateIssueStamp(i);
+                        }
+                    }
+
+                    updateProjectStamp(p3);
+                    write(s3);
+                    openLanesDlg();
+                    render();
+                    return;
+                }
+
+                if (act === "left" && idx > 0) backlogReorder(p2.id, backs2[idx].id, backs2[idx - 1].id);
+                if (act === "right" && idx < backs2.length - 1) backlogReorder(p2.id, backs2[idx].id, backs2[idx + 1].id);
+                openLanesDlg();
+            }
+
+            dlg.showModal();
+        }
+
+        function render() {
+            const s = read();
+            const p = activeProject(s);
+
+            renderProjects(s);
+            renderHeader(s, p);
+
+            sel("btn-view-board").className =
+                "px-3 py-2 text-xs border border-bd1 " + (s.view === "board" ? "bg-bg3 hover:bg-bg2" : "bg-bg2 hover:bg-bg3") + " focus-ring";
+            sel("btn-view-backlog").className =
+                "px-3 py-2 text-xs border border-bd1 " + (s.view === "backlog" ? "bg-bg3 hover:bg-bg2" : "bg-bg2 hover:bg-bg3") + " focus-ring";
+            sel("btn-view-list").className =
+                "px-3 py-2 text-xs border border-bd1 " + (s.view === "list" ? "bg-bg3 hover:bg-bg2" : "bg-bg2 hover:bg-bg3") + " focus-ring";
+
+            if (!p) {
+                sel("view").innerHTML =
+                    '<div class="bg-bg1 border border-bd0 p-6 shadow-lift"><div class="text-sm text-tx1">No project</div><div class="mt-2 text-xs text-tx3">Create a project to start tracking issues.</div></div>';
+                return;
+            }
+
+            if (s.view === "board") renderBoard(s, p);
+            else if (s.view === "backlog") renderBacklog(s, p);
+            else renderList(s, p);
+        }
+
+        function wire() {
+            sel("btn-seed").onclick = () => {
+                seed();
+                ui.listSel.clear();
+                render();
+            };
+
+            sel("btn-reset").onclick = () => {
+                if (!confirm("Reset all local data?")) return;
+                resetAll();
+                init();
+                ui.listSel.clear();
+                render();
+            };
+
+            sel("btn-new-project").onclick = createProject;
+            sel("btn-new-issue").onclick = createIssue;
+
+            sel("btn-view-board").onclick = () => setView("board");
+            sel("btn-view-backlog").onclick = () => setView("backlog");
+            sel("btn-view-list").onclick = () => setView("list");
+
+            sel("proj-filter").onchange = render;
+
+            sel("q").oninput = render;
+            sel("prio-filter").onchange = render;
+            sel("place-filter").onchange = render;
+
+            sel("btn-lanes").onclick = openLanesDlg;
+
+            sel("dr-close").onclick = closeDrawer;
+            sel("drawer-backdrop").onclick = closeDrawer;
+
+            sel("f-desc").oninput = () => {
+                const { all, done } = subCount(sel("f-desc").value);
+                sel("f-sub").textContent = all ? "Subtasks: " + done + "/" + all : "Subtasks: none";
+            };
+        }
+
+        init();
+        wire();
+        render();
+    </script>
+</body>
+
+</html>

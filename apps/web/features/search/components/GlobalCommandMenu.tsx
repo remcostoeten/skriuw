@@ -76,7 +76,8 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 	// Focus input when opening
 	React.useEffect(() => {
 		if (open) {
-			setTimeout(() => inputRef.current?.focus(), 50)
+			// Use requestAnimationFrame for near-instant focus
+			requestAnimationFrame(() => inputRef.current?.focus())
 			setQuery('')
 			setSelectedIndex(0)
 		}

@@ -23,7 +23,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 
 		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			;(element as any).spellcheck = true
+			; (element as any).spellcheck = true
 		}
 	})
 
@@ -36,7 +36,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							;(element as any).spellcheck = true
+							; (element as any).spellcheck = true
 						}
 					}
 
@@ -45,7 +45,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							;(nested as any).spellcheck = true
+							; (nested as any).spellcheck = true
 						}
 					})
 				}
@@ -88,9 +88,12 @@ export function useEditor({
 }: options): props {
 	const { getNote, updateNote } = useNotesContext()
 	const { config: editorConfig } = useEditorConfig()
+	// Track if we've completed initial load for this noteId
+	const initialLoadAttemptedRef = useRef<string | null>(null)
 	const [note, setNote] = useState<Note | null>(null)
 	const [noteName, setNoteName] = useState('')
-	const [isLoading, setIsLoading] = useState(true)
+	// Start with isLoading=false to avoid flash - we'll set it true only if truly needed
+	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 	const hasInitializedRef = useRef(false)
@@ -106,16 +109,17 @@ export function useEditor({
 				return
 			}
 
-			try {
-				if (!isCancelled) {
-					// Only show loading state if it's a new note being loaded
-					// This prevents the skeleton state from appearing when the same note is refreshed
-					if (note?.id !== noteId) {
-						setIsLoading(true)
-					}
-					setError(null)
-				}
+			// Skip if we're already on the same note
+			if (note?.id === noteId) {
+				setIsLoading(false)
+				return
+			}
 
+			try {
+				setError(null)
+
+				// Since getNote is essentially synchronous (just a tree lookup),
+				// try to get it immediately without showing loading state
 				const noteData = await getNote(noteId)
 
 				if (isCancelled) return
@@ -123,8 +127,27 @@ export function useEditor({
 				if (noteData) {
 					setNote(noteData)
 					setNoteName(noteData.name)
+					setIsLoading(false)
 				} else {
-					setError('Note not found')
+					// Note not found in cache - might need to wait for data
+					// Only show loading if this is a fresh load attempt
+					if (initialLoadAttemptedRef.current !== noteId) {
+						initialLoadAttemptedRef.current = noteId
+						setIsLoading(true)
+						// Give React Query a moment to potentially load the data
+						await new Promise(resolve => setTimeout(resolve, 50))
+						if (!isCancelled) {
+							const retryData = await getNote(noteId)
+							if (retryData) {
+								setNote(retryData)
+								setNoteName(retryData.name)
+							} else {
+								setError('Note not found')
+							}
+						}
+					} else {
+						setError('Note not found')
+					}
 				}
 			} catch (err) {
 				if (!isCancelled) {
