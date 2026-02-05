@@ -157,9 +157,11 @@ export const shortcutDefinitions = {
 	'command-executor': {
 		keys: [
 			['Ctrl', 'p'],
-			['Meta', 'p']
+			['Meta', 'p'],
+			['Ctrl', 'k'],
+			['Meta', 'k']
 		],
-		description: 'Open command executor',
+		description: 'Open command palette / search',
 		enabled: true
 	},
 	'toggle-theme': {

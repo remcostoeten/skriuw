@@ -38,6 +38,7 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 	const [showOptions, setShowOptions] = React.useState(false)
 
 	const inputRef = React.useRef<HTMLInputElement>(null)
+	const scrollRef = React.useRef<HTMLDivElement>(null)
 
 	const router = useRouter()
 	const { items, createNote } = useNotesContext()
@@ -47,15 +48,40 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 		caseSensitive,
 		wholeWord,
 		useRegex,
-		limit: 15,
+		limit: 20,
 		searchContent: true
 	})
 
-	// Focus input when opening
+	// Focus input when opening with slight delay for drawer animation
 	React.useEffect(() => {
 		if (open) {
-			setTimeout(() => inputRef.current?.focus(), 100)
+			// Wait for drawer animation to complete
+			const timer = setTimeout(() => {
+				inputRef.current?.focus()
+				// Scroll to top on open
+				scrollRef.current?.scrollTo(0, 0)
+			}, 150)
 			setQuery('')
+			return () => clearTimeout(timer)
+		}
+	}, [open])
+
+	// Prevent body scroll when drawer is open (PWA fix)
+	React.useEffect(() => {
+		if (open) {
+			document.body.style.overflow = 'hidden'
+			// Prevent iOS rubber-band scrolling
+			document.body.style.position = 'fixed'
+			document.body.style.width = '100%'
+		} else {
+			document.body.style.overflow = ''
+			document.body.style.position = ''
+			document.body.style.width = ''
+		}
+		return () => {
+			document.body.style.overflow = ''
+			document.body.style.position = ''
+			document.body.style.width = ''
 		}
 	}, [open])
 
@@ -64,12 +90,15 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 			haptic.medium()
 			onOpenChange(false)
 
-			if (result.item.type === 'note') {
-				const url = getNoteUrl(result.item.id)
-				router.push(url)
-			} else if (result.item.type === 'folder') {
-				router.push(`/?folder=${result.item.id}`)
-			}
+			// Small delay to let drawer close animation start
+			setTimeout(() => {
+				if (result.item.type === 'note') {
+					const url = getNoteUrl(result.item.id)
+					router.push(url)
+				} else if (result.item.type === 'folder') {
+					router.push(`/?folder=${result.item.id}`)
+				}
+			}, 50)
 		},
 		[getNoteUrl, router, onOpenChange]
 	)
@@ -85,35 +114,41 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 	}, [query, createNote, getNoteUrl, router, onOpenChange])
 
 	const handleQuickInsert = (char: string) => {
+		haptic.light()
 		const input = inputRef.current
 		if (input) {
 			const start = input.selectionStart || 0
 			const end = input.selectionEnd || 0
 			const newValue = query.slice(0, start) + char + query.slice(end)
 			setQuery(newValue)
-			setTimeout(() => {
+			// Use requestAnimationFrame for smoother cursor positioning
+			requestAnimationFrame(() => {
 				input.setSelectionRange(start + char.length, start + char.length)
 				input.focus()
-			}, 0)
+			})
 		}
+	}
+
+	const handleOptionToggle = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
 		haptic.light()
+		setter(v => !v)
 	}
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange}>
-			<DrawerContent className="max-h-[90vh] flex flex-col">
+			<DrawerContent className="max-h-[85vh] flex flex-col outline-none">
 				<VisuallyHidden>
 					<DrawerTitle>Search Notes</DrawerTitle>
 				</VisuallyHidden>
 
-				{/* Drag Handle */}
-				<div className="flex justify-center py-2">
-					<div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+				{/* Drag Handle - larger touch target for PWA */}
+				<div className="flex justify-center py-3 touch-none">
+					<div className="w-12 h-1.5 rounded-full bg-muted-foreground/40" />
 				</div>
 
-				{/* Search Input */}
-				<div className="px-4 pb-3">
-					<div className="flex items-center gap-2 bg-muted/50 rounded-xl px-4 py-3">
+				{/* Search Input - optimized touch targets */}
+				<div className="px-4 pb-3 pt-safe">
+					<div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3.5 min-h-[52px]">
 						<Search className={cn(
 							"w-5 h-5 shrink-0 transition-colors",
 							isStale ? "text-muted-foreground animate-pulse" : "text-primary"
@@ -121,68 +156,78 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 						<input
 							ref={inputRef}
 							type="text"
+							inputMode="search"
+							enterKeyHint="search"
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search notes..."
-							className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60"
+							className="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground/60 min-w-0"
 							autoComplete="off"
 							autoCorrect="off"
+							autoCapitalize="off"
 							spellCheck={false}
 						/>
 						{query && (
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 shrink-0"
-								onClick={() => setQuery('')}
+								className="h-10 w-10 shrink-0 -mr-1"
+								onClick={() => {
+									haptic.light()
+									setQuery('')
+									inputRef.current?.focus()
+								}}
 							>
-								<X className="w-4 h-4" />
+								<X className="w-5 h-5" />
 							</Button>
 						)}
 					</div>
 
-					{/* Quick Insert Toolbar */}
-					<div className="flex items-center gap-2 mt-2 overflow-x-auto pb-1 -mx-1 px-1">
+					{/* Quick Insert Toolbar - larger touch targets */}
+					<div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
 						<QuickInsertButton onClick={() => handleQuickInsert('tag:')} label="tag:" />
 						<QuickInsertButton onClick={() => handleQuickInsert('is:')} label="is:" />
 						<QuickInsertButton onClick={() => handleQuickInsert('-')} label="-" />
 						<QuickInsertButton onClick={() => handleQuickInsert('/')} label="/" />
 						<QuickInsertButton onClick={() => handleQuickInsert('created:')} label="created:" />
 
-						<div className="w-px h-6 bg-border mx-1" />
+						<div className="w-px h-6 bg-border mx-1 shrink-0" />
 
 						<Button
 							variant={showOptions ? "secondary" : "ghost"}
 							size="sm"
-							className="h-8 px-3 gap-1.5"
-							onClick={() => setShowOptions(!showOptions)}
+							className="h-9 px-3 gap-1.5 shrink-0"
+							onClick={() => {
+								haptic.light()
+								setShowOptions(!showOptions)
+							}}
 						>
 							<ChevronUp className={cn(
-								"w-3.5 h-3.5 transition-transform",
+								"w-4 h-4 transition-transform duration-200",
 								showOptions && "rotate-180"
 							)} />
 							Options
 						</Button>
 					</div>
 
-					{/* Expanded Options */}
+					{/* Expanded Options - larger touch targets */}
 					{showOptions && (
-						<div className="flex items-center gap-2 mt-2 p-2 bg-muted/30 rounded-lg">
+						<div className="flex items-center gap-2 mt-3 p-2 bg-muted/30 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
 							<OptionToggle
 								active={caseSensitive}
-								onClick={() => setCaseSensitive(!caseSensitive)}
+								onClick={() => handleOptionToggle(setCaseSensitive)}
 								icon={<CaseSensitive className="w-4 h-4" />}
 								label="Aa"
 							/>
 							<OptionToggle
 								active={wholeWord}
-								onClick={() => setWholeWord(!wholeWord)}
+								onClick={() => handleOptionToggle(setWholeWord)}
 								icon={<WholeWord className="w-4 h-4" />}
 								label="Word"
 							/>
 							<OptionToggle
 								active={useRegex}
-								onClick={() => setUseRegex(!useRegex)}
+								onClick={() => handleOptionToggle(setUseRegex)}
 								icon={<Regex className="w-4 h-4" />}
 								label=".*"
 							/>
@@ -190,12 +235,16 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 					)}
 				</div>
 
-				{/* Results */}
-				<div className="flex-1 overflow-y-auto px-4 pb-safe">
+				{/* Results - native scroll with momentum */}
+				<div
+					ref={scrollRef}
+					className="flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] scroll-smooth"
+					style={{ WebkitOverflowScrolling: 'touch' }}
+				>
 					{isEmpty ? (
 						<EmptyState onCreateNote={handleCreateNote} />
 					) : results.length > 0 ? (
-						<div className="space-y-1">
+						<div className="space-y-1.5 pb-4">
 							{results.map((result) => (
 								<MobileResultItem
 									key={result.item.id}
@@ -205,23 +254,24 @@ export function MobileSearchDrawer({ open, onOpenChange }: Props) {
 							))}
 						</div>
 					) : (
-						<div className="py-12 text-center">
+						<div className="py-16 text-center">
 							<p className="text-muted-foreground mb-4">No results found</p>
 							<Button
 								variant="outline"
+								size="lg"
 								onClick={handleCreateNote}
-								className="gap-2"
+								className="gap-2 h-12 px-6"
 							>
-								<Plus className="w-4 h-4" />
+								<Plus className="w-5 h-5" />
 								Create note
 							</Button>
 						</div>
 					)}
 				</div>
 
-				{/* Results Count */}
+				{/* Results Count - with safe area */}
 				{results.length > 0 && (
-					<div className="px-4 py-2 text-center text-xs text-muted-foreground border-t bg-background">
+					<div className="px-4 py-3 text-center text-xs text-muted-foreground border-t bg-background/95 backdrop-blur-sm pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
 						{results.length} result{results.length !== 1 ? 's' : ''}
 					</div>
 				)}
@@ -235,7 +285,7 @@ function QuickInsertButton({ onClick, label }: { onClick: () => void; label: str
 		<Button
 			variant="outline"
 			size="sm"
-			className="h-8 px-3 text-xs font-mono shrink-0"
+			className="h-9 px-4 text-sm font-mono shrink-0 active:scale-95 transition-transform"
 			onClick={onClick}
 		>
 			{label}
@@ -258,10 +308,10 @@ function OptionToggle({
 		<button
 			onClick={onClick}
 			className={cn(
-				"flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+				"flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95",
 				active
-					? "bg-primary/20 text-primary"
-					: "bg-background hover:bg-muted"
+					? "bg-primary/20 text-primary shadow-sm"
+					: "bg-background hover:bg-muted active:bg-muted"
 			)}
 		>
 			{icon}
@@ -288,57 +338,57 @@ function MobileResultItem({
 
 	return (
 		<button
-			className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
+			className="flex items-center gap-3 w-full p-3.5 rounded-2xl hover:bg-muted/50 active:bg-muted active:scale-[0.98] transition-all text-left min-h-[64px]"
 			onClick={onSelect}
 		>
-			{/* Icon */}
+			{/* Icon - larger for touch */}
 			<div className={cn(
-				"flex items-center justify-center w-10 h-10 rounded-xl shrink-0",
+				"flex items-center justify-center w-12 h-12 rounded-xl shrink-0",
 				isNote ? "bg-blue-500/10 text-blue-500" : "bg-amber-500/10 text-amber-500"
 			)}>
 				{item.icon ? (
-					<span className="text-xl">{item.icon}</span>
+					<span className="text-2xl">{item.icon}</span>
 				) : isNote ? (
-					<FileText className="w-5 h-5" />
+					<FileText className="w-6 h-6" />
 				) : (
-					<Folder className="w-5 h-5" />
+					<Folder className="w-6 h-6" />
 				)}
 			</div>
 
 			{/* Content */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2">
-					<span className="font-medium truncate">
+					<span className="font-medium truncate text-[15px]">
 						{nameParts.map((part, i) => (
 							<span
 								key={i}
-								className={part.highlighted ? "bg-yellow-300/40 rounded px-0.5" : ""}
+								className={part.highlighted ? "bg-yellow-300/50 dark:bg-yellow-500/30 rounded px-0.5" : ""}
 							>
 								{part.text}
 							</span>
 						))}
 					</span>
-					{item.pinned && <Pin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-					{note?.favorite && <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+					{item.pinned && <Pin className="w-4 h-4 text-muted-foreground shrink-0" />}
+					{note?.favorite && <Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
 				</div>
 
 				{result.path.length > 0 && (
-					<div className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
-						<Folder className="w-3 h-3" />
+					<div className="text-sm text-muted-foreground truncate mt-1 flex items-center gap-1">
+						<Folder className="w-3.5 h-3.5" />
 						{result.path.join(' / ')}
 					</div>
 				)}
 
 				{note?.tags && note.tags.length > 0 && (
-					<div className="flex items-center gap-1 mt-1.5 flex-wrap">
+					<div className="flex items-center gap-1.5 mt-2 flex-wrap">
 						{note.tags.slice(0, 2).map((tag) => (
-							<Badge key={tag} variant="secondary" className="text-[10px] h-5">
-								<Hash className="w-2.5 h-2.5 mr-0.5" />
+							<Badge key={tag} variant="secondary" className="text-xs h-6 px-2">
+								<Hash className="w-3 h-3 mr-0.5" />
 								{tag}
 							</Badge>
 						))}
 						{note.tags.length > 2 && (
-							<span className="text-[10px] text-muted-foreground">
+							<span className="text-xs text-muted-foreground">
 								+{note.tags.length - 2}
 							</span>
 						)}
@@ -351,25 +401,25 @@ function MobileResultItem({
 
 function EmptyState({ onCreateNote }: { onCreateNote: () => void }) {
 	return (
-		<div className="py-6 space-y-6">
-			{/* Quick Action */}
+		<div className="py-6 space-y-8">
+			{/* Quick Action - large touch target */}
 			<button
-				className="flex items-center gap-3 w-full p-4 rounded-xl bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors text-left"
+				className="flex items-center gap-4 w-full p-5 rounded-2xl bg-primary/5 hover:bg-primary/10 active:bg-primary/15 active:scale-[0.98] transition-all text-left min-h-[80px]"
 				onClick={onCreateNote}
 			>
-				<div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary">
-					<Plus className="w-6 h-6" />
+				<div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary">
+					<Plus className="w-7 h-7" />
 				</div>
 				<div>
-					<div className="font-medium text-primary">Create new note</div>
-					<div className="text-sm text-muted-foreground">Start writing</div>
+					<div className="font-semibold text-primary text-lg">Create new note</div>
+					<div className="text-sm text-muted-foreground mt-0.5">Start writing</div>
 				</div>
 			</button>
 
 			{/* Search Tips */}
-			<div className="space-y-3">
-				<h3 className="text-sm font-medium text-muted-foreground px-1">Search Tips</h3>
-				<div className="grid gap-2">
+			<div className="space-y-4">
+				<h3 className="text-sm font-semibold text-muted-foreground px-1 uppercase tracking-wide">Search Tips</h3>
+				<div className="grid gap-2.5">
 					<TipItem code="tag:work" description="Filter by tag" />
 					<TipItem code="is:pinned" description="Show pinned notes" />
 					<TipItem code="is:favorite" description="Show favorites" />
@@ -383,8 +433,8 @@ function EmptyState({ onCreateNote }: { onCreateNote: () => void }) {
 
 function TipItem({ code, description }: { code: string; description: string }) {
 	return (
-		<div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-			<code className="text-sm font-mono text-primary">{code}</code>
+		<div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl min-h-[52px]">
+			<code className="text-sm font-mono text-primary font-medium">{code}</code>
 			<span className="text-sm text-muted-foreground">{description}</span>
 		</div>
 	)
