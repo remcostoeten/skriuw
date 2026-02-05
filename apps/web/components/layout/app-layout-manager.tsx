@@ -94,7 +94,8 @@ export function AppLayoutManager({
 		setSettingsOpen,
 		taskStack,
 		setLastActiveNote,
-		toggleRightSidebar
+		toggleRightSidebar,
+		isRightSidebarOpen
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
 	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false
@@ -393,6 +394,7 @@ export function AppLayoutManager({
 					onToggleSidebar={toggleMobileSidebar}
 					onToggleDesktopSidebar={toggleDesktopSidebar}
 					onToggleRightSidebar={isNoteView ? toggleRightSidebar : undefined}
+					isRightSidebarOpen={isRightSidebarOpen}
 					// Navigation arrows - only show for note pages when navigation functions are available
 					onNavigatePrevious={sidebarActiveNoteId ? handleNavigatePrevious : undefined}
 					onNavigateNext={sidebarActiveNoteId ? handleNavigateNext : undefined}
