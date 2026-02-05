@@ -22,6 +22,7 @@ import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
 import { extractFirstHeading } from "@/features/notes/utils/extract-first-heading";
 import { flattenNotes } from "@/features/notes/utils/flatten-notes";
 import { useSession } from "@/lib/auth-client";
+import { isAuthPath } from "@/lib/auth-paths";
 import { MOBILE_BREAKPOINT } from "@skriuw/shared/client";
 import { useMediaQuery } from "@skriuw/shared/client";
 import { usePathname, useRouter } from "next/navigation";
@@ -94,7 +95,8 @@ export function AppLayoutManager({
 		setSettingsOpen,
 		taskStack,
 		setLastActiveNote,
-		toggleRightSidebar
+		toggleRightSidebar,
+		isRightSidebarOpen
 	} = useUIStore()
 	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
 	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false
@@ -122,6 +124,7 @@ export function AppLayoutManager({
 		return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
 	}, [sidebarActiveNoteId, notesInOrder])
 	const currentNoteId = currentNote?.id ?? null
+	const isNoteView = Boolean(currentNoteId)
 
 	const currentNoteIndex = useMemo(() => {
 		if (!sidebarActiveNoteId) return -1
@@ -353,7 +356,7 @@ export function AppLayoutManager({
 	})
 
 	// Check if we are on an auth page (like login)
-	const isAuthPage = pathname.startsWith('/login')
+	const isAuthPage = isAuthPath(pathname)
 
 	if (isAuthPage) {
 		return (
@@ -391,7 +394,8 @@ export function AppLayoutManager({
 					noteName={computedTitle}
 					onToggleSidebar={toggleMobileSidebar}
 					onToggleDesktopSidebar={toggleDesktopSidebar}
-					onToggleRightSidebar={toggleRightSidebar}
+					onToggleRightSidebar={isNoteView ? toggleRightSidebar : undefined}
+					isRightSidebarOpen={isRightSidebarOpen}
 					// Navigation arrows - only show for note pages when navigation functions are available
 					onNavigatePrevious={sidebarActiveNoteId ? handleNavigatePrevious : undefined}
 					onNavigateNext={sidebarActiveNoteId ? handleNavigateNext : undefined}
@@ -453,10 +457,12 @@ export function AppLayoutManager({
 			floatingWidgets={
 				<>
 					<SidebarMenu open={isSettingsOpen} onOpenChange={setSettingsOpen} />
-					<RightSidebar
-						noteId={sidebarActiveNoteId || undefined}
-						content={currentNote?.content}
-					/>
+					{isNoteView ? (
+						<RightSidebar
+							noteId={sidebarActiveNoteId || undefined}
+							content={currentNote?.content}
+						/>
+					) : null}
 					<UnifiedSearch />
 					{/* <AlphaBanner
 						href="/docs"

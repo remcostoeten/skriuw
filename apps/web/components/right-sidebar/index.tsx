@@ -7,8 +7,10 @@ import { TOCItem } from "./toc-item";
 import { SECTION_KEYS, type SectionKey, type RightSidebarProps } from "./types";
 import { useNotesContext } from "@/features/notes/context/notes-context";
 import type { Note } from "@/features/notes/types";
+import { useIdentityState } from "@/lib/identity-guard";
 import { notify } from "@/lib/notify";
-import { Switch } from "@skriuw/ui";
+import { MOBILE_BREAKPOINT, useMediaQuery } from "@skriuw/shared/client";
+import { Drawer, DrawerContent, Switch } from "@skriuw/ui";
 import { IconButton } from "@skriuw/ui/icons";
 import { FileText, Calendar, Clock, Hash, HardDrive, Share2, Eye, X } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
@@ -16,26 +18,26 @@ import { useState, useMemo, useCallback } from "react";
 const DEFAULT_EXPANDED_SECTIONS = new Set<SectionKey>([SECTION_KEYS.TOC, SECTION_KEYS.METADATA])
 
 export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
-	const { isRightSidebarOpen, toggleRightSidebar } = useUIStore()
+	const { isRightSidebarOpen, toggleRightSidebar, setRightSidebarOpen } = useUIStore()
 	const { items, setNoteVisibility } = useNotesContext()
+	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 
 	const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(
 		() => new Set(DEFAULT_EXPANDED_SECTIONS)
 	)
 	const [isToggling, setIsToggling] = useState(false)
 
-	// Find current note with proper typing
 	const currentNote = useMemo((): Note | null => {
 		if (!noteId) return null
 		const found = items.find((item) => item.id === noteId && item.type === 'note')
 		return (found as Note) ?? null
 	}, [noteId, items])
 
-	// Use extracted hooks
 	const tableOfContents = useTableOfContents(content)
 	const metadata = useNoteMetadata(currentNote, content)
 	const shareUrl = useShareUrl(currentNote?.publicId)
 	const scrollToHeading = useScrollToHeading()
+	const { isAuthenticated } = useIdentityState()
 
 	const toggleSection = useCallback((section: string) => {
 		setExpandedSections((prev) => {
@@ -68,22 +70,103 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 
 	if (!isRightSidebarOpen) return null
 
+	if (isMobile) {
+		return (
+			<Drawer open={isRightSidebarOpen} onOpenChange={setRightSidebarOpen} shouldScaleBackground>
+				<DrawerContent
+					id='note-details-panel'
+					className='z-50 max-h-[85svh] rounded-t-2xl border-border bg-background'
+				>
+					<SidebarBody
+						tableOfContents={tableOfContents}
+						metadata={metadata}
+						shareUrl={shareUrl}
+						scrollToHeading={scrollToHeading}
+						expandedSections={expandedSections}
+						toggleSection={toggleSection}
+						currentNote={currentNote}
+						isAuthenticated={isAuthenticated}
+						isToggling={isToggling}
+						handleToggleVisibility={handleToggleVisibility}
+						onClose={toggleRightSidebar}
+						headerClass='px-4 pb-3 pt-[max(env(safe-area-inset-top),1rem)]'
+						contentClass='overflow-y-auto overscroll-contain px-4 pb-[max(env(safe-area-inset-bottom),1rem)]'
+					/>
+				</DrawerContent>
+			</Drawer>
+		)
+	}
+
 	return (
-		<div className='fixed right-0 top-0 h-full w-80 bg-background border-l border-border shadow-lg z-40 flex flex-col'>
-			{/* Header */}
-			<div className='flex items-center justify-between p-4 border-b border-border'>
+		<div
+			id='note-details-panel'
+			className='fixed right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-border bg-background shadow-lg'
+		>
+			<SidebarBody
+				tableOfContents={tableOfContents}
+				metadata={metadata}
+				shareUrl={shareUrl}
+				scrollToHeading={scrollToHeading}
+				expandedSections={expandedSections}
+				toggleSection={toggleSection}
+				currentNote={currentNote}
+				isAuthenticated={isAuthenticated}
+				isToggling={isToggling}
+				handleToggleVisibility={handleToggleVisibility}
+				onClose={toggleRightSidebar}
+				headerClass='p-4'
+				contentClass='flex-1 overflow-y-auto p-4'
+			/>
+		</div>
+	)
+}
+
+type SidebarBodyProps = {
+	tableOfContents: ReturnType<typeof useTableOfContents>
+	metadata: ReturnType<typeof useNoteMetadata>
+	shareUrl: string
+	scrollToHeading: ReturnType<typeof useScrollToHeading>
+	expandedSections: Set<SectionKey>
+	toggleSection: (section: string) => void
+	currentNote: Note | null
+	isAuthenticated: boolean
+	isToggling: boolean
+	handleToggleVisibility: (nextState: boolean) => Promise<void>
+	onClose: () => void
+	headerClass: string
+	contentClass: string
+}
+
+function SidebarBody({
+	tableOfContents,
+	metadata,
+	shareUrl,
+	scrollToHeading,
+	expandedSections,
+	toggleSection,
+	currentNote,
+	isAuthenticated,
+	isToggling,
+	handleToggleVisibility,
+	onClose,
+	headerClass,
+	contentClass
+}: SidebarBodyProps) {
+	return (
+		<>
+			<div className={`flex items-center justify-between border-b border-border ${headerClass}`}>
 				<h2 className='text-lg font-semibold'>Note Details</h2>
 				<IconButton
 					icon={<X className='w-4 h-4' />}
 					tooltip='Close sidebar'
 					variant='toolbar'
-					onClick={toggleRightSidebar}
+					onClick={onClose}
+					aria-label='Close note details'
+					className='touch-manipulation'
 				/>
 			</div>
 
-			{/* Content */}
-			<div className='flex-1 overflow-y-auto p-4 space-y-4'>
-				{/* Table of Contents */}
+			<div className={`${contentClass} space-y-4`}>
 				<CollapsibleSection
 					id={SECTION_KEYS.TOC}
 					title='Table of Contents'
@@ -102,7 +185,6 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 					)}
 				</CollapsibleSection>
 
-				{/* Metadata */}
 				<CollapsibleSection
 					id={SECTION_KEYS.METADATA}
 					title='Metadata'
@@ -112,11 +194,7 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 				>
 					{metadata ? (
 						<div className='space-y-3'>
-							<MetadataRow
-								icon={Calendar}
-								label='Created'
-								value={metadata.createdAt}
-							/>
+							<MetadataRow icon={Calendar} label='Created' value={metadata.createdAt} />
 							<MetadataRow icon={Clock} label='Updated' value={metadata.updatedAt} />
 							<MetadataRow icon={FileText} label='Words' value={metadata.wordCount} />
 							<MetadataRow icon={HardDrive} label='Size' value={metadata.size} />
@@ -126,52 +204,49 @@ export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
 					)}
 				</CollapsibleSection>
 
-				{/* Sharing */}
-				<div className='border border-border rounded-lg'>
-					<div className='flex items-center justify-between p-3'>
-						<div className='flex items-center gap-2'>
-							<Share2 className='w-4 h-4' />
-							<span className='font-medium'>Public Share</span>
-						</div>
-						<Switch
-							checked={currentNote?.isPublic ?? false}
-							onCheckedChange={handleToggleVisibility}
-							disabled={isToggling || !currentNote}
-							aria-label='Toggle public visibility'
-						/>
-					</div>
-					{currentNote?.isPublic ? (
-						<div className='px-3 pb-3 space-y-2'>
-							<div className='flex items-center gap-2 text-sm'>
-								<Eye className='w-4 h-4 text-muted-foreground' />
-								<span className='text-muted-foreground'>Unique visitors:</span>
-								<span>{currentNote.publicViews ?? 0}</span>
+				{isAuthenticated ? (
+					<div className='rounded-lg border border-border'>
+						<div className='flex items-center justify-between p-3'>
+							<div className='flex items-center gap-2'>
+								<Share2 className='w-4 h-4' />
+								<span className='font-medium'>Public Share</span>
 							</div>
-							{shareUrl ? (
-								<div
-									className='bg-muted rounded-md p-2 break-all text-xs'
-									aria-label='Share URL'
-								>
-									{shareUrl}
-								</div>
-							) : (
-								<p className='text-sm text-muted-foreground px-1'>
-									Enable cloud storage to generate a public link.
-								</p>
-							)}
+							<Switch
+								checked={currentNote?.isPublic ?? false}
+								onCheckedChange={handleToggleVisibility}
+								disabled={isToggling || !currentNote}
+								aria-label='Toggle public visibility'
+							/>
 						</div>
-					) : (
-						<p className='text-sm text-muted-foreground px-3 pb-3'>
-							Keep notes private by default. Enable sharing to generate a public link.
-						</p>
-					)}
-				</div>
+						{currentNote?.isPublic ? (
+							<div className='space-y-2 px-3 pb-3'>
+								<div className='flex items-center gap-2 text-sm'>
+									<Eye className='w-4 h-4 text-muted-foreground' />
+									<span className='text-muted-foreground'>Unique visitors:</span>
+									<span>{currentNote.publicViews ?? 0}</span>
+								</div>
+								{shareUrl ? (
+									<div className='break-all rounded-md bg-muted p-2 text-xs' aria-label='Share URL'>
+										{shareUrl}
+									</div>
+								) : (
+									<p className='px-1 text-sm text-muted-foreground'>
+										Enable cloud storage to generate a public link.
+									</p>
+								)}
+							</div>
+						) : (
+							<p className='px-3 pb-3 text-sm text-muted-foreground'>
+								Keep notes private by default. Enable sharing to generate a public link.
+							</p>
+						)}
+					</div>
+				) : null}
 			</div>
-		</div>
+		</>
 	)
 }
 
-// Small helper component to reduce repetition in metadata rows
 type MetadataRowProps = {
 	icon: React.ComponentType<{ className?: string }>
 	label: string
