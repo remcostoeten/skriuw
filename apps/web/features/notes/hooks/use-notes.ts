@@ -169,7 +169,6 @@ export function useNotes() {
 				noteIcon = defaultEmoji
 			}
 
-			// Apply settings based on note creation mode (simple mode = no cover images)
 			const coverImage = noteCreationMode === 'simple' ? undefined : undefined
 
 			return await createNoteMutation.mutateAsync({
@@ -184,7 +183,6 @@ export function useNotes() {
 		[createNoteMutation, getSetting, findItemInTree]
 	)
 
-	// Duplicate an existing note
 	const duplicateNote = useCallback(
 		async (noteId: string, newName?: string) => {
 			const sourceNote = findNoteInTree(noteId)
