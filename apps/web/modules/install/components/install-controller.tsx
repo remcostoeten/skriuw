@@ -2,8 +2,8 @@
 'use client'
 
 import { useInstallPrompt } from "../hooks"
-import { InstallBanner } from "./InstallBanner"
-import { InstallInstructions } from "./InstallInstructions"
+import { InstallBanner } from "./install-banner"
+import { InstallInstructions } from "./install-instructions"
 
 export function InstallController() {
     const {
