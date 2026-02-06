@@ -1,5 +1,13 @@
-import type { EditorTab, EditorTabInput, EditorTabsContextValue } from "./types";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { EditorTab, EditorTabInput, EditorTabsContextValue } from './types'
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
+	type ReactNode
+} from 'react'
 
 const STORAGE_KEY = 'skriuw_editor_tabs_state'
 const MAX_TABS = 12

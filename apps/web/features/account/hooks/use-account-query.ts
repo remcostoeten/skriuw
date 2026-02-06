@@ -1,6 +1,15 @@
-import { getLinkedAccounts, linkAccount, unlinkAccount, updateProfile, deleteAccount, type LinkedAccount, type LinkResponse, type DeleteResponse } from "../api/account-client";
-import { useSession } from "@/lib/auth-client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	getLinkedAccounts,
+	linkAccount,
+	unlinkAccount,
+	updateProfile,
+	deleteAccount,
+	type LinkedAccount,
+	type LinkResponse,
+	type DeleteResponse
+} from '../api/account-client'
+import { useSession } from '@/lib/auth-client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const accountKeys = {
 	all: ['account'] as const,

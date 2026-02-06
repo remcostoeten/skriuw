@@ -1,5 +1,5 @@
-import type { ShortcutId, KeyCombo } from "./shortcut-definitions";
-import type { BaseEntity } from "@skriuw/shared";
+import type { ShortcutId, KeyCombo } from './shortcut-definitions'
+import type { BaseEntity } from '@skriuw/shared'
 
 /**
  * Strongly typed keyboard shortcut system

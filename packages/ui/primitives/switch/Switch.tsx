@@ -1,8 +1,8 @@
-import { SwitchProps } from "./types";
-import { switchAnimations, switchSizes } from "./variants";
-import { cn } from "@skriuw/shared";
-import { Loader2 } from "lucide-react";
-import React, { useId, useRef, useState, useEffect } from "react";
+import { SwitchProps } from './types'
+import { switchAnimations, switchSizes } from './variants'
+import { cn } from '@skriuw/shared'
+import { Loader2 } from 'lucide-react'
+import React, { useId, useRef, useState, useEffect } from 'react'
 
 /**
  * Enterprise-grade Switch Component

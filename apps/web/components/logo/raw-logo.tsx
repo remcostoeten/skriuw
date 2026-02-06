@@ -1,7 +1,7 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import * as React from "react";
+import { cn } from '@skriuw/shared'
+import * as React from 'react'
 
 type RawLogoProps = {
 	size?: number

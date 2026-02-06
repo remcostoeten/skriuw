@@ -1,9 +1,9 @@
 'use server'
 
-import type { Item } from "../../types";
-import { invalidateItemsCache } from "../queries/get-items";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { update } from "@skriuw/crud";
+import type { Item } from '../../types'
+import { invalidateItemsCache } from '../queries/get-items'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { update } from '@skriuw/crud'
 
 /**
  * Restore a soft-deleted item from trash

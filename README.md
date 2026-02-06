@@ -24,7 +24,7 @@
 
 ---
 
-A note taking and productivity platform that adapts to how you want to work. 
+A note taking and productivity platform that adapts to how you want to work.
 
 Cloud hosted, self hosted on your infrastructure, or running fully offline on your machine. Your data lives where you decide. Every feature is opt in. Nothing is forced. AI, sync, telemetry: all disabled by default until you choose otherwise.
 
@@ -56,60 +56,72 @@ Over 30 configurable settings across 10 categories: editor behavior, appearance,
 
 ## Compared to Alternatives
 
-| Capability | Skriuw | Notion | Obsidian | Apple Notes |
-|------------|:------:|:------:|:--------:|:-----------:|
-| **Fully opt in features** | Yes | No | Partial | No |
-| **Cloud + self host + offline** | All three | Cloud only | Local only | iCloud only |
-| **Native desktop apps** | Tauri (Rust) | Electron | Electron | Native |
-| **BYOK database** | PostgreSQL, SQLite, filesystem | No | Filesystem | No |
-| **BYOK AI provider** | OpenAI, Anthropic, Ollama, none | GPT-4 only | Plugins | Apple Intelligence |
-| **Block based editor** | Yes | Yes | No | No |
-| **Wikilinks + backlinks** | Yes | Partial | Yes | No |
-| **Real time collaboration** | Planned | Yes | No | Yes |
-| **Open source** | MIT | No | Partial | No |
-| **Offline PWA** | Yes | No | N/A | N/A |
-| **Custom keyboard shortcuts** | 25+ configurable | Limited | Via plugins | No |
-| **Daily notes / journaling** | Built in | Template | Plugin | No |
-| **Multi tab editing** | Yes | Limited | Yes | No |
+| Capability                      |             Skriuw              |   Notion   |  Obsidian   |    Apple Notes     |
+| ------------------------------- | :-----------------------------: | :--------: | :---------: | :----------------: |
+| **Fully opt in features**       |               Yes               |     No     |   Partial   |         No         |
+| **Cloud + self host + offline** |            All three            | Cloud only | Local only  |    iCloud only     |
+| **Native desktop apps**         |          Tauri (Rust)           |  Electron  |  Electron   |       Native       |
+| **BYOK database**               | PostgreSQL, SQLite, filesystem  |     No     | Filesystem  |         No         |
+| **BYOK AI provider**            | OpenAI, Anthropic, Ollama, none | GPT-4 only |   Plugins   | Apple Intelligence |
+| **Block based editor**          |               Yes               |    Yes     |     No      |         No         |
+| **Wikilinks + backlinks**       |               Yes               |  Partial   |     Yes     |         No         |
+| **Real time collaboration**     |             Planned             |    Yes     |     No      |        Yes         |
+| **Open source**                 |               MIT               |     No     |   Partial   |         No         |
+| **Offline PWA**                 |               Yes               |     No     |     N/A     |        N/A         |
+| **Custom keyboard shortcuts**   |        25+ configurable         |  Limited   | Via plugins |         No         |
+| **Daily notes / journaling**    |            Built in             |  Template  |   Plugin    |         No         |
+| **Multi tab editing**           |               Yes               |  Limited   |     Yes     |         No         |
 
 ---
 
 ## Full Feature List
 
 ### Editor
+
 Block based rich text editor (BlockNote), slash command menu with 15+ block types, floating formatting toolbar, wikilinks (`[[Note Name]]`) with backlink panel, tag mentions with `#tag` syntax, code blocks with 50+ language syntax highlighting, tables, callouts, quotes, dividers, cover images with positioning, note icons (emoji or custom), word wrap toggle, block indicator (drag handle), multi note tabs, raw MDX editing mode (Ctrl+M to toggle), centered layout with configurable max width.
 
 ### Note Experience
+
 Six built in templates: empty, h1, h2, meeting, journal, project. Configurable title and body placeholders. Auto inherit folder icons. Default emoji assignment. Cover images (enable/disable).
 
 ### Daily Notes
+
 Date based note generation. Four date format options. Dedicated journal folder. Auto open on startup option. Configurable daily note emoji.
 
 ### Search & Navigation
+
 Full text search across content (opt in). Filename search (default). Advanced query syntax with operators. Global command palette (Cmd+K). Mobile search drawer. Unified search component.
 
 ### Keyboard Shortcuts
+
 Over 25 customizable shortcuts. Platform aware (Cmd on Mac, Ctrl on Windows/Linux). Shortcut builder API for extensions. Visible in UI with Kbd component.
 
 ### Tags System
+
 Inline `#tag` mentions. Tag management panel. Custom tag colors. Usage tracking across notes. Settings panel for tag customization.
 
 ### Backup & Export
+
 Export to Markdown. Export to JSON. Import from Markdown files. Storage connectors for external sync. Trash with recovery.
 
 ### AI Features (BYOK)
+
 Multiple provider support: OpenAI, Anthropic, Groq. Local models via Ollama. Provider abstraction layer. Fully opt in, disabled by default.
 
 ### Media & Uploads
+
 Image uploads via UploadThing. S3 compatible storage support. Local filesystem storage (desktop). Upload adapter abstraction. Media picker component.
 
 ### Settings
+
 Ten categories: Editor, Note Experience, Daily Notes, Appearance, Behavior, Tags, Shortcuts, Backup, AI, Advanced. Live preview for many settings. Validation with error messages. Conditional settings (show/hide based on other settings). Feature flags system.
 
 ### Authentication
+
 Better Auth integration. OAuth providers. Session management. Account settings panel.
 
 ### Activity Tracking
+
 Recent activity feed. Modification timestamps. Created/updated tracking.
 
 ---
@@ -204,20 +216,20 @@ The interactive dev CLI (`scripts/dev-cli.ts`) provides quick navigation to feat
 
 ### Tooling
 
-| Tool | Purpose |
-|------|---------|
-| **Bun** | Package manager, runtime, bundler |
-| **Turborepo** | Monorepo build orchestration |
-| **Next.js 16** | React framework with App Router |
-| **Tauri 2.0** | Native desktop wrapper (Rust) |
-| **Drizzle ORM** | Type safe database layer |
-| **BlockNote** | Block based editor |
-| **Better Auth** | Authentication |
-| **React Query** | Server state management |
-| **Zustand** | Client state |
-| **Framer Motion** | Animations |
-| **GSAP** | Advanced animations |
-| **UploadThing** | File uploads |
+| Tool              | Purpose                           |
+| ----------------- | --------------------------------- |
+| **Bun**           | Package manager, runtime, bundler |
+| **Turborepo**     | Monorepo build orchestration      |
+| **Next.js 16**    | React framework with App Router   |
+| **Tauri 2.0**     | Native desktop wrapper (Rust)     |
+| **Drizzle ORM**   | Type safe database layer          |
+| **BlockNote**     | Block based editor                |
+| **Better Auth**   | Authentication                    |
+| **React Query**   | Server state management           |
+| **Zustand**       | Client state                      |
+| **Framer Motion** | Animations                        |
+| **GSAP**          | Advanced animations               |
+| **UploadThing**   | File uploads                      |
 
 ---
 
@@ -246,14 +258,14 @@ Deployment guides available for: Vercel, Railway, Fly.io, Docker, Coolify.
 
 Native apps with local SQLite or filesystem storage. No server required.
 
-| Platform | Download |
-|----------|----------|
-| **macOS** (Apple Silicon) | [skriuw-x.x.x-aarch64.dmg](https://github.com/remcostoeten/skriuw/releases) |
-| **macOS** (Intel) | [skriuw-x.x.x-x64.dmg](https://github.com/remcostoeten/skriuw/releases) |
-| **Windows** | [skriuw-x.x.x-x64-setup.exe](https://github.com/remcostoeten/skriuw/releases) |
-| **Linux** (AppImage) | [skriuw-x.x.x.AppImage](https://github.com/remcostoeten/skriuw/releases) |
-| **Linux** (deb) | [skriuw_x.x.x_amd64.deb](https://github.com/remcostoeten/skriuw/releases) |
-| **Linux** (rpm) | [skriuw-x.x.x.rpm](https://github.com/remcostoeten/skriuw/releases) |
+| Platform                  | Download                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| **macOS** (Apple Silicon) | [skriuw-x.x.x-aarch64.dmg](https://github.com/remcostoeten/skriuw/releases)   |
+| **macOS** (Intel)         | [skriuw-x.x.x-x64.dmg](https://github.com/remcostoeten/skriuw/releases)       |
+| **Windows**               | [skriuw-x.x.x-x64-setup.exe](https://github.com/remcostoeten/skriuw/releases) |
+| **Linux** (AppImage)      | [skriuw-x.x.x.AppImage](https://github.com/remcostoeten/skriuw/releases)      |
+| **Linux** (deb)           | [skriuw_x.x.x_amd64.deb](https://github.com/remcostoeten/skriuw/releases)     |
+| **Linux** (rpm)           | [skriuw-x.x.x.rpm](https://github.com/remcostoeten/skriuw/releases)           |
 
 ### Package Managers
 
@@ -288,12 +300,12 @@ chmod +x skriuw.AppImage && ./skriuw.AppImage
 
 Configure your own providers:
 
-| Service | Options |
-|---------|---------|
+| Service      | Options                                                    |
+| ------------ | ---------------------------------------------------------- |
 | **Database** | PostgreSQL (cloud), SQLite (desktop), filesystem (desktop) |
-| **AI** | OpenAI, Anthropic, Groq, Ollama (local), or disabled |
-| **Storage** | Vercel Blob, S3 compatible, UploadThing, local disk |
-| **Auth** | GitHub OAuth, Google OAuth, email/password |
+| **AI**       | OpenAI, Anthropic, Groq, Ollama (local), or disabled       |
+| **Storage**  | Vercel Blob, S3 compatible, UploadThing, local disk        |
+| **Auth**     | GitHub OAuth, Google OAuth, email/password                 |
 
 Set your keys in `.env.local` or in the desktop app settings.
 

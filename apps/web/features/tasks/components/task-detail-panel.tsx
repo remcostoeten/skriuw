@@ -1,15 +1,19 @@
 'use client'
 
-import { TaskContextProvider } from "../hooks/use-task-context";
-import { useTaskByIdQuery, useUpdateTaskMutation, useDeleteTaskMutation } from "../hooks/use-tasks-query";
-import { DueDateButton } from "./due-date-button";
-import { TaskDescriptionEditor } from "./task-description-editor";
-import { notify } from "@/lib/notify";
-import { useUIStore } from "@/stores/ui-store";
-import { cn } from "@skriuw/shared";
-import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, X, MoreHorizontal, ChevronLeft } from "lucide-react";
-import { useState, useCallback, memo, useEffect } from "react";
+import { TaskContextProvider } from '../hooks/use-task-context'
+import {
+	useTaskByIdQuery,
+	useUpdateTaskMutation,
+	useDeleteTaskMutation
+} from '../hooks/use-tasks-query'
+import { DueDateButton } from './due-date-button'
+import { TaskDescriptionEditor } from './task-description-editor'
+import { notify } from '@/lib/notify'
+import { useUIStore } from '@/stores/ui-store'
+import { cn } from '@skriuw/shared'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Trash2, X, MoreHorizontal, ChevronLeft } from 'lucide-react'
+import { useState, useCallback, memo, useEffect } from 'react'
 
 type SingleTaskPanelProps = {
 	taskId: string

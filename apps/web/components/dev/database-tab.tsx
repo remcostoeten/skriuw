@@ -1,13 +1,29 @@
 'use client'
 
-import { SectionLabel, ActionButton, StatCard } from "./common";
-import { downloadJsonExport, downloadMarkdownExport, importFromJson, importFromMarkdown } from "@/features/backup";
-import { useNotesContext } from "@/features/notes";
-import { useCookie } from "@/hooks/use-cookie";
-import { notify } from "@/lib/notify";
-import { cn } from "@skriuw/shared";
-import { Activity, Upload, RotateCcw, Sprout, Trash2, Download, RefreshCw, Cookie, CheckCircle, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { SectionLabel, ActionButton, StatCard } from './common'
+import {
+	downloadJsonExport,
+	downloadMarkdownExport,
+	importFromJson,
+	importFromMarkdown
+} from '@/features/backup'
+import { useNotesContext } from '@/features/notes'
+import { useCookie } from '@/hooks/use-cookie'
+import { notify } from '@/lib/notify'
+import { cn } from '@skriuw/shared'
+import {
+	Activity,
+	Upload,
+	RotateCcw,
+	Sprout,
+	Trash2,
+	Download,
+	RefreshCw,
+	Cookie,
+	CheckCircle,
+	AlertTriangle
+} from 'lucide-react'
+import { useState } from 'react'
 
 type DbStats = {
 	notes: number

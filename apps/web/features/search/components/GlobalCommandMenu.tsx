@@ -171,12 +171,10 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 		}
 	}, [query, createNote, getNoteUrl, router, setOpen])
 
-
-
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogContent
-				className="max-w-2xl p-0 gap-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl"
+				className='max-w-2xl p-0 gap-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl'
 				onOpenAutoFocus={(e) => e.preventDefault()}
 			>
 				<VisuallyHidden>
@@ -184,73 +182,77 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 				</VisuallyHidden>
 
 				{/* Search Input "Cockpit" */}
-				<div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
-					<Search className={cn(
-						"w-5 h-5 transition-colors",
-						isStale ? "text-muted-foreground animate-pulse" : "text-primary"
-					)} />
+				<div className='flex items-center gap-2 px-4 py-3 border-b border-border/50'>
+					<Search
+						className={cn(
+							'w-5 h-5 transition-colors',
+							isStale ? 'text-muted-foreground animate-pulse' : 'text-primary'
+						)}
+					/>
 
-					<div className="flex-1 relative">
+					<div className='flex-1 relative'>
 						<input
 							ref={inputRef}
-							type="text"
+							type='text'
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							onKeyDown={handleKeyDown}
-							placeholder="Search notes, tags, or use tag:, is:, created:..."
-							className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60"
-							aria-label="Search query"
+							placeholder='Search notes, tags, or use tag:, is:, created:...'
+							className='w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60'
+							aria-label='Search query'
 							aria-expanded={open}
-							aria-controls="search-results"
-							aria-activedescendant={results[selectedIndex] ? `result-${selectedIndex}` : undefined}
-							role="combobox"
-							autoComplete="off"
-							autoCorrect="off"
+							aria-controls='search-results'
+							aria-activedescendant={
+								results[selectedIndex] ? `result-${selectedIndex}` : undefined
+							}
+							role='combobox'
+							autoComplete='off'
+							autoCorrect='off'
 							spellCheck={false}
 						/>
 					</div>
 
 					{/* Toggle Buttons */}
-					<div className="flex items-center gap-1">
+					<div className='flex items-center gap-1'>
 						<ToggleButton
 							active={caseSensitive}
 							onClick={() => setCaseSensitive((v) => !v)}
-							icon={<CaseSensitive className="w-4 h-4" />}
-							tooltip="Case Sensitive (Alt+C)"
-							shortcut="Alt+C"
+							icon={<CaseSensitive className='w-4 h-4' />}
+							tooltip='Case Sensitive (Alt+C)'
+							shortcut='Alt+C'
 						/>
 						<ToggleButton
 							active={wholeWord}
 							onClick={() => setWholeWord((v) => !v)}
-							icon={<WholeWord className="w-4 h-4" />}
-							tooltip="Whole Word (Alt+W)"
-							shortcut="Alt+W"
+							icon={<WholeWord className='w-4 h-4' />}
+							tooltip='Whole Word (Alt+W)'
+							shortcut='Alt+W'
 						/>
 						<ToggleButton
 							active={useRegex}
 							onClick={() => setUseRegex((v) => !v)}
-							icon={<Regex className="w-4 h-4" />}
-							tooltip="Use Regex (Alt+R)"
-							shortcut="Alt+R"
+							icon={<Regex className='w-4 h-4' />}
+							tooltip='Use Regex (Alt+R)'
+							shortcut='Alt+R'
 						/>
 					</div>
 
 					{query && (
 						<Button
-							variant="ghost"
-							size="icon"
-							className="h-7 w-7"
+							variant='ghost'
+							size='icon'
+							className='h-7 w-7'
 							onClick={() => setQuery('')}
 						>
-							<X className="w-4 h-4" />
+							<X className='w-4 h-4' />
 						</Button>
 					)}
 				</div>
 
 				{/* Query Syntax Help */}
 				{parsedQuery.hasAdvancedSyntax && (
-					<div className="px-4 py-2 bg-muted/30 border-b border-border/30">
-						<div className="flex flex-wrap gap-1.5">
+					<div className='px-4 py-2 bg-muted/30 border-b border-border/30'>
+						<div className='flex flex-wrap gap-1.5'>
 							{parsedQuery.tokens.map((token, i) => (
 								<TokenBadge key={i} token={token} />
 							))}
@@ -261,9 +263,9 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 				{/* Results */}
 				<div
 					ref={listRef}
-					id="search-results"
-					role="listbox"
-					className="max-h-[400px] overflow-y-auto"
+					id='search-results'
+					role='listbox'
+					className='max-h-[400px] overflow-y-auto'
 				>
 					{isEmpty ? (
 						<QuickActions
@@ -274,7 +276,7 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 							}}
 						/>
 					) : results.length > 0 ? (
-						<div className="py-2">
+						<div className='py-2'>
 							{results.map((result, index) => (
 								<SearchResultItem
 									key={result.item.id}
@@ -287,36 +289,39 @@ export function GlobalCommandMenu({ open: controlledOpen, onOpenChange }: Props)
 							))}
 						</div>
 					) : (
-						<div className="px-4 py-8 text-center">
-							<p className="text-muted-foreground mb-3">No results found</p>
+						<div className='px-4 py-8 text-center'>
+							<p className='text-muted-foreground mb-3'>No results found</p>
 							<Button
-								variant="outline"
-								size="sm"
+								variant='outline'
+								size='sm'
 								onClick={handleCreateNote}
-								className="gap-2"
+								className='gap-2'
 							>
-								<Plus className="w-4 h-4" />
-								Create "{query.slice(0, 30)}{query.length > 30 ? '...' : ''}"
+								<Plus className='w-4 h-4' />
+								Create "{query.slice(0, 30)}
+								{query.length > 30 ? '...' : ''}"
 							</Button>
 						</div>
 					)}
 				</div>
 
 				{/* Footer */}
-				<div className="flex items-center justify-between px-4 py-2 border-t border-border/30 bg-muted/20 text-xs text-muted-foreground">
-					<div className="flex items-center gap-3">
-						<span className="flex items-center gap-1">
+				<div className='flex items-center justify-between px-4 py-2 border-t border-border/30 bg-muted/20 text-xs text-muted-foreground'>
+					<div className='flex items-center gap-3'>
+						<span className='flex items-center gap-1'>
 							<Kbd>↑↓</Kbd> Navigate
 						</span>
-						<span className="flex items-center gap-1">
+						<span className='flex items-center gap-1'>
 							<Kbd>↵</Kbd> Open
 						</span>
-						<span className="flex items-center gap-1">
+						<span className='flex items-center gap-1'>
 							<Kbd>Esc</Kbd> Close
 						</span>
 					</div>
 					{results.length > 0 && (
-						<span>{results.length} result{results.length !== 1 ? 's' : ''}</span>
+						<span>
+							{results.length} result{results.length !== 1 ? 's' : ''}
+						</span>
 					)}
 				</div>
 			</DialogContent>
@@ -340,12 +345,9 @@ function ToggleButton({
 }) {
 	return (
 		<Button
-			variant="ghost"
-			size="icon"
-			className={cn(
-				"h-7 w-7 transition-colors",
-				active && "bg-primary/20 text-primary"
-			)}
+			variant='ghost'
+			size='icon'
+			className={cn('h-7 w-7 transition-colors', active && 'bg-primary/20 text-primary')}
 			onClick={onClick}
 			title={tooltip}
 			aria-pressed={active}
@@ -360,29 +362,55 @@ function TokenBadge({ token }: { token: any }) {
 	const getTokenInfo = () => {
 		switch (token.type) {
 			case 'tag':
-				return { label: `tag:${token.value}`, icon: <Hash className="w-3 h-3" />, color: 'bg-blue-500/20 text-blue-600' }
+				return {
+					label: `tag:${token.value}`,
+					icon: <Hash className='w-3 h-3' />,
+					color: 'bg-blue-500/20 text-blue-600'
+				}
 			case 'is':
 				return {
 					label: `is:${token.value}`,
-					icon: token.value === 'pinned' ? <Pin className="w-3 h-3" /> :
-						token.value === 'favorite' ? <Star className="w-3 h-3" /> :
-							<Globe className="w-3 h-3" />,
+					icon:
+						token.value === 'pinned' ? (
+							<Pin className='w-3 h-3' />
+						) : token.value === 'favorite' ? (
+							<Star className='w-3 h-3' />
+						) : (
+							<Globe className='w-3 h-3' />
+						),
 					color: 'bg-purple-500/20 text-purple-600'
 				}
 			case 'folder':
-				return { label: `in:${token.value}`, icon: <Folder className="w-3 h-3" />, color: 'bg-amber-500/20 text-amber-600' }
+				return {
+					label: `in:${token.value}`,
+					icon: <Folder className='w-3 h-3' />,
+					color: 'bg-amber-500/20 text-amber-600'
+				}
 			case 'created':
 			case 'updated':
 				return {
 					label: `${token.type}:${token.operator}${token.value.toLocaleDateString()}`,
-					icon: token.type === 'created' ? <Calendar className="w-3 h-3" /> : <Clock className="w-3 h-3" />,
+					icon:
+						token.type === 'created' ? (
+							<Calendar className='w-3 h-3' />
+						) : (
+							<Clock className='w-3 h-3' />
+						),
 					color: 'bg-green-500/20 text-green-600'
 				}
 			case 'regex':
-				return { label: `/${token.pattern.source}/`, icon: <Regex className="w-3 h-3" />, color: 'bg-red-500/20 text-red-600' }
+				return {
+					label: `/${token.pattern.source}/`,
+					icon: <Regex className='w-3 h-3' />,
+					color: 'bg-red-500/20 text-red-600'
+				}
 			case 'text':
 				if (token.negated) {
-					return { label: `-${token.value}`, icon: <X className="w-3 h-3" />, color: 'bg-gray-500/20 text-gray-600' }
+					return {
+						label: `-${token.value}`,
+						icon: <X className='w-3 h-3' />,
+						color: 'bg-gray-500/20 text-gray-600'
+					}
 				}
 				return null
 			default:
@@ -394,7 +422,7 @@ function TokenBadge({ token }: { token: any }) {
 	if (!info) return null
 
 	return (
-		<Badge variant="secondary" className={cn("gap-1 text-xs font-mono", info.color)}>
+		<Badge variant='secondary' className={cn('gap-1 text-xs font-mono', info.color)}>
 			{info.icon}
 			{info.label}
 		</Badge>
@@ -431,39 +459,45 @@ function SearchResultItem({
 	return (
 		<div
 			id={`result-${index}`}
-			role="option"
+			role='option'
 			aria-selected={isSelected}
 			data-selected={isSelected}
 			className={cn(
-				"flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
-				isSelected ? "bg-primary/10" : "hover:bg-muted/50"
+				'flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors',
+				isSelected ? 'bg-primary/10' : 'hover:bg-muted/50'
 			)}
 			onClick={onSelect}
 			onMouseEnter={onHover}
 		>
 			{/* Icon */}
-			<div className={cn(
-				"flex items-center justify-center w-8 h-8 rounded-lg shrink-0",
-				isNote ? "bg-blue-500/10 text-blue-500" : "bg-amber-500/10 text-amber-500"
-			)}>
-				{item.icon ? (
-					<span className="text-lg">{item.icon}</span>
+			<div
+				className={cn(
+					'flex items-center justify-center w-8 h-8 rounded-lg shrink-0',
+					isNote ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
+				)}
+			>
+				{'icon' in item && item.icon ? (
+					<span className='text-lg'>{item.icon}</span>
 				) : isNote ? (
-					<FileText className="w-4 h-4" />
+					<FileText className='w-4 h-4' />
 				) : (
-					<Folder className="w-4 h-4" />
+					<Folder className='w-4 h-4' />
 				)}
 			</div>
 
 			{/* Content */}
-			<div className="flex-1 min-w-0">
+			<div className='flex-1 min-w-0'>
 				{/* Name with highlights */}
-				<div className="flex items-center gap-2">
-					<span className="font-medium truncate">
+				<div className='flex items-center gap-2'>
+					<span className='font-medium truncate'>
 						{nameParts.map((part, i) => (
 							<span
 								key={i}
-								className={part.highlighted ? "bg-yellow-300/40 text-yellow-900 dark:bg-yellow-500/30 dark:text-yellow-200 rounded px-0.5" : ""}
+								className={
+									part.highlighted
+										? 'bg-yellow-300/40 text-yellow-900 dark:bg-yellow-500/30 dark:text-yellow-200 rounded px-0.5'
+										: ''
+								}
 							>
 								{part.text}
 							</span>
@@ -471,16 +505,16 @@ function SearchResultItem({
 					</span>
 
 					{/* Badges */}
-					{item.pinned && <Pin className="w-3 h-3 text-muted-foreground" />}
-					{note?.favorite && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-					{note?.isPublic && <Globe className="w-3 h-3 text-green-500" />}
+					{item.pinned && <Pin className='w-3 h-3 text-muted-foreground' />}
+					{note?.favorite && <Star className='w-3 h-3 text-amber-500 fill-amber-500' />}
+					{note?.isPublic && <Globe className='w-3 h-3 text-green-500' />}
 				</div>
 
 				{/* Path or content preview */}
-				<div className="text-xs text-muted-foreground truncate mt-0.5">
+				<div className='text-xs text-muted-foreground truncate mt-0.5'>
 					{result.path.length > 0 ? (
-						<span className="flex items-center gap-1">
-							<Folder className="w-3 h-3 inline" />
+						<span className='flex items-center gap-1'>
+							<Folder className='w-3 h-3 inline' />
 							{result.path.join(' / ')}
 						</span>
 					) : contentMatch ? (
@@ -490,14 +524,14 @@ function SearchResultItem({
 
 				{/* Tags */}
 				{note?.tags && note.tags.length > 0 && (
-					<div className="flex items-center gap-1 mt-1">
+					<div className='flex items-center gap-1 mt-1'>
 						{note.tags.slice(0, 3).map((tag) => (
-							<Badge key={tag} variant="outline" className="text-[10px] h-4 px-1">
+							<Badge key={tag} variant='outline' className='text-[10px] h-4 px-1'>
 								#{tag}
 							</Badge>
 						))}
 						{note.tags.length > 3 && (
-							<span className="text-[10px] text-muted-foreground">
+							<span className='text-[10px] text-muted-foreground'>
 								+{note.tags.length - 3}
 							</span>
 						)}
@@ -507,7 +541,7 @@ function SearchResultItem({
 
 			{/* Score indicator (dev mode) */}
 			{process.env.NODE_ENV === 'development' && (
-				<span className="text-[10px] text-muted-foreground/50 tabular-nums">
+				<span className='text-[10px] text-muted-foreground/50 tabular-nums'>
 					{result.score}
 				</span>
 			)}
@@ -524,48 +558,59 @@ function QuickActions({
 	onOpenSettings: () => void
 }) {
 	return (
-		<div className="py-2">
-			<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+		<div className='py-2'>
+			<div className='px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider'>
 				Quick Actions
 			</div>
 			<button
-				className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+				className='flex items-center gap-3 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors text-left'
 				onClick={onCreateNote}
 			>
-				<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
-					<Plus className="w-4 h-4" />
+				<div className='flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary'>
+					<Plus className='w-4 h-4' />
 				</div>
 				<div>
-					<div className="font-medium">Create new note</div>
-					<div className="text-xs text-muted-foreground">Start writing a new note</div>
+					<div className='font-medium'>Create new note</div>
+					<div className='text-xs text-muted-foreground'>Start writing a new note</div>
 				</div>
-				<Kbd className="ml-auto">⌘N</Kbd>
+				<Kbd className='ml-auto'>⌘N</Kbd>
 			</button>
 			<button
-				className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+				className='flex items-center gap-3 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors text-left'
 				onClick={onOpenSettings}
 			>
-				<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground">
-					<Settings className="w-4 h-4" />
+				<div className='flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground'>
+					<Settings className='w-4 h-4' />
 				</div>
 				<div>
-					<div className="font-medium">Open settings</div>
-					<div className="text-xs text-muted-foreground">Configure your preferences</div>
+					<div className='font-medium'>Open settings</div>
+					<div className='text-xs text-muted-foreground'>Configure your preferences</div>
 				</div>
-				<Kbd className="ml-auto">⌘,</Kbd>
+				<Kbd className='ml-auto'>⌘,</Kbd>
 			</button>
 
-			<Separator className="my-2" />
+			<Separator className='my-2' />
 
-			<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+			<div className='px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider'>
 				Search Syntax
 			</div>
-			<div className="px-4 py-2 text-xs text-muted-foreground space-y-1.5">
-				<div><code className="bg-muted px-1 rounded">tag:work</code> Search by tag</div>
-				<div><code className="bg-muted px-1 rounded">is:pinned</code> Filter pinned notes</div>
-				<div><code className="bg-muted px-1 rounded">created:&gt;7d</code> Created in last 7 days</div>
-				<div><code className="bg-muted px-1 rounded">-term</code> Exclude term</div>
-				<div><code className="bg-muted px-1 rounded">/regex/</code> Regex pattern</div>
+			<div className='px-4 py-2 text-xs text-muted-foreground space-y-1.5'>
+				<div>
+					<code className='bg-muted px-1 rounded'>tag:work</code> Search by tag
+				</div>
+				<div>
+					<code className='bg-muted px-1 rounded'>is:pinned</code> Filter pinned notes
+				</div>
+				<div>
+					<code className='bg-muted px-1 rounded'>created:&gt;7d</code> Created in last 7
+					days
+				</div>
+				<div>
+					<code className='bg-muted px-1 rounded'>-term</code> Exclude term
+				</div>
+				<div>
+					<code className='bg-muted px-1 rounded'>/regex/</code> Regex pattern
+				</div>
 			</div>
 		</div>
 	)

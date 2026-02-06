@@ -1,4 +1,4 @@
-import postgres from "postgres";
+import postgres from 'postgres'
 
 async function testConnection() {
 	const databaseUrl = process.env.DATABASE_URL

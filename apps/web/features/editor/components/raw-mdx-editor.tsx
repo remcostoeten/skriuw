@@ -1,10 +1,10 @@
 'use client'
 
-import { useSettingsContext } from "../../settings/settings-provider";
-import type { OnMount, Monaco } from "@monaco-editor/react";
-import { cn } from "@skriuw/shared";
-import dynamic from "next/dynamic";
-import React, { useState, useRef, useEffect } from "react";
+import { useSettingsContext } from '../../settings/settings-provider'
+import type { OnMount, Monaco } from '@monaco-editor/react'
+import { cn } from '@skriuw/shared'
+import dynamic from 'next/dynamic'
+import React, { useState, useRef, useEffect } from 'react'
 
 // Dynamically import Monaco - no SSR, loads only when needed
 const MonacoEditor = dynamic(() => import('@monaco-editor/react').then((mod) => mod.default), {

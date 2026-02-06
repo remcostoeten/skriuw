@@ -1,9 +1,9 @@
 'use client'
 
-import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
-import { cn } from "@skriuw/shared";
-import { useIsTouchDevice } from "@skriuw/shared/client";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Tooltip, TooltipTrigger, TooltipContent } from './tooltip'
+import { cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
+import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 // Simplified keyboard shortcut type for UI package
 export type KeyboardShortcut = string | string[]

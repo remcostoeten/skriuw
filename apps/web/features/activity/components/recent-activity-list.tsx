@@ -1,9 +1,23 @@
 'use client'
 
-import type { RecentActivityGroup, RecentActivityItem } from "../types";
-import type { EntityType, ActionType } from "@skriuw/db";
-import { FileText, Folder, CheckSquare, Plus, Pencil, Trash2, Check, X, Move, Pin, PinOff, Star, StarOff } from "lucide-react";
-import Link from "next/link";
+import type { RecentActivityGroup, RecentActivityItem } from '../types'
+import type { EntityType, ActionType } from '@skriuw/db'
+import {
+	FileText,
+	Folder,
+	CheckSquare,
+	Plus,
+	Pencil,
+	Trash2,
+	Check,
+	X,
+	Move,
+	Pin,
+	PinOff,
+	Star,
+	StarOff
+} from 'lucide-react'
+import Link from 'next/link'
 
 type RecentActivityListProps = {
 	groups: RecentActivityGroup[]

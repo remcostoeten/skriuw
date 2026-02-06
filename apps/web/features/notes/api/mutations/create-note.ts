@@ -1,13 +1,13 @@
 'use server'
 
-import type { Note, CreateNoteData } from "../../types";
-import { getInitialNoteContent } from "../../utils/get-initial-note-content";
-import { invalidateItemsCache } from "../queries/get-items";
-import { trackActivity } from "@/features/activity";
-import type { SettingsEntity } from "@/features/settings/types";
-import { getCurrentUserId } from "@/lib/api-auth";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { create, readMany } from "@skriuw/crud";
+import type { Note, CreateNoteData } from '../../types'
+import { getInitialNoteContent } from '../../utils/get-initial-note-content'
+import { invalidateItemsCache } from '../queries/get-items'
+import { trackActivity } from '@/features/activity'
+import type { SettingsEntity } from '@/features/settings/types'
+import { getCurrentUserId } from '@/lib/api-auth'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { create, readMany } from '@skriuw/crud'
 
 const SETTINGS_STORAGE_KEY = 'skriuw:settings'
 

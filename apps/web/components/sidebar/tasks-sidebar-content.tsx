@@ -1,11 +1,11 @@
 'use client'
 
-import { useAllTasksQuery, useUpdateTaskMutation } from "@/features/tasks/hooks/use-tasks-query";
-import type { TaskWithNote } from "@/features/tasks/types";
-import { cn } from "@skriuw/shared";
-import { Checkbox } from "@skriuw/ui/primitives/checkbox";
-import { CheckSquare, FileText, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useAllTasksQuery, useUpdateTaskMutation } from '@/features/tasks/hooks/use-tasks-query'
+import type { TaskWithNote } from '@/features/tasks/types'
+import { cn } from '@skriuw/shared'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
+import { CheckSquare, FileText, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type TProps = {
 	className?: string

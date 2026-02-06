@@ -1,9 +1,9 @@
 'use server'
 
-import { invalidateItemsCache } from "../queries/get-items";
-import { deleteTasksForNote } from "@/features/tasks";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { destroy } from "@skriuw/crud";
+import { invalidateItemsCache } from '../queries/get-items'
+import { deleteTasksForNote } from '@/features/tasks'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { destroy } from '@skriuw/crud'
 
 /**
  * Permanently delete an item (bypass trash)

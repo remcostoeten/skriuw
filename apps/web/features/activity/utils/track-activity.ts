@@ -1,5 +1,5 @@
-import { recordActivity } from "../api/mutations/record-activity";
-import type { RecordActivityInput } from "../types";
+import { recordActivity } from '../api/mutations/record-activity'
+import type { RecordActivityInput } from '../types'
 
 /**
  * Fire-and-forget activity tracking.

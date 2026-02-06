@@ -1,8 +1,8 @@
-import * as schema from "./schema";
-import { neon } from "@neondatabase/serverless";
-import { drizzle as drizzleNeon, NeonHttpDatabase } from "drizzle-orm/neon-http";
-import { drizzle as drizzlePostgres, PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import * as schema from './schema'
+import { neon } from '@neondatabase/serverless'
+import { drizzle as drizzleNeon, NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 
 // Lazy import to avoid build-time validation
 // drizzle.config.ts uses dotenv, runtime uses @skriuw/env
@@ -58,7 +58,7 @@ export function getDatabase() {
 	if (!url) {
 		throw new Error(
 			'DATABASE_URL environment variable is required.\n' +
-			'Set DATABASE_URL=postgresql://user:password@host:port/database'
+				'Set DATABASE_URL=postgresql://user:password@host:port/database'
 		)
 	}
 

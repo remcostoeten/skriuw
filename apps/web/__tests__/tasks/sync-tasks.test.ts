@@ -1,6 +1,10 @@
-import type { ExtractedTask } from "../../features/notes/utils/extract-tasks";
-import { syncTasksToDatabase, deleteTasksForNote, lastSyncedTasksByNote } from "../../features/tasks/api/mutations/sync-tasks";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ExtractedTask } from '../../features/notes/utils/extract-tasks'
+import {
+	syncTasksToDatabase,
+	deleteTasksForNote,
+	lastSyncedTasksByNote
+} from '../../features/tasks/api/mutations/sync-tasks'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 type MockFetch = ReturnType<typeof vi.fn> & typeof fetch
 

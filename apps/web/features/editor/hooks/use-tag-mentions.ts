@@ -1,5 +1,5 @@
-import { useTagsQuery } from "@/features/tags"
-import { useMemo } from "react"
+import { useTagsQuery } from '@/features/tags'
+import { useMemo } from 'react'
 
 type TagItem = {
 	id: string

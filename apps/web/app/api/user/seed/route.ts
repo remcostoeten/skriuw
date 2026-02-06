@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
 	const session = await auth?.api.getSession({ headers: request.headers })

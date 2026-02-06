@@ -1,9 +1,9 @@
 'use client'
 
-import { notify } from "@/lib/notify";
-import { Button } from "@skriuw/ui";
-import { Card } from "@skriuw/ui";
-import { useState } from "react";
+import { notify } from '@/lib/notify'
+import { Button } from '@skriuw/ui'
+import { Card } from '@skriuw/ui'
+import { useState } from 'react'
 
 export default function NotifyDemoPage() {
 	const [log, setLog] = useState<string[]>([])

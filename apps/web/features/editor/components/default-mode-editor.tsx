@@ -1,15 +1,15 @@
-import { useUserPreferences } from "../../settings/use-feature-flags";
-import { NoteMentionSuggestionMenu } from "../slash-menu/note-suggestions-menu";
-import { SlashSuggestionMenu } from "../slash-menu/slash-suggestions-menu";
-import { TagSuggestionMenu } from "../slash-menu/tag-suggestion-menu";
-import { WikilinkSuggestionMenu } from "../slash-menu/wikilink-suggestion-menu";
-import { BlockNoteView } from "./blocknote-shadcn/BlockNoteView";
-import { RawMDXEditor } from "./raw-mdx-editor";
-import { blocksToMarkdown } from "@/features/notes/utils/blocks-to-markdown";
-import { markdownToBlocks } from "@/features/notes/utils/markdown-to-blocks";
-import { Block } from "@blocknote/core";
-import { cn } from "@skriuw/shared";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useUserPreferences } from '../../settings/use-feature-flags'
+import { NoteMentionSuggestionMenu } from '../slash-menu/note-suggestions-menu'
+import { SlashSuggestionMenu } from '../slash-menu/slash-suggestions-menu'
+import { TagSuggestionMenu } from '../slash-menu/tag-suggestion-menu'
+import { WikilinkSuggestionMenu } from '../slash-menu/wikilink-suggestion-menu'
+import { BlockNoteView } from './blocknote-shadcn/BlockNoteView'
+import { RawMDXEditor } from './raw-mdx-editor'
+import { blocksToMarkdown } from '@/features/notes/utils/blocks-to-markdown'
+import { markdownToBlocks } from '@/features/notes/utils/markdown-to-blocks'
+import { Block } from '@blocknote/core'
+import { cn } from '@skriuw/shared'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 
 type DualModeEditorProps = {
 	editor: any // BlockNoteEditor instance
@@ -233,7 +233,6 @@ export function DualModeEditor({
 					</BlockNoteView>
 				</div>
 
-
 				{/* Resizable Splitter */}
 				<div
 					ref={splitterRef}
@@ -302,7 +301,6 @@ export function DualModeEditor({
 				<SlashSuggestionMenu />
 				<WikilinkSuggestionMenu />
 				<TagSuggestionMenu />
-
 			</BlockNoteView>
 		</div>
 	)

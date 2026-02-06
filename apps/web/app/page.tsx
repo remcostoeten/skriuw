@@ -1,23 +1,21 @@
 'use client'
 
-import { useShortcut } from "../features/shortcuts";
-import { SkriuwExplanation } from "@/components/landing/skriuw-explanation";
-import Integrations from "@/modules/landing-page/components/integrations";
-import { NoteSplitView } from "@/features/notes/components/note-split-view";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import { flattenNotes } from "@/features/notes/utils/flatten-notes";
-import { useCookie } from "@/hooks/use-cookie";
-import { useSession } from "@/lib/auth-client";
-import { notify } from "@/lib/notify";
-import { useUIStore } from "@/stores/ui-store";
-import { Icons } from "@skriuw/ui";
-import { HeroBadge } from "@skriuw/ui/hero-badge";
-import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useEffect, useCallback, useState, useRef } from "react";
+import { useShortcut } from '../features/shortcuts'
+import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
+import Integrations from '@/modules/landing-page/components/integrations'
+import { NoteSplitView } from '@/features/notes/components/note-split-view'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { flattenNotes } from '@/features/notes/utils/flatten-notes'
+import { useCookie } from '@/hooks/use-cookie'
+import { useSession } from '@/lib/auth-client'
+import { notify } from '@/lib/notify'
+import { Icons } from '@skriuw/ui'
+import { HeroBadge } from '@skriuw/ui/hero-badge'
+import { useRouter } from 'next/navigation'
+import { useMemo, useEffect, useCallback, useState } from 'react'
 
 export default function Index() {
-	const pathname = usePathname()
 	const router = useRouter()
 	const { items, createNote, isInitialLoading } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)

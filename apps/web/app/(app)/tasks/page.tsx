@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckSquare } from "lucide-react";
+import { CheckSquare } from 'lucide-react'
 
 export default function TasksPage() {
 	return (

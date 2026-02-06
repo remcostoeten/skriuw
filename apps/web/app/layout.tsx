@@ -1,10 +1,10 @@
-import "../styles/globals.css";
-import "../styles/outlines-accessibility.css";
-import { Providers } from "./providers";
-import { CommandExecutor } from "@/components/command-executor";
-import { InstallController } from "@/modules/install";
-import type { Metadata } from "next";
-import "prismjs/themes/prism-tomorrow.css";
+import '../styles/globals.css'
+import '../styles/outlines-accessibility.css'
+import { Providers } from './providers'
+import { CommandExecutor } from '@/components/command-executor'
+import { InstallController } from '@/modules/install'
+import type { Metadata } from 'next'
+import 'prismjs/themes/prism-tomorrow.css'
 
 // Force dynamic rendering to avoid SSR issues with BlockNote
 export const dynamic = 'force-dynamic'
@@ -64,7 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					}}
 				/>
 			</head>
-			<body className='font-sans antialiased dark bg-background overscroll-none' suppressHydrationWarning>
+			<body
+				className='font-sans antialiased dark bg-background overscroll-none'
+				suppressHydrationWarning
+			>
 				<div id='main-content' className='h-safe-screen w-full pb-safe pt-safe'>
 					<Providers>
 						{children}

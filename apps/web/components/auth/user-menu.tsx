@@ -1,10 +1,17 @@
 'use client'
 
-import { useSession, signOut } from "@/lib/auth-client";
-import { Button } from "@skriuw/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@skriuw/ui/dropdown-menu";
-import { User, LogOut, UserRoundCog } from "lucide-react";
-import Link from "next/link";
+import { useSession, signOut } from '@/lib/auth-client'
+import { Button } from '@skriuw/ui/button'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger
+} from '@skriuw/ui/dropdown-menu'
+import { User, LogOut, UserRoundCog } from 'lucide-react'
+import Link from 'next/link'
 
 export function UserMenu() {
 	const { data: session, isPending } = useSession()

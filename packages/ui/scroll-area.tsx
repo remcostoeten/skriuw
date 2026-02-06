@@ -1,6 +1,6 @@
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
-import { cn } from "@skriuw/shared";
-import * as React from "react";
+import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
+import { cn } from '@skriuw/shared'
+import * as React from 'react'
 
 const ScrollArea = React.forwardRef<
 	React.ElementRef<typeof ScrollAreaPrimitive.Root>,

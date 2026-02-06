@@ -1,8 +1,8 @@
-import { BrandLogo } from "@/components/logo/brand-logo";
-import { NavigationLogo } from "@/components/logo/navigation-logo";
-import { RawLogo } from "@/components/logo/raw-logo";
-import { CopyButton } from "@/components/ui/copy-button";
-import Image from "next/image";
+import { BrandLogo } from '@/components/logo/brand-logo'
+import { NavigationLogo } from '@/components/logo/navigation-logo'
+import { RawLogo } from '@/components/logo/raw-logo'
+import { CopyButton } from '@/components/ui/copy-button'
+import Image from 'next/image'
 
 export default function LogoDemoPage() {
 	const rawLogoComponent = `import * as React from 'react'

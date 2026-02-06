@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { LocalStorageAdapter } from "../../lib/storage/adapters/local-storage-adapter";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { LocalStorageAdapter } from '../../lib/storage/adapters/local-storage-adapter'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // MOCK: This function doesn't exist yet, but this test defines its requirements.
 // Implementation should likely live in features/auth/utils/migration.ts

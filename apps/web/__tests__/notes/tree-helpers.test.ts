@@ -1,6 +1,6 @@
-import type { Item, Folder, Note } from "../../features/notes/types";
-import { findItemById, findFolderById, isDescendant } from "../../features/notes/utils/tree-helpers";
-import { describe, it, expect } from "vitest";
+import type { Item, Folder, Note } from '../../features/notes/types'
+import { findItemById, findFolderById, isDescendant } from '../../features/notes/utils/tree-helpers'
+import { describe, it, expect } from 'vitest'
 
 describe('tree-helpers', () => {
 	const mockItems: Item[] = [

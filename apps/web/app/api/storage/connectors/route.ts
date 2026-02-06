@@ -1,8 +1,11 @@
-import { encryptConnectorState, decryptConnectorState } from "@/features/backup/core/connector-secrets";
-import type { StorageConnectorType, OAuth2Tokens } from "@/features/backup/core/types";
-import { requireAuth } from "@/lib/api-auth";
-import { db } from "@/lib/storage/adapters/server-db";
-import { NextRequest, NextResponse } from "next/server";
+import {
+	encryptConnectorState,
+	decryptConnectorState
+} from '@/features/backup/core/connector-secrets'
+import type { StorageConnectorType, OAuth2Tokens } from '@/features/backup/core/types'
+import { requireAuth } from '@/lib/api-auth'
+import { db } from '@/lib/storage/adapters/server-db'
+import { NextRequest, NextResponse } from 'next/server'
 
 function generateId(): string {
 	return `sc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`

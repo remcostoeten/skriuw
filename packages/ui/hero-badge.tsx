@@ -1,9 +1,9 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from "framer-motion";
-import Link from "next/link";
-import { useState } from "react";
+import { cn } from '@skriuw/shared'
+import { AnimatePresence, cubicBezier, motion, useAnimation, type Variants } from 'framer-motion'
+import Link from 'next/link'
+import { useState } from 'react'
 
 type props = {
 	href?: string

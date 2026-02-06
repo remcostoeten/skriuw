@@ -1,6 +1,6 @@
-import { KeyCombo } from "../shortcut-definitions";
-import { X } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { KeyCombo } from '../shortcut-definitions'
+import { X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 
 type ShortcutRecorderProps = {
 	value: KeyCombo[]

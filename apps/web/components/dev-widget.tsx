@@ -1,16 +1,27 @@
 'use client'
 
-import { CronTab } from "./dev/cron-tab";
-import { DatabaseTab } from "./dev/database-tab";
-import { HealthTab } from "./dev/health-tab";
-import { SeedingTab } from "./dev/seeding-tab";
-import { UsersTab } from "./dev/users-tab";
-import { useNotesContext } from "@/features/notes";
-import { useDraggable } from "@/hooks/use-draggable";
-import { cn } from "@skriuw/shared";
-import { HintPopover } from "@skriuw/ui";
-import { Database, Bug, GripVertical, Users, Clock, Activity, Sprout, X, Server, Grip } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
+import { CronTab } from './dev/cron-tab'
+import { DatabaseTab } from './dev/database-tab'
+import { HealthTab } from './dev/health-tab'
+import { SeedingTab } from './dev/seeding-tab'
+import { UsersTab } from './dev/users-tab'
+import { useNotesContext } from '@/features/notes'
+import { useDraggable } from '@/hooks/use-draggable'
+import { cn } from '@skriuw/shared'
+import { HintPopover } from '@skriuw/ui'
+import {
+	Database,
+	Bug,
+	GripVertical,
+	Users,
+	Clock,
+	Activity,
+	Sprout,
+	X,
+	Server,
+	Grip
+} from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 
 // Modular Components
 type TabType = 'database' | 'users' | 'cron' | 'health' | 'seeding'

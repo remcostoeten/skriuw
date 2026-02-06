@@ -1,7 +1,7 @@
 'use client'
 
-import type { PreviewProps } from "../types";
-import React from "react";
+import type { PreviewProps } from '../types'
+import React from 'react'
 
 const SAMPLE_TEXT = `This is a long line of text that demonstrates how word wrapping works in the editor. When enabled, text will automatically wrap to the next line instead of extending beyond the visible area.`
 

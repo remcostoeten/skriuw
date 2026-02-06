@@ -1,5 +1,14 @@
-import { getDatabase, notes, folders, tasks, settings, shortcuts, storageConnectors, noteVisitors } from "@skriuw/db";
-import { eq, inArray, and } from "drizzle-orm";
+import {
+	getDatabase,
+	notes,
+	folders,
+	tasks,
+	settings,
+	shortcuts,
+	storageConnectors,
+	noteVisitors
+} from '@skriuw/db'
+import { eq, inArray, and } from 'drizzle-orm'
 
 type TableConfig = { table: any; jsonFields: string[]; hasUserId: boolean }
 

@@ -9,7 +9,11 @@ export type Backlink = {
 	linkText: string
 }
 
-export function getBacklinks(items: Item[], currentNoteId: string, currentNoteName: string): Backlink[] {
+export function getBacklinks(
+	items: Item[],
+	currentNoteId: string,
+	currentNoteName: string
+): Backlink[] {
 	const backlinks: Backlink[] = []
 	const allNotes = flattenNotes(items).filter((item): item is Note => item.type === 'note')
 	const lowerNoteName = currentNoteName.toLowerCase()
@@ -36,7 +40,11 @@ export function getBacklinks(items: Item[], currentNoteId: string, currentNoteNa
 	return backlinks
 }
 
-export function getUnlinkedMentions(items: Item[], currentNoteId: string, currentNoteName: string): Backlink[] {
+export function getUnlinkedMentions(
+	items: Item[],
+	currentNoteId: string,
+	currentNoteName: string
+): Backlink[] {
 	const unlinkedMentions: Backlink[] = []
 	const allNotes = flattenNotes(items).filter((item): item is Note => item.type === 'note')
 	const lowerNoteName = currentNoteName.toLowerCase()
@@ -47,7 +55,7 @@ export function getUnlinkedMentions(items: Item[], currentNoteId: string, curren
 
 		const textContent = extractTextFromBlocks(note.content)
 		const wikilinkMatches = extractWikilinksFromBlocks(note.content)
-		const linkedNames = wikilinkMatches.map(m => m.noteName.toLowerCase())
+		const linkedNames = wikilinkMatches.map((m) => m.noteName.toLowerCase())
 
 		if (linkedNames.includes(lowerNoteName)) continue
 

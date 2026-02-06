@@ -1,7 +1,7 @@
 'use client'
 
-import { Skeleton } from "@skriuw/ui/skeleton";
-import { FolderPlus, Maximize2, Plus, Search } from "lucide-react";
+import { Skeleton } from '@skriuw/ui/skeleton'
+import { FolderPlus, Maximize2, Plus, Search } from 'lucide-react'
 
 type SidebarSkeletonProps = {
 	itemCount?: number

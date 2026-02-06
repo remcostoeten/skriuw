@@ -1,8 +1,8 @@
 'use server'
 
-import type { RecordActivityInput } from "../../types";
-import { requireAuth } from "@/features/authentication/require-auth";
-import { getDatabase, activityEvents } from "@skriuw/db";
+import type { RecordActivityInput } from '../../types'
+import { requireAuth } from '@/features/authentication/require-auth'
+import { getDatabase, activityEvents } from '@skriuw/db'
 
 /**
  * Records an activity event for the current user.

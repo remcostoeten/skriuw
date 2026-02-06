@@ -1,7 +1,7 @@
 'use server'
 
-import { auth } from "./auth";
-import { headers } from "next/headers";
+import { auth } from './auth'
+import { headers } from 'next/headers'
 
 /**
  * Session result from Better Auth

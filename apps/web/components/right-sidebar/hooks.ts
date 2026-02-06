@@ -1,8 +1,8 @@
-import type { TOCItem, NoteMetadata } from "./types";
-import type { Note } from "@/features/notes/types";
-import { blocksToText } from "@/features/notes/utils/blocks-to-text";
-import type { Block } from "@blocknote/core";
-import { useMemo, useCallback } from "react";
+import type { TOCItem, NoteMetadata } from './types'
+import type { Note } from '@/features/notes/types'
+import { blocksToText } from '@/features/notes/utils/blocks-to-text'
+import type { Block } from '@blocknote/core'
+import { useMemo, useCallback } from 'react'
 
 /**
  * Build a hierarchical table of contents from BlockNote heading blocks

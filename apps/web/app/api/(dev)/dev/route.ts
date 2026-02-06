@@ -1,10 +1,21 @@
-import { generateSampleData } from "@/app/api/(dev)/dev/seeds";
-import { getCurrentUserId, getSession } from "@/lib/api-auth";
-import { env } from "@/lib/env";
-import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from "@/lib/schema-utils";
-import { getDatabase, notes, folders, tasks, settings, shortcuts, getSafeTimestamp, account, and, eq } from "@skriuw/db";
-import { generateId } from "@skriuw/shared";
-import { NextRequest, NextResponse } from "next/server";
+import { generateSampleData } from '@/app/api/(dev)/dev/seeds'
+import { getCurrentUserId, getSession } from '@/lib/api-auth'
+import { env } from '@/lib/env'
+import { pingDatabase, checkSchemaSync, pushSchema, resetDatabase } from '@/lib/schema-utils'
+import {
+	getDatabase,
+	notes,
+	folders,
+	tasks,
+	settings,
+	shortcuts,
+	getSafeTimestamp,
+	account,
+	and,
+	eq
+} from '@skriuw/db'
+import { generateId } from '@skriuw/shared'
+import { NextRequest, NextResponse } from 'next/server'
 
 async function isGithubOwner(userId: string) {
 	const db = getDatabase()

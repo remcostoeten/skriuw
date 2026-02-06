@@ -1,6 +1,17 @@
-import { ApiAdapter, apiRequest } from "./api-adapter";
-import { LocalStorageAdapter } from "./local-storage-adapter";
-import type { StorageAdapter, ReadAdapterOptions, CreateAdapterOptions, UpdateAdapterOptions, DeleteAdapterOptions, BatchReadAdapterOptions, BatchCreateAdapterOptions, BatchUpdateAdapterOptions, BatchDeleteAdapterOptions, BaseEntity } from "./types";
+import { ApiAdapter, apiRequest } from './api-adapter'
+import { LocalStorageAdapter } from './local-storage-adapter'
+import type {
+	StorageAdapter,
+	ReadAdapterOptions,
+	CreateAdapterOptions,
+	UpdateAdapterOptions,
+	DeleteAdapterOptions,
+	BatchReadAdapterOptions,
+	BatchCreateAdapterOptions,
+	BatchUpdateAdapterOptions,
+	BatchDeleteAdapterOptions,
+	BaseEntity
+} from './types'
 
 // Re-export common types and helpers for consumers
 export type { BaseEntity }

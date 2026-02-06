@@ -93,10 +93,10 @@ export function SkriuwExplanation({ onCreateNote }: Props) {
 			>
 				<motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
 					<Button
-						variant="outline"
-						size="lg"
+						variant='outline'
+						size='lg'
 						onClick={openCommand}
-						className="px-8 py-6 gap-3 text-base bg-background/50 backdrop-blur-sm border-2 border-border/50 hover:border-primary/50 hover:bg-accent/50 transition-all duration-300 shadow-lg hover:shadow-xl group relative overflow-hidden"
+						className='px-8 py-6 gap-3 text-base bg-background/50 backdrop-blur-sm border-2 border-border/50 hover:border-primary/50 hover:bg-accent/50 transition-all duration-300 shadow-lg hover:shadow-xl group relative overflow-hidden'
 					>
 						<span className='absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000' />
 						<span className='relative'>Commands</span>
@@ -105,10 +105,10 @@ export function SkriuwExplanation({ onCreateNote }: Props) {
 				</motion.div>
 				<motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
 					<Button
-						variant="default"
-						size="lg"
+						variant='default'
+						size='lg'
 						onClick={createNote}
-						className="px-8 py-6 gap-3 text-base shadow-2xl shadow-primary/30 hover:shadow-primary/40 transition-all duration-300 bg-gradient-to-br from-primary to-primary/90 hover:from-primary hover:to-primary/80 group relative overflow-hidden"
+						className='px-8 py-6 gap-3 text-base shadow-2xl shadow-primary/30 hover:shadow-primary/40 transition-all duration-300 bg-gradient-to-br from-primary to-primary/90 hover:from-primary hover:to-primary/80 group relative overflow-hidden'
 					>
 						<span className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000' />
 						<span className='relative font-semibold'>Create Note</span>
@@ -117,17 +117,9 @@ export function SkriuwExplanation({ onCreateNote }: Props) {
 						</Kbd>
 					</Button>
 				</motion.div>
-				<motion.div
-					whileHover={{ scale: 1.02 }}
-					whileTap={{ scale: 0.98 }}
-				>
-					<Button
-						asChild
-						variant="ghost"
-						size="lg"
-						className="px-8 py-6 gap-2 text-base"
-					>
-						<Link href="/login">Log in</Link>
+				<motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+					<Button asChild variant='ghost' size='lg' className='px-8 py-6 gap-2 text-base'>
+						<Link href='/login'>Log in</Link>
 					</Button>
 				</motion.div>
 			</motion.div>

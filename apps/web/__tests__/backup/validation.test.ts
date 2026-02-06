@@ -1,5 +1,5 @@
-import { validateConnectorConfig } from "../../features/backup/core/validation";
-import { describe, it, expect } from "vitest";
+import { validateConnectorConfig } from '../../features/backup/core/validation'
+import { describe, it, expect } from 'vitest'
 
 describe('validateConnectorConfig', () => {
 	it('validates s3 config', () => {

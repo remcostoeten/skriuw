@@ -1,8 +1,8 @@
-import type { SettingsEntity } from "../types";
-import { useSession } from "@/lib/auth-client";
-import { STORAGE_KEYS, DEFAULT_IDS } from "@/lib/storage-keys";
-import { readOne, create, update } from "@skriuw/crud";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { SettingsEntity } from '../types'
+import { useSession } from '@/lib/auth-client'
+import { STORAGE_KEYS, DEFAULT_IDS } from '@/lib/storage-keys'
+import { readOne, create, update } from '@skriuw/crud'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const settingsKeys = {
 	all: ['settings'] as const,

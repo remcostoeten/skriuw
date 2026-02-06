@@ -1,4 +1,4 @@
-import { ActivityPanel } from "@/features/activity/components/activity-panel";
+import { ActivityPanel } from '@/features/activity/components/activity-panel'
 
 export const metadata = {
 	title: 'Activity | Skriuw',

@@ -1,10 +1,10 @@
 'use server'
 
-import type { Item } from "../../types";
-import { invalidateItemsCache } from "../queries/get-items";
-import { trackActivity } from "@/features/activity";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { update, readOne } from "@skriuw/crud";
+import type { Item } from '../../types'
+import { invalidateItemsCache } from '../queries/get-items'
+import { trackActivity } from '@/features/activity'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { update, readOne } from '@skriuw/crud'
 
 /**
  * Soft delete an item by setting deletedAt timestamp.

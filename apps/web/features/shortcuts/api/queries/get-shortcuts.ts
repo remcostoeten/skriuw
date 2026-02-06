@@ -1,7 +1,7 @@
-import type { ShortcutId, KeyCombo } from "../../shortcut-definitions";
-import type { CustomShortcut } from "../types";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, invalidateForStorageKey } from "@skriuw/crud";
+import type { ShortcutId, KeyCombo } from '../../shortcut-definitions'
+import type { CustomShortcut } from '../types'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, invalidateForStorageKey } from '@skriuw/crud'
 
 const CACHE_TTL_MS = 60000 // 1 minute cache for shortcuts
 

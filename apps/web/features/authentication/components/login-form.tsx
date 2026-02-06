@@ -1,14 +1,14 @@
 'use client'
 
-import EmailAutocomplete from "./email-autocomplete";
-import { LoadingButton } from "./loading-button";
-import { PasswordInput } from "./password-input";
-import { signIn, signUp } from "@/lib/auth-client";
-import { Button } from "@skriuw/ui";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, User } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
+import EmailAutocomplete from './email-autocomplete'
+import { LoadingButton } from './loading-button'
+import { PasswordInput } from './password-input'
+import { signIn, signUp } from '@/lib/auth-client'
+import { Button } from '@skriuw/ui'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useState, useCallback } from 'react'
 
 type Props = {
 	title?: string

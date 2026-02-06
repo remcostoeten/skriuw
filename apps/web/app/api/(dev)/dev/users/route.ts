@@ -1,6 +1,6 @@
-import { getDatabase, schema } from "@skriuw/db";
-import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { getDatabase, schema } from '@skriuw/db'
+import { eq } from 'drizzle-orm'
+import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 

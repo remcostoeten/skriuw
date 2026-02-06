@@ -149,7 +149,7 @@
 	}
 
 	/* Disable text selection on UI elements for app-like feel */
-	:where(button, a, label, [role="button"]) {
+	:where(button, a, label, [role='button']) {
 		user-select: none;
 	}
 

@@ -1,9 +1,9 @@
-import { createDownloadDriver } from "./drivers/download-driver";
-import { DropboxDriver } from "./drivers/dropbox-driver";
-import { GoogleDriveDriver } from "./drivers/google-drive-driver";
-import { createMemoryDriver } from "./drivers/memory-driver";
-import { S3Driver } from "./drivers/s3-driver";
-import type { DestinationConfig, DestinationSchema, DestinationType, StorageDriver } from "./types";
+import { createDownloadDriver } from './drivers/download-driver'
+import { DropboxDriver } from './drivers/dropbox-driver'
+import { GoogleDriveDriver } from './drivers/google-drive-driver'
+import { createMemoryDriver } from './drivers/memory-driver'
+import { S3Driver } from './drivers/s3-driver'
+import type { DestinationConfig, DestinationSchema, DestinationType, StorageDriver } from './types'
 
 export type DestinationDefinition = {
 	type: DestinationType

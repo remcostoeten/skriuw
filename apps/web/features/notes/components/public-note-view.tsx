@@ -1,10 +1,10 @@
 'use client'
 
-import { BlockNoteView } from "@/features/editor/components/blocknote-shadcn/BlockNoteView";
-import type { Block, PartialBlock } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { Separator, Card } from "@skriuw/ui";
-import { useMemo } from "react";
+import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
+import type { Block, PartialBlock } from '@blocknote/core'
+import { useCreateBlockNote } from '@blocknote/react'
+import { Separator, Card } from '@skriuw/ui'
+import { useMemo } from 'react'
 
 type PublicNoteViewProps = {
 	name: string

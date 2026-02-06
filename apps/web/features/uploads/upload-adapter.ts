@@ -106,4 +106,3 @@ export async function uploadFile(file: File, isGuest = false): Promise<UploadRes
 
 	return uploadWithUploadThing(file)
 }
-

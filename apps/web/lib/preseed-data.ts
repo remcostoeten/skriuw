@@ -1,4 +1,4 @@
-import type { Note, Folder, Item } from "@/features/notes/types";
+import type { Note, Folder, Item } from '@/features/notes/types'
 
 // ============================================================================
 // Block Helpers - Create BlockNote-compatible blocks
@@ -109,7 +109,9 @@ function example() {
 		'javascript'
 	),
 	paragraph(''),
-	paragraph('Type / anywhere to access the slash command menu and explore all available block types.'),
+	paragraph(
+		'Type / anywhere to access the slash command menu and explore all available block types.'
+	),
 	paragraph(''),
 	heading(2, 'Quick Actions'),
 	bulletItem('Ctrl+N — Create new note'),
@@ -278,14 +280,14 @@ const WIKILINKS_CONTENT = [
 	bulletItem('Click any wikilink to navigate instantly'),
 	paragraph(''),
 	heading(2, 'Backlinks Panel'),
-	paragraph('At the bottom of every note, you\'ll see:'),
+	paragraph("At the bottom of every note, you'll see:"),
 	bulletItem('Linked References — Notes that explicitly link to this page'),
-	bulletItem('Unlinked Mentions — Notes that mention this page\'s name without linking'),
+	bulletItem("Unlinked Mentions — Notes that mention this page's name without linking"),
 	bulletItem('Click the chain icon to convert mentions into wikilinks'),
 	paragraph(''),
 	heading(2, 'Features'),
 	bulletItem('Autocomplete — Fuzzy search across all your notes'),
-	bulletItem('Create on click — Link to notes that don\'t exist yet'),
+	bulletItem("Create on click — Link to notes that don't exist yet"),
 	bulletItem('Context preview — See surrounding text in backlinks'),
 	bulletItem('Keyboard accessible — Tab + Enter navigation'),
 	paragraph(''),

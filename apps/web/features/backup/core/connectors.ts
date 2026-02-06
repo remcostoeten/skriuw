@@ -1,4 +1,4 @@
-import type { StorageConnectorDefinition } from "./types";
+import type { StorageConnectorDefinition } from './types'
 
 export const STORAGE_CONNECTOR_DEFINITIONS: StorageConnectorDefinition[] = [
 	{

@@ -1,9 +1,15 @@
-import { getAdapter } from "../adapter";
-import * as cache from "../cache";
-import { createCrudError, createNotFoundError } from "../errors";
-import type { BaseEntity, CrudResult, BatchCrudResult, DeleteOptions, BatchDeleteOptions } from "../types";
-import { generateRequestId } from "../utils/id";
-import { successResult, errorResult } from "../utils/result";
+import { getAdapter } from '../adapter'
+import * as cache from '../cache'
+import { createCrudError, createNotFoundError } from '../errors'
+import type {
+	BaseEntity,
+	CrudResult,
+	BatchCrudResult,
+	DeleteOptions,
+	BatchDeleteOptions
+} from '../types'
+import { generateRequestId } from '../utils/id'
+import { successResult, errorResult } from '../utils/result'
 
 /** Max recursion depth to prevent stack overflow */
 const MAX_RECURSIVE_DEPTH = 50
