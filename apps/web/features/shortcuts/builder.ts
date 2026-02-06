@@ -1,4 +1,12 @@
-import type { KeyboardShortcut, DisplayKeyCombo, Modifier, RegularKey, SequenceBuilder, SequenceDelay, ShortcutBuilder } from "./types";
+import type {
+	KeyboardShortcut,
+	DisplayKeyCombo,
+	Modifier,
+	RegularKey,
+	SequenceBuilder,
+	SequenceDelay,
+	ShortcutBuilder
+} from './types'
 
 /**
  * Creates a new shortcut builder for easy DX

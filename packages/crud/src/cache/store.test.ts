@@ -1,5 +1,13 @@
-import { get, set, invalidate, invalidateForStorageKey, clear, getStats, CACHE_CONFIG } from "./store";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+	get,
+	set,
+	invalidate,
+	invalidateForStorageKey,
+	clear,
+	getStats,
+	CACHE_CONFIG
+} from './store'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 describe('Cache Store', () => {
 	beforeEach(() => {

@@ -1,9 +1,13 @@
-import { useTagMentions } from "../hooks/use-tag-mentions"
-import { useCreateTagMutation } from "@/features/tags"
-import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor } from "@blocknote/react"
-import { Hash, Plus } from "lucide-react"
-import { useCallback } from "react"
-import type { MouseEvent } from "react"
+import { useTagMentions } from '../hooks/use-tag-mentions'
+import { useCreateTagMutation } from '@/features/tags'
+import {
+	SuggestionMenuController,
+	type SuggestionMenuProps,
+	useBlockNoteEditor
+} from '@blocknote/react'
+import { Hash, Plus } from 'lucide-react'
+import { useCallback } from 'react'
+import type { MouseEvent } from 'react'
 
 type TagOption = {
 	id: string
@@ -86,8 +90,8 @@ function buildItems(query: string, items: TagOption[]): TagOption[] {
 	const clean = query.trim().toLowerCase()
 	const results = clean
 		? items.filter(function filterTag(item) {
-			return item.key.includes(clean)
-		})
+				return item.key.includes(clean)
+			})
 		: items
 	const sliced = results.slice(0, 8)
 	const exact = clean

@@ -1,7 +1,7 @@
-import { Button } from "./button";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { cn } from "@skriuw/shared";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { Button } from './button'
+import * as PopoverPrimitive from '@radix-ui/react-popover'
+import { cn } from '@skriuw/shared'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 export type NotificationPopoverOptions = {
 	message: string

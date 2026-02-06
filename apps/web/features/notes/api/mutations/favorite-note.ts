@@ -1,10 +1,10 @@
 'use server'
 
-import type { Note } from "../../types";
-import { invalidateItemsCache } from "../queries/get-items";
-import { trackActivity } from "@/features/activity";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { update } from "@skriuw/crud";
+import type { Note } from '../../types'
+import { invalidateItemsCache } from '../queries/get-items'
+import { trackActivity } from '@/features/activity'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { update } from '@skriuw/crud'
 
 export async function favoriteNote(noteId: string, favorite: boolean): Promise<Note | undefined> {
 	try {

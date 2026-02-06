@@ -22,20 +22,10 @@ export function UnifiedSearch({ open: controlledOpen, onOpenChange }: Props) {
 	const setOpen = onOpenChange ?? setInternalOpen
 
 	if (isMobile) {
-		return (
-			<MobileSearchDrawer
-				open={open}
-				onOpenChange={setOpen}
-			/>
-		)
+		return <MobileSearchDrawer open={open} onOpenChange={setOpen} />
 	}
 
-	return (
-		<GlobalCommandMenu
-			open={open}
-			onOpenChange={setOpen}
-		/>
-	)
+	return <GlobalCommandMenu open={open} onOpenChange={setOpen} />
 }
 
 /**

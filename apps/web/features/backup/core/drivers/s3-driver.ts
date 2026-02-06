@@ -1,5 +1,5 @@
-import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from "../types";
-import { createHash, createHmac } from "crypto";
+import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from '../types'
+import { createHash, createHmac } from 'crypto'
 
 // Helper for AWS Signature V4
 async function s3Fetch(

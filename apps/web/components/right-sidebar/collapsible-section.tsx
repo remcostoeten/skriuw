@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { ChevronRight, ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { cn } from '@skriuw/shared'
+import { ChevronRight, ChevronDown } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 type CollapsibleSectionProps = {
 	/** Unique identifier for this section */

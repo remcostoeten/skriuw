@@ -1,5 +1,5 @@
-import { apiRequest } from "../../../../lib/storage";
-import type { Task } from "../../types";
+import { apiRequest } from '../../../../lib/storage'
+import type { Task } from '../../types'
 
 export type { Task }
 

@@ -1,4 +1,4 @@
-import { env } from "../env";
+import { env } from '../env'
 
 /**
  * Validates that a required environment variable is present.

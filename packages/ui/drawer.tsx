@@ -1,6 +1,6 @@
-import { cn } from "@skriuw/shared";
-import * as React from "react";
-import { Drawer as DrawerPrimitive } from "vaul";
+import { cn } from '@skriuw/shared'
+import * as React from 'react'
+import { Drawer as DrawerPrimitive } from 'vaul'
 
 const Drawer = ({
 	shouldScaleBackground = true,

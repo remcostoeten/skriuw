@@ -1,4 +1,4 @@
-import { CrudErrorCode, detectErrorCode } from "./codes";
+import { CrudErrorCode, detectErrorCode } from './codes'
 
 /**
  * Structured error for CRUD operations.

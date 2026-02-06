@@ -1,6 +1,6 @@
-import { getDatabase, tasks } from "@skriuw/db";
-import { and, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { getDatabase, tasks } from '@skriuw/db'
+import { and, eq } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
 
 type RouteContext = {
 	params: Promise<{ noteId: string }>

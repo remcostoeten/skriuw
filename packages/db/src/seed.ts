@@ -1,4 +1,4 @@
-import { getDatabase, notes } from "./index";
+import { getDatabase, notes } from './index'
 
 const welcomeContent = [
 	{

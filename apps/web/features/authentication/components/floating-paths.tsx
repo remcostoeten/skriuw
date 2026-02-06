@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion'
 
 export function FloatingPaths({ position }: { position: number }) {
 	const paths = Array.from({ length: 36 }, (_, i) => ({

@@ -21,10 +21,7 @@
 			"purpose": "any maskable"
 		}
 	],
-	"categories": [
-		"productivity",
-		"utilities"
-	],
+	"categories": ["productivity", "utilities"],
 	"shortcuts": [
 		{
 			"name": "New Note",

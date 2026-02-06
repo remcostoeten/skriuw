@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { Info } from "lucide-react";
-import { useState } from "react";
+import { cn } from '@skriuw/shared'
+import { Info } from 'lucide-react'
+import { useState } from 'react'
 
 type HintPopoverProps = {
 	hint: string

@@ -1,10 +1,18 @@
-import { useNoteMentionCandidates } from "../hooks/use-note-mentions";
-import { searchNoteMentions, type HighlightPart, type NoteMentionSearchResult } from "../utils/note-mention-search";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor } from "@blocknote/react";
-import { Link2 } from "lucide-react";
-import { useCallback } from "react";
+import { useNoteMentionCandidates } from '../hooks/use-note-mentions'
+import {
+	searchNoteMentions,
+	type HighlightPart,
+	type NoteMentionSearchResult
+} from '../utils/note-mention-search'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import {
+	SuggestionMenuController,
+	type SuggestionMenuProps,
+	useBlockNoteEditor
+} from '@blocknote/react'
+import { Link2 } from 'lucide-react'
+import { useCallback } from 'react'
 
 type MentionSuggestionItem = NoteMentionSearchResult & {
 	url: string

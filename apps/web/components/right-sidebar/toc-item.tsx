@@ -1,8 +1,8 @@
 'use client'
 
-import type { TOCItem as TOCItemType } from "./types";
-import { cn } from "@skriuw/shared";
-import { memo, useCallback } from "react";
+import type { TOCItem as TOCItemType } from './types'
+import { cn } from '@skriuw/shared'
+import { memo, useCallback } from 'react'
 
 type TOCItemProps = {
 	item: TOCItemType

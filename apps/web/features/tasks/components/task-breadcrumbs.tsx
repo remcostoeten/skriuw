@@ -1,8 +1,8 @@
 'use client'
 
-import type { TaskBreadcrumb } from "../hooks/use-task-context";
-import { cn } from "@skriuw/shared";
-import { ChevronRight, Home } from "lucide-react";
+import type { TaskBreadcrumb } from '../hooks/use-task-context'
+import { cn } from '@skriuw/shared'
+import { ChevronRight, Home } from 'lucide-react'
 
 type TaskBreadcrumbsProps = {
 	items: TaskBreadcrumb[]

@@ -1,16 +1,15 @@
-
 export type PromptChoice = {
-    outcome: 'accepted' | 'dismissed'
-    platform: string
+	outcome: 'accepted' | 'dismissed'
+	platform: string
 }
 
 export type PromptEvent = Event & {
-    prompt: () => Promise<void>
-    userChoice: Promise<PromptChoice>
+	prompt: () => Promise<void>
+	userChoice: Promise<PromptChoice>
 }
 
 export type StandaloneNav = Navigator & {
-    standalone?: boolean
+	standalone?: boolean
 }
 
 export const DISMISS_KEY = 'pwa-install-dismissed-at'

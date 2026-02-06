@@ -1,5 +1,5 @@
-import type { ExtractedTask } from "@/features/notes/utils/extract-tasks";
-import { LRUCache } from "lru-cache";
+import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
+import { LRUCache } from 'lru-cache'
 
 // LRU cache to avoid redundant syncs - limited to 1000 entries with 1 hour TTL
 // Size based on typical active notes in a session; TTL prevents stale data

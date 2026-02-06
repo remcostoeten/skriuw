@@ -1,13 +1,13 @@
 'use client'
 
-import { getPreviewRenderer } from "../preview-renderers";
-import type { SettingsGroup, UserSetting } from "../types";
-import { Input } from "@skriuw/ui/input";
-import { Label } from "@skriuw/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@skriuw/ui/select";
-import { Switch } from "@skriuw/ui/switch";
-import React, { Suspense } from "react";
-import { TagsSettings } from "@/features/tags";
+import { getPreviewRenderer } from '../preview-renderers'
+import type { SettingsGroup, UserSetting } from '../types'
+import { Input } from '@skriuw/ui/input'
+import { Label } from '@skriuw/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@skriuw/ui/select'
+import { Switch } from '@skriuw/ui/switch'
+import React, { Suspense } from 'react'
+import { TagsSettings } from '@/features/tags'
 
 function getCustomComponent(key: string): React.ComponentType | null {
 	const components: Record<string, React.ComponentType> = {

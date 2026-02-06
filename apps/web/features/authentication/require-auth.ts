@@ -1,6 +1,6 @@
 'use server'
 
-import { getSession } from "@/lib/api-auth";
+import { getSession } from '@/lib/api-auth'
 
 type AuthenticatedUser = {
 	id: string

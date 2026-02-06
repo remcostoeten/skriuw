@@ -1,8 +1,8 @@
 'use client'
 
-import { SkriuwExplanation } from "@/components/landing/skriuw-explanation";
-import { IdentityGuardExample } from "@/examples/identity-guard-usage";
-import { useState, useCallback } from "react";
+import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
+import { IdentityGuardExample } from '@/examples/identity-guard-usage'
+import { useState, useCallback } from 'react'
 
 export default function DemoPage() {
 	const [showIdentityGuard, setShowIdentityGuard] = useState(false)

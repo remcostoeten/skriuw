@@ -1,7 +1,7 @@
 'use client'
 
-import { ShortcutId, shortcutDefinitions, KeyCombo } from "./shortcut-definitions";
-import { createContext, useEffect, useRef } from "react";
+import { ShortcutId, shortcutDefinitions, KeyCombo } from './shortcut-definitions'
+import { createContext, useEffect, useRef } from 'react'
 
 type ShortcutHandler = (event: KeyboardEvent) => void
 type ShortcutRegistry = Map<ShortcutId, ShortcutHandler>

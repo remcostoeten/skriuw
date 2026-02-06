@@ -1,4 +1,4 @@
-import { getDatabase, notes, folders, tasks, settings, shortcuts } from "./index";
+import { getDatabase, notes, folders, tasks, settings, shortcuts } from './index'
 
 async function main() {
 	console.log('Testing database connection...')

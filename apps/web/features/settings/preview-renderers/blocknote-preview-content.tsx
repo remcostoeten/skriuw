@@ -1,10 +1,10 @@
 'use client'
 
-import { BlockNoteView } from "@/features/editor/components/blocknote-shadcn/BlockNoteView";
-import { PartialBlock } from "@blocknote/core";
-import "@blocknote/core/style.css";
-import { useCreateBlockNote } from "@blocknote/react";
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { BlockNoteView } from '@/features/editor/components/blocknote-shadcn/BlockNoteView'
+import { PartialBlock } from '@blocknote/core'
+import '@blocknote/core/style.css'
+import { useCreateBlockNote } from '@blocknote/react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 
 // Sample content for BlockNote preview
 const SAMPLE_BLOCKS: PartialBlock[] = [

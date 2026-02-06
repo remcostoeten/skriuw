@@ -1,7 +1,7 @@
 'use client'
 
-import { useWithIdentity, createCrudGuard, withIdentity, isIdentityError } from "@/lib/identity-guard";
-import { useState } from "react";
+import { useWithIdentity, createCrudGuard, isIdentityError } from '@/lib/identity-guard'
+import { useState } from 'react'
 
 // Example server actions (these would be in your actions folder)
 const exampleServerActions = {

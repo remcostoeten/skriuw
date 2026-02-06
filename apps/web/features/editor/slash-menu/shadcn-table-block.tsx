@@ -1,10 +1,10 @@
-import type { BlockNoteEditor } from "@blocknote/core";
-import { createReactBlockSpec } from "@blocknote/react";
-import { Button } from "@skriuw/ui/button";
-import { Input } from "@skriuw/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@skriuw/ui/table";
-import { Plus, Trash } from "lucide-react";
-import { useEffect, useState } from "react";
+import type { BlockNoteEditor } from '@blocknote/core'
+import { createReactBlockSpec } from '@blocknote/react'
+import { Button } from '@skriuw/ui/button'
+import { Input } from '@skriuw/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@skriuw/ui/table'
+import { Plus, Trash } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 type TableBlockProps = {
 	id: string

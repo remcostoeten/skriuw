@@ -1,11 +1,11 @@
 'use client'
 
-import { getCalendarData } from "../api/queries/get-calendar-data";
-import { getRecentActivity } from "../api/queries/get-recent-activity";
-import type { CalendarData, RecentActivityGroup } from "../types";
-import { ActivityCalendar } from "./activity-calendar";
-import { RecentActivityList } from "./recent-activity-list";
-import { useState, useEffect, useCallback } from "react";
+import { getCalendarData } from '../api/queries/get-calendar-data'
+import { getRecentActivity } from '../api/queries/get-recent-activity'
+import type { CalendarData, RecentActivityGroup } from '../types'
+import { ActivityCalendar } from './activity-calendar'
+import { RecentActivityList } from './recent-activity-list'
+import { useState, useEffect, useCallback } from 'react'
 
 type ActivityPanelProps = {
 	className?: string

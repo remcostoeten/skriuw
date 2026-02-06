@@ -1,9 +1,9 @@
 'use client'
 
-import { TrashPanel } from "@/features/backup/components/trash-panel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { motion } from "framer-motion";
-import { Trash2 } from "lucide-react";
+import { TrashPanel } from '@/features/backup/components/trash-panel'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { motion } from 'framer-motion'
+import { Trash2 } from 'lucide-react'
 
 const snappyEase = [0.34, 1.8, 0.64, 1]
 

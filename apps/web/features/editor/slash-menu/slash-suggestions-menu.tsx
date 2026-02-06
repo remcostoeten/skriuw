@@ -1,6 +1,11 @@
-import { getCustomSlashMenuItems } from "../hooks/useCustomSlashMenu";
-import { SuggestionMenuController, type SuggestionMenuProps, useBlockNoteEditor, type DefaultReactSuggestionItem } from "@blocknote/react";
-import { useCallback, useEffect, useRef } from "react";
+import { getCustomSlashMenuItems } from '../hooks/useCustomSlashMenu'
+import {
+	SuggestionMenuController,
+	type SuggestionMenuProps,
+	useBlockNoteEditor,
+	type DefaultReactSuggestionItem
+} from '@blocknote/react'
+import { useCallback, useEffect, useRef } from 'react'
 
 function SlashMenuList({
 	items,

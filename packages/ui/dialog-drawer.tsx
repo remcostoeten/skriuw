@@ -1,7 +1,20 @@
-import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from "@skriuw/shared/client";
-import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
-import { type ReactNode, createContext, useContext, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent, type CSSProperties, forwardRef, useImperativeHandle, type HTMLAttributes } from "react";
+import { createFocusTrap, Portal, useMediaQuery, MOBILE_BREAKPOINT } from '@skriuw/shared/client'
+import { AnimatePresence, motion } from 'framer-motion'
+import { X } from 'lucide-react'
+import {
+	type ReactNode,
+	createContext,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+	type MouseEvent as ReactMouseEvent,
+	type TouchEvent as ReactTouchEvent,
+	type CSSProperties,
+	forwardRef,
+	useImperativeHandle,
+	type HTMLAttributes
+} from 'react'
 
 type DialogContextValue = {
 	open: boolean

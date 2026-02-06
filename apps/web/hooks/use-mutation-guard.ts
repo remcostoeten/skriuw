@@ -1,8 +1,8 @@
 'use client'
 
-import { useSession } from "@/lib/auth-client";
-import { notify } from "@/lib/notify";
-import { useCallback } from "react";
+import { useSession } from '@/lib/auth-client'
+import { notify } from '@/lib/notify'
+import { useCallback } from 'react'
 
 type MutationGuardOptions = {
 	message?: string

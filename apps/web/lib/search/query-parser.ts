@@ -31,15 +31,12 @@ export type SearchOptions = {
 }
 
 const DATE_OPERATORS = ['>=', '<=', '>', '<', '='] as const
-type DateOperator = typeof DATE_OPERATORS[number]
+type DateOperator = (typeof DATE_OPERATORS)[number]
 
 /**
  * Parse a search query string into structured tokens
  */
-export function parseSearchQuery(
-	input: string,
-	options: SearchOptions = {}
-): ParsedQuery {
+export function parseSearchQuery(input: string, options: SearchOptions = {}): ParsedQuery {
 	const { caseSensitive = false, wholeWord = false, useRegex = false } = options
 	const tokens: SearchToken[] = []
 	let hasAdvancedSyntax = false
@@ -141,7 +138,10 @@ function parseToken(
 	}
 
 	// Check for folder: prefix
-	if (cleanPart.toLowerCase().startsWith('folder:') || cleanPart.toLowerCase().startsWith('in:')) {
+	if (
+		cleanPart.toLowerCase().startsWith('folder:') ||
+		cleanPart.toLowerCase().startsWith('in:')
+	) {
 		const prefix = cleanPart.toLowerCase().startsWith('folder:') ? 'folder:' : 'in:'
 		const value = cleanPart.slice(prefix.length).replace(/^["']|["']$/g, '')
 		return { type: 'folder', value, negated }
@@ -278,7 +278,11 @@ export function getQueryHighlightRanges(input: string): Array<{
 	end: number
 	type: 'operator' | 'value' | 'negation' | 'regex'
 }> {
-	const ranges: Array<{ start: number; end: number; type: 'operator' | 'value' | 'negation' | 'regex' }> = []
+	const ranges: Array<{
+		start: number
+		end: number
+		type: 'operator' | 'value' | 'negation' | 'regex'
+	}> = []
 
 	// Match operators like tag:, is:, created:, folder:, in:
 	const operatorRegex = /(tag|is|created|updated|folder|in):/gi

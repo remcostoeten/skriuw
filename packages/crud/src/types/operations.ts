@@ -1,4 +1,4 @@
-import type { BaseEntity, BatchProgress, ValidationResult, ValidationError } from "./base";
+import type { BaseEntity, BatchProgress, ValidationResult, ValidationError } from './base'
 
 // ============================================================================
 // CREATE TYPES
