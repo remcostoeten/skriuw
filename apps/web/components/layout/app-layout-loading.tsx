@@ -1,9 +1,9 @@
-import { LeftToolbar } from "../left-toolbar";
-import { SidebarSkeleton } from "../sidebar/sidebar-skeleton";
-import { AppLayoutShell } from "./app-layout-shell";
-import { TopToolbar } from "./top-toolbar";
-import { Skeleton } from "@skriuw/ui/skeleton";
-import { useCallback } from "react";
+import { LeftToolbar } from '../left-toolbar'
+import { SidebarSkeleton } from '../sidebar/sidebar-skeleton'
+import { AppLayoutShell } from './app-layout-shell'
+import { TopToolbar } from './top-toolbar'
+import { Skeleton } from '@skriuw/ui/skeleton'
+import { useCallback } from 'react'
 
 function LeftToolbarSkeleton() {
 	return <LeftToolbar />

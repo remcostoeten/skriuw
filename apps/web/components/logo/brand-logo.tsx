@@ -1,8 +1,8 @@
 'use client'
 
-import { RawLogo } from "./raw-logo";
-import { motion, SVGMotionProps } from "framer-motion";
-import * as React from "react";
+import { RawLogo } from './raw-logo'
+import { motion, SVGMotionProps } from 'framer-motion'
+import * as React from 'react'
 
 type BrandLogoProps = {
 	size?: number

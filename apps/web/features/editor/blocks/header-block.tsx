@@ -1,6 +1,6 @@
-import { createReactBlockSpec } from "@blocknote/react";
-import { Check, Hash, Tag, ChevronDown } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { createReactBlockSpec } from '@blocknote/react'
+import { Check, Hash, Tag, ChevronDown } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 
 const CATEGORIES = [
 	{

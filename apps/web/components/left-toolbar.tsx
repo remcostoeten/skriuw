@@ -1,10 +1,10 @@
 'use client'
 
-import { Logo } from "./logo";
-import { NotesIcon, GearIcon, FolderIcon, IconButton } from "@skriuw/ui/icons";
-import { Trash2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Logo } from './logo'
+import { NotesIcon, GearIcon, FolderIcon, IconButton } from '@skriuw/ui/icons'
+import { Trash2 } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 type LeftToolbarProps = {
 	onSettingsClick?: () => void

@@ -1,5 +1,5 @@
-import type { Block } from "@blocknote/core";
-import { generateId } from "@skriuw/shared";
+import type { Block } from '@blocknote/core'
+import { generateId } from '@skriuw/shared'
 
 /**
  * Converts a plain text string into BlockNote blocks.

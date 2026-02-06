@@ -1,8 +1,8 @@
-import type { Item, Note, Folder } from "../types";
-import { useCreateNoteMutation, useCreateFolderMutation } from "./use-notes-query";
-import { useSession } from "@/lib/auth-client";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { useEffect, useState, useRef } from "react";
+import type { Item, Note, Folder } from '../types'
+import { useCreateNoteMutation, useCreateFolderMutation } from './use-notes-query'
+import { useSession } from '@/lib/auth-client'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { useEffect, useState, useRef } from 'react'
 
 export function useGuestMigration() {
 	const { data: session } = useSession()

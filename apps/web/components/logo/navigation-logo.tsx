@@ -1,9 +1,9 @@
 'use client'
 
-import { RawLogo } from "./raw-logo";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { RawLogo } from './raw-logo'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export function NavigationLogo() {
 	const [isMounted, setIsMounted] = useState(false)

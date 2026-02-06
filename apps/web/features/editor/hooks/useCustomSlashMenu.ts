@@ -1,6 +1,13 @@
-import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from "@blocknote/react";
-import { CheckSquare, FolderTree, Info, LayoutTemplate, Link, Image as ImageIcon } from "lucide-react";
-import { createElement } from "react";
+import { getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from '@blocknote/react'
+import {
+	CheckSquare,
+	FolderTree,
+	Info,
+	LayoutTemplate,
+	Link,
+	Image as ImageIcon
+} from 'lucide-react'
+import { createElement } from 'react'
 
 // At symbol icon for note mention
 const AtIcon = () =>
@@ -121,11 +128,11 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 		{
 			title: 'Link',
 			onItemClick: () => {
-				const url = window.prompt("Enter URL")
+				const url = window.prompt('Enter URL')
 				if (url) {
 					const text = window.getSelection()?.toString() || url
 					editor.createLink(url, text)
-					editor.insertInlineContent(" ")
+					editor.insertInlineContent(' ')
 				}
 			},
 			aliases: ['link', 'url', 'href'],

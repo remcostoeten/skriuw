@@ -1,5 +1,5 @@
-import type { StorageConnectorType } from "./types";
-import { z } from "zod";
+import type { StorageConnectorType } from './types'
+import { z } from 'zod'
 
 const nonEmpty = z.string({ message: 'Required' }).trim().min(1, 'Required')
 const optionalUrlish = z

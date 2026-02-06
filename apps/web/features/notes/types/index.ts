@@ -1,5 +1,5 @@
-import type { Task } from "../../tasks/api/queries/get-tasks";
-import type { Block } from "@blocknote/core";
+import type { Task } from '../../tasks/api/queries/get-tasks'
+import type { Block } from '@blocknote/core'
 
 // Define types locally since shared package build is failing
 type UUID = string

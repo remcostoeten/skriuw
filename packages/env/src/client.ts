@@ -1,5 +1,5 @@
-import { clientSchema, type ClientEnv } from "./schema";
-import { validateEnvCached } from "./validate";
+import { clientSchema, type ClientEnv } from './schema'
+import { validateEnvCached } from './validate'
 
 // ============================================================================
 // CLIENT ENVIRONMENT

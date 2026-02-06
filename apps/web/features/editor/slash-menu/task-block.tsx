@@ -1,6 +1,6 @@
-import { useUIStore } from "@/stores/ui-store";
-import { createReactBlockSpec } from "@blocknote/react";
-import { Checkbox } from "@skriuw/ui/primitives/checkbox";
+import { useUIStore } from '@/stores/ui-store'
+import { createReactBlockSpec } from '@blocknote/react'
+import { Checkbox } from '@skriuw/ui/primitives/checkbox'
 
 /**
  * Custom Task Block for BlockNote

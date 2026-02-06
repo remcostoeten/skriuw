@@ -1,9 +1,9 @@
-import type { ShortcutId, KeyCombo } from "../shortcut-definitions";
-import type { CustomShortcut } from "../types";
-import { useSession } from "@/lib/auth-client";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, readOne, update, create, destroy } from "@skriuw/crud";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
+import type { CustomShortcut } from '../types'
+import { useSession } from '@/lib/auth-client'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, readOne, update, create, destroy } from '@skriuw/crud'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const shortcutsKeys = {
 	all: ['shortcuts'] as const,

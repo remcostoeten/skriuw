@@ -1,8 +1,8 @@
-import { getDatabase } from "@skriuw/db";
-import { sql } from "drizzle-orm";
-import fs from "fs";
-import { NextResponse } from "next/server";
-import path from "path";
+import { getDatabase } from '@skriuw/db'
+import { sql } from 'drizzle-orm'
+import fs from 'fs'
+import { NextResponse } from 'next/server'
+import path from 'path'
 
 function isDev() {
 	return process.env.NODE_ENV === 'development'

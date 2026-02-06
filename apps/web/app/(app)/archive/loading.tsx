@@ -1,4 +1,4 @@
-import { Skeleton } from "@skriuw/ui/skeleton";
+import { Skeleton } from '@skriuw/ui/skeleton'
 
 export default function ArchiveLoading() {
 	return (

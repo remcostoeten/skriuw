@@ -1,4 +1,4 @@
-import { z, type ZodError, type ZodSchema } from "zod";
+import { z, type ZodError, type ZodSchema } from 'zod'
 
 // ============================================================================
 // VALIDATION

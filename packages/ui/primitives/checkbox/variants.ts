@@ -1,4 +1,4 @@
-import { CheckboxAnimationVariant, CheckboxVariant, CheckboxSize } from "./types";
+import { CheckboxAnimationVariant, CheckboxVariant, CheckboxSize } from './types'
 
 /**
  * Style configurations for each checkbox variant

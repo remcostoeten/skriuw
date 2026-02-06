@@ -1,12 +1,12 @@
 'use client'
 
-import { useNotesContext } from "@/features/notes";
-import type { Item, Note, Folder } from "@/features/notes/types";
-import { notify } from "@/lib/notify";
-import type { Block } from "@blocknote/core";
-import { cn } from "@skriuw/shared";
-import { Copy, FileCode, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useNotesContext } from '@/features/notes'
+import type { Item, Note, Folder } from '@/features/notes/types'
+import { notify } from '@/lib/notify'
+import type { Block } from '@blocknote/core'
+import { cn } from '@skriuw/shared'
+import { Copy, FileCode, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 
 export function SeedingTab() {
 	const { items, refreshItems } = useNotesContext()

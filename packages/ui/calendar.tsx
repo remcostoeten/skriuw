@@ -1,7 +1,7 @@
 'use client'
 
-import { Calendar as CalendarRAC, CalendarProps as CalendarRACProps } from "./calendar-rac";
-import * as React from "react";
+import { Calendar as CalendarRAC, CalendarProps as CalendarRACProps } from './calendar-rac'
+import * as React from 'react'
 
 export type CalendarProps = CalendarRACProps
 

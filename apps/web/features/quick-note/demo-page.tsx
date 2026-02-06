@@ -1,8 +1,8 @@
 'use client'
 
-import { QuickNoteInput } from "./components/quick-note-input";
-import { ActivityCalendar } from "@/features/activity/components/activity-calendar";
-import { RecentActivityList } from "@/features/activity/components/recent-activity-list";
+import { QuickNoteInput } from './components/quick-note-input'
+import { ActivityCalendar } from '@/features/activity/components/activity-calendar'
+import { RecentActivityList } from '@/features/activity/components/recent-activity-list'
 
 export function QuickNoteDemo() {
 	return (

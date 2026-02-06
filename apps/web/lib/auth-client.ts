@@ -1,5 +1,5 @@
-import { anonymousClient } from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
+import { anonymousClient } from 'better-auth/client/plugins'
+import { createAuthClient } from 'better-auth/react'
 
 export const AUTH_CLIENT_ENABLED = !!process.env.NEXT_PUBLIC_APP_URL
 

@@ -1,9 +1,9 @@
 'use server'
 
-import type { RecentActivityItem, RecentActivityGroup } from "../../types";
-import { requireAuth } from "@/features/authentication/require-auth";
-import { getDatabase, activityEvents } from "@skriuw/db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import type { RecentActivityItem, RecentActivityGroup } from '../../types'
+import { requireAuth } from '@/features/authentication/require-auth'
+import { getDatabase, activityEvents } from '@skriuw/db'
+import { eq, and, gte, lte, desc } from 'drizzle-orm'
 
 /**
  * Fetches recent activity for the current user.

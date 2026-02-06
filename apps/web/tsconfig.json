@@ -6,47 +6,19 @@
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,
 		"target": "es2022",
-		"lib": [
-			"dom",
-			"dom.iterable",
-			"es2022",
-			"es2015",
-			"es2017",
-			"es2015.promise",
-			"webworker"
-		],
-		"types": [
-			"node"
-		],
+		"lib": ["dom", "dom.iterable", "es2022", "es2015", "es2017", "es2015.promise", "webworker"],
+		"types": ["node"],
 		"skipLibCheck": true,
 		"paths": {
-			"@/*": [
-				"./*"
-			],
-			"@skriuw/ui": [
-				"../../packages/ui"
-			],
-			"@skriuw/crud": [
-				"../../packages/crud"
-			],
-			"@skriuw/db": [
-				"../../packages/db"
-			],
-			"@skriuw/shared": [
-				"../../packages/shared"
-			],
-			"@skriuw/config": [
-				"../../packages/config"
-			],
-			"@skriuw/env": [
-				"../../packages/env"
-			],
-			"@skriuw/storage": [
-				"./lib/storage"
-			],
-			"@skriuw/storage/*": [
-				"./lib/storage/*"
-			]
+			"@/*": ["./*"],
+			"@skriuw/ui": ["../../packages/ui"],
+			"@skriuw/crud": ["../../packages/crud"],
+			"@skriuw/db": ["../../packages/db"],
+			"@skriuw/shared": ["../../packages/shared"],
+			"@skriuw/config": ["../../packages/config"],
+			"@skriuw/env": ["../../packages/env"],
+			"@skriuw/storage": ["./lib/storage"],
+			"@skriuw/storage/*": ["./lib/storage/*"]
 		}
 	},
 	"include": [

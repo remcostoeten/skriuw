@@ -1,4 +1,4 @@
-import { createClientApiAdapter } from "./adapters/client-api";
+import { createClientApiAdapter } from './adapters/client-api'
 
 type StorageAdapter = {
 	name: string

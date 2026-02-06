@@ -1,4 +1,4 @@
-import type { StorageAdapter } from "../types/adapter";
+import type { StorageAdapter } from '../types/adapter'
 
 let currentAdapter: StorageAdapter | null = null
 

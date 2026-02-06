@@ -1,6 +1,6 @@
-import { user } from "./schema";
-import { createUserIndex, createUserCompositeIndex } from "./user-owned";
-import { pgTable, text, bigint, index, pgEnum } from "drizzle-orm/pg-core";
+import { user } from './schema'
+import { createUserIndex, createUserCompositeIndex } from './user-owned'
+import { pgTable, text, bigint, index, pgEnum } from 'drizzle-orm/pg-core'
 
 // Entity types that can generate activity events
 export const entityTypeEnum = pgEnum('entity_type', ['note', 'folder', 'task'])

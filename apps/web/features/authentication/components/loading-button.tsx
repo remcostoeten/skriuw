@@ -1,10 +1,10 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { Button } from "@skriuw/ui";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { cn } from '@skriuw/shared'
+import { Button } from '@skriuw/ui'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 type LoadingButtonProps = {
 	isLoading?: boolean

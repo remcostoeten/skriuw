@@ -1,7 +1,7 @@
-import { requireAuth } from "../../../lib/api-auth";
-import { getDatabase, tasks, notes } from "@skriuw/db";
-import { desc, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from '../../../lib/api-auth'
+import { getDatabase, tasks, notes } from '@skriuw/db'
+import { desc, eq } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
 
 function serializeTask(row: {
 	id: string

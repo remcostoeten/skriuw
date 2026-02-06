@@ -1,17 +1,17 @@
-import { createReactBlockSpec } from "@blocknote/react";
-import DOMPurify from "isomorphic-dompurify";
-import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
-import Prism from "prismjs";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-css";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-markdown";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-sql";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-yaml";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { createReactBlockSpec } from '@blocknote/react'
+import DOMPurify from 'isomorphic-dompurify'
+import { Check, Copy, Maximize2, Minimize2 } from 'lucide-react'
+import Prism from 'prismjs'
+import 'prismjs/components/prism-bash'
+import 'prismjs/components/prism-css'
+import 'prismjs/components/prism-javascript'
+import 'prismjs/components/prism-json'
+import 'prismjs/components/prism-markdown'
+import 'prismjs/components/prism-python'
+import 'prismjs/components/prism-sql'
+import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-yaml'
+import { useEffect, useRef, useState, useMemo } from 'react'
 
 // Import languages to ensure they are loaded
 export const LANGUAGES = [

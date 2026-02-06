@@ -1,5 +1,5 @@
-import { CrudErrorCode, detectErrorCode } from "./codes";
-import { describe, it, expect } from "vitest";
+import { CrudErrorCode, detectErrorCode } from './codes'
+import { describe, it, expect } from 'vitest'
 
 describe('Error Code Detection', () => {
 	describe('detectErrorCode', () => {

@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { haptic } from "@skriuw/shared";
-import { createRoot } from "react-dom/client";
+import { cn } from '@skriuw/shared'
+import { haptic } from '@skriuw/shared'
+import { createRoot } from 'react-dom/client'
 
 type NotificationOptions = {
 	id?: string

@@ -1,4 +1,4 @@
-import type { Block } from "@blocknote/core";
+import type { Block } from '@blocknote/core'
 
 type TagItem = {
 	type: 'tag'

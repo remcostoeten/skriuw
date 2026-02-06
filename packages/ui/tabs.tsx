@@ -1,6 +1,6 @@
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { cn } from "@skriuw/shared";
-import * as React from "react";
+import * as TabsPrimitive from '@radix-ui/react-tabs'
+import { cn } from '@skriuw/shared'
+import * as React from 'react'
 
 const Tabs = TabsPrimitive.Root
 

@@ -1,11 +1,11 @@
 'use server'
 
-import type { Folder, CreateFolderData } from "../../types";
-import { invalidateItemsCache } from "../queries/get-items";
-import { trackActivity } from "@/features/activity";
-import { getCurrentUserId } from "@/lib/api-auth";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { create } from "@skriuw/crud";
+import type { Folder, CreateFolderData } from '../../types'
+import { invalidateItemsCache } from '../queries/get-items'
+import { trackActivity } from '@/features/activity'
+import { getCurrentUserId } from '@/lib/api-auth'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { create } from '@skriuw/crud'
 
 export async function createFolder(data: CreateFolderData): Promise<Folder> {
 	try {

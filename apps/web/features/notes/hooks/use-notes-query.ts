@@ -1,13 +1,13 @@
-import type { Item, Note, Folder } from "../types";
-import { extractTasksFromBlocks } from "../utils/extract-tasks";
-import { trackActivity } from "@/features/activity";
-import { useSession } from "@/lib/auth-client";
-import { getWelcomeContent } from "@/lib/seed-content/welcome";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readMany, readOne, create, update, destroy } from "@skriuw/crud";
-import { generateId } from "@skriuw/shared";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import type { Item, Note, Folder } from '../types'
+import { extractTasksFromBlocks } from '../utils/extract-tasks'
+import { trackActivity } from '@/features/activity'
+import { useSession } from '@/lib/auth-client'
+import { getWelcomeContent } from '@/lib/seed-content/welcome'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readMany, readOne, create, update, destroy } from '@skriuw/crud'
+import { generateId } from '@skriuw/shared'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 // Keys factory for query invalidation
 export const notesKeys = {
@@ -282,7 +282,7 @@ export function useUpdateNoteMutation() {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ noteId: id, tasks: extractedTasks })
-					}).catch(() => { })
+					}).catch(() => {})
 				} catch (taskError) {
 					// Don't fail note update if task sync fails
 					console.error('Failed to sync tasks:', taskError)

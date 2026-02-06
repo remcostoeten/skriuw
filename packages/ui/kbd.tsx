@@ -1,5 +1,5 @@
-import { cn } from "@skriuw/shared";
-import React from "react";
+import { cn } from '@skriuw/shared'
+import React from 'react'
 
 type KbdProps = {
 	children?: React.ReactNode

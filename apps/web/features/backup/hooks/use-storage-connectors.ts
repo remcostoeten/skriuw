@@ -1,8 +1,12 @@
-import { STORAGE_CONNECTOR_DEFINITIONS } from "../core/connectors";
-import type { StorageConnectorDefinition, StorageConnectorState, StorageConnectorType } from "../core/types";
-import type { OAuth2Tokens } from "../core/types";
-import { validateConnectorConfig } from "../core/validation";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { STORAGE_CONNECTOR_DEFINITIONS } from '../core/connectors'
+import type {
+	StorageConnectorDefinition,
+	StorageConnectorState,
+	StorageConnectorType
+} from '../core/types'
+import type { OAuth2Tokens } from '../core/types'
+import { validateConnectorConfig } from '../core/validation'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 
 function generateConnectorId(type: StorageConnectorType): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

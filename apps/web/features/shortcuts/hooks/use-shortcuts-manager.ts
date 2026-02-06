@@ -1,6 +1,11 @@
-import type { ShortcutId, KeyCombo } from "../shortcut-definitions";
-import { useShortcutsQuery, useSaveShortcutMutation, useResetShortcutMutation, useResetAllShortcutsMutation } from "./use-shortcuts-query";
-import { useCallback } from "react";
+import type { ShortcutId, KeyCombo } from '../shortcut-definitions'
+import {
+	useShortcutsQuery,
+	useSaveShortcutMutation,
+	useResetShortcutMutation,
+	useResetAllShortcutsMutation
+} from './use-shortcuts-query'
+import { useCallback } from 'react'
 
 /**
  * Hook to manage shortcuts programmatically

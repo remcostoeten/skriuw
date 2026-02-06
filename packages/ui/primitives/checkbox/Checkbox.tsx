@@ -1,8 +1,8 @@
-import { CheckboxProps, CheckboxState } from "./types";
-import { checkboxStyles, checkboxAnimations, checkboxSizes, focusRingStyles } from "./variants";
-import { cn } from "@skriuw/shared";
-import { Loader2, Check, Minus } from "lucide-react";
-import React, { useId, useRef, useState, useEffect } from "react";
+import { CheckboxProps, CheckboxState } from './types'
+import { checkboxStyles, checkboxAnimations, checkboxSizes, focusRingStyles } from './variants'
+import { cn } from '@skriuw/shared'
+import { Loader2, Check, Minus } from 'lucide-react'
+import React, { useId, useRef, useState, useEffect } from 'react'
 
 /**
  * Enterprise-grade Checkbox Component

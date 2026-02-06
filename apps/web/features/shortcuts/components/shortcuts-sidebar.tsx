@@ -1,13 +1,13 @@
-import { resetAllShortcuts } from "../api/mutations/reset-all-shortcuts";
-import { resetShortcut } from "../api/mutations/reset-shortcut";
-import { saveShortcut } from "../api/mutations/save-shortcut";
-import { getShortcuts } from "../api/queries/get-shortcuts";
-import { ShortcutId, shortcutDefinitions, KeyCombo } from "../shortcut-definitions";
-import { ShortcutsList, ShortcutState } from "./shortcuts-list";
-import { createFocusTrap } from "@skriuw/shared/client";
-import { Input } from "@skriuw/ui/input";
-import { X, Search } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { resetAllShortcuts } from '../api/mutations/reset-all-shortcuts'
+import { resetShortcut } from '../api/mutations/reset-shortcut'
+import { saveShortcut } from '../api/mutations/save-shortcut'
+import { getShortcuts } from '../api/queries/get-shortcuts'
+import { ShortcutId, shortcutDefinitions, KeyCombo } from '../shortcut-definitions'
+import { ShortcutsList, ShortcutState } from './shortcuts-list'
+import { createFocusTrap } from '@skriuw/shared/client'
+import { Input } from '@skriuw/ui/input'
+import { X, Search } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 type props = {
 	isOpen: boolean

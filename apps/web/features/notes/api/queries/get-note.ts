@@ -1,6 +1,6 @@
-import type { Note } from "../../types";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { readOne } from "@skriuw/crud";
+import type { Note } from '../../types'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { readOne } from '@skriuw/crud'
 
 const CACHE_TTL_MS = 60000
 

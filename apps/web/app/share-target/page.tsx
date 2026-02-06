@@ -1,7 +1,7 @@
 'use client'
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function ShareTargetPage() {
 	const router = useRouter()

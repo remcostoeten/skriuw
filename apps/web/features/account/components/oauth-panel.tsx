@@ -1,10 +1,14 @@
-import type { LinkedAccount } from "../api/account-client";
-import { useLinkedAccountsQuery, useLinkAccountMutation, useUnlinkAccountMutation } from "../hooks/use-account-query";
-import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
-import { Button } from "@skriuw/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { ExternalLink, Link2, ShieldCheck, Unlink } from "lucide-react";
-import { useMemo, useState } from "react";
+import type { LinkedAccount } from '../api/account-client'
+import {
+	useLinkedAccountsQuery,
+	useLinkAccountMutation,
+	useUnlinkAccountMutation
+} from '../hooks/use-account-query'
+import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
+import { Button } from '@skriuw/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { ExternalLink, Link2, ShieldCheck, Unlink } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 type ProviderId = 'github'
 

@@ -1,5 +1,5 @@
-import { mock } from "bun:test";
-import { JSDOM } from "jsdom";
+import { mock } from 'bun:test'
+import { JSDOM } from 'jsdom'
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
 	url: 'http://localhost:3000'
@@ -54,4 +54,3 @@ process.env.CONNECTOR_ENCRYPTION_KEY = '00000000000000000000000000000000'
 process.env.CRON_SECRET = '0000000000000000000000000000000000000000000000000000000000000000'
 process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
 process.env.NODE_ENV = 'test'
-

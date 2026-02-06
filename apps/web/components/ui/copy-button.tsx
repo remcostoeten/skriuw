@@ -1,8 +1,8 @@
 'use client'
 
-import { Button } from "@skriuw/ui";
-import { Copy, Check } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Button } from '@skriuw/ui'
+import { Copy, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 type CopyButtonProps = {
 	text: string

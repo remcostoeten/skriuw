@@ -1,5 +1,5 @@
-import { text, index } from "drizzle-orm/pg-core";
-import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import { text, index } from 'drizzle-orm/pg-core'
+import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 
 /**
  * Standard columns for user-owned entities.

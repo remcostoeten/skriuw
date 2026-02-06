@@ -1,8 +1,8 @@
 'use client'
 
-import { EmptyState } from "@skriuw/ui";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { EmptyState } from '@skriuw/ui'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export const dynamic = 'force-dynamic'
 

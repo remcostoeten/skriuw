@@ -1,9 +1,26 @@
-import type { EditorTab } from "../tabs";
-import { NOTE_TAB_DRAG_TYPE } from "@/features/notes/constants";
-import { cn } from "@skriuw/shared";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@skriuw/ui/context-menu";
-import { Plus, X, ChevronLeft, ChevronRight, Copy, XCircle, Edit, Pin, Star, Trash2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import type { EditorTab } from '../tabs'
+import { NOTE_TAB_DRAG_TYPE } from '@/features/notes/constants'
+import { cn } from '@skriuw/shared'
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger
+} from '@skriuw/ui/context-menu'
+import {
+	Plus,
+	X,
+	ChevronLeft,
+	ChevronRight,
+	Copy,
+	XCircle,
+	Edit,
+	Pin,
+	Star,
+	Trash2
+} from 'lucide-react'
+import { useState, useCallback } from 'react'
 
 type props = {
 	tabs: EditorTab[]

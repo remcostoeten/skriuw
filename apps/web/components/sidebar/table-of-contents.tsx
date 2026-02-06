@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { cn } from '@skriuw/shared'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
 
 export type TableOfContentsItem = {
 	id: string

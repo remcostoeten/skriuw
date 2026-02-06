@@ -1,8 +1,8 @@
 'use client'
 
-import type { CalendarDay } from "../types";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@skriuw/ui";
-import { useMemo } from "react";
+import type { CalendarDay } from '../types'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@skriuw/ui'
+import { useMemo } from 'react'
 
 type ActivityCalendarProps = {
 	days: CalendarDay[]

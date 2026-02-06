@@ -1,8 +1,8 @@
 'use client'
 
-import type { PreviewProps } from "../types";
-import { Search, FileText } from "lucide-react";
-import React from "react";
+import type { PreviewProps } from '../types'
+import { Search, FileText } from 'lucide-react'
+import React from 'react'
 
 export default function SearchPreview({ value }: PreviewProps<boolean>) {
 	return (

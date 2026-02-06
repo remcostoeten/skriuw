@@ -1,5 +1,5 @@
-import { BaseEntity, StorageAdapter } from "../types";
-import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from "vitest";
+import { BaseEntity, StorageAdapter } from '../types'
+import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from 'vitest'
 
 // Inline implementation of the client-api adapter for testing
 // This mirrors the actual implementation in apps/web/lib/storage/adapters/client-api.ts
