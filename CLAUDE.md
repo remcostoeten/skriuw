@@ -174,3 +174,20 @@ Tests use Bun's native test runner with JSDOM for DOM simulation. Test files are
 # Run specific test
 cd apps/web && bun test __tests__/notes/wikilink-parser.test.ts
 ```
+
+## Documentation
+
+For comprehensive documentation, see [`/docs/README.md`](docs/README.md).
+
+### Key Documentation Files
+- [Architecture Decisions](docs/ARCHITECTURAL_DECISIONS.md) - Core design principles (read this first!)
+- [Documentation Index](docs/INDEX.md) - Complete map of all documentation
+- [Feature Status](docs/STATUS.md) - What's shipped, planned, in progress
+- [Organization Guide](docs/ORGANIZATION.md) - How documentation is structured
+
+### Contributing to Documentation
+See [docs/ORGANIZATION.md](docs/ORGANIZATION.md) for:
+- Where to put new documentation
+- File naming conventions
+- Documentation standards
+- Cross-linking guidelines

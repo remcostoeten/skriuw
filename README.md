@@ -315,3 +315,19 @@ MIT
 
 xxx,  
 [Remco Stoeten](https://remcostoeten-nl.vercel.app)
+
+---
+
+## 📚 Documentation
+
+This project has comprehensive documentation organized in a central hub.
+
+**Start Here**: [`/docs/README.md`](docs/README.md)
+
+### Quick Links
+- [Documentation Index](docs/INDEX.md) - Find any document
+- [Feature Status](docs/STATUS.md) - What's shipped vs. planned
+- [Architecture](docs/ARCHITECTURAL_DECISIONS.md) - Core design principles
+- [Developer Guide](CLAUDE.md) - Commands, setup, tech stack
+
+---

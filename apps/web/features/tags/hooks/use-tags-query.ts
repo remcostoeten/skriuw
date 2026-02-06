@@ -37,10 +37,10 @@ export function useTagsWithCountQuery() {
 		queryKey: [...tagsKeys.list(userId), 'with-count'],
 		queryFn: async (): Promise<TagWithCount[]> => {
 			const tagsResult = await readMany<Tag>(TAGS_STORAGE_KEY, { userId })
-			const notesResult = await readMany<{ id: string; tags?: string[] }>(
-				STORAGE_KEYS.NOTES,
-				{ userId }
-			)
+			const notesResult = await readMany(STORAGE_KEYS.NOTES, { userId }) as {
+				success: boolean
+				data?: { id: string; tags?: string[] }[]
+			}
 
 			if (!tagsResult.success || !tagsResult.data) return []
 

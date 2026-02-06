@@ -136,13 +136,13 @@ export function TagSuggestionMenu() {
 				const created = await createTag.mutateAsync({ name })
 				editor.insertInlineContent([
 					{
-						type: 'tag',
+						type: 'tag' as const,
 						props: {
 							tagId: created.id,
 							tagName: created.name,
 							tagColor: created.color
 						}
-					},
+					} as any,
 					' '
 				])
 				return
@@ -150,13 +150,13 @@ export function TagSuggestionMenu() {
 
 			editor.insertInlineContent([
 				{
-					type: 'tag',
+					type: 'tag' as const,
 					props: {
 						tagId: item.id,
 						tagName: item.name,
 						tagColor: item.color
 					}
-				},
+				} as any,
 				' '
 			])
 		},

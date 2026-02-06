@@ -1,7 +1,5 @@
 import { auth } from '@/lib/auth'
-import { readMany } from '@skriuw/crud'
-import { getDatabase, aiProviderConfig, eq } from '@skriuw/db'
-import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { getDatabase, aiProviderConfig, eq, and } from '@skriuw/db'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { encryptPrompt, decryptPrompt } from '@/features/ai/utilities'
@@ -13,16 +11,20 @@ export async function GET() {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 	}
 
-	const result = await readMany(STORAGE_KEYS.AI_PROVIDER_CONFIG, {
-		userId: session.user.id,
-		isActive: true
-	})
+	const db = getDatabase()
+	const configs = await db
+		.select()
+		.from(aiProviderConfig)
+		.where(
+			and(eq(aiProviderConfig.userId, session.user.id), eq(aiProviderConfig.isActive, true))
+		)
+		.limit(1)
 
-	if (!result.success || !result.data || result.data.length === 0) {
+	if (!configs[0]) {
 		return NextResponse.json(null)
 	}
 
-	const config = result.data[0]
+	const config = configs[0]
 
 	return NextResponse.json({
 		id: config.id,

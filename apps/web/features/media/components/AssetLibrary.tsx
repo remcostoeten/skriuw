@@ -54,8 +54,8 @@ export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 	const [editName, setEditName] = useState('')
 
 	// Upload hook
-	const { startUpload, isUploading } = useUpload({
-		onUploadComplete: () => {
+	const { upload, isUploading } = useUpload({
+		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['assets'] })
 		}
 	})
@@ -92,7 +92,9 @@ export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 
 	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files?.length) {
-			await startUpload(Array.from(e.target.files))
+			for (const file of Array.from(e.target.files)) {
+				await upload(file)
+			}
 		}
 	}
 

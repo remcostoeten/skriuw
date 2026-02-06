@@ -7,27 +7,46 @@ let _db: ReturnType<typeof getDatabase> | null = null
 
 function getDb() {
 	if (!_db) {
-		_db = getDatabase()
+		try {
+			_db = getDatabase()
+		} catch (error) {
+			console.error('Failed to connect to database:', error instanceof Error ? error.message : error)
+			throw new Error(
+				'Database connection failed. Please ensure DATABASE_URL is set in your .env.local file.\n' +
+				'Run: cp .env.example .env.local and configure your database connection.'
+			)
+		}
 	}
 	return _db
 }
 
-export const auth = betterAuth({
-	database: drizzleAdapter(getDb() as any, {
-		provider: 'pg'
-	}),
-	emailAndPassword: {
-		enabled: true
-	},
-	socialProviders: {
-		github: {
-			clientId: process.env.GITHUB_CLIENT_ID!,
-			clientSecret: process.env.GITHUB_CLIENT_SECRET!
-		},
-		google: {
-			clientId: process.env.GOOGLE_CLIENT_ID!,
-			clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+function createAuthConfig() {
+	try {
+		const db = getDb()
+		return {
+			database: drizzleAdapter(db as any, {
+				provider: 'pg'
+			}),
+			emailAndPassword: {
+				enabled: true
+			},
+			socialProviders: {
+				github: {
+					clientId: process.env.GITHUB_CLIENT_ID!,
+					clientSecret: process.env.GITHUB_CLIENT_SECRET!
+				},
+				google: {
+					clientId: process.env.GOOGLE_CLIENT_ID!,
+					clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+				}
+			},
+			plugins: [anonymous()]
 		}
-	},
-	plugins: [anonymous()]
-})
+	} catch (error) {
+		console.error('Failed to initialize auth:', error)
+		// Return a minimal auth config that will fail gracefully
+		throw error
+	}
+}
+
+export const auth = betterAuth(createAuthConfig())

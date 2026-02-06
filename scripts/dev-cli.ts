@@ -209,6 +209,26 @@ async function handleAction(action: string, options: Options) {
 			})
 			if (!res.ok) {
 				const errorText = await res.text()
+
+				// Handle authentication errors gracefully
+				if (res.status === 403 || res.status === 401) {
+					logMessage('Authentication required to use dev CLI', 'error')
+					logMessage('', 'info')
+					logMessage('You need to authenticate to perform this action.', 'info')
+					logMessage('Please choose one of the following options:', 'info')
+					logMessage('', 'info')
+					logMessage('Option 1: Extract auth tokens from your browser', 'info')
+					logMessage('  Run: bun run scripts/dev-cli.ts auth --browser brave', 'info')
+					logMessage('', 'info')
+					logMessage('Option 2: Start the dev server and log in', 'info')
+					logMessage('  1. Run: bun run dev', 'info')
+					logMessage('  2. Open http://localhost:3000 in your browser', 'info')
+					logMessage('  3. Log in with your credentials', 'info')
+					logMessage('  4. Then run this command again', 'info')
+					logMessage('', 'info')
+					process.exit(1)
+				}
+
 				throw new Error(`Request failed with status ${res.status}: ${errorText}`)
 			}
 			response = await res.text()
@@ -243,7 +263,27 @@ async function handleAction(action: string, options: Options) {
 		writeOutput(result, output || 'text', logFile)
 		printSummary(result)
 	} catch (error) {
-		logMessage(`Error: ${error instanceof Error ? error.message : String(error)}`, 'error')
+		const errorMessage = error instanceof Error ? error.message : String(error)
+
+		// Check for connection errors (server not running)
+		if (
+			errorMessage.includes('ECONNREFUSED') ||
+			errorMessage.includes('fetch failed') ||
+			errorMessage.includes('Connection refused')
+		) {
+			logMessage('Cannot connect to development server', 'error')
+			logMessage('', 'info')
+			logMessage('The development server is not running.', 'info')
+			logMessage('Please start the dev server first:', 'info')
+			logMessage('', 'info')
+			logMessage('  bun run dev', 'info')
+			logMessage('', 'info')
+			logMessage('Then try running this command again.', 'info')
+			logMessage('', 'info')
+			process.exit(1)
+		}
+
+		logMessage(`Error: ${errorMessage}`, 'error')
 		process.exit(1)
 	}
 }
@@ -610,6 +650,11 @@ function printUsage() {
 	console.log('Skriuw Dev CLI - Professional CLI tool for Skriuw development operations')
 	console.log('')
 	console.log('Usage: bun run scripts/dev-cli.ts <action> [options]')
+	console.log('')
+	console.log('IMPORTANT: This CLI requires authentication.')
+	console.log('  - In development mode: Ensure you are logged in at http://localhost:3000')
+	console.log('  - In production: You must be an admin user')
+	console.log('  - Use the "auth" action to extract tokens from your browser')
 	console.log('')
 	console.log('Actions:')
 	console.log('  seed                    Create sample data')
