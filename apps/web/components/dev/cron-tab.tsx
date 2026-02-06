@@ -1,10 +1,10 @@
 'use client'
 
-import { SectionLabel, ActionButton } from "./common";
-import { notify } from "@/lib/notify";
-import { cn } from "@skriuw/shared";
-import { CheckCircle, XCircle, Clock, Play } from "lucide-react";
-import { useState, useCallback } from "react";
+import { SectionLabel, ActionButton } from './common'
+import { notify } from '@/lib/notify'
+import { cn } from '@skriuw/shared'
+import { CheckCircle, XCircle, Clock, Play } from 'lucide-react'
+import { useState, useCallback } from 'react'
 
 type CronStatus = {
 	lastRun?: string

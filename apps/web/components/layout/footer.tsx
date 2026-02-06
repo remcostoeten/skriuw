@@ -1,14 +1,14 @@
 'use client'
 
-import { useSettingsContext } from "../../features/settings/settings-provider";
-import { createShortcut } from "../../features/shortcuts/builder";
-import { useShortcut } from "../../features/shortcuts/use-shortcut";
-import { SidebarMenu } from "../sidebar-menu";
-import { cn } from "@skriuw/shared";
-import { useIsTouchDevice } from "@skriuw/shared/client";
-import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from "@skriuw/ui";
-import { CloudOff, Globe, Zap, Upload, Moon, Sun, type LucideIcon } from "lucide-react";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSettingsContext } from '../../features/settings/settings-provider'
+import { createShortcut } from '../../features/shortcuts/builder'
+import { useShortcut } from '../../features/shortcuts/use-shortcut'
+import { SidebarMenu } from '../sidebar-menu'
+import { cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
+import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from '@skriuw/ui'
+import { CloudOff, Globe, Zap, Upload, Moon, Sun, type LucideIcon } from 'lucide-react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 
 const MENU_KEYS = {
 	THEME: 'theme',

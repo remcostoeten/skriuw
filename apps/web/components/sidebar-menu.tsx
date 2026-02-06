@@ -1,21 +1,49 @@
 'use client'
 
-import { useSettings, SettingsGroup as SettingsGroupComponent } from "../features/settings";
-import { EDITOR_SETTINGS_GROUPS } from "../features/settings/editor-settings";
-import type { SettingsGroup as SettingsGroupDefinition } from "../features/settings/types";
-import { resetAllShortcuts } from "../features/shortcuts/api/mutations/reset-all-shortcuts";
-import { resetShortcut } from "../features/shortcuts/api/mutations/reset-shortcut";
-import { saveShortcut } from "../features/shortcuts/api/mutations/save-shortcut";
-import { getShortcuts } from "../features/shortcuts/api/queries/get-shortcuts";
-import { ShortcutsList, ShortcutState } from "../features/shortcuts/components/shortcuts-list";
-import { ShortcutId, shortcutDefinitions, KeyCombo } from "../features/shortcuts/shortcut-definitions";
-import { StorageAdaptersPanel } from "@/features/backup/components/storage-adapters-panel";
-import { StorageSettings } from "@/features/settings/components/StorageSettings";
-import { Button } from "@skriuw/ui/button";
-import { DrawerDialog, DrawerContent, DrawerClose, DrawerHeader, DrawerTitle, DrawerFooter, DialogAside, DialogContentArea, DialogNavGroup, DialogSection, DialogSeparator } from "@skriuw/ui/dialog-drawer";
-import { Input } from "@skriuw/ui/input";
-import { Pencil, Hand, Keyboard, Settings, Palette, Sliders, Search, X, ChevronDown, ChevronRight, HardDrive } from "lucide-react";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSettings, SettingsGroup as SettingsGroupComponent } from '../features/settings'
+import { EDITOR_SETTINGS_GROUPS } from '../features/settings/editor-settings'
+import type { SettingsGroup as SettingsGroupDefinition } from '../features/settings/types'
+import { resetAllShortcuts } from '../features/shortcuts/api/mutations/reset-all-shortcuts'
+import { resetShortcut } from '../features/shortcuts/api/mutations/reset-shortcut'
+import { saveShortcut } from '../features/shortcuts/api/mutations/save-shortcut'
+import { getShortcuts } from '../features/shortcuts/api/queries/get-shortcuts'
+import { ShortcutsList, ShortcutState } from '../features/shortcuts/components/shortcuts-list'
+import {
+	ShortcutId,
+	shortcutDefinitions,
+	KeyCombo
+} from '../features/shortcuts/shortcut-definitions'
+import { StorageAdaptersPanel } from '@/features/backup/components/storage-adapters-panel'
+import { StorageSettings } from '@/features/settings/components/StorageSettings'
+import { Button } from '@skriuw/ui/button'
+import {
+	DrawerDialog,
+	DrawerContent,
+	DrawerClose,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerFooter,
+	DialogAside,
+	DialogContentArea,
+	DialogNavGroup,
+	DialogSection,
+	DialogSeparator
+} from '@skriuw/ui/dialog-drawer'
+import { Input } from '@skriuw/ui/input'
+import {
+	Pencil,
+	Hand,
+	Keyboard,
+	Settings,
+	Palette,
+	Sliders,
+	Search,
+	X,
+	ChevronDown,
+	ChevronRight,
+	HardDrive
+} from 'lucide-react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 
 type Props = {
 	title: string
@@ -24,12 +52,7 @@ type Props = {
 	description?: string
 }
 
-function MobileSettingsSection({
-	title,
-	children,
-	defaultExpanded = false,
-	description
-}: Props) {
+function MobileSettingsSection({ title, children, defaultExpanded = false, description }: Props) {
 	const [isExpanded, setIsExpanded] = useState(defaultExpanded)
 	const sectionId = title.toLowerCase().replace(/\s+/g, '-')
 
@@ -45,8 +68,9 @@ function MobileSettingsSection({
 			>
 				<div className='flex items-center gap-3 flex-1 text-left'>
 					<ChevronRight
-						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${isExpanded ? 'rotate-90' : ''
-							}`}
+						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${
+							isExpanded ? 'rotate-90' : ''
+						}`}
 						aria-hidden='true'
 					/>
 					<div>
@@ -64,8 +88,9 @@ function MobileSettingsSection({
 			</button>
 			<div
 				id={`${sectionId}-content`}
-				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
-					}`}
+				className={`overflow-hidden transition-all duration-200 ${
+					isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
+				}`}
 				aria-hidden={!isExpanded}
 			>
 				<div className='px-4 pb-4 pt-2'>{children}</div>
@@ -508,10 +533,11 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 										key={item.id}
 										type='button'
 										onClick={() => setActiveItem(item.id)}
-										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${activeItem === item.id
-											? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
-											: 'hover:bg-accent/30'
-											}`}
+										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
+											activeItem === item.id
+												? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
+												: 'hover:bg-accent/30'
+										}`}
 										aria-current={activeItem === item.id ? 'page' : undefined}
 									>
 										<span className='flex-shrink-0'>{item.icon}</span>

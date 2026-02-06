@@ -1,4 +1,4 @@
-import type { UserSetting, SettingsGroup } from "./types";
+import type { UserSetting, SettingsGroup } from './types'
 
 /**
  * Editor-specific user settings
@@ -235,7 +235,8 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		value: 'rich',
 		defaultValue: 'rich',
 		type: 'enum',
-		description: "Choose 'Rich' for cover images and icons, or 'Simple' for a minimal text-only experience.",
+		description:
+			"Choose 'Rich' for cover images and icons, or 'Simple' for a minimal text-only experience.",
 		category: 'note-experience',
 		options: ['rich', 'simple'],
 		implemented: true
@@ -350,7 +351,7 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		value: false,
 		defaultValue: false,
 		type: 'boolean',
-		description: 'Automatically open or create today\'s note on startup.',
+		description: "Automatically open or create today's note on startup.",
 		category: 'daily-notes',
 		implemented: true
 	},
@@ -508,52 +509,56 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 		category: 'note-experience',
 		title: 'Note Experience',
 		description: 'Customize the default experience when creating new notes',
-		settings: EDITOR_SETTINGS.filter((s) => s.category === 'note-experience' && s.implemented !== false)
+		settings: EDITOR_SETTINGS.filter(
+			(s) => s.category === 'note-experience' && s.implemented !== false
+		)
 	},
 	{
 		category: 'daily-notes',
 		title: 'Daily Notes',
 		description: 'Configure your daily journaling workflow',
-		settings: EDITOR_SETTINGS.filter((s) => s.category === 'daily-notes' && s.implemented !== false)
+		settings: EDITOR_SETTINGS.filter(
+			(s) => s.category === 'daily-notes' && s.implemented !== false
+		)
 	},
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)
 		? [
-			{
-				category: 'appearance' as const,
-				title: 'Appearance',
-				description: 'Editor appearance and display settings',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'appearance' && s.implemented !== false
-				)
-			}
-		]
+				{
+					category: 'appearance' as const,
+					title: 'Appearance',
+					description: 'Editor appearance and display settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'appearance' && s.implemented !== false
+					)
+				}
+			]
 		: []),
 	// Only include behavior group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'behavior' && s.implemented !== false)
 		? [
-			{
-				category: 'behavior' as const,
-				title: 'Behavior',
-				description: 'Editor behavior and automation settings',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'behavior' && s.implemented !== false
-				)
-			}
-		]
+				{
+					category: 'behavior' as const,
+					title: 'Behavior',
+					description: 'Editor behavior and automation settings',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'behavior' && s.implemented !== false
+					)
+				}
+			]
 		: []),
 	// Only include advanced group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'advanced' && s.implemented !== false)
 		? [
-			{
-				category: 'advanced' as const,
-				title: 'Advanced',
-				description: 'Advanced settings and features',
-				settings: EDITOR_SETTINGS.filter(
-					(s) => s.category === 'advanced' && s.implemented !== false
-				)
-			}
-		]
+				{
+					category: 'advanced' as const,
+					title: 'Advanced',
+					description: 'Advanced settings and features',
+					settings: EDITOR_SETTINGS.filter(
+						(s) => s.category === 'advanced' && s.implemented !== false
+					)
+				}
+			]
 		: []),
 	{
 		category: 'tags' as const,

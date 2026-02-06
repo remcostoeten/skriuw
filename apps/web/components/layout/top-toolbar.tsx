@@ -1,15 +1,27 @@
-import { UserMenu } from "../auth/user-menu";
-import { WindowControls } from "./window-controls";
-import { isTauriAvailable, cn } from "@skriuw/shared";
-import { useIsTouchDevice } from "@skriuw/shared/client";
-import { IconButton } from "@skriuw/ui/icons";
-import { Menu, PanelLeftClose, PanelRightClose, ChevronLeft, ChevronRight, Code, Type, Square, SplitSquareHorizontal } from "lucide-react";
+import { UserMenu } from '../auth/user-menu'
+import { WindowControls } from './window-controls'
+import { isTauriAvailable, cn } from '@skriuw/shared'
+import { useIsTouchDevice } from '@skriuw/shared/client'
+import { IconButton } from '@skriuw/ui/icons'
+import {
+	Menu,
+	PanelLeftClose,
+	PanelRightClose,
+	PanelRightOpen,
+	ChevronLeft,
+	ChevronRight,
+	Code,
+	Type,
+	Square,
+	SplitSquareHorizontal
+} from 'lucide-react'
 
 type props = {
 	noteName: string
 	onToggleSidebar: () => void
 	onToggleDesktopSidebar?: () => void
 	onToggleRightSidebar?: () => void
+	isRightSidebarOpen?: boolean
 	onNavigatePrevious?: () => void
 	onNavigateNext?: () => void
 	canNavigatePrevious?: boolean
@@ -29,6 +41,7 @@ export function TopToolbar({
 	onToggleSidebar,
 	onToggleDesktopSidebar,
 	onToggleRightSidebar,
+	isRightSidebarOpen = false,
 	onNavigatePrevious,
 	onNavigateNext,
 	canNavigatePrevious = false,
@@ -158,14 +171,24 @@ export function TopToolbar({
 						onClick={onToggleEditorMode}
 					/>
 				)}
-				{onToggleRightSidebar && (
+				{onToggleRightSidebar ? (
 					<IconButton
-						icon={<PanelRightClose className='w-4 h-4 text-muted-foreground' />}
-						tooltip='Toggle note details'
+						icon={
+							isRightSidebarOpen ? (
+								<PanelRightOpen className='w-4 h-4 text-muted-foreground' />
+							) : (
+								<PanelRightClose className='w-4 h-4 text-muted-foreground' />
+							)
+						}
+						tooltip={isRightSidebarOpen ? 'Hide note details' : 'Show note details'}
 						variant='toolbar'
+						active={isRightSidebarOpen}
 						onClick={onToggleRightSidebar}
+						aria-label={isRightSidebarOpen ? 'Hide note details' : 'Show note details'}
+						aria-pressed={isRightSidebarOpen}
+						className='touch-manipulation'
 					/>
-				)}
+				) : null}
 				<UserMenu />
 				{isTauri && <div className='ml-2 border-l border-border h-6' />}
 				{isTauri && <WindowControls />}

@@ -1,4 +1,4 @@
-import type { BaseEntity } from "./base";
+import type { BaseEntity } from './base'
 
 /**
  * Storage adapter interface that backends must implement.

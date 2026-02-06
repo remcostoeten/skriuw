@@ -1,9 +1,15 @@
-import { getAdapter } from "../adapter";
-import * as cache from "../cache";
-import { createCrudError, createNotFoundError } from "../errors";
-import type { BaseEntity, CrudResult, BatchCrudResult, ReadOptions, BatchReadOptions } from "../types";
-import { generateRequestId } from "../utils/id";
-import { successResult, errorResult } from "../utils/result";
+import { getAdapter } from '../adapter'
+import * as cache from '../cache'
+import { createCrudError, createNotFoundError } from '../errors'
+import type {
+	BaseEntity,
+	CrudResult,
+	BatchCrudResult,
+	ReadOptions,
+	BatchReadOptions
+} from '../types'
+import { generateRequestId } from '../utils/id'
+import { successResult, errorResult } from '../utils/result'
 
 /**
  * Reads a single entity by ID.

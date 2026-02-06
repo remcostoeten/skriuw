@@ -1,10 +1,11 @@
-import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { defaultCache } from '@serwist/next/worker'
+import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist'
+import { Serwist } from 'serwist'
 
 /// <reference lib="webworker" />
 
 declare global {
+	// oxlint-disable-next-line @typescript-eslint/consistent-type-definitions -- declaration merging requires interface
 	interface WorkerGlobalScope extends SerwistGlobalConfig {
 		__SW_MANIFEST: (PrecacheEntry | string)[] | undefined
 	}

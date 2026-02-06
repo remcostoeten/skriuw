@@ -1,4 +1,4 @@
-import type { Block } from "@blocknote/core";
+import type { Block } from '@blocknote/core'
 
 /**
  * Represents the content structure for notes using BlockNote's Block format.

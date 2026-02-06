@@ -1,5 +1,5 @@
-import { checkDockerDB } from "./check-db";
-import { spawn } from "bun";
+import { checkDockerDB } from './check-db'
+import { spawn } from 'bun'
 
 // Run the database check
 await checkDockerDB()

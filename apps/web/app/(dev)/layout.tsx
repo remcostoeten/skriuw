@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { cn } from '@skriuw/shared'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 const navItems = [
 	{ href: '/dev/demo', label: 'Demo' },

@@ -1,10 +1,10 @@
 'use client'
 
-import { BrandLogo } from "@/components/brand-logo";
-import { LoginForm } from "@/features/authentication/components/login-form";
-import { Button } from "@skriuw/ui";
-import { ChevronLeftIcon } from "lucide-react";
-import Link from "next/link";
+import { BrandLogo } from '@/components/brand-logo'
+import { LoginForm } from '@/features/authentication/components/login-form'
+import { Button } from '@skriuw/ui'
+import { ChevronLeftIcon } from 'lucide-react'
+import Link from 'next/link'
 
 // import { FloatingPaths } from "@/features/authentication/components/floating-paths";
 

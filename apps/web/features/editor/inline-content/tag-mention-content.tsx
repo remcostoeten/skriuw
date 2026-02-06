@@ -1,5 +1,5 @@
-import { createReactInlineContentSpec } from "@blocknote/react";
-import type { CSSProperties } from "react";
+import { createReactInlineContentSpec } from '@blocknote/react'
+import type { CSSProperties } from 'react'
 
 type Props = {
 	tagName: string
@@ -14,11 +14,7 @@ function TagMention({ tagName, tagColor }: Props) {
 	}
 
 	return (
-		<span
-			className="skriuw-tag-mention"
-			style={style}
-			aria-label={`Tag ${tagName}`}
-		>
+		<span className='skriuw-tag-mention' style={style} aria-label={`Tag ${tagName}`}>
 			{tagName}
 		</span>
 	)
@@ -26,19 +22,19 @@ function TagMention({ tagName, tagColor }: Props) {
 
 export const TagInline = createReactInlineContentSpec(
 	{
-		type: "tag",
+		type: 'tag',
 		propSchema: {
 			tagName: {
-				default: ""
+				default: ''
 			},
 			tagId: {
-				default: ""
+				default: ''
 			},
 			tagColor: {
-				default: "#6366f1"
+				default: '#6366f1'
 			}
 		},
-		content: "none"
+		content: 'none'
 	},
 	{
 		render: function render(props) {

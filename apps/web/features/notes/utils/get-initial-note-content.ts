@@ -1,5 +1,5 @@
-import type { Block } from "@blocknote/core";
-import { generateId } from "@skriuw/shared";
+import type { Block } from '@blocknote/core'
+import { generateId } from '@skriuw/shared'
 
 export type NoteTemplate = 'empty' | 'h1' | 'h2' | 'meeting' | 'journal' | 'project'
 
@@ -106,7 +106,7 @@ function getMeetingTemplate(): Block[] {
 		createParagraph(),
 		createParagraph(),
 		createHeading(2, 'Action Items'),
-		createChecklistItem(''),
+		createChecklistItem('')
 	]
 }
 
@@ -121,14 +121,14 @@ function getJournalTemplate(): Block[] {
 		day: 'numeric'
 	})
 	return [
-		createHeading(3, 'Today\'s Focus'),
+		createHeading(3, "Today's Focus"),
 		createParagraph(),
 		createParagraph(),
 		createHeading(3, 'Tasks'),
 		createChecklistItem(''),
 		createParagraph(),
 		createHeading(3, 'Notes'),
-		createParagraph(),
+		createParagraph()
 	]
 }
 
@@ -150,6 +150,6 @@ function getProjectTemplate(): Block[] {
 		createBulletItem(''),
 		createParagraph(),
 		createHeading(2, 'Notes'),
-		createParagraph(),
+		createParagraph()
 	]
 }

@@ -1,11 +1,11 @@
 'use client'
 
-import { useGuestMigration } from "../hooks/use-guest-migration";
-import { useNotes } from "../hooks/use-notes";
-import type { Item, Note, Folder } from "../types";
-import type { NoteTemplate } from "../utils/get-initial-note-content";
-import type { Block } from "@blocknote/core";
-import { createContext, useContext, ReactNode } from "react";
+import { useGuestMigration } from '../hooks/use-guest-migration'
+import { useNotes } from '../hooks/use-notes'
+import type { Item, Note, Folder } from '../types'
+import type { NoteTemplate } from '../utils/get-initial-note-content'
+import type { Block } from '@blocknote/core'
+import { createContext, useContext, ReactNode } from 'react'
 
 type CreateNoteOptions = {
 	template?: NoteTemplate

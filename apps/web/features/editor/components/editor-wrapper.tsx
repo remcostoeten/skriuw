@@ -1,14 +1,14 @@
-import { useUserPreferences, useSettings } from "../../settings";
-import { getFontSizePx, getFontFamily, getMaxWidthPx } from "../styles/editor-tokens";
-import "../styles/editor.css";
-import { highlightCodeBlocks } from "../utils/code-highlight";
-import { DualModeEditor } from "./default-mode-editor";
-import { TaskCheckboxReplacer } from "./task-checkbox-replacer";
-import { BlockNoteEditor } from "@blocknote/core";
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/core/style.css";
-import "@blocknote/react/style.css";
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
+import { useUserPreferences, useSettings } from '../../settings'
+import { getFontSizePx, getFontFamily, getMaxWidthPx } from '../styles/editor-tokens'
+import '../styles/editor.css'
+import { highlightCodeBlocks } from '../utils/code-highlight'
+import { DualModeEditor } from './default-mode-editor'
+import { TaskCheckboxReplacer } from './task-checkbox-replacer'
+import { BlockNoteEditor } from '@blocknote/core'
+import '@blocknote/core/fonts/inter.css'
+import '@blocknote/core/style.css'
+import '@blocknote/react/style.css'
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react'
 
 export type EditorWrapperHandle = {
 	focusEditor: () => void

@@ -1,14 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock("../../lib/env", () => ({
+vi.mock('../../lib/env', () => ({
 	env: {
 		CONNECTOR_ENCRYPTION_KEY: '00000000000000000000000000000000',
 		BETTER_AUTH_SECRET: 'test-better-auth-secret-min-32-chars-long'
 	}
 }))
 
-import { decryptConnectorStates, encryptConnectorStates } from "../../features/backup/core/connector-secrets";
-import { STORAGE_CONNECTOR_DEFINITIONS } from "../../features/backup/core/connectors";
+import {
+	decryptConnectorStates,
+	encryptConnectorStates
+} from '../../features/backup/core/connector-secrets'
+import { STORAGE_CONNECTOR_DEFINITIONS } from '../../features/backup/core/connectors'
 
 const baseConnectors = [
 	{

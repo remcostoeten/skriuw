@@ -1,17 +1,17 @@
 'use client'
 
-import { initiateOAuth2Flow, validateOAuth2State } from "../core/oauth2";
-import type { StorageConnectorType } from "../core/types";
-import { useStorageConnectors } from "../hooks/use-storage-connectors";
-import { cn } from "@skriuw/shared";
-import { Button } from "@skriuw/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Input } from "@skriuw/ui/input";
-import { Label } from "@skriuw/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@skriuw/ui/tabs";
-import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from "lucide-react";
-import { useEffect, useMemo, useState, useRef, useCallback, type ComponentType } from "react";
+import { initiateOAuth2Flow, validateOAuth2State } from '../core/oauth2'
+import type { StorageConnectorType } from '../core/types'
+import { useStorageConnectors } from '../hooks/use-storage-connectors'
+import { cn } from '@skriuw/shared'
+import { Button } from '@skriuw/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Input } from '@skriuw/ui/input'
+import { Label } from '@skriuw/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@skriuw/ui/tabs'
+import { motion, AnimatePresence } from 'framer-motion'
+import { AlertCircle, CheckCircle2, Cloud, HardDrive, PlugZap, RefreshCcw } from 'lucide-react'
+import { useEffect, useMemo, useState, useRef, useCallback, type ComponentType } from 'react'
 
 type FormState = Record<StorageConnectorType, Record<string, string>>
 type NameState = Record<StorageConnectorType, string>

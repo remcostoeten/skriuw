@@ -1,7 +1,7 @@
-import { getDatabase } from "@skriuw/db";
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { anonymous } from "better-auth/plugins";
+import { getDatabase } from '@skriuw/db'
+import { betterAuth } from 'better-auth'
+import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { anonymous } from 'better-auth/plugins'
 
 let _db: ReturnType<typeof getDatabase> | null = null
 

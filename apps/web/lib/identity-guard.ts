@@ -1,7 +1,7 @@
 'use client'
 
-import { useSession } from "./auth-client";
-import { useCallback, useRef } from "react";
+import { useSession } from './auth-client'
+import { useCallback, useRef } from 'react'
 
 export type IdentityState = {
 	hasIdentity: boolean

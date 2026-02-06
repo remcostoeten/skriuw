@@ -1,9 +1,9 @@
 'use client'
 
-import { shortcutDefinitions, type ShortcutId } from "@/features/shortcuts/shortcut-definitions";
-import { useShortcut } from "@/features/shortcuts/use-shortcut";
-import { X, Search } from "lucide-react";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { shortcutDefinitions, type ShortcutId } from '@/features/shortcuts/shortcut-definitions'
+import { useShortcut } from '@/features/shortcuts/use-shortcut'
+import { X, Search } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 
 // Simple fuzzy search implementation
 function fuzzyMatch(query: string, text: string): number {

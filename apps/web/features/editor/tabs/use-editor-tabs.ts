@@ -1,3 +1,3 @@
-import { useEditorTabsContext } from "./editor-tabs-provider";
+import { useEditorTabsContext } from './editor-tabs-provider'
 
 export const useEditorTabs = () => useEditorTabsContext()

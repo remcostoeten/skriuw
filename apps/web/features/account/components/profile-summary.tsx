@@ -1,12 +1,12 @@
-import { updateProfile } from "../api/account-client";
-import type { useSession } from "@/lib/auth-client";
-import { Alert, AlertDescription, AlertTitle } from "@skriuw/ui/alert";
-import { Button } from "@skriuw/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Input } from "@skriuw/ui/input";
-import { Label } from "@skriuw/ui/label";
-import { Camera, CheckCircle2, Loader2, Mail, User } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { updateProfile } from '../api/account-client'
+import type { useSession } from '@/lib/auth-client'
+import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
+import { Button } from '@skriuw/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Input } from '@skriuw/ui/input'
+import { Label } from '@skriuw/ui/label'
+import { Camera, CheckCircle2, Loader2, Mail, User } from 'lucide-react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 
 type SessionData = ReturnType<typeof useSession>['data']
 type SessionUser = NonNullable<SessionData>['user']

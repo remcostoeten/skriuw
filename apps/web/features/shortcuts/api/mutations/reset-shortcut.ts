@@ -1,6 +1,6 @@
-import type { ShortcutId } from "../../shortcut-definitions";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { destroy } from "@skriuw/crud";
+import type { ShortcutId } from '../../shortcut-definitions'
+import { STORAGE_KEYS } from '@/lib/storage-keys'
+import { destroy } from '@skriuw/crud'
 
 /**
  * Reset a custom shortcut (delete it)

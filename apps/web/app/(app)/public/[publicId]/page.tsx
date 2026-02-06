@@ -1,5 +1,5 @@
-import { PublicNoteView } from "@/features/notes/components/public-note-view";
-import { notFound } from "next/navigation";
+import { PublicNoteView } from '@/features/notes/components/public-note-view'
+import { notFound } from 'next/navigation'
 
 type PublicNotePageProps = {
 	params: Promise<{ publicId: string }>

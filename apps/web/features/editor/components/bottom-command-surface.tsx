@@ -1,9 +1,9 @@
 'use client'
 
-import type { PartialBlock, BlockNoteEditor } from "@blocknote/core";
-import { cn } from "@skriuw/shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, ChangeEvent, FormEvent, MouseEvent, PointerEvent } from "react";
+import type { PartialBlock, BlockNoteEditor } from '@blocknote/core'
+import { cn } from '@skriuw/shared'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ChangeEvent, FormEvent, MouseEvent, PointerEvent } from 'react'
 
 type Point = {
 	x: number

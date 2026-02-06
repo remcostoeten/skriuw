@@ -1,4 +1,4 @@
-import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from "../types";
+import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from '../types'
 
 const DROPBOX_API_BASE = 'https://content.dropboxapi.com/2'
 const DROPBOX_RPC_BASE = 'https://api.dropboxapi.com/2'

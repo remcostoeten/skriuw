@@ -1,12 +1,12 @@
 'use client'
 
-import { useEditorConfig } from "./useEditorConfig";
-import type { Note } from "@/features/notes";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { extractTags } from "@/features/notes/utils/extract-tags";
-import { BlockNoteEditor, Block } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEditorConfig } from './useEditorConfig'
+import type { Note } from '@/features/notes'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { extractTags } from '@/features/notes/utils/extract-tags'
+import { BlockNoteEditor, Block } from '@blocknote/core'
+import { useCreateBlockNote } from '@blocknote/react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 
 /**
  * Enforces spellcheck on all contenteditable elements within a container
@@ -23,7 +23,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 
 		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			; (element as any).spellcheck = true
+			;(element as any).spellcheck = true
 		}
 	})
 
@@ -36,7 +36,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							; (element as any).spellcheck = true
+							;(element as any).spellcheck = true
 						}
 					}
 
@@ -45,7 +45,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							; (nested as any).spellcheck = true
+							;(nested as any).spellcheck = true
 						}
 					})
 				}
@@ -135,7 +135,7 @@ export function useEditor({
 						initialLoadAttemptedRef.current = noteId
 						setIsLoading(true)
 						// Give React Query a moment to potentially load the data
-						await new Promise(resolve => setTimeout(resolve, 50))
+						await new Promise((resolve) => setTimeout(resolve, 50))
 						if (!isCancelled) {
 							const retryData = await getNote(noteId)
 							if (retryData) {

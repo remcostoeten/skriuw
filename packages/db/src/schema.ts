@@ -1,5 +1,14 @@
-import { createUserIndex, createUserCompositeIndex } from "./user-owned";
-import { pgTable, text, integer, bigint, index, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { createUserIndex, createUserCompositeIndex } from './user-owned'
+import {
+	pgTable,
+	text,
+	integer,
+	bigint,
+	index,
+	boolean,
+	timestamp,
+	uniqueIndex
+} from 'drizzle-orm/pg-core'
 
 export const notes = pgTable(
 	'notes',
@@ -311,7 +320,9 @@ export const aiProviderConfig = pgTable(
 	'ai_provider_config',
 	{
 		id: text('id').primaryKey(),
-		userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
 		provider: text('provider').notNull(),
 		model: text('model').notNull(),
 		basePrompt: text('base_prompt'),
@@ -321,9 +332,17 @@ export const aiProviderConfig = pgTable(
 		updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
 	},
 	(table) => ({
-		userActiveUniqueIdx: uniqueIndex('ai_provider_config_user_active_unique_idx').on(table.userId, table.isActive),
+		userActiveUniqueIdx: uniqueIndex('ai_provider_config_user_active_unique_idx').on(
+			table.userId,
+			table.isActive
+		),
 		userIdx: createUserIndex('ai_provider_config', table.userId),
-		userActiveIdx: createUserCompositeIndex('ai_provider_config', 'active', table.userId, table.isActive)
+		userActiveIdx: createUserCompositeIndex(
+			'ai_provider_config',
+			'active',
+			table.userId,
+			table.isActive
+		)
 	})
 )
 
@@ -331,7 +350,9 @@ export const aiPromptLog = pgTable(
 	'ai_prompt_log',
 	{
 		id: text('id').primaryKey(),
-		userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
 		provider: text('provider').notNull(),
 		model: text('model').notNull(),
 		tokensUsed: integer('tokens_used'),
@@ -340,7 +361,12 @@ export const aiPromptLog = pgTable(
 	},
 	(table) => ({
 		userIdx: createUserIndex('ai_prompt_log', table.userId),
-		userCreatedIdx: createUserCompositeIndex('ai_prompt_log', 'created', table.userId, table.createdAt)
+		userCreatedIdx: createUserCompositeIndex(
+			'ai_prompt_log',
+			'created',
+			table.userId,
+			table.createdAt
+		)
 	})
 )
 
@@ -360,7 +386,10 @@ export const aiApiKeys = pgTable(
 	},
 	(table) => ({
 		providerIdx: index('ai_api_keys_provider_idx').on(table.provider),
-		providerActiveIdx: index('ai_api_keys_provider_active_idx').on(table.provider, table.isActive)
+		providerActiveIdx: index('ai_api_keys_provider_active_idx').on(
+			table.provider,
+			table.isActive
+		)
 	})
 )
 
@@ -368,7 +397,9 @@ export const files = pgTable(
 	'files',
 	{
 		id: text('id').primaryKey(),
-		userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
 		url: text('url').notNull(),
 		name: text('name').notNull(),
 		originalName: text('original_name'),

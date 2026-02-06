@@ -1,13 +1,13 @@
 'use client'
 
-import type { PreviewProps } from "../types";
-import LayoutPreview from "./layout-preview";
-import MultiTabPreview from "./multi-tab-preview";
-import SearchPreview from "./search-preview";
-import SidebarTreePreview from "./sidebar-tree-preview";
-import TypographyPreview from "./typography-preview";
-import WordWrapPreview from "./word-wrap-preview";
-import React from "react";
+import type { PreviewProps } from '../types'
+import LayoutPreview from './layout-preview'
+import MultiTabPreview from './multi-tab-preview'
+import SearchPreview from './search-preview'
+import SidebarTreePreview from './sidebar-tree-preview'
+import TypographyPreview from './typography-preview'
+import WordWrapPreview from './word-wrap-preview'
+import React from 'react'
 
 // Props passed to all preview components
 // Lazy load heavy components

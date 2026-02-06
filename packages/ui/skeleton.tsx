@@ -1,4 +1,4 @@
-import { cn } from "@skriuw/shared";
+import { cn } from '@skriuw/shared'
 
 type SkeletonProps = {
 	className?: string

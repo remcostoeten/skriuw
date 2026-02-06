@@ -1,6 +1,6 @@
-import { useSettingsContext } from "./settings-provider";
-import type { UserSetting } from "./types";
-import React, { useCallback, useMemo } from "react";
+import { useSettingsContext } from './settings-provider'
+import type { UserSetting } from './types'
+import React, { useCallback, useMemo } from 'react'
 
 /**
  * Hook for accessing and managing user preferences

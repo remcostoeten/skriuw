@@ -1,6 +1,6 @@
-import type { StorageConnectorType } from "./types";
-import { validateConnectorConfig } from "./validation";
-import { createHash, createHmac } from "crypto";
+import type { StorageConnectorType } from './types'
+import { validateConnectorConfig } from './validation'
+import { createHash, createHmac } from 'crypto'
 
 export type HandshakeResult = { ok: true; message: string }
 

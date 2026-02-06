@@ -1,8 +1,8 @@
-import type { ExtractedTask } from "@/features/notes/utils/extract-tasks";
-import type { Task } from "@/features/tasks/api/queries/get-tasks";
-import { db } from "@/lib/storage/adapters/server-db";
-import { generateId } from "@skriuw/shared";
-import { NextRequest, NextResponse } from "next/server";
+import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
+import type { Task } from '@/features/tasks/api/queries/get-tasks'
+import { db } from '@/lib/storage/adapters/server-db'
+import { generateId } from '@skriuw/shared'
+import { NextRequest, NextResponse } from 'next/server'
 
 type SyncPayload = {
 	noteId: string

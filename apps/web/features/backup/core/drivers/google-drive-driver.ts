@@ -1,4 +1,4 @@
-import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from "../types";
+import { StorageDriver, DestinationConfig, BackupManifest, BackupChunkMeta } from '../types'
 
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3'

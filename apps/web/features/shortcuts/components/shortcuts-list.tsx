@@ -1,8 +1,8 @@
-import { ShortcutId, KeyCombo } from "../shortcut-definitions";
-import { ShortcutRecorder } from "./shortcut-recorder";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@skriuw/ui/table";
-import { RotateCcw } from "lucide-react";
-import { useMemo } from "react";
+import { ShortcutId, KeyCombo } from '../shortcut-definitions'
+import { ShortcutRecorder } from './shortcut-recorder'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@skriuw/ui/table'
+import { RotateCcw } from 'lucide-react'
+import { useMemo } from 'react'
 
 export type ShortcutState = {
 	id: ShortcutId

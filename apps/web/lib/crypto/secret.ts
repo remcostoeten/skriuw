@@ -1,5 +1,5 @@
-import { env } from "../env";
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
+import { env } from '../env'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // recommended for GCM

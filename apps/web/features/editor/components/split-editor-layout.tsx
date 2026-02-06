@@ -1,9 +1,16 @@
 'use client'
 
-import { cn } from "@skriuw/shared";
-import { IconButton } from "@skriuw/ui/icons";
-import { LayoutPanelLeft, RotateCcw, Split, StretchHorizontal, StretchVertical, X } from "lucide-react";
-import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { cn } from '@skriuw/shared'
+import { IconButton } from '@skriuw/ui/icons'
+import {
+	LayoutPanelLeft,
+	RotateCcw,
+	Split,
+	StretchHorizontal,
+	StretchVertical,
+	X
+} from 'lucide-react'
+import { ReactNode, useCallback, useMemo, useRef, useState } from 'react'
 
 type SplitPane = {
 	id: string

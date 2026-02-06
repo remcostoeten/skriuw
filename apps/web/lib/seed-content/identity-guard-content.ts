@@ -1,5 +1,5 @@
-import type { Block } from "@blocknote/core";
-import { generateId } from "@skriuw/shared";
+import type { Block } from '@blocknote/core'
+import { generateId } from '@skriuw/shared'
 
 /**
  * BlockNote content for Identity Guard knowledge documentation

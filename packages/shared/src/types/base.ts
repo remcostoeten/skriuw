@@ -1,4 +1,4 @@
-import type { UUID, Timestamp } from "./semantics";
+import type { UUID, Timestamp } from './semantics'
 
 /**
  * Core entity time metadata.

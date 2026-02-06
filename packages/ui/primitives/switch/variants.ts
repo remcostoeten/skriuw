@@ -1,4 +1,4 @@
-import { SwitchAnimationVariant } from "./types";
+import { SwitchAnimationVariant } from './types'
 
 /**
  * Animation configurations for each switch variant

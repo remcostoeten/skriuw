@@ -1,15 +1,15 @@
 'use client'
 
-import DangerPanel from "../components/danger-panel";
-import NodePanel from "../components/node-panel";
-import OAuthPanel from "../components/oauth-panel";
-import ProfileSummary from "../components/profile-summary";
-import { AIConfigPanel } from "@/features/ai";
-import { useSession } from "@/lib/auth-client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@skriuw/ui/card";
-import { Separator } from "@skriuw/ui/separator";
-import { CalendarDays, Shield, UserRound } from "lucide-react";
-import { useMemo } from "react";
+import DangerPanel from '../components/danger-panel'
+import NodePanel from '../components/node-panel'
+import OAuthPanel from '../components/oauth-panel'
+import ProfileSummary from '../components/profile-summary'
+import { AIConfigPanel } from '@/features/ai'
+import { useSession } from '@/lib/auth-client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@skriuw/ui/card'
+import { Separator } from '@skriuw/ui/separator'
+import { CalendarDays, Shield, UserRound } from 'lucide-react'
+import { useMemo } from 'react'
 
 function formatDate(value: Date | string | number | undefined): string {
 	if (!value) return 'Unknown'

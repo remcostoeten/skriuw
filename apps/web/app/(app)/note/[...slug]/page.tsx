@@ -1,10 +1,10 @@
 'use client'
 
-import { NoteSplitView } from "@/features/notes/components/note-split-view";
-import { useNotesContext } from "@/features/notes/context/notes-context";
-import { useNoteSlug } from "@/features/notes/hooks/use-note-slug";
-import { cn } from "@skriuw/shared";
-import { useMemo, use, useRef, useState, useEffect } from "react";
+import { NoteSplitView } from '@/features/notes/components/note-split-view'
+import { useNotesContext } from '@/features/notes/context/notes-context'
+import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
+import { cn } from '@skriuw/shared'
+import { useMemo, use, useRef, useState, useEffect } from 'react'
 
 /**
  * Minimal skeleton that matches the editor area
