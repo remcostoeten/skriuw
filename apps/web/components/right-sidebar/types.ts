@@ -1,4 +1,5 @@
 import type { Block } from '@blocknote/core'
+import type { UUID } from '@skriuw/shared'
 
 /**
  * Section identifiers for the collapsible panels
@@ -34,6 +35,6 @@ export type NoteMetadata = {
  * Props for the main RightSidebar component
  */
 export type RightSidebarProps = {
-	noteId?: string
+	noteId?: UUID
 	content?: Block[]
 }

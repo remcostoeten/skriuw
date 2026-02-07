@@ -1,6 +1,6 @@
 import type { KeyCombo } from '../../shortcut-definitions'
 import { invalidateShortcutsCache } from '../queries/get-shortcuts'
-import type { CustomShortcut } from '../types'
+import type { CustomShortcut } from '../../types'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readOne, update, create } from '@skriuw/crud'
 

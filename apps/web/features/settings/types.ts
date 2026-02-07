@@ -59,17 +59,11 @@ export type PreviewProps<T = any> = {
 	allSettings?: Record<string, any>
 }
 
+import type { BaseEntity } from '@skriuw/shared'
+
 // -----------------------------------------------------------------------------
 // Storage Entity Types
 // -----------------------------------------------------------------------------
-
-type BaseEntity = {
-	id: string
-} & {
-	createdAt: number
-	updatedAt: number
-	deletedAt?: number
-}
 
 /**
  * Settings entity stored in storage
