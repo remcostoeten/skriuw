@@ -1,3 +1,5 @@
+import type { UUID } from '@skriuw/shared'
+
 export type AIProvider = 'gemini' | 'grok'
 
 export type GeminiModel =
@@ -13,7 +15,7 @@ export type GrokModel = 'grok-4' | 'grok-4-fast' | 'grok-free'
 export type AIModel = GeminiModel | GrokModel
 
 export type AIProviderConfig = {
-	id: string
+	id: UUID
 	provider: AIProvider
 	model: AIModel
 	basePrompt: string | null
@@ -23,7 +25,7 @@ export type AIProviderConfig = {
 
 export type AIPromptRequest = {
 	prompt: string
-	configId?: string
+	configId?: UUID
 }
 
 export type AIPromptResponse = {
