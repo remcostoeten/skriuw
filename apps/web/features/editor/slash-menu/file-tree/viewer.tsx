@@ -7,13 +7,11 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Copy, Check, ExternalLink, ChevronRight } from 'lucide-react'
-import { cn } from '@skriuw/ui'
+import { cn } from '@skriuw/shared'
 import type { TNode } from './types'
 import { getLanguageFromPath } from './types'
 
-// ============================================================================
-// Types
-// ============================================================================
+
 
 type FileViewerProps = {
     selectedNode: TNode | null
@@ -26,9 +24,7 @@ type FileHeaderProps = {
     onCopy?: () => void
 }
 
-// ============================================================================
-// FileViewer
-// ============================================================================
+
 
 export function FileViewer({ selectedNode, className }: FileViewerProps) {
     const [highlightedCode, setHighlightedCode] = useState<string>('')
@@ -109,9 +105,7 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
     )
 }
 
-// ============================================================================
-// FileHeader
-// ============================================================================
+
 
 function FileHeader({ path, language, onCopy }: FileHeaderProps) {
     const parts = path.split('/')
@@ -153,9 +147,7 @@ function FileHeader({ path, language, onCopy }: FileHeaderProps) {
     )
 }
 
-// ============================================================================
-// CodeViewer
-// ============================================================================
+
 
 type CodeViewerProps = {
     code: string
@@ -167,8 +159,8 @@ function CodeViewer({ code, language }: CodeViewerProps) {
     const lineNumberWidth = String(lines.length).length
 
     return (
-        <div className="font-mono text-sm">
-            <table className="w-full border-collapse">
+        <div className="font-mono text-sm w-full min-w-0 overflow-x-auto">
+            <table className="w-full border-collapse table-fixed">
                 <tbody>
                     {lines.map((line, i) => (
                         <tr key={i} className="hover:bg-muted/30">
@@ -190,9 +182,7 @@ function CodeViewer({ code, language }: CodeViewerProps) {
     )
 }
 
-// ============================================================================
-// MarkdownViewer
-// ============================================================================
+
 
 type MarkdownViewerProps = {
     content: string
@@ -207,9 +197,7 @@ function MarkdownViewer({ content }: MarkdownViewerProps) {
     )
 }
 
-// ============================================================================
-// Resizable Panels
-// ============================================================================
+
 
 type ResizablePanelGroupProps = {
     children: React.ReactNode
@@ -221,7 +209,7 @@ export function ResizablePanelGroup({ children, direction = 'horizontal', classN
     return (
         <div
             className={cn(
-                'flex h-full',
+                'flex h-full w-full min-w-0',
                 direction === 'horizontal' ? 'flex-row' : 'flex-col',
                 className
             )}
@@ -255,7 +243,7 @@ export function ResizablePanel({
 
     return (
         <div
-            className={cn('overflow-hidden transition-all', className)}
+            className={cn('overflow-hidden transition-all min-w-0', className)}
             style={{ flex: `0 0 ${actualSize}%` }}
         >
             {children}

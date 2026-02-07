@@ -21,15 +21,13 @@ import {
     File,
     GripVertical
 } from 'lucide-react'
-import { cn } from '@skriuw/ui'
+import { cn } from '@skriuw/shared'
 import { generateId } from '@skriuw/shared'
 import type { TNode, TFile, TComponent } from './types'
 import { buildTreeFromFiles, flattenTreeToFiles, updateNode, deleteNode, addChildNode } from './utils'
 import { getLanguageFromPath } from './types'
 
-// ============================================================================
-// Types
-// ============================================================================
+
 
 type ConfigModalProps = {
     isOpen: boolean
@@ -48,9 +46,7 @@ type TreeEditorNodeProps = {
     selectedId: string | null
 }
 
-// ============================================================================
-// ConfigModal
-// ============================================================================
+
 
 export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalProps) {
     const [nodes, setNodes] = useState<TNode[]>(() => buildTreeFromFiles(component.files))
@@ -168,7 +164,7 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm isolate"
             role="dialog"
             aria-modal="true"
             aria-labelledby="config-modal-title"
@@ -339,9 +335,7 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     )
 }
 
-// ============================================================================
-// TreeEditorNode
-// ============================================================================
+
 
 function TreeEditorNode({
     node,
