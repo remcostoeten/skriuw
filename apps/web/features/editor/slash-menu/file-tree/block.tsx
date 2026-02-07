@@ -17,6 +17,46 @@ import { FileViewer, ResizablePanelGroup, ResizablePanel, ResizableHandle } from
 import { ConfigModal } from './config-modal'
 
 // ============================================================================
+// Hooks
+// ============================================================================
+
+/** Check if screen is mobile-sized */
+function useIsMobile(breakpoint = 768): boolean {
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+
+        const mq = window.matchMedia(`(max-width: ${breakpoint}px)`)
+        setIsMobile(mq.matches)
+
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+        mq.addEventListener('change', handler)
+        return () => mq.removeEventListener('change', handler)
+    }, [breakpoint])
+
+    return isMobile
+}
+
+/** Check if user prefers reduced motion */
+function usePrefersReducedMotion(): boolean {
+    const [prefersReduced, setPrefersReduced] = useState(false)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+        setPrefersReduced(mq.matches)
+
+        const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+        mq.addEventListener('change', handler)
+        return () => mq.removeEventListener('change', handler)
+    }, [])
+
+    return prefersReduced
+}
+
+// ============================================================================
 // Default Configuration
 // ============================================================================
 
@@ -86,6 +126,10 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             const [leftPanelSize, setLeftPanelSize] = useState(35)
             const [isCollapsed, setIsCollapsed] = useState(false)
 
+            // Responsive hooks
+            const isMobile = useIsMobile()
+            const prefersReducedMotion = usePrefersReducedMotion()
+
             // Sync nodes when content changes externally
             useEffect(() => {
                 const tree = buildTreeFromFiles(component.files)
@@ -146,7 +190,9 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 'relative group my-4 overflow-hidden',
                 style === 'full' && 'rounded-lg border border-border bg-card shadow-sm',
                 style === 'card' && 'rounded-lg border border-border bg-card/50',
-                style === 'minimal' && ''
+                style === 'minimal' && '',
+                // Reduced motion
+                !prefersReducedMotion && 'transition-all duration-200'
             )
 
             return (
@@ -190,15 +236,10 @@ export const fileTreeBlockSpec = createReactBlockSpec(
 
                     {/* Main Content */}
                     {style === 'full' ? (
-                        <ResizablePanelGroup className="h-[400px]">
-                            {/* Tree Panel */}
-                            <ResizablePanel
-                                defaultSize={leftPanelSize}
-                                minSize={20}
-                                collapsed={isCollapsed}
-                                className="border-r border-border"
-                            >
-                                <div className="h-full overflow-auto p-2">
+                        isMobile ? (
+                            // Mobile: Stacked layout
+                            <div className="flex flex-col">
+                                <div className="max-h-[200px] overflow-auto p-2 border-b border-border">
                                     <TreeProvider
                                         showIndentLines={showIndentLines}
                                         enableHoverHighlight={component.enableHoverHighlight}
@@ -211,16 +252,44 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                         <Tree nodes={nodes} />
                                     </TreeProvider>
                                 </div>
-                            </ResizablePanel>
+                                <div className="h-[300px]">
+                                    <FileViewer selectedNode={selectedNode} className="h-full" />
+                                </div>
+                            </div>
+                        ) : (
+                            // Desktop: Side-by-side with resizable panels
+                            <ResizablePanelGroup className="h-[400px]">
+                                {/* Tree Panel */}
+                                <ResizablePanel
+                                    defaultSize={leftPanelSize}
+                                    minSize={20}
+                                    collapsed={isCollapsed}
+                                    className="border-r border-border"
+                                >
+                                    <div className="h-full overflow-auto p-2">
+                                        <TreeProvider
+                                            showIndentLines={showIndentLines}
+                                            enableHoverHighlight={component.enableHoverHighlight}
+                                            onSelectFile={handleSelectFile}
+                                            initialState={{
+                                                expandedFolders: new Set(nodes.filter(n => n.type === 'folder').map(n => n.id)),
+                                                selectedFilePath: selectedNode?.path || null
+                                            }}
+                                        >
+                                            <Tree nodes={nodes} />
+                                        </TreeProvider>
+                                    </div>
+                                </ResizablePanel>
 
-                            {/* Resize Handle */}
-                            <ResizableHandle onResize={handleResize} />
+                                {/* Resize Handle */}
+                                <ResizableHandle onResize={handleResize} />
 
-                            {/* Viewer Panel */}
-                            <ResizablePanel className="flex-1">
-                                <FileViewer selectedNode={selectedNode} className="h-full" />
-                            </ResizablePanel>
-                        </ResizablePanelGroup>
+                                {/* Viewer Panel */}
+                                <ResizablePanel className="flex-1">
+                                    <FileViewer selectedNode={selectedNode} className="h-full" />
+                                </ResizablePanel>
+                            </ResizablePanelGroup>
+                        )
                     ) : (
                         <div className="max-h-[400px] overflow-auto p-2">
                             <TreeProvider

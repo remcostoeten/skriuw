@@ -16,10 +16,20 @@ import {
     FileJson,
     Image as ImageIcon
 } from 'lucide-react'
-import { createContext, useContext, useCallback, useRef, useEffect, useState, type ReactNode, type KeyboardEvent } from 'react'
+import { createContext, useContext, useCallback, useRef, useEffect, useState, memo, type ReactNode, type KeyboardEvent } from 'react'
 import { cn } from '@skriuw/ui'
 import type { TNode, TTreeState } from './types'
 import { getFileColor } from './types'
+
+// ============================================================================
+// Utils
+// ============================================================================
+
+/** Check if user prefers reduced motion */
+function prefersReducedMotion(): boolean {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 // ============================================================================
 // Context
@@ -185,17 +195,18 @@ type TreeNodeProps = {
     onFocus: () => void
 }
 
-function TreeNode({ node, depth, focusedPath, onFocus }: TreeNodeProps) {
+const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onFocus }: TreeNodeProps) {
     const { state, onToggleExpand, onSelectFile, showIndentLines, enableHoverHighlight } = useTreeContext()
     const isExpanded = state.expandedFolders.has(node.id)
     const isSelected = state.selectedFilePath === node.path
     const isFocused = focusedPath === node.path
     const itemRef = useRef<HTMLDivElement>(null)
 
-    // Scroll focused item into view
+    // Scroll focused item into view (respects reduced motion)
     useEffect(() => {
         if (isFocused && itemRef.current) {
-            itemRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+            const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
+            itemRef.current.scrollIntoView({ block: 'nearest', behavior })
         }
     }, [isFocused])
 
@@ -294,7 +305,7 @@ function TreeNode({ node, depth, focusedPath, onFocus }: TreeNodeProps) {
             {node.type === 'folder' && isExpanded && node.children && (
                 <div role="group">
                     {node.children.map((child) => (
-                        <TreeNode
+                        <TreeNodeComponent
                             key={child.id}
                             node={child}
                             depth={depth + 1}
@@ -306,13 +317,16 @@ function TreeNode({ node, depth, focusedPath, onFocus }: TreeNodeProps) {
             )}
         </div>
     )
-}
+})
+
+// Re-export with original name for external use
+const TreeNode = TreeNodeComponent
 
 // ============================================================================
 // FileNodeIcon
 // ============================================================================
 
-function FileNodeIcon({ path }: { path: string }) {
+const FileNodeIcon = memo(function FileNodeIcon({ path }: { path: string }) {
     const extension = path.split('.').pop()?.toLowerCase() || ''
     const colorClass = getFileColor(path)
 
@@ -347,7 +361,7 @@ function FileNodeIcon({ path }: { path: string }) {
         default:
             return <FileIcon className={cn('w-4 h-4 flex-shrink-0', colorClass)} />
     }
-}
+})
 
 // ============================================================================
 // Helpers
