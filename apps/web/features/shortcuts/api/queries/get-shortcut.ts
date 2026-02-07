@@ -1,5 +1,5 @@
 import type { ShortcutId } from '../../shortcut-definitions'
-import type { CustomShortcut } from '../types'
+import type { CustomShortcut } from '../../types'
 import { readOne } from '@skriuw/crud'
 
 const STORAGE_KEY = 'quantum-works:shortcuts:custom'
