@@ -79,6 +79,8 @@ export type TFileTreeBlockProps = {
     showIndentLines: boolean
     /** Expand all folders by default */
     initialExpandedAll: boolean
+    /** Lock the file tree to view-only mode */
+    locked: boolean
 }
 
 /**
