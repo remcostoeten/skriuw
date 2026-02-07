@@ -1,3 +1,5 @@
+import type { BaseEntity } from '@skriuw/shared'
+
 export type UserSetting<T = any> = {
 	key: string
 	label?: string
@@ -58,8 +60,6 @@ export type PreviewProps<T = any> = {
 	options?: T[]
 	allSettings?: Record<string, any>
 }
-
-import type { BaseEntity } from '@skriuw/shared'
 
 // -----------------------------------------------------------------------------
 // Storage Entity Types
