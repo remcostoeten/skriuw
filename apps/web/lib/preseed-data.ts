@@ -64,6 +64,21 @@ export function codeBlock(code: string, language = 'text') {
 	}
 }
 
+export function fileTreeBlock(content: string, style: 'full' | 'card' | 'minimal' = 'full') {
+	return {
+		id: createId('tree'),
+		type: 'fileTree' as const,
+		props: {
+			style,
+			content,
+			showIndentLines: true,
+			initialExpandedAll: true
+		},
+		content: [],
+		children: []
+	}
+}
+
 // ============================================================================
 // Note Content
 // ============================================================================
@@ -297,6 +312,55 @@ const WIKILINKS_CONTENT = [
 	bulletItem('Organize thoughts associatively, not just hierarchically')
 ]
 
+const FILE_TREE_DEMO_CONTENT = [
+	heading(1, 'Interactive File Tree Demo'),
+	paragraph(
+		'This note demonstrates the interactive file tree block. You can browse files, view code with syntax highlighting, and configure the structure.'
+	),
+	paragraph(''),
+	fileTreeBlock(
+		JSON.stringify({
+			name: 'Skriuw Demo',
+			version: '1.0.0',
+			showIndentLines: true,
+			enableHoverHighlight: true,
+			files: [
+				{
+					path: 'src/components/Header.tsx',
+					content:
+						"import { Logo } from './Logo';\n\nexport function Header() {\n  return (\n    <header className=\"flex items-center justify-between p-4\">\n      <Logo />\n      <nav>\n        <a href=\"/\">Home</a>\n        <a href=\"/about\">About</a>\n      </nav>\n    </header>\n  );\n}",
+					language: 'tsx'
+				},
+				{
+					path: 'src/utils/api.ts',
+					content:
+						"export async function fetchData(url: string) {\n  const response = await fetch(url);\n  if (!response.ok) throw new Error('Failed to fetch');\n  return response.json();\n}",
+					language: 'typescript'
+				},
+				{
+					path: 'public/manifest.json',
+					content:
+						'{\n  "name": "Skriuw App",\n  "short_name": "Skriuw",\n  "start_url": "/",\n  "display": "standalone"\n}',
+					language: 'json'
+				},
+				{
+					path: 'README.md',
+					content:
+						'# Skriuw Demo Project\n\nThis is a sample project structure to demonstrate the file tree capabilities.\n\n## Features\n- **Syntax Highlighting**: View code files with proper coloring\n- **Collapsible Folders**: Organize complex hierarchies\n- **Resizable Panels**: Adjust the view to your needs',
+					language: 'markdown'
+				}
+			]
+		}),
+		'full'
+	),
+	paragraph(''),
+	heading(2, 'How to use'),
+	bulletItem('Click folders to expand/collapse'),
+	bulletItem('Click files to view their content'),
+	bulletItem('Hover over the block to see configuration options'),
+	bulletItem('Use the gear icon to edit the tree structure')
+]
+
 // ============================================================================
 // Note and Folder Definitions
 // ============================================================================
@@ -316,6 +380,7 @@ const NOTES: NoteDefinition[] = [
 	{ name: 'Architecture Overview', content: ARCHITECTURE_CONTENT, folder: 'Documentation' },
 	{ name: 'Storage & Backup', content: BACKUP_CONTENT, folder: 'Documentation' },
 	{ name: 'Wikilinks & Backlinks', content: WIKILINKS_CONTENT, folder: 'Documentation' },
+	{ name: 'Interactive File Tree', content: FILE_TREE_DEMO_CONTENT, folder: 'Documentation' },
 	{
 		name: 'Project Ideas',
 		content: [heading(2, 'Project Ideas'), paragraph('Add your project ideas here...')],
