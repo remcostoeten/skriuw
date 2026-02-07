@@ -7,8 +7,8 @@
 
 import { createReactBlockSpec } from '@blocknote/react'
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { Settings, ChevronRight, ChevronDown, Folder, FolderOpen, Palette } from 'lucide-react'
-import { cn } from '@skriuw/ui'
+import { Settings, ChevronRight, ChevronDown, Folder, FolderOpen, Palette, Lock, Unlock } from 'lucide-react'
+import { cn } from '@skriuw/shared'
 import type { TComponent, TNode, TStyle, TFile } from './types'
 import { buildTreeFromFiles, flattenTreeToFiles, updateNode, findNodeByPath, DEFAULT_TREE_FILES } from './utils'
 import { getFileColor, getLanguageFromPath } from './types'
@@ -16,9 +16,7 @@ import { TreeProvider, Tree } from './components'
 import { FileViewer, ResizablePanelGroup, ResizablePanel, ResizableHandle } from './viewer'
 import { ConfigModal } from './config-modal'
 
-// ============================================================================
-// Hooks
-// ============================================================================
+
 
 /** Check if screen is mobile-sized */
 function useIsMobile(breakpoint = 768): boolean {
@@ -56,9 +54,7 @@ function usePrefersReducedMotion(): boolean {
     return prefersReduced
 }
 
-// ============================================================================
-// Default Configuration
-// ============================================================================
+
 
 const DEFAULT_COMPONENT: TComponent = {
     name: 'Project',
@@ -68,9 +64,7 @@ const DEFAULT_COMPONENT: TComponent = {
     files: DEFAULT_TREE_FILES
 }
 
-// ============================================================================
-// Block Specification
-// ============================================================================
+
 
 export const fileTreeBlockSpec = createReactBlockSpec(
     {
@@ -91,6 +85,10 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             /** Expand all folders by default */
             initialExpandedAll: {
                 default: true
+            },
+            /** Lock the file tree to view-only mode */
+            locked: {
+                default: false
             }
         },
         content: 'none'
@@ -100,6 +98,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             const contentString = block.props.content as string
             const style = (block.props.style as TStyle) || 'full'
             const showIndentLines = block.props.showIndentLines !== false
+            const isLocked = block.props.locked === true
 
             // Parse component data
             const component = useMemo<TComponent>(() => {
@@ -164,13 +163,21 @@ export const fileTreeBlockSpec = createReactBlockSpec(
 
             // Toggle style
             const toggleStyle = useCallback(() => {
+                if (isLocked) return
                 const styles: TStyle[] = ['full', 'card', 'minimal']
                 const currentIndex = styles.indexOf(style)
                 const nextStyle = styles[(currentIndex + 1) % styles.length]
                 editor.updateBlock(block.id, {
                     props: { ...block.props, style: nextStyle }
                 })
-            }, [editor, block.id, style, block.props])
+            }, [editor, block.id, style, block.props, isLocked])
+
+            // Toggle lock
+            const toggleLock = useCallback(() => {
+                editor.updateBlock(block.id, {
+                    props: { ...block.props, locked: !isLocked }
+                })
+            }, [editor, block.id, block.props, isLocked])
 
             // Handle resize
             const handleResize = useCallback((delta: number) => {
@@ -187,36 +194,58 @@ export const fileTreeBlockSpec = createReactBlockSpec(
 
             // Container classes based on style
             const containerClasses = cn(
-                'relative group my-4 overflow-hidden',
+                'relative group my-4 overflow-hidden w-full',
                 style === 'full' && 'rounded-lg border border-border bg-card shadow-sm',
                 style === 'card' && 'rounded-lg border border-border bg-card/50',
                 style === 'minimal' && '',
                 // Reduced motion
-                !prefersReducedMotion && 'transition-all duration-200'
+                !prefersReducedMotion && 'transition-all duration-200',
+                // Locked visual indicator
+                isLocked && 'ring-1 ring-amber-500/30'
             )
 
             return (
                 <div className={containerClasses}>
                     {/* Floating Actions */}
-                    <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                             type="button"
-                            onClick={toggleStyle}
-                            className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
-                            title={`Current: ${style}. Click to toggle.`}
-                            aria-label="Toggle style"
+                            onClick={toggleLock}
+                            className={cn(
+                                'p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm',
+                                isLocked && 'bg-amber-500/20 border-amber-500/50'
+                            )}
+                            title={isLocked ? 'Unlock file tree' : 'Lock file tree (view-only)'}
+                            aria-label={isLocked ? 'Unlock file tree' : 'Lock file tree'}
                         >
-                            <Palette className="w-4 h-4 text-muted-foreground" />
+                            {isLocked ? (
+                                <Lock className="w-4 h-4 text-amber-500" />
+                            ) : (
+                                <Unlock className="w-4 h-4 text-muted-foreground" />
+                            )}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => setIsConfigOpen(true)}
-                            className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
-                            title="Configure file tree"
-                            aria-label="Configure file tree"
-                        >
-                            <Settings className="w-4 h-4 text-muted-foreground" />
-                        </button>
+                        {!isLocked && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={toggleStyle}
+                                    className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
+                                    title={`Current: ${style}. Click to toggle.`}
+                                    aria-label="Toggle style"
+                                >
+                                    <Palette className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsConfigOpen(true)}
+                                    className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
+                                    title="Configure file tree"
+                                    aria-label="Configure file tree"
+                                >
+                                    <Settings className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     {/* Header (for full/card styles) */}
@@ -258,7 +287,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                             </div>
                         ) : (
                             // Desktop: Side-by-side with resizable panels
-                            <ResizablePanelGroup className="h-[400px]">
+                            <ResizablePanelGroup className="h-[400px] w-full">
                                 {/* Tree Panel */}
                                 <ResizablePanel
                                     defaultSize={leftPanelSize}
@@ -315,9 +344,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
     }
 )
 
-// ============================================================================
-// Helpers
-// ============================================================================
+
 
 /**
  * Recursively expand all folders in the tree

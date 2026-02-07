@@ -6,6 +6,9 @@ import { generateId } from '@skriuw/shared'
 import type { TFile, TNode } from './types'
 import { getLanguageFromPath } from './types'
 
+// Re-export for convenience
+export { getLanguageFromPath }
+
 /**
  * Build a tree structure from a flat list of file paths
  */

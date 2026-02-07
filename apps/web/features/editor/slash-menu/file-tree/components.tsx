@@ -17,13 +17,11 @@ import {
     Image as ImageIcon
 } from 'lucide-react'
 import { createContext, useContext, useCallback, useRef, useEffect, useState, memo, type ReactNode, type KeyboardEvent } from 'react'
-import { cn } from '@skriuw/ui'
+import { cn } from '@skriuw/shared'
 import type { TNode, TTreeState } from './types'
 import { getFileColor } from './types'
 
-// ============================================================================
-// Utils
-// ============================================================================
+
 
 /** Check if user prefers reduced motion */
 function prefersReducedMotion(): boolean {
@@ -31,9 +29,7 @@ function prefersReducedMotion(): boolean {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-// ============================================================================
-// Context
-// ============================================================================
+
 
 type TreeContextValue = {
     state: TTreeState
@@ -53,9 +49,7 @@ function useTreeContext() {
     return context
 }
 
-// ============================================================================
-// TreeProvider
-// ============================================================================
+
 
 type TreeProviderProps = {
     children: ReactNode
@@ -112,9 +106,7 @@ export function TreeProvider({
     )
 }
 
-// ============================================================================
-// Tree
-// ============================================================================
+
 
 type TreeProps = {
     nodes: TNode[]
@@ -168,7 +160,7 @@ export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
             role="tree"
             aria-label={ariaLabel}
             tabIndex={0}
-            className={cn('outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', className)}
+            className={cn('outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full min-w-0', className)}
             onKeyDown={handleKeyDown}
         >
             {nodes.map((node, index) => (
@@ -184,9 +176,7 @@ export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
     )
 }
 
-// ============================================================================
-// TreeNode
-// ============================================================================
+
 
 type TreeNodeProps = {
     node: TNode
@@ -239,7 +229,7 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
             <div
                 ref={itemRef}
                 className={cn(
-                    'group flex items-center gap-1.5 px-2 py-1 cursor-pointer select-none rounded-sm transition-colors',
+                    'group flex items-center gap-1.5 px-2 py-1 cursor-pointer select-none rounded-sm transition-colors min-h-[28px] min-w-0',
                     enableHoverHighlight && 'hover:bg-muted/50',
                     isSelected && 'bg-accent text-accent-foreground',
                     isFocused && 'ring-2 ring-ring ring-offset-1'
@@ -322,9 +312,7 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
 // Re-export with original name for external use
 const TreeNode = TreeNodeComponent
 
-// ============================================================================
-// FileNodeIcon
-// ============================================================================
+
 
 const FileNodeIcon = memo(function FileNodeIcon({ path }: { path: string }) {
     const extension = path.split('.').pop()?.toLowerCase() || ''
@@ -363,9 +351,7 @@ const FileNodeIcon = memo(function FileNodeIcon({ path }: { path: string }) {
     }
 })
 
-// ============================================================================
-// Helpers
-// ============================================================================
+
 
 function getVisibleNodes(nodes: TNode[], expandedFolders: Set<string>): TNode[] {
     const visible: TNode[] = []
