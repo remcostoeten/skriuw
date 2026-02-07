@@ -4,9 +4,10 @@ import { SectionLabel, StatCard, ActionButton } from './common'
 import { notify } from '@/lib/notify'
 import { RotateCcw, Trash2, Loader2, Users } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
+import type { UUID } from '@skriuw/shared'
 
 type UserInfo = {
-	id: string
+	id: UUID
 	isAnonymous: boolean
 	createdAt: string
 	email?: string
