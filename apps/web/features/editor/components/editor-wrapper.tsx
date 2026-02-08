@@ -2,6 +2,7 @@ import { useUserPreferences, useSettings } from '../../settings'
 import { getFontSizePx, getFontFamily, getMaxWidthPx } from '../styles/editor-tokens'
 import '../styles/editor.css'
 import { highlightCodeBlocks } from '../utils/code-highlight'
+import { registerCodeBlockTrigger } from '../slash-menu/code-block'
 import { DualModeEditor } from './default-mode-editor'
 import { TaskCheckboxReplacer } from './task-checkbox-replacer'
 import { BlockNoteEditor } from '@blocknote/core'
@@ -147,6 +148,12 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 			if (!editorRef.current) return
 			editorRef.current.setAttribute('data-word-wrap', hasWordWrap ? 'enabled' : 'disabled')
 		}, [hasWordWrap])
+
+		// Register code block markdown trigger (``` + space)
+		useEffect(() => {
+			if (!editorRef.current || !editor || hasRawMDXMode) return
+			return registerCodeBlockTrigger(editor as any, editorRef.current)
+		}, [editor, hasRawMDXMode])
 
 		useEffect(() => {
 			if (!editorRef.current) return

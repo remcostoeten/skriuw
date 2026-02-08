@@ -1,6 +1,6 @@
 {
 	"name": "web",
-	"version": "0.1.0",
+	"version": "0.4.0",
 	"private": true,
 	"scripts": {
 		"build": "bun --env-file=../../.env.local --bun next build",
