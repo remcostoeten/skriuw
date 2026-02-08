@@ -1,4 +1,5 @@
 import type { Tag, TagWithCount, CreateTagInput, UpdateTagInput } from '../types'
+import type { Note } from '@/features/notes/types'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, create, update, destroy } from '@skriuw/crud'
@@ -37,10 +38,7 @@ export function useTagsWithCountQuery() {
 		queryKey: [...tagsKeys.list(userId), 'with-count'],
 		queryFn: async (): Promise<TagWithCount[]> => {
 			const tagsResult = await readMany<Tag>(TAGS_STORAGE_KEY, { userId })
-			const notesResult = await readMany<{ id: string; tags?: string[] }>(
-				STORAGE_KEYS.NOTES,
-				{ userId }
-			)
+			const notesResult = await readMany<Note>(STORAGE_KEYS.NOTES, { userId })
 
 			if (!tagsResult.success || !tagsResult.data) return []
 

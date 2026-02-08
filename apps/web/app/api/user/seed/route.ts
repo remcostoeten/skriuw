@@ -5,7 +5,8 @@ import {
 	seedTemplateNotes,
 	folders,
 	notes,
-	eq
+	eq,
+	sql
 } from '@skriuw/db'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -19,29 +20,32 @@ export async function POST(request: NextRequest) {
 	const db = getDatabase()
 
 	try {
-		const [existingNote, existingFolder] = await Promise.all([
-			db.select({ id: notes.id }).from(notes).where(eq(notes.userId, userId)).limit(1),
-			db.select({ id: folders.id }).from(folders).where(eq(folders.userId, userId)).limit(1)
-		])
+		const result = await db.transaction(async (tx) => {
+			// Prevent double-seeding for concurrent requests/tabs for the same user.
+			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`)
 
-		// Idempotent behavior: never overwrite existing user data.
-		if (existingNote.length > 0 || existingFolder.length > 0) {
-			return NextResponse.json({ seeded: false, reason: 'already_seeded' })
-		}
+			const [existingNote, existingFolder] = await Promise.all([
+				tx.select({ id: notes.id }).from(notes).where(eq(notes.userId, userId)).limit(1),
+				tx.select({ id: folders.id }).from(folders).where(eq(folders.userId, userId)).limit(1)
+			])
 
-		const [templateFolders, templateNotes] = await Promise.all([
-			db.select().from(seedTemplateFolders).orderBy(seedTemplateFolders.order),
-			db.select().from(seedTemplateNotes).orderBy(seedTemplateNotes.order)
-		])
+			// Idempotent behavior: never overwrite existing user data.
+			if (existingNote.length > 0 || existingFolder.length > 0) {
+				return { seeded: false as const, reason: 'already_seeded' as const }
+			}
 
-		if (templateFolders.length === 0 && templateNotes.length === 0) {
-			return NextResponse.json({ seeded: false, reason: 'no_templates' })
-		}
+			const [templateFolders, templateNotes] = await Promise.all([
+				tx.select().from(seedTemplateFolders).orderBy(seedTemplateFolders.order),
+				tx.select().from(seedTemplateNotes).orderBy(seedTemplateNotes.order)
+			])
 
-		const now = Date.now()
-		const folderIdMap = new Map<string, string>()
+			if (templateFolders.length === 0 && templateNotes.length === 0) {
+				return { seeded: false as const, reason: 'no_templates' as const }
+			}
 
-		await db.transaction(async (tx) => {
+			const now = Date.now()
+			const folderIdMap = new Map<string, string>()
+
 			for (let i = 0; i < templateFolders.length; i++) {
 				const template = templateFolders[i]
 				const newFolderId = crypto.randomUUID()
@@ -87,15 +91,17 @@ export async function POST(request: NextRequest) {
 					type: 'note'
 				})
 			}
-		})
 
-		return NextResponse.json({
-			seeded: true,
-			created: {
-				folders: templateFolders.length,
-				notes: templateNotes.length
+			return {
+				seeded: true as const,
+				created: {
+					folders: templateFolders.length,
+					notes: templateNotes.length
+				}
 			}
 		})
+
+		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to seed user from templates', error)
 		return NextResponse.json(
