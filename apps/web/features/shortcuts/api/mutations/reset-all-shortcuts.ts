@@ -1,4 +1,4 @@
-import type { CustomShortcut } from '../types'
+import type { CustomShortcut } from '../../types'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, destroy } from '@skriuw/crud'
 

@@ -1,3 +1,5 @@
+import type { BaseEntity } from '@skriuw/shared'
+
 export type UserSetting<T = any> = {
 	key: string
 	label?: string
@@ -62,14 +64,6 @@ export type PreviewProps<T = any> = {
 // -----------------------------------------------------------------------------
 // Storage Entity Types
 // -----------------------------------------------------------------------------
-
-type BaseEntity = {
-	id: string
-} & {
-	createdAt: number
-	updatedAt: number
-	deletedAt?: number
-}
 
 /**
  * Settings entity stored in storage

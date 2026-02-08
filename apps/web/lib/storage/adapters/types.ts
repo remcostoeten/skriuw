@@ -62,11 +62,4 @@ export type StorageAdapter = {
 	batchDelete(key: string, ids: string[], options?: BatchDeleteAdapterOptions): Promise<number>
 }
 
-// Define BaseEntity locally if needed or reuse from common
-export type BaseEntity = {
-	id: string
-} & {
-	createdAt: number
-	updatedAt: number
-	deletedAt?: number
-}
+export type { BaseEntity } from '@skriuw/shared'

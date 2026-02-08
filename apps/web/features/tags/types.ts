@@ -1,10 +1,9 @@
-export type Tag = {
-	id: string
+import type { BaseEntity, UUID } from '@skriuw/shared'
+
+export type Tag = BaseEntity & {
 	name: string
 	color: string
-	userId?: string
-	createdAt: number
-	updatedAt: number
+	userId?: UUID
 }
 
 export type TagWithCount = Tag & {

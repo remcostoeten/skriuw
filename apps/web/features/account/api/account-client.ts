@@ -1,8 +1,9 @@
 import { AUTH_CLIENT_ENABLED } from '@/lib/auth-client'
 import { apiRequest } from '@/lib/storage/adapters/client-api'
+import type { UUID } from '@skriuw/shared'
 
 export type LinkedAccount = {
-	id: string
+	id: UUID
 	providerId: string
 	accountId: string
 	createdAt: string

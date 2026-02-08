@@ -79,6 +79,8 @@
 		--sidebar-ring: 222 47% 11%;
 		--brand-400: 167.8 53.25% 65%;
 		--brand-500: 167.8 53.25% 54.71%;
+		--nav-height: 56px;
+		--nav-gap: 16px;
 	}
 
 	.dark {
