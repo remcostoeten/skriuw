@@ -114,11 +114,7 @@ export async function POST(request: NextRequest) {
 	} catch (error) {
 		console.error('Failed to seed user from templates', error)
 		return NextResponse.json(
-			{
-				seeded: false,
-				error: 'Failed to seed user',
-				details: error instanceof Error ? error.message : String(error)
-			},
+			{ seeded: false, error: 'Failed to seed user' },
 			{ status: 500 }
 		)
 	}
