@@ -142,7 +142,7 @@ export function TagSuggestionMenu() {
 							tagName: created.name,
 							tagColor: created.color
 						}
-					},
+					} as any,
 					' '
 				])
 				return
@@ -156,7 +156,7 @@ export function TagSuggestionMenu() {
 						tagName: item.name,
 						tagColor: item.color
 					}
-				},
+				} as any,
 				' '
 			])
 		},
