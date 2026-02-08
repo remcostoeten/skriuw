@@ -2,7 +2,12 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAssets, type AssetSort, type AssetOrder, type AssetsResponse } from '../api/queries/get-assets'
+import {
+	getAssets,
+	type AssetSort,
+	type AssetOrder,
+	type AssetsResponse
+} from '../api/queries/get-assets'
 import { updateAsset } from '../api/mutations/update-asset'
 import { destroyFile } from '../api/mutations/destroy-file'
 import {
