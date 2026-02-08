@@ -2,7 +2,7 @@ import type { Item, Note, Folder } from '../types'
 import { extractTasksFromBlocks } from '../utils/extract-tasks'
 import { trackActivity } from '@/features/activity'
 import { useSession } from '@/lib/auth-client'
-import { getWelcomeContent } from '@/lib/seed-content/welcome'
+import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '@/lib/preseed-data'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, readOne, create, update, destroy } from '@skriuw/crud'
 import { generateId } from '@skriuw/shared'
@@ -35,27 +35,47 @@ export function useNotesQuery() {
 		if (userId !== 'guest' && userId !== 'guest-user') return
 
 		const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
-		const hasSeeded = localStorage.getItem('skriuw:welcome_seeded')
+		const hasSeeded = hasPreseededItems() || localStorage.getItem('skriuw:welcome_seeded') === 'true'
+		const hasNoItems = !hasData || hasData === '[]'
 
-		if ((!hasData || hasData === '[]') && !hasSeeded) {
-			const now = Date.now()
-			const welcomeNote: Note = {
-				id: `welcome-${now}`,
-				name: 'Welcome',
-				type: 'note',
-				content: getWelcomeContent(),
-				parentFolderId: undefined,
-				pinned: true,
-				favorite: false,
-				tags: ['getting-started', 'tutorial', 'skriuw'],
-				createdAt: now,
-				updatedAt: now,
-				userId
-			}
-
-			localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([welcomeNote]))
+		if (hasNoItems && !hasSeeded) {
+			const seededItems = generatePreseededItems(userId)
+			localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(seededItems))
+			markPreseededItems()
 			localStorage.setItem('skriuw:welcome_seeded', 'true')
 			queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
+		}
+	}, [userId, queryClient])
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return
+		if (userId === 'guest' || userId === 'guest-user') return
+
+		const seedKey = `skriuw:user-seeded:${userId}`
+		if (sessionStorage.getItem(seedKey) === 'true') return
+
+		let cancelled = false
+
+		const seedUser = async () => {
+			try {
+				const response = await fetch('/api/user/seed', { method: 'POST' })
+				if (!response.ok) return
+
+				const data = await response.json()
+				sessionStorage.setItem(seedKey, 'true')
+
+				if (!cancelled && data?.seeded) {
+					queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
+				}
+			} catch (error) {
+				console.error('Failed to auto-seed user notes', error)
+			}
+		}
+
+		void seedUser()
+
+		return () => {
+			cancelled = true
 		}
 	}, [userId, queryClient])
 
