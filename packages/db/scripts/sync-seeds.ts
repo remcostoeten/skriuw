@@ -1,15 +1,17 @@
-import { spawn } from 'bun'
+import { spawn } from 'node:child_process'
 
 const webDir = new URL('../../../apps/web', import.meta.url).pathname
 
 async function main() {
-	const proc = spawn(['bun', '--env-file=../../.env.local', 'scripts/sync-seeds.ts'], {
+	const proc = spawn('bun', ['--env-file=../../.env.local', 'scripts/sync-seeds.ts'], {
 		cwd: webDir,
-		stdout: 'inherit',
-		stderr: 'inherit'
+		stdio: 'inherit'
 	})
 
-	const exitCode = await proc.exited
+	const exitCode = await new Promise<number>((resolve, reject) => {
+		proc.on('close', (code) => resolve(code ?? 1))
+		proc.on('error', reject)
+	})
 	process.exit(exitCode)
 }
 
