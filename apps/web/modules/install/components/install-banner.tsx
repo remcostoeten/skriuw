@@ -14,8 +14,8 @@ export function InstallBanner({ platform, onInstall, onDismiss }: Props) {
 	return (
 		<div
 			className={cn(
-				'fixed z-[80]',
-				'bottom-[calc(56px_+_env(safe-area-inset-bottom)_+_12px)] left-3 right-3',
+				'fixed z-[95]',
+				'bottom-[calc(var(--nav-height)_+_env(safe-area-inset-bottom)_+_var(--nav-gap))] left-3 right-3',
 				'sm:left-auto sm:right-4 sm:bottom-20 sm:w-auto sm:max-w-[340px]',
 				'animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out'
 			)}

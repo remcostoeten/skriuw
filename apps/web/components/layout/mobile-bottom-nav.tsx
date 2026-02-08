@@ -118,7 +118,7 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
 				'lg:hidden'
 			)}
 		>
-			<div className='flex items-stretch justify-around h-[56px] px-1 max-w-lg mx-auto'>
+			<div className='flex items-stretch justify-around h-[var(--nav-height)] px-1 max-w-lg mx-auto'>
 				{navItems.map((item) => (
 					<button
 						key={item.label}
