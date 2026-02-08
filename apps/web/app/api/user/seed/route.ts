@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
 
 			const [existingNote, existingFolder] = await Promise.all([
 				tx.select({ id: notes.id }).from(notes).where(eq(notes.userId, userId)).limit(1),
-				tx.select({ id: folders.id }).from(folders).where(eq(folders.userId, userId)).limit(1)
+				tx
+					.select({ id: folders.id })
+					.from(folders)
+					.where(eq(folders.userId, userId))
+					.limit(1)
 			])
 
 			// Idempotent behavior: never overwrite existing user data.
@@ -113,9 +117,6 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(result)
 	} catch (error) {
 		console.error('Failed to seed user from templates', error)
-		return NextResponse.json(
-			{ seeded: false, error: 'Failed to seed user' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ seeded: false, error: 'Failed to seed user' }, { status: 500 })
 	}
 }

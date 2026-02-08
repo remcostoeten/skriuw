@@ -35,7 +35,8 @@ export function useNotesQuery() {
 		if (userId !== 'guest' && userId !== 'guest-user') return
 
 		const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
-		const hasSeeded = hasPreseededItems() || localStorage.getItem('skriuw:welcome_seeded') === 'true'
+		const hasSeeded =
+			hasPreseededItems() || localStorage.getItem('skriuw:welcome_seeded') === 'true'
 		const hasNoItems = !hasData || hasData === '[]'
 
 		if (hasNoItems && !hasSeeded) {
