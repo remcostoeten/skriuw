@@ -2,7 +2,12 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAssets, type AssetSort, type AssetOrder } from '../api/queries/get-assets'
+import {
+	getAssets,
+	type AssetSort,
+	type AssetOrder,
+	type AssetsResponse
+} from '../api/queries/get-assets'
 import { updateAsset } from '../api/mutations/update-asset'
 import { destroyFile } from '../api/mutations/destroy-file'
 import {
@@ -40,9 +45,11 @@ import { formatDistanceToNow } from 'date-fns'
 import { useUpload } from '@/features/uploads/use-upload'
 
 type AssetLibraryProps = {
-	onSelect?: (url: string, file: any) => void
+	onSelect?: (url: string, file: AssetItem) => void
 	className?: string
 }
+
+type AssetItem = AssetsResponse['items'][number]
 
 export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 	const queryClient = useQueryClient()
@@ -54,11 +61,7 @@ export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 	const [editName, setEditName] = useState('')
 
 	// Upload hook
-	const { startUpload, isUploading } = useUpload({
-		onUploadComplete: () => {
-			queryClient.invalidateQueries({ queryKey: ['assets'] })
-		}
-	})
+	const { upload, isUploading } = useUpload()
 
 	// Data query
 	const { data, isLoading } = useQuery({
@@ -91,9 +94,11 @@ export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 	}
 
 	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files?.length) {
-			await startUpload(Array.from(e.target.files))
-		}
+		if (!e.target.files?.length) return
+		const files = Array.from(e.target.files)
+		await Promise.all(files.map((file) => upload(file)))
+		await queryClient.invalidateQueries({ queryKey: ['assets'] })
+		e.target.value = ''
 	}
 
 	const copyToClipboard = (url: string) => {
@@ -302,7 +307,14 @@ export function AssetLibrary({ onSelect, className }: AssetLibraryProps) {
 	)
 }
 
-function AssetMenu({ item, onRename, onDelete, onCopy }: any) {
+type AssetMenuProps = {
+	item: AssetItem
+	onRename: (id: string, currentName: string) => void
+	onDelete: (id: string) => void
+	onCopy: (url: string) => void
+}
+
+function AssetMenu({ item, onRename, onDelete, onCopy }: AssetMenuProps) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>

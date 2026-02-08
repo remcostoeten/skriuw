@@ -17,9 +17,9 @@ function isTagItem(item: unknown): item is TagItem {
 	return typeof props.tagName === 'string'
 }
 
-function addTags(tags: Map<string, string>, content: Block['content']) {
-	if (!content || !Array.isArray(content)) return
-	for (const item of content) {
+function addTags(tags: Map<string, string>, content: unknown) {
+	if (!Array.isArray(content)) return
+	for (const item of content as unknown[]) {
 		if (!isTagItem(item)) continue
 		const name = item.props.tagName.trim()
 		if (!name) continue
