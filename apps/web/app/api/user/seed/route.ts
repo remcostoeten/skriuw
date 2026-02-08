@@ -51,15 +51,12 @@ export async function POST(request: NextRequest) {
 				const newFolderId = crypto.randomUUID()
 				folderIdMap.set(template.id, newFolderId)
 
-				const parentFolderId = template.parentFolderId
-					? (folderIdMap.get(template.parentFolderId) ?? null)
-					: null
 				const timestamp = now + i
 
 				await tx.insert(folders).values({
 					id: newFolderId,
 					name: template.name,
-					parentFolderId,
+					parentFolderId: null,
 					userId,
 					pinned: 0,
 					pinnedAt: null,
@@ -67,6 +64,18 @@ export async function POST(request: NextRequest) {
 					updatedAt: timestamp,
 					type: 'folder'
 				})
+			}
+
+			for (let i = 0; i < templateFolders.length; i++) {
+				const template = templateFolders[i]
+				const newFolderId = folderIdMap.get(template.id)
+				if (!newFolderId) continue
+
+				const parentFolderId = template.parentFolderId
+					? (folderIdMap.get(template.parentFolderId) ?? null)
+					: null
+
+				await tx.update(folders).set({ parentFolderId }).where(eq(folders.id, newFolderId))
 			}
 
 			for (let i = 0; i < templateNotes.length; i++) {
