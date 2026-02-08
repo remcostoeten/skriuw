@@ -1,12 +1,12 @@
 {
 	"$schema": "https://schema.tauri.app/config/2.0.0",
 	"productName": "Skriuw",
-	"version": "0.1.0",
+	"version": "0.4.0",
 	"identifier": "com.skriuw.app",
 	"build": {
 		"beforeDevCommand": "cd .. && bun run dev",
 		"beforeBuildCommand": "",
-		"frontendDist": "../.next/standalone/apps/web",
+		"frontendDist": "../out",
 		"devUrl": "http://localhost:3000"
 	},
 	"app": {
@@ -28,7 +28,7 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": ["app", "dmg", "deb", "appimage"],
+		"targets": ["app", "dmg", "deb", "appimage", "rpm", "nsis"],
 		"icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
 		"resources": [],
 		"linux": {
