@@ -1,19 +1,5 @@
 import type { Task } from '../../tasks/api/queries/get-tasks'
-import type { Block } from '@blocknote/core'
-
-// Define types locally since shared package build is failing
-type UUID = string
-type Timestamp = number
-
-type BaseEntity = {
-	id: UUID
-} & {
-	createdAt: Timestamp
-	updatedAt: Timestamp
-	deletedAt?: Timestamp
-}
-
-type NoteContent = Block[]
+import type { BaseEntity, UUID, Timestamp, NoteContent } from '@skriuw/shared'
 
 /**
  * Represents a single note entity in system.
@@ -121,6 +107,6 @@ export type CreateFolderData = {
  * Payload for dragging a note tab.
  */
 export type NoteTabDragPayload = {
-	noteId: string
+	noteId: UUID
 	sourcePaneId: string | null
 }
