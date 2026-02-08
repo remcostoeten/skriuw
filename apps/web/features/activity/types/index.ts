@@ -1,14 +1,15 @@
 import type { EntityType, ActionType } from '@skriuw/db'
+import type { UUID, Timestamp } from '@skriuw/shared'
 
 export type ActivityEvent = {
-	id: string
-	userId: string
+	id: UUID
+	userId: UUID
 	entityType: EntityType
-	entityId: string
+	entityId: UUID
 	action: ActionType
 	entityName: string
 	metadata?: string | null
-	createdAt: number
+	createdAt: Timestamp
 }
 
 export type CalendarDay = {
@@ -25,12 +26,12 @@ export type CalendarData = {
 }
 
 export type RecentActivityItem = {
-	id: string
+	id: UUID
 	entityType: EntityType
-	entityId: string
+	entityId: UUID
 	action: ActionType
 	entityName: string
-	createdAt: number
+	createdAt: Timestamp
 	metadata?: Record<string, unknown>
 }
 
@@ -41,7 +42,7 @@ export type RecentActivityGroup = {
 
 export type RecordActivityInput = {
 	entityType: EntityType
-	entityId: string
+	entityId: UUID
 	action: ActionType
 	entityName: string
 	metadata?: Record<string, unknown>
