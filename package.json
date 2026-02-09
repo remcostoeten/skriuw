@@ -25,7 +25,8 @@
 		"studio": "cd packages/db && bun --env-file=../../.env.local drizzle-kit studio",
 		"validate": "turbo lint check-types test build",
 		"dev-cli": "bun scripts/dev-cli.ts",
-		"sync-seeds": "cd packages/db && bun --env-file=../../.env.local scripts/sync-seeds.ts"
+		"sync-seeds": "cd packages/db && bun --env-file=../../.env.local scripts/sync-seeds.ts",
+		"safe-delete": "bash scripts/safe-delete.sh"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
