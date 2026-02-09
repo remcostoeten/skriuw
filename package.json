@@ -36,9 +36,9 @@
 	},
 	"devDependencies": {
 		"@skriuw/config": "workspace:*",
-		"baseline-browser-mapping": "^2.9.5",
+		"baseline-browser-mapping": "^2.9.19",
 		"dotenv": "^17.2.3",
-		"next": "16.0.10",
+		"next": "16.1.6",
 		"postgres": "^3.4.7",
 		"tinyglobby": "^0.2.15",
 		"turbo": "^2.6.2",
