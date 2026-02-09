@@ -124,11 +124,19 @@ delete_targets() {
 		mkdir -p "$(dirname "$backup_path")"
 		cp -a -- "$target" "$backup_path"
 
-		if is_git_repo && is_tracked_file "$target"; then
-			if ! git rm -f -- "$target" >/dev/null; then
-				echo "  Failed tracked delete: $target" >&2
-				failed_count=$((failed_count + 1))
-				continue
+		if is_git_repo && { is_tracked_file "$target" || [[ -n "$(git ls-files -- "$target" 2>/dev/null | head -n 1)" ]]; }; then
+			if [[ -d "$target" ]]; then
+				if ! git rm -r -- "$target" >/dev/null; then
+					echo "  Failed tracked delete: $target" >&2
+					failed_count=$((failed_count + 1))
+					continue
+				fi
+			else
+				if ! git rm -f -- "$target" >/dev/null; then
+					echo "  Failed tracked delete: $target" >&2
+					failed_count=$((failed_count + 1))
+					continue
+				fi
 			fi
 		else
 			if ! rm -rf -- "$target"; then
