@@ -45,7 +45,7 @@ jobs:
                   git diff --exit-code || echo "changes=true" >> $GITHUB_OUTPUT
 
             - name: Commit changes
-              if: steps.git-check.outputs.changes == 'true'
+              if: github.event_name == 'push' && steps.git-check.outputs.changes == 'true'
               run: |
                   git config --global user.name 'github-actions[bot]'
                   git config --global user.email 'github-actions[bot]@users.noreply.github.com'
