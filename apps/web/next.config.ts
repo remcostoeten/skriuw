@@ -7,10 +7,7 @@ const isTauriBuild = process.env.TAURI_BUILD === 'true'
 const withSerwist = withSerwistInit({
 	swSrc: 'app/sw.ts',
 	swDest: 'public/sw.js',
-	disable:
-		process.env.NODE_ENV !== 'production' ||
-		process.env.TURBOPACK === '1' ||
-		isTauriBuild
+	disable: process.env.NODE_ENV !== 'production' || process.env.TURBOPACK === '1' || isTauriBuild
 })
 
 const nextConfig: NextConfig = {
