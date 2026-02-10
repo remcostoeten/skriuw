@@ -52,11 +52,7 @@
 		"lru-cache": "^11.2.4",
 		"lucide-react": "catalog:",
 		"nanoid": "^5.1.5",
-<<<<<<< Updated upstream
-		"next": "16.0.10",
-=======
 		"next": "catalog:",
->>>>>>> Stashed changes
 		"next-themes": "^0.4.6",
 		"postgres": "catalog:",
 		"prismjs": "^1.30.0",
