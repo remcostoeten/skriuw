@@ -148,8 +148,27 @@ export const shortcutDefinitions = {
 		enabled: true
 	},
 	'split.cycle': {
-		keys: [['`']],
+		keys: [
+			['Ctrl', 'Space'],
+			['Meta', 'Space']
+		],
 		description: 'Cycle between split panes (clockwise)',
+		enabled: true
+	},
+	'split.resize.increase': {
+		keys: [
+			['Ctrl', ']'],
+			['Meta', ']']
+		],
+		description: 'Increase split pane size',
+		enabled: true
+	},
+	'split.resize.decrease': {
+		keys: [
+			['Ctrl', '['],
+			['Meta', '[']
+		],
+		description: 'Decrease split pane size',
 		enabled: true
 	},
 

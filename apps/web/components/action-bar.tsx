@@ -202,7 +202,7 @@ export function ActionBar({
 	return (
 		<div
 			className={cn(
-				'relative top-0 flex flex-col items-center justify-center min-h-10 w-full border-b border-sidebar-border bg-sidebar-background overflow-hidden',
+				'relative top-0 flex flex-col items-center justify-center min-h-10 w-full border-b border-sidebar-border bg-sidebar-background overflow-hidden z-50',
 				isTouchDevice && 'min-h-12'
 			)}
 		>
