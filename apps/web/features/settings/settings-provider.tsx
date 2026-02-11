@@ -43,6 +43,11 @@ const DEFAULT_SETTINGS = {
 	// Storage connectors
 	storageConnectors: [],
 
+	// Templates & Placeholder
+	disableTemplates: false,
+	disableTemplates: false,
+	bodyPlaceholder: '',
+
 	// UI preferences
 	'ui.animations': true,
 	sidebarHierarchyGuides: false,

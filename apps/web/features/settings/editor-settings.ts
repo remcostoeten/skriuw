@@ -312,6 +312,17 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		implemented: true
 	},
 	{
+		key: 'disableTemplates',
+		label: 'Disable Templates',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Completely disable templates when creating new notes (always start empty)',
+		category: 'note-experience',
+		implemented: true
+	},
+
+	{
 		key: 'titlePlaceholder',
 		label: 'Title Placeholder',
 		value: 'Untitled Note',
@@ -574,41 +585,41 @@ export const EDITOR_SETTINGS_GROUPS: SettingsGroup[] = [
 	// Only include appearance group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'appearance' && s.implemented !== false)
 		? [
-				{
-					category: 'appearance' as const,
-					title: 'Appearance',
-					description: 'Editor appearance and display settings',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'appearance' && s.implemented !== false
-					)
-				}
-			]
+			{
+				category: 'appearance' as const,
+				title: 'Appearance',
+				description: 'Editor appearance and display settings',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'appearance' && s.implemented !== false
+				)
+			}
+		]
 		: []),
 	// Only include behavior group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'behavior' && s.implemented !== false)
 		? [
-				{
-					category: 'behavior' as const,
-					title: 'Behavior',
-					description: 'Editor behavior and automation settings',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'behavior' && s.implemented !== false
-					)
-				}
-			]
+			{
+				category: 'behavior' as const,
+				title: 'Behavior',
+				description: 'Editor behavior and automation settings',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'behavior' && s.implemented !== false
+				)
+			}
+		]
 		: []),
 	// Only include advanced group if there are implemented settings
 	...(EDITOR_SETTINGS.some((s) => s.category === 'advanced' && s.implemented !== false)
 		? [
-				{
-					category: 'advanced' as const,
-					title: 'Advanced',
-					description: 'Advanced settings and features',
-					settings: EDITOR_SETTINGS.filter(
-						(s) => s.category === 'advanced' && s.implemented !== false
-					)
-				}
-			]
+			{
+				category: 'advanced' as const,
+				title: 'Advanced',
+				description: 'Advanced settings and features',
+				settings: EDITOR_SETTINGS.filter(
+					(s) => s.category === 'advanced' && s.implemented !== false
+				)
+			}
+		]
 		: []),
 	{
 		category: 'tags' as const,

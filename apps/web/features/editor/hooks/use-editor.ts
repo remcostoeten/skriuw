@@ -5,6 +5,8 @@ import type { Note } from '@/features/notes'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { extractTags } from '@/features/notes/utils/extract-tags'
 import { useSettings } from '@/features/settings'
+import { extractTasksFromBlocks } from '@/features/notes/utils/extract-tasks'
+import { useSyncTasksMutation } from '@/features/tasks/hooks/use-tasks-query'
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
@@ -24,7 +26,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 
 		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			;(element as any).spellcheck = true
+			; (element as any).spellcheck = true
 		}
 	})
 
@@ -37,7 +39,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							;(element as any).spellcheck = true
+							; (element as any).spellcheck = true
 						}
 					}
 
@@ -46,7 +48,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							;(nested as any).spellcheck = true
+							; (nested as any).spellcheck = true
 						}
 					})
 				}
@@ -148,8 +150,8 @@ export function useEditor({
 			try {
 				setError(null)
 
-				// Since getNote is essentially synchronous (just a tree lookup),
-				// try to get it immediately without showing loading state
+				// OPTIMIZATION (Issue 12): Check if data is already available synchronously
+				// If getNote returns data immediately, we skip setting isLoading to true
 				const noteData = await getNote(noteId)
 
 				if (isCancelled) return
@@ -157,6 +159,7 @@ export function useEditor({
 				if (noteData) {
 					setNote(noteData)
 					setNoteName(noteData.name)
+					// Critical: Ensure loading is false immediately if data exists
 					setIsLoading(false)
 				} else {
 					// Note not found in cache - might need to wait for data
@@ -171,20 +174,20 @@ export function useEditor({
 							if (retryData) {
 								setNote(retryData)
 								setNoteName(retryData.name)
+								setIsLoading(false)
 							} else {
 								setError('Note not found')
+								setIsLoading(false)
 							}
 						}
 					} else {
 						setError('Note not found')
+						setIsLoading(false)
 					}
 				}
 			} catch (err) {
 				if (!isCancelled) {
 					setError(err instanceof Error ? err.message : 'Failed to load note')
-				}
-			} finally {
-				if (!isCancelled) {
 					setIsLoading(false)
 				}
 			}
@@ -301,18 +304,24 @@ export function useEditor({
 		hasInitializedRef.current = false
 	}, [noteId])
 
+	const syncTasks = useSyncTasksMutation()
+
 	const handleSave = useCallback(() => {
 		if (!editor || !noteId || readOnly) return // Added readOnly check
 
 		try {
 			const blocks = editor.document
 			const tags = extractTags(blocks)
+			// Fix for Issue 6: Extract and sync tasks
+			const tasks = extractTasksFromBlocks(blocks, noteId)
+			syncTasks.mutate({ noteId, tasks })
+
 			const derivedTitle = titleInEditor ? getTitleFromBlocks(blocks) : noteName
 			updateNote(noteId, blocks, derivedTitle, undefined, tags)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save note')
 		}
-	}, [editor, noteId, noteName, updateNote, readOnly, titleInEditor, getTitleFromBlocks])
+	}, [editor, noteId, noteName, updateNote, readOnly, titleInEditor, getTitleFromBlocks, syncTasks])
 
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
