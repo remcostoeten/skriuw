@@ -169,6 +169,7 @@ export function useNotes() {
 			const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled Note'
 			const minimalNoteHeader = getSetting('minimalNoteHeader') ?? false
 			const titleInEditor = getSetting('titleInEditor') ?? false
+			const disableTemplates = getSetting('disableTemplates') ?? false
 			const defaultTemplate = (getSetting('defaultNoteTemplate') ?? 'empty') as NoteTemplate
 			const autoIconFromFolder = getSetting('autoIconFromFolder') ?? false
 
@@ -177,11 +178,13 @@ export function useNotes() {
 			if (content) {
 				noteContent = typeof content === 'string' ? stringToBlocks(content) : content
 			} else {
-				const templateToUse =
-					options?.template ??
-					((minimalNoteHeader || titleInEditor) && defaultTemplate === 'empty'
-						? 'h1'
-						: defaultTemplate)
+				// Fix for Issue 7: Respect disableTemplates setting
+				const templateToUse = disableTemplates
+					? 'empty'
+					: (options?.template ??
+						((minimalNoteHeader || titleInEditor) && defaultTemplate === 'empty'
+							? 'h1'
+							: defaultTemplate))
 				noteContent = getInitialNoteContent(templateToUse)
 			}
 

@@ -99,7 +99,7 @@ export function useEditorConfig() {
 			theme: 'dark' as const,
 			// Add placeholder text configuration
 			placeholders: {
-				default: 'Enter text or type / for commands',
+				default: settings.bodyPlaceholder || 'Enter text or type / for commands',
 				heading: titleInEditor ? 'Title' : 'Heading',
 				bulletListItem: 'List item',
 				numberedListItem: 'List item',

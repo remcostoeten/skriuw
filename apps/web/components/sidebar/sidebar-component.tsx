@@ -1075,13 +1075,12 @@ function FileTreeItem({
 											title={item.name}
 											data-item-name
 										>
-											{!isFolder && item.pinned && (
-												<Pin className='w-3 h-3 text-muted-foreground/70 shrink-0' />
-											)}
-											{!isFolder && item.favorite && (
-												<Star className='w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0' />
-											)}
 											<span className='truncate'>{item.name}</span>
+											{!isFolder && item.pinned && (
+												<span className='ml-auto pl-2 flex items-center'>
+													<Pin className='w-3 h-3 text-brand-500 fill-brand-500/20 shrink-0 transform rotate-45' />
+												</span>
+											)}
 										</span>
 									)}
 								</div>
@@ -1264,7 +1263,7 @@ function FileTreeItem({
 						<ContextMenuSubContent
 							className={cn(
 								isMobile &&
-									'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
+								'w-[280px] max-w-[calc(100vw-2rem)] rounded-lg shadow-2xl p-2'
 							)}
 						>
 							<MoveFolderMenu
@@ -1711,7 +1710,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 		function traverse(item: Item) {
 			if (item.type === 'folder') {
 				folderIds.push(item.id)
-				;(item.children || []).forEach(traverse)
+					; (item.children || []).forEach(traverse)
 			}
 		}
 		items.forEach(traverse)
