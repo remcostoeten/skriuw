@@ -49,7 +49,8 @@
 		"studio": "cd packages/db && bun --env-file=../../.env.local drizzle-kit studio",
 		"validate": "turbo lint check-types test build",
 		"dev-cli": "bun scripts/dev-cli.ts",
-		"sync-seeds": "cd packages/db && bun --env-file=../../.env.local scripts/sync-seeds.ts"
+		"sync-seeds": "cd packages/db && bun --env-file=../../.env.local scripts/sync-seeds.ts",
+		"safe-delete": "bash scripts/safe-delete.sh"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
@@ -59,9 +60,9 @@
 	},
 	"devDependencies": {
 		"@skriuw/config": "workspace:*",
-		"baseline-browser-mapping": "^2.9.5",
+		"baseline-browser-mapping": "^2.9.19",
 		"dotenv": "^17.2.3",
-		"next": "16.0.10",
+		"next": "16.1.6",
 		"postgres": "^3.4.7",
 		"tinyglobby": "^0.2.15",
 		"turbo": "^2.6.2",

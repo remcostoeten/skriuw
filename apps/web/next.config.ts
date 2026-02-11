@@ -1,4 +1,6 @@
+/// <reference types="node" />
 import withSerwistInit from '@serwist/next'
+
 import type { NextConfig } from 'next'
 import path from 'path'
 
@@ -7,14 +9,10 @@ const isTauriBuild = process.env.TAURI_BUILD === 'true'
 const withSerwist = withSerwistInit({
 	swSrc: 'app/sw.ts',
 	swDest: 'public/sw.js',
-<<<<<<< Updated upstream
-	disable: process.env.NODE_ENV === 'development' || isTauriBuild
-=======
 	disable:
 		process.env.NODE_ENV !== 'production' ||
 		Boolean(process.env.TURBOPACK) ||
 		isTauriBuild
->>>>>>> Stashed changes
 })
 
 const nextConfig: NextConfig = {
