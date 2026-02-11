@@ -316,6 +316,50 @@ export function NoteSplitView({ noteId }: NoteSplitViewProps) {
 		closeActivePane()
 	})
 
+	useShortcut('split.cycle', (event) => {
+		event.preventDefault()
+		toggleActivePane()
+	})
+
+	useShortcut('split.resize.increase', (event) => {
+		event.preventDefault()
+		if (orientation === 'single' || panes.length < 2) return
+
+		const currentIndex = panes.findIndex((p) => p.id === activePaneId)
+		// If first pane is active, increase its size (which pushes divider right/down)
+		// If second pane is active, decrease first pane size (which pushes divider left/up, effectively increasing second pane)
+		// Note: sizes[0] is the size of the first pane.
+		const delta = 0.05
+		const newSizes = [...sizes]
+
+		if (currentIndex === 0) {
+			newSizes[0] = Math.min(newSizes[0] + delta, 1 - MIN_SIZE)
+			newSizes[1] = 1 - newSizes[0]
+		} else {
+			newSizes[0] = Math.max(newSizes[0] - delta, MIN_SIZE)
+			newSizes[1] = 1 - newSizes[0]
+		}
+		setSizes(newSizes)
+	})
+
+	useShortcut('split.resize.decrease', (event) => {
+		event.preventDefault()
+		if (orientation === 'single' || panes.length < 2) return
+
+		const currentIndex = panes.findIndex((p) => p.id === activePaneId)
+		const delta = 0.05
+		const newSizes = [...sizes]
+
+		if (currentIndex === 0) {
+			newSizes[0] = Math.max(newSizes[0] - delta, MIN_SIZE)
+			newSizes[1] = 1 - newSizes[0]
+		} else {
+			newSizes[0] = Math.min(newSizes[0] + delta, 1 - MIN_SIZE)
+			newSizes[1] = 1 - newSizes[0]
+		}
+		setSizes(newSizes)
+	})
+
 	return (
 		<div className='flex h-full flex-1 flex-col overflow-hidden'>
 			<div
