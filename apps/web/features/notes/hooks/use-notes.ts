@@ -167,6 +167,7 @@ export function useNotes() {
 			const noteCreationMode = getSetting('noteCreationMode') ?? 'rich'
 			const defaultEmoji = getSetting('defaultEmoji') ?? ''
 			const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled Note'
+			const disableTemplates = getSetting('disableTemplates') ?? false
 			const defaultTemplate = (getSetting('defaultNoteTemplate') ?? 'empty') as NoteTemplate
 			const autoIconFromFolder = getSetting('autoIconFromFolder') ?? false
 
@@ -175,7 +176,10 @@ export function useNotes() {
 			if (content) {
 				noteContent = typeof content === 'string' ? stringToBlocks(content) : content
 			} else {
-				const templateToUse = options?.template ?? defaultTemplate
+				// Fix for Issue 7: Respect disableTemplates setting
+				const templateToUse = disableTemplates
+					? 'empty'
+					: (options?.template ?? defaultTemplate)
 				noteContent = getInitialNoteContent(templateToUse)
 			}
 

@@ -11,7 +11,7 @@
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@internationalized/date": "^3.10.0",
+		"@internationalized/date": "catalog:",
 		"@radix-ui/react-alert-dialog": "^1.1.15",
 		"@radix-ui/react-collapsible": "^1.1.12",
 		"@radix-ui/react-context-menu": "^2.2.16",
@@ -33,27 +33,27 @@
 		"@radix-ui/react-tooltip": "^1.2.8",
 		"@radix-ui/react-visually-hidden": "^1.1.4",
 		"@skriuw/shared": "workspace:*",
-		"class-variance-authority": "^0.7.1",
+		"class-variance-authority": "catalog:",
 		"clsx": "^2.1.1",
-		"cmdk": "^1.1.1",
-		"lucide-react": "^0.539.0",
-		"react-aria-components": "^1.13.0",
-		"react-day-picker": "^9.11.3",
-		"react-hook-form": "^7.67.0",
-		"tailwind-merge": "^2.6.0",
-		"vaul": "^1.1.2"
+		"cmdk": "catalog:",
+		"lucide-react": "catalog:",
+		"react-aria-components": "catalog:",
+		"react-day-picker": "catalog:",
+		"react-hook-form": "catalog:",
+		"tailwind-merge": "catalog:",
+		"vaul": "catalog:"
 	},
 	"devDependencies": {
 		"@skriuw/config": "workspace:*",
 		"@types/node": "^20.0.0",
-		"@types/react": "^19.2.0",
-		"@types/react-dom": "^19.2.0",
-		"tsup": "^8.0.0",
-		"typescript": "^5.9.3"
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"tsup": "catalog:",
+		"typescript": "catalog:"
 	},
 	"peerDependencies": {
 		"framer-motion": "^12.23.12",
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+		"react": "catalog:",
+		"react-dom": "catalog:"
 	}
 }
