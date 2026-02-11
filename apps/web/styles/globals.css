@@ -191,6 +191,11 @@
 	z-index: 30;
 }
 
+/* Fix for Issue 11: Ensure popovers defined in action-bar or top-toolbar appear above split views */
+.z-50 {
+	z-index: 50;
+}
+
 /* Screen reader only - for accessibility */
 .sr-only {
 	position: absolute;
