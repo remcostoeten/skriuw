@@ -1,35 +1,10 @@
 import type { Item, Note } from '../types'
 import { flattenNotes } from './flatten-notes'
 
-export const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g
-
 export type WikilinkMatch = {
 	fullMatch: string
 	noteName: string
 	noteId?: string
-	startIndex: number
-	endIndex: number
-}
-
-export function parseWikilinks(text: string): WikilinkMatch[] {
-	const matches: WikilinkMatch[] = []
-	let match: RegExpExecArray | null
-
-	const regex = new RegExp(WIKILINK_REGEX.source, 'g')
-	while ((match = regex.exec(text)) !== null) {
-		matches.push({
-			fullMatch: match[0],
-			noteName: match[1].trim(),
-			startIndex: match.index,
-			endIndex: match.index + match[0].length
-		})
-	}
-
-	return matches
-}
-
-export function hasWikilinks(text: string): boolean {
-	return WIKILINK_REGEX.test(text)
 }
 
 export function extractWikilinksFromBlocks(blocks: any[]): WikilinkMatch[] {
@@ -39,17 +14,11 @@ export function extractWikilinksFromBlocks(blocks: any[]): WikilinkMatch[] {
 		for (const block of blockList) {
 			if (block.content && Array.isArray(block.content)) {
 				for (const inline of block.content) {
-					if (inline.type === 'text' && inline.text) {
-						const matches = parseWikilinks(inline.text)
-						allMatches.push(...matches)
-					}
 					if (inline.type === 'wikilink' && inline.props?.noteName) {
 						allMatches.push({
 							fullMatch: `[[${inline.props.noteName}]]`,
 							noteName: inline.props.noteName,
-							noteId: inline.props.noteId || '',
-							startIndex: 0,
-							endIndex: 0
+							noteId: inline.props.noteId || ''
 						})
 					}
 				}
