@@ -187,12 +187,37 @@ describe('File Tree Utils', () => {
         })
     })
 
-    describe('Language Detection', () => {
-        it('should detect languages from extensions', () => {
-            expect(getLanguageFromPath('file.ts')).toBe('typescript')
-            expect(getLanguageFromPath('file.tsx')).toBe('tsx')
-            expect(getLanguageFromPath('file.json')).toBe('json')
-            expect(getLanguageFromPath('file.unknown')).toBe('plaintext')
-        })
+    it('should handle round-trip serialization and parsing', () => {
+        const originalFiles: TFile[] = [
+            { path: 'src/components/Button.tsx', content: '' },
+            { path: 'src/utils/index.ts', content: '' },
+            { path: 'package.json', content: '' },
+            { path: 'README.md', content: '' }
+        ]
+
+        const originalTree = buildTreeFromFiles(originalFiles)
+        const ascii = serializeTreeToAscii(originalTree)
+        const parsedTree = parseAsciiTree(ascii)
+
+        // Check root structure
+        expect(parsedTree.length).toBe(3) // src, package.json, README.md
+
+        const srcNode = parsedTree.find(n => n.name === 'src')
+        expect(srcNode).toBeDefined()
+        expect(srcNode?.type).toBe('folder')
+        expect(srcNode?.children?.length).toBe(2) // components, utils
+
+        const componentsNode = srcNode?.children?.find(n => n.name === 'components')
+        expect(componentsNode).toBeDefined()
+        expect(componentsNode?.children?.[0].name).toBe('Button.tsx')
+    })
+})
+
+describe('Language Detection', () => {
+    it('should detect languages from extensions', () => {
+        expect(getLanguageFromPath('file.ts')).toBe('typescript')
+        expect(getLanguageFromPath('file.tsx')).toBe('tsx')
+        expect(getLanguageFromPath('file.json')).toBe('json')
+        expect(getLanguageFromPath('file.unknown')).toBe('plaintext')
     })
 })

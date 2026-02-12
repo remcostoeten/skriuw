@@ -255,6 +255,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                             <div className="flex flex-col">
                                 <div className="max-h-[200px] overflow-auto p-2 border-b border-border">
                                     <TreeProvider
+                                        key={nodes.map(n => n.id).join(',')}
                                         showIndentLines={showIndentLines}
                                         enableHoverHighlight={component.enableHoverHighlight}
                                         onSelectFile={handleSelectFile}
@@ -282,6 +283,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                 >
                                     <div className="h-full overflow-auto p-2">
                                         <TreeProvider
+                                            key={nodes.map(n => n.id).join(',')}
                                             showIndentLines={showIndentLines}
                                             enableHoverHighlight={component.enableHoverHighlight}
                                             onSelectFile={handleSelectFile}
