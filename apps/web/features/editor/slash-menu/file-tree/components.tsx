@@ -118,13 +118,13 @@ export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
     const treeRef = useRef<HTMLDivElement>(null)
     const [focusedIndex, setFocusedIndex] = useState(-1)
 
-    // Flatten visible nodes for keyboard navigation
-    const { state } = useTreeContext()
+    const { state, onToggleExpand, onSelectFile } = useTreeContext()
     const visibleNodes = getVisibleNodes(nodes, state.expandedFolders)
 
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLDivElement>) => {
             const { key } = e
+            const focusedNode = visibleNodes[focusedIndex]
 
             switch (key) {
                 case 'ArrowDown':
@@ -144,14 +144,31 @@ export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
                     setFocusedIndex(visibleNodes.length - 1)
                     break
                 case 'ArrowRight':
+                    if (focusedNode?.type === 'folder' && !state.expandedFolders.has(focusedNode.id)) {
+                        e.preventDefault()
+                        onToggleExpand(focusedNode.id)
+                    }
+                    break
                 case 'ArrowLeft':
+                    if (focusedNode?.type === 'folder' && state.expandedFolders.has(focusedNode.id)) {
+                        e.preventDefault()
+                        onToggleExpand(focusedNode.id)
+                    }
+                    break
                 case 'Enter':
                 case ' ':
-                    // Handled by individual tree items
+                    if (focusedNode) {
+                        e.preventDefault()
+                        if (focusedNode.type === 'folder') {
+                            onToggleExpand(focusedNode.id)
+                        } else {
+                            onSelectFile(focusedNode.path, focusedNode.content, focusedNode.language)
+                        }
+                    }
                     break
             }
         },
-        [visibleNodes.length]
+        [visibleNodes, focusedIndex, state.expandedFolders, onToggleExpand, onSelectFile]
     )
 
     return (
@@ -229,7 +246,7 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
             <div
                 ref={itemRef}
                 className={cn(
-                    'group flex items-center gap-1.5 px-2 py-1 cursor-pointer select-none rounded-sm transition-colors min-h-[28px] min-w-0',
+                    'group relative flex items-center gap-1.5 px-2 py-1 cursor-pointer select-none rounded-sm transition-colors min-h-[28px] min-w-0',
                     enableHoverHighlight && 'hover:bg-muted/50',
                     isSelected && 'bg-accent text-accent-foreground',
                     isFocused && 'ring-2 ring-ring ring-offset-1'
@@ -300,7 +317,7 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
                             node={child}
                             depth={depth + 1}
                             focusedPath={focusedPath}
-                            onFocus={() => { }}
+                            onFocus={onFocus}
                         />
                     ))}
                 </div>

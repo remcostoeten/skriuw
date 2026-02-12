@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * File Content Viewer with Syntax Highlighting
- * Uses Shiki for code highlighting, supports markdown preview
- */
-
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Copy, Check, ExternalLink, ChevronRight } from 'lucide-react'
 import { cn } from '@skriuw/shared'
@@ -28,7 +23,6 @@ type FileHeaderProps = {
 
 export function FileViewer({ selectedNode, className }: FileViewerProps) {
     const [highlightedCode, setHighlightedCode] = useState<string>('')
-    const [isLoading, setIsLoading] = useState(false)
     const [copied, setCopied] = useState(false)
 
     // Highlight code when selection changes
@@ -83,11 +77,7 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
 
             {/* Content */}
             <div className="flex-1 overflow-auto">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="animate-pulse text-muted-foreground">Loading...</div>
-                    </div>
-                ) : isMarkdown ? (
+                {isMarkdown ? (
                     <MarkdownViewer content={selectedNode.content || ''} />
                 ) : (
                     <CodeViewer code={highlightedCode} language={language} />
@@ -232,14 +222,10 @@ type ResizablePanelProps = {
 export function ResizablePanel({
     children,
     defaultSize = 50,
-    minSize = 10,
-    maxSize = 90,
     className,
-    collapsible = false,
     collapsed = false
 }: ResizablePanelProps) {
-    const [size, setSize] = useState(defaultSize)
-    const actualSize = collapsed ? 0 : size
+    const actualSize = collapsed ? 0 : defaultSize
 
     return (
         <div
@@ -280,6 +266,20 @@ export function ResizableHandle({ onResize, className }: ResizableHandleProps) {
         }
     }, [isDragging, onResize])
 
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            const step = e.shiftKey ? 50 : 10
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                onResize?.(-step)
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                onResize?.(step)
+            }
+        },
+        [onResize]
+    )
+
     return (
         <div
             ref={handleRef}
@@ -289,6 +289,7 @@ export function ResizableHandle({ onResize, className }: ResizableHandleProps) {
                 className
             )}
             onMouseDown={() => setIsDragging(true)}
+            onKeyDown={handleKeyDown}
             role="separator"
             aria-orientation="vertical"
             tabIndex={0}
