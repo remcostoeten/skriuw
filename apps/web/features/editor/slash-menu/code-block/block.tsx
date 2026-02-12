@@ -62,7 +62,6 @@ export const codeBlockSpec = createReactBlockSpec(
             const handleLanguageChange = useCallback(
                 (newLanguage: string) => {
                     // Auto-update filename extension if it's the default name
-                    const currentExt = localFileName.split('.').pop()
                     const defaultName = getDefaultFilename(language)
                     const isDefaultName = localFileName === defaultName || localFileName.startsWith('untitled.')
 
@@ -84,20 +83,17 @@ export const codeBlockSpec = createReactBlockSpec(
             )
 
             // Save content when exiting edit mode
-            const handleBlur = useCallback(() => {
-                // Small delay to check if focus moved within our container
-                setTimeout(() => {
-                    if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
-                        setIsEditing(false)
-                        editor.updateBlock(block.id, {
-                            props: {
-                                language,
-                                fileName: localFileName,
-                                code: localCode
-                            }
-                        })
-                    }
-                }, 10)
+            const handleBlur = useCallback((e: React.FocusEvent) => {
+                if (containerRef.current && !containerRef.current.contains(e.relatedTarget as Node)) {
+                    setIsEditing(false)
+                    editor.updateBlock(block.id, {
+                        props: {
+                            language,
+                            fileName: localFileName,
+                            code: localCode
+                        }
+                    })
+                }
             }, [editor, block.id, language, localFileName, localCode])
 
             // Handle filename change
@@ -165,6 +161,7 @@ export const codeBlockSpec = createReactBlockSpec(
                     )}
                     tabIndex={-1}
                     onKeyDown={handleContainerKeyDown}
+                    onBlurCapture={handleBlur}
                     data-block-type="codeBlock"
                 >
                     {/* Header */}
@@ -208,7 +205,6 @@ export const codeBlockSpec = createReactBlockSpec(
                             <CodeEditor
                                 value={localCode}
                                 onChange={setLocalCode}
-                                onBlur={handleBlur}
                                 language={language}
                                 autoFocus={true}
                                 placeholder="Enter code..."

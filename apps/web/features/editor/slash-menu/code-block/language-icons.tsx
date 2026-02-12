@@ -7,6 +7,7 @@
 
 import { FileCode, FileJson, FileText, Terminal, Database, Braces, Hash } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { cn } from '@skriuw/shared'
 
 type LanguageIconConfig = {
     icon: LucideIcon
@@ -70,5 +71,5 @@ export function LanguageIcon({ language, size = 16, className = '' }: LanguageIc
     const IconComponent = getLanguageIcon(language)
     const iconClass = getLanguageIconClass(language)
 
-    return <IconComponent size={size} className={`flex-shrink-0 ${iconClass} ${className}`} />
+    return <IconComponent size={size} className={cn('flex-shrink-0', iconClass, className)} />
 }
