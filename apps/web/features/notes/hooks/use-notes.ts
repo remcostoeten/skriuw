@@ -1,6 +1,7 @@
 import type { Note, Folder, Item } from '../types'
 import { stringToBlocks } from '../utils/string-to-blocks'
 import { getInitialNoteContent, type NoteTemplate } from '../utils/get-initial-note-content'
+import { propagateNoteRename } from '../utils/propagate-rename'
 import {
 	useNotesQuery,
 	useNoteQuery,
@@ -277,9 +278,24 @@ export function useNotes() {
 
 	const renameItem = useCallback(
 		async (id: string, newName: string) => {
-			return await renameItemMutation.mutateAsync({ id, name: newName })
+			const existingItem = findItemInTree(id)
+			const oldName = existingItem?.name
+
+			const result = await renameItemMutation.mutateAsync({ id, name: newName })
+
+			if (oldName && oldName !== newName && existingItem?.type === 'note') {
+				const affectedNotes = propagateNoteRename(items, id, oldName, newName)
+				for (const affected of affectedNotes) {
+					await updateNoteMutation.mutateAsync({
+						id: affected.noteId,
+						content: affected.updatedContent
+					})
+				}
+			}
+
+			return result
 		},
-		[renameItemMutation]
+		[renameItemMutation, updateNoteMutation, findItemInTree, items]
 	)
 
 	const pinItem = useCallback(
