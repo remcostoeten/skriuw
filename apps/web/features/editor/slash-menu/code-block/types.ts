@@ -1,13 +1,5 @@
-/**
- * Code Block Types
- * Type definitions for the BlockNote code block component
- */
-
 import type { CSSProperties } from 'react'
 
-/**
- * Supported programming languages
- */
 export const LANGUAGES = [
     { value: 'typescript', label: 'TypeScript', ext: 'ts' },
     { value: 'javascript', label: 'JavaScript', ext: 'js' },
@@ -38,24 +30,120 @@ export const LANGUAGES = [
 
 export type TLanguage = (typeof LANGUAGES)[number]['value']
 
-/**
- * Get language config by value
- */
 export function getLanguageConfig(value: string) {
     return LANGUAGES.find((l) => l.value === value) || LANGUAGES[0]
 }
 
-/**
- * Get default filename for a language
- */
 export function getDefaultFilename(language: string): string {
     const config = getLanguageConfig(language)
     return `untitled.${config.ext}`
 }
 
-/**
- * Custom syntax highlighting theme using CSS variables
- */
+const LANGUAGE_PATTERNS: Array<{ language: TLanguage; patterns: RegExp[] }> = [
+    {
+        language: 'python',
+        patterns: [/\bdef\s+\w+\s*\(/, /\bimport\s+\w+/, /\bclass\s+\w+.*:/, /\bprint\s*\(/]
+    },
+    {
+        language: 'rust',
+        patterns: [/\bfn\s+\w+/, /\blet\s+mut\b/, /\bimpl\s+/, /\b(pub\s+)?(struct|enum|trait)\b/, /::new\(/]
+    },
+    {
+        language: 'go',
+        patterns: [/\bfunc\s+\w+/, /\bpackage\s+\w+/, /\bfmt\./, /\b:=\b/]
+    },
+    {
+        language: 'tsx',
+        patterns: [/\binterface\s+\w+/, /<\w+[\s/>]/, /\bconst\s+\w+.*:\s*(React\.)?FC/, /\bJSX\.Element/]
+    },
+    {
+        language: 'jsx',
+        patterns: [/\breturn\s*\(\s*</, /\bReact\.createElement/]
+    },
+    {
+        language: 'typescript',
+        patterns: [/:\s*(string|number|boolean|any|void)\b/, /\binterface\s+\w+/, /\btype\s+\w+\s*=/, /\bas\s+(string|number|any)\b/]
+    },
+    {
+        language: 'javascript',
+        patterns: [/\bconst\s+\w+\s*=/, /\bfunction\s+\w+/, /\bconsole\.\w+/, /\bmodule\.exports/, /\brequire\s*\(/]
+    },
+    {
+        language: 'html',
+        patterns: [/<!DOCTYPE/i, /<html/i, /<div\b/, /<\/\w+>/]
+    },
+    {
+        language: 'css',
+        patterns: [/\{[\s\S]*?:\s*[\s\S]*?;[\s\S]*?\}/, /\.([\w-]+)\s*\{/, /@media\s/, /@import\s/]
+    },
+    {
+        language: 'sql',
+        patterns: [/\bSELECT\b/i, /\bFROM\b/i, /\bWHERE\b/i, /\bINSERT\s+INTO\b/i, /\bCREATE\s+TABLE\b/i]
+    },
+    {
+        language: 'json',
+        patterns: [/^\s*[\[{]/, /"\w+":\s*["{\[\dtfn]/]
+    },
+    {
+        language: 'yaml',
+        patterns: [/^\w+:\s/, /^\s+-\s+\w+/m]
+    },
+    {
+        language: 'bash',
+        patterns: [/^#!/, /\becho\s/, /\bsudo\s/, /\|\s*grep\b/, /\bcd\s+/]
+    },
+    {
+        language: 'php',
+        patterns: [/<\?php/, /\$\w+\s*=/, /\becho\s/]
+    },
+    {
+        language: 'ruby',
+        patterns: [/\bdef\s+\w+/, /\bend\s*$/, /\bputs\s/, /\brequire\s+'/]
+    },
+    {
+        language: 'java',
+        patterns: [/\bpublic\s+class\b/, /\bSystem\.out\.print/, /\bvoid\s+main\b/]
+    },
+    {
+        language: 'kotlin',
+        patterns: [/\bfun\s+\w+/, /\bval\s+\w+/, /\bvar\s+\w+/, /\bprintln\s*\(/]
+    },
+    {
+        language: 'swift',
+        patterns: [/\bfunc\s+\w+/, /\bvar\s+\w+\s*:/, /\blet\s+\w+\s*:/, /\bguard\s+let\b/]
+    },
+    {
+        language: 'graphql',
+        patterns: [/\b(query|mutation|subscription)\s+\w+/, /\btype\s+\w+\s*\{/]
+    },
+    {
+        language: 'dockerfile',
+        patterns: [/^FROM\s+/m, /^RUN\s+/m, /^COPY\s+/m, /^CMD\s+/m]
+    }
+]
+
+export function detectLanguage(code: string): TLanguage {
+    if (!code.trim()) return 'typescript'
+
+    let bestMatch: TLanguage = 'typescript'
+    let bestScore = 0
+
+    for (const { language, patterns } of LANGUAGE_PATTERNS) {
+        let score = 0
+        for (const pattern of patterns) {
+            if (pattern.test(code)) {
+                score++
+            }
+        }
+        if (score > bestScore) {
+            bestScore = score
+            bestMatch = language
+        }
+    }
+
+    return bestScore >= 1 ? bestMatch : 'typescript'
+}
+
 export type TCustomTheme = { [key: string]: CSSProperties }
 
 const sharedCodeStyles: CSSProperties = {
@@ -78,7 +166,7 @@ export const codeBlockTheme: TCustomTheme = {
     'code[class*="language-"]': { ...sharedCodeStyles },
     'pre[class*="language-"]': {
         ...sharedCodeStyles,
-        padding: '1.25rem',
+        padding: '1rem 1rem 1rem 0',
         margin: '0'
     },
     comment: { color: 'hsl(var(--sh-comment))', fontStyle: 'italic' },
@@ -117,11 +205,7 @@ export const codeBlockTheme: TCustomTheme = {
     italic: { fontStyle: 'italic' }
 }
 
-/**
- * Code block props for the BlockNote block
- */
 export type TCodeBlockProps = {
     language: string
-    fileName: string
     code: string
 }

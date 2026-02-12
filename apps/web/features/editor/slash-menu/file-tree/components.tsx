@@ -1,10 +1,5 @@
 'use client'
 
-/**
- * File Tree Core Components
- * Accessible tree structure with keyboard navigation
- */
-
 import {
     ChevronDown,
     ChevronRight,
@@ -18,18 +13,13 @@ import {
 } from 'lucide-react'
 import { createContext, useContext, useCallback, useRef, useEffect, useState, memo, type ReactNode, type KeyboardEvent } from 'react'
 import { cn } from '@skriuw/shared'
-import type { TNode, TTreeState } from './types'
-import { getFileColor } from './types'
+import type { TNode, TTreeState, TIconColorMode } from './types'
+import { getFileColor, getFolderColor, getFolderOpenColor } from './types'
 
-
-
-/** Check if user prefers reduced motion */
-function prefersReducedMotion(): boolean {
+export function prefersReducedMotion(): boolean {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
-
-
 
 type TreeContextValue = {
     state: TTreeState
@@ -37,6 +27,7 @@ type TreeContextValue = {
     onSelectFile: (path: string, content?: string, language?: string) => void
     showIndentLines: boolean
     enableHoverHighlight: boolean
+    iconColorMode: TIconColorMode
 }
 
 const TreeContext = createContext<TreeContextValue | null>(null)
@@ -49,13 +40,12 @@ function useTreeContext() {
     return context
 }
 
-
-
 type TreeProviderProps = {
     children: ReactNode
     initialState?: Partial<TTreeState>
     showIndentLines?: boolean
     enableHoverHighlight?: boolean
+    iconColorMode?: TIconColorMode
     onSelectFile?: (path: string, content?: string, language?: string) => void
 }
 
@@ -64,6 +54,7 @@ export function TreeProvider({
     initialState,
     showIndentLines = true,
     enableHoverHighlight = true,
+    iconColorMode = 'monochrome',
     onSelectFile: onSelectFileProp
 }: TreeProviderProps) {
     const [state, setState] = useState<TTreeState>({
@@ -98,15 +89,14 @@ export function TreeProvider({
                 onToggleExpand,
                 onSelectFile,
                 showIndentLines,
-                enableHoverHighlight
+                enableHoverHighlight,
+                iconColorMode
             }}
         >
             {children}
         </TreeContext.Provider>
     )
 }
-
-
 
 type TreeProps = {
     nodes: TNode[]
@@ -117,9 +107,16 @@ type TreeProps = {
 export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
     const treeRef = useRef<HTMLDivElement>(null)
     const [focusedIndex, setFocusedIndex] = useState(-1)
+    const liveRegionRef = useRef<HTMLDivElement>(null)
 
     const { state, onToggleExpand, onSelectFile } = useTreeContext()
     const visibleNodes = getVisibleNodes(nodes, state.expandedFolders)
+
+    const announceSelection = useCallback((name: string) => {
+        if (liveRegionRef.current) {
+            liveRegionRef.current.textContent = `Selected ${name}`
+        }
+    }, [])
 
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLDivElement>) => {
@@ -163,37 +160,40 @@ export function Tree({ nodes, className, ariaLabel = 'File tree' }: TreeProps) {
                             onToggleExpand(focusedNode.id)
                         } else {
                             onSelectFile(focusedNode.path, focusedNode.content, focusedNode.language)
+                            announceSelection(focusedNode.name)
                         }
                     }
                     break
             }
         },
-        [visibleNodes, focusedIndex, state.expandedFolders, onToggleExpand, onSelectFile]
+        [visibleNodes, focusedIndex, state.expandedFolders, onToggleExpand, onSelectFile, announceSelection]
     )
 
     return (
-        <div
-            ref={treeRef}
-            role="tree"
-            aria-label={ariaLabel}
-            tabIndex={0}
-            className={cn('outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full min-w-0', className)}
-            onKeyDown={handleKeyDown}
-        >
-            {nodes.map((node, index) => (
-                <TreeNode
-                    key={node.id}
-                    node={node}
-                    depth={0}
-                    focusedPath={visibleNodes[focusedIndex]?.path}
-                    onFocus={() => setFocusedIndex(visibleNodes.findIndex((n) => n.path === node.path))}
-                />
-            ))}
-        </div>
+        <>
+            <div
+                ref={treeRef}
+                role="tree"
+                aria-label={ariaLabel}
+                aria-roledescription="file tree"
+                tabIndex={0}
+                className={cn('outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full min-w-0', className)}
+                onKeyDown={handleKeyDown}
+            >
+                {nodes.map((node) => (
+                    <TreeNode
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        focusedPath={visibleNodes[focusedIndex]?.path}
+                        onFocus={() => setFocusedIndex(visibleNodes.findIndex((n) => n.path === node.path))}
+                    />
+                ))}
+            </div>
+            <div ref={liveRegionRef} aria-live="polite" aria-atomic="true" className="sr-only" />
+        </>
     )
 }
-
-
 
 type TreeNodeProps = {
     node: TNode
@@ -203,13 +203,12 @@ type TreeNodeProps = {
 }
 
 const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onFocus }: TreeNodeProps) {
-    const { state, onToggleExpand, onSelectFile, showIndentLines, enableHoverHighlight } = useTreeContext()
+    const { state, onToggleExpand, onSelectFile, showIndentLines, enableHoverHighlight, iconColorMode } = useTreeContext()
     const isExpanded = state.expandedFolders.has(node.id)
     const isSelected = state.selectedFilePath === node.path
     const isFocused = focusedPath === node.path
     const itemRef = useRef<HTMLDivElement>(null)
 
-    // Scroll focused item into view (respects reduced motion)
     useEffect(() => {
         if (isFocused && itemRef.current) {
             const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
@@ -257,7 +256,6 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
                 onFocus={onFocus}
                 tabIndex={-1}
             >
-                {/* Indent lines */}
                 {showIndentLines &&
                     depth > 0 &&
                     Array.from({ length: depth }).map((_, i) => (
@@ -272,7 +270,6 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
                         />
                     ))}
 
-                {/* Expand/Collapse button */}
                 {node.type === 'folder' ? (
                     <button
                         type="button"
@@ -290,25 +287,22 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
                         )}
                     </button>
                 ) : (
-                    <span className="w-5" /> // Spacer for files
+                    <span className="w-5" />
                 )}
 
-                {/* Icon */}
                 {node.type === 'folder' ? (
                     isExpanded ? (
-                        <FolderOpen className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                        <FolderOpen className={cn('w-4 h-4 flex-shrink-0', getFolderOpenColor(iconColorMode))} />
                     ) : (
-                        <FolderIcon className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                        <FolderIcon className={cn('w-4 h-4 flex-shrink-0', getFolderColor(iconColorMode))} />
                     )
                 ) : (
-                    <FileNodeIcon path={node.path} />
+                    <FileNodeIcon path={node.path} iconColorMode={iconColorMode} />
                 )}
 
-                {/* Name */}
                 <span className="truncate text-sm">{node.name}</span>
             </div>
 
-            {/* Children */}
             {node.type === 'folder' && isExpanded && node.children && (
                 <div role="group">
                     {node.children.map((child) => (
@@ -326,14 +320,11 @@ const TreeNodeComponent = memo(function TreeNode({ node, depth, focusedPath, onF
     )
 })
 
-// Re-export with original name for external use
 const TreeNode = TreeNodeComponent
 
-
-
-const FileNodeIcon = memo(function FileNodeIcon({ path }: { path: string }) {
+const FileNodeIcon = memo(function FileNodeIcon({ path, iconColorMode }: { path: string; iconColorMode: TIconColorMode }) {
     const extension = path.split('.').pop()?.toLowerCase() || ''
-    const colorClass = getFileColor(path)
+    const colorClass = getFileColor(path, iconColorMode)
 
     switch (extension) {
         case 'ts':
@@ -362,13 +353,11 @@ const FileNodeIcon = memo(function FileNodeIcon({ path }: { path: string }) {
         case 'gif':
         case 'svg':
         case 'webp':
-            return <ImageIcon className="w-4 h-4 flex-shrink-0 text-purple-400" />
+            return <ImageIcon className={cn('w-4 h-4 flex-shrink-0', iconColorMode === 'colored' ? 'text-purple-400' : 'text-muted-foreground')} />
         default:
             return <FileIcon className={cn('w-4 h-4 flex-shrink-0', colorClass)} />
     }
 })
-
-
 
 function getVisibleNodes(nodes: TNode[], expandedFolders: Set<string>): TNode[] {
     const visible: TNode[] = []
