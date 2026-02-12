@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Block } from '@blocknote/core'
-import { ChevronDown, ChevronRight, Link2, Unlink } from 'lucide-react'
+import { ChevronDown, ChevronRight, Link2, Unlink, FileText } from 'lucide-react'
 import { useBacklinks } from '../../notes/hooks/use-backlinks'
 import { useNoteSlug } from '../../notes/hooks/use-note-slug'
 import { useNotesContext } from '../../notes/context/notes-context'
@@ -22,6 +22,48 @@ type BacklinksPanelProps = {
 	editorBlocks?: Block[]
 }
 
+function formatRelativeTime(timestamp: number | undefined): string {
+	if (!timestamp) return ''
+	const diffMs = Date.now() - timestamp
+	const diffMins = Math.floor(diffMs / (1000 * 60))
+	const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+	if (diffMins < 1) return 'now'
+	if (diffMins < 60) return `${diffMins}m`
+	if (diffHours < 24) return `${diffHours}h`
+	if (diffDays < 7) return `${diffDays}d`
+	return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function highlightMention(context: string, mention: string): ReactNode {
+	if (!context || !mention) return context
+
+	const searchTerms = [
+		`[[${mention}]]`,
+		mention
+	]
+
+	for (const term of searchTerms) {
+		const index = context.toLowerCase().indexOf(term.toLowerCase())
+		if (index === -1) continue
+
+		const before = context.slice(0, index)
+		const match = context.slice(index, index + term.length)
+		const after = context.slice(index + term.length)
+
+		return (
+			<>
+				{before}
+				<span className='text-primary font-medium bg-primary/10 rounded px-0.5'>{match}</span>
+				{after}
+			</>
+		)
+	}
+
+	return context
+}
+
 export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: BacklinksPanelProps) {
 	const router = useRouter()
 	const { items, updateNote } = useNotesContext()
@@ -30,6 +72,17 @@ export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: Ba
 
 	const [isBacklinksOpen, setIsBacklinksOpen] = useState(true)
 	const [isUnlinkedOpen, setIsUnlinkedOpen] = useState(false)
+
+	const noteMetadataMap = useMemo(() => {
+		const map = new Map<string, { icon?: string; updatedAt?: number }>()
+		const allNotes = flattenNotes(items).filter(
+			(item): item is Note => item.type === 'note'
+		)
+		for (const note of allNotes) {
+			map.set(note.id, { icon: note.icon, updatedAt: note.updatedAt })
+		}
+		return map
+	}, [items])
 
 	const handleNavigate = (targetNoteId: string) => {
 		const url = getNoteUrl(targetNoteId)
@@ -40,7 +93,7 @@ export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: Ba
 		e: React.MouseEvent,
 		mention: (typeof unlinkedMentions)[0]
 	) => {
-		e.stopPropagation() // Prevent navigation
+		e.stopPropagation()
 
 		try {
 			const allNotes = flattenNotes(items).filter(
@@ -55,9 +108,9 @@ export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: Ba
 
 			const { success, newBlocks } = createLinkInBlocks(
 				sourceNote.content,
-				noteName, // The text to find (which matches current note name)
-				noteId, // The ID to link to (current note)
-				noteName // The name to link to
+				noteName,
+				noteId,
+				noteName
 			)
 
 			if (!success) {
@@ -119,23 +172,38 @@ export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: Ba
 							</Badge>
 						</Button>
 					</CollapsibleTrigger>
-					<CollapsibleContent className='mt-2 space-y-2'>
-						{backlinks.map((backlink, index) => (
-							<button
-								key={`${backlink.noteId}-${index}`}
-								onClick={() => handleNavigate(backlink.noteId)}
-								className='w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group'
-							>
-								<div className='text-xs font-medium text-foreground group-hover:text-primary transition-colors'>
-									{backlink.noteName}
-								</div>
-								{backlink.context && (
-									<div className='text-xs text-muted-foreground mt-1 line-clamp-2'>
-										{backlink.context}
+					<CollapsibleContent className='mt-2 space-y-1'>
+						{backlinks.map((backlink, index) => {
+							const meta = noteMetadataMap.get(backlink.noteId)
+							return (
+								<button
+									key={`${backlink.noteId}-${index}`}
+									onClick={() => handleNavigate(backlink.noteId)}
+									className='w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group'
+								>
+									<div className='flex items-center gap-1.5'>
+										{meta?.icon ? (
+											<span className='text-xs shrink-0'>{meta.icon}</span>
+										) : (
+											<FileText size={12} className='text-muted-foreground shrink-0' />
+										)}
+										<span className='text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate'>
+											{backlink.noteName}
+										</span>
+										{meta?.updatedAt && (
+											<span className='text-[10px] text-muted-foreground ml-auto shrink-0'>
+												{formatRelativeTime(meta.updatedAt)}
+											</span>
+										)}
 									</div>
-								)}
-							</button>
-						))}
+									{backlink.context && (
+										<div className='text-xs text-muted-foreground mt-1 line-clamp-2 pl-4'>
+											{highlightMention(backlink.context, noteName)}
+										</div>
+									)}
+								</button>
+							)
+						})}
 					</CollapsibleContent>
 				</Collapsible>
 			)}
@@ -163,36 +231,52 @@ export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: Ba
 							</Badge>
 						</Button>
 					</CollapsibleTrigger>
-					<CollapsibleContent className='mt-2 space-y-2'>
-						{unlinkedMentions.map((mention, index) => (
-							<div key={`${mention.noteId}-${index}`} className='group/item relative'>
-								<button
-									onClick={() => handleNavigate(mention.noteId)}
-									className='w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group pr-8'
-								>
-									<div className='text-xs font-medium text-foreground group-hover:text-primary transition-colors'>
-										{mention.noteName}
-									</div>
-									{mention.context && (
-										<div className='text-xs text-muted-foreground mt-1 line-clamp-2'>
-											{mention.context}
+					<CollapsibleContent className='mt-2 space-y-1'>
+						{unlinkedMentions.map((mention, index) => {
+							const meta = noteMetadataMap.get(mention.noteId)
+							return (
+								<div key={`${mention.noteId}-${index}`} className='group/item relative'>
+									<button
+										onClick={() => handleNavigate(mention.noteId)}
+										className='w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors group pr-8'
+									>
+										<div className='flex items-center gap-1.5'>
+											{meta?.icon ? (
+												<span className='text-xs shrink-0'>{meta.icon}</span>
+											) : (
+												<FileText size={12} className='text-muted-foreground shrink-0' />
+											)}
+											<span className='text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate'>
+												{mention.noteName}
+											</span>
+											{meta?.updatedAt && (
+												<span className='text-[10px] text-muted-foreground ml-auto shrink-0'>
+													{formatRelativeTime(meta.updatedAt)}
+												</span>
+											)}
 										</div>
-									)}
-								</button>
-								<Button
-									variant='ghost'
-									size='icon'
-									className='absolute right-1 top-1 h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity'
-									onClick={(e) => handleLinkMention(e, mention)}
-									title='Link this mention'
-								>
-									<LinkIcon className='w-3 h-3' />
-								</Button>
-							</div>
-						))}
+										{mention.context && (
+											<div className='text-xs text-muted-foreground mt-1 line-clamp-2 pl-4'>
+												{highlightMention(mention.context, noteName)}
+											</div>
+										)}
+									</button>
+									<Button
+										variant='ghost'
+										size='icon'
+										className='absolute right-1 top-1 h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity'
+										onClick={(e) => handleLinkMention(e, mention)}
+										title='Link this mention'
+									>
+										<LinkIcon className='w-3 h-3' />
+									</Button>
+								</div>
+							)
+						})}
 					</CollapsibleContent>
 				</Collapsible>
 			)}
 		</div>
 	)
 }
+
