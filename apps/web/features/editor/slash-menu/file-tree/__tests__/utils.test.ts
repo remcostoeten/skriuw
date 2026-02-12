@@ -170,8 +170,8 @@ describe('File Tree Utils', () => {
 
         it('should parse ASCII representation back to tree structure', () => {
             const ascii = `
-└── src/
-    └── index.ts
+├── src/
+│   └── index.ts
 └── package.json
 `
             const tree = parseAsciiTree(ascii)

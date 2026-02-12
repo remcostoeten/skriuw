@@ -5,7 +5,7 @@
  * Read-only syntax highlighted view using react-syntax-highlighter
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { cn } from '@skriuw/shared'
@@ -25,7 +25,7 @@ type CodeRendererProps = {
 
 export function CodeRenderer({
     code,
-    language,
+    language = 'typescript',
     fileName,
     showLineNumbers = true,
     className,
@@ -33,6 +33,15 @@ export function CodeRenderer({
     onClick
 }: CodeRendererProps) {
     const [isCopied, setIsCopied] = useState(false)
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current)
+            }
+        }
+    }, [])
 
     const copyToClipboard = useCallback(
         async (e: React.MouseEvent) => {
@@ -41,7 +50,10 @@ export function CodeRenderer({
                 await navigator.clipboard.writeText(code)
                 setIsCopied(true)
                 onCopy?.(code)
-                setTimeout(() => setIsCopied(false), 2000)
+                if (copyTimeoutRef.current) {
+                    clearTimeout(copyTimeoutRef.current)
+                }
+                copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000)
             } catch (error) {
                 console.error('Failed to copy:', error)
             }

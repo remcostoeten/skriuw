@@ -58,36 +58,26 @@ export function getDefaultFilename(language: string): string {
  */
 export type TCustomTheme = { [key: string]: CSSProperties }
 
+const sharedCodeStyles: CSSProperties = {
+    color: 'hsl(var(--sh-text))',
+    background: 'none',
+    fontFamily:
+        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    textAlign: 'left',
+    whiteSpace: 'pre-wrap',
+    wordSpacing: 'normal',
+    wordBreak: 'normal',
+    overflowWrap: 'anywhere',
+    lineHeight: '1.6',
+    fontSize: '14px',
+    tabSize: 2,
+    hyphens: 'none'
+}
+
 export const codeBlockTheme: TCustomTheme = {
-    'code[class*="language-"]': {
-        color: 'hsl(var(--sh-text))',
-        background: 'none',
-        fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        textAlign: 'left',
-        whiteSpace: 'pre-wrap',
-        wordSpacing: 'normal',
-        wordBreak: 'normal',
-        overflowWrap: 'anywhere',
-        lineHeight: '1.6',
-        fontSize: '14px',
-        tabSize: 2,
-        hyphens: 'none'
-    },
+    'code[class*="language-"]': { ...sharedCodeStyles },
     'pre[class*="language-"]': {
-        color: 'hsl(var(--sh-text))',
-        background: 'none',
-        fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        textAlign: 'left',
-        whiteSpace: 'pre-wrap',
-        wordSpacing: 'normal',
-        wordBreak: 'normal',
-        overflowWrap: 'anywhere',
-        lineHeight: '1.6',
-        fontSize: '14px',
-        tabSize: 2,
-        hyphens: 'none',
+        ...sharedCodeStyles,
         padding: '1.25rem',
         margin: '0'
     },
