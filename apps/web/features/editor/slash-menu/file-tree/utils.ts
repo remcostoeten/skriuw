@@ -120,7 +120,7 @@ export function parseAsciiTree(content: string): TNode[] {
         const name = match[3].trim()
         const depth = Math.floor(indent.replace(/[^│]/g, '').length)
 
-        const isFolder = name.endsWith('/') || line.includes('├──') || line.includes('└──')
+        const isFolder = name.endsWith('/')
         const cleanName = name.replace(/\/$/, '')
 
         const newNode: TNode = {

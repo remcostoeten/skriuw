@@ -18,13 +18,12 @@ import {
     ChevronRight,
     ChevronDown,
     Folder,
-    File,
-    GripVertical
+    File
 } from 'lucide-react'
 import { cn } from '@skriuw/shared'
 import { generateId } from '@skriuw/shared'
 import type { TNode, TFile, TComponent } from './types'
-import { buildTreeFromFiles, flattenTreeToFiles, updateNode, deleteNode, addChildNode } from './utils'
+import { buildTreeFromFiles, flattenTreeToFiles, updateNode, deleteNode, addChildNode, findNodeById } from './utils'
 import { getLanguageFromPath } from './types'
 
 
@@ -54,8 +53,6 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     const [editingContent, setEditingContent] = useState('')
     const [componentName, setComponentName] = useState(component.name)
     const [componentVersion, setComponentVersion] = useState(component.version || '1.0.0')
-    const [showJsonEditor, setShowJsonEditor] = useState(false)
-    const [jsonContent, setJsonContent] = useState('')
 
     // Sync selected node content
     useEffect(() => {
@@ -79,17 +76,22 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     }, [selectedNode])
 
     const handleAddChild = useCallback((parentId: string, type: 'file' | 'folder') => {
+        const parent = findNodeById(nodes, parentId)
+        const parentPath = parent?.path || ''
+        const childName = type === 'folder' ? 'New Folder' : 'new-file.ts'
+        const childPath = parentPath ? `${parentPath}/${childName}` : childName
+
         const newNode: TNode = {
             id: generateId(),
-            name: type === 'folder' ? 'New Folder' : 'new-file.ts',
+            name: childName,
             type,
-            path: '',
+            path: childPath,
             children: type === 'folder' ? [] : undefined,
-            content: type === 'file' ? '// New file' : undefined,
+            content: type === 'file' ? '' : undefined,
             isExpanded: true
         }
         setNodes((prev) => addChildNode(prev, parentId, newNode))
-    }, [])
+    }, [nodes])
 
     const handleAddRoot = useCallback((type: 'file' | 'folder') => {
         const newNode: TNode = {
@@ -149,7 +151,13 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
 
             try {
                 const text = await file.text()
-                const data = JSON.parse(text) as TComponent
+                const data = JSON.parse(text)
+
+                if (!data || typeof data.name !== 'string' || !Array.isArray(data.files)) {
+                    console.error('Invalid file tree JSON: missing required fields')
+                    return
+                }
+
                 setComponentName(data.name)
                 setComponentVersion(data.version || '1.0.0')
                 setNodes(buildTreeFromFiles(data.files))
@@ -160,6 +168,28 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
         input.click()
     }, [])
 
+    const handleClose = useCallback(() => {
+        onClose()
+    }, [onClose])
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                handleClose()
+            }
+        },
+        [handleClose]
+    )
+
+    const handleBackdropClick = useCallback(
+        (e: React.MouseEvent) => {
+            if (e.target === e.currentTarget) {
+                handleClose()
+            }
+        },
+        [handleClose]
+    )
+
     if (!isOpen) return null
 
     return (
@@ -168,6 +198,8 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
             role="dialog"
             aria-modal="true"
             aria-labelledby="config-modal-title"
+            onKeyDown={handleKeyDown}
+            onClick={handleBackdropClick}
         >
             <div className="w-full max-w-5xl h-[80vh] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden">
                 {/* Header */}
@@ -352,10 +384,14 @@ function TreeEditorNode({
 
     const handleSaveEdit = useCallback(() => {
         if (editValue.trim()) {
-            onUpdate(node.id, { name: editValue.trim() })
+            const newName = editValue.trim()
+            const pathParts = node.path ? node.path.split('/') : []
+            pathParts[pathParts.length - 1] = node.type === 'folder' ? newName : newName
+            const newPath = pathParts.join('/')
+            onUpdate(node.id, { name: newName, path: newPath || newName })
         }
         setIsEditing(false)
-    }, [editValue, node.id, onUpdate])
+    }, [editValue, node.id, node.path, node.type, onUpdate])
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {

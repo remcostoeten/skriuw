@@ -109,23 +109,13 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 }
             }, [contentString])
 
-            // Build tree from files
-            const [nodes, setNodes] = useState<TNode[]>(() => {
-                const tree = buildTreeFromFiles(component.files)
-                // Auto-expand all if configured
-                if (block.props.initialExpandedAll) {
-                    return expandAll(tree)
-                }
-                return tree
-            })
+            const [nodes, setNodes] = useState<TNode[]>([])
 
-            // State
             const [isConfigOpen, setIsConfigOpen] = useState(false)
             const [selectedNode, setSelectedNode] = useState<TNode | null>(null)
             const [leftPanelSize, setLeftPanelSize] = useState(35)
-            const [isCollapsed, setIsCollapsed] = useState(false)
+            const isCollapsed = leftPanelSize === 0
 
-            // Responsive hooks
             const isMobile = useIsMobile()
             const prefersReducedMotion = usePrefersReducedMotion()
 
@@ -179,15 +169,10 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 })
             }, [editor, block.id, block.props, isLocked])
 
-            // Handle resize
             const handleResize = useCallback((delta: number) => {
                 setLeftPanelSize((prev) => {
                     const newSize = prev + (delta / 10)
-                    if (newSize < 15) {
-                        setIsCollapsed(true)
-                        return 0
-                    }
-                    setIsCollapsed(false)
+                    if (newSize < 15) return 0
                     return Math.max(20, Math.min(70, newSize))
                 })
             }, [])
@@ -207,7 +192,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             return (
                 <div className={containerClasses}>
                     {/* Floating Actions */}
-                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                             type="button"
                             onClick={toggleLock}
@@ -274,7 +259,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                         enableHoverHighlight={component.enableHoverHighlight}
                                         onSelectFile={handleSelectFile}
                                         initialState={{
-                                            expandedFolders: new Set(nodes.filter(n => n.type === 'folder').map(n => n.id)),
+                                            expandedFolders: new Set(collectAllFolderIds(nodes)),
                                             selectedFilePath: selectedNode?.path || null
                                         }}
                                     >
@@ -301,7 +286,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                             enableHoverHighlight={component.enableHoverHighlight}
                                             onSelectFile={handleSelectFile}
                                             initialState={{
-                                                expandedFolders: new Set(nodes.filter(n => n.type === 'folder').map(n => n.id)),
+                                                expandedFolders: new Set(collectAllFolderIds(nodes)),
                                                 selectedFilePath: selectedNode?.path || null
                                             }}
                                         >
@@ -346,9 +331,6 @@ export const fileTreeBlockSpec = createReactBlockSpec(
 
 
 
-/**
- * Recursively expand all folders in the tree
- */
 function expandAll(nodes: TNode[]): TNode[] {
     return nodes.map((node) => {
         if (node.type === 'folder' && node.children) {
@@ -360,4 +342,17 @@ function expandAll(nodes: TNode[]): TNode[] {
         }
         return node
     })
+}
+
+function collectAllFolderIds(nodes: TNode[]): string[] {
+    const ids: string[] = []
+    for (const node of nodes) {
+        if (node.type === 'folder') {
+            ids.push(node.id)
+            if (node.children) {
+                ids.push(...collectAllFolderIds(node.children))
+            }
+        }
+    }
+    return ids
 }

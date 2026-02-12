@@ -72,16 +72,3 @@ export function registerCodeBlockTrigger(
         containerElement.removeEventListener('keydown', handleKeyDown, true)
     }
 }
-
-/**
- * Hook-friendly version for use in React components
- */
-export function useCodeBlockTrigger(
-    editor: BlockNoteEditor<any, any, any> | null,
-    containerRef: React.RefObject<HTMLElement | null>
-) {
-    if (typeof window === 'undefined') return
-
-    // This would be used in the editor wrapper component
-    // Implementation deferred to editor integration
-}
