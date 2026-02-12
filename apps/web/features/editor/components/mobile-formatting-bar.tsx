@@ -111,13 +111,11 @@ export function MobileFormattingBar({ editor, className }: Props) {
 	return (
 		<div
 			className={cn(
-				'fixed bottom-4 left-1/2 -translate-x-1/2 z-50',
-				'flex items-center gap-1 p-1.5',
-				'bg-background/80 backdrop-blur-md border border-border/50 shadow-lg rounded-full',
-				'transition-all duration-200 ease-out',
-				// Hide when keyboard might obstruct or maybe keep it floating?
-				// Usually sticky to bottom is handled by the browser moving the viewport up.
-				// We'll trust `bottom-4` works relative to the visual viewport.
+				'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
+				'flex items-center gap-1 p-1 pr-2 rounded-full',
+				'bg-background/80 backdrop-blur-xl border border-border/40 shadow-2xl',
+				'transition-all duration-300 ease-out',
+				'animate-in slide-in-from-bottom-4 fade-in duration-300',
 				className
 			)}
 		>
@@ -198,10 +196,11 @@ function FormatButton({
 				onClick()
 			}}
 			className={cn(
-				'p-2 rounded-full transition-colors',
+				'p-2.5 rounded-full transition-all duration-200',
+				'flex items-center justify-center',
 				isActive
-					? 'bg-primary text-primary-foreground'
-					: 'text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted'
+					? 'bg-foreground text-background shadow-sm scale-105'
+					: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground active:scale-95'
 			)}
 			aria-label={label}
 		>

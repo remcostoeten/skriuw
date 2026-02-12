@@ -5,6 +5,7 @@ import {
 	useBlockNoteEditor,
 	type DefaultReactSuggestionItem
 } from '@blocknote/react'
+import { cn } from '@skriuw/shared'
 import { useCallback, useEffect, useRef } from 'react'
 
 function SlashMenuList({
@@ -17,10 +18,8 @@ function SlashMenuList({
 			? `slash-menu-${selectedIndex}`
 			: undefined
 
-	// Ref for the currently selected item
 	const selectedItemRef = useRef<HTMLButtonElement>(null)
 
-	// Scroll selected item into view when selectedIndex changes
 	useEffect(() => {
 		if (selectedItemRef.current) {
 			selectedItemRef.current.scrollIntoView({
@@ -31,20 +30,19 @@ function SlashMenuList({
 	}, [selectedIndex])
 
 	if (!items.length) {
-		return (
-			<div
-				className='bn-suggestion-menu empty'
-				role='listbox'
-				aria-label='Slash menu suggestions'
-			>
-				<span className='bn-suggestion-menu__empty'>No items found</span>
-			</div>
-		)
+		return null
 	}
 
 	return (
 		<div
-			className='bn-suggestion-menu'
+			className={cn(
+				'bn-suggestion-menu flex flex-col',
+				'w-[260px] max-h-[320px] overflow-y-auto',
+				'bg-background/95 backdrop-blur-xl',
+				'border border-border/40 shadow-2xl rounded-lg',
+				'p-1.5 scrollbar-hide',
+				'z-50'
+			)}
 			role='listbox'
 			aria-label='Slash menu suggestions'
 			aria-activedescendant={activeOptionId}
@@ -60,15 +58,39 @@ function SlashMenuList({
 						type='button'
 						role='option'
 						aria-selected={isSelected}
-						className={`bn-suggestion-item ${isSelected ? 'is-selected' : ''}`}
+						className={cn(
+							'bn-suggestion-item group',
+							'flex items-center gap-2.5 w-full',
+							'px-2 py-1.5 rounded-[4px] text-sm outline-none',
+							'transition-colors duration-75',
+							'select-none',
+							isSelected
+								? 'bg-accent text-accent-foreground'
+								: 'text-foreground hover:bg-muted/50'
+						)}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={() => onItemClick?.(item)}
 					>
-						{item.icon && <span className='bn-suggestion-item__icon'>{item.icon}</span>}
-						<div className='bn-suggestion-item__content'>
-							<span className='bn-suggestion-item__title'>{item.title}</span>
+						{item.icon && (
+							<span className={cn(
+								'bn-suggestion-item__icon flex items-center justify-center',
+								'w-5 h-5 opacity-70',
+								isSelected ? 'opacity-100' : 'group-hover:opacity-100'
+							)}>
+								{item.icon}
+							</span>
+						)}
+						<div className='flex flex-col items-start overflow-hidden'>
+							<span className='bn-suggestion-item__title truncate font-medium leading-none mb-0.5'>
+								{item.title}
+							</span>
 							{item.subtext && (
-								<span className='bn-suggestion-item__subtext'>{item.subtext}</span>
+								<span className={cn(
+									'bn-suggestion-item__subtext truncate text-[11px] leading-none',
+									isSelected ? 'text-accent-foreground/70' : 'text-muted-foreground'
+								)}>
+									{item.subtext}
+								</span>
 							)}
 						</div>
 					</button>
