@@ -1,14 +1,10 @@
 'use client'
 
-/**
- * Language Selector Dropdown
- * Accessible dropdown for selecting code block language
- */
-
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@skriuw/shared'
-import { LANGUAGES, type TLanguage } from './types'
+import { LANGUAGES } from './types'
 import { LanguageIcon } from './language-icons'
 
 type LanguageSelectorProps = {
@@ -22,9 +18,11 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
     const [isOpen, setIsOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [highlightedIndex, setHighlightedIndex] = useState(0)
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
     const containerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const listRef = useRef<HTMLUListElement>(null)
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
     const currentLabel = LANGUAGES.find((l) => l.value === value)?.label || value
 
@@ -34,12 +32,15 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
             lang.value.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    // Close on outside click
     useEffect(() => {
         if (!isOpen) return
 
         const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            const target = e.target as Node
+            if (
+                containerRef.current && !containerRef.current.contains(target) &&
+                dropdownRef.current && !dropdownRef.current.contains(target)
+            ) {
                 setIsOpen(false)
                 setSearchQuery('')
             }
@@ -49,14 +50,27 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [isOpen])
 
-    // Focus input when opened
+    useEffect(() => {
+        if (isOpen && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect()
+            const viewportHeight = window.innerHeight
+            const dropdownHeight = 240
+            const spaceBelow = viewportHeight - rect.bottom
+            const opensUpward = spaceBelow < dropdownHeight && rect.top > dropdownHeight
+
+            setDropdownPosition({
+                top: opensUpward ? rect.top - dropdownHeight - 4 : rect.bottom + 4,
+                left: rect.left
+            })
+        }
+    }, [isOpen])
+
     useEffect(() => {
         if (isOpen && inputRef.current) {
             inputRef.current.focus()
         }
     }, [isOpen])
 
-    // Scroll highlighted item into view
     useEffect(() => {
         if (isOpen && listRef.current) {
             const highlighted = listRef.current.children[highlightedIndex] as HTMLElement
@@ -66,7 +80,6 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
         }
     }, [highlightedIndex, isOpen])
 
-    // Reset highlighted index when filter changes
     useEffect(() => {
         setHighlightedIndex(0)
     }, [searchQuery])
@@ -111,7 +124,6 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
                     setSearchQuery('')
                     break
                 case 'Tab':
-                    // Allow tab to close and move focus
                     setIsOpen(false)
                     setSearchQuery('')
                     break
@@ -120,18 +132,86 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
         [isOpen, filteredLanguages, highlightedIndex, handleSelect]
     )
 
+    const dropdown = isOpen ? createPortal(
+        <div
+            ref={dropdownRef}
+            className={cn(
+                'fixed z-[9999] w-52',
+                'bg-popover border border-border shadow-lg',
+                'animate-in fade-in-0 zoom-in-95'
+            )}
+            style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left
+            }}
+        >
+            <div className="p-1.5 border-b border-border">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Search languages..."
+                    className={cn(
+                        'w-full px-2 py-1 text-xs bg-transparent',
+                        'border-none focus:outline-none focus:ring-0',
+                        'placeholder:text-muted-foreground'
+                    )}
+                    aria-label="Search languages"
+                />
+            </div>
+
+            <ul
+                ref={listRef}
+                className="max-h-48 overflow-y-auto p-1"
+                role="listbox"
+                aria-label="Language options"
+            >
+                {filteredLanguages.length === 0 ? (
+                    <li className="px-2 py-1.5 text-xs text-muted-foreground">
+                        No languages found
+                    </li>
+                ) : (
+                    filteredLanguages.map((lang, index) => (
+                        <li
+                            key={lang.value}
+                            role="option"
+                            aria-selected={lang.value === value}
+                            onClick={() => handleSelect(lang.value)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            className={cn(
+                                'flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer',
+                                'transition-colors',
+                                index === highlightedIndex && 'bg-muted',
+                                lang.value === value && 'text-primary'
+                            )}
+                        >
+                            <LanguageIcon language={lang.value} size={14} />
+                            <span className="flex-1 truncate">{lang.label}</span>
+                            {lang.value === value && (
+                                <Check className="w-3 h-3 text-primary shrink-0" />
+                            )}
+                        </li>
+                    ))
+                )}
+            </ul>
+        </div>,
+        document.body
+    ) : null
+
     return (
         <div ref={containerRef} className={cn('relative', className)}>
-            {/* Trigger Button */}
             <button
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
                 className={cn(
-                    'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
+                    'flex items-center gap-1.5 px-2 py-1 text-xs transition-colors',
                     'bg-muted/50 hover:bg-muted border border-border/50 hover:border-border',
                     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                    'max-w-[160px]',
                     disabled && 'opacity-50 cursor-not-allowed'
                 )}
                 aria-haspopup="listbox"
@@ -139,79 +219,16 @@ export function LanguageSelector({ value, onChange, className, disabled }: Langu
                 aria-label={`Language: ${currentLabel}`}
             >
                 <LanguageIcon language={value} size={14} />
-                <span className="text-foreground">{currentLabel}</span>
+                <span className="text-foreground truncate">{currentLabel}</span>
                 <ChevronDown
                     className={cn(
-                        'w-3 h-3 text-muted-foreground transition-transform',
+                        'w-3 h-3 text-muted-foreground transition-transform shrink-0',
                         isOpen && 'rotate-180'
                     )}
                 />
             </button>
 
-            {/* Dropdown */}
-            {isOpen && (
-                <div
-                    className={cn(
-                        'absolute z-50 top-full left-0 mt-1 w-48',
-                        'bg-popover border border-border rounded-md shadow-lg',
-                        'animate-in fade-in-0 zoom-in-95'
-                    )}
-                >
-                    {/* Search Input */}
-                    <div className="p-1.5 border-b border-border">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Search languages..."
-                            className={cn(
-                                'w-full px-2 py-1 text-xs bg-transparent',
-                                'border-none focus:outline-none focus:ring-0',
-                                'placeholder:text-muted-foreground'
-                            )}
-                            aria-label="Search languages"
-                        />
-                    </div>
-
-                    {/* Options List */}
-                    <ul
-                        ref={listRef}
-                        className="max-h-48 overflow-y-auto p-1"
-                        role="listbox"
-                        aria-label="Language options"
-                    >
-                        {filteredLanguages.length === 0 ? (
-                            <li className="px-2 py-1.5 text-xs text-muted-foreground">
-                                No languages found
-                            </li>
-                        ) : (
-                            filteredLanguages.map((lang, index) => (
-                                <li
-                                    key={lang.value}
-                                    role="option"
-                                    aria-selected={lang.value === value}
-                                    onClick={() => handleSelect(lang.value)}
-                                    onMouseEnter={() => setHighlightedIndex(index)}
-                                    className={cn(
-                                        'flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer',
-                                        'transition-colors',
-                                        index === highlightedIndex && 'bg-muted',
-                                        lang.value === value && 'text-primary'
-                                    )}
-                                >
-                                    <LanguageIcon language={lang.value} size={14} />
-                                    <span className="flex-1">{lang.label}</span>
-                                    {lang.value === value && (
-                                        <Check className="w-3 h-3 text-primary" />
-                                    )}
-                                </li>
-                            ))
-                        )}
-                    </ul>
-                </div>
-            )}
+            {dropdown}
         </div>
     )
 }

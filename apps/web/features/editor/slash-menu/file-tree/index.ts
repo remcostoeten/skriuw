@@ -1,8 +1,3 @@
-/**
- * File Tree BlockNote Block
- * A full-featured file tree viewer with syntax highlighting and configuration
- */
-
 export { fileTreeBlockSpec } from './block'
 export { ConfigModal } from './config-modal'
 export { Tree, TreeProvider } from './components'
