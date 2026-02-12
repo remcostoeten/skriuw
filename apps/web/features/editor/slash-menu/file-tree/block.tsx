@@ -301,7 +301,7 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                 <ResizableHandle onResize={handleResize} />
 
                                 {/* Viewer Panel */}
-                                <ResizablePanel className="flex-1">
+                                <ResizablePanel defaultSize={100 - leftPanelSize} className="min-w-0">
                                     <FileViewer selectedNode={selectedNode} className="h-full" />
                                 </ResizablePanel>
                             </ResizablePanelGroup>
