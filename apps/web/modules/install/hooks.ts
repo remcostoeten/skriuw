@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PromptEvent, PromptChoice } from './types'
+import { PromptEvent } from './types'
 import {
 	isIos,
 	isSafari,
-	isStandalone,
 	shouldShowInstallPrompt,
 	markInstallDismissed
 } from './utilities'
@@ -50,18 +49,14 @@ export function useInstallPrompt() {
 			}
 		}
 
-		// Handle appinstalled
-		const handleAppInstalled = () => {
+		function handleAppInstalled() {
 			setDeferredPrompt(null)
 			close()
-			// Optionally mark as dismissed/installed permanently
 			markInstallDismissed()
 		}
 
-		// Handle visibility change to prevent overlap with native UI
-		const handleVisibilityChange = () => {
+		function handleVisibilityChange() {
 			if (document.hidden) {
-				// If page becomes hidden, likely a native prompt or tab switch.
 				// Close our UI to avoid overlap/blocking.
 				close()
 			}
@@ -78,13 +73,30 @@ export function useInstallPrompt() {
 		}
 	}, [close])
 
-	const triggerInstall = async () => {
+	const [isOnline, setIsOnline] = useState(true)
+
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			setIsOnline(navigator.onLine)
+
+			const handleOnline = () => setIsOnline(true)
+			const handleOffline = () => setIsOnline(false)
+
+			window.addEventListener('online', handleOnline)
+			window.addEventListener('offline', handleOffline)
+
+			return () => {
+				window.removeEventListener('online', handleOnline)
+				window.removeEventListener('offline', handleOffline)
+			}
+		}
+	}, [])
+
+	async function triggerInstall() {
 		if (platform === 'ios') {
-			// Show instructions, hide banner
 			setShowInstructions(true)
 			setShowBanner(false)
 		} else if (deferredPrompt) {
-			// Trigger native prompt
 			deferredPrompt.prompt()
 			const choice = await deferredPrompt.userChoice
 			if (choice.outcome === 'accepted') {
@@ -98,6 +110,7 @@ export function useInstallPrompt() {
 		showBanner,
 		showInstructions,
 		platform,
+		isOnline,
 		triggerInstall,
 		dismiss,
 		closeInstructions: () => setShowInstructions(false)
