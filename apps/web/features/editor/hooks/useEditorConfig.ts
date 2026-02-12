@@ -1,7 +1,7 @@
 import { calloutBlockSpec } from '../blocks/callout-block'
-import { customCodeBlockSpec } from '../blocks/custom-code-block'
+import { codeBlockSpec } from '../slash-menu/code-block'
 import { headerBlockSpec } from '../blocks/header-block'
-import { fileTreeBlockSpec } from '../slash-menu/file-tree-block'
+import { fileTreeBlockSpec } from '../slash-menu/file-tree'
 import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
 import { taskBlockSpec } from '../slash-menu/task-block'
 import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handler'
@@ -18,7 +18,7 @@ import { TagInline } from '../inline-content/tag-mention-content'
 export function createEditorSchema() {
 	return BlockNoteSchema.create().extend({
 		blockSpecs: {
-			codeBlock: customCodeBlockSpec(),
+			codeBlock: codeBlockSpec,
 			task: taskBlockSpec(), // createReactBlockSpec returns a function that needs to be called
 
 			shadcnTable: shadcnTableBlockSpec(), // Add our new block custom block
