@@ -198,7 +198,10 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 					'[data-style-type="inlineCodeVariant"][data-value]'
 				) as HTMLElement | null
 				const carrierValue = carrier?.getAttribute('data-value')
-				if (carrierValue && INLINE_CODE_VARIANTS.includes(carrierValue as InlineCodeVariant)) {
+				if (
+					carrierValue &&
+					INLINE_CODE_VARIANTS.includes(carrierValue as InlineCodeVariant)
+				) {
 					return carrierValue as InlineCodeVariant
 				}
 
@@ -206,7 +209,10 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 					'[data-style-type="inlineCodeVariant"][data-value]'
 				) as HTMLElement | null
 				const nestedValue = nestedCarrier?.getAttribute('data-value')
-				if (nestedValue && INLINE_CODE_VARIANTS.includes(nestedValue as InlineCodeVariant)) {
+				if (
+					nestedValue &&
+					INLINE_CODE_VARIANTS.includes(nestedValue as InlineCodeVariant)
+				) {
 					return nestedValue as InlineCodeVariant
 				}
 
@@ -267,7 +273,10 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 					node.classList.add('sk-inline-code')
 					node.tabIndex = 0
 					node.setAttribute('role', 'button')
-					node.setAttribute('aria-label', `Inline code (${getCurrentVariant(node)} style)`)
+					node.setAttribute(
+						'aria-label',
+						`Inline code (${getCurrentVariant(node)} style)`
+					)
 				}
 			}
 
@@ -380,7 +389,9 @@ export const EditorWrapper = forwardRef<EditorWrapperHandle, Props>(
 			const onPickerClick = (event: MouseEvent) => {
 				const target = event.target
 				if (!(target instanceof HTMLElement)) return
-				const button = target.closest('.sk-inline-code-picker__button') as HTMLElement | null
+				const button = target.closest(
+					'.sk-inline-code-picker__button'
+				) as HTMLElement | null
 				if (!button || !activeInlineCode) return
 				const variant = button.dataset.variant as InlineCodeVariant | undefined
 				if (!variant) return

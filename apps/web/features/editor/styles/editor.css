@@ -149,8 +149,14 @@
 }
 
 /* Center first heading in centered layout */
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='1'],
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='2'] {
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='1'],
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='2'] {
 	text-align: left;
 	font-weight: bold;
 	margin-bottom: 0.625rem;
@@ -158,23 +164,37 @@
 	width: 100%;
 }
 
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='1'] {
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='1'] {
 	font-size: 1.375rem;
 	line-height: 1.2;
 }
 
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='2'] {
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='2'] {
 	font-size: 1.25rem;
 	line-height: 1.3;
 }
 
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='1']>*,
-.editor-container.centered-layout .bn-editor>div:first-child [data-content-type='heading'][data-level='2']>* {
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='1']
+	> *,
+.editor-container.centered-layout
+	.bn-editor
+	> div:first-child
+	[data-content-type='heading'][data-level='2']
+	> * {
 	text-align: left;
 }
 
 /* Block handles in centered layout */
-.editor-container.centered-layout .bn-editor>div>div {
+.editor-container.centered-layout .bn-editor > div > div {
 	overflow: visible;
 	position: relative;
 }
@@ -581,7 +601,6 @@
    ============================================================================= */
 
 @media (max-width: 767px) {
-
 	/* Editor Container Mobile */
 	.editor-container .bn-editor {
 		padding: 1rem 1rem 6rem;

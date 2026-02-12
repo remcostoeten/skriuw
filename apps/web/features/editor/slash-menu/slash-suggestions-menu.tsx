@@ -72,11 +72,13 @@ function SlashMenuList({
 						onClick={() => onItemClick?.(item)}
 					>
 						{item.icon && (
-							<span className={cn(
-								'bn-suggestion-item__icon flex items-center justify-center',
-								'w-5 h-5 opacity-70',
-								isSelected ? 'opacity-100' : 'group-hover:opacity-100'
-							)}>
+							<span
+								className={cn(
+									'bn-suggestion-item__icon flex items-center justify-center',
+									'w-5 h-5 opacity-70',
+									isSelected ? 'opacity-100' : 'group-hover:opacity-100'
+								)}
+							>
 								{item.icon}
 							</span>
 						)}
@@ -85,10 +87,14 @@ function SlashMenuList({
 								{item.title}
 							</span>
 							{item.subtext && (
-								<span className={cn(
-									'bn-suggestion-item__subtext truncate text-[11px] leading-none',
-									isSelected ? 'text-accent-foreground/70' : 'text-muted-foreground'
-								)}>
+								<span
+									className={cn(
+										'bn-suggestion-item__subtext truncate text-[11px] leading-none',
+										isSelected
+											? 'text-accent-foreground/70'
+											: 'text-muted-foreground'
+									)}
+								>
 									{item.subtext}
 								</span>
 							)}
