@@ -83,6 +83,9 @@ export const codeBlockSpec = createReactBlockSpec(
             )
 
             // Save content when exiting edit mode
+            const localCodeRef = useRef(localCode)
+            useEffect(() => { localCodeRef.current = localCode }, [localCode])
+
             const handleBlur = useCallback((e: React.FocusEvent) => {
                 if (containerRef.current && !containerRef.current.contains(e.relatedTarget as Node)) {
                     setIsEditing(false)
@@ -90,11 +93,11 @@ export const codeBlockSpec = createReactBlockSpec(
                         props: {
                             language,
                             fileName: localFileName,
-                            code: localCode
+                            code: localCodeRef.current
                         }
                     })
                 }
-            }, [editor, block.id, language, localFileName, localCode])
+            }, [editor, block.id, language, localFileName])
 
             // Handle filename change
             const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
