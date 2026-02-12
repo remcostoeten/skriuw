@@ -118,7 +118,11 @@ export function parseAsciiTree(content: string): TNode[] {
 
         const indent = match[1] + match[2]
         const name = match[3].trim()
-        const depth = Math.floor(indent.replace(/[^│]/g, '').length)
+
+        // Calculate depth based on indentation (4 spaces per level)
+        // This handles both space-based and connector-based indentation
+        const indentLength = indent.replace(/\t/g, '    ').length
+        const depth = Math.floor(indentLength / 4)
 
         const isFolder = name.endsWith('/')
         const cleanName = name.replace(/\/$/, '')
