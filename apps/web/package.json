@@ -3,7 +3,7 @@
 	"version": "0.4.0",
 	"private": true,
 	"scripts": {
-		"build": "bun --env-file=../../.env.local --bun next build",
+		"build": "BROWSERSLIST_IGNORE_OLD_DATA=true bun --env-file=../../.env.local --bun next build --webpack",
 		"validate-env": "tsx -e \"import('../../packages/env/src/server.ts').catch((err) => { console.error(err); process.exit(1); })\"",
 		"dev": "bun --env-file=../../.env.local --bun next dev",
 		"lint": "next lint --dir .",
@@ -52,7 +52,7 @@
 		"lru-cache": "^11.2.4",
 		"lucide-react": "^0.539.0",
 		"nanoid": "^5.1.5",
-		"next": "16.0.10",
+		"next": "16.1.6",
 		"next-themes": "^0.4.6",
 		"postgres": "^3.4.5",
 		"prismjs": "^1.30.0",
