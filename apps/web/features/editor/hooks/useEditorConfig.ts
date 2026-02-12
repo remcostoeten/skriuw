@@ -1,15 +1,56 @@
 import { calloutBlockSpec } from '../blocks/callout-block'
-import { codeBlockSpec } from '../slash-menu/code-block'
+import { codeBlockSpec } from '../slash-menu/code-block/block'
 import { headerBlockSpec } from '../blocks/header-block'
 import { fileTreeBlockSpec } from '../slash-menu/file-tree'
 import { shadcnTableBlockSpec } from '../slash-menu/shadcn-table-block'
 import { taskBlockSpec } from '../slash-menu/task-block'
 import { createPasteHandler } from '@/features/editor/utils/markdown-paste-handler'
 import { useSettings, useUserPreferences } from '@/features/settings'
-import { BlockNoteSchema } from '@blocknote/core'
+import { BlockNoteSchema, createStyleSpec } from '@blocknote/core'
 import { useMemo } from 'react'
 import { WikiLink } from '../inline-content/wikilink-content'
 import { TagInline } from '../inline-content/tag-mention-content'
+
+export const INLINE_CODE_VARIANTS = ['default', 'destructive', 'outline'] as const
+export type InlineCodeVariant = (typeof INLINE_CODE_VARIANTS)[number]
+
+const inlineCodeVariantStyleSpec = createStyleSpec(
+	{
+		type: 'inlineCodeVariant',
+		propSchema: 'string'
+	},
+	{
+		render: (value) => {
+			const span = document.createElement('span')
+			if (value) {
+				span.setAttribute('data-inline-code-variant', value)
+			}
+			return {
+				dom: span,
+				contentDOM: span
+			}
+		},
+		toExternalHTML: (value) => {
+			const span = document.createElement('span')
+			if (value) {
+				span.setAttribute('data-inline-code-variant', value)
+			}
+			return {
+				dom: span,
+				contentDOM: span
+			}
+		},
+		parse: (element) => {
+			const value = element.getAttribute('data-inline-code-variant')
+			if (!value) return undefined
+			if (INLINE_CODE_VARIANTS.includes(value as InlineCodeVariant)) {
+				return value
+			}
+			return undefined
+		},
+		runsBefore: ['code']
+	}
+)
 
 /**
  * Creates a BlockNote schema with syntax highlighting enabled for code blocks
@@ -18,7 +59,7 @@ import { TagInline } from '../inline-content/tag-mention-content'
 export function createEditorSchema() {
 	return BlockNoteSchema.create().extend({
 		blockSpecs: {
-			codeBlock: codeBlockSpec,
+			codeBlock: codeBlockSpec(),
 			task: taskBlockSpec(), // createReactBlockSpec returns a function that needs to be called
 
 			shadcnTable: shadcnTableBlockSpec(), // Add our new block custom block
@@ -29,6 +70,9 @@ export function createEditorSchema() {
 		inlineContentSpecs: {
 			wikilink: WikiLink,
 			tag: TagInline
+		},
+		styleSpecs: {
+			inlineCodeVariant: inlineCodeVariantStyleSpec
 		}
 	})
 }

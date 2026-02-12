@@ -1,14 +1,8 @@
 'use client'
 
-/**
- * File Tree Configuration Modal
- * Allows users to edit tree structure, add files/folders, and manage content
- */
-
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
     X,
-    Plus,
     FolderPlus,
     FilePlus,
     Trash2,
@@ -25,8 +19,6 @@ import { generateId } from '@skriuw/shared'
 import type { TNode, TFile, TComponent } from './types'
 import { buildTreeFromFiles, flattenTreeToFiles, updateNode, deleteNode, addChildNode, findNodeById } from './utils'
 import { getLanguageFromPath } from './types'
-
-
 
 type ConfigModalProps = {
     isOpen: boolean
@@ -45,7 +37,43 @@ type TreeEditorNodeProps = {
     selectedId: string | null
 }
 
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
+function useFocusTrap(isActive: boolean) {
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!isActive || !containerRef.current) return
+
+        const container = containerRef.current
+        const focusableElements = container.querySelectorAll(FOCUSABLE_SELECTOR)
+        const firstFocusable = focusableElements[0] as HTMLElement
+        const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement
+
+        firstFocusable?.focus()
+
+        const handleTabKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Tab') return
+
+            if (e.shiftKey) {
+                if (document.activeElement === firstFocusable) {
+                    e.preventDefault()
+                    lastFocusable?.focus()
+                }
+            } else {
+                if (document.activeElement === lastFocusable) {
+                    e.preventDefault()
+                    firstFocusable?.focus()
+                }
+            }
+        }
+
+        container.addEventListener('keydown', handleTabKey)
+        return () => container.removeEventListener('keydown', handleTabKey)
+    }, [isActive])
+
+    return containerRef
+}
 
 export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalProps) {
     const [nodes, setNodes] = useState<TNode[]>(() => buildTreeFromFiles(component.files))
@@ -53,8 +81,8 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     const [editingContent, setEditingContent] = useState('')
     const [componentName, setComponentName] = useState(component.name)
     const [componentVersion, setComponentVersion] = useState(component.version || '1.0.0')
+    const focusTrapRef = useFocusTrap(isOpen)
 
-    // Sync selected node content
     useEffect(() => {
         if (selectedNode?.type === 'file') {
             setEditingContent(selectedNode.content || '')
@@ -102,7 +130,7 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
             type,
             path: type === 'folder' ? 'new-folder' : 'new-file.ts',
             children: type === 'folder' ? [] : undefined,
-            content: type === 'file' ? '// New file' : undefined,
+            content: type === 'file' ? '' : undefined,
             isExpanded: true
         }
         setNodes((prev) => [...prev, newNode])
@@ -208,8 +236,10 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
             onKeyDown={handleKeyDown}
             onClick={handleBackdropClick}
         >
-            <div className="w-full max-w-5xl h-[80vh] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden">
-                {/* Header */}
+            <div
+                ref={focusTrapRef}
+                className="w-full max-w-5xl h-[80vh] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+            >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                     <h2 id="config-modal-title" className="text-lg font-semibold">
                         Configure File Tree
@@ -244,11 +274,8 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
                     </div>
                 </div>
 
-                {/* Main Content */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Panel - Tree Editor */}
                     <div className="w-1/3 border-r border-border flex flex-col">
-                        {/* Tree Actions */}
                         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
                             <button
                                 type="button"
@@ -270,8 +297,7 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
                             </button>
                         </div>
 
-                        {/* Tree */}
-                        <div className="flex-1 overflow-auto p-2">
+                        <div className="flex-1 overflow-auto p-2" role="tree" aria-label="File tree editor">
                             {nodes.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                                     <p className="text-sm">No files yet</p>
@@ -294,9 +320,7 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
                         </div>
                     </div>
 
-                    {/* Right Panel - Content Editor */}
                     <div className="flex-1 flex flex-col">
-                        {/* Metadata */}
                         <div className="flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/30">
                             <div className="flex items-center gap-2">
                                 <label htmlFor="component-name" className="text-sm text-muted-foreground">
@@ -324,7 +348,6 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
                             </div>
                         </div>
 
-                        {/* Content Editor */}
                         <div className="flex-1 overflow-hidden">
                             {selectedNode?.type === 'file' ? (
                                 <div className="h-full flex flex-col">
@@ -351,7 +374,6 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-border bg-muted/30">
                     <button
                         type="button"
@@ -374,8 +396,6 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     )
 }
 
-
-
 function TreeEditorNode({
     node,
     depth,
@@ -393,12 +413,12 @@ function TreeEditorNode({
         if (editValue.trim()) {
             const newName = editValue.trim()
             const pathParts = node.path ? node.path.split('/') : []
-            pathParts[pathParts.length - 1] = node.type === 'folder' ? newName : newName
+            pathParts[pathParts.length - 1] = newName
             const newPath = pathParts.join('/')
             onUpdate(node.id, { name: newName, path: newPath || newName })
         }
         setIsEditing(false)
-    }, [editValue, node.id, node.path, node.type, onUpdate])
+    }, [editValue, node.id, node.path, onUpdate])
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
@@ -413,7 +433,7 @@ function TreeEditorNode({
     )
 
     return (
-        <div>
+        <div role="treeitem" aria-selected={isSelected} aria-expanded={node.type === 'folder' ? (node.isExpanded ?? false) : undefined}>
             <div
                 className={cn(
                     'group flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer transition-colors',
@@ -423,7 +443,6 @@ function TreeEditorNode({
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
                 onClick={() => onSelect(node)}
             >
-                {/* Expand/Collapse */}
                 {node.type === 'folder' ? (
                     <button
                         type="button"
@@ -444,14 +463,12 @@ function TreeEditorNode({
                     <span className="w-4" />
                 )}
 
-                {/* Icon */}
                 {node.type === 'folder' ? (
-                    <Folder className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                    <Folder className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 ) : (
                     <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 )}
 
-                {/* Name */}
                 {isEditing ? (
                     <input
                         type="text"
@@ -471,7 +488,6 @@ function TreeEditorNode({
                     </span>
                 )}
 
-                {/* Actions */}
                 <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex items-center gap-0.5 transition-opacity">
                     {node.type === 'folder' && (
                         <>
@@ -513,9 +529,8 @@ function TreeEditorNode({
                 </div>
             </div>
 
-            {/* Children */}
             {node.type === 'folder' && node.isExpanded && node.children && (
-                <div>
+                <div role="group">
                     {node.children.map((child) => (
                         <TreeEditorNode
                             key={child.id}

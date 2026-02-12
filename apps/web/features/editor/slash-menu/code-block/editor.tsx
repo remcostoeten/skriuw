@@ -1,18 +1,12 @@
 'use client'
 
-/**
- * Code Editor Component
- * Editable textarea for code input with proper keyboard handling
- */
-
 import { useRef, useEffect, useCallback, type KeyboardEvent, type ChangeEvent } from 'react'
 import { cn } from '@skriuw/shared'
 
 type CodeEditorProps = {
     value: string
     onChange: (value: string) => void
-    onBlur?: () => void
-    onFocus?: () => void
+    onExit?: () => void
     language: string
     placeholder?: string
     className?: string
@@ -22,8 +16,7 @@ type CodeEditorProps = {
 export function CodeEditor({
     value,
     onChange,
-    onBlur,
-    onFocus,
+    onExit,
     language,
     placeholder = 'Enter code...',
     className,
@@ -31,59 +24,75 @@ export function CodeEditor({
 }: CodeEditorProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-    // Auto-resize textarea height
     const adjustHeight = useCallback(() => {
         const textarea = textareaRef.current
         if (!textarea) return
 
-        // Reset height to auto to get correct scrollHeight
         textarea.style.height = 'auto'
-        // Set height to scrollHeight (minimum 100px)
-        textarea.style.height = `${Math.max(100, textarea.scrollHeight)}px`
+        textarea.style.height = `${Math.max(60, textarea.scrollHeight)}px`
     }, [])
 
-    // Adjust height on value change
     useEffect(() => {
         adjustHeight()
     }, [value, adjustHeight])
 
-    // Auto-focus on mount if requested
     useEffect(() => {
         if (autoFocus && textareaRef.current) {
-            // Use requestAnimationFrame for reliable focus
             requestAnimationFrame(() => {
                 textareaRef.current?.focus()
             })
         }
     }, [autoFocus])
 
-    // Handle tab key - insert tab character instead of moving focus
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement>) => {
             const textarea = e.currentTarget
 
+            if (e.key === 'Escape') {
+                e.preventDefault()
+                onExit?.()
+                return
+            }
+
             if (e.key === 'Tab' && !e.shiftKey) {
                 e.preventDefault()
 
-                // Insert tab at cursor position
                 const start = textarea.selectionStart
                 const end = textarea.selectionEnd
-                const newValue = value.substring(0, start) + '\t' + value.substring(end)
+                const newValue = value.substring(0, start) + '  ' + value.substring(end)
 
                 onChange(newValue)
 
-                // Restore cursor position after the tab
                 requestAnimationFrame(() => {
                     if (textareaRef.current) {
-                        textareaRef.current.selectionStart = start + 1
-                        textareaRef.current.selectionEnd = start + 1
+                        textareaRef.current.selectionStart = start + 2
+                        textareaRef.current.selectionEnd = start + 2
+                    }
+                })
+                return
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault()
+
+                const start = textarea.selectionStart
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1
+                const currentLine = value.substring(lineStart, start)
+                const indent = currentLine.match(/^(\s*)/)?.[1] || ''
+
+                const newValue = value.substring(0, start) + '\n' + indent + value.substring(textarea.selectionEnd)
+                onChange(newValue)
+
+                const newPos = start + 1 + indent.length
+                requestAnimationFrame(() => {
+                    if (textareaRef.current) {
+                        textareaRef.current.selectionStart = newPos
+                        textareaRef.current.selectionEnd = newPos
                     }
                 })
             }
-
-            // Shift+Tab exits the editor (default behavior is fine)
         },
-        [value, onChange]
+        [value, onChange, onExit]
     )
 
     const handleChange = useCallback(
@@ -99,31 +108,29 @@ export function CodeEditor({
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onBlur={onBlur}
-            onFocus={onFocus}
             placeholder={placeholder}
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
-            data-gramm="false" // Disable Grammarly
+            data-gramm="false"
             className={cn(
-                'w-full min-h-[100px] resize-none',
+                'w-full min-h-[60px] resize-none',
                 'bg-transparent border-0 focus:ring-0 focus:outline-none',
-                'font-mono text-sm leading-relaxed',
+                'font-mono',
                 'text-foreground placeholder:text-muted-foreground/50',
-                'px-4 py-3',
+                'py-[1rem] pl-[3.5rem] pr-[1rem]',
+                'touch-manipulation',
                 className
             )}
             style={{
-                // Prevent weird line height issues
-                lineHeight: '1.6',
-                // Allow wrapping
+                fontSize: '0.8125rem',
+                lineHeight: '1.7',
                 whiteSpace: 'pre-wrap',
                 wordWrap: 'break-word',
                 overflowWrap: 'anywhere',
-                // Tab size
-                tabSize: 2
+                tabSize: 2,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
             }}
             aria-label={`Code editor for ${language}`}
         />

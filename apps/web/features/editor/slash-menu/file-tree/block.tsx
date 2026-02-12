@@ -1,24 +1,25 @@
 'use client'
 
-/**
- * File Tree BlockNote Block Specification
- * Creates a custom block for BlockNote that renders an interactive file tree
- */
-
 import { createReactBlockSpec } from '@blocknote/react'
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import { Settings, ChevronRight, ChevronDown, Folder, FolderOpen, Palette, Lock, Unlock } from 'lucide-react'
+import { useState, useCallback, useEffect, useMemo, useDeferredValue } from 'react'
+import {
+    Settings,
+    Folder,
+    Lock,
+    Unlock,
+    Palette,
+    ChevronsUpDown,
+    Search,
+    X
+} from 'lucide-react'
 import { cn } from '@skriuw/shared'
-import type { TComponent, TNode, TStyle, TFile } from './types'
-import { buildTreeFromFiles, flattenTreeToFiles, updateNode, findNodeByPath, DEFAULT_TREE_FILES } from './utils'
-import { getFileColor, getLanguageFromPath } from './types'
-import { TreeProvider, Tree } from './components'
+import type { TComponent, TNode, TStyle, TIconColorMode } from './types'
+import { buildTreeFromFiles, flattenTreeToFiles, findNodeByPath, DEFAULT_TREE_FILES, countFiles, filterTreeByQuery } from './utils'
+import { getLanguageFromPath, getFolderColor } from './types'
+import { TreeProvider, Tree, prefersReducedMotion } from './components'
 import { FileViewer, ResizablePanelGroup, ResizablePanel, ResizableHandle } from './viewer'
 import { ConfigModal } from './config-modal'
 
-
-
-/** Check if screen is mobile-sized */
 function useIsMobile(breakpoint = 768): boolean {
     const [isMobile, setIsMobile] = useState(false)
 
@@ -36,7 +37,6 @@ function useIsMobile(breakpoint = 768): boolean {
     return isMobile
 }
 
-/** Check if user prefers reduced motion */
 function usePrefersReducedMotion(): boolean {
     const [prefersReduced, setPrefersReduced] = useState(false)
 
@@ -54,8 +54,6 @@ function usePrefersReducedMotion(): boolean {
     return prefersReduced
 }
 
-
-
 const DEFAULT_COMPONENT: TComponent = {
     name: 'Project',
     version: '1.0.0',
@@ -64,31 +62,27 @@ const DEFAULT_COMPONENT: TComponent = {
     files: DEFAULT_TREE_FILES
 }
 
-
-
 export const fileTreeBlockSpec = createReactBlockSpec(
     {
         type: 'fileTree',
         propSchema: {
-            /** Serialized TComponent JSON */
             content: {
                 default: JSON.stringify(DEFAULT_COMPONENT)
             },
-            /** Visual style variant */
             style: {
                 default: 'full' as TStyle
             },
-            /** Show indent guide lines */
             showIndentLines: {
                 default: true
             },
-            /** Expand all folders by default */
             initialExpandedAll: {
                 default: true
             },
-            /** Lock the file tree to view-only mode */
             locked: {
                 default: false
+            },
+            iconColorMode: {
+                default: 'monochrome' as TIconColorMode
             }
         },
         content: 'none'
@@ -99,8 +93,8 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             const style = (block.props.style as TStyle) || 'full'
             const showIndentLines = block.props.showIndentLines !== false
             const isLocked = block.props.locked === true
+            const iconColorMode = (block.props.iconColorMode as TIconColorMode) || 'monochrome'
 
-            // Parse component data
             const component = useMemo<TComponent>(() => {
                 try {
                     return JSON.parse(contentString)
@@ -110,24 +104,32 @@ export const fileTreeBlockSpec = createReactBlockSpec(
             }, [contentString])
 
             const [nodes, setNodes] = useState<TNode[]>([])
-
             const [isConfigOpen, setIsConfigOpen] = useState(false)
             const [selectedNode, setSelectedNode] = useState<TNode | null>(null)
             const [leftPanelSize, setLeftPanelSize] = useState(35)
+            const [searchQuery, setSearchQuery] = useState('')
+            const deferredQuery = useDeferredValue(searchQuery)
+            const isStale = searchQuery !== deferredQuery
+            const [isSearchOpen, setIsSearchOpen] = useState(false)
             const isCollapsed = leftPanelSize === 0
 
             const isMobile = useIsMobile()
-            const prefersReducedMotion = usePrefersReducedMotion()
+            const reducedMotion = usePrefersReducedMotion()
 
-            // Sync nodes when content changes externally
             useEffect(() => {
                 const tree = buildTreeFromFiles(component.files)
                 setNodes(block.props.initialExpandedAll ? expandAll(tree) : tree)
             }, [component.files, block.props.initialExpandedAll])
 
-            // Handle file selection
+            const filteredNodes = useMemo(
+                () => filterTreeByQuery(nodes, deferredQuery),
+                [nodes, deferredQuery]
+            )
+
+            const fileCount = useMemo(() => countFiles(nodes), [nodes])
+
             const handleSelectFile = useCallback(
-                (path: string, content?: string, language?: string) => {
+                (path: string, _content?: string, _language?: string) => {
                     const node = findNodeByPath(nodes, path)
                     if (node) {
                         setSelectedNode(node)
@@ -136,7 +138,6 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 [nodes]
             )
 
-            // Handle config save
             const handleSaveConfig = useCallback(
                 (updatedComponent: TComponent) => {
                     editor.updateBlock(block.id, {
@@ -151,7 +152,6 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 [editor, block.id, style, showIndentLines]
             )
 
-            // Toggle style
             const toggleStyle = useCallback(() => {
                 if (isLocked) return
                 const styles: TStyle[] = ['full', 'card', 'minimal']
@@ -162,12 +162,24 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 })
             }, [editor, block.id, style, block.props, isLocked])
 
-            // Toggle lock
             const toggleLock = useCallback(() => {
                 editor.updateBlock(block.id, {
                     props: { ...block.props, locked: !isLocked }
                 })
             }, [editor, block.id, block.props, isLocked])
+
+            const toggleIconColorMode = useCallback(() => {
+                if (isLocked) return
+                const nextMode: TIconColorMode = iconColorMode === 'monochrome' ? 'colored' : 'monochrome'
+                editor.updateBlock(block.id, {
+                    props: { ...block.props, iconColorMode: nextMode }
+                })
+            }, [editor, block.id, block.props, isLocked, iconColorMode])
+
+            const toggleExpandAll = useCallback(() => {
+                const allExpanded = nodes.every((n) => n.type !== 'folder' || n.isExpanded)
+                setNodes(allExpanded ? collapseAll(nodes) : expandAll(nodes))
+            }, [nodes])
 
             const handleResize = useCallback((delta: number) => {
                 setLeftPanelSize((prev) => {
@@ -177,21 +189,35 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                 })
             }, [])
 
-            // Container classes based on style
             const containerClasses = cn(
                 'relative group my-4 overflow-hidden w-full',
                 style === 'full' && 'rounded-lg border border-border bg-card shadow-sm',
                 style === 'card' && 'rounded-lg border border-border bg-card/50',
                 style === 'minimal' && '',
-                // Reduced motion
-                !prefersReducedMotion && 'transition-all duration-200',
-                // Locked visual indicator
+                !reducedMotion && 'transition-all duration-200',
                 isLocked && 'ring-1 ring-amber-500/30'
+            )
+
+            const treeContent = (
+                <div className={cn('transition-opacity duration-200', isStale && 'opacity-50')}>
+                    <TreeProvider
+                        key={`${iconColorMode}-${showIndentLines}`}
+                        showIndentLines={showIndentLines}
+                        enableHoverHighlight={component.enableHoverHighlight}
+                        iconColorMode={iconColorMode}
+                        onSelectFile={handleSelectFile}
+                        initialState={{
+                            expandedFolders: new Set(collectAllFolderIds(filteredNodes)),
+                            selectedFilePath: selectedNode?.path || null
+                        }}
+                    >
+                        <Tree nodes={filteredNodes} />
+                    </TreeProvider>
+                </div>
             )
 
             return (
                 <div className={containerClasses}>
-                    {/* Floating Actions */}
                     <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                             type="button"
@@ -213,12 +239,30 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                             <>
                                 <button
                                     type="button"
-                                    onClick={toggleStyle}
+                                    onClick={toggleIconColorMode}
                                     className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
-                                    title={`Current: ${style}. Click to toggle.`}
-                                    aria-label="Toggle style"
+                                    title={`Icons: ${iconColorMode}. Click to toggle.`}
+                                    aria-label={`Toggle icon color mode (currently ${iconColorMode})`}
                                 >
                                     <Palette className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={toggleExpandAll}
+                                    className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
+                                    title="Collapse/Expand all"
+                                    aria-label="Toggle collapse and expand all folders"
+                                >
+                                    <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSearchOpen((prev) => !prev)}
+                                    className="p-1.5 bg-background/80 backdrop-blur-sm border border-border hover:bg-muted rounded-md transition-colors shadow-sm"
+                                    title="Search files"
+                                    aria-label="Toggle file search"
+                                >
+                                    <Search className="w-4 h-4 text-muted-foreground" />
                                 </button>
                                 <button
                                     type="button"
@@ -233,48 +277,60 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                         )}
                     </div>
 
-                    {/* Header (for full/card styles) */}
                     {(style === 'full' || style === 'card') && (
                         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
                             <div className="flex items-center gap-2">
-                                <Folder className="w-4 h-4 text-yellow-500" />
+                                <Folder className={cn('w-4 h-4', getFolderColor(iconColorMode))} />
                                 <span className="text-sm font-medium">{component.name}</span>
                                 {component.version && (
                                     <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                                         v{component.version}
                                     </span>
                                 )}
+                                <span className="text-xs text-muted-foreground">
+                                    {fileCount} {fileCount === 1 ? 'file' : 'files'}
+                                </span>
                             </div>
                         </div>
                     )}
 
-                    {/* Main Content */}
+                    {isSearchOpen && (
+                        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
+                            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Filter files..."
+                                className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/50"
+                                autoFocus
+                                aria-label="Filter files in tree"
+                            />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery('')}
+                                    className="p-0.5 hover:bg-muted rounded transition-colors"
+                                    aria-label="Clear search"
+                                >
+                                    <X className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {style === 'full' ? (
                         isMobile ? (
-                            // Mobile: Stacked layout
                             <div className="flex flex-col">
                                 <div className="max-h-[200px] overflow-auto p-2 border-b border-border">
-                                    <TreeProvider
-                                        key={nodes.map(n => n.id).join(',')}
-                                        showIndentLines={showIndentLines}
-                                        enableHoverHighlight={component.enableHoverHighlight}
-                                        onSelectFile={handleSelectFile}
-                                        initialState={{
-                                            expandedFolders: new Set(collectAllFolderIds(nodes)),
-                                            selectedFilePath: selectedNode?.path || null
-                                        }}
-                                    >
-                                        <Tree nodes={nodes} />
-                                    </TreeProvider>
+                                    {treeContent}
                                 </div>
                                 <div className="h-[300px]">
                                     <FileViewer selectedNode={selectedNode} className="h-full" />
                                 </div>
                             </div>
                         ) : (
-                            // Desktop: Side-by-side with resizable panels
                             <ResizablePanelGroup className="h-[400px] w-full">
-                                {/* Tree Panel */}
                                 <ResizablePanel
                                     defaultSize={leftPanelSize}
                                     minSize={20}
@@ -282,25 +338,12 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                                     className="border-r border-border"
                                 >
                                     <div className="h-full overflow-auto p-2">
-                                        <TreeProvider
-                                            key={nodes.map(n => n.id).join(',')}
-                                            showIndentLines={showIndentLines}
-                                            enableHoverHighlight={component.enableHoverHighlight}
-                                            onSelectFile={handleSelectFile}
-                                            initialState={{
-                                                expandedFolders: new Set(collectAllFolderIds(nodes)),
-                                                selectedFilePath: selectedNode?.path || null
-                                            }}
-                                        >
-                                            <Tree nodes={nodes} />
-                                        </TreeProvider>
+                                        {treeContent}
                                     </div>
                                 </ResizablePanel>
 
-                                {/* Resize Handle */}
                                 <ResizableHandle onResize={handleResize} />
 
-                                {/* Viewer Panel */}
                                 <ResizablePanel defaultSize={100 - leftPanelSize} className="min-w-0">
                                     <FileViewer selectedNode={selectedNode} className="h-full" />
                                 </ResizablePanel>
@@ -308,17 +351,10 @@ export const fileTreeBlockSpec = createReactBlockSpec(
                         )
                     ) : (
                         <div className="max-h-[400px] overflow-auto p-2">
-                            <TreeProvider
-                                showIndentLines={showIndentLines}
-                                enableHoverHighlight={component.enableHoverHighlight}
-                                onSelectFile={handleSelectFile}
-                            >
-                                <Tree nodes={nodes} />
-                            </TreeProvider>
+                            {treeContent}
                         </div>
                     )}
 
-                    {/* Config Modal */}
                     <ConfigModal
                         isOpen={isConfigOpen}
                         onClose={() => setIsConfigOpen(false)}
@@ -331,8 +367,6 @@ export const fileTreeBlockSpec = createReactBlockSpec(
     }
 )
 
-
-
 function expandAll(nodes: TNode[]): TNode[] {
     return nodes.map((node) => {
         if (node.type === 'folder' && node.children) {
@@ -340,6 +374,19 @@ function expandAll(nodes: TNode[]): TNode[] {
                 ...node,
                 isExpanded: true,
                 children: expandAll(node.children)
+            }
+        }
+        return node
+    })
+}
+
+function collapseAll(nodes: TNode[]): TNode[] {
+    return nodes.map((node) => {
+        if (node.type === 'folder' && node.children) {
+            return {
+                ...node,
+                isExpanded: false,
+                children: collapseAll(node.children)
             }
         }
         return node

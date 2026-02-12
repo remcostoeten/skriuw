@@ -1,24 +1,9 @@
-/**
- * File Tree Types
- * Ported from Beautiful Interactive File Tree component
- * @see https://github.com/remcostoeten/Beautiful-interactive-file-tree
- */
-
-/**
- * Represents a single file in the tree
- */
 export type TFile = {
-    /** File path (e.g., "src/components/Button.tsx") */
     path: string
-    /** Optional file content for preview */
     content?: string
-    /** Language for syntax highlighting (auto-detected from extension if not provided) */
     language?: string
 }
 
-/**
- * Tree node structure for folders and files
- */
 export type TNode = {
     id: string
     name: string
@@ -30,62 +15,37 @@ export type TNode = {
     isExpanded?: boolean
 }
 
-/**
- * Full component configuration
- */
+export type TIconColorMode = 'monochrome' | 'colored'
+
 export type TComponent = {
-    /** Display name of the component */
     name: string
-    /** Version string shown in header */
     version?: string
-    /** Show indent guide lines in tree */
     showIndentLines?: boolean
-    /** Enable subtle background color on hover for file & folder rows */
     enableHoverHighlight?: boolean
-    /** Array of files to display */
     files: TFile[]
 }
 
-/**
- * Tree state for tracking expanded folders and selected file
- */
 export type TTreeState = {
     expandedFolders: Set<string>
     selectedFilePath: string | null
 }
 
-/**
- * Editing state for inline rename
- */
 export type TEditingState = {
     id: string | null
     value: string
 }
 
-/**
- * Style variants for the file tree block
- */
 export type TStyle = 'card' | 'minimal' | 'full'
 
-/**
- * Block props for BlockNote integration
- */
 export type TFileTreeBlockProps = {
-    /** Serialized TComponent JSON */
     content: string
-    /** Visual style variant */
     style: TStyle
-    /** Show indent guide lines */
     showIndentLines: boolean
-    /** Expand all folders by default */
     initialExpandedAll: boolean
-    /** Lock the file tree to view-only mode */
     locked: boolean
+    iconColorMode: TIconColorMode
 }
 
-/**
- * Language mappings for syntax highlighting
- */
 export const LANGUAGE_MAP: Record<string, string> = {
     ts: 'typescript',
     tsx: 'tsx',
@@ -137,18 +97,12 @@ export const LANGUAGE_MAP: Record<string, string> = {
     editorconfig: 'editorconfig'
 }
 
-/**
- * Get language from file extension
- */
 export function getLanguageFromPath(path: string): string {
     const extension = path.split('.').pop()?.toLowerCase() || ''
     return LANGUAGE_MAP[extension] || 'plaintext'
 }
 
-/**
- * File icon colors based on extension
- */
-export const FILE_COLORS: Record<string, string> = {
+const COLORED_FILE_ICONS: Record<string, string> = {
     ts: 'text-blue-400',
     tsx: 'text-blue-400',
     js: 'text-yellow-400',
@@ -164,10 +118,18 @@ export const FILE_COLORS: Record<string, string> = {
     default: 'text-muted-foreground'
 }
 
-/**
- * Get file icon color from path
- */
-export function getFileColor(path: string): string {
+export function getFileColor(path: string, mode: TIconColorMode = 'monochrome'): string {
+    if (mode === 'monochrome') return 'text-muted-foreground'
     const extension = path.split('.').pop()?.toLowerCase() || ''
-    return FILE_COLORS[extension] || FILE_COLORS.default
+    return COLORED_FILE_ICONS[extension] || COLORED_FILE_ICONS.default
+}
+
+export function getFolderColor(mode: TIconColorMode = 'monochrome'): string {
+    if (mode === 'monochrome') return 'text-muted-foreground'
+    return 'text-yellow-500'
+}
+
+export function getFolderOpenColor(mode: TIconColorMode = 'monochrome'): string {
+    if (mode === 'monochrome') return 'text-muted-foreground'
+    return 'text-yellow-500'
 }
