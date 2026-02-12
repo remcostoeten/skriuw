@@ -1,4 +1,5 @@
 import { createReactInlineContentSpec } from '@blocknote/react'
+import { useRouter } from 'next/navigation'
 import type { CSSProperties } from 'react'
 
 type Props = {
@@ -7,14 +8,33 @@ type Props = {
 }
 
 function TagMention({ tagName, tagColor }: Props) {
+	const router = useRouter()
+
 	const style: CSSProperties = {
 		backgroundColor: `${tagColor}20`,
 		borderColor: `${tagColor}40`,
-		color: tagColor
+		color: tagColor,
+		cursor: 'pointer'
+	}
+
+	const handleClick = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+		router.push(`/tags/${encodeURIComponent(tagName)}`)
 	}
 
 	return (
-		<span className='skriuw-tag-mention' style={style} aria-label={`Tag ${tagName}`}>
+		<span
+			className='skriuw-tag-mention hover:opacity-80 transition-opacity'
+			style={style}
+			aria-label={`Tag ${tagName}`}
+			role='link'
+			tabIndex={0}
+			onClick={handleClick}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') handleClick(e as any)
+			}}
+		>
 			{tagName}
 		</span>
 	)
