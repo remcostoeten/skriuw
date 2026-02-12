@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export const viewport = {
 	themeColor: [
 		{ media: '(prefers-color-scheme: light)', color: 'white' },
-		{ media: '(prefers-color-scheme: dark)', color: '#0a0a0a' }
+		{ media: '(prefers-color-scheme: dark)', color: '#121212' }
 	],
 	width: 'device-width',
 	initialScale: 1,
@@ -29,6 +29,9 @@ export const metadata: Metadata = {
 		capable: true,
 		statusBarStyle: 'black-translucent',
 		title: 'Skriuw'
+	},
+	formatDetection: {
+		telephone: false
 	},
 	icons: {
 		icon: [
@@ -68,7 +71,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				className='font-sans antialiased dark bg-background overscroll-none'
 				suppressHydrationWarning
 			>
-				<div id='main-content' className='h-safe-screen w-full pb-safe pt-safe'>
+				<div
+					id='main-content'
+					className='h-safe-screen w-full overflow-y-auto overscroll-y-contain pb-safe pt-safe'
+				>
 					<Providers>
 						{children}
 						<CommandExecutor />
