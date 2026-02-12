@@ -136,13 +136,44 @@
 		@apply bg-background text-foreground;
 		/* Mobile optimizations */
 		overscroll-behavior-y: none;
-		/* Prevent elastic scrolling */
+		/* Prevent elastic scrolling on body, handled by main-content */
 		touch-action: manipulation;
 		/* Disable double-tap zoom delay */
 		-webkit-tap-highlight-color: transparent;
 		/* Remove tap highlight */
 		-webkit-font-smoothing: antialiased;
-		min-height: 100dvh;
+		/* Prevent text selection by default (like native apps) */
+		-webkit-user-select: none;
+		user-select: none;
+		/* Prevent callout menu on long press */
+		-webkit-touch-callout: none;
+		/* Fix for iOS momentum scrolling */
+		height: 100dvh;
+		width: 100%;
+		overflow: hidden;
+	}
+
+	/* Re-enable text selection for content that should be selectable */
+	:where(p, span, li, h1, h2, h3, h4, h5, h6, article, blockquote, code, pre, input, textarea) {
+		-webkit-user-select: text;
+		user-select: text;
+		cursor: text;
+	}
+
+	/* Ensure inputs don't zoom on focus (iOS requires 16px) */
+	input,
+	textarea,
+	select {
+		font-size: 16px !important;
+	}
+
+	/* Specifically target mobile to be sure about font size */
+	@media screen and (max-width: 768px) {
+		input,
+		textarea,
+		select {
+			font-size: 16px !important;
+		}
 	}
 
 	:where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
