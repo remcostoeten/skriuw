@@ -51,12 +51,16 @@ export const codeBlockSpec = createReactBlockSpec(
 
             // Sync local state when block props change externally
             useEffect(() => {
-                setLocalCode(code)
-            }, [code])
+                if (!isEditing) {
+                    setLocalCode(code)
+                }
+            }, [code, isEditing])
 
             useEffect(() => {
-                setLocalFileName(fileName)
-            }, [fileName])
+                if (!isEditing) {
+                    setLocalFileName(fileName)
+                }
+            }, [fileName, isEditing])
 
             // Update the block when language changes
             const handleLanguageChange = useCallback(
