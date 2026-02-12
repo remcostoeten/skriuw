@@ -136,7 +136,12 @@ const ToolbarButton = ({
 	secondaryTooltip,
 	...rest
 }: BlockNoteComponentProps['FormattingToolbar']['Button']) => {
-	const textForIcon = label || mainTooltip || (rest as any).title || (rest as any)['aria-label'] || (typeof children === 'string' ? children : undefined)
+	const textForIcon =
+		label ||
+		mainTooltip ||
+		(rest as any).title ||
+		(rest as any)['aria-label'] ||
+		(typeof children === 'string' ? children : undefined)
 	const labelBasedIcon = getIconFromLabel(textForIcon)
 	const extractedIcon = extractIconElement(icon) || extractIconElement(children)
 	const resolvedIcon = labelBasedIcon ?? extractedIcon ?? icon
@@ -201,7 +206,9 @@ const ToolbarSelect = ({
 						{selected?.icon && <span className='shrink-0'>{selected.icon}</span>}
 						<span className='bn-toolbar-select-text truncate'>{selected?.text}</span>
 					</span>
-					<span className='bn-toolbar-select-arrow text-muted-foreground/50 shrink-0 ml-1'>v</span>
+					<span className='bn-toolbar-select-arrow text-muted-foreground/50 shrink-0 ml-1'>
+						v
+					</span>
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className='bn-toolbar-select-menu'>
@@ -370,7 +377,7 @@ const SuggestionMenuItem = ({
 				'active:scale-[0.98] active:bg-accent',
 				'border border-transparent hover:border-border/50',
 				isSelected &&
-				'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
+					'bg-accent text-accent-foreground shadow-md ring-1 ring-primary/20 border-border/50',
 				!isSelected && 'text-foreground',
 				className
 			)}
@@ -485,7 +492,7 @@ const GridSuggestionMenuItem = ({
 				'hover:border-border hover:bg-muted/80 hover:shadow-md',
 				'active:scale-[0.96]',
 				isSelected &&
-				'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
+					'border-primary/60 bg-accent text-accent-foreground shadow-lg ring-2 ring-primary/30 scale-[1.02]',
 				className
 			)}
 		>

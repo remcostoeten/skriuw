@@ -34,7 +34,9 @@ export const codeBlockSpec = createReactBlockSpec(
 			const containerRef = useRef<HTMLDivElement>(null)
 			const localCodeRef = useRef(localCode)
 
-			useEffect(() => { localCodeRef.current = localCode }, [localCode])
+			useEffect(() => {
+				localCodeRef.current = localCode
+			}, [localCode])
 
 			useEffect(() => {
 				setLocalCode(code)
@@ -50,20 +52,23 @@ export const codeBlockSpec = createReactBlockSpec(
 
 			const debouncedSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-			const handleChange = useCallback((newCode: string) => {
-				setLocalCode(newCode)
+			const handleChange = useCallback(
+				(newCode: string) => {
+					setLocalCode(newCode)
 
-				if (debouncedSaveRef.current) clearTimeout(debouncedSaveRef.current)
-				debouncedSaveRef.current = setTimeout(() => {
-					const detected = newCode ? detectLanguage(newCode) : DEFAULT_LANGUAGE
-					editor.updateBlock(block.id, {
-						props: {
-							language: detected,
-							code: newCode
-						}
-					})
-				}, 400)
-			}, [editor, block.id])
+					if (debouncedSaveRef.current) clearTimeout(debouncedSaveRef.current)
+					debouncedSaveRef.current = setTimeout(() => {
+						const detected = newCode ? detectLanguage(newCode) : DEFAULT_LANGUAGE
+						editor.updateBlock(block.id, {
+							props: {
+								language: detected,
+								code: newCode
+							}
+						})
+					}, 400)
+				},
+				[editor, block.id]
+			)
 
 			useEffect(() => {
 				return () => {
@@ -76,7 +81,9 @@ export const codeBlockSpec = createReactBlockSpec(
 					clearTimeout(debouncedSaveRef.current)
 					debouncedSaveRef.current = null
 				}
-				const detected = localCodeRef.current ? detectLanguage(localCodeRef.current) : DEFAULT_LANGUAGE
+				const detected = localCodeRef.current
+					? detectLanguage(localCodeRef.current)
+					: DEFAULT_LANGUAGE
 				editor.updateBlock(block.id, {
 					props: {
 						language: detected,
@@ -85,16 +92,19 @@ export const codeBlockSpec = createReactBlockSpec(
 				})
 			}, [editor, block.id])
 
-			const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
-				if (
-					(e.key === 'Delete' || e.key === 'Backspace') &&
-					e.target === containerRef.current &&
-					!localCodeRef.current
-				) {
-					e.preventDefault()
-					editor.removeBlocks([block.id])
-				}
-			}, [editor, block.id])
+			const handleContainerKeyDown = useCallback(
+				(e: React.KeyboardEvent) => {
+					if (
+						(e.key === 'Delete' || e.key === 'Backspace') &&
+						e.target === containerRef.current &&
+						!localCodeRef.current
+					) {
+						e.preventDefault()
+						editor.removeBlocks([block.id])
+					}
+				},
+				[editor, block.id]
+			)
 
 			return (
 				<div
@@ -106,9 +116,9 @@ export const codeBlockSpec = createReactBlockSpec(
 						'focus-within:ring-1 focus-within:ring-ring/40'
 					)}
 					onKeyDown={handleContainerKeyDown}
-					data-block-type="codeBlock"
-					role="region"
-					aria-label="Code block"
+					data-block-type='codeBlock'
+					role='region'
+					aria-label='Code block'
 				>
 					<OverlayEditor
 						code={localCode}

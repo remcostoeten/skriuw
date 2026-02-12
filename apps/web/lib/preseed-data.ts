@@ -328,7 +328,7 @@ const FILE_TREE_DEMO_CONTENT = [
 				{
 					path: 'src/components/Header.tsx',
 					content:
-						"import { Logo } from './Logo';\n\nexport function Header() {\n  return (\n    <header className=\"flex items-center justify-between p-4\">\n      <Logo />\n      <nav>\n        <a href=\"/\">Home</a>\n        <a href=\"/about\">About</a>\n      </nav>\n    </header>\n  );\n}",
+						'import { Logo } from \'./Logo\';\n\nexport function Header() {\n  return (\n    <header className="flex items-center justify-between p-4">\n      <Logo />\n      <nav>\n        <a href="/">Home</a>\n        <a href="/about">About</a>\n      </nav>\n    </header>\n  );\n}',
 					language: 'tsx'
 				},
 				{
