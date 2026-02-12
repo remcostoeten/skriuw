@@ -76,22 +76,24 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
     }, [selectedNode])
 
     const handleAddChild = useCallback((parentId: string, type: 'file' | 'folder') => {
-        const parent = findNodeById(nodes, parentId)
-        const parentPath = parent?.path || ''
         const childName = type === 'folder' ? 'New Folder' : 'new-file.ts'
-        const childPath = parentPath ? `${parentPath}/${childName}` : childName
+        setNodes((prev) => {
+            const parent = findNodeById(prev, parentId)
+            const parentPath = parent?.path || ''
+            const childPath = parentPath ? `${parentPath}/${childName}` : childName
 
-        const newNode: TNode = {
-            id: generateId(),
-            name: childName,
-            type,
-            path: childPath,
-            children: type === 'folder' ? [] : undefined,
-            content: type === 'file' ? '' : undefined,
-            isExpanded: true
-        }
-        setNodes((prev) => addChildNode(prev, parentId, newNode))
-    }, [nodes])
+            const newNode: TNode = {
+                id: generateId(),
+                name: childName,
+                type,
+                path: childPath,
+                children: type === 'folder' ? [] : undefined,
+                content: type === 'file' ? '' : undefined,
+                isExpanded: true
+            }
+            return addChildNode(prev, parentId, newNode)
+        })
+    }, [])
 
     const handleAddRoot = useCallback((type: 'file' | 'folder') => {
         const newNode: TNode = {
@@ -155,6 +157,11 @@ export function ConfigModal({ isOpen, onClose, component, onSave }: ConfigModalP
 
                 if (!data || typeof data.name !== 'string' || !Array.isArray(data.files)) {
                     console.error('Invalid file tree JSON: missing required fields')
+                    return
+                }
+
+                if (!data.files.every((f: unknown) => typeof (f as TFile).path === 'string')) {
+                    console.error('Invalid file entries in JSON: each entry must have a path string')
                     return
                 }
 
@@ -465,7 +472,7 @@ function TreeEditorNode({
                 )}
 
                 {/* Actions */}
-                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
+                <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex items-center gap-0.5 transition-opacity">
                     {node.type === 'folder' && (
                         <>
                             <button

@@ -24,6 +24,13 @@ type FileHeaderProps = {
 export function FileViewer({ selectedNode, className }: FileViewerProps) {
     const [highlightedCode, setHighlightedCode] = useState<string>('')
     const [copied, setCopied] = useState(false)
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+        }
+    }, [])
 
     // Highlight code when selection changes
     useEffect(() => {
@@ -45,7 +52,8 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
         try {
             await navigator.clipboard.writeText(selectedNode.content)
             setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+            copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
         } catch (err) {
             console.error('Failed to copy:', err)
         }
@@ -71,7 +79,7 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
     const isMarkdown = ['md', 'mdx'].includes(selectedNode.path.split('.').pop()?.toLowerCase() || '')
 
     return (
-        <div className={cn('flex flex-col h-full', className)}>
+        <div className={cn('relative flex flex-col h-full', className)}>
             {/* File Header */}
             <FileHeader path={selectedNode.path} language={language} onCopy={handleCopy} />
 

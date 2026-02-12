@@ -37,7 +37,7 @@ export function registerCodeBlockTrigger(
                     Array.isArray(content) &&
                     content.length === 1 &&
                     content[0].type === 'text' &&
-                    content[0].text === '```'
+                    (content[0] as { type: 'text'; text: string }).text === '```'
                 ) {
                     // Replace with code block
                     editor.updateBlock(currentBlock, {
