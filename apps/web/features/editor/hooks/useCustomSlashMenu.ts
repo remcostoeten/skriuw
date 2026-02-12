@@ -5,7 +5,8 @@ import {
 	Info,
 	LayoutTemplate,
 	Link,
-	Image as ImageIcon
+	Image as ImageIcon,
+	Code2
 } from 'lucide-react'
 import { createElement } from 'react'
 
@@ -44,6 +45,30 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
 			aliases: ['header', 'meta', 'frontmatter', 'props'],
 			subtext: 'Add page properties and metadata',
 			icon: createElement(LayoutTemplate, { size: 18 }),
+			group: 'Basic blocks'
+		},
+		{
+			title: 'Code Block',
+			onItemClick: () => {
+				const currentBlock = editor.getTextCursorPosition().block
+				editor.insertBlocks(
+					[
+						{
+							type: 'codeBlock',
+							props: {
+								language: 'typescript',
+								fileName: 'untitled.ts',
+								code: ''
+							}
+						}
+					],
+					currentBlock,
+					'after'
+				)
+			},
+			aliases: ['code', 'pre', 'snippet', 'codeblock'],
+			subtext: 'Insert a code block with syntax highlighting',
+			icon: createElement(Code2, { size: 18 }),
 			group: 'Basic blocks'
 		},
 		{
