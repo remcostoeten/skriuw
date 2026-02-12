@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import type { Block } from '@blocknote/core'
 import { ChevronDown, ChevronRight, Link2, Unlink } from 'lucide-react'
 import { useBacklinks } from '../../notes/hooks/use-backlinks'
 import { useNoteSlug } from '../../notes/hooks/use-note-slug'
@@ -18,13 +19,14 @@ type BacklinksPanelProps = {
 	noteId: string
 	noteName: string
 	className?: string
+	editorBlocks?: Block[]
 }
 
-export function BacklinksPanel({ noteId, noteName, className }: BacklinksPanelProps) {
+export function BacklinksPanel({ noteId, noteName, className, editorBlocks }: BacklinksPanelProps) {
 	const router = useRouter()
 	const { items, updateNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
-	const { backlinks, unlinkedMentions, totalCount, isLoading } = useBacklinks(noteId, noteName)
+	const { backlinks, unlinkedMentions, totalCount, isLoading } = useBacklinks(noteId, noteName, editorBlocks)
 
 	const [isBacklinksOpen, setIsBacklinksOpen] = useState(true)
 	const [isUnlinkedOpen, setIsUnlinkedOpen] = useState(false)

@@ -26,6 +26,7 @@ import { EmptyState } from '@skriuw/ui'
 import { AlertCircle } from 'lucide-react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import type { Block } from '@blocknote/core'
 
 type Props = {
 	noteId: string
@@ -62,6 +63,26 @@ export function NoteEditor({
 	const [icon, setIcon] = useState<string | undefined>(note?.icon || undefined)
 	const [coverImage, setCoverImage] = useState<string | undefined>(note?.coverImage || undefined)
 	const [tags, setTags] = useState<string[]>(note?.tags || [])
+	const [editorBlocks, setEditorBlocks] = useState<Block[] | undefined>(undefined)
+
+	useEffect(() => {
+		if (!editor) return
+		let timeoutId: NodeJS.Timeout
+
+		const updateBlocks = () => {
+			clearTimeout(timeoutId)
+			timeoutId = setTimeout(() => {
+				setEditorBlocks([...editor.document])
+			}, 500)
+		}
+
+		setEditorBlocks([...editor.document])
+		editor.onEditorContentChange(updateBlocks)
+
+		return () => {
+			clearTimeout(timeoutId)
+		}
+	}, [editor])
 
 	useEffect(() => {
 		if (note) {
@@ -380,6 +401,7 @@ export function NoteEditor({
 							<BacklinksPanel
 								noteId={noteId}
 								noteName={noteName}
+								editorBlocks={editorBlocks}
 								className='max-w-[655px] mx-auto border-t border-border/30'
 							/>
 						}

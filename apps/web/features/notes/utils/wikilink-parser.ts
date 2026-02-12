@@ -6,6 +6,7 @@ export const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g
 export type WikilinkMatch = {
 	fullMatch: string
 	noteName: string
+	noteId?: string
 	startIndex: number
 	endIndex: number
 }
@@ -41,6 +42,15 @@ export function extractWikilinksFromBlocks(blocks: any[]): WikilinkMatch[] {
 					if (inline.type === 'text' && inline.text) {
 						const matches = parseWikilinks(inline.text)
 						allMatches.push(...matches)
+					}
+					if (inline.type === 'wikilink' && inline.props?.noteName) {
+						allMatches.push({
+							fullMatch: `[[${inline.props.noteName}]]`,
+							noteName: inline.props.noteName,
+							noteId: inline.props.noteId || '',
+							startIndex: 0,
+							endIndex: 0
+						})
 					}
 				}
 			}

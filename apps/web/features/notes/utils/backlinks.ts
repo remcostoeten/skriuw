@@ -25,7 +25,10 @@ export function getBacklinks(
 		const wikilinkMatches = extractWikilinksFromBlocks(note.content)
 
 		for (const match of wikilinkMatches) {
-			if (match.noteName.toLowerCase() === lowerNoteName) {
+			const matchesByName = match.noteName.toLowerCase() === lowerNoteName
+			const matchesById = match.noteId && match.noteId === currentNoteId
+
+			if (matchesByName || matchesById) {
 				const context = extractContextAroundWikilink(note.content, match.noteName)
 				backlinks.push({
 					noteId: note.id,
@@ -83,6 +86,9 @@ function extractTextFromBlocks(blocks: any[]): string {
 				for (const inline of block.content) {
 					if (inline.type === 'text' && inline.text) {
 						textParts.push(inline.text)
+					}
+					if (inline.type === 'wikilink' && inline.props?.noteName) {
+						textParts.push(`[[${inline.props.noteName}]]`)
 					}
 				}
 			}
