@@ -1,12 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Copy, Check, ExternalLink, ChevronRight } from 'lucide-react'
+import { Copy, Check, ChevronRight } from 'lucide-react'
 import { cn } from '@skriuw/shared'
 import type { TNode } from './types'
 import { getLanguageFromPath } from './types'
-
-
 
 type FileViewerProps = {
     selectedNode: TNode | null
@@ -19,8 +17,6 @@ type FileHeaderProps = {
     onCopy?: () => void
 }
 
-
-
 export function FileViewer({ selectedNode, className }: FileViewerProps) {
     const [highlightedCode, setHighlightedCode] = useState<string>('')
     const [copied, setCopied] = useState(false)
@@ -32,17 +28,12 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
         }
     }, [])
 
-    // Highlight code when selection changes
     useEffect(() => {
         if (!selectedNode || selectedNode.type === 'folder' || !selectedNode.content) {
             setHighlightedCode('')
             return
         }
 
-        const language = selectedNode.language || getLanguageFromPath(selectedNode.path)
-
-        // For now, use a simple code display
-        // Shiki integration can be added later for full syntax highlighting
         setHighlightedCode(selectedNode.content)
     }, [selectedNode])
 
@@ -80,10 +71,8 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
 
     return (
         <div className={cn('relative flex flex-col h-full', className)}>
-            {/* File Header */}
             <FileHeader path={selectedNode.path} language={language} onCopy={handleCopy} />
 
-            {/* Content */}
             <div className="flex-1 overflow-auto">
                 {isMarkdown ? (
                     <MarkdownViewer content={selectedNode.content || ''} />
@@ -92,7 +81,6 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
                 )}
             </div>
 
-            {/* Copy confirmation toast */}
             {copied && (
                 <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 rounded-md text-green-400 text-sm animate-in fade-in slide-in-from-bottom-2">
                     <Check className="w-4 h-4" />
@@ -103,18 +91,15 @@ export function FileViewer({ selectedNode, className }: FileViewerProps) {
     )
 }
 
-
-
 function FileHeader({ path, language, onCopy }: FileHeaderProps) {
     const parts = path.split('/')
 
     return (
         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1 text-sm overflow-hidden">
+            <nav aria-label="File path breadcrumb" className="flex items-center gap-1 text-sm overflow-hidden">
                 {parts.map((part, i) => (
                     <span key={i} className="flex items-center gap-1 min-w-0">
-                        {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                        {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" aria-hidden="true" />}
                         <span
                             className={cn(
                                 'truncate',
@@ -125,9 +110,8 @@ function FileHeader({ path, language, onCopy }: FileHeaderProps) {
                         </span>
                     </span>
                 ))}
-            </div>
+            </nav>
 
-            {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                     {language}
@@ -145,8 +129,6 @@ function FileHeader({ path, language, onCopy }: FileHeaderProps) {
     )
 }
 
-
-
 type CodeViewerProps = {
     code: string
     language: string
@@ -158,44 +140,43 @@ function CodeViewer({ code, language }: CodeViewerProps) {
 
     return (
         <div className="font-mono text-sm w-full min-w-0 overflow-x-auto">
-            <table className="w-full border-collapse table-fixed">
-                <tbody>
-                    {lines.map((line, i) => (
-                        <tr key={i} className="hover:bg-muted/30">
-                            <td
-                                className="px-4 py-0.5 text-right text-muted-foreground select-none border-r border-border/50 tabular-nums"
-                                style={{ width: `${lineNumberWidth + 2}ch` }}
-                                aria-hidden="true"
-                            >
-                                {i + 1}
-                            </td>
-                            <td className="px-4 py-0.5 whitespace-pre overflow-x-auto">
-                                {line || '\u00A0'}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <pre>
+                <code>
+                    <table className="w-full border-collapse table-fixed">
+                        <tbody>
+                            {lines.map((line, i) => (
+                                <tr key={i} className="hover:bg-muted/30">
+                                    <td
+                                        className="px-4 py-0.5 text-right text-muted-foreground select-none border-r border-border/50 tabular-nums"
+                                        style={{ width: `${lineNumberWidth + 2}ch` }}
+                                        aria-hidden="true"
+                                    >
+                                        {i + 1}
+                                    </td>
+                                    <td className="px-4 py-0.5 whitespace-pre overflow-x-auto">
+                                        {line || '\u00A0'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </code>
+            </pre>
         </div>
     )
 }
-
-
 
 type MarkdownViewerProps = {
     content: string
 }
 
 function MarkdownViewer({ content }: MarkdownViewerProps) {
-    // Simple markdown rendering - can be enhanced with a full parser
     return (
         <div className="prose prose-sm dark:prose-invert max-w-none p-4">
             <pre className="whitespace-pre-wrap font-sans">{content}</pre>
         </div>
     )
 }
-
-
 
 type ResizablePanelGroupProps = {
     children: React.ReactNode

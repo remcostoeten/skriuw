@@ -1,22 +1,13 @@
-/**
- * Utility functions for file tree operations
- */
-
 import { generateId } from '@skriuw/shared'
 import type { TFile, TNode } from './types'
 import { getLanguageFromPath } from './types'
 
-// Re-export for convenience
 export { getLanguageFromPath }
 
-/**
- * Build a tree structure from a flat list of file paths
- */
 export function buildTreeFromFiles(files: TFile[]): TNode[] {
     const root: TNode[] = []
     const nodeMap = new Map<string, TNode>()
 
-    // Sort files by path for consistent ordering
     const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
 
     for (const file of sortedFiles) {
@@ -55,9 +46,6 @@ export function buildTreeFromFiles(files: TFile[]): TNode[] {
     return root
 }
 
-/**
- * Flatten tree back to file list
- */
 export function flattenTreeToFiles(nodes: TNode[]): TFile[] {
     const files: TFile[] = []
 
@@ -79,9 +67,6 @@ export function flattenTreeToFiles(nodes: TNode[]): TFile[] {
     return files
 }
 
-/**
- * Serialize tree to ASCII representation for simple text storage
- */
 export function serializeTreeToAscii(nodes: TNode[], depth: number = 0, isLast: boolean[] = []): string {
     let result = ''
 
@@ -104,9 +89,6 @@ export function serializeTreeToAscii(nodes: TNode[], depth: number = 0, isLast: 
     return result
 }
 
-/**
- * Parse ASCII tree back to nodes (for backward compatibility)
- */
 export function parseAsciiTree(content: string): TNode[] {
     const lines = content.split('\n').filter((line) => line.trim())
     const root: TNode[] = []
@@ -119,8 +101,6 @@ export function parseAsciiTree(content: string): TNode[] {
         const indent = match[1] + match[2]
         const name = match[3].trim()
 
-        // Calculate depth based on indentation (4 spaces per level)
-        // This handles both space-based and connector-based indentation
         const indentLength = indent.replace(/\t/g, '    ').length
         const depth = Math.floor(indentLength / 4)
 
@@ -143,7 +123,6 @@ export function parseAsciiTree(content: string): TNode[] {
         const parent = stack[stack.length - 1]
         parent.node.push(newNode)
 
-        // Update path based on parent
         if (stack.length > 1) {
             const parentNode = findParentNode(root, parent.node)
             if (parentNode) {
@@ -159,9 +138,6 @@ export function parseAsciiTree(content: string): TNode[] {
     return root
 }
 
-/**
- * Find parent node in tree
- */
 function findParentNode(nodes: TNode[], targetChildren: TNode[]): TNode | null {
     for (const node of nodes) {
         if (node.children === targetChildren) {
@@ -175,9 +151,6 @@ function findParentNode(nodes: TNode[], targetChildren: TNode[]): TNode | null {
     return null
 }
 
-/**
- * Find a node by ID
- */
 export function findNodeById(nodes: TNode[], id: string): TNode | null {
     for (const node of nodes) {
         if (node.id === id) return node
@@ -189,9 +162,6 @@ export function findNodeById(nodes: TNode[], id: string): TNode | null {
     return null
 }
 
-/**
- * Find a node by path
- */
 export function findNodeByPath(nodes: TNode[], path: string): TNode | null {
     for (const node of nodes) {
         if (node.path === path) return node
@@ -203,9 +173,6 @@ export function findNodeByPath(nodes: TNode[], path: string): TNode | null {
     return null
 }
 
-/**
- * Update a node in the tree
- */
 export function updateNode(nodes: TNode[], id: string, updates: Partial<TNode>): TNode[] {
     return nodes.map((node) => {
         if (node.id === id) {
@@ -218,9 +185,6 @@ export function updateNode(nodes: TNode[], id: string, updates: Partial<TNode>):
     })
 }
 
-/**
- * Delete a node from the tree
- */
 export function deleteNode(nodes: TNode[], id: string): TNode[] {
     return nodes
         .filter((node) => node.id !== id)
@@ -232,9 +196,6 @@ export function deleteNode(nodes: TNode[], id: string): TNode[] {
         })
 }
 
-/**
- * Add a child node to a parent
- */
 export function addChildNode(nodes: TNode[], parentId: string, child: TNode): TNode[] {
     return nodes.map((node) => {
         if (node.id === parentId && node.children) {
@@ -247,9 +208,6 @@ export function addChildNode(nodes: TNode[], parentId: string, child: TNode): TN
     })
 }
 
-/**
- * Get all file paths from tree
- */
 export function getAllFilePaths(nodes: TNode[]): string[] {
     const paths: string[] = []
 
@@ -267,9 +225,6 @@ export function getAllFilePaths(nodes: TNode[]): string[] {
     return paths
 }
 
-/**
- * Get all folder paths from tree
- */
 export function getAllFolderPaths(nodes: TNode[]): string[] {
     const paths: string[] = []
 
@@ -288,9 +243,48 @@ export function getAllFolderPaths(nodes: TNode[]): string[] {
     return paths
 }
 
-/**
- * Default sample tree for new blocks
- */
+export function countFiles(nodes: TNode[]): number {
+    let count = 0
+    function traverse(nodeList: TNode[]) {
+        for (const node of nodeList) {
+            if (node.type === 'file') {
+                count++
+            } else if (node.children) {
+                traverse(node.children)
+            }
+        }
+    }
+    traverse(nodes)
+    return count
+}
+
+export function filterTreeByQuery(nodes: TNode[], query: string): TNode[] {
+    if (!query.trim()) return nodes
+
+    const lowerQuery = query.toLowerCase()
+
+    function matches(node: TNode): boolean {
+        if (node.name.toLowerCase().includes(lowerQuery)) return true
+        if (node.children) {
+            return node.children.some(matches)
+        }
+        return false
+    }
+
+    function filterNodes(nodeList: TNode[]): TNode[] {
+        return nodeList
+            .filter(matches)
+            .map((node) => {
+                if (node.children) {
+                    return { ...node, children: filterNodes(node.children), isExpanded: true }
+                }
+                return node
+            })
+    }
+
+    return filterNodes(nodes)
+}
+
 export const DEFAULT_TREE_FILES: TFile[] = [
     { path: 'src/index.ts', content: 'export * from "./components";\nexport * from "./utils";' },
     { path: 'src/components/Button.tsx', content: 'export function Button({ children }) {\n  return <button>{children}</button>;\n}' },
