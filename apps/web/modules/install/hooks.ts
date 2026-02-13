@@ -2,12 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { PromptEvent } from './types'
-import {
-	isIos,
-	isSafari,
-	shouldShowInstallPrompt,
-	markInstallDismissed
-} from './utilities'
+import { isIos, isSafari, shouldShowInstallPrompt, markInstallDismissed } from './utilities'
 
 export function useInstallPrompt() {
 	const [deferredPrompt, setDeferredPrompt] = useState<PromptEvent | null>(null)
