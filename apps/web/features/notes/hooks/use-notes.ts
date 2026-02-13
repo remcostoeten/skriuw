@@ -167,6 +167,8 @@ export function useNotes() {
 			const noteCreationMode = getSetting('noteCreationMode') ?? 'rich'
 			const defaultEmoji = getSetting('defaultEmoji') ?? ''
 			const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled Note'
+			const minimalNoteHeader = getSetting('minimalNoteHeader') ?? false
+			const titleInEditor = getSetting('titleInEditor') ?? false
 			const defaultTemplate = (getSetting('defaultNoteTemplate') ?? 'empty') as NoteTemplate
 			const autoIconFromFolder = getSetting('autoIconFromFolder') ?? false
 
@@ -175,7 +177,11 @@ export function useNotes() {
 			if (content) {
 				noteContent = typeof content === 'string' ? stringToBlocks(content) : content
 			} else {
-				const templateToUse = options?.template ?? defaultTemplate
+				const templateToUse =
+					options?.template ??
+					((minimalNoteHeader || titleInEditor) && defaultTemplate === 'empty'
+						? 'h1'
+						: defaultTemplate)
 				noteContent = getInitialNoteContent(templateToUse)
 			}
 

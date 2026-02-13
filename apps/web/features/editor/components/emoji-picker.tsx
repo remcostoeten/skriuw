@@ -320,20 +320,20 @@ export function EmojiIconPicker({ value, onChange, trigger, className }: Props) 
 			const found = allIcons.find((i) => i.name === iconName)
 			if (found) {
 				const Icon = found.icon
-				return <Icon className='w-8 h-8' />
+				return <Icon className='w-6 h-6' />
 			}
 		}
-		return <span className='text-4xl'>{value}</span>
+		return <span className='text-3xl leading-none'>{value}</span>
 	}
 
 	const triggerContent = trigger || (
 		<Button
 			variant='ghost'
-			size={value ? 'default' : 'sm'}
+			size='sm'
 			className={cn(
 				value
-					? 'h-auto p-2 hover:bg-muted/50 -ml-2'
-					: 'text-muted-foreground opacity-50 hover:opacity-100 transition-opacity -ml-3',
+					? 'h-9 w-9 p-1 hover:bg-muted/50 -ml-1'
+					: 'text-muted-foreground opacity-60 hover:opacity-100 transition-opacity -ml-2 h-7 px-2',
 				className
 			)}
 		>
@@ -390,8 +390,8 @@ export function renderIcon(value?: string, className?: string) {
 		const found = allIcons.find((i) => i.name === iconName)
 		if (found) {
 			const Icon = found.icon
-			return <Icon className={cn('w-8 h-8', className)} />
+			return <Icon className={cn('w-6 h-6', className)} />
 		}
 	}
-	return <span className={cn('text-4xl', className)}>{value}</span>
+	return <span className={cn('text-3xl leading-none', className)}>{value}</span>
 }

@@ -46,7 +46,12 @@ const DEFAULT_SETTINGS = {
 	// UI preferences
 	'ui.animations': true,
 	sidebarHierarchyGuides: false,
-	showEditorMetadata: true
+	showEditorMetadata: true,
+	showNoteIcon: true,
+	showNoteCover: true,
+	showNoteInfo: true,
+	minimalNoteHeader: false,
+	titleInEditor: false
 } as const
 
 export function SettingsProvider({
