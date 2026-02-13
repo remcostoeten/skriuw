@@ -10,7 +10,55 @@ import {
 } from '@skriuw/ui/dropdown-menu'
 import { Input } from '@skriuw/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@skriuw/ui/popover'
-import React, { forwardRef } from 'react'
+import {
+	Bold,
+	Italic,
+	Underline,
+	Strikethrough,
+	AlignLeft,
+	AlignCenter,
+	AlignRight,
+	ALargeSmall,
+	Link,
+	WrapText
+} from 'lucide-react'
+import React, { forwardRef, isValidElement, Children } from 'react'
+
+const extractIconElement = (node: React.ReactNode): React.ReactNode => {
+	if (!node) return null
+	if (!isValidElement(node)) return node
+	const el = node as React.ReactElement<any>
+	if (typeof el.type === 'string' && el.type === 'svg') return el
+	if (typeof el.type === 'function' || typeof el.type === 'object') return el
+	if (el.props?.children) {
+		const kids = Children.toArray(el.props.children)
+		for (const kid of kids) {
+			const found = extractIconElement(kid)
+			if (found && isValidElement(found)) {
+				const foundEl = found as React.ReactElement<any>
+				if (typeof foundEl.type !== 'string' || foundEl.type === 'svg') return found
+			}
+		}
+	}
+	return null
+}
+
+// Helper to map labels to icons if BlockNote doesn't pass them
+const getIconFromLabel = (label?: string) => {
+	if (!label) return null
+	const lower = label.toLowerCase()
+	if (lower.includes('bold')) return <Bold size={18} />
+	if (lower.includes('italic')) return <Italic size={18} />
+	if (lower.includes('underline')) return <Underline size={18} />
+	if (lower.includes('strike')) return <Strikethrough size={18} />
+	if (lower.includes('left')) return <AlignLeft size={18} />
+	if (lower.includes('center')) return <AlignCenter size={18} />
+	if (lower.includes('right')) return <AlignRight size={18} />
+	if (lower.includes('color')) return <ALargeSmall size={18} />
+	if (lower.includes('link')) return <Link size={18} />
+	if (lower.includes('nest')) return <WrapText size={18} />
+	return null
+}
 
 const ToolbarRoot = forwardRef<
 	HTMLDivElement,
@@ -65,8 +113,9 @@ const ToolbarRoot = forwardRef<
 			onMouseLeave={onMouseLeave}
 			onKeyDown={handleKeyDown}
 			className={cn(
-				'bn-toolbar flex flex-wrap items-center gap-px rounded-lg border border-border/40 bg-popover/95 px-1 py-0.5 shadow-lg backdrop-blur-md max-w-full',
-				'max-sm:w-full max-sm:justify-center max-sm:gap-1 max-sm:px-1.5 max-sm:py-1',
+				'bn-toolbar flex items-center gap-0.5 rounded-full border border-border/40 bg-background/80 px-1 py-1 shadow-xl backdrop-blur-xl',
+				'max-sm:w-auto max-sm:gap-1 max-sm:px-2 max-sm:py-1.5',
+				'animate-in fade-in zoom-in-95 duration-100 ease-out',
 				className
 			)}
 		>
@@ -84,22 +133,35 @@ const ToolbarButton = ({
 	isSelected,
 	isDisabled,
 	mainTooltip,
-	secondaryTooltip
+	secondaryTooltip,
+	...rest
 }: BlockNoteComponentProps['FormattingToolbar']['Button']) => {
+	const textForIcon =
+		label ||
+		mainTooltip ||
+		(rest as any).title ||
+		(rest as any)['aria-label'] ||
+		(typeof children === 'string' ? children : undefined)
+	const labelBasedIcon = getIconFromLabel(textForIcon)
+	const extractedIcon = extractIconElement(icon) || extractIconElement(children)
+	const resolvedIcon = labelBasedIcon ?? extractedIcon ?? icon
+
 	return (
 		<button
 			type='button'
 			tabIndex={0}
 			className={cn(
-				'bn-toolbar-button inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-				'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover',
-				'max-sm:h-8 max-sm:min-w-8 max-sm:px-2',
-				isSelected && 'bg-accent text-foreground',
+				'bn-toolbar-button inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors',
+				'text-foreground/70 hover:bg-muted/80 hover:text-foreground',
+				'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+				'max-sm:h-9 max-sm:w-9',
+				isSelected && 'bg-accent text-accent-foreground hover:bg-accent/90',
 				isDisabled && 'cursor-not-allowed opacity-40',
 				className
 			)}
 			disabled={isDisabled}
 			aria-pressed={isSelected}
+			aria-label={mainTooltip || label}
 			title={secondaryTooltip || mainTooltip || label}
 			onClick={(event) => {
 				if (isDisabled) return
@@ -114,8 +176,7 @@ const ToolbarButton = ({
 				}
 			}}
 		>
-			{icon}
-			{label && !children ? <span className='ml-0.5'>{label}</span> : children}
+			{resolvedIcon}
 		</button>
 	)
 }
@@ -133,18 +194,21 @@ const ToolbarSelect = ({
 				<button
 					type='button'
 					className={cn(
-						'bn-toolbar-select inline-flex h-7 items-center justify-between rounded px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground',
-						'max-sm:h-8 max-sm:px-2',
+						'bn-toolbar-select inline-flex h-8 items-center justify-between gap-1 rounded-full px-3 text-sm font-medium transition-colors',
+						'text-foreground/70 hover:bg-muted/80 hover:text-foreground',
+						'max-sm:h-9 max-sm:px-3',
 						isDisabled && 'cursor-not-allowed opacity-40',
 						className
 					)}
 					disabled={isDisabled}
 				>
-					<span className='flex items-center gap-0.5'>
-						{selected?.icon}
-						<span className='bn-toolbar-select-text'>{selected?.text}</span>
+					<span className='flex items-center gap-1.5 min-w-0 flex-1'>
+						{selected?.icon && <span className='shrink-0'>{selected.icon}</span>}
+						<span className='bn-toolbar-select-text truncate'>{selected?.text}</span>
 					</span>
-					<span className='bn-toolbar-select-arrow text-muted-foreground'>v</span>
+					<span className='bn-toolbar-select-arrow text-muted-foreground/50 shrink-0 ml-1'>
+						v
+					</span>
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className='bn-toolbar-select-menu'>

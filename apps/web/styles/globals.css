@@ -81,6 +81,17 @@
 		--brand-500: 167.8 53.25% 54.71%;
 		--nav-height: 56px;
 		--nav-gap: 16px;
+		--sh-text: 222 47% 11%;
+		--sh-comment: 0 0% 46%;
+		--sh-keyword: 262 52% 47%;
+		--sh-string: 142 44% 36%;
+		--sh-number: 24 75% 46%;
+		--sh-function: 210 68% 45%;
+		--sh-punctuation: 0 0% 40%;
+		--sh-operator: 355 65% 50%;
+		--sh-tag: 355 65% 50%;
+		--sh-background: 220 14% 96%;
+		--sh-border: 220 13% 91%;
 	}
 
 	.dark {
@@ -115,6 +126,17 @@
 		--sidebar-ring: 0 0% 90%;
 		--brand-400: 167.8 53.25% 65%;
 		--brand-500: 167.8 53.25% 54.71%;
+		--sh-text: 0 0% 85%;
+		--sh-comment: 0 0% 45%;
+		--sh-keyword: 280 60% 70%;
+		--sh-string: 142 55% 62%;
+		--sh-number: 32 90% 65%;
+		--sh-function: 210 80% 70%;
+		--sh-punctuation: 0 0% 55%;
+		--sh-operator: 355 70% 68%;
+		--sh-tag: 355 70% 68%;
+		--sh-background: 0 0% 10%;
+		--sh-border: 0 0% 18%;
 	}
 
 	/* Prevent flash of white background */
