@@ -4,9 +4,7 @@
 	"description": "A modern note-taking application",
 	"start_url": "/",
 	"display": "standalone",
-	"display_override": [
-		"window-controls-overlay"
-	],
+	"display_override": ["window-controls-overlay"],
 	"background_color": "#121212",
 	"theme_color": "#121212",
 	"orientation": "portrait-primary",
@@ -24,10 +22,7 @@
 			"purpose": "any maskable"
 		}
 	],
-	"categories": [
-		"productivity",
-		"utilities"
-	],
+	"categories": ["productivity", "utilities"],
 	"shortcuts": [
 		{
 			"name": "New Note",
