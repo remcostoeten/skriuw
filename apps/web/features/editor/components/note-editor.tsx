@@ -12,6 +12,7 @@ import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
 import { MobileFormattingBar } from './mobile-formatting-bar'
 import { EditorHeader } from './editor-header'
 import { BacklinksPanel } from './backlinks-panel'
+import { NoteFooterBar } from './note-footer-bar'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import type { Folder, Item } from '@/features/notes/types'
@@ -53,6 +54,15 @@ export function NoteEditor({
 	const { getNoteUrl } = useNoteSlug(items)
 	const { toggleMobileSidebar } = useUIStore()
 	const { settings } = useSettings()
+	const minimalNoteHeader = settings.minimalNoteHeader ?? false
+	const titleInEditor = settings.titleInEditor ?? false
+	const showMetadata = minimalNoteHeader ? false : (settings.showEditorMetadata ?? true)
+	const showIcon = minimalNoteHeader ? false : (settings.showNoteIcon ?? true)
+	const showCover = minimalNoteHeader ? false : (settings.showNoteCover ?? true)
+	const showInfo = minimalNoteHeader ? false : (settings.showNoteInfo ?? true)
+	const titlePlaceholder = minimalNoteHeader
+		? 'Heading'
+		: (settings.titlePlaceholder ?? 'Untitled')
 
 	const editorRef = useRef<EditorWrapperHandle | null>(null)
 	const searchParams = useSearchParams()
@@ -170,6 +180,9 @@ export function NoteEditor({
 				// Use requestAnimationFrame for near-instant focus, avoiding layout thrash
 				requestAnimationFrame(() => {
 					editorRef.current?.focusEditor()
+					if (titleInEditor && editor?.document?.[0]) {
+						editor.setTextCursorPosition(editor.document[0], 'end')
+					}
 					hasFocusedRef.current = true
 				})
 			}
@@ -369,7 +382,12 @@ export function NoteEditor({
 								tags={tags}
 								setTags={handleTagsChange}
 								className='editor-header'
-								showMetadata={settings.showEditorMetadata ?? true}
+								showMetadata={showMetadata}
+								showIcon={showIcon}
+								showCover={showCover}
+								showInfo={showInfo}
+								showTitleInput={!titleInEditor}
+								titlePlaceholder={titlePlaceholder}
 								coverImage={coverImage}
 								setCoverImage={handleCoverImageChange}
 								onCoverUpload={handleCoverUpload}
@@ -377,11 +395,14 @@ export function NoteEditor({
 							/>
 						}
 						footer={
-							<BacklinksPanel
-								noteId={noteId}
-								noteName={noteName}
-								className='max-w-[655px] mx-auto border-t border-border/30'
-							/>
+							<div className='max-w-[655px] mx-auto'>
+								<BacklinksPanel
+									noteId={noteId}
+									noteName={noteName}
+									className='border-t border-border/30'
+								/>
+								<NoteFooterBar editor={editor} />
+							</div>
 						}
 					/>
 				) : (

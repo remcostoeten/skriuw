@@ -83,6 +83,7 @@ export function createEditorSchema() {
 export function useEditorConfig() {
 	const { hasWordWrap, hasSpellCheck, hasMarkdownShortcuts } = useUserPreferences()
 	const { settings } = useSettings()
+	const titleInEditor = settings.titleInEditor ?? false
 
 	const fontSize = settings.fontSize || 'medium'
 	const fontFamily = settings.fontFamily || 'inter'
@@ -99,7 +100,7 @@ export function useEditorConfig() {
 			// Add placeholder text configuration
 			placeholders: {
 				default: 'Enter text or type / for commands',
-				heading: 'Heading',
+				heading: titleInEditor ? 'Title' : 'Heading',
 				bulletListItem: 'List item',
 				numberedListItem: 'List item',
 				checkListItem: 'To-do'

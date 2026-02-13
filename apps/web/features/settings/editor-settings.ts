@@ -72,6 +72,56 @@ export const EDITOR_SETTINGS: UserSetting[] = [
 		implemented: true
 	},
 	{
+		key: 'showNoteIcon',
+		label: 'Show Note Icon',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Show the emoji or icon next to the note title',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'showNoteCover',
+		label: 'Show Cover Controls',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Allow cover images and the add cover controls in the header',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'showNoteInfo',
+		label: 'Show Note Info',
+		value: true,
+		defaultValue: true,
+		type: 'boolean',
+		description: 'Show tags and timestamps in the note header',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'titleInEditor',
+		label: 'Title Inside Editor',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Use the first editor line as the note title (Notion-style)',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
+		key: 'minimalNoteHeader',
+		label: 'Minimal Note Header',
+		value: false,
+		defaultValue: false,
+		type: 'boolean',
+		description: 'Show only the title input (no icon, cover, or metadata)',
+		category: 'note-experience',
+		implemented: true
+	},
+	{
 		key: 'ui.animations',
 		label: 'UI Animations',
 		value: true,

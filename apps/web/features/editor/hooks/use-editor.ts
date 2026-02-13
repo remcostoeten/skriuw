@@ -4,6 +4,7 @@ import { useEditorConfig } from './useEditorConfig'
 import type { Note } from '@/features/notes'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { extractTags } from '@/features/notes/utils/extract-tags'
+import { useSettings } from '@/features/settings'
 import { BlockNoteEditor, Block } from '@blocknote/core'
 import { useCreateBlockNote } from '@blocknote/react'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
@@ -88,6 +89,7 @@ export function useEditor({
 }: options): props {
 	const { getNote, updateNote } = useNotesContext()
 	const { config: editorConfig } = useEditorConfig()
+	const { getSetting } = useSettings()
 	// Track if we've completed initial load for this noteId
 	const initialLoadAttemptedRef = useRef<string | null>(null)
 	const [note, setNote] = useState<Note | null>(null)
@@ -99,6 +101,34 @@ export function useEditor({
 	const hasInitializedRef = useRef(false)
 	const spellcheckObserverRef = useRef<MutationObserver | null>(null)
 	const hasSpellCheck = editorConfig.editorProps?.attributes?.spellcheck === 'true'
+	const titleInEditor = getSetting('titleInEditor') ?? false
+	const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled'
+
+	const getTitleFromBlocks = useCallback(
+		(blocks: Block[]): string => {
+			const getInlineText = (content: any): string => {
+				if (!content) return ''
+				if (typeof content === 'string') return content
+				if (Array.isArray(content)) {
+					return content
+						.map((item) => {
+							if (typeof item === 'string') return item
+							if (item && typeof item.text === 'string') return item.text
+							return ''
+						})
+						.join('')
+				}
+				return ''
+			}
+
+			for (const block of blocks) {
+				const text = getInlineText((block as any).content).trim()
+				if (text) return text
+			}
+			return titlePlaceholder
+		},
+		[titlePlaceholder]
+	)
 
 	useEffect(() => {
 		let isCancelled = false
@@ -277,16 +307,23 @@ export function useEditor({
 		try {
 			const blocks = editor.document
 			const tags = extractTags(blocks)
-			updateNote(noteId, blocks, noteName, undefined, tags)
+			const derivedTitle = titleInEditor ? getTitleFromBlocks(blocks) : noteName
+			updateNote(noteId, blocks, derivedTitle, undefined, tags)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save note')
 		}
-	}, [editor, noteId, noteName, updateNote, readOnly])
+	}, [editor, noteId, noteName, updateNote, readOnly, titleInEditor, getTitleFromBlocks])
 
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
 
 		function handleChange() {
+			if (titleInEditor) {
+				const derivedTitle = getTitleFromBlocks(editor.document)
+				if (derivedTitle !== noteName) {
+					setNoteName(derivedTitle)
+				}
+			}
 			if (saveTimeoutRef.current) {
 				clearTimeout(saveTimeoutRef.current)
 			}
@@ -302,7 +339,18 @@ export function useEditor({
 				clearTimeout(saveTimeoutRef.current)
 			}
 		}
-	}, [editor, noteId, noteName, isLoading, autoSave, autoSaveDelay, readOnly, handleSave])
+	}, [
+		editor,
+		noteId,
+		noteName,
+		isLoading,
+		autoSave,
+		autoSaveDelay,
+		readOnly,
+		handleSave,
+		titleInEditor,
+		getTitleFromBlocks
+	])
 
 	return {
 		editor: editor, // BlockNoteEditor | null
