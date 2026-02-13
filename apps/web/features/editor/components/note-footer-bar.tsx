@@ -1,6 +1,9 @@
 'use client'
 
-import { getInitialNoteContent, type NoteTemplate } from '@/features/notes/utils/get-initial-note-content'
+import {
+	getInitialNoteContent,
+	type NoteTemplate
+} from '@/features/notes/utils/get-initial-note-content'
 import { useSettings } from '@/features/settings'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@skriuw/shared'
@@ -76,7 +79,9 @@ export function NoteFooterBar({ editor, className }: NoteFooterBarProps) {
 										className='w-full rounded-md px-2 py-2 text-left hover:bg-accent transition-colors'
 										onClick={() => insertTemplate(option.value)}
 									>
-										<div className='text-sm text-foreground'>{option.label}</div>
+										<div className='text-sm text-foreground'>
+											{option.label}
+										</div>
 										<div className='text-xs text-muted-foreground'>
 											{option.description}
 										</div>
@@ -100,7 +105,9 @@ export function NoteFooterBar({ editor, className }: NoteFooterBarProps) {
 												? 'bg-accent text-foreground'
 												: 'hover:bg-accent'
 										)}
-										onClick={() => setSetting('defaultNoteTemplate', option.value)}
+										onClick={() =>
+											setSetting('defaultNoteTemplate', option.value)
+										}
 									>
 										<div className='flex items-center justify-between text-xs'>
 											<span>{option.label}</span>
