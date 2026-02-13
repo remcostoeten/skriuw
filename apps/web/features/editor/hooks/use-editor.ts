@@ -26,7 +26,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 
 		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			; (element as any).spellcheck = true
+			;(element as any).spellcheck = true
 		}
 	})
 
@@ -39,7 +39,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							; (element as any).spellcheck = true
+							;(element as any).spellcheck = true
 						}
 					}
 
@@ -48,7 +48,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							; (nested as any).spellcheck = true
+							;(nested as any).spellcheck = true
 						}
 					})
 				}
@@ -321,7 +321,16 @@ export function useEditor({
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save note')
 		}
-	}, [editor, noteId, noteName, updateNote, readOnly, titleInEditor, getTitleFromBlocks, syncTasks])
+	}, [
+		editor,
+		noteId,
+		noteName,
+		updateNote,
+		readOnly,
+		titleInEditor,
+		getTitleFromBlocks,
+		syncTasks
+	])
 
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
