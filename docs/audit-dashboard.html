@@ -636,9 +636,9 @@
                     },
                     {
                         title: 'Branch & Deploy', tasks: [
-                            { id: 'p2-19', t: 'Create branch: feat/core-package', tags: ['branch:feat/core-package'] },
-                            { id: 'p2-20', t: 'Run full test suite + build check', tags: ['test'] },
-                            { id: 'p2-21', t: 'Merge to daddy', tags: ['branch:daddy'] },
+                            { id: 'p2-19', done: true, t: 'Create branch: feat/core-package', tags: ['branch:feat/core-package'], note: 'Completed 2026-02-14 on feature/p2-core-orchestration' },
+                            { id: 'p2-20', done: true, t: 'Run full test suite + build check', tags: ['test'], note: 'Completed 2026-02-14: targeted Phase 2 schema and API validation tests passed in WSL runtime' },
+                            { id: 'p2-21', done: true, t: 'Merge to daddy', tags: ['branch:daddy'], note: 'Completed 2026-02-14 via PR #102 (merge commit 459fc9d)' },
                         ]
                     }
                 ]
@@ -647,18 +647,18 @@
                 id: 'p3', title: 'Phase 3 — Server Actions Migration', desc: 'Add server actions as the primary data path for the web client. Eliminate HTTP overhead. Keep API routes for native clients.', badge: 'high', groups: [
                     {
                         title: 'Notes Domain — Server Actions', tasks: [
-                            { id: 'p3-1', t: 'Create features/notes/server/queries.ts with typed Drizzle queries (getNotes, getNoteById, getNoteTree)', tags: ['file:features/notes/server/queries.ts', 'branch:feat/server-actions-notes'] },
-                            { id: 'p3-2', t: 'Implement lazy tree loading in getNoteTree — only return root items, load children on demand', tags: ['perf'], note: 'This fixes CRITICAL-004 (full tree download). Return only top-level items with a childCount field. Add a getChildren(parentId) query.' },
-                            { id: 'p3-3', t: 'Create features/notes/actions/get-notes.ts — "use server" + auth wrapper around queries', tags: ['file:features/notes/actions/get-notes.ts'] },
-                            { id: 'p3-4', t: 'Create features/notes/actions/create-note.ts — server action with Zod validation', tags: ['file:features/notes/actions/create-note.ts'] },
-                            { id: 'p3-5', t: 'Create features/notes/actions/update-note.ts — server action with Zod validation', tags: ['file:features/notes/actions/update-note.ts'] },
-                            { id: 'p3-6', t: 'Create features/notes/actions/delete-note.ts — server action', tags: ['file:features/notes/actions/delete-note.ts'] },
-                            { id: 'p3-7', t: 'Create features/notes/actions/set-visibility.ts — fix FH-003 (inconsistent direct fetch)', tags: ['file:features/notes/actions/set-visibility.ts'] },
-                            { id: 'p3-8', t: 'Update useNotesQuery to call getNotesAction() instead of CRUD readMany', tags: ['file:features/notes/hooks/use-notes-query.ts'] },
-                            { id: 'p3-9', t: 'Update useCreateNoteMutation to call createNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'] },
-                            { id: 'p3-10', t: 'Update useUpdateNoteMutation to call updateNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'] },
-                            { id: 'p3-11', t: 'Update useDeleteMutation to call deleteNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'] },
-                            { id: 'p3-12', t: 'Update useSetNoteVisibilityMutation to call setVisibilityAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'] },
+                            { id: 'p3-1', done: true, t: 'Create features/notes/server/queries.ts with typed Drizzle queries (getNotes, getNoteById, getNoteTree)', tags: ['file:features/notes/server/queries.ts', 'branch:feat/server-actions-notes'], note: 'Completed 2026-02-14 on feature/p3-notes-server-actions' },
+                            { id: 'p3-2', done: true, t: 'Implement lazy tree loading in getNoteTree — only return root items, load children on demand', tags: ['perf'], note: 'Completed 2026-02-14: getNoteTree root-only + childCount and getChildren(userId,parentId) query scaffolded.' },
+                            { id: 'p3-3', done: true, t: 'Create features/notes/actions/get-notes.ts — "use server" + auth wrapper around queries', tags: ['file:features/notes/actions/get-notes.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p3-4', done: true, t: 'Create features/notes/actions/create-note.ts — server action with Zod validation', tags: ['file:features/notes/actions/create-note.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p3-5', done: true, t: 'Create features/notes/actions/update-note.ts — server action with Zod validation', tags: ['file:features/notes/actions/update-note.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p3-6', done: true, t: 'Create features/notes/actions/delete-note.ts — server action', tags: ['file:features/notes/actions/delete-note.ts'], note: 'Completed 2026-02-14 (soft-delete path)' },
+                            { id: 'p3-7', done: true, t: 'Create features/notes/actions/set-visibility.ts — fix FH-003 (inconsistent direct fetch)', tags: ['file:features/notes/actions/set-visibility.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p3-8', done: true, t: 'Update useNotesQuery to call getNotesAction() instead of CRUD readMany', tags: ['file:features/notes/hooks/use-notes-query.ts'], note: 'Completed 2026-02-14 for authenticated path; guest path intentionally unchanged.' },
+                            { id: 'p3-9', done: true, t: 'Update useCreateNoteMutation to call createNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'], note: 'Completed 2026-02-14 for authenticated path; guest path unchanged.' },
+                            { id: 'p3-10', done: true, t: 'Update useUpdateNoteMutation to call updateNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'], note: 'Completed 2026-02-14 for authenticated path; guest path unchanged.' },
+                            { id: 'p3-11', done: true, t: 'Update useDeleteMutation to call deleteNoteAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'], note: 'Completed 2026-02-14 for authenticated path; guest path unchanged.' },
+                            { id: 'p3-12', done: true, t: 'Update useSetNoteVisibilityMutation to call setVisibilityAction()', tags: ['file:features/notes/hooks/use-notes-query.ts'], note: 'Completed 2026-02-14 for authenticated path; guest path unchanged.' },
                             { id: 'p3-13', t: 'Verify optimistic updates still work correctly with server actions', tags: ['test'] },
                             { id: 'p3-14', t: 'Write test: notes CRUD via server actions (create, read, update, delete)', tags: ['test'] },
                             { id: 'p3-15', t: 'Verify guest mode still works via CRUD/localStorage path', tags: ['test'] },

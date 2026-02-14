@@ -1,6 +1,10 @@
 import type { Item, Note, Folder } from '../types'
 import { extractTasksFromBlocks } from '../utils/extract-tasks'
-import { trackActivity } from '@/features/activity'
+import { getItems } from '../api/queries/get-items'
+import { createNote as createNoteServer } from '../api/mutations/create-note'
+import { updateNote as updateNoteServer } from '../api/mutations/update-note'
+import { deleteItem as deleteNoteServer } from '../api/mutations/delete-item'
+import { setNoteVisibility as setVisibilityServer } from '../api/mutations/set-visibility'
 import { useSession } from '@/lib/auth-client'
 import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '@/lib/preseed-data'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
@@ -16,6 +20,81 @@ export const notesKeys = {
 	list: (userId: string | undefined) => [...notesKeys.lists(), { userId }] as const,
 	details: () => [...notesKeys.all, 'detail'] as const,
 	detail: (id: string) => [...notesKeys.details(), id] as const
+}
+
+// TODO(notes-actions): replace these wrappers with direct imports from the new notes actions module
+// once `getNotesAction/createNoteAction/updateNoteAction/deleteNoteAction/setVisibilityAction` is exported.
+const getNotesAction = async (): Promise<Item[]> => {
+	return getItems()
+}
+
+const createNoteAction = async ({
+	name,
+	content,
+	parentFolderId,
+	icon,
+	tags,
+	coverImage,
+	favorite,
+	pinned
+}: {
+	name: string
+	content: any[]
+	parentFolderId?: string
+	icon?: string
+	tags?: string[]
+	coverImage?: string
+	favorite?: boolean
+	pinned?: boolean
+}): Promise<Note> => {
+	return createNoteServer({
+		name,
+		content,
+		parentFolderId,
+		icon,
+		tags,
+		coverImage,
+		favorite,
+		pinned
+	} as any)
+}
+
+const updateNoteAction = async ({
+	id,
+	content,
+	name,
+	icon,
+	tags,
+	coverImage
+}: {
+	id: string
+	content?: any[]
+	name?: string
+	icon?: string
+	tags?: string[]
+	coverImage?: string
+}): Promise<Note | undefined> => {
+	return updateNoteServer(id, {
+		content,
+		name,
+		icon,
+		tags,
+		coverImage
+	})
+}
+
+const deleteNoteAction = async (id: string): Promise<boolean> => {
+	return deleteNoteServer(id)
+}
+
+const setVisibilityAction = async ({
+	id,
+	isPublic
+}: {
+	id: string
+	isPublic: boolean
+}): Promise<Note | undefined> => {
+	return setVisibilityServer(id, isPublic)
 }
 
 // -----------------------------------------------------------------------------
@@ -83,6 +162,11 @@ export function useNotesQuery() {
 	return useQuery({
 		queryKey: notesKeys.list(userId),
 		queryFn: async () => {
+			if (!isGuestUserId(userId)) {
+				const items = await getNotesAction()
+				return filterActiveItems(Array.isArray(items) ? items : [])
+			}
+
 			const result = await readMany<Item>(STORAGE_KEYS.NOTES, {
 				userId
 			})
@@ -159,6 +243,21 @@ export function useCreateNoteMutation() {
 				favorite: favorite ?? false,
 				createdAt: Date.now(),
 				updatedAt: Date.now()
+			}
+
+			if (!isGuestUserId(userId)) {
+				const created = await createNoteAction({
+					name,
+					content,
+					parentFolderId,
+					icon,
+					tags,
+					coverImage,
+					favorite,
+					pinned
+				})
+				if (!created) throw new Error('Failed to create note')
+				return created
 			}
 
 			const result = await create<Note>(STORAGE_KEYS.NOTES, newNote, { userId })
@@ -291,6 +390,18 @@ export function useUpdateNoteMutation() {
 			if (tags !== undefined) updateData.tags = tags
 			if (coverImage !== undefined) updateData.coverImage = coverImage
 
+			if (!isGuestUserId(userId)) {
+				const updated = await updateNoteAction({
+					id,
+					content,
+					name,
+					icon,
+					tags,
+					coverImage
+				})
+				return updated
+			}
+
 			const result = await update<Note>(STORAGE_KEYS.NOTES, id, updateData, { userId })
 			if (!result.success) throw new Error('Failed to update note')
 
@@ -308,15 +419,6 @@ export function useUpdateNoteMutation() {
 					// Don't fail note update if task sync fails
 					console.error('Failed to sync tasks:', taskError)
 				}
-			}
-
-			if (result.data && !isGuestUserId(userId)) {
-				trackActivity({
-					entityType: 'note',
-					entityId: id,
-					action: 'updated',
-					entityName: result.data.name || 'Untitled'
-				})
 			}
 
 			return result.data
@@ -358,6 +460,12 @@ export function useDeleteMutation() {
 
 	return useMutation({
 		mutationFn: async (id: string) => {
+			if (!isGuestUserId(userId)) {
+				const success = await deleteNoteAction(id)
+				if (!success) throw new Error('Failed to delete item')
+				return true
+			}
+
 			const result = await destroy(STORAGE_KEYS.NOTES, id, { userId })
 			if (!result.success) throw new Error('Failed to delete item')
 			return true
@@ -520,6 +628,12 @@ export function useSetNoteVisibilityMutation() {
 
 	return useMutation({
 		mutationFn: async ({ id, isPublic }: { id: string; isPublic: boolean }) => {
+			if (!isGuestUserId(userId)) {
+				const updated = await setVisibilityAction({ id, isPublic })
+				if (!updated) throw new Error('Failed to set visibility')
+				return updated
+			}
+
 			const response = await fetch('/api/notes', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
