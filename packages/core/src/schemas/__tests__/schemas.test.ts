@@ -11,11 +11,7 @@ import {
 	TaskSyncPayloadSchema,
 	UpdateNoteSchema
 } from '../index'
-import {
-	IMPORT_MAX_ITEMS,
-	MAX_SHORTCUT_COMBOS,
-	MAX_SHORTCUT_KEYS_PER_COMBO
-} from '../../rules'
+import { IMPORT_MAX_ITEMS, MAX_SHORTCUT_COMBOS, MAX_SHORTCUT_KEYS_PER_COMBO } from '../../rules'
 
 describe('core schemas', () => {
 	it('validates notes schemas (valid + invalid)', () => {
@@ -67,7 +63,9 @@ describe('core schemas', () => {
 		const created = AIConfigCreateSchema.parse({ provider: 'gemini', model: 'flash' })
 		expect(created.temperature).toBe(70)
 
-		expect(AIConfigCreateSchema.safeParse({ provider: 'openai', model: 'gpt' }).success).toBeFalse()
+		expect(
+			AIConfigCreateSchema.safeParse({ provider: 'openai', model: 'gpt' }).success
+		).toBeFalse()
 		expect(AIConfigPatchSchema.safeParse({}).success).toBeFalse()
 	})
 

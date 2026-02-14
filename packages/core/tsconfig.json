@@ -1,9 +1,9 @@
 ﻿{
-  "extends": "@skriuw/config/typescript/base",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/__tests__/**"]
+	"extends": "@skriuw/config/typescript/base",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/__tests__/**"]
 }

@@ -16,6 +16,6 @@ export const IMPORT_MAX_PAYLOAD_BYTES = 5 * 1024 * 1024
 export const IMPORT_MAX_ITEMS = 10000
 
 export const RATE_LIMITS = {
-  aiPromptsPerDay: AI_DAILY_PROMPT_LIMIT,
-  importPayloadBytes: IMPORT_MAX_PAYLOAD_BYTES
+	aiPromptsPerDay: AI_DAILY_PROMPT_LIMIT,
+	importPayloadBytes: IMPORT_MAX_PAYLOAD_BYTES
 } as const
