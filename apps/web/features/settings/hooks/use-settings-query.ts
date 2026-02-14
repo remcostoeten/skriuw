@@ -2,6 +2,7 @@ import type { SettingsEntity } from '../types'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS, DEFAULT_IDS } from '@/lib/storage-keys'
 import { readOne, create, update } from '@skriuw/crud'
+import { GUEST_USER_ID } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const settingsKeys = {
@@ -11,7 +12,7 @@ export const settingsKeys = {
 
 export function useSettingsQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: settingsKeys.user(userId),
@@ -31,7 +32,7 @@ export function useSettingsQuery() {
 export function useSaveSettingsMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (settings: Record<string, any>) => {
