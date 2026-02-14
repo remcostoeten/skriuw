@@ -1,6 +1,7 @@
 // Server-safe exports only
 export * from './types'
 export * from './utilities'
+export * from './constants'
 
 // Core logic utilities (server-safe)
 export * from './utils'

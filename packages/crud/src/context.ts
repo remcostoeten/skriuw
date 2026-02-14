@@ -27,6 +27,18 @@ export type UserContext = {
 // CONTEXT STORAGE
 // ============================================================================
 
+function isServerRuntime(): boolean {
+	return typeof window === 'undefined'
+}
+
+function assertClientRuntime(api: string): void {
+	if (isServerRuntime()) {
+		throw new Error(
+			`@skriuw/crud context API "${api}" is client-only and must not run on the server runtime.`
+		)
+	}
+}
+
 /**
  * Current user context.
  * In a server environment, this should be set per-request.
@@ -48,6 +60,7 @@ let currentContext: UserContext = {}
  * ```
  */
 export function setUserContext(ctx: UserContext): void {
+	assertClientRuntime('setUserContext')
 	currentContext = ctx
 }
 
@@ -57,6 +70,7 @@ export function setUserContext(ctx: UserContext): void {
  * @returns The current user context
  */
 export function getUserContext(): UserContext {
+	assertClientRuntime('getUserContext')
 	return currentContext
 }
 
@@ -65,6 +79,7 @@ export function getUserContext(): UserContext {
  * Call this at the end of each request to prevent context leakage.
  */
 export function clearUserContext(): void {
+	assertClientRuntime('clearUserContext')
 	currentContext = {}
 }
 
@@ -75,6 +90,7 @@ export function clearUserContext(): void {
  * @returns The current user ID or undefined
  */
 export function getCrudUserId(): string | null | undefined {
+	assertClientRuntime('getCrudUserId')
 	return currentContext.userId
 }
 
@@ -100,6 +116,7 @@ export function getCrudUserId(): string | null | undefined {
  * ```
  */
 export async function withUser<T>(userId: string | null, fn: () => Promise<T>): Promise<T> {
+	assertClientRuntime('withUser')
 	const previousContext = currentContext
 	currentContext = { ...previousContext, userId }
 
@@ -119,6 +136,7 @@ export async function withUser<T>(userId: string | null, fn: () => Promise<T>): 
  * @returns The result of the function
  */
 export function withUserSync<T>(userId: string | null, fn: () => T): T {
+	assertClientRuntime('withUserSync')
 	const previousContext = currentContext
 	currentContext = { ...previousContext, userId }
 
@@ -137,6 +155,7 @@ export function withUserSync<T>(userId: string | null, fn: () => T): T {
  * @returns Functions that operate within this context
  */
 export function createScopedContext(ctx: UserContext) {
+	assertClientRuntime('createScopedContext')
 	return {
 		getUserId: () => ctx.userId,
 		getContext: () => ctx

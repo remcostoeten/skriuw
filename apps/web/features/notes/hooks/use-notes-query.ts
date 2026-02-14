@@ -5,7 +5,7 @@ import { useSession } from '@/lib/auth-client'
 import { generatePreseededItems, hasPreseededItems, markPreseededItems } from '@/lib/preseed-data'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, readOne, create, update, destroy } from '@skriuw/crud'
-import { generateId } from '@skriuw/shared'
+import { GUEST_USER_ID, generateId, isGuestUserId } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
@@ -27,12 +27,12 @@ export const notesKeys = {
  */
 export function useNotesQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 	const queryClient = useQueryClient()
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return
-		if (userId !== 'guest' && userId !== 'guest-user') return
+		if (!isGuestUserId(userId)) return
 
 		const hasData = localStorage.getItem(STORAGE_KEYS.NOTES)
 		const hasSeeded =
@@ -50,7 +50,7 @@ export function useNotesQuery() {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return
-		if (userId === 'guest' || userId === 'guest-user') return
+		if (isGuestUserId(userId)) return
 
 		const seedKey = `skriuw:user-seeded:${userId}`
 		if (sessionStorage.getItem(seedKey) === 'true') return
@@ -92,8 +92,8 @@ export function useNotesQuery() {
 			const allItems = Array.isArray(result.data) ? result.data : []
 			return filterActiveItems(allItems)
 		},
-		staleTime: userId === 'guest' || userId === 'guest-user' ? 0 : 60 * 1000,
-		refetchOnMount: userId === 'guest' || userId === 'guest-user' ? true : undefined
+		staleTime: isGuestUserId(userId) ? 0 : 60 * 1000,
+		refetchOnMount: isGuestUserId(userId) ? true : undefined
 	})
 }
 
@@ -102,7 +102,7 @@ export function useNotesQuery() {
  */
 export function useNoteQuery(id: string) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: notesKeys.detail(id),
@@ -124,7 +124,7 @@ export function useNoteQuery(id: string) {
 export function useCreateNoteMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({
@@ -213,7 +213,7 @@ export function useCreateNoteMutation() {
 export function useCreateFolderMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ name, parentFolderId }: { name: string; parentFolderId?: string }) => {
@@ -266,7 +266,7 @@ export function useCreateFolderMutation() {
 export function useUpdateNoteMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({
@@ -310,7 +310,7 @@ export function useUpdateNoteMutation() {
 				}
 			}
 
-			if (result.data && userId !== 'guest' && userId !== 'guest-user') {
+			if (result.data && !isGuestUserId(userId)) {
 				trackActivity({
 					entityType: 'note',
 					entityId: id,
@@ -354,7 +354,7 @@ export function useUpdateNoteMutation() {
 export function useDeleteMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (id: string) => {
@@ -394,7 +394,7 @@ export function useDeleteMutation() {
 export function useMoveItemMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({
@@ -440,7 +440,7 @@ export function useMoveItemMutation() {
 export function useRenameItemMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ id, name }: { id: string; name: string }) => {
@@ -477,7 +477,7 @@ export function useRenameItemMutation() {
 export function usePinItemMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
@@ -499,7 +499,7 @@ export function usePinItemMutation() {
 export function useFavoriteNoteMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ id, favorite }: { id: string; favorite: boolean }) => {
@@ -516,7 +516,7 @@ export function useFavoriteNoteMutation() {
 export function useSetNoteVisibilityMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ id, isPublic }: { id: string; isPublic: boolean }) => {

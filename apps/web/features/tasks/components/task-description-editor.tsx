@@ -57,7 +57,7 @@ export function TaskDescriptionEditor({
 			} as PartialBlock,
 			...blocks
 		]
-	}, [initialContent])
+	}, [initialContent, title])
 
 	const editor = useCreateBlockNote({
 		...config,

@@ -36,9 +36,7 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 	const [description, setDescription] = useState('')
 
 	useEffect(() => {
-		if (task?.description) {
-			setDescription(task.description)
-		}
+		setDescription(task?.description ?? '')
 	}, [task?.description])
 
 	const isActive = index === totalPanels - 1

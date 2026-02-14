@@ -1,22 +1,19 @@
-import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/api-auth'
 import { getDatabase, aiProviderConfig, eq, and } from '@skriuw/db'
-import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { encryptPrompt, decryptPrompt } from '@/features/ai/utilities'
 
 export async function GET() {
-	const session = await auth.api.getSession({ headers: await headers() })
-
-	if (!session?.user?.id) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-	}
+	const auth = await requireAuth()
+	if (!auth.authenticated) return auth.response
+	const { userId } = auth
 
 	const db = getDatabase()
 	const configs = await db
 		.select()
 		.from(aiProviderConfig)
 		.where(
-			and(eq(aiProviderConfig.userId, session.user.id), eq(aiProviderConfig.isActive, true))
+			and(eq(aiProviderConfig.userId, userId), eq(aiProviderConfig.isActive, true))
 		)
 		.limit(1)
 
@@ -37,11 +34,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-	const session = await auth.api.getSession({ headers: await headers() })
-
-	if (!session?.user?.id) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-	}
+	const auth = await requireAuth()
+	if (!auth.authenticated) return auth.response
+	const { userId } = auth
 
 	const body = await request.json()
 	const { provider, model, basePrompt, temperature = 70 } = body
@@ -57,7 +52,7 @@ export async function POST(request: Request) {
 	const existingConfigs = await db
 		.select()
 		.from(aiProviderConfig)
-		.where(eq(aiProviderConfig.userId, session.user.id))
+		.where(eq(aiProviderConfig.userId, userId))
 		.limit(1)
 
 	const isUpdate = existingConfigs.length > 0
@@ -78,7 +73,7 @@ export async function POST(request: Request) {
 	} else {
 		await db.insert(aiProviderConfig).values({
 			id: configId,
-			userId: session.user.id,
+			userId,
 			provider,
 			model,
 			basePrompt: basePrompt ? encryptPrompt(basePrompt) : null,
@@ -100,11 +95,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-	const session = await auth.api.getSession({ headers: await headers() })
-
-	if (!session?.user?.id) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-	}
+	const auth = await requireAuth()
+	if (!auth.authenticated) return auth.response
+	const { userId } = auth
 
 	const body = await request.json()
 	const updates: Record<string, unknown> = { updatedAt: Date.now() }
@@ -120,7 +113,7 @@ export async function PATCH(request: Request) {
 	const configs = await db
 		.select()
 		.from(aiProviderConfig)
-		.where(eq(aiProviderConfig.userId, session.user.id))
+		.where(eq(aiProviderConfig.userId, userId))
 		.limit(1)
 
 	if (!configs[0]) {

@@ -1,7 +1,8 @@
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
-import type { Task } from '@/features/tasks/api/queries/get-tasks'
-import { db } from '@/lib/storage/adapters/server-db'
+import { requireMutation } from '@/lib/api-auth'
+import { getDatabase, notes, tasks } from '@skriuw/db'
 import { generateId } from '@skriuw/shared'
+import { and, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
 type SyncPayload = {
@@ -11,65 +12,69 @@ type SyncPayload = {
 
 export async function POST(request: NextRequest) {
 	try {
+		const auth = await requireMutation()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const body: SyncPayload = await request.json()
 		if (!body.noteId) return NextResponse.json({ error: 'noteId is required' }, { status: 400 })
 
 		const incoming = Array.isArray(body.tasks) ? body.tasks : []
-		const existing = (await db.findAll<Task>('tasks')).filter((t) => t.noteId === body.noteId)
+		const db = getDatabase()
 
-		const existingMap = new Map(existing.map((t) => [t.blockId, t]))
-		const incomingMap = new Map(incoming.map((t) => [t.blockId, t]))
+		// Note must belong to the current user.
+		const noteResult = await db
+			.select({ id: notes.id })
+			.from(notes)
+			.where(and(eq(notes.id, body.noteId), eq(notes.userId, userId)))
+			.limit(1)
+
+		if (noteResult.length === 0) {
+			return NextResponse.json({ error: 'Note not found' }, { status: 404 })
+		}
+
+		const existing = await db
+			.select()
+			.from(tasks)
+			.where(and(eq(tasks.noteId, body.noteId), eq(tasks.userId, userId)))
+
+		const existingByBlockId = new Map(existing.map((t) => [t.blockId, t]))
+		const taskIdByBlockId = new Map(existing.map((t) => [t.blockId, t.id]))
 		const now = Date.now()
 
-		// Delete removed
-		const toDelete = existing
-			.filter((t) => !incomingMap.has(t.blockId))
-			.map((t) => (t as any).id)
-		if (toDelete.length > 0) await db.deleteMany('tasks', toDelete)
-
-		// Prepare inserts and updates
-		const toInsert: any[] = []
-		const toUpdate: { id: string; data: any }[] = []
-
+		// Ensure each incoming block has a stable task id before resolving parent links.
 		for (const task of incoming) {
-			const current = existingMap.get(task.blockId)
-			if (current) {
-				const needsUpdate =
-					current.content !== task.content ||
-					current.checked !== (task.checked ? 1 : 0) ||
-					current.parentTaskId !== task.parentTaskId ||
-					current.position !== task.position
-
-				if (needsUpdate) {
-					toUpdate.push({
-						id: (current as any).id,
-						data: {
-							content: task.content,
-							checked: task.checked ? 1 : 0,
-							parentTaskId: task.parentTaskId ?? null,
-							position: task.position ?? current.position,
-							updatedAt: now
-						}
-					})
-				}
-			} else {
-				toInsert.push({
-					id: generateId(`${body.noteId}-${task.blockId}-`),
-					noteId: body.noteId,
-					blockId: task.blockId,
-					content: task.content,
-					checked: task.checked ? 1 : 0,
-					parentTaskId: task.parentTaskId ?? null,
-					position: task.position ?? 0,
-					createdAt: now,
-					updatedAt: now
-				})
+			if (!taskIdByBlockId.has(task.blockId)) {
+				taskIdByBlockId.set(task.blockId, generateId(`${body.noteId}-${task.blockId}-`))
 			}
 		}
 
-		if (toInsert.length > 0) await db.createMany('tasks', toInsert)
-		if (toUpdate.length > 0) {
-			await Promise.all(toUpdate.map((u) => db.update('tasks', u.id, u.data)))
+		const rows = incoming.map((task) => {
+			const id = taskIdByBlockId.get(task.blockId)!
+			const mappedParentId = task.parentTaskId ? taskIdByBlockId.get(task.parentTaskId) : null
+			const parentTaskId = mappedParentId ?? task.parentTaskId ?? null
+			const current = existingByBlockId.get(task.blockId)
+
+			return {
+				id,
+				noteId: body.noteId,
+				blockId: task.blockId,
+				content: task.content,
+				description: current?.description ?? null,
+				userId,
+				checked: task.checked ? 1 : 0,
+				dueDate: current?.dueDate ?? null,
+				parentTaskId,
+				position: task.position ?? 0,
+				createdAt: current?.createdAt ?? now,
+				updatedAt: now
+			}
+		})
+
+		// Replace note-scoped task rows atomically enough for current usage.
+		await db.delete(tasks).where(and(eq(tasks.noteId, body.noteId), eq(tasks.userId, userId)))
+		if (rows.length > 0) {
+			await db.insert(tasks).values(rows)
 		}
 
 		return NextResponse.json({ success: true })

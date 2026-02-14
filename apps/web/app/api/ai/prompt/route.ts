@@ -1,8 +1,7 @@
-import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/api-auth'
 import { getDatabase } from '@skriuw/db'
 import { aiPromptLog, aiProviderConfig, aiApiKeys } from '@skriuw/db/src/schema'
 import { eq, and } from 'drizzle-orm'
-import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { type AIProvider } from '@/features/ai/types'
 import { getProvider } from '@/features/ai/providers'
@@ -11,11 +10,9 @@ import { decryptSecret } from '@/lib/crypto/secret'
 import { env } from '@/lib/env'
 
 export async function POST(request: Request) {
-	const session = await auth.api.getSession({ headers: await headers() })
-
-	if (!session?.user?.id) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-	}
+	const auth = await requireAuth()
+	if (!auth.authenticated) return auth.response
+	const { userId } = auth
 
 	const body = await request.json()
 	const { prompt, isTest } = body
@@ -30,7 +27,7 @@ export async function POST(request: Request) {
 	const allPrompts = await db
 		.select({ createdAt: aiPromptLog.createdAt })
 		.from(aiPromptLog)
-		.where(eq(aiPromptLog.userId, session.user.id))
+		.where(eq(aiPromptLog.userId, userId))
 
 	const rateLimitResult = checkRateLimit(
 		allPrompts.map((p) => p.createdAt),
@@ -47,7 +44,7 @@ export async function POST(request: Request) {
 	const configs = await db
 		.select()
 		.from(aiProviderConfig)
-		.where(eq(aiProviderConfig.userId, session.user.id))
+		.where(eq(aiProviderConfig.userId, userId))
 		.limit(1)
 
 	const config = configs[0]
@@ -94,7 +91,7 @@ export async function POST(request: Request) {
 		if (!isTest) {
 			await db.insert(aiPromptLog).values({
 				id: crypto.randomUUID(),
-				userId: session.user.id,
+				userId,
 				provider,
 				model,
 				tokensUsed: response.tokensUsed,

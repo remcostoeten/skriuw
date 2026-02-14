@@ -3,6 +3,7 @@ import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, create, update, destroy, batchCreate, batchDestroy } from '@skriuw/crud'
+import { GUEST_USER_ID, generateId, isGuestUserId } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const tasksKeys = {
@@ -16,10 +17,8 @@ export const tasksKeys = {
 	task: (blockId: string) => [...tasksKeys.all, 'block', blockId] as const
 }
 
-const GUEST_IDS = ['guest', 'guest-user']
-
 function isGuest(userId?: string | null): boolean {
-	return !userId || GUEST_IDS.includes(userId)
+	return !userId || isGuestUserId(userId)
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -62,7 +61,7 @@ async function getTasksForNoteLocal(noteId: string, userId: string): Promise<Tas
 
 export function useTasksQuery(noteId: string | null) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.note(noteId ?? '', userId),
@@ -82,7 +81,7 @@ export function useTasksQuery(noteId: string | null) {
 
 export function useAllTasksQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.list(userId),
@@ -105,7 +104,7 @@ export function useAllTasksQuery() {
 
 export function useTaskByIdQuery(taskId: string | null) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.detail(taskId ?? ''),
@@ -121,7 +120,9 @@ export function useTaskByIdQuery(taskId: string | null) {
 				// Let's use readMany and find? Or just implement readOne properly in crud wrapper if needed.
 				// Actually client-api adapter supports readOne.
 				const result = await readMany<Task>(STORAGE_KEYS.TASKS, { userId })
-				const task = (result.data as Task[] | undefined)?.find((t) => t.id === taskId)
+				const task = (result.data as Task[] | undefined)?.find(
+					(t) => t.id === taskId || t.blockId === taskId
+				)
 				if (!task) return null
 				return { ...task, noteName: null, userId }
 			}
@@ -135,7 +136,7 @@ export function useTaskByIdQuery(taskId: string | null) {
 export function useUpdateTaskMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<Task> }) => {
@@ -190,7 +191,7 @@ export function useUpdateTaskMutation() {
 export function useDeleteTaskMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (taskId: string) => {
@@ -230,7 +231,7 @@ export function useDeleteTaskMutation() {
 
 export function useTaskQuery(noteId: string, blockId: string) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.task(blockId),
@@ -255,7 +256,7 @@ export function useTaskQuery(noteId: string, blockId: string) {
 export function useSyncTasksMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ noteId, tasks }: { noteId: string; tasks: ExtractedTask[] }) => {
@@ -265,6 +266,7 @@ export function useSyncTasksMutation() {
 			if (isGuest(userId)) {
 				// 1. Get existing tasks for this note
 				const existing = await getTasksForNoteLocal(noteId, userId)
+				const taskIdByBlockId = new Map(existing.map((t) => [t.blockId, t.id]))
 
 				// 2. Map extracted tasks to Task objects
 				const now = Date.now()
@@ -272,16 +274,20 @@ export function useSyncTasksMutation() {
 					// Try to find existing task to keep ID stable if possible?
 					// The extracted task has blockId. We should match on blockId.
 					const match = existing.find((e) => e.blockId === t.blockId)
+					const id = match?.id ?? generateId(`${noteId}-${t.blockId}-`)
+					taskIdByBlockId.set(t.blockId, id)
+					const mappedParentId = t.parentTaskId ? taskIdByBlockId.get(t.parentTaskId) : null
+					const resolvedParentTaskId = mappedParentId ?? t.parentTaskId ?? null
 
 					return {
-						id: match?.id, // Let create/batchCreate handle ID generation if missing
+						id,
 						noteId,
 						userId,
 						blockId: t.blockId,
 						content: t.content,
 						checked: t.checked ? 1 : 0,
 						position: t.position,
-						parentTaskId: t.parentTaskId,
+						parentTaskId: resolvedParentTaskId,
 						description: null, // extracted tasks might not have description yet
 						updatedAt: now,
 						createdAt: match?.createdAt || now
@@ -328,7 +334,7 @@ export function useSyncTasksMutation() {
 export function useDeleteTasksMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (noteId: string) => {
