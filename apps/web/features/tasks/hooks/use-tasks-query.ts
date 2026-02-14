@@ -3,7 +3,7 @@ import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, create, update, destroy, batchCreate, batchDestroy } from '@skriuw/crud'
-import { generateId } from '@skriuw/shared'
+import { GUEST_USER_ID, generateId, isGuestUserId } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const tasksKeys = {
@@ -17,10 +17,8 @@ export const tasksKeys = {
 	task: (blockId: string) => [...tasksKeys.all, 'block', blockId] as const
 }
 
-const GUEST_IDS = ['guest', 'guest-user']
-
 function isGuest(userId?: string | null): boolean {
-	return !userId || GUEST_IDS.includes(userId)
+	return !userId || isGuestUserId(userId)
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -63,7 +61,7 @@ async function getTasksForNoteLocal(noteId: string, userId: string): Promise<Tas
 
 export function useTasksQuery(noteId: string | null) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.note(noteId ?? '', userId),
@@ -83,7 +81,7 @@ export function useTasksQuery(noteId: string | null) {
 
 export function useAllTasksQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.list(userId),
@@ -106,7 +104,7 @@ export function useAllTasksQuery() {
 
 export function useTaskByIdQuery(taskId: string | null) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.detail(taskId ?? ''),
@@ -138,7 +136,7 @@ export function useTaskByIdQuery(taskId: string | null) {
 export function useUpdateTaskMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<Task> }) => {
@@ -193,7 +191,7 @@ export function useUpdateTaskMutation() {
 export function useDeleteTaskMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (taskId: string) => {
@@ -233,7 +231,7 @@ export function useDeleteTaskMutation() {
 
 export function useTaskQuery(noteId: string, blockId: string) {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tasksKeys.task(blockId),
@@ -258,7 +256,7 @@ export function useTaskQuery(noteId: string, blockId: string) {
 export function useSyncTasksMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ noteId, tasks }: { noteId: string; tasks: ExtractedTask[] }) => {
@@ -336,7 +334,7 @@ export function useSyncTasksMutation() {
 export function useDeleteTasksMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (noteId: string) => {

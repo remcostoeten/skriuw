@@ -1,6 +1,16 @@
 # AGENTS.md
 
 > **Context for AI Agents**: This file is the single source of truth for all coding rules, architectural constraints, and development patterns in this repository. Read this file before planning or changing code.
+>
+> 🚨 **CRITICAL: PROJECT SOURCE OF TRUTH** 🚨
+> The active implementation plan, tasks, and architectural decisions are tracked in:
+> **`docs/audit-dashboard.html`**
+>
+> **ALL AGENTS MUST:**
+> 1. Read `docs/audit-dashboard.html` at the start of every session.
+> 2. Work ONLY on tasks marked as "Open" in the dashboard.
+> 3. Update the dashboard (via IndexedDB logic or file edit if persistent changes are needed) to reflect progress.
+> 4. Respect the platform architecture defined in the "Strategy & Architecture" phase of the dashboard.
 
 ## 1. Core Principles
 
@@ -61,6 +71,22 @@ apps/web/features/<feature-name>/
 - Prefer `@/features/<feature-name>` for feature internals.
 - Prefer package imports for shared contracts (`@skriuw/shared`, `@skriuw/db`, `@skriuw/ui`).
 - Avoid deep cross-feature relative imports when a feature public API exists.
+
+## 2.1 Platform & Storage Strategy
+
+We adhere to a strict hybrid storage model:
+
+| Platform | Mode | Storage | Sync |
+| :--- | :--- | :--- | :--- |
+| **Web** | Standard | **PostgreSQL** (Hosted) | Direct (Server Actions) |
+| **Desktop** | Privacy | **Local SQLite** (No Cloud) | None (Offline Only) |
+| **Desktop** | Standard | **Local SQLite** + Cache | Background Sync to PG |
+| **Mobile** | Standard | **Local SQLite** + Cache | Background Sync to PG |
+
+**Key Rules:**
+1. **Web** uses Server Actions to talk directly to DB.
+2. **Native (Desktop/Mobile)** uses `API Routes` as their synchronization endpoint.
+3. **Privacy Mode** on Desktop must NEVER send data to the cloud.
 
 ---
 
