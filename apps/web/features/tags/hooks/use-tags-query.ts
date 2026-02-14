@@ -3,7 +3,7 @@ import type { BaseEntity } from '@skriuw/shared'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, create, update, destroy } from '@skriuw/crud'
-import { generateId } from '@skriuw/shared'
+import { GUEST_USER_ID, generateId } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 const TAGS_STORAGE_KEY = 'skriuw:tags'
@@ -17,7 +17,7 @@ export const tagsKeys = {
 
 export function useTagsQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: tagsKeys.list(userId),
@@ -32,7 +32,7 @@ export function useTagsQuery() {
 
 export function useTagsWithCountQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: [...tagsKeys.list(userId), 'with-count'],
@@ -63,7 +63,7 @@ export function useTagsWithCountQuery() {
 export function useCreateTagMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (input: CreateTagInput): Promise<Tag> => {
@@ -103,7 +103,7 @@ export function useCreateTagMutation() {
 export function useUpdateTagMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({
@@ -127,7 +127,7 @@ export function useUpdateTagMutation() {
 export function useDeleteTagMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (id: string): Promise<boolean> => {

@@ -3,6 +3,7 @@ import type { CustomShortcut } from '../types'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, readOne, update, create, destroy } from '@skriuw/crud'
+import { GUEST_USER_ID } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const shortcutsKeys = {
@@ -36,7 +37,7 @@ const DEFAULT_SHORTCUTS: Record<ShortcutId, KeyCombo[]> = {
 
 export function useShortcutsQuery() {
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useQuery({
 		queryKey: shortcutsKeys.user(userId),
@@ -59,7 +60,7 @@ export function useShortcutsQuery() {
 export function useSaveShortcutMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async ({ id, keys }: { id: ShortcutId; keys: KeyCombo[] }) => {
@@ -121,7 +122,7 @@ export function useSaveShortcutMutation() {
 export function useResetShortcutMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async (id: ShortcutId) => {
@@ -160,7 +161,7 @@ export function useResetShortcutMutation() {
 export function useResetAllShortcutsMutation() {
 	const queryClient = useQueryClient()
 	const { data: session } = useSession()
-	const userId = session?.user?.id ?? 'guest'
+	const userId = session?.user?.id ?? GUEST_USER_ID
 
 	return useMutation({
 		mutationFn: async () => {
