@@ -12,9 +12,7 @@ export async function GET() {
 	const configs = await db
 		.select()
 		.from(aiProviderConfig)
-		.where(
-			and(eq(aiProviderConfig.userId, userId), eq(aiProviderConfig.isActive, true))
-		)
+		.where(and(eq(aiProviderConfig.userId, userId), eq(aiProviderConfig.isActive, true)))
 		.limit(1)
 
 	if (configs.length === 0) {

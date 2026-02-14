@@ -48,7 +48,10 @@ async function getAncestorChain(
 			})
 			.from(tasks)
 			.where(
-				and(eq(tasks.userId, userId), or(eq(tasks.id, currentId), eq(tasks.blockId, currentId)))
+				and(
+					eq(tasks.userId, userId),
+					or(eq(tasks.id, currentId), eq(tasks.blockId, currentId))
+				)
 			)
 			.limit(1)
 
@@ -80,7 +83,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 		const result = await db
 			.select()
 			.from(tasks)
-			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
+			.where(
+				and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			)
 			.limit(1)
 
 		if (result.length === 0) {
@@ -144,7 +149,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 		const result = await db
 			.update(tasks)
 			.set(updateData)
-			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
+			.where(
+				and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			)
 			.returning()
 
 		if (result.length === 0) {
@@ -173,7 +180,9 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
 		const result = await db
 			.delete(tasks)
-			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
+			.where(
+				and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			)
 			.returning()
 
 		if (result.length === 0) {

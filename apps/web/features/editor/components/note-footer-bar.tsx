@@ -60,8 +60,7 @@ export function NoteFooterBar({ editor, className }: NoteFooterBarProps) {
 		if (hasContent) {
 			const shouldReplace = await confirm({
 				title: 'Replace page content?',
-				description:
-					'This will overwrite the current page with the selected template.',
+				description: 'This will overwrite the current page with the selected template.',
 				confirmLabel: 'Replace',
 				cancelLabel: 'Cancel'
 			})
@@ -119,7 +118,9 @@ export function NoteFooterBar({ editor, className }: NoteFooterBarProps) {
 											className='w-full rounded-md px-2 py-2 text-left hover:bg-accent transition-colors'
 											onClick={() => insertTemplate(option.value)}
 										>
-											<div className='text-sm text-foreground'>{option.label}</div>
+											<div className='text-sm text-foreground'>
+												{option.label}
+											</div>
 											<div className='text-xs text-muted-foreground'>
 												{option.description}
 											</div>

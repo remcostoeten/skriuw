@@ -276,7 +276,9 @@ export function useSyncTasksMutation() {
 					const match = existing.find((e) => e.blockId === t.blockId)
 					const id = match?.id ?? generateId(`${noteId}-${t.blockId}-`)
 					taskIdByBlockId.set(t.blockId, id)
-					const mappedParentId = t.parentTaskId ? taskIdByBlockId.get(t.parentTaskId) : null
+					const mappedParentId = t.parentTaskId
+						? taskIdByBlockId.get(t.parentTaskId)
+						: null
 					const resolvedParentTaskId = mappedParentId ?? t.parentTaskId ?? null
 
 					return {

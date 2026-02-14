@@ -7,6 +7,7 @@
 > **`docs/audit-dashboard.html`**
 >
 > **ALL AGENTS MUST:**
+>
 > 1. Read `docs/audit-dashboard.html` at the start of every session.
 > 2. Work ONLY on tasks marked as "Open" in the dashboard.
 > 3. Update the dashboard (via IndexedDB logic or file edit if persistent changes are needed) to reflect progress.
@@ -76,14 +77,15 @@ apps/web/features/<feature-name>/
 
 We adhere to a strict hybrid storage model:
 
-| Platform | Mode | Storage | Sync |
-| :--- | :--- | :--- | :--- |
-| **Web** | Standard | **PostgreSQL** (Hosted) | Direct (Server Actions) |
-| **Desktop** | Privacy | **Local SQLite** (No Cloud) | None (Offline Only) |
-| **Desktop** | Standard | **Local SQLite** + Cache | Background Sync to PG |
-| **Mobile** | Standard | **Local SQLite** + Cache | Background Sync to PG |
+| Platform    | Mode     | Storage                     | Sync                    |
+| :---------- | :------- | :-------------------------- | :---------------------- |
+| **Web**     | Standard | **PostgreSQL** (Hosted)     | Direct (Server Actions) |
+| **Desktop** | Privacy  | **Local SQLite** (No Cloud) | None (Offline Only)     |
+| **Desktop** | Standard | **Local SQLite** + Cache    | Background Sync to PG   |
+| **Mobile**  | Standard | **Local SQLite** + Cache    | Background Sync to PG   |
 
 **Key Rules:**
+
 1. **Web** uses Server Actions to talk directly to DB.
 2. **Native (Desktop/Mobile)** uses `API Routes` as their synchronization endpoint.
 3. **Privacy Mode** on Desktop must NEVER send data to the cloud.
