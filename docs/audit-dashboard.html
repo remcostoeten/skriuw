@@ -575,9 +575,9 @@
                     {
                         title: '🔴 Fix Global Mutable CRUD Context (CRITICAL-003)', tasks: [
                             { id: 'p1-9', done: true, t: 'Audit all server-side usages of setUserContext() / getUserContext() from @skriuw/crud', tags: ['security', 'file:packages/crud/src/context.ts'], note: 'Completed 2026-02-14: no direct server-side callsites found outside package exports' },
-                            { id: 'p1-10', t: 'If CRUD is used server-side: replace module-level let with AsyncLocalStorage', tags: ['security'], note: 'Node.js AsyncLocalStorage ensures each request gets its own context, preventing user data leakage between concurrent requests.' },
-                            { id: 'p1-11', t: 'If CRUD is client-only: add a runtime guard that throws when called in a server environment', tags: ['security'] },
-                            { id: 'p1-12', t: 'Write test: concurrent setUserContext calls do not leak between async contexts', tags: ['test'] },
+                            { id: 'p1-10', done: true, t: 'If CRUD is used server-side: replace module-level let with AsyncLocalStorage', tags: ['security'], note: 'Completed 2026-02-14 as N/A after audit: no server-side callsites; using client-only guard path instead.' },
+                            { id: 'p1-11', done: true, t: 'If CRUD is client-only: add a runtime guard that throws when called in a server environment', tags: ['security'], note: 'Completed 2026-02-14 in packages/crud/src/context.ts' },
+                            { id: 'p1-12', done: true, t: 'Write test: concurrent setUserContext calls do not leak between async contexts', tags: ['test'], note: 'Completed 2026-02-14 in packages/crud/src/context.test.ts (concurrent server calls rejected by guard)' },
                         ]
                     },
                     {
