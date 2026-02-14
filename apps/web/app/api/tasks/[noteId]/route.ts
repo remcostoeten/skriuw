@@ -1,6 +1,7 @@
 import { getDatabase, tasks } from '@skriuw/db'
 import { and, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, requireMutation } from '@/lib/api-auth'
 
 type RouteContext = {
 	params: Promise<{ noteId: string }>
@@ -23,13 +24,17 @@ function serializeTask(row: typeof tasks.$inferSelect) {
 // GET /api/tasks/[noteId] - Get tasks for a note (optionally filtered by blockId)
 export async function GET(request: NextRequest, context: RouteContext) {
 	try {
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const db = getDatabase()
 		const { searchParams } = new URL(request.url)
 		const blockId = searchParams.get('blockId')
 		const { noteId } = await context.params
 		const condition = blockId
-			? and(eq(tasks.noteId, noteId), eq(tasks.blockId, blockId))
-			: eq(tasks.noteId, noteId)
+			? and(eq(tasks.noteId, noteId), eq(tasks.blockId, blockId), eq(tasks.userId, userId))
+			: and(eq(tasks.noteId, noteId), eq(tasks.userId, userId))
 
 		const result = await db.select().from(tasks).where(condition).orderBy(tasks.position)
 
@@ -51,10 +56,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
 // DELETE /api/tasks/[noteId] - Delete all tasks for a note
 export async function DELETE(_request: NextRequest, context: RouteContext) {
 	try {
+		const auth = await requireMutation()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const db = getDatabase()
 		const { noteId } = await context.params
 
-		await db.delete(tasks).where(eq(tasks.noteId, noteId))
+		await db.delete(tasks).where(and(eq(tasks.noteId, noteId), eq(tasks.userId, userId)))
 
 		return NextResponse.json({ success: true })
 	} catch (error) {

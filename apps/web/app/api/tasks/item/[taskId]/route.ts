@@ -1,6 +1,7 @@
 import { getDatabase, tasks } from '@skriuw/db'
-import { eq, or } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, requireMutation } from '@/lib/api-auth'
 
 type RouteContext = {
 	params: Promise<{ taskId: string }>
@@ -30,6 +31,7 @@ function serializeTask(row: typeof tasks.$inferSelect) {
 
 async function getAncestorChain(
 	db: ReturnType<typeof getDatabase>,
+	userId: string,
 	taskId: string | null | undefined,
 	maxDepth = 10
 ): Promise<TaskBreadcrumb[]> {
@@ -45,7 +47,9 @@ async function getAncestorChain(
 				parentTaskId: tasks.parentTaskId
 			})
 			.from(tasks)
-			.where(or(eq(tasks.id, currentId), eq(tasks.blockId, currentId)))
+			.where(
+				and(eq(tasks.userId, userId), or(eq(tasks.id, currentId), eq(tasks.blockId, currentId)))
+			)
 			.limit(1)
 
 		if (result.length === 0) break
@@ -64,6 +68,10 @@ async function getAncestorChain(
 
 export async function GET(request: NextRequest, context: RouteContext) {
 	try {
+		const auth = await requireAuth()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const db = getDatabase()
 		const { taskId } = await context.params
 		const { searchParams } = new URL(request.url)
@@ -72,7 +80,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 		const result = await db
 			.select()
 			.from(tasks)
-			.where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
 			.limit(1)
 
 		if (result.length === 0) {
@@ -82,7 +90,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 		const task = serializeTask(result[0])
 
 		if (withAncestors) {
-			const allAncestors = await getAncestorChain(db, result[0].parentTaskId)
+			const allAncestors = await getAncestorChain(db, userId, result[0].parentTaskId)
 			return NextResponse.json({
 				...task,
 				ancestors: allAncestors
@@ -102,6 +110,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
 	try {
+		const auth = await requireMutation()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const db = getDatabase()
 		const { taskId } = await context.params
 		const body = await request.json()
@@ -132,7 +144,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 		const result = await db
 			.update(tasks)
 			.set(updateData)
-			.where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
 			.returning()
 
 		if (result.length === 0) {
@@ -152,12 +164,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
 	try {
+		const auth = await requireMutation()
+		if (!auth.authenticated) return auth.response
+		const { userId } = auth
+
 		const db = getDatabase()
 		const { taskId } = await context.params
 
 		const result = await db
 			.delete(tasks)
-			.where(or(eq(tasks.id, taskId), eq(tasks.blockId, taskId)))
+			.where(and(eq(tasks.userId, userId), or(eq(tasks.id, taskId), eq(tasks.blockId, taskId))))
 			.returning()
 
 		if (result.length === 0) {
