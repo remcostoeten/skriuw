@@ -1,7 +1,9 @@
 import { getDatabase, tasks } from '@skriuw/db'
+import { TaskUpdateSchema } from '@skriuw/core'
 import { and, eq, or } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, requireMutation } from '@/lib/api-auth'
+import { z } from 'zod'
 
 type RouteContext = {
 	params: Promise<{ taskId: string }>
@@ -11,6 +13,16 @@ type TaskBreadcrumb = {
 	id: string
 	blockId: string
 	content: string
+}
+
+function invalidPayload(error: z.ZodError) {
+	return NextResponse.json(
+		{
+			error: 'Invalid payload',
+			details: error.flatten()
+		},
+		{ status: 400 }
+	)
 }
 
 function serializeTask(row: typeof tasks.$inferSelect) {
@@ -122,6 +134,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 		const db = getDatabase()
 		const { taskId } = await context.params
 		const body = await request.json()
+		const parsed = TaskUpdateSchema.safeParse(body)
+		if (!parsed.success) return invalidPayload(parsed.error)
+		const payload = parsed.data
 
 		const updateData: Partial<{
 			content: string
@@ -133,17 +148,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 			updatedAt: Date.now()
 		}
 
-		if (typeof body.content === 'string') {
-			updateData.content = body.content
+		if (typeof payload.content === 'string') {
+			updateData.content = payload.content
 		}
-		if (body.description !== undefined) {
-			updateData.description = body.description
+		if (payload.description !== undefined) {
+			updateData.description = payload.description
 		}
-		if (typeof body.checked === 'number' || typeof body.checked === 'boolean') {
-			updateData.checked = body.checked ? 1 : 0
+		if (typeof payload.checked === 'number' || typeof payload.checked === 'boolean') {
+			updateData.checked = payload.checked ? 1 : 0
 		}
-		if (body.dueDate !== undefined) {
-			updateData.dueDate = body.dueDate
+		if (payload.dueDate !== undefined) {
+			updateData.dueDate = payload.dueDate
 		}
 
 		const result = await db

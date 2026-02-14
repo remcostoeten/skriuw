@@ -1,7 +1,7 @@
 import { auth } from './auth'
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { GUEST_USER_ID } from '@skriuw/shared'
+import { GUEST_USER_ID as SHARED_GUEST_USER_ID } from '@skriuw/shared'
 
 /**
  * Session result from Better Auth
@@ -187,6 +187,8 @@ export function evaluateAuthGuard(result: AuthResult | AuthError): result is Aut
 // ============================================================================
 // GUEST USER SUPPORT
 // ============================================================================
+
+export const GUEST_USER_ID = SHARED_GUEST_USER_ID
 
 // ============================================================================
 // PERMISSION HELPERS

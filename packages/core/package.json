@@ -1,0 +1,31 @@
+﻿{
+  "name": "@skriuw/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared core schemas, types, and business rules for Skriuw",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@skriuw/config": "workspace:*",
+    "tsup": "latest",
+    "typescript": "latest"
+  }
+}

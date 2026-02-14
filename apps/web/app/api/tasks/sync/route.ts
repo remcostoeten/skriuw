@@ -1,13 +1,25 @@
 import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import { requireMutation } from '@/lib/api-auth'
+import { TaskSyncPayloadSchema } from '@skriuw/core'
 import { getDatabase, notes, tasks } from '@skriuw/db'
 import { generateId } from '@skriuw/shared'
 import { and, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 type SyncPayload = {
 	noteId: string
 	tasks: ExtractedTask[]
+}
+
+function invalidPayload(error: z.ZodError) {
+	return NextResponse.json(
+		{
+			error: 'Invalid payload',
+			details: error.flatten()
+		},
+		{ status: 400 }
+	)
 }
 
 export async function POST(request: NextRequest) {
@@ -17,16 +29,18 @@ export async function POST(request: NextRequest) {
 		const { userId } = auth
 
 		const body: SyncPayload = await request.json()
-		if (!body.noteId) return NextResponse.json({ error: 'noteId is required' }, { status: 400 })
+		const parsed = TaskSyncPayloadSchema.safeParse(body)
+		if (!parsed.success) return invalidPayload(parsed.error)
+		const payload = parsed.data
 
-		const incoming = Array.isArray(body.tasks) ? body.tasks : []
+		const incoming = payload.tasks
 		const db = getDatabase()
 
 		// Note must belong to the current user.
 		const noteResult = await db
 			.select({ id: notes.id })
 			.from(notes)
-			.where(and(eq(notes.id, body.noteId), eq(notes.userId, userId)))
+			.where(and(eq(notes.id, payload.noteId), eq(notes.userId, userId)))
 			.limit(1)
 
 		if (noteResult.length === 0) {
@@ -36,7 +50,7 @@ export async function POST(request: NextRequest) {
 		const existing = await db
 			.select()
 			.from(tasks)
-			.where(and(eq(tasks.noteId, body.noteId), eq(tasks.userId, userId)))
+			.where(and(eq(tasks.noteId, payload.noteId), eq(tasks.userId, userId)))
 
 		const existingByBlockId = new Map(existing.map((t) => [t.blockId, t]))
 		const taskIdByBlockId = new Map(existing.map((t) => [t.blockId, t.id]))
@@ -45,7 +59,7 @@ export async function POST(request: NextRequest) {
 		// Ensure each incoming block has a stable task id before resolving parent links.
 		for (const task of incoming) {
 			if (!taskIdByBlockId.has(task.blockId)) {
-				taskIdByBlockId.set(task.blockId, generateId(`${body.noteId}-${task.blockId}-`))
+				taskIdByBlockId.set(task.blockId, generateId(`${payload.noteId}-${task.blockId}-`))
 			}
 		}
 
@@ -57,7 +71,7 @@ export async function POST(request: NextRequest) {
 
 			return {
 				id,
-				noteId: body.noteId,
+				noteId: payload.noteId,
 				blockId: task.blockId,
 				content: task.content,
 				description: current?.description ?? null,
@@ -72,7 +86,9 @@ export async function POST(request: NextRequest) {
 		})
 
 		// Replace note-scoped task rows atomically enough for current usage.
-		await db.delete(tasks).where(and(eq(tasks.noteId, body.noteId), eq(tasks.userId, userId)))
+		await db
+			.delete(tasks)
+			.where(and(eq(tasks.noteId, payload.noteId), eq(tasks.userId, userId)))
 		if (rows.length > 0) {
 			await db.insert(tasks).values(rows)
 		}

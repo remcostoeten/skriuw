@@ -610,28 +610,28 @@
                 id: 'p2', title: 'Phase 2 — Shared Core Package', desc: 'Create @skriuw/core with Zod schemas, shared types, and business rules that all platforms will use.', badge: 'info', groups: [
                     {
                         title: 'Create @skriuw/core Package', tasks: [
-                            { id: 'p2-1', t: 'Create packages/core/ directory with package.json, tsconfig.json, tsup.config.ts', tags: ['file:packages/core/package.json', 'branch:feat/core-package'] },
-                            { id: 'p2-2', t: 'Create packages/core/src/schemas/notes.ts — Zod schemas for CreateNote, UpdateNote, NoteResponse', tags: ['file:packages/core/src/schemas/notes.ts'] },
-                            { id: 'p2-3', t: 'Create packages/core/src/schemas/settings.ts — Zod schema for settings upsert', tags: ['file:packages/core/src/schemas/settings.ts'] },
-                            { id: 'p2-4', t: 'Create packages/core/src/schemas/tasks.ts — Zod schemas for Task CRUD + sync payload', tags: ['file:packages/core/src/schemas/tasks.ts'] },
-                            { id: 'p2-5', t: 'Create packages/core/src/schemas/shortcuts.ts — schema for shortcut create/update', tags: ['file:packages/core/src/schemas/shortcuts.ts'] },
-                            { id: 'p2-6', t: 'Create packages/core/src/schemas/ai.ts — schemas for AI config, prompt, usage', tags: ['file:packages/core/src/schemas/ai.ts'] },
-                            { id: 'p2-7', t: 'Create packages/core/src/schemas/import.ts — schema for import payload', tags: ['file:packages/core/src/schemas/import.ts'] },
-                            { id: 'p2-8', t: 'Create packages/core/src/types/ — shared TypeScript interfaces (Note, Task, etc.)', tags: ['file:packages/core/src/types/'] },
-                            { id: 'p2-9', t: 'Create packages/core/src/rules/ — business rules (e.g. MAX_NOTE_SIZE, RATE_LIMITS)', tags: ['file:packages/core/src/rules/'] },
-                            { id: 'p2-10', t: 'Add @skriuw/core to apps/web/package.json dependencies', tags: [] },
-                            { id: 'p2-11', t: 'Write unit tests for all Zod schemas (valid + invalid payloads)', tags: ['test'] },
+                            { id: 'p2-1', done: true, t: 'Create packages/core/ directory with package.json, tsconfig.json, tsup.config.ts', tags: ['file:packages/core/package.json', 'branch:feat/core-package'], note: 'Completed 2026-02-14 on feature/p2-core-orchestration' },
+                            { id: 'p2-2', done: true, t: 'Create packages/core/src/schemas/notes.ts - Zod schemas for CreateNote, UpdateNote, NoteResponse', tags: ['file:packages/core/src/schemas/notes.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-3', done: true, t: 'Create packages/core/src/schemas/settings.ts - Zod schema for settings upsert', tags: ['file:packages/core/src/schemas/settings.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-4', done: true, t: 'Create packages/core/src/schemas/tasks.ts - Zod schemas for Task CRUD + sync payload', tags: ['file:packages/core/src/schemas/tasks.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-5', done: true, t: 'Create packages/core/src/schemas/shortcuts.ts - schema for shortcut create/update', tags: ['file:packages/core/src/schemas/shortcuts.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-6', done: true, t: 'Create packages/core/src/schemas/ai.ts - schemas for AI config, prompt, usage', tags: ['file:packages/core/src/schemas/ai.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-7', done: true, t: 'Create packages/core/src/schemas/import.ts - schema for import payload', tags: ['file:packages/core/src/schemas/import.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-8', done: true, t: 'Create packages/core/src/types/ - shared TypeScript interfaces (Note, Task, etc.)', tags: ['file:packages/core/src/types/'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-9', done: true, t: 'Create packages/core/src/rules/ - business rules (e.g. MAX_NOTE_SIZE, RATE_LIMITS)', tags: ['file:packages/core/src/rules/'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-10', done: true, t: 'Add @skriuw/core to apps/web/package.json dependencies', tags: [], note: 'Completed 2026-02-14' },
+                            { id: 'p2-11', done: true, t: 'Write unit tests for all Zod schemas (valid + invalid payloads)', tags: ['test'], note: 'Completed 2026-02-14: packages/core schema tests passing' },
                         ]
                     },
                     {
                         title: 'Integrate Validation into API Routes', tasks: [
-                            { id: 'p2-12', t: 'Add Zod validation to POST /api/notes using NoteCreateSchema', tags: ['file:app/api/notes/route.ts'] },
-                            { id: 'p2-13', t: 'Add Zod validation to PUT /api/notes using NoteUpdateSchema', tags: ['file:app/api/notes/route.ts'] },
-                            { id: 'p2-14', t: 'Add Zod validation to POST /api/settings', tags: ['file:app/api/settings/route.ts'] },
-                            { id: 'p2-15', t: 'Add Zod validation to all task routes', tags: ['file:app/api/tasks/'] },
-                            { id: 'p2-16', t: 'Add Zod validation to AI config POST/PATCH', tags: ['file:app/api/ai/config/route.ts'] },
-                            { id: 'p2-17', t: 'Add Zod validation to POST /api/import (after auth fix)', tags: ['file:app/api/import/route.ts'] },
-                            { id: 'p2-18', t: 'Write integration tests: invalid payloads return 400 with Zod error messages', tags: ['test'] },
+                            { id: 'p2-12', done: true, t: 'Add Zod validation to POST /api/notes using NoteCreateSchema', tags: ['file:app/api/notes/route.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-13', done: true, t: 'Add Zod validation to PUT /api/notes using NoteUpdateSchema', tags: ['file:app/api/notes/route.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-14', done: true, t: 'Add Zod validation to POST /api/settings', tags: ['file:app/api/settings/route.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-15', done: true, t: 'Add Zod validation to all task routes', tags: ['file:app/api/tasks/'], note: 'Completed 2026-02-14 for task mutation endpoints (sync + item patch)' },
+                            { id: 'p2-16', done: true, t: 'Add Zod validation to AI config POST/PATCH', tags: ['file:app/api/ai/config/route.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-17', done: true, t: 'Add Zod validation to POST /api/import (after auth fix)', tags: ['file:app/api/import/route.ts'], note: 'Completed 2026-02-14' },
+                            { id: 'p2-18', done: true, t: 'Write integration tests: invalid payloads return 400 with Zod error messages', tags: ['test'], note: 'Completed 2026-02-14: validation payload API tests passing' },
                         ]
                     },
                     {

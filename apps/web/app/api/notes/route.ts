@@ -1,7 +1,19 @@
 import { requireMutation, allowReadAccess, GUEST_USER_ID } from '../../../lib/api-auth'
 import { db } from '../../../lib/storage/adapters/server-db'
 import type { Item, Note, Folder } from '@/features/notes/types/index'
+import { CreateNoteSchema, UpdateNoteSchema } from '@skriuw/core'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+function invalidPayload(error: z.ZodError) {
+	return NextResponse.json(
+		{
+			error: 'Invalid payload',
+			details: error.flatten()
+		},
+		{ status: 400 }
+	)
+}
 
 function createPublicId() {
 	return `pub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -90,14 +102,16 @@ export async function POST(request: NextRequest) {
 		const { userId } = auth
 
 		const body = await request.json()
-		if (!body.name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+		const parsed = CreateNoteSchema.safeParse(body)
+		if (!parsed.success) return invalidPayload(parsed.error)
+		const payload = parsed.data
 
 		const now = Date.now()
-		const type = body.type === 'folder' ? 'folder' : 'note'
+		const type = payload.type === 'folder' ? 'folder' : 'note'
 		const table = type === 'folder' ? 'folders' : 'notes'
 
 		const data = {
-			...body,
+			...payload,
 			type,
 			createdAt: now,
 			updatedAt: now
@@ -120,8 +134,9 @@ export async function PUT(request: NextRequest) {
 		const { userId } = auth
 
 		const body = await request.json()
-		const { id, ...updates } = body
-		if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+		const parsed = UpdateNoteSchema.safeParse(body)
+		if (!parsed.success) return invalidPayload(parsed.error)
+		const { id, ...updates } = parsed.data
 
 		updates.updatedAt = Date.now()
 

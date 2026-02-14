@@ -28,6 +28,7 @@
 		"@monaco-editor/react": "^4.7.0",
 		"@number-flow/react": "^0.5.11",
 		"@serwist/next": "^9.4.2",
+		"@skriuw/core": "workspace:*",
 		"@skriuw/crud": "workspace:*",
 		"@skriuw/db": "workspace:*",
 		"@skriuw/shared": "workspace:*",

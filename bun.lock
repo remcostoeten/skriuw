@@ -33,6 +33,7 @@
         "@monaco-editor/react": "^4.7.0",
         "@number-flow/react": "^0.5.11",
         "@serwist/next": "^9.4.2",
+        "@skriuw/core": "workspace:*",
         "@skriuw/crud": "workspace:*",
         "@skriuw/db": "workspace:*",
         "@skriuw/shared": "workspace:*",
@@ -105,6 +106,18 @@
         "eslint-plugin-react": "^7.33.2",
         "eslint-plugin-react-hooks": "^4.6.0",
         "typescript": "^5.0.0",
+      },
+    },
+    "packages/core": {
+      "name": "@skriuw/core",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^3.22.0",
+      },
+      "devDependencies": {
+        "@skriuw/config": "workspace:*",
+        "tsup": "latest",
+        "typescript": "latest",
       },
     },
     "packages/crud": {
@@ -924,6 +937,8 @@
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
 
     "@skriuw/config": ["@skriuw/config@workspace:packages/config"],
+
+    "@skriuw/core": ["@skriuw/core@workspace:packages/core"],
 
     "@skriuw/crud": ["@skriuw/crud@workspace:packages/crud"],
 
