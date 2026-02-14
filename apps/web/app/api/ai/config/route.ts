@@ -1,7 +1,19 @@
 import { requireAuth } from '@/lib/api-auth'
+import { AIConfigCreateSchema, AIConfigPatchSchema } from '@skriuw/core'
 import { getDatabase, aiProviderConfig, eq, and } from '@skriuw/db'
 import { NextResponse } from 'next/server'
 import { encryptPrompt, decryptPrompt } from '@/features/ai/utilities'
+import { z } from 'zod'
+
+function invalidPayload(error: z.ZodError) {
+	return NextResponse.json(
+		{
+			error: 'Invalid payload',
+			details: error.flatten()
+		},
+		{ status: 400 }
+	)
+}
 
 export async function GET() {
 	const auth = await requireAuth()
@@ -37,11 +49,9 @@ export async function POST(request: Request) {
 	const { userId } = auth
 
 	const body = await request.json()
-	const { provider, model, basePrompt, temperature = 70 } = body
-
-	if (!provider || !model) {
-		return NextResponse.json({ error: 'Provider and model are required' }, { status: 400 })
-	}
+	const parsed = AIConfigCreateSchema.safeParse(body)
+	if (!parsed.success) return invalidPayload(parsed.error)
+	const { provider, model, basePrompt, temperature } = parsed.data
 
 	const now = Date.now()
 	const db = getDatabase()
@@ -98,13 +108,16 @@ export async function PATCH(request: Request) {
 	const { userId } = auth
 
 	const body = await request.json()
+	const parsed = AIConfigPatchSchema.safeParse(body)
+	if (!parsed.success) return invalidPayload(parsed.error)
+	const payload = parsed.data
 	const updates: Record<string, unknown> = { updatedAt: Date.now() }
 
-	if (body.provider !== undefined) updates.provider = body.provider
-	if (body.model !== undefined) updates.model = body.model
-	if (body.temperature !== undefined) updates.temperature = body.temperature
-	if (body.basePrompt !== undefined) {
-		updates.basePrompt = body.basePrompt ? encryptPrompt(body.basePrompt) : null
+	if (payload.provider !== undefined) updates.provider = payload.provider
+	if (payload.model !== undefined) updates.model = payload.model
+	if (payload.temperature !== undefined) updates.temperature = payload.temperature
+	if (payload.basePrompt !== undefined) {
+		updates.basePrompt = payload.basePrompt ? encryptPrompt(payload.basePrompt) : null
 	}
 
 	const db = getDatabase()
@@ -120,15 +133,15 @@ export async function PATCH(request: Request) {
 
 	await db.update(aiProviderConfig).set(updates).where(eq(aiProviderConfig.id, configs[0].id))
 
-	const updatedConfig = { ...configs[0], ...body }
+	const updatedConfig = { ...configs[0], ...payload }
 
 	return NextResponse.json({
 		id: updatedConfig.id,
 		provider: updatedConfig.provider,
 		model: updatedConfig.model,
 		basePrompt:
-			body.basePrompt !== undefined
-				? body.basePrompt
+			payload.basePrompt !== undefined
+				? payload.basePrompt
 				: configs[0].basePrompt
 					? decryptPrompt(configs[0].basePrompt)
 					: null,

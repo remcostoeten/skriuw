@@ -1,33 +1,8 @@
 import { getDatabase, notes, folders, getSafeTimestamp } from '@skriuw/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireMutation } from '@/lib/api-auth'
-import { z } from 'zod'
+import { ImportPayloadSchema, type ImportItem } from '@skriuw/core'
 import { sql } from 'drizzle-orm'
-
-// Define validation schemas
-const BaseItemSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	pinned: z.any().optional(),
-	pinnedAt: z.number().nullable().optional(),
-	createdAt: z.number().optional(),
-	updatedAt: z.number().optional(),
-	parentFolderId: z.string().nullable().optional()
-})
-
-// Recursive schema definition using z.lazy
-const ItemSchema: z.ZodType<any> = BaseItemSchema.extend({
-	type: z.enum(['folder', 'note']),
-	content: z.any().optional(),
-	favorite: z.any().optional(),
-	children: z.lazy(() => z.array(ItemSchema).optional())
-})
-
-const ImportPayloadSchema = z.object({
-	items: z.array(ItemSchema)
-})
-
-type ImportItem = z.infer<typeof ItemSchema>
 
 export async function POST(request: NextRequest) {
 	try {
@@ -58,7 +33,7 @@ export async function POST(request: NextRequest) {
 		const result = ImportPayloadSchema.safeParse(body)
 		if (!result.success) {
 			return NextResponse.json(
-				{ error: 'Invalid payload', details: result.error.format() },
+				{ error: 'Invalid payload', details: result.error.flatten() },
 				{ status: 400 }
 			)
 		}

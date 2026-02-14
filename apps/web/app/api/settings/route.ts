@@ -4,8 +4,10 @@ import {
 	decryptConnectorStates,
 	encryptConnectorStates
 } from '@/features/backup/core/connector-secrets'
+import { SettingsUpsertSchema } from '@skriuw/core'
 import { getSafeTimestamp } from '@skriuw/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 type SettingsRecord = {
 	id: string
@@ -21,6 +23,16 @@ type SettingsRecord = {
  */
 function getSettingsKey(userId: string): string {
 	return `settings-${userId}`
+}
+
+function invalidPayload(error: z.ZodError) {
+	return NextResponse.json(
+		{
+			error: 'Invalid payload',
+			details: error.flatten()
+		},
+		{ status: 400 }
+	)
 }
 
 export async function GET() {
@@ -66,10 +78,12 @@ export async function POST(request: NextRequest) {
 
 		const settingsKey = getSettingsKey(userId)
 		const body = await request.json()
+		const parsed = SettingsUpsertSchema.safeParse(body)
+		if (!parsed.success) return invalidPayload(parsed.error)
 		const now = getSafeTimestamp()
 
 		// Encrypt storage connectors before persistence
-		const rawSettings = body?.settings ?? {}
+		const rawSettings = parsed.data.settings
 		const encryptedSettings = {
 			...rawSettings,
 			storageConnectors: rawSettings.storageConnectors
