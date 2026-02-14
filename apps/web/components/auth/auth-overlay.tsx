@@ -142,7 +142,10 @@ export function AuthOverlay({ isOpen, onClose, onSuccess, allowClose = true }: P
 					transition={{ duration: 0.3 }}
 					style={styles.overlay}
 				>
-					<div style={styles.backdrop} onClick={allowClose && onClose ? onClose : undefined} />
+					<div
+						style={styles.backdrop}
+						onClick={allowClose && onClose ? onClose : undefined}
+					/>
 
 					<motion.div
 						initial={{ y: '100%' }}
@@ -198,4 +201,3 @@ export function AuthOverlay({ isOpen, onClose, onSuccess, allowClose = true }: P
 		</AnimatePresence>
 	)
 }
-

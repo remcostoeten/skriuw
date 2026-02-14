@@ -516,7 +516,9 @@ export function LoginForm({
 						<>
 							<div style={ghostInputStyle} aria-hidden='true'>
 								<span style={{ opacity: 0 }}>{email}</span>
-								<span style={{ opacity: 0.5 }}>{emailSuggestion.slice(email.length)}</span>
+								<span style={{ opacity: 0.5 }}>
+									{emailSuggestion.slice(email.length)}
+								</span>
 							</div>
 							<div
 								style={{
@@ -673,7 +675,9 @@ export function LoginForm({
 					}}
 					style={styles.toggleButton}
 				>
-					{isRegisterMode ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+					{isRegisterMode
+						? 'Already have an account? Sign in'
+						: "Don't have an account? Register"}
 				</button>
 			</form>
 
@@ -686,13 +690,19 @@ export function LoginForm({
 					lineHeight: '1.5'
 				}}
 			>
-				By clicking &quot;Get Started&quot; (or signing in), you acknowledge that you have read and
-				understood, and agree to Skriuw&apos;s{' '}
-				<Link href='/terms' style={{ textDecoration: 'underline', color: 'var(--foreground)' }}>
+				By clicking &quot;Get Started&quot; (or signing in), you acknowledge that you have
+				read and understood, and agree to Skriuw&apos;s{' '}
+				<Link
+					href='/terms'
+					style={{ textDecoration: 'underline', color: 'var(--foreground)' }}
+				>
 					Terms &amp; Conditions
 				</Link>{' '}
 				and{' '}
-				<Link href='/privacy' style={{ textDecoration: 'underline', color: 'var(--foreground)' }}>
+				<Link
+					href='/privacy'
+					style={{ textDecoration: 'underline', color: 'var(--foreground)' }}
+				>
 					Privacy Policy
 				</Link>
 				.
@@ -700,4 +710,3 @@ export function LoginForm({
 		</div>
 	)
 }
-
