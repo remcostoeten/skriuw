@@ -585,7 +585,7 @@
                             { id: 'p1-13', done: true, t: 'Replace direct auth.api.getSession() in app/api/ai/prompt/route.ts with requireAuth()', tags: ['security', 'file:app/api/ai/prompt/route.ts'], note: 'Completed 2026-02-14 (worker + main review)' },
                             { id: 'p1-14', done: true, t: 'Replace direct auth.api.getSession() in app/api/ai/config/route.ts with requireAuth()', tags: ['security', 'file:app/api/ai/config/route.ts'], note: 'Completed 2026-02-14 (worker + main review)' },
                             { id: 'p1-15', done: true, t: 'Replace direct auth.api.getSession() in app/api/ai/usage/route.ts with requireAuth()', tags: ['security', 'file:app/api/ai/usage/route.ts'], note: 'Completed 2026-02-14 (worker + main review)' },
-                            { id: 'p1-16', t: 'Verify all 3 AI routes now use the shared auth pattern - run existing tests', tags: ['test'], note: 'Blocked 2026-02-14 in local env: app test setup cannot resolve jsdom path in workspace layout' },
+                            { id: 'p1-16', done: true, t: 'Verify all 3 AI routes now use the shared auth pattern - run existing tests', tags: ['test'], note: 'Completed 2026-02-14: __tests__/api/ai-auth-routes.test.ts passing in WSL bun runtime' },
                         ]
                     },
                     {
