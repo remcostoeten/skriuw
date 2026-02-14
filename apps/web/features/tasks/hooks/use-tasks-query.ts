@@ -3,6 +3,7 @@ import type { ExtractedTask } from '@/features/notes/utils/extract-tasks'
 import { useSession } from '@/lib/auth-client'
 import { STORAGE_KEYS } from '@/lib/storage-keys'
 import { readMany, create, update, destroy, batchCreate, batchDestroy } from '@skriuw/crud'
+import { generateId } from '@skriuw/shared'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const tasksKeys = {
@@ -121,7 +122,9 @@ export function useTaskByIdQuery(taskId: string | null) {
 				// Let's use readMany and find? Or just implement readOne properly in crud wrapper if needed.
 				// Actually client-api adapter supports readOne.
 				const result = await readMany<Task>(STORAGE_KEYS.TASKS, { userId })
-				const task = (result.data as Task[] | undefined)?.find((t) => t.id === taskId)
+				const task = (result.data as Task[] | undefined)?.find(
+					(t) => t.id === taskId || t.blockId === taskId
+				)
 				if (!task) return null
 				return { ...task, noteName: null, userId }
 			}
@@ -265,6 +268,7 @@ export function useSyncTasksMutation() {
 			if (isGuest(userId)) {
 				// 1. Get existing tasks for this note
 				const existing = await getTasksForNoteLocal(noteId, userId)
+				const taskIdByBlockId = new Map(existing.map((t) => [t.blockId, t.id]))
 
 				// 2. Map extracted tasks to Task objects
 				const now = Date.now()
@@ -272,16 +276,20 @@ export function useSyncTasksMutation() {
 					// Try to find existing task to keep ID stable if possible?
 					// The extracted task has blockId. We should match on blockId.
 					const match = existing.find((e) => e.blockId === t.blockId)
+					const id = match?.id ?? generateId(`${noteId}-${t.blockId}-`)
+					taskIdByBlockId.set(t.blockId, id)
+					const mappedParentId = t.parentTaskId ? taskIdByBlockId.get(t.parentTaskId) : null
+					const resolvedParentTaskId = mappedParentId ?? t.parentTaskId ?? null
 
 					return {
-						id: match?.id, // Let create/batchCreate handle ID generation if missing
+						id,
 						noteId,
 						userId,
 						blockId: t.blockId,
 						content: t.content,
 						checked: t.checked ? 1 : 0,
 						position: t.position,
-						parentTaskId: t.parentTaskId,
+						parentTaskId: resolvedParentTaskId,
 						description: null, // extracted tasks might not have description yet
 						updatedAt: now,
 						createdAt: match?.createdAt || now

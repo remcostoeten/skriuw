@@ -60,7 +60,10 @@ export const taskBlockSpec = createReactBlockSpec(
 					{/* Middle: Content & Metadata */}
 					<div className='flex-1 min-w-0 flex flex-col gap-0.5'>
 						{/* Content Area */}
-						<div className='w-full text-base' ref={contentRef} />
+						<div
+							className={`w-full text-base ${checked ? 'line-through text-muted-foreground/70' : ''}`}
+							ref={contentRef}
+						/>
 
 						{/* Metadata Row */}
 						{hasSubtasks && (
@@ -101,7 +104,12 @@ export const taskBlockSpec = createReactBlockSpec(
 						onClick={(e) => {
 							e.stopPropagation()
 							e.preventDefault()
-							useUIStore.getState().openTaskPanel(block.id)
+							const state = useUIStore.getState()
+							if (state.taskStack.length > 0) {
+								state.pushTask(block.id)
+								return
+							}
+							state.openTaskPanel(block.id)
 						}}
 						className='shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground'
 						title='Open task details'
