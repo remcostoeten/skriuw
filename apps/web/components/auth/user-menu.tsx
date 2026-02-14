@@ -1,6 +1,7 @@
 'use client'
 
 import { useSession, signOut } from '@/lib/auth-client'
+import { useAuthModal } from './auth-modal-context'
 import { Button } from '@skriuw/ui/button'
 import {
 	DropdownMenu,
@@ -15,6 +16,7 @@ import Link from 'next/link'
 
 export function UserMenu() {
 	const { data: session, isPending } = useSession()
+	const { openAuthModal } = useAuthModal()
 
 	if (isPending) {
 		return <div className='h-7 w-7 animate-pulse rounded-full bg-muted' />
@@ -23,11 +25,11 @@ export function UserMenu() {
 	if (!session || (session.user as any).isAnonymous) {
 		return (
 			<Button
-				asChild
 				variant='ghost'
 				className='text-muted-foreground hover:text-foreground hover:bg-muted/60'
+				onClick={() => openAuthModal()}
 			>
-				<Link href='/login'>Sign In</Link>
+				Sign In
 			</Button>
 		)
 	}

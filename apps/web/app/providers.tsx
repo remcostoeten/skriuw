@@ -1,6 +1,8 @@
 'use client'
 
 import { CommandExecutor } from '../components/command-executor'
+import { AuthModal } from '../components/auth/auth-modal'
+import { AuthModalProvider } from '../components/auth/auth-modal-context'
 import { AppLayoutManager } from '../components/layout/app-layout-manager'
 import { EditorTabsProvider } from '../features/editor/tabs'
 import { SettingsProvider } from '../features/settings'
@@ -53,18 +55,21 @@ export function Providers({ children }: props) {
 		<QueryClientProvider client={queryClient}>
 			<TooltipProvider delayDuration={0}>
 				<StorageInitializer>
-					<SettingsProvider>
-						<NotesProvider>
-							<ShortcutProvider>
-								<ContextMenuProvider>
-									<EditorTabsProvider>
-										<AppLayoutManager>{children}</AppLayoutManager>
-									</EditorTabsProvider>
-								</ContextMenuProvider>
-								<CommandExecutor />
-							</ShortcutProvider>
-						</NotesProvider>
-					</SettingsProvider>
+					<AuthModalProvider>
+						<SettingsProvider>
+							<NotesProvider>
+								<ShortcutProvider>
+									<ContextMenuProvider>
+										<EditorTabsProvider>
+											<AppLayoutManager>{children}</AppLayoutManager>
+										</EditorTabsProvider>
+									</ContextMenuProvider>
+									<CommandExecutor />
+								</ShortcutProvider>
+							</NotesProvider>
+						</SettingsProvider>
+						<AuthModal />
+					</AuthModalProvider>
 				</StorageInitializer>
 				<Analytics />
 			</TooltipProvider>
