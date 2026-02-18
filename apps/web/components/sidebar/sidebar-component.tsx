@@ -16,6 +16,7 @@ import type { Folder as FolderType, Item } from '@/features/notes/types'
 import { blocksToText } from '@/features/notes/utils/blocks-to-text'
 import { findItemById, isDescendant } from '@/features/notes/utils/tree-helpers'
 import { useSettings } from '@/features/settings'
+import { notesKeys } from '@/features/notes/hooks/use-notes-query'
 import { useMutationGuard } from '@/hooks/use-mutation-guard'
 import type { Block } from '@blocknote/core'
 import { cn } from '@skriuw/shared'
@@ -47,6 +48,7 @@ import {
 	ChevronDown,
 	Folder
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 
@@ -204,6 +206,7 @@ function FileTreeItem({
 	level = 0,
 	activeNoteId,
 	expandedFolders,
+	// queryClient injected below via hook
 	selectedFolderId,
 	onToggleFolder,
 	onNavigateNote,
@@ -691,6 +694,17 @@ function FileTreeItem({
 	)
 
 	// Additional memoized handlers
+	const queryClient = useQueryClient()
+
+	// On hover, pre-populate the detail cache from the already-loaded list data.
+	// No network request needed — the item is already in the notes list cache.
+	// By the time the user clicks, the detail query is warm and navigation is instant.
+	const handleMouseEnterNote = useCallback(() => {
+		if (!isFolder) {
+			queryClient.setQueryData(notesKeys.detail(item.id), item)
+		}
+	}, [queryClient, item, isFolder])
+
 	const handleFolderIconMouseEnter = useCallback(() => {
 		setIsHovering(true)
 	}, [])
@@ -951,6 +965,7 @@ function FileTreeItem({
 							<button
 								type='button'
 								onClick={handleRowClick}
+								onMouseEnter={handleMouseEnterNote}
 								onTouchStart={handleTouchStart}
 								onTouchMove={handleTouchMove}
 								onTouchEnd={handleTouchEnd}
@@ -959,7 +974,8 @@ function FileTreeItem({
 									'font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent rounded-md px-3 text-xs active:scale-[98%] h-7 w-full fill-muted-foreground hover:fill-foreground transition-all flex items-center justify-between touch-manipulation relative',
 									isActive || isItemSelected
 										? 'bg-accent text-foreground'
-										: 'text-secondary-foreground/80 hover:text-foreground'
+										: 'text-secondary-foreground/80 hover:text-foreground',
+									item.pinned && 'border-l-2 border-brand-500'
 								)}
 								style={{
 									paddingLeft: `${0.75 + level * 0.75}rem`
@@ -1076,11 +1092,7 @@ function FileTreeItem({
 											data-item-name
 										>
 											<span className='truncate'>{item.name}</span>
-											{!isFolder && item.pinned && (
-												<span className='ml-auto pl-2 flex items-center'>
-													<Pin className='w-3 h-3 text-brand-500 fill-brand-500/20 shrink-0 transform rotate-45' />
-												</span>
-											)}
+
 										</span>
 									)}
 								</div>
