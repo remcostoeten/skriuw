@@ -4,13 +4,16 @@
 >
 > 🚨 **CRITICAL: PROJECT SOURCE OF TRUTH** 🚨
 > The active implementation plan, tasks, and architectural decisions are tracked in:
-> **`docs/audit-dashboard.html`**
+> **`docs/SPEC.md`** — full architecture reference, root cause analysis, and per-chapter fix plans
+> **`docs/AGENT_TASKS.md`** — discrete, numbered tasks ready to execute individually
 >
 > **ALL AGENTS MUST:**
-> 1. Read `docs/audit-dashboard.html` at the start of every session.
-> 2. Work ONLY on tasks marked as "Open" in the dashboard.
-> 3. Update the dashboard (via IndexedDB logic or file edit if persistent changes are needed) to reflect progress.
-> 4. Respect the platform architecture defined in the "Strategy & Architecture" phase of the dashboard.
+> 1. Read `docs/SPEC.md` fully at the start of every session.
+> 2. Read `docs/AGENT_TASKS.md` to find available tasks.
+> 3. Work ONLY on tasks marked `[ ]` (Open) in `docs/AGENT_TASKS.md`.
+> 4. When a task is complete, update its status from `[ ]` to `[x]` in `docs/AGENT_TASKS.md`.
+> 5. Respect the UI preservation rules defined in `docs/SPEC.md` Section 4 — the visual design must not change.
+> 6. After every change: run `bun run check-types` and confirm zero new errors before marking a task done.
 
 ## 1. Core Principles
 

@@ -33,6 +33,8 @@ _test-app
 tmp/
 tmp/*
 docs/*
+!docs/SPEC.md
+!docs/AGENT_TASKS.md
 
 # Tauri
 src-tauri/target/
