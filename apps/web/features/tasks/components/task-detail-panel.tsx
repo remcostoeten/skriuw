@@ -13,7 +13,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@skriuw/shared'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X, MoreHorizontal, ChevronLeft } from 'lucide-react'
-import { useState, useCallback, memo, useEffect } from 'react'
+import { useState, useCallback, memo, useEffect, useRef } from 'react'
 
 type SingleTaskPanelProps = {
 	taskId: string
@@ -30,10 +30,48 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 	onClose,
 	onNavigateBack
 }: SingleTaskPanelProps) {
-	const { data: task, isLoading, error } = useTaskByIdQuery(taskId)
+	const { data: task, isLoading, error, refetch } = useTaskByIdQuery(taskId)
 	const updateTaskMutation = useUpdateTaskMutation()
 	const deleteTaskMutation = useDeleteTaskMutation()
 	const [description, setDescription] = useState('')
+	// Grace period: wait up to 2s before showing "not found".
+	// A task may have just been created via slash menu and the save is still in flight.
+	const [waitingForTask, setWaitingForTask] = useState(true)
+	const waitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+	const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+	// Reset grace period whenever we mount or taskId changes
+	useEffect(() => {
+		setWaitingForTask(true)
+		return () => {
+			if (waitTimerRef.current) clearTimeout(waitTimerRef.current)
+			if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+		}
+	}, [taskId])
+
+	// Once query settles: if task found, stop waiting immediately.
+	// If still not found, wait up to 2s and refetch at 500ms in case save is in flight.
+	useEffect(() => {
+		if (task) {
+			setWaitingForTask(false)
+			return
+		}
+		if (isLoading) return
+
+		// Task not found yet and query is idle — start the grace period
+		refetchTimerRef.current = setTimeout(() => {
+			refetch()
+		}, 500)
+
+		waitTimerRef.current = setTimeout(() => {
+			setWaitingForTask(false)
+		}, 2000)
+
+		return () => {
+			if (waitTimerRef.current) clearTimeout(waitTimerRef.current)
+			if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+		}
+	}, [task, isLoading, refetch])
 
 	useEffect(() => {
 		setDescription(task?.description ?? '')
@@ -108,9 +146,9 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 								<X className='w-4 h-4' />
 							</button>
 
-							{isLoading && (
-								<span className='text-xs text-muted-foreground/50'>Loading...</span>
-							)}
+							{(isLoading || waitingForTask) && !task && (
+									<span className='text-xs text-muted-foreground/50'>Loading...</span>
+								)}
 
 							<div className='flex items-center gap-1'>
 								<button
@@ -141,16 +179,16 @@ const SingleTaskPanel = memo(function SingleTaskPanel({
 								Close panel
 							</button>
 						</div>
-					) : !task && !isLoading ? (
-						<div className='flex-1 flex flex-col items-center justify-center gap-3 p-6'>
-							<span className='text-sm text-muted-foreground'>Task not found</span>
-							<button
-								onClick={onClose}
-								className='text-xs text-muted-foreground hover:text-foreground underline'
-							>
-								Close panel
-							</button>
-						</div>
+					) : !task && !isLoading && !waitingForTask ? (
+							<div className='flex-1 flex flex-col items-center justify-center gap-3 p-6'>
+								<span className='text-sm text-muted-foreground'>Task not found</span>
+								<button
+									onClick={onClose}
+									className='text-xs text-muted-foreground hover:text-foreground underline'
+								>
+									Close panel
+								</button>
+							</div>
 					) : (
 						<>
 							<div className='flex items-start gap-3 px-4 py-4'>
