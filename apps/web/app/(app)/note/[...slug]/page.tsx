@@ -55,7 +55,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 			// This handles race conditions during navigation
 			timerRef.current = setTimeout(() => {
 				setShowNotFound(true)
-			}, 200)
+			}, 50)
 		}
 
 		return () => {
@@ -72,7 +72,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 
 	// We have a valid note - render it immediately
 	if (noteId) {
-		return <NoteSplitView noteId={noteId} />
+		return <NoteSplitView key={noteId} noteId={noteId} />
 	}
 
 	// Waiting for note resolution - show subtle skeleton
