@@ -12,7 +12,7 @@ import { EditorWrapper, EditorWrapperHandle } from './editor-wrapper'
 import { MobileFormattingBar } from './mobile-formatting-bar'
 import { EditorHeader } from './editor-header'
 import { BacklinksPanel } from './backlinks-panel'
-import { NoteFooterBar } from './note-footer-bar'
+
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import type { Folder, Item } from '@/features/notes/types'
@@ -45,7 +45,7 @@ export function NoteEditor({
 }: Props) {
 	const { data: session } = useSession()
 	const router = useRouter()
-	const { editor, note, isLoading, error, noteName, setNoteName } = useEditor({
+	const { editor, note, isLoading, error, noteName, setNoteName, immediatelySave } = useEditor({
 		noteId,
 		autoSave,
 		autoSaveDelay
@@ -69,24 +69,15 @@ export function NoteEditor({
 	const hasFocusedRef = useRef(false)
 	const [surfaceOpen, setSurfaceOpen] = useState(false)
 	const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
-	const [icon, setIcon] = useState<string | undefined>(note?.icon || undefined)
-	const [coverImage, setCoverImage] = useState<string | undefined>(note?.coverImage || undefined)
-	const [tags, setTags] = useState<string[]>(note?.tags || [])
+	// Derived directly from TanStack Query data — no local copy needed.
+	// The optimistic update in useUpdateNoteMutation keeps these fresh after mutations.
+	const icon = note?.icon ?? undefined
+	const coverImage = note?.coverImage ?? undefined
+	const tags = note?.tags ?? []
 
-	useEffect(() => {
-		if (note) {
-			// Only update if different to avoid potential loops/redundant renders,
-			// though React handles same-value updates well.
-			if (note.icon !== icon) setIcon(note.icon || undefined)
-			if (note.coverImage !== coverImage) setCoverImage(note.coverImage || undefined)
-			// tags comparison is harder, relying on ref/effect might be fine or just strict set
-			if (JSON.stringify(note.tags) !== JSON.stringify(tags)) setTags(note.tags || [])
-		}
-	}, [note])
 
 	const handleIconChange = useCallback(
 		(newIcon?: string) => {
-			setIcon(newIcon)
 			if (editor && note) {
 				updateNote(note.id, editor.document, undefined, newIcon)
 			}
@@ -96,7 +87,6 @@ export function NoteEditor({
 
 	const handleCoverImageChange = useCallback(
 		(newCover?: string) => {
-			setCoverImage(newCover)
 			if (note) {
 				updateNote(note.id, undefined, undefined, undefined, undefined, newCover)
 			}
@@ -123,7 +113,6 @@ export function NoteEditor({
 
 	const handleTagsChange = useCallback(
 		(newTags: string[]) => {
-			setTags(newTags)
 			if (editor && note) {
 				updateNote(note.id, editor.document, undefined, undefined, newTags)
 			}
@@ -158,6 +147,18 @@ export function NoteEditor({
 	useEffect(() => {
 		hasFocusedRef.current = false
 	}, [noteId])
+
+	// Listen for task blocks requesting an immediate save before opening the task panel.
+	// task-block.tsx dispatches this event so the task exists in the DB before the panel queries it.
+	useEffect(() => {
+		function handleSaveBeforeTaskOpen() {
+			immediatelySave()
+		}
+		window.addEventListener('skriuw:save-before-task-open', handleSaveBeforeTaskOpen)
+		return () => {
+			window.removeEventListener('skriuw:save-before-task-open', handleSaveBeforeTaskOpen)
+		}
+	}, [immediatelySave])
 
 	useEffect(() => {
 		if (editor && note && !hasFocusedRef.current) {
@@ -401,7 +402,6 @@ export function NoteEditor({
 									noteName={noteName}
 									className='border-t border-border/30'
 								/>
-								<NoteFooterBar editor={editor} />
 							</div>
 						}
 					/>

@@ -104,12 +104,23 @@ export const taskBlockSpec = createReactBlockSpec(
 						onClick={(e) => {
 							e.stopPropagation()
 							e.preventDefault()
-							const state = useUIStore.getState()
-							if (state.taskStack.length > 0) {
-								state.pushTask(block.id)
-								return
-							}
-							state.openTaskPanel(block.id)
+							// Signal the active NoteEditor to save immediately before the panel
+							// queries the DB. Without this, a brand-new task block may not exist
+							// in the DB yet when the panel tries to fetch it by blockId.
+							window.dispatchEvent(
+								new CustomEvent('skriuw:save-before-task-open', {
+									detail: { blockId: block.id }
+								})
+							)
+							// Small delay to allow the save to start before the panel opens
+							setTimeout(() => {
+								const state = useUIStore.getState()
+								if (state.taskStack.length > 0) {
+									state.pushTask(block.id)
+									return
+								}
+								state.openTaskPanel(block.id)
+							}, 150)
 						}}
 						className='shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground'
 						title='Open task details'

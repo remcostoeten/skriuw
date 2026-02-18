@@ -2,6 +2,7 @@
 
 import { useEditorConfig } from './useEditorConfig'
 import type { Note } from '@/features/notes'
+import { useNoteQuery } from '@/features/notes/hooks/use-notes-query'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { extractTags } from '@/features/notes/utils/extract-tags'
 import { useSettings } from '@/features/settings'
@@ -17,20 +18,14 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 function enforceSpellcheck(container: Element | null): MutationObserver | null {
 	if (!container) return null
 
-	// Find all contenteditable elements
 	const editableElements = container.querySelectorAll('[contenteditable="true"]')
-
 	editableElements.forEach((element) => {
-		// Force spellcheck to be enabled
 		element.setAttribute('spellcheck', 'true')
-
-		// Also force via property for browsers that respect it
 		if ('spellcheck' in element) {
-			; (element as any).spellcheck = true
+			;(element as any).spellcheck = true
 		}
 	})
 
-	// Also observe for dynamically created elements
 	const observer = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
 			mutation.addedNodes.forEach((node) => {
@@ -39,16 +34,14 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							; (element as any).spellcheck = true
+							;(element as any).spellcheck = true
 						}
 					}
-
-					// Also check nested elements
 					const nestedEditables = element.querySelectorAll('[contenteditable="true"]')
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							; (nested as any).spellcheck = true
+							;(nested as any).spellcheck = true
 						}
 					})
 				}
@@ -80,7 +73,24 @@ type props = {
 	isLoading: boolean
 	setNoteName: (name: string) => void
 	handleSave: () => void
+	immediatelySave: () => void
 	error: string | null
+}
+
+function getDefaultContent(): Block[] {
+	return [
+		{
+			id: '1',
+			type: 'paragraph',
+			props: {
+				backgroundColor: 'default',
+				textColor: 'default',
+				textAlignment: 'left'
+			},
+			content: [],
+			children: []
+		} as Block
+	]
 }
 
 export function useEditor({
@@ -89,19 +99,46 @@ export function useEditor({
 	autoSaveDelay = 1000,
 	readOnly = false
 }: options): props {
-	const { getNote, updateNote } = useNotesContext()
+	// --- SINGLE SOURCE OF TRUTH: TanStack Query ---
+	// No local useState<Note> — note data comes directly from the cache.
+	// The component is keyed by noteId externally, so this hook always mounts
+	// fresh for each note. useNoteQuery returns cached data synchronously when
+	// the note has been seen before, meaning isLoading is false immediately.
+	const {
+		data: noteData,
+		isLoading: isQueryLoading,
+		error: queryError
+	} = useNoteQuery(noteId)
+
+	const note = (noteData as Note | null | undefined) ?? null
+	const isLoading = isQueryLoading
+	const error = queryError
+		? queryError instanceof Error
+			? queryError.message
+			: 'Failed to load note'
+		: null
+
+	const { updateNote } = useNotesContext()
 	const { config: editorConfig } = useEditorConfig()
 	const { getSetting } = useSettings()
-	// Track if we've completed initial load for this noteId
-	const initialLoadAttemptedRef = useRef<string | null>(null)
-	const [note, setNote] = useState<Note | null>(null)
-	const [noteName, setNoteName] = useState('')
-	// Start with isLoading=false to avoid flash - we'll set it true only if truly needed
-	const [isLoading, setIsLoading] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined)
-	const hasInitializedRef = useRef(false)
+
+	// noteName is local UI state — it tracks what's shown in the title input.
+	// We reset it when the note id changes (handled by key= on the parent component)
+	// and sync it when the note data first loads.
+	const [noteName, setNoteName] = useState(note?.name ?? '')
+
+	// Sync noteName from query data when it first resolves (cold cache case)
+	useEffect(() => {
+		if (note?.name) {
+			setNoteName(note.name)
+		}
+	}, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+	// Intentionally only depend on note?.id — we don't want to overwrite
+	// in-progress title edits every time the query refreshes.
+
+	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const spellcheckObserverRef = useRef<MutationObserver | null>(null)
+
 	const hasSpellCheck = editorConfig.editorProps?.attributes?.spellcheck === 'true'
 	const titleInEditor = getSetting('titleInEditor') ?? false
 	const titlePlaceholder = getSetting('titlePlaceholder') ?? 'Untitled'
@@ -132,159 +169,55 @@ export function useEditor({
 		[titlePlaceholder]
 	)
 
-	useEffect(() => {
-		let isCancelled = false
-
-		const loadNote = async () => {
-			if (!noteId) {
-				if (!isCancelled) setIsLoading(false)
-				return
-			}
-
-			// Skip if we're already on the same note
-			if (note?.id === noteId) {
-				setIsLoading(false)
-				return
-			}
-
-			try {
-				setError(null)
-
-				// OPTIMIZATION (Issue 12): Check if data is already available synchronously
-				// If getNote returns data immediately, we skip setting isLoading to true
-				const noteData = await getNote(noteId)
-
-				if (isCancelled) return
-
-				if (noteData) {
-					setNote(noteData)
-					setNoteName(noteData.name)
-					// Critical: Ensure loading is false immediately if data exists
-					setIsLoading(false)
-				} else {
-					// Note not found in cache - might need to wait for data
-					// Only show loading if this is a fresh load attempt
-					if (initialLoadAttemptedRef.current !== noteId) {
-						initialLoadAttemptedRef.current = noteId
-						setIsLoading(true)
-						// Give React Query a moment to potentially load the data
-						await new Promise((resolve) => setTimeout(resolve, 50))
-						if (!isCancelled) {
-							const retryData = await getNote(noteId)
-							if (retryData) {
-								setNote(retryData)
-								setNoteName(retryData.name)
-								setIsLoading(false)
-							} else {
-								setError('Note not found')
-								setIsLoading(false)
-							}
-						}
-					} else {
-						setError('Note not found')
-						setIsLoading(false)
-					}
-				}
-			} catch (err) {
-				if (!isCancelled) {
-					setError(err instanceof Error ? err.message : 'Failed to load note')
-					setIsLoading(false)
-				}
-			}
-		}
-
-		loadNote()
-
-		return () => {
-			isCancelled = true
-		}
-	}, [noteId, getNote])
-
-	const getDefaultContent = (): Block[] => [
-		{
-			id: '1',
-			type: 'paragraph',
-			props: {
-				backgroundColor: 'default',
-				textColor: 'default',
-				textAlignment: 'left'
-			},
-			content: [],
-			children: []
-		} as Block
-	]
-
+	// initialContent is computed once per note (keyed by note?.id).
+	// Because the component is remounted via key={noteId} in the parent,
+	// useCreateBlockNote always receives the correct content for the current note.
+	// We do NOT re-derive this on every content change — the editor owns its
+	// content after mount. Depending on note?.id (not note?.content) prevents
+	// stale memo from causing replaceBlocks hacks.
 	const initialContent = useMemo(() => {
 		if (note?.content && note.content.length > 0) {
 			return note.content
 		}
 		return getDefaultContent()
-	}, [note?.content])
+	}, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
 		editorModuleSpec: {
-			// @ts-ignore
+			// @ts-ignore — not all BlockNote versions expose this in types
 			editable: !readOnly
 		},
 		// Some versions of BlockNote use this
 		_editable: !readOnly
 	})
 
-	// Force editable state update if it changes
+	// Keep editable state in sync if readOnly prop changes after mount
 	useEffect(() => {
 		if (editor) {
 			editor.isEditable = !readOnly
 		}
 	}, [editor, readOnly])
 
-	useEffect(() => {
-		if (!editor || !note || isLoading) return
-
-		if (!hasInitializedRef.current) {
-			const contentToLoad =
-				note.content && note.content.length > 0 ? note.content : getDefaultContent()
-
-			const currentContent = editor.document
-			const contentMatches = JSON.stringify(currentContent) === JSON.stringify(contentToLoad)
-
-			if (!contentMatches) {
-				// Defer replaceBlocks to avoid flushSync during React render
-				queueMicrotask(() => {
-					editor.replaceBlocks(editor.document, contentToLoad)
-				})
-			}
-			hasInitializedRef.current = true
-		}
-	}, [note, editor, isLoading]) // Removed readOnly from dependency to allow loading in readOnly mode
-
-	// ... spellcheck effect ... (keeping existing)
-
-	// Enforce spellcheck on editor elements
+	// Spellcheck enforcement
 	useEffect(() => {
 		if (!editor) return
 
-		// Wait for DOM to be ready, then enforce spellcheck
 		function enforceSpellcheckWithDelay() {
 			setTimeout(() => {
 				const editorElement = document.querySelector('.bn-editor')
 				if (editorElement && hasSpellCheck) {
-					// Clean up previous observer if exists
 					if (spellcheckObserverRef.current) {
 						spellcheckObserverRef.current.disconnect()
 					}
-
-					// Enforce spellcheck and set up new observer
 					spellcheckObserverRef.current = enforceSpellcheck(editorElement)
 				}
-			}, 100) // Small delay to ensure BlockNote has rendered
+			}, 100)
 		}
 
-		// Initial enforcement
 		enforceSpellcheckWithDelay()
 
-		// Also enforce when editor content changes
 		function handleContentChange() {
 			enforceSpellcheckWithDelay()
 		}
@@ -292,7 +225,6 @@ export function useEditor({
 		editor.onEditorContentChange(handleContentChange)
 
 		return () => {
-			// Clean up observer on unmount
 			if (spellcheckObserverRef.current) {
 				spellcheckObserverRef.current.disconnect()
 				spellcheckObserverRef.current = null
@@ -300,29 +232,40 @@ export function useEditor({
 		}
 	}, [editor, hasSpellCheck])
 
-	useEffect(() => {
-		hasInitializedRef.current = false
-	}, [noteId])
-
 	const syncTasks = useSyncTasksMutation()
 
 	const handleSave = useCallback(() => {
-		if (!editor || !noteId || readOnly) return // Added readOnly check
+		if (!editor || !noteId || readOnly) return
 
 		try {
 			const blocks = editor.document
 			const tags = extractTags(blocks)
-			// Fix for Issue 6: Extract and sync tasks
 			const tasks = extractTasksFromBlocks(blocks, noteId)
 			syncTasks.mutate({ noteId, tasks })
 
 			const derivedTitle = titleInEditor ? getTitleFromBlocks(blocks) : noteName
 			updateNote(noteId, blocks, derivedTitle, undefined, tags)
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to save note')
+			// handleSave errors are non-fatal — log only, don't surface to user
+			// unless we add a save-error indicator in the future
+			console.error('[useEditor] handleSave error:', err)
 		}
 	}, [editor, noteId, noteName, updateNote, readOnly, titleInEditor, getTitleFromBlocks, syncTasks])
 
+	// Immediate save — cancels any pending debounced save and fires synchronously.
+	// Used by task blocks that need content persisted before opening the task panel.
+	const immediatelySave = useCallback(() => {
+		if (!editor || !noteId || readOnly) return
+		if (saveTimeoutRef.current) {
+			clearTimeout(saveTimeoutRef.current)
+			saveTimeoutRef.current = undefined
+		}
+		handleSave()
+	}, [editor, noteId, readOnly, handleSave])
+
+	// Auto-save: debounced on every content change.
+	// Cleanup cancels the pending timeout on unmount or noteId change,
+	// preventing saves from firing after the component has been replaced.
 	useEffect(() => {
 		if (!editor || !noteId || isLoading || !autoSave || readOnly) return
 
@@ -344,8 +287,13 @@ export function useEditor({
 		editor.onEditorContentChange(handleChange)
 
 		return () => {
+			// CRITICAL: cancel pending debounced save on unmount or re-run.
+			// The save closure captures the correct noteId so even if it fired
+			// late it would save to the right note — but cancelling is cleaner
+			// and avoids any "update on unmounted component" warnings.
 			if (saveTimeoutRef.current) {
 				clearTimeout(saveTimeoutRef.current)
+				saveTimeoutRef.current = undefined
 			}
 		}
 	}, [
@@ -362,12 +310,13 @@ export function useEditor({
 	])
 
 	return {
-		editor: editor, // BlockNoteEditor | null
+		editor,
 		note,
 		noteName,
 		isLoading,
 		setNoteName,
 		handleSave,
+		immediatelySave,
 		error
 	}
 }

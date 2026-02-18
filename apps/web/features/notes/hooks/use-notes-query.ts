@@ -92,8 +92,10 @@ export function useNotesQuery() {
 			const allItems = Array.isArray(result.data) ? result.data : []
 			return filterActiveItems(allItems)
 		},
-		staleTime: isGuestUserId(userId) ? 0 : 60 * 1000,
-		refetchOnMount: isGuestUserId(userId) ? true : undefined
+		staleTime: isGuestUserId(userId) ? 0 : 5 * 60 * 1000,
+		refetchOnMount: isGuestUserId(userId) ? true : false,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: true,
 	})
 }
 
@@ -295,7 +297,7 @@ export function useUpdateNoteMutation() {
 			if (!result.success) throw new Error('Failed to update note')
 
 			// Sync tasks if content was updated (parity with update-note.ts)
-			if (content && Array.isArray(content)) {
+			if (content && Array.isArray(content) && !isGuestUserId(userId)) {
 				try {
 					const extractedTasks = extractTasksFromBlocks(content, id)
 					// Fire and forget - call /api/tasks/sync
@@ -303,7 +305,7 @@ export function useUpdateNoteMutation() {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ noteId: id, tasks: extractedTasks })
-					}).catch(() => {})
+					}).catch(() => { })
 				} catch (taskError) {
 					// Don't fail note update if task sync fails
 					console.error('Failed to sync tasks:', taskError)
@@ -345,9 +347,6 @@ export function useUpdateNoteMutation() {
 		onError: (err, newNote, context) => {
 			queryClient.setQueryData(notesKeys.list(userId), context?.previousNotes)
 		},
-		onSettled: () => {
-			queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
-		}
 	})
 }
 
