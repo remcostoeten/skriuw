@@ -25,7 +25,7 @@
 
 ### TASK-001 — Replace local useState in `use-editor.ts` with `useNoteQuery`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/features/editor/hooks/use-editor.ts`
@@ -83,7 +83,7 @@
 
 ### TASK-002 — Remove `hasInitializedRef` / `replaceBlocks` / `queueMicrotask` hack from `use-editor.ts`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-001 (must be complete first)
 
@@ -136,7 +136,7 @@ const initialContent = useMemo(() => {
 
 ### TASK-003 — Add `key={noteId}` to force clean editor remount on note change
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-001, TASK-002
 
@@ -180,7 +180,7 @@ Adding `key={noteId}` tells React to treat each note as a completely different c
 
 ### TASK-004 — Remove secondary `useState` for icon/coverImage/tags from `NoteEditor`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-001
 
@@ -252,7 +252,7 @@ Adding `key={noteId}` tells React to treat each note as a completely different c
 
 ### TASK-005 — Verify and harden auto-save cleanup on unmount
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/features/editor/hooks/use-editor.ts`
@@ -312,7 +312,7 @@ The auto-save debounce sets a 1000ms timeout on every keystroke. If the user nav
 
 ### TASK-006 — Remove `onSettled: invalidateQueries` from `useUpdateNoteMutation`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/features/notes/hooks/use-notes-query.ts`
@@ -354,7 +354,7 @@ The final shape of `useUpdateNoteMutation` should have:
 
 ### TASK-007 — Tune `staleTime` and disable `refetchOnWindowFocus` for notes list query
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/features/notes/hooks/use-notes-query.ts`
@@ -502,7 +502,7 @@ When a guest user signs in, their notes stored in `localStorage` under `GUEST_US
 
 ### TASK-010 — Add `immediatelySave` to `use-editor.ts`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-001, TASK-005
 
@@ -572,7 +572,7 @@ We need a way to trigger an immediate save (cancelling any pending debounced sav
 
 ### TASK-011 — Dispatch save event from task block before opening panel
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-010
 
@@ -786,7 +786,7 @@ The task sync route may have silent early returns (e.g. returning `200 OK` befor
 
 ### TASK-014 — Reduce `showNotFound` timer in note page to 50ms
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-001, TASK-002, TASK-003
 
@@ -821,7 +821,7 @@ timerRef.current = setTimeout(() => {
 
 ### TASK-015 — Add prefetch on sidebar note hover
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/components/sidebar/sidebar-component.tsx` (or the file that renders individual note items in the sidebar tree — search for where note items are mapped)
@@ -876,7 +876,7 @@ When a user clicks a note in the sidebar, there is a brief moment where the note
 
 ### TASK-016 — Sort pinned items to top of sidebar
 
-**Status:** `[ ]`
+**Status:** `[x]` — `sortItems` already implemented at line 1936 of `sidebar-component.tsx`. Verified it sorts pinned first, then by pinnedAt, then updatedAt, recursively. No changes needed.
 
 **File(s):**
 - `apps/web/components/sidebar/sidebar-component.tsx` (or the file that renders the sidebar tree — find where `items` is mapped)
@@ -934,7 +934,7 @@ Pinned items don't float to the top of the sidebar. They appear wherever they we
 
 ### TASK-017 — Replace pin icon with left-border accent on pinned items
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/components/sidebar/sidebar-component.tsx` (the file rendering individual sidebar items)
@@ -1360,23 +1360,23 @@ app.use(notesRoutes)
 
 | Task ID | Chapter | Description | Status | Depends On |
 |---|---|---|---|---|
-| TASK-001 | 1 — Editor | Replace local useState with useNoteQuery | `[ ]` | — |
-| TASK-002 | 1 — Editor | Remove replaceBlocks/queueMicrotask hack | `[ ]` | TASK-001 |
-| TASK-003 | 1 — Editor | Add key={noteId} for clean editor remount | `[ ]` | TASK-001, TASK-002 |
-| TASK-004 | 1 — Editor | Remove secondary useState in NoteEditor | `[ ]` | TASK-001 |
-| TASK-005 | 1 — Editor | Verify auto-save cleanup on unmount | `[ ]` | — |
-| TASK-006 | 2 — Cache | Remove onSettled invalidation from updateNote | `[ ]` | — |
-| TASK-007 | 2 — Cache | Tune staleTime and disable refetchOnWindowFocus | `[ ]` | — |
+| TASK-001 | 1 — Editor | Replace local useState with useNoteQuery | `[x]` | — |
+| TASK-002 | 1 — Editor | Remove replaceBlocks/queueMicrotask hack | `[x]` | TASK-001 |
+| TASK-003 | 1 — Editor | Add key={noteId} for clean editor remount | `[x]` | TASK-001, TASK-002 |
+| TASK-004 | 1 — Editor | Remove secondary useState in NoteEditor | `[x]` | TASK-001 |
+| TASK-005 | 1 — Editor | Verify auto-save cleanup on unmount | `[x]` | — |
+| TASK-006 | 2 — Cache | Remove onSettled invalidation from updateNote | `[x]` | — |
+| TASK-007 | 2 — Cache | Tune staleTime and disable refetchOnWindowFocus | `[x]` | — |
 | TASK-008 | 3 — Auth | Fix login-form sign-in and sign-up flows | `[ ]` | — |
 | TASK-009 | 3 — Auth | Verify guest migration hook | `[ ]` | TASK-008 |
-| TASK-010 | 4 — Tasks | Add immediatelySave to use-editor | `[ ]` | TASK-001, TASK-005 |
-| TASK-011 | 4 — Tasks | Dispatch save event before opening task panel | `[ ]` | TASK-010 |
+| TASK-010 | 4 — Tasks | Add immediatelySave to use-editor | `[x]` | TASK-001, TASK-005 |
+| TASK-011 | 4 — Tasks | Dispatch save event before opening task panel | `[x]` | TASK-010 |
 | TASK-012 | 4 — Tasks | Add pending state to task detail panel | `[ ]` | — |
 | TASK-013 | 4 — Tasks | Audit task sync route for silent failures | `[ ]` | — |
-| TASK-014 | 5 — Navigation | Reduce showNotFound timer to 50ms | `[ ]` | TASK-001, TASK-002, TASK-003 |
-| TASK-015 | 5 — Navigation | Add prefetch on sidebar note hover | `[ ]` | — |
-| TASK-016 | 6 — Sidebar | Sort pinned items to top of sidebar | `[ ]` | — |
-| TASK-017 | 6 — Sidebar | Replace pin icon with left-border accent | `[ ]` | — |
+| TASK-014 | 5 — Navigation | Reduce showNotFound timer to 50ms | `[x]` | TASK-001, TASK-002, TASK-003 |
+| TASK-015 | 5 — Navigation | Add prefetch on sidebar note hover | `[x]` | — |
+| TASK-016 | 6 — Sidebar | Sort pinned items to top of sidebar | `[x]` | — |
+| TASK-017 | 6 — Sidebar | Replace pin icon with left-border accent | `[x]` | — |
 | TASK-018 | 7 — Context Menu | Fix spelling in context menu labels | `[ ]` | — |
 | TASK-019 | 7 — Context Menu | Fix Move to folder submenu rendering | `[ ]` | — |
 | TASK-020 | 8 — Z-Index | Fix top bar popover z-index | `[ ]` | — |
