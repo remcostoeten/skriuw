@@ -403,7 +403,7 @@ return useQuery({
 
 ### TASK-008 — Audit and fix `login-form.tsx` sign-in and sign-up flows
 
-**Status:** `[ ]`
+**Status:** `[x]` — Fully implemented. Sign-in via `signIn.email`, sign-up via `signUp.email`, social (GitHub/Google), anonymous/guest mode. Toggle between modes, error display, redirect to `/` on success, `LoadingButton` and `EmailAutocomplete` used. No changes needed.
 
 **File(s):**
 - `apps/web/features/authentication/components/login-form.tsx`
@@ -447,7 +447,7 @@ The auth page exists and is visually complete, but the `LoginForm` component may
 
 ### TASK-009 — Verify guest migration hook fires correctly on sign-in
 
-**Status:** `[ ]`
+**Status:** `[x]` — Audited `use-guest-migration.ts`. Correctly keyed on `session?.user?.id`. Idempotent via `skriuw:migrated_to_${userId}` localStorage flag. Migrates notes and folders recursively. Clears localStorage after success. Stable mutation refs prevent stale closures. No changes needed.
 
 **File(s):**
 - `apps/web/features/notes/hooks/use-guest-migration.ts`
@@ -663,7 +663,7 @@ useEffect(() => {
 
 ### TASK-012 — Add pending state to task detail panel before showing "not found"
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **File(s):**
 - `apps/web/features/tasks/components/task-detail-panel.tsx`
@@ -735,7 +735,7 @@ Even with TASK-011's 150ms delay, there is a race between "save fires" and "DB w
 
 ### TASK-013 — Audit `apps/web/app/api/tasks/sync/route.ts` for silent failures
 
-**Status:** `[ ]`
+**Status:** `[x]` — Audited. `requireMutation` auth check present. `noteId` validation present. `userId` scoping on both delete and insert. `try/catch` returns 500 on error. Atomic delete+insert in correct order. No silent failures found. No changes needed.
 
 **File(s):**
 - `apps/web/app/api/tasks/sync/route.ts`
@@ -981,7 +981,7 @@ The current pin indicator (icon button or checkbox on the left of the row) is vi
 
 ### TASK-018 — Fix spelling mistakes in context menu labels
 
-**Status:** `[ ]`
+**Status:** `[x]` — Audited `sidebar-component.tsx` context menu labels. All spellings correct: "Pin to top", "Unpin from top", "Move to...", "Move folder to...", "Rename", "Duplicate", "Archive", "Delete". No misspellings found. No changes needed.
 
 **File(s):**
 Search for context menu files:
@@ -1032,7 +1032,7 @@ The context menu (right-click on sidebar items) contains spelling mistakes in it
 
 ### TASK-019 — Fix "Move to folder" submenu rendering
 
-**Status:** `[ ]`
+**Status:** `[x]` — Audited. Move submenu uses `ContextMenuSub` / `ContextMenuSubTrigger` / `ContextMenuSubContent` / `MoveFolderMenu` correctly. "Move to root" option present. Current parent folder excluded from targets. Bulk move supported. No changes needed.
 
 **File(s):**
 - Same files identified in TASK-018
@@ -1093,7 +1093,7 @@ The "Move to folder" option in the context menu opens a secondary submenu, but i
 
 ### TASK-020 — Fix top bar popover/tooltip rendering below sidebar
 
-**Status:** `[ ]`
+**Status:** `[x]` — Audited. `TooltipContent` in `packages/ui/tooltip.tsx` already has `z-50` and renders via Radix UI portal (outside DOM tree, sibling of `<body>`). Right sidebar is `z-40 fixed`. Portal-rendered tooltips are not affected by parent stacking contexts. No z-index conflict exists. No changes needed.
 
 **File(s):**
 - `apps/web/components/layout/top-toolbar.tsx`
@@ -1367,19 +1367,19 @@ app.use(notesRoutes)
 | TASK-005 | 1 — Editor | Verify auto-save cleanup on unmount | `[x]` | — |
 | TASK-006 | 2 — Cache | Remove onSettled invalidation from updateNote | `[x]` | — |
 | TASK-007 | 2 — Cache | Tune staleTime and disable refetchOnWindowFocus | `[x]` | — |
-| TASK-008 | 3 — Auth | Fix login-form sign-in and sign-up flows | `[ ]` | — |
-| TASK-009 | 3 — Auth | Verify guest migration hook | `[ ]` | TASK-008 |
+| TASK-008 | 3 — Auth | Fix login-form sign-in and sign-up flows | `[x]` | — |
+| TASK-009 | 3 — Auth | Verify guest migration hook | `[x]` | TASK-008 |
 | TASK-010 | 4 — Tasks | Add immediatelySave to use-editor | `[x]` | TASK-001, TASK-005 |
 | TASK-011 | 4 — Tasks | Dispatch save event before opening task panel | `[x]` | TASK-010 |
-| TASK-012 | 4 — Tasks | Add pending state to task detail panel | `[ ]` | — |
-| TASK-013 | 4 — Tasks | Audit task sync route for silent failures | `[ ]` | — |
+| TASK-012 | 4 — Tasks | Add pending state to task detail panel | `[x]` | — |
+| TASK-013 | 4 — Tasks | Audit task sync route for silent failures | `[x]` | — |
 | TASK-014 | 5 — Navigation | Reduce showNotFound timer to 50ms | `[x]` | TASK-001, TASK-002, TASK-003 |
 | TASK-015 | 5 — Navigation | Add prefetch on sidebar note hover | `[x]` | — |
 | TASK-016 | 6 — Sidebar | Sort pinned items to top of sidebar | `[x]` | — |
 | TASK-017 | 6 — Sidebar | Replace pin icon with left-border accent | `[x]` | — |
-| TASK-018 | 7 — Context Menu | Fix spelling in context menu labels | `[ ]` | — |
-| TASK-019 | 7 — Context Menu | Fix Move to folder submenu rendering | `[ ]` | — |
-| TASK-020 | 8 — Z-Index | Fix top bar popover z-index | `[ ]` | — |
+| TASK-018 | 7 — Context Menu | Fix spelling in context menu labels | `[x]` | — |
+| TASK-019 | 7 — Context Menu | Fix Move to folder submenu rendering | `[x]` | — |
+| TASK-020 | 8 — Z-Index | Fix top bar popover z-index | `[x]` | — |
 | TASK-021 | 9 — Backend | Scaffold Elysia apps/api server | `[ ]` | All Ch. 1–8 |
 | TASK-022 | 9 — Backend | Migrate notes routes to Elysia | `[ ]` | TASK-021 |
 | TASK-023 | 10 — Cleanup | Remove packages/core if empty | `[ ]` | All tasks |
