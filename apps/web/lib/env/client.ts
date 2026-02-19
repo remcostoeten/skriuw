@@ -11,7 +11,7 @@ import { validateEnvCached } from './validate'
  *
  * @example
  * ```typescript
- * import { env } from '@skriuw/env/client'
+ * import { env } from '@/lib/env/client'
  *
  * const appUrl = env.NEXT_PUBLIC_APP_URL
  * ```

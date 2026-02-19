@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"skipLibCheck": true,
+		"outDir": "./dist",
+		"baseUrl": ".",
+		"paths": {
+			"@skriuw/db": ["../../packages/db/src/index.ts"],
+			"@skriuw/shared": ["../../packages/shared/src/index.ts"]
+		}
+	},
+	"include": ["src/**/*"]
+}
