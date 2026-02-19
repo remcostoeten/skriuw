@@ -1,7 +1,7 @@
 'use client'
 
-import { SignInDrawer } from '@/features/authentication/components/sign-in-drawer'
 import { useSession, signOut } from '@/lib/auth-client'
+import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@skriuw/ui/button'
 import {
 	DropdownMenu,
@@ -13,11 +13,10 @@ import {
 } from '@skriuw/ui/dropdown-menu'
 import { User, LogOut, UserRoundCog } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
 
 export function UserMenu() {
 	const { data: session, isPending } = useSession()
-	const [drawerOpen, setDrawerOpen] = useState(false)
+	const setShowAuthModal = useAuthStore((s) => s.setShowAuthModal)
 
 	if (isPending) {
 		return <div className='h-7 w-7 animate-pulse rounded-full bg-muted' />
@@ -25,16 +24,13 @@ export function UserMenu() {
 
 	if (!session || (session.user as any).isAnonymous) {
 		return (
-			<>
-				<Button
-					variant='ghost'
-					onClick={() => setDrawerOpen(true)}
-					className='text-muted-foreground hover:text-foreground hover:bg-muted/60'
-				>
-					Sign In
-				</Button>
-				<SignInDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
-			</>
+			<Button
+				variant='ghost'
+				onClick={() => setShowAuthModal(true)}
+				className='text-muted-foreground hover:text-foreground hover:bg-muted/60'
+			>
+				Sign In
+			</Button>
 		)
 	}
 

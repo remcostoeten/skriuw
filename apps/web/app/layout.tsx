@@ -1,6 +1,7 @@
 import '../styles/globals.css'
 import '../styles/outlines-accessibility.css'
 import { Providers } from './providers'
+import { AuthModal } from '@/components/auth/auth-modal'
 import { CommandExecutor } from '@/components/command-executor'
 import { InstallController } from '@/modules/install'
 import type { Metadata } from 'next'
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				>
 					<Providers>
 						{children}
+						<AuthModal />
 						<CommandExecutor />
 						<InstallController />
 					</Providers>
