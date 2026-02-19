@@ -12,7 +12,8 @@ import {
 	useBlockNoteEditor
 } from '@blocknote/react'
 import { Link2 } from 'lucide-react'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import { cn } from '@skriuw/shared'
 
 type MentionSuggestionItem = NoteMentionSearchResult & {
 	url: string
@@ -29,49 +30,102 @@ const MentionMenuList = ({
 			? `note-mention-${items[selectedIndex]?.id}`
 			: undefined
 
+	const selectedItemRef = useRef<HTMLButtonElement>(null)
+
+	useEffect(() => {
+		if (selectedItemRef.current) {
+			selectedItemRef.current.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest'
+			})
+		}
+	}, [selectedIndex])
+
 	if (!items.length) {
 		return (
 			<div
-				className='skriuw-mention-menu empty'
+				className={cn(
+					'bn-suggestion-menu flex flex-col',
+					'w-[260px] max-h-[320px] overflow-y-auto',
+					'bg-background/95 backdrop-blur-xl',
+					'border border-border/40 shadow-2xl rounded-lg',
+					'p-1.5 scrollbar-hide',
+					'z-50'
+				)}
 				role='listbox'
 				aria-label='Mention suggestions'
 			>
-				<span className='skriuw-mention-menu__empty'>No notes found</span>
+				<span className='text-sm text-muted-foreground p-2'>No notes found</span>
 			</div>
 		)
 	}
 
 	return (
 		<div
-			className='skriuw-mention-menu'
+			className={cn(
+				'bn-suggestion-menu flex flex-col',
+				'w-[260px] max-h-[320px] overflow-y-auto',
+				'bg-background/95 backdrop-blur-xl',
+				'border border-border/40 shadow-2xl rounded-lg',
+				'p-1.5 scrollbar-hide',
+				'z-50'
+			)}
 			role='listbox'
 			aria-label='Mention suggestions'
 			aria-activedescendant={activeOptionId}
 		>
 			{items.map((item: MentionSuggestionItem, index: number) => {
 				const optionId = `note-mention-${item.id}`
+				const isSelected = selectedIndex === index
+
 				return (
 					<button
 						key={item.id}
 						id={optionId}
+						ref={isSelected ? selectedItemRef : null}
 						type='button'
 						role='option'
-						aria-selected={selectedIndex === index}
-						className={`skriuw-mention-menu__item ${selectedIndex === index ? 'is-selected' : ''}`}
+						aria-selected={isSelected}
+						className={cn(
+							'bn-suggestion-item group',
+							'flex items-center gap-2.5 w-full',
+							'px-2 py-1.5 rounded-[4px] text-sm outline-none',
+							'transition-colors duration-75',
+							'select-none',
+							isSelected
+								? 'bg-accent text-accent-foreground'
+								: 'text-foreground hover:bg-muted/50'
+						)}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={() => onItemClick?.(item)}
 					>
-						<span className='skriuw-mention-menu__icon' aria-hidden='true'>
-							<Link2 size={14} />
+						<span
+							className={cn(
+								'bn-suggestion-item__icon flex items-center justify-center',
+								'w-5 h-5 opacity-70',
+								isSelected ? 'opacity-100' : 'group-hover:opacity-100'
+							)}
+							aria-hidden='true'
+						>
+							<Link2 size={16} />
 						</span>
-						<span className='skriuw-mention-menu__content'>
-							<span className='skriuw-mention-menu__title'>
+						<div className='flex flex-col items-start overflow-hidden min-w-0 flex-1'>
+							<span className='bn-suggestion-item__title truncate font-medium leading-none mb-0.5 w-full text-left'>
 								{renderHighlightedText(item.titleHighlights)}
 							</span>
 							{item.path && (
-								<span className='skriuw-mention-menu__path'>{item.path}</span>
+								<span
+									className={cn(
+										'bn-suggestion-item__subtext truncate text-[11px] leading-none w-full text-left',
+										isSelected
+											? 'text-accent-foreground/70'
+											: 'text-muted-foreground'
+									)}
+								>
+									{item.path}
+								</span>
 							)}
-						</span>
+						</div>
 					</button>
 				)
 			})}

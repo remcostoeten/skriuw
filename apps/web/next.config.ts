@@ -25,8 +25,10 @@ const nextConfig: NextConfig = {
 		'@skriuw/shared',
 		'@skriuw/db',
 		'@skriuw/crud',
-		'@skriuw/env',
-		'@skriuw/config'
+		'@skriuw/config',
+		'zustand',
+		'@blocknote/react',
+		'@blocknote/core'
 	],
 
 	// Configure external packages for server components

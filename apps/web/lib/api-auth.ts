@@ -2,6 +2,7 @@ import { auth } from './auth'
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { GUEST_USER_ID } from '@skriuw/shared'
+export { GUEST_USER_ID }
 
 /**
  * Session result from Better Auth
@@ -154,10 +155,10 @@ export function withAuth<T>(
 		const result = options.required
 			? await requireAuth()
 			: {
-					authenticated: true,
-					userId: (await optionalAuth()) ?? '',
-					session: null as any
-				}
+				authenticated: true,
+				userId: (await optionalAuth()) ?? '',
+				session: null as any
+			}
 
 		if (!result.authenticated) {
 			return (result as AuthError).response

@@ -94,7 +94,6 @@ function groupCommands(): CommandGroup[] {
 	const groups: CommandGroup[] = [
 		{ title: 'Navigation', commands: [] },
 		{ title: 'File Operations', commands: [] },
-		{ title: 'Split View', commands: [] },
 		{ title: 'Other', commands: [] }
 	]
 
@@ -112,15 +111,7 @@ function groupCommands(): CommandGroup[] {
 		'delete-item',
 		'pin-item'
 	]
-	const splitIds: ShortcutId[] = [
-		'split.toggle',
-		'split.swap',
-		'split.orientation.next',
-		'split.focus.left',
-		'split.focus.right',
-		'split.close',
-		'split.cycle'
-	]
+
 
 	Object.entries(shortcutDefinitions).forEach(([id, def]) => {
 		const shortcutId = id as ShortcutId
@@ -139,10 +130,8 @@ function groupCommands(): CommandGroup[] {
 			groups[0].commands.push(command)
 		} else if (fileIds.includes(shortcutId)) {
 			groups[1].commands.push(command)
-		} else if (splitIds.includes(shortcutId)) {
-			groups[2].commands.push(command)
 		} else {
-			groups[3].commands.push(command)
+			groups[2].commands.push(command)
 		}
 	})
 

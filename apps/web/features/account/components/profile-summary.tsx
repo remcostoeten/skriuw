@@ -1,4 +1,5 @@
 import { updateProfile } from '../api/account-client'
+import { Facehash } from 'facehash'
 import type { useSession } from '@/lib/auth-client'
 import { Alert, AlertDescription, AlertTitle } from '@skriuw/ui/alert'
 import { Button } from '@skriuw/ui/button'
@@ -147,8 +148,8 @@ export default function ProfileSummary({ user, onRefresh }: Props) {
 								className='h-full w-full object-cover'
 							/>
 						) : (
-							<div className='flex h-full w-full items-center justify-center text-sm text-muted-foreground'>
-								{name ? name[0]?.toUpperCase() : '👤'}
+							<div className='flex h-full w-full items-center justify-center overflow-hidden'>
+								<Facehash name={user.email || user.id || 'anonymous'} />
 							</div>
 						)}
 					</div>

@@ -1150,7 +1150,7 @@ The top bar has a toggle button (likely a help or info button) that shows a popo
 
 ### TASK-021 — Scaffold `apps/api` Elysia server structure
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Note:** Do not start this task until Chapters 1–8 are complete and the app is stable.
 
@@ -1238,7 +1238,7 @@ After scaffolding, add `apps/api` to the root `pnpm-workspace.yaml` (or `bun wor
 
 ### TASK-022 — Migrate notes API routes to Elysia
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Depends on:** TASK-021
 
@@ -1296,7 +1296,7 @@ app.use(notesRoutes)
 
 ### TASK-023 — Audit and remove `packages/core` if empty
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Note:** Do this last — after all other chapters are complete.
 
@@ -1329,7 +1329,7 @@ app.use(notesRoutes)
 
 ### TASK-024 — Evaluate and fold `packages/env` into `apps/web`
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 **Note:** Do this last — after all other chapters are complete.
 
@@ -1380,10 +1380,10 @@ app.use(notesRoutes)
 | TASK-018 | 7 — Context Menu | Fix spelling in context menu labels | `[x]` | — |
 | TASK-019 | 7 — Context Menu | Fix Move to folder submenu rendering | `[x]` | — |
 | TASK-020 | 8 — Z-Index | Fix top bar popover z-index | `[x]` | — |
-| TASK-021 | 9 — Backend | Scaffold Elysia apps/api server | `[ ]` | All Ch. 1–8 |
-| TASK-022 | 9 — Backend | Migrate notes routes to Elysia | `[ ]` | TASK-021 |
-| TASK-023 | 10 — Cleanup | Remove packages/core if empty | `[ ]` | All tasks |
-| TASK-024 | 10 — Cleanup | Fold packages/env into apps/web | `[ ]` | All tasks |
+| TASK-021 | 9 — Backend | Scaffold Elysia apps/api server | `[x]` | All Ch. 1–8 |
+| TASK-022 | 9 — Backend | Migrate notes routes to Elysia | `[x]` | TASK-021 |
+| TASK-023 | 10 — Cleanup | Remove packages/core if empty | `[x]` | All tasks |
+| TASK-024 | 10 — Cleanup | Fold packages/env into apps/web | `[x]` | All tasks |
 
 ---
 

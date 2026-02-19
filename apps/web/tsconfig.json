@@ -16,7 +16,6 @@
 			"@skriuw/db": ["../../packages/db"],
 			"@skriuw/shared": ["../../packages/shared"],
 			"@skriuw/config": ["../../packages/config"],
-			"@skriuw/env": ["../../packages/env"],
 			"@skriuw/storage": ["./lib/storage"],
 			"@skriuw/storage/*": ["./lib/storage/*"]
 		}

@@ -1,0 +1,23 @@
+{
+	"name": "api",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "bun --env-file=../../.env.local run --watch src/index.ts",
+		"start": "bun --env-file=../../.env.local run src/index.ts",
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@skriuw/db": "workspace:*",
+		"@skriuw/shared": "workspace:*",
+		"better-auth": "^1.4.5",
+		"drizzle-orm": "^0.44.7",
+		"elysia": "^1.3.0",
+		"@elysiajs/cors": "^1.3.0",
+		"@elysiajs/bearer": "^1.3.0"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3",
+		"@types/node": "^24.2.1"
+	}
+}

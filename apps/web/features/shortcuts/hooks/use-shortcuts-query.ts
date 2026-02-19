@@ -22,15 +22,7 @@ const DEFAULT_SHORTCUTS: Record<ShortcutId, KeyCombo[]> = {
 	'rename-item': [],
 	'delete-item': [],
 	'pin-item': [],
-	'split.toggle': [],
-	'split.swap': [],
-	'split.orientation.next': [],
-	'split.vertical': [],
-	'split.horizontal': [],
-	'split.focus.left': [],
-	'split.focus.right': [],
-	'split.close': [],
-	'split.cycle': [],
+
 	'command-executor': [],
 	'toggle-theme': []
 }
