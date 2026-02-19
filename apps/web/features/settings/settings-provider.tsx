@@ -45,7 +45,6 @@ const DEFAULT_SETTINGS = {
 
 	// Templates & Placeholder
 	disableTemplates: false,
-	disableTemplates: false,
 	bodyPlaceholder: '',
 
 	// UI preferences

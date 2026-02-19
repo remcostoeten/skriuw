@@ -1,6 +1,7 @@
+'use client'
+
 import { EditorTabsBar } from '../../features/editor/components/editor-tabs-bar'
 import { useEditorTabs } from '../../features/editor/tabs'
-import { useSplitViewStore } from '../../features/notes/split-view/store'
 import { UnifiedSearch } from '../../features/search'
 import { useSettings, useUserPreferences } from '../../features/settings'
 import { useShortcut } from '../../features/shortcuts/use-shortcut'
@@ -55,9 +56,6 @@ export function AppLayoutManager({
 	const { data: session, isPending } = useSession()
 
 	useEffect(() => {
-		// List of public paths that don't require auth (kept for reference)
-		// const publicPaths = ['/login', '/register', '/auth/callback']
-		// const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 		// Removed forced redirect logic to allow public browsing
 	}, [session, isPending, pathname, router])
 
@@ -74,8 +72,6 @@ export function AppLayoutManager({
 	// Track if we've ever loaded to prevent showing skeleton during navigation
 	const hasEverLoadedRef = useRef(false)
 
-	const { toggleSplit, orientation, toggleActivePane, setOrientation } = useSplitViewStore()
-
 	// Update ref when loading completes
 	useEffect(() => {
 		if (!isInitialLoading) {
@@ -85,6 +81,7 @@ export function AppLayoutManager({
 
 	// Only show skeleton on true initial load, not during navigation
 	const shouldShowSidebarSkeleton = isInitialLoading && !hasEverLoadedRef.current
+
 	const {
 		isMobileSidebarOpen,
 		toggleMobileSidebar,
@@ -98,9 +95,11 @@ export function AppLayoutManager({
 		toggleRightSidebar,
 		isRightSidebarOpen
 	} = useUIStore()
+
 	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
 	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false
 	const { hasRawMDXMode, toggle: togglePreference } = useUserPreferences()
+
 	const {
 		tabs,
 		activeNoteId,
@@ -123,6 +122,7 @@ export function AppLayoutManager({
 		if (!sidebarActiveNoteId) return null
 		return notesInOrder.find((note) => note.id === sidebarActiveNoteId) || null
 	}, [sidebarActiveNoteId, notesInOrder])
+
 	const currentNoteId = currentNote?.id ?? null
 	const isNoteView = Boolean(currentNoteId)
 
@@ -133,27 +133,13 @@ export function AppLayoutManager({
 
 	// Compute title based on current page and titleDisplayMode setting
 	const computedTitle = useMemo(() => {
-		// Handle special pages that should show breadcrumbs instead of note titles
-		if (pathname.startsWith('/trash')) {
-			return 'Trash'
-		}
-		if (pathname.startsWith('/archive')) {
-			return 'Data & Backup'
-		}
-		if (pathname.startsWith('/profile')) {
-			return 'Profile'
-		}
-		if (pathname.startsWith('/activity')) {
-			return 'Activity'
-		}
-		if (pathname.startsWith('/tasks')) {
-			return 'Tasks'
-		}
+		if (pathname.startsWith('/trash')) return 'Trash'
+		if (pathname.startsWith('/archive')) return 'Data & Backup'
+		if (pathname.startsWith('/profile')) return 'Profile'
+		if (pathname.startsWith('/activity')) return 'Activity'
+		if (pathname.startsWith('/tasks')) return 'Tasks'
 
-		// For note pages, use the existing logic
-		if (!currentNote) {
-			return 'Untitled'
-		}
+		if (!currentNote) return 'Untitled'
 
 		switch (titleDisplayMode) {
 			case 'firstHeading': {
@@ -161,7 +147,6 @@ export function AppLayoutManager({
 				return heading || currentNote.name || 'Untitled'
 			}
 			case 'aiGenerated':
-				// Coming soon - for now, fall back to filename
 				return currentNote.name || 'Untitled'
 			case 'filename':
 			default:
@@ -203,9 +188,6 @@ export function AppLayoutManager({
 		}
 	}, [sidebarActiveNoteId, setLastActiveNote])
 
-	// Open/activate tab when navigating to a note
-	// Note: We intentionally exclude computedTitle from dependencies to avoid re-render loops
-	// since openTab updates lastVisitedAt. Title updates happen separately when the tab bar renders.
 	// Keep a ref to computedTitle to avoid re-triggering the effect when it changes
 	const computedTitleRef = useRef(computedTitle)
 	useEffect(() => {
@@ -269,7 +251,6 @@ export function AppLayoutManager({
 	const handleDuplicateTab = useCallback(
 		(noteId: string) => {
 			if (!multiNoteTabs) return
-			// Just open the same note again (it will create a new tab if needed)
 			openTab({ noteId }, { activate: true })
 			setActiveTab(noteId)
 			router.push(getNoteUrl(noteId))
@@ -327,7 +308,6 @@ export function AppLayoutManager({
 	useShortcut('toggle-shortcuts', (e) => {
 		e.preventDefault()
 		toggleSettings()
-		// Ideally we would also set the active tab to 'shortcuts' here
 	})
 
 	useShortcut('toggle-sidebar', (e) => {
@@ -338,21 +318,6 @@ export function AppLayoutManager({
 	useShortcut('open-settings', (e) => {
 		e.preventDefault()
 		toggleSettings()
-	})
-
-	useShortcut('split.cycle', (e) => {
-		e.preventDefault()
-		toggleActivePane()
-	})
-
-	useShortcut('split.vertical', (e) => {
-		e.preventDefault()
-		setOrientation('vertical', currentNoteId)
-	})
-
-	useShortcut('split.horizontal', (e) => {
-		e.preventDefault()
-		setOrientation('horizontal', currentNoteId)
 	})
 
 	// Check if we are on an auth page (like login)
@@ -396,7 +361,6 @@ export function AppLayoutManager({
 					onToggleDesktopSidebar={toggleDesktopSidebar}
 					onToggleRightSidebar={isNoteView ? toggleRightSidebar : undefined}
 					isRightSidebarOpen={isRightSidebarOpen}
-					// Navigation arrows - only show for note pages when navigation functions are available
 					onNavigatePrevious={sidebarActiveNoteId ? handleNavigatePrevious : undefined}
 					onNavigateNext={sidebarActiveNoteId ? handleNavigateNext : undefined}
 					canNavigatePrevious={canNavigatePrevious}
@@ -405,11 +369,7 @@ export function AppLayoutManager({
 					onToggleEditorMode={handleToggleEditorMode}
 					showSidebar={showSidebar}
 					showEditorModeToggle={!!sidebarActiveNoteId}
-					// Wire up split toggles - only show for note pages
-					showSplitToggle={!!sidebarActiveNoteId}
-					isSplitViewActive={orientation !== 'single'}
-					onSplitToggle={() => toggleSplit(currentNoteId)}
-					splitOrientation={orientation}
+					showSplitToggle={false}
 				/>
 			}
 			mainContent={
@@ -464,12 +424,6 @@ export function AppLayoutManager({
 						/>
 					) : null}
 					<UnifiedSearch />
-					{/* <AlphaBanner
-						href="/docs"
-						text="New! PrismUI Components"
-						icon={<Sparkles className="h-4 w-4" />}
-						endIcon={<ChevronRight className="h-4 w-4" />}
-					/> */}
 					{process.env.NODE_ENV === 'development' && <DevWidget />}
 				</>
 			}

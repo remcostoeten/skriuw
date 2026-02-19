@@ -1,12 +1,18 @@
 import * as schema from './schema'
-import { neon } from '@neondatabase/serverless'
-import { drizzle as drizzleNeon, NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import { Pool, neonConfig } from '@neondatabase/serverless'
+import { drizzle as drizzleNeon, NeonDatabase } from 'drizzle-orm/neon-serverless'
 import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
+import ws from 'ws'
+
+// Config for Neon WebSocket in Node environments
+if (!globalThis.WebSocket) {
+	neonConfig.webSocketConstructor = ws
+}
 
 // Lazy import to avoid build-time validation
 // drizzle.config.ts uses dotenv, runtime uses @skriuw/env
-let _dbClient: NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schema> | null = null
+let _dbClient: NeonDatabase<typeof schema> | PostgresJsDatabase<typeof schema> | null = null
 
 export * from './schema'
 export { schema }
@@ -26,9 +32,9 @@ function detectProvider(url: string): DatabaseProvider {
 	}
 
 	// Auto-detect from URL
-	if (url.includes('neon.tech') || url.includes('neon')) {
-		return 'neon'
-	}
+	// if (url.includes('neon.tech') || url.includes('neon')) {
+	// 	return 'neon'
+	// }
 
 	return 'postgres'
 }
@@ -58,16 +64,16 @@ export function getDatabase() {
 	if (!url) {
 		throw new Error(
 			'DATABASE_URL environment variable is required.\n' +
-				'Set DATABASE_URL=postgresql://user:password@host:port/database'
+			'Set DATABASE_URL=postgresql://user:password@host:port/database'
 		)
 	}
 
 	const provider = detectProvider(url)
 
 	if (provider === 'neon') {
-		const sql = neon(url)
-		_dbClient = drizzleNeon(sql, { schema })
-		console.log('✅ Database: Connected via Neon')
+		const pool = new Pool({ connectionString: url })
+		_dbClient = drizzleNeon(pool, { schema })
+		console.log('✅ Database: Connected via Neon (Function/Pool)')
 	} else {
 		const queryClient = postgres(url)
 		_dbClient = drizzlePostgres(queryClient, { schema })
