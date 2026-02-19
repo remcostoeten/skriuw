@@ -11,7 +11,7 @@ import { validateEnvCached } from './validate'
  *
  * @example
  * ```typescript
- * import { env } from '@skriuw/env/server'
+ * import { env } from '@/lib/env/server'
  *
  * // Direct property access - fully typed!
  * const dbUrl = env.DATABASE_URL
