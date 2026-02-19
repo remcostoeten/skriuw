@@ -5,6 +5,37 @@ import { AnimatePresence, motion, useMotionValue } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+function LogoMark() {
+	return (
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				width: '3rem',
+				height: '3rem',
+				borderRadius: '0.875rem',
+				background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)',
+				border: '1px solid rgba(255,255,255,0.15)',
+				backdropFilter: 'blur(8px)',
+				WebkitBackdropFilter: 'blur(8px)',
+				boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+			}}
+		>
+			<svg
+				viewBox="0 0 40 40"
+				fill="currentColor"
+				xmlns="http://www.w3.org/2000/svg"
+				style={{ width: '1.375rem', height: '1.375rem', color: 'var(--foreground)' }}
+			>
+				<rect x="4" y="8" width="8" height="24" rx="1" />
+				<rect x="16" y="4" width="8" height="32" rx="1" />
+				<rect x="28" y="12" width="8" height="16" rx="1" />
+			</svg>
+		</div>
+	)
+}
+
 type SignInDrawerProps = {
 	open: boolean
 	onOpenChange: (open: boolean) => void
@@ -26,27 +57,19 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 		return () => window.removeEventListener('resize', check)
 	}, [])
 
-	// Lock / unlock body scroll
 	useEffect(() => {
 		if (open) {
 			document.body.style.overflow = 'hidden'
-			requestAnimationFrame(() => {
-				closeButtonRef.current?.focus()
-			})
+			requestAnimationFrame(() => closeButtonRef.current?.focus())
 		} else {
 			document.body.style.overflow = ''
 		}
-		return () => {
-			document.body.style.overflow = ''
-		}
+		return () => { document.body.style.overflow = '' }
 	}, [open])
 
-	// Escape key
 	useEffect(() => {
 		if (!open || !allowClose) return
-		function onKey(e: KeyboardEvent) {
-			if (e.key === 'Escape') onOpenChange(false)
-		}
+		const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpenChange(false) }
 		window.addEventListener('keydown', onKey)
 		return () => window.removeEventListener('keydown', onKey)
 	}, [open, allowClose, onOpenChange])
@@ -74,7 +97,6 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 			const shouldClose =
 				allowClose &&
 				(info.offset.y > window.innerHeight * 0.15 || info.velocity.y > 500)
-
 			if (shouldClose) {
 				onOpenChange(false)
 				setTimeout(() => dragY.set(0), 400)
@@ -88,22 +110,19 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 	return (
 		<AnimatePresence>
 			{open && (
-				// Full-screen fixed overlay — flex column, bottom-anchored
 				<div
 					style={{
 						position: 'fixed',
 						inset: 0,
 						zIndex: 9999,
 						display: 'flex',
-						flexDirection: 'column',
-						justifyContent: 'flex-end',
-						// Prevents click-through on the overlay itself
-						pointerEvents: 'auto',
+						alignItems: 'center',
+						justifyContent: 'center',
 					}}
 				>
-					{/* Backdrop — behind everything, clickable to close */}
+					{/* Blurred dim backdrop */}
 					<motion.div
-						key='backdrop'
+						key="backdrop"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
@@ -112,150 +131,127 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 						style={{
 							position: 'absolute',
 							inset: 0,
-							backgroundColor: 'rgba(0,0,0,0.25)',
-							backdropFilter: 'blur(3px)',
-							WebkitBackdropFilter: 'blur(3px)',
-							willChange: 'backdrop-filter',
+							backgroundColor: 'rgba(0,0,0,0.55)',
+							backdropFilter: 'blur(6px)',
+							WebkitBackdropFilter: 'blur(6px)',
 							zIndex: 0,
 						}}
 					/>
 
-					{/*
-					 * Drawer panel — slides up from below.
-					 * Separated from the drag MotionValue so initial/animate/exit
-					 * y-transforms don't conflict with the drag offset.
-					 */}
+					{/* Panel */}
 					<motion.div
-						key='drawer'
-						initial={{ y: '100%' }}
-						animate={{ y: 0 }}
-						exit={{ y: '100%' }}
-						transition={{ duration: 0.4, ease: EASE_SPRING }}
+						key="panel"
+						initial={{ opacity: 0, scale: 0.97, y: 16 }}
+						animate={{ opacity: 1, scale: 1, y: 0 }}
+						exit={{ opacity: 0, scale: 0.97, y: 16 }}
+						transition={{ duration: 0.35, ease: EASE_SPRING }}
+						drag={isMobile ? 'y' : false}
+						dragConstraints={{ top: 0, bottom: 0 }}
+						dragElastic={{ top: 0.2, bottom: 0.5 }}
+						onDragStart={() => { isDragging.current = true }}
+						onDrag={handleDrag as any}
+						onDragEnd={handleDragEnd as any}
 						style={{
+							y: dragY,
 							position: 'relative',
 							zIndex: 1,
 							width: '100%',
-							// Gradient: solid page bg from bottom 0%→80%, fades to transparent at top
+							maxWidth: '30rem',
+							margin: '0 auto',
+							/* transparent at top → solid background at ~30% down */
 							background:
-								'linear-gradient(to top, var(--background) 0%, var(--background) 75%, transparent 100%)',
-							// No hard edges
+									'linear-gradient(to bottom, transparent 0%, var(--background) 22%, var(--background) 100%)',
 							border: 'none',
 							boxShadow: 'none',
-							// Let clicks pass through the transparent top gradient zone
+							borderRadius: '1rem',
+							padding: '0 0 2.5rem 0',
+							/* clicks pass through the transparent top strip */
 							pointerEvents: 'none',
 						}}
 					>
-						{/*
-						 * Inner drag wrapper — separate motion element so the drag
-						 * MotionValue (dragY) is never mixed with the slide animation above.
-						 */}
-						<motion.div
-							drag={isMobile ? 'y' : false}
-							dragConstraints={{ top: 0, bottom: 0 }}
-							dragElastic={{ top: 0.3, bottom: 0.5 }}
-							onDrag={handleDrag as any}
-							onDragEnd={handleDragEnd as any}
-							onDragStart={() => { isDragging.current = true }}
+						{/* Mobile drag handle */}
+						{isMobile && (
+							<div
+								style={{
+									display: 'flex',
+									justifyContent: 'center',
+									paddingTop: '0.625rem',
+									paddingBottom: '0.25rem',
+									pointerEvents: 'auto',
+								}}
+							>
+								<div
+									style={{
+										width: '2.5rem',
+										height: '0.25rem',
+										borderRadius: '9999px',
+										backgroundColor: 'var(--muted-foreground)',
+										opacity: 0.35,
+									}}
+								/>
+							</div>
+						)}
+
+						{/* Logo — floats in the transparent gradient zone */}
+						<div
 							style={{
-								y: dragY,
-								width: '100%',
+								display: 'flex',
+								justifyContent: 'center',
+								paddingTop: '2rem',
+								paddingBottom: '1rem',
 								pointerEvents: 'none',
 							}}
 						>
-							{/* Transparent spacer — creates the gradient fade-in zone */}
-							<div style={{ height: '15vh', pointerEvents: 'none' }} />
+							<LogoMark />
+						</div>
 
-							{/* Opaque content zone — everything visible lives here */}
+						{/* Re-enable pointer events on the solid content zone */}
+						<div style={{ pointerEvents: 'auto', position: 'relative' }}>
+							{/* Close button — absolute top-right of the content zone */}
+							{allowClose && (
+								<button
+									ref={closeButtonRef}
+									onClick={() => onOpenChange(false)}
+									aria-label="Close sign-in panel"
+									style={{
+										position: 'absolute',
+										top: '-3.5rem',
+										right: '0.75rem',
+										padding: '0.4rem',
+										borderRadius: '0.5rem',
+										backgroundColor: 'var(--muted)',
+										border: '1px solid var(--border)',
+										backdropFilter: 'blur(4px)',
+										WebkitBackdropFilter: 'blur(4px)',
+										cursor: 'pointer',
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										color: 'var(--foreground)',
+										lineHeight: 1,
+										zIndex: 10,
+									}}
+								>
+									<X size={16} />
+								</button>
+							)}
+
+							{/* Form content */}
 							<div
 								style={{
-									pointerEvents: 'auto',
-									display: 'flex',
-									flexDirection: 'column',
-									alignItems: 'center',
-									// Scrollable so tall forms don't overflow
-									overflowY: 'auto',
-									maxHeight: '85vh',
-									paddingBottom: '3rem',
-									// Pull it into the gradient zone slightly
-									marginTop: '-2px',
+									width: '100%',
+									maxWidth: '28rem',
+									margin: '0 auto',
+									padding: '0.5rem 1.5rem 0',
 								}}
 							>
-								{/* Mobile drag handle pill */}
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'center',
-										width: '100%',
-										paddingTop: '0.75rem',
-										paddingBottom: '0.5rem',
-										flexShrink: 0,
-									}}
-								>
-									<div
-										style={{
-											width: '2.5rem',
-											height: '0.25rem',
-											borderRadius: '9999px',
-											backgroundColor: 'var(--muted-foreground)',
-											opacity: 0.3,
-										}}
-									/>
-								</div>
-
-								{/* Close button row */}
-								{allowClose && (
-									<div
-										style={{
-											width: '100%',
-											maxWidth: '28rem',
-											display: 'flex',
-											justifyContent: 'flex-end',
-											paddingRight: '1rem',
-											paddingBottom: '0.5rem',
-											flexShrink: 0,
-										}}
-									>
-										<button
-											ref={closeButtonRef}
-											onClick={() => onOpenChange(false)}
-											aria-label='Close sign-in panel'
-											style={{
-												padding: '0.5rem',
-												borderRadius: '0.5rem',
-												backgroundColor: 'var(--muted)',
-												border: '1px solid var(--border)',
-												backdropFilter: 'blur(4px)',
-												WebkitBackdropFilter: 'blur(4px)',
-												cursor: 'pointer',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												color: 'var(--foreground)',
-												lineHeight: 1,
-											}}
-										>
-											<X size={16} />
-										</button>
-									</div>
-								)}
-
-								{/* Form */}
-								<div
-									style={{
-										width: '100%',
-										maxWidth: '28rem',
-										background: 'transparent',
-										padding: '0 1rem',
-									}}
-								>
-									<LoginForm
-										title='Welcome back'
-										subtitle='Sign in to sync your notes across devices'
-										onSuccess={() => onOpenChange(false)}
-									/>
-								</div>
+								<LoginForm
+									title="Welcome back"
+									subtitle="Sign in to sync your notes across devices"
+									onSuccess={() => onOpenChange(false)}
+								/>
 							</div>
-						</motion.div>
+						</div>
 					</motion.div>
 				</div>
 			)}
