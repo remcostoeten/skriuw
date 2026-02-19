@@ -1,39 +1,92 @@
 'use client'
 
 import { LoginForm } from './login-form'
-import { AnimatePresence, motion, useMotionValue } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useMotionValue } from 'framer-motion'
 
-function LogoMark() {
-	return (
-		<div
-			style={{
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				width: '3rem',
-				height: '3rem',
-				borderRadius: '0.875rem',
-				background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)',
-				border: '1px solid rgba(255,255,255,0.15)',
-				backdropFilter: 'blur(8px)',
-				WebkitBackdropFilter: 'blur(8px)',
-				boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-			}}
-		>
-			<svg
-				viewBox="0 0 40 40"
-				fill="currentColor"
-				xmlns="http://www.w3.org/2000/svg"
-				style={{ width: '1.375rem', height: '1.375rem', color: 'var(--foreground)' }}
-			>
-				<rect x="4" y="8" width="8" height="24" rx="1" />
-				<rect x="16" y="4" width="8" height="32" rx="1" />
-				<rect x="28" y="12" width="8" height="16" rx="1" />
-			</svg>
-		</div>
-	)
+const DRAWER_STYLES = {
+	background: `linear-gradient(to top, var(--background) 0%, var(--background) 80%, transparent 100%)`
+}
+
+const styles = {
+	overlay: {
+		position: 'fixed' as const,
+		inset: 0,
+		zIndex: 50,
+		display: 'flex',
+		flexDirection: 'column' as const,
+		justifyContent: 'flex-end',
+		alignItems: 'center'
+	},
+	backdrop: {
+		position: 'absolute' as const,
+		inset: 0,
+		backgroundColor: 'var(--overlay-backdrop, rgba(0, 0, 0, 0.2))',
+		backdropFilter: 'blur(3px)',
+		WebkitBackdropFilter: 'blur(3px)',
+		willChange: 'backdrop-filter',
+		contain: 'paint' as const
+	},
+	drawer: {
+		position: 'relative' as const,
+		zIndex: 10,
+		width: '100%',
+		maxWidth: '100%',
+		minHeight: '70vh',
+		display: 'flex',
+		flexDirection: 'column' as const,
+		justifyContent: 'flex-end',
+		alignItems: 'center',
+		paddingBottom: '2rem',
+		background: DRAWER_STYLES.background,
+		border: 'none',
+		boxShadow: 'none',
+		pointerEvents: 'none' as const
+	},
+	dragHandle: {
+		position: 'sticky' as const,
+		top: 0,
+		width: '100%',
+		zIndex: 3,
+		paddingTop: '0.75rem',
+		paddingBottom: '0.5rem',
+		display: 'flex',
+		justifyContent: 'center',
+		pointerEvents: 'auto' as const,
+		cursor: 'grab'
+	},
+	dragHandleBar: {
+		width: '2.5rem',
+		height: '0.25rem',
+		borderRadius: '9999px',
+		backgroundColor: 'var(--muted-foreground)',
+		opacity: 0.3
+	},
+	contentWrapper: {
+		width: '100%',
+		maxWidth: '28rem',
+		position: 'relative' as const,
+		backgroundColor: 'transparent',
+		padding: '1rem',
+		pointerEvents: 'auto' as const
+	},
+	closeButton: {
+		position: 'absolute' as const,
+		top: '-3rem',
+		right: '0',
+		padding: '0.5rem',
+		borderRadius: '0.5rem',
+		backgroundColor: 'var(--muted)',
+		border: '1px solid var(--border)',
+		cursor: 'pointer',
+		color: 'var(--muted-foreground)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		backdropFilter: 'blur(4px)'
+	}
 }
 
 type SignInDrawerProps = {
@@ -42,11 +95,9 @@ type SignInDrawerProps = {
 	allowClose?: boolean
 }
 
-const EASE_SPRING = [0.32, 0.72, 0, 1] as const
-
 export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDrawerProps) {
 	const dragY = useMotionValue(0)
-	const isDragging = useRef(false)
+	const isDraggingRef = useRef(false)
 	const closeButtonRef = useRef<HTMLButtonElement>(null)
 	const [isMobile, setIsMobile] = useState(false)
 
@@ -58,25 +109,30 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 	}, [])
 
 	useEffect(() => {
+		if (open && closeButtonRef.current && allowClose) {
+			requestAnimationFrame(() => closeButtonRef.current?.focus())
+		}
+	}, [open, allowClose])
+
+	useEffect(() => {
 		if (open) {
 			document.body.style.overflow = 'hidden'
-			requestAnimationFrame(() => closeButtonRef.current?.focus())
 		} else {
 			document.body.style.overflow = ''
 		}
-		return () => { document.body.style.overflow = '' }
+		return () => {
+			document.body.style.overflow = ''
+		}
 	}, [open])
 
 	useEffect(() => {
 		if (!open || !allowClose) return
-		const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpenChange(false) }
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') onOpenChange(false)
+		}
 		window.addEventListener('keydown', onKey)
 		return () => window.removeEventListener('keydown', onKey)
 	}, [open, allowClose, onOpenChange])
-
-	const handleBackdropClick = useCallback(() => {
-		if (allowClose) onOpenChange(false)
-	}, [allowClose, onOpenChange])
 
 	const handleDrag = useCallback(
 		(_: PointerEvent, info: { offset: { y: number } }) => {
@@ -93,7 +149,7 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 
 	const handleDragEnd = useCallback(
 		(_: PointerEvent, info: { offset: { y: number }; velocity: { y: number } }) => {
-			isDragging.current = false
+			isDraggingRef.current = false
 			const shouldClose =
 				allowClose &&
 				(info.offset.y > window.innerHeight * 0.15 || info.velocity.y > 500)
@@ -110,150 +166,68 @@ export function SignInDrawer({ open, onOpenChange, allowClose = true }: SignInDr
 	return (
 		<AnimatePresence>
 			{open && (
-				<div
-					style={{
-						position: 'fixed',
-						inset: 0,
-						zIndex: 9999,
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-					}}
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.3 }}
+					style={styles.overlay}
 				>
-					{/* Blurred dim backdrop */}
-					<motion.div
-						key="backdrop"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.3 }}
-						onClick={handleBackdropClick}
-						style={{
-							position: 'absolute',
-							inset: 0,
-							backgroundColor: 'rgba(0,0,0,0.55)',
-							backdropFilter: 'blur(6px)',
-							WebkitBackdropFilter: 'blur(6px)',
-							zIndex: 0,
-						}}
+					{/* Blurred backdrop */}
+					<div
+						style={styles.backdrop}
+						onClick={allowClose ? () => onOpenChange(false) : undefined}
 					/>
 
-					{/* Panel */}
+					{/* Gradient Drawer */}
 					<motion.div
-						key="panel"
-						initial={{ opacity: 0, scale: 0.97, y: 16 }}
-						animate={{ opacity: 1, scale: 1, y: 0 }}
-						exit={{ opacity: 0, scale: 0.97, y: 16 }}
-						transition={{ duration: 0.35, ease: EASE_SPRING }}
-						drag={isMobile ? 'y' : false}
+						initial={{ y: '100%' }}
+						animate={{ y: 0 }}
+						exit={{ y: '100%' }}
+						transition={
+							isDraggingRef.current
+								? { duration: 0 }
+								: { duration: 0.4, ease: [0.32, 0.72, 0, 1] }
+						}
+						drag={isMobile && allowClose ? 'y' : false}
 						dragConstraints={{ top: 0, bottom: 0 }}
-						dragElastic={{ top: 0.2, bottom: 0.5 }}
-						onDragStart={() => { isDragging.current = true }}
+						dragElastic={{ top: 0.1, bottom: 0.5 }}
+						onDragStart={() => {
+							isDraggingRef.current = true
+						}}
 						onDrag={handleDrag as any}
 						onDragEnd={handleDragEnd as any}
 						style={{
-							y: dragY,
-							position: 'relative',
-							zIndex: 1,
-							width: '100%',
-							maxWidth: '30rem',
-							margin: '0 auto',
-							/* transparent at top → solid background at ~30% down */
-							background:
-									'linear-gradient(to bottom, transparent 0%, var(--background) 22%, var(--background) 100%)',
-							border: 'none',
-							boxShadow: 'none',
-							borderRadius: '1rem',
-							padding: '0 0 2.5rem 0',
-							/* clicks pass through the transparent top strip */
-							pointerEvents: 'none',
+							...styles.drawer,
+							y: isMobile ? dragY : 0,
+							cursor: isMobile ? 'grab' : 'default'
 						}}
 					>
 						{/* Mobile drag handle */}
-						{isMobile && (
-							<div
-								style={{
-									display: 'flex',
-									justifyContent: 'center',
-									paddingTop: '0.625rem',
-									paddingBottom: '0.25rem',
-									pointerEvents: 'auto',
-								}}
-							>
-								<div
-									style={{
-										width: '2.5rem',
-										height: '0.25rem',
-										borderRadius: '9999px',
-										backgroundColor: 'var(--muted-foreground)',
-										opacity: 0.35,
-									}}
-								/>
+						{isMobile && allowClose && (
+							<div style={styles.dragHandle}>
+								<div style={styles.dragHandleBar} aria-label="Drag to close" />
 							</div>
 						)}
 
-						{/* Logo — floats in the transparent gradient zone */}
-						<div
-							style={{
-								display: 'flex',
-								justifyContent: 'center',
-								paddingTop: '2rem',
-								paddingBottom: '1rem',
-								pointerEvents: 'none',
-							}}
-						>
-							<LogoMark />
-						</div>
-
-						{/* Re-enable pointer events on the solid content zone */}
-						<div style={{ pointerEvents: 'auto', position: 'relative' }}>
-							{/* Close button — absolute top-right of the content zone */}
+						<div style={styles.contentWrapper}>
 							{allowClose && (
 								<button
 									ref={closeButtonRef}
 									onClick={() => onOpenChange(false)}
-									aria-label="Close sign-in panel"
-									style={{
-										position: 'absolute',
-										top: '-3.5rem',
-										right: '0.75rem',
-										padding: '0.4rem',
-										borderRadius: '0.5rem',
-										backgroundColor: 'var(--muted)',
-										border: '1px solid var(--border)',
-										backdropFilter: 'blur(4px)',
-										WebkitBackdropFilter: 'blur(4px)',
-										cursor: 'pointer',
-										display: 'flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										color: 'var(--foreground)',
-										lineHeight: 1,
-										zIndex: 10,
-									}}
+									style={styles.closeButton}
+									aria-label="Close"
 								>
-									<X size={16} />
+									<X style={{ width: 20, height: 20 }} />
 								</button>
 							)}
 
-							{/* Form content */}
-							<div
-								style={{
-									width: '100%',
-									maxWidth: '28rem',
-									margin: '0 auto',
-									padding: '0.5rem 1.5rem 0',
-								}}
-							>
-								<LoginForm
-									title="Welcome back"
-									subtitle="Sign in to sync your notes across devices"
-									onSuccess={() => onOpenChange(false)}
-								/>
-							</div>
+							<LoginForm
+								onSuccess={() => onOpenChange(false)}
+							/>
 						</div>
 					</motion.div>
-				</div>
+				</motion.div>
 			)}
 		</AnimatePresence>
 	)
