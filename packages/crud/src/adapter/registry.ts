@@ -1,4 +1,8 @@
-import type { StorageAdapter } from '../types/adapter'
+import type {
+	StorageAdapter,
+	StorageAdapterCapabilities,
+	StorageBackend
+} from '../types/adapter'
 
 let currentAdapter: StorageAdapter | null = null
 
@@ -39,6 +43,33 @@ export function getAdapter(): StorageAdapter {
  */
 export function hasAdapter(): boolean {
 	return currentAdapter !== null
+}
+
+/**
+ * Gets capabilities metadata for the currently registered adapter.
+ * Returns null when no adapter is configured or capabilities are not provided.
+ */
+export function getAdapterCapabilities(): StorageAdapterCapabilities | null {
+	if (!currentAdapter?.capabilities) return null
+	return currentAdapter.capabilities
+}
+
+/**
+ * Checks whether the active adapter supports a given backend.
+ */
+export function adapterSupportsBackend(backend: StorageBackend): boolean {
+	const capabilities = getAdapterCapabilities()
+	if (!capabilities) return false
+	return capabilities.backends.includes(backend)
+}
+
+/**
+ * Returns true when the active adapter can operate in local-only privacy mode.
+ */
+export function isPrivacyModeSafeAdapter(): boolean {
+	const capabilities = getAdapterCapabilities()
+	if (!capabilities) return false
+	return capabilities.syncMode === 'local-only'
 }
 
 /**

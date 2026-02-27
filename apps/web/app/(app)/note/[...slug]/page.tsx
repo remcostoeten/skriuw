@@ -3,7 +3,6 @@
 import { NoteSplitView } from '@/features/notes/components/note-split-view'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
-import { cn } from '@skriuw/shared'
 import { useMemo, use, useRef, useState, useEffect } from 'react'
 
 /**
@@ -65,9 +64,8 @@ export default function NoteEditorPage({ params }: { params: Promise<{ slug: str
 		}
 	}, [noteId, isInitialLoading, slugOrId])
 
-	// Initial app loading - show nothing (sidebar skeleton handles this)
 	if (isInitialLoading) {
-		return null
+		return <NoteEditorSkeleton />
 	}
 
 	// We have a valid note - render it immediately

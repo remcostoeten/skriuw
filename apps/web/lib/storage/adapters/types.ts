@@ -39,8 +39,18 @@ export type BatchDeleteAdapterOptions = {
 	userId?: string
 }
 
+export type StorageBackend = 'remote' | 'sqlite' | 'filesystem' | 'local-storage'
+
+export type StorageSyncMode = 'local-only' | 'sync-capable' | 'remote-only'
+
+export type StorageAdapterCapabilities = {
+	backends: StorageBackend[]
+	syncMode: StorageSyncMode
+}
+
 export type StorageAdapter = {
 	name: string
+	capabilities?: StorageAdapterCapabilities
 	read<T>(key: string, options?: ReadAdapterOptions): Promise<T[] | T | undefined>
 	readOne<T>(key: string, id: string, options?: ReadAdapterOptions): Promise<T | null>
 	readMany<T>(key: string, options?: BatchReadAdapterOptions): Promise<T[]>

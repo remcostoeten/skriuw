@@ -1356,6 +1356,288 @@ app.use(notesRoutes)
 
 ---
 
+## Chapter 11 — Native Reusability Cleanup
+
+---
+
+### TASK-025 — Add storage backend capability contract to `@skriuw/crud`
+
+**Status:** `[x]`
+
+**File(s):**
+- `packages/crud/src/types/adapter.ts`
+- `packages/crud/src/adapter/registry.ts`
+- `packages/crud/src/adapter/index.ts`
+- `packages/crud/src/index.ts`
+
+**Root cause:**
+`@skriuw/crud` currently defines operation methods but does not expose adapter backend capabilities. For Tauri and future Expo, we need a first-class contract for local backends (`sqlite` and optional `filesystem`) and remote backends, so platform-level selection does not rely on ad-hoc checks.
+
+**What to change:**
+
+1. Add typed backend capability metadata to `StorageAdapter` in `packages/crud/src/types/adapter.ts`:
+   - backend union: `remote`, `sqlite`, `filesystem`, `local-storage`
+   - sync mode union: `local-only`, `sync-capable`, `remote-only`
+   - optional `capabilities` field on `StorageAdapter`
+
+2. Extend adapter registry in `packages/crud/src/adapter/registry.ts` with helpers:
+   - `getAdapterCapabilities()`
+   - `adapterSupportsBackend(backend)`
+   - `isPrivacyModeSafeAdapter()` (true when sync mode is `local-only`)
+
+3. Export the new helpers from:
+   - `packages/crud/src/adapter/index.ts`
+   - `packages/crud/src/index.ts`
+
+4. Keep this non-breaking:
+   - `capabilities` stays optional so existing adapters compile unchanged.
+
+**Do not change:**
+- Existing CRUD operation behavior
+- Existing adapter operation signatures (`create/read/update/delete`)
+- App UI or API route behavior
+
+**Done criteria:**
+- `bun run check-types` passes
+- Existing adapters compile without mandatory changes
+- New helpers are importable from `@skriuw/crud` and `@skriuw/crud/adapter`
+
+---
+
+### TASK-026 — Add platform adapter selector with Tauri local backend preference
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/lib/storage/adapters/types.ts`
+- `apps/web/lib/storage/adapters/api-adapter.ts`
+- `apps/web/lib/storage/adapters/local-storage-adapter.ts`
+- `apps/web/lib/storage/adapters/client-api.ts`
+- `apps/web/lib/storage/adapter-selector.ts` (new)
+- `apps/web/app/storage.ts`
+
+**Root cause:**
+Adapter initialization is currently hardcoded to `createClientApiAdapter()`, which does not expose platform selection behavior in one place. For future Tauri and Expo work, we need a clear selector contract that can prefer local native backends (`sqlite`/`filesystem`) while keeping web behavior unchanged.
+
+**What to change:**
+
+1. Add optional capability metadata to web adapter types:
+   - backend union: `remote`, `sqlite`, `filesystem`, `local-storage`
+   - sync mode union: `local-only`, `sync-capable`, `remote-only`
+   - optional `capabilities` field on `StorageAdapter`
+
+2. Annotate existing adapters:
+   - `ApiAdapter`: `remote`, `remote-only`
+   - `LocalStorageAdapter`: `local-storage`, `local-only`
+   - `createClientApiAdapter`: `local-storage + remote`, `sync-capable`
+
+3. Create `apps/web/lib/storage/adapter-selector.ts`:
+   - add `StoragePlatformTarget` union: `web | tauri-standard | tauri-privacy | expo`
+   - add selection helper that picks:
+     - privacy mode: local native adapter (`filesystem` preferred when requested, else `sqlite`)
+     - standard native: local native if available, otherwise current client-api strategy
+     - web: current client-api strategy
+
+4. Update `apps/web/app/storage.ts` to initialize through selector while preserving current runtime behavior.
+
+**Do not change:**
+- CRUD operation semantics
+- Existing API route behavior
+- UI behavior
+
+**Done criteria:**
+- `bun run check-types` passes
+- Default web initialization still uses existing client-api strategy
+- Selector can be called with `tauri-privacy` and prefer local native backends when provided
+
+---
+
+### TASK-027 — Wire Tauri-aware storage bootstrap configuration
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/lib/storage/adapter-selector.ts`
+- `apps/web/app/storage.ts`
+
+**Root cause:**
+Selector support exists, but storage bootstrap does not yet expose a runtime configuration surface for native adapters and privacy mode. Without this, Tauri cannot actively opt into `sqlite` or `filesystem` at initialization.
+
+**What to change:**
+
+1. Export native adapter set type from selector module for shared usage.
+2. In `apps/web/app/storage.ts`, add:
+   - `registerNativeStorageAdapters(...)`
+   - `configureNativeStorageMode(...)` for `standard | privacy` and filesystem preference
+3. Make `ensureStorageInitialized()`:
+   - detect Tauri runtime
+   - select `tauri-standard` or `tauri-privacy` based on configured mode
+   - pass registered native adapters to selector
+4. Preserve web default behavior when no native config is provided.
+
+**Do not change:**
+- Existing web runtime behavior
+- CRUD APIs or UI code paths
+
+**Done criteria:**
+- `bun run check-types` passes
+- Web still initializes with client API adapter by default
+- Tauri can configure privacy/standard mode and native adapters before initialization
+
+---
+
+### TASK-028 — Persist and hydrate native storage mode for Tauri startup
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/app/storage.ts`
+
+**Root cause:**
+Tauri bootstrap can be configured programmatically, but mode selection (`standard` vs `privacy`) is not hydrated from persisted client preferences. On restart, users should keep their selected mode without needing explicit runtime reconfiguration each time.
+
+**What to change:**
+
+1. Add localStorage-backed preference keys for:
+   - native mode (`standard` or `privacy`)
+   - filesystem preference (`true/false`)
+2. Add a hydration helper that runs during initialization (client-only, Tauri-only).
+3. Add setters that both update runtime config and persist preferences.
+4. Keep defaults unchanged when preferences are missing/invalid.
+
+**Do not change:**
+- Existing web behavior
+- Existing adapter selection semantics
+
+**Done criteria:**
+- `bun run check-types` passes
+- In Tauri, mode preference persists across reloads/restarts
+- Web behavior remains unchanged
+
+---
+
+### TASK-029 — Add Rust-backed Tauri SQLite adapter and auto-registration
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/src-tauri/Cargo.toml`
+- `apps/web/src-tauri/src/main.rs`
+- `apps/web/lib/storage/adapters/tauri-sqlite-adapter.ts` (new)
+- `apps/web/app/storage.ts`
+
+**Root cause:**
+Bootstrap and selection now support native adapters, but no Rust-backed SQLite adapter exists yet. Tauri therefore cannot actually execute local CRUD through native storage.
+
+**What to change:**
+
+1. Add Rust command handlers for generic storage CRUD over SQLite:
+   - create, readOne, readMany, update, delete
+2. Register commands in `tauri::generate_handler!`.
+3. Add `TauriSqliteAdapter` in TS that invokes those commands.
+4. Auto-register `TauriSqliteAdapter` as default native `sqlite` adapter when running in Tauri.
+
+**Do not change:**
+- Existing web runtime path
+- Existing API route behavior
+
+**Done criteria:**
+- `bun run check-types` passes
+- `cargo check` passes in `apps/web/src-tauri`
+- Tauri runtime can initialize with local SQLite adapter by default
+
+---
+
+### TASK-030 — Add Rust-backed Tauri filesystem adapter and default registration
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/src-tauri/src/main.rs`
+- `apps/web/lib/storage/adapters/tauri-filesystem-adapter.ts` (new)
+- `apps/web/app/storage.ts`
+
+**Root cause:**
+Native bootstrap supports `preferFilesystem`, but no filesystem backend is currently registered. Privacy mode therefore cannot select a real FS adapter path.
+
+**What to change:**
+
+1. Add Tauri commands for filesystem-backed CRUD (`create/readOne/readMany/update/delete`).
+2. Ensure update behavior merges partial updates instead of replacing full records.
+3. Add TS `TauriFilesystemAdapter` invoking those commands.
+4. Auto-register filesystem adapter in Tauri bootstrap defaults.
+
+**Do not change:**
+- Existing web runtime behavior
+- Existing route/API behavior
+
+**Done criteria:**
+- `bun run check-types` passes
+- `cargo check` passes in `apps/web/src-tauri`
+- Tauri startup registers both `sqlite` and `filesystem` native adapters
+
+---
+
+### TASK-031 — Add Tauri desktop storage mode controls in Settings UI
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/app/storage.ts`
+- `apps/web/features/settings/components/StorageSettings.tsx`
+
+**Root cause:**
+Native mode persistence exists, but users currently have no desktop UI controls to manage `standard/privacy` and filesystem preference.
+
+**What to change:**
+
+1. Export lightweight getters for persisted native mode/preferences from `app/storage.ts`.
+2. Add a Tauri-only section in `StorageSettings`:
+   - mode toggle: `standard` vs `privacy`
+   - filesystem preference toggle
+3. Persist via existing setters and show clear restart notice.
+
+**Do not change:**
+- Existing web storage behavior
+- Existing upload token controls
+
+**Done criteria:**
+- `bun run check-types` passes
+- On Tauri, settings page can update and persist mode/preferences
+- Web continues to show only existing storage settings
+
+---
+
+### TASK-032 — Add configurable Tauri storage paths (DB + FS) in Settings
+
+**Status:** `[x]`
+
+**File(s):**
+- `apps/web/src-tauri/src/main.rs`
+- `apps/web/lib/storage/tauri-storage-config.ts` (new)
+- `apps/web/features/settings/components/StorageSettings.tsx`
+
+**Root cause:**
+Desktop storage now works natively, but users cannot inspect or configure where SQLite DB and filesystem records are stored.
+
+**What to change:**
+
+1. Add Tauri commands to get/set storage paths.
+2. Make storage backends use configured paths.
+3. Add Tauri-only settings UI fields for DB file path and filesystem directory path.
+4. Persist settings in native storage config and apply after restart.
+
+**Do not change:**
+- Web storage behavior
+- Existing API route behavior
+
+**Done criteria:**
+- `bun run check-types` passes
+- `cargo check` passes in `apps/web/src-tauri`
+- In Tauri settings UI, user can view/update DB + FS paths
+
+---
+
 ## Task Summary Table
 
 | Task ID | Chapter | Description | Status | Depends On |
@@ -1384,6 +1666,14 @@ app.use(notesRoutes)
 | TASK-022 | 9 — Backend | Migrate notes routes to Elysia | `[x]` | TASK-021 |
 | TASK-023 | 10 — Cleanup | Remove packages/core if empty | `[x]` | All tasks |
 | TASK-024 | 10 — Cleanup | Fold packages/env into apps/web | `[x]` | All tasks |
+| TASK-025 | 11 — Native | Add adapter backend capability contract | `[x]` | All tasks |
+| TASK-026 | 11 — Native | Add platform adapter selector | `[x]` | TASK-025 |
+| TASK-027 | 11 — Native | Wire Tauri-aware bootstrap config | `[x]` | TASK-026 |
+| TASK-028 | 11 — Native | Persist/hydrate native storage mode | `[x]` | TASK-027 |
+| TASK-029 | 11 — Native | Add Rust-backed SQLite adapter | `[x]` | TASK-028 |
+| TASK-030 | 11 — Native | Add Rust-backed filesystem adapter | `[x]` | TASK-029 |
+| TASK-031 | 11 — Native | Add desktop storage mode controls | `[x]` | TASK-030 |
+| TASK-032 | 11 — Native | Add configurable Tauri storage paths | `[x]` | TASK-031 |
 
 ---
 

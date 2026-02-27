@@ -4,7 +4,7 @@ import { Logo } from './logo'
 import { NotesIcon, GearIcon, FolderIcon, IconButton } from '@skriuw/ui/icons'
 import { Trash2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type LeftToolbarProps = {
 	onSettingsClick?: () => void
@@ -18,6 +18,13 @@ export function LeftToolbar({ onSettingsClick }: LeftToolbarProps) {
 	const isOnNoteView = pathname === '/' || pathname.startsWith('/note/')
 	const isOnArchive = pathname === '/archive'
 	const isOnTrash = pathname === '/trash'
+
+	// Prefetch all sidebar routes on mount for instant navigation
+	useEffect(() => {
+		router.prefetch('/')
+		router.prefetch('/archive')
+		router.prefetch('/trash')
+	}, [router])
 
 	function navigate(href: string) {
 		if (pathname !== href) {

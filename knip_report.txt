@@ -1,0 +1,353 @@
+Unused files (48)
+apps/web/app/(app)/archive/components/export-panel-skeleton.tsx     
+apps/web/app/(app)/archive/components/import-panel-skeleton.tsx     
+apps/web/app/(app)/archive/components/trash-panel-skeleton.tsx      
+apps/web/app/(auth)/auth-layout.tsx                                 
+apps/web/app/sw.ts                                                  
+apps/web/components/layout/app-layout-loading.tsx                   
+apps/web/features/ai/types/entities.ts                              
+apps/web/features/ai/utilities/validation.ts                        
+apps/web/features/authentication/components/email-autocomplete.tsx  
+apps/web/features/authentication/components/floating-paths.tsx      
+apps/web/features/authentication/components/layout.tsx              
+apps/web/features/authentication/components/loading-button.tsx      
+apps/web/features/authentication/components/password-input.tsx      
+apps/web/features/editor/blocks/custom-code-block.tsx               
+apps/web/features/editor/slash-menu/code-block/editor.tsx           
+apps/web/features/editor/slash-menu/code-block/language-selector.tsx
+apps/web/features/media/hooks/use-destroy-file.ts                   
+apps/web/features/media/hooks/use-files-query.ts                    
+apps/web/features/notes/api/mutations/favorite-note.ts              
+apps/web/features/notes/api/mutations/pin-item.ts                   
+apps/web/features/notes/api/mutations/set-visibility.ts             
+apps/web/features/quick-note/components/index.ts                    
+apps/web/features/quick-note/components/quick-note-input.tsx        
+apps/web/lib/env/client.ts                                          
+apps/web/lib/env/index.ts                                           
+apps/web/lib/env/schema.ts                                          
+apps/web/lib/env/server.ts                                          
+apps/web/lib/env/validate.ts                                        
+apps/web/lib/server-identity-guard.ts                               
+apps/web/modules/landing-page/utilities/money.ts                    
+packages/crud/src/utils/index.ts                                    
+packages/db/scripts/reset.ts                                        
+packages/db/scripts/run-migration.ts                                
+packages/db/scripts/sync-seeds.ts                                   
+packages/db/src/reset.ts                                            
+packages/db/src/seed.ts                                             
+packages/shared/src/components/index.ts                             
+packages/shared/src/hooks/index.ts                                  
+packages/shared/src/utils/utils.ts                                  
+packages/style/tools/run-fix-imports.ts                             
+packages/style/tools/run-lint-style-fix.ts                          
+packages/style/tools/run-lint-style.ts                              
+scripts/analyze.js                                                  
+scripts/analyzers/arrow-function-analyzer.js                        
+scripts/analyzers/callback-analyzer.js                              
+scripts/analyzers/props-naming-analyzer.js                          
+scripts/check-db.ts                                                 
+scripts/dev.ts                                                      
+Unused dependencies (23)
+@elysiajs/bearer          apps/api/package.json:17:4       
+@gsap/react               apps/web/package.json:25:4       
+@hookform/resolvers       apps/web/package.json:26:4       
+class-variance-authority  apps/web/package.json:43:4       
+cmdk                      apps/web/package.json:44:4       
+gsap                      apps/web/package.json:50:4       
+isomorphic-dompurify      apps/web/package.json:51:4       
+react-day-picker          apps/web/package.json:61:4       
+react-hook-form           apps/web/package.json:63:4       
+react-simple-code-editor  apps/web/package.json:64:4       
+react-use-measure         apps/web/package.json:66:4       
+serwist                   apps/web/package.json:67:4       
+tough-cookie              apps/web/package.json:68:4       
+vaul                      apps/web/package.json:70:4       
+@hookform/resolvers       package.json:32:4                
+@vercel/analytics         package.json:33:4                
+better-auth               package.json:34:4                
+next-themes               package.json:35:4                
+tailwindcss-animate       packages/shared/package.json:35:4
+@radix-ui/react-toast     packages/ui/package.json:31:4    
+clsx                      packages/ui/package.json:37:4    
+react-day-picker          packages/ui/package.json:41:4    
+tailwind-merge            packages/ui/package.json:43:4    
+Unused devDependencies (16)
+eslint                            apps/web/package.json:85:4       
+@skriuw/config                    package.json:38:4                
+baseline-browser-mapping          package.json:39:4                
+dotenv                            package.json:40:4                
+postgres                          package.json:42:4                
+tinyglobby                        package.json:43:4                
+@typescript-eslint/eslint-plugin  packages/config/package.json:18:4
+@typescript-eslint/parser         packages/config/package.json:19:4
+eslint-config-prettier            packages/config/package.json:20:4
+eslint-plugin-import              packages/config/package.json:21:4
+eslint-plugin-jsx-a11y            packages/config/package.json:22:4
+eslint-plugin-react               packages/config/package.json:23:4
+eslint-plugin-react-hooks         packages/config/package.json:24:4
+dotenv                            packages/db/package.json:25:4    
+tsx                               packages/db/package.json:28:4    
+ts-morph                          packages/style/package.json:20:4 
+Unlisted dependencies (13)
+vitest               apps/web/__tests__/ai/ai-config.test.ts:1:38              
+vitest               apps/web/__tests__/auth/guest-migration.test.ts:3:54      
+vitest               apps/web/__tests__/backup/connector-secrets.test.ts:1:54  
+vitest               apps/web/__tests__/backup/validation.test.ts:2:38         
+vitest               apps/web/__tests__/editor/note-mention-search.test.ts:6:38
+vitest               apps/web/__tests__/guest/storage-persistence.test.ts:3:54 
+vitest               apps/web/__tests__/notes/tree-helpers.test.ts:3:38        
+vitest               apps/web/__tests__/notes/wikilink-parser.test.ts:5:38     
+vitest               apps/web/__tests__/tasks/sync-tasks.test.ts:7:54          
+eslint               packages/config/eslint/base.js:3:57                       
+eslint               packages/config/eslint/next.js:3:57                       
+eslint               packages/config/eslint/react-internal.js:3:57             
+@vitest/coverage-v8  packages/crud/vitest.config.ts                            
+Unlisted binaries (2)
+eslint  packages/db/package.json
+eslint  packages/ui/package.json
+Unresolved imports (1)
+eslint-config-next  apps/web/.eslintrc.json
+Unused exports (167)
+auth                                   apps/api/src/middleware/auth.ts:57:21                                  
+requireUserId                function  apps/api/src/middleware/auth.ts:124:17                                 
+requireMutationAccess        function  apps/api/src/middleware/auth.ts:140:17                                 
+initializeAppStorage         function  apps/web/app/storage.ts:18:23                                          
+_resetStorage                function  apps/web/app/storage.ts:40:23                                          
+SidebarLayout                          apps/web/components/sidebar/index.ts:2:10                              
+SidebarSkeleton                        apps/web/components/sidebar/index.ts:3:10                              
+TableOfContents                        apps/web/components/sidebar/index.ts:4:10                              
+TasksSidebarContent                    apps/web/components/sidebar/index.ts:5:10                              
+SidebarEmptyState                      apps/web/components/sidebar/index.ts:6:10                              
+useSidebarContentType                  apps/web/components/sidebar/index.ts:7:10                              
+SidebarLayout                function  apps/web/components/sidebar/sidebar-layout.tsx:15:17                   
+TableOfContents              function  apps/web/components/sidebar/table-of-contents.tsx:18:17                
+wrapServerActions            function  apps/web/examples/identity-guard-usage.tsx:210:17                      
+accountKeys                            apps/web/features/account/hooks/use-account-query.ts:14:14             
+useUpdateProfileMutation     function  apps/web/features/account/hooks/use-account-query.ts:104:17            
+useDeleteAccountMutation     function  apps/web/features/account/hooks/use-account-query.ts:121:17            
+recordActivities             function  apps/web/features/activity/api/mutations/record-activity.ts:46:23      
+getEntityActivity            function  apps/web/features/activity/api/queries/get-recent-activity.ts:79:23    
+ActivityCalendar                       apps/web/features/activity/components/index.ts:1:10                    
+RecentActivityList                     apps/web/features/activity/components/index.ts:2:10                    
+ActivityPanel                          apps/web/features/activity/components/index.ts:3:10                    
+recordActivity                         apps/web/features/activity/index.ts:3:10                               
+recordActivities                       apps/web/features/activity/index.ts:3:26                               
+getCalendarData                        apps/web/features/activity/index.ts:5:10                               
+getRecentActivity                      apps/web/features/activity/index.ts:6:10                               
+getEntityActivity                      apps/web/features/activity/index.ts:6:29                               
+AIProviderSelector                     apps/web/features/ai/components/index.ts:2:10                          
+AITestPanel                            apps/web/features/ai/components/index.ts:3:10                          
+useSendPrompt                          apps/web/features/ai/hooks/index.ts:2:22                               
+useSendPrompt                function  apps/web/features/ai/hooks/use-ai-prompt.ts:18:17                      
+getProvider                            apps/web/features/ai/index.ts:6:10                                     
+getAllProviders                        apps/web/features/ai/index.ts:6:23                                     
+getAllProviders              function  apps/web/features/ai/providers/index.ts:19:17                          
+geminiProvider                         apps/web/features/ai/providers/index.ts:23:10                          
+grokProvider                           apps/web/features/ai/providers/index.ts:24:10                          
+getNextAvailableTime                   apps/web/features/ai/utilities/index.ts:3:24                           
+getNextAvailableTime         function  apps/web/features/ai/utilities/key-rotation.ts:38:17                   
+default                                apps/web/features/authentication/components/login-form.tsx:702:16      
+seedMemoryArchive            function  apps/web/features/backup/core/drivers/memory-driver.ts:87:17           
+DropboxOAuth2Provider        class     apps/web/features/backup/core/oauth2.ts:10:14                          
+GoogleDriveOAuth2Provider    class     apps/web/features/backup/core/oauth2.ts:65:14                          
+getOAuth2Provider            function  apps/web/features/backup/core/oauth2.ts:120:17                         
+generateOAuth2State          function  apps/web/features/backup/core/oauth2.ts:131:17                         
+buildOAuth2Url               function  apps/web/features/backup/core/oauth2.ts:135:17                         
+storeOAuth2State             function  apps/web/features/backup/core/oauth2.ts:139:17                         
+DESTINATION_DEFINITIONS                apps/web/features/backup/core/registry.ts:13:14                        
+getDestinationDefinition     function  apps/web/features/backup/core/registry.ts:66:17                        
+connectorSchemas                       apps/web/features/backup/core/validation.ts:14:14                      
+exportAsMarkdown             function  apps/web/features/backup/utils/export-notes.ts:194:17                  
+downloadFile                 function  apps/web/features/backup/utils/export-notes.ts:206:17                  
+getMarkdownFilesForZip       function  apps/web/features/backup/utils/export-notes.ts:251:17                  
+readFileAsText               function  apps/web/features/backup/utils/import-notes.ts:332:17                  
+renderIcon                   function  apps/web/features/editor/components/emoji-picker.tsx:385:17            
+createEditorSchema           function  apps/web/features/editor/hooks/useEditorConfig.ts:59:17                
+codeBlockSpec                          apps/web/features/editor/slash-menu/code-block/index.ts:1:10           
+OverlayEditor                          apps/web/features/editor/slash-menu/code-block/index.ts:2:10           
+CopyButton                             apps/web/features/editor/slash-menu/code-block/index.ts:2:25           
+LanguageIcon                           apps/web/features/editor/slash-menu/code-block/index.ts:3:10           
+getLanguageIcon                        apps/web/features/editor/slash-menu/code-block/index.ts:3:24           
+getLanguageIcon              function  apps/web/features/editor/slash-menu/code-block/language-icons.tsx:50:17
+getLanguageIconClass         function  apps/web/features/editor/slash-menu/code-block/language-icons.tsx:57:17
+LanguageIcon                 function  apps/web/features/editor/slash-menu/code-block/language-icons.tsx:70:17
+CopyButton                             apps/web/features/editor/slash-menu/code-block/renderer.tsx:336:10     
+LANGUAGES                              apps/web/features/editor/slash-menu/code-block/types.ts:3:14           
+getLanguageConfig            function  apps/web/features/editor/slash-menu/code-block/types.ts:33:17          
+getDefaultFilename           function  apps/web/features/editor/slash-menu/code-block/types.ts:37:17          
+ConfigModal                            apps/web/features/editor/slash-menu/file-tree/index.ts:2:10            
+Tree                                   apps/web/features/editor/slash-menu/file-tree/index.ts:3:10            
+TreeProvider                           apps/web/features/editor/slash-menu/file-tree/index.ts:3:16            
+FileViewer                             apps/web/features/editor/slash-menu/file-tree/index.ts:4:10            
+ResizablePanelGroup                    apps/web/features/editor/slash-menu/file-tree/index.ts:4:22            
+ResizablePanel                         apps/web/features/editor/slash-menu/file-tree/index.ts:4:43            
+ResizableHandle                        apps/web/features/editor/slash-menu/file-tree/index.ts:4:59            
+LANGUAGE_MAP                           apps/web/features/editor/slash-menu/file-tree/types.ts:49:14           
+getAllFilePaths              function  apps/web/features/editor/slash-menu/file-tree/utils.ts:215:17          
+getAllFolderPaths            function  apps/web/features/editor/slash-menu/file-tree/utils.ts:232:17          
+LINE_HEIGHTS                           apps/web/features/editor/styles/editor-tokens.ts:32:14                 
+EDITOR_LAYOUT                          apps/web/features/editor/styles/editor-tokens.ts:39:14                 
+BREAKPOINTS                            apps/web/features/editor/styles/editor-tokens.ts:50:14                 
+highlightCode                function  apps/web/features/editor/utils/code-highlight.ts:147:23                
+highlightCodeSync            function  apps/web/features/editor/utils/code-highlight.ts:182:17                
+createFolder                 function  apps/web/features/notes/api/mutations/create-folder.ts:10:23           
+createNote                   function  apps/web/features/notes/api/mutations/create-note.ts:21:23             
+deleteItem                   function  apps/web/features/notes/api/mutations/delete-item.ts:13:23             
+moveItem                     function  apps/web/features/notes/api/mutations/move-item.ts:9:23                
+renameItem                   function  apps/web/features/notes/api/mutations/rename-item.ts:8:23              
+updateNote                   function  apps/web/features/notes/api/mutations/update-note.ts:11:23             
+getNote                      function  apps/web/features/notes/api/queries/get-note.ts:7:23                   
+getNotes                     function  apps/web/features/notes/api/queries/get-notes.ts:10:23                 
+findInItems                            apps/web/features/notes/utils/tree-helpers.ts:50:14                    
+WIKILINK_REGEX                         apps/web/features/notes/utils/wikilink-parser.ts:4:14                  
+hasWikilinks                 function  apps/web/features/notes/utils/wikilink-parser.ts:30:17                 
+findNoteByName               function  apps/web/features/notes/utils/wikilink-parser.ts:58:17                 
+getNoteNamesForAutocomplete  function  apps/web/features/notes/utils/wikilink-parser.ts:69:17                 
+createWikilinkText           function  apps/web/features/notes/utils/wikilink-parser.ts:86:17                 
+useUnifiedSearch             function  apps/web/features/search/components/UnifiedSearch.tsx:34:17            
+GlobalCommandMenu                      apps/web/features/search/index.ts:2:10                                 
+MobileSearchDrawer                     apps/web/features/search/index.ts:3:10                                 
+useUnifiedSearch                       apps/web/features/search/index.ts:4:25                                 
+DEFAULT_EDITOR_SETTINGS                apps/web/features/settings/editor-settings.ts:636:14                   
+getEditorSettings            function  apps/web/features/settings/editor-settings.ts:647:17                   
+settingsKeys                           apps/web/features/settings/hooks/use-settings-query.ts:8:14            
+useTypedSettings                       apps/web/features/settings/index.ts:1:23                               
+useEditorSetting                       apps/web/features/settings/index.ts:1:41                               
+useUserPreference                      apps/web/features/settings/index.ts:2:30                               
+withUserPreference                     apps/web/features/settings/index.ts:2:49                               
+PREVIEW_RENDERERS                      apps/web/features/settings/preview-renderers/index.tsx:19:14           
+hasPreviewRenderer           function  apps/web/features/settings/preview-renderers/index.tsx:31:17           
+useUserPreference            function  apps/web/features/settings/use-feature-flags.tsx:213:17                
+withUserPreference           function  apps/web/features/settings/use-feature-flags.tsx:226:17                
+useEditorSetting             function  apps/web/features/settings/use-settings.ts:98:17                       
+useTypedSettings             function  apps/web/features/settings/use-settings.ts:134:17                      
+getShortcut                  function  apps/web/features/shortcuts/api/queries/get-shortcut.ts:11:23          
+shortcut                     function  apps/web/features/shortcuts/builder.ts:17:17                           
+createSequence               function  apps/web/features/shortcuts/builder.ts:111:17                          
+ShortcutsReference           function  apps/web/features/shortcuts/components/shortcuts-reference.tsx:33:17   
+ShortcutsSidebar             function  apps/web/features/shortcuts/components/shortcuts-sidebar.tsx:21:17     
+isMacOS                      function  apps/web/features/shortcuts/display.tsx:14:17                          
+shortcutToString             function  apps/web/features/shortcuts/display.tsx:93:17                          
+shortcutToParts              function  apps/web/features/shortcuts/display.tsx:110:17                         
+ShortcutDisplay              function  apps/web/features/shortcuts/display.tsx:154:17                         
+useShortcutsManager          function  apps/web/features/shortcuts/hooks/use-shortcuts-manager.ts:14:17       
+shortcutsKeys                          apps/web/features/shortcuts/hooks/use-shortcuts-query.ts:9:14          
+tagsKeys                               apps/web/features/tags/hooks/use-tags-query.ts:11:14                   
+useEnsureTagExists           function  apps/web/features/tags/hooks/use-tags-query.ts:144:17                  
+TagBadge                               apps/web/features/tags/index.ts:3:10                                   
+getTasksForNote              function  apps/web/features/tasks/api/queries/get-tasks.ts:9:23                  
+getTaskByBlockId             function  apps/web/features/tasks/api/queries/get-tasks.ts:23:23                 
+TaskBreadcrumbs              function  apps/web/features/tasks/components/task-breadcrumbs.tsx:14:17          
+TaskPanelStack               function  apps/web/features/tasks/components/task-detail-panel.tsx:294:17        
+TaskDetailPanel                        apps/web/features/tasks/components/task-detail-panel.tsx:327:28        
+useParentTaskId              function  apps/web/features/tasks/hooks/use-task-context.tsx:56:17               
+tasksKeys                              apps/web/features/tasks/hooks/use-tasks-query.ts:9:14                  
+useTasksQuery                function  apps/web/features/tasks/hooks/use-tasks-query.ts:62:17                 
+useTaskQuery                 function  apps/web/features/tasks/hooks/use-tasks-query.ts:232:17                
+useDeleteTasksMutation       function  apps/web/features/tasks/hooks/use-tasks-query.ts:334:17                
+TaskDetailPanel                        apps/web/features/tasks/index.ts:5:44                                  
+DueDateButton                          apps/web/features/tasks/index.ts:6:10                                  
+TaskBreadcrumbs                        apps/web/features/tasks/index.ts:7:10                                  
+TaskDescriptionEditor                  apps/web/features/tasks/index.ts:8:10                                  
+uploadFile                             apps/web/features/uploads/index.ts:1:10                                
+useIsAuthenticated           function  apps/web/hooks/use-mutation-guard.ts:55:17                             
+optionalAuth                 function  apps/web/lib/api-auth.ts:127:23                                        
+withAuth                     function  apps/web/lib/api-auth.ts:150:17                                        
+isAuthenticated              function  apps/web/lib/api-auth.ts:177:17                                        
+evaluateAuthGuard            function  apps/web/lib/api-auth.ts:184:17                                        
+authClient                             apps/web/lib/auth-client.ts:6:14                                       
+isDebugEnabled               function  apps/web/lib/debug.ts:112:17                                           
+getDebugConfig               function  apps/web/lib/debug.ts:124:17                                           
+debugLog                     function  apps/web/lib/debug.ts:152:17                                           
+debug                                  apps/web/lib/debug.ts:207:14                                           
+withIdentity                 function  apps/web/lib/identity-guard.ts:49:17                                   
+createIdentityGuard          function  apps/web/lib/identity-guard.ts:86:17                                   
+clearPreseededFlag           function  apps/web/lib/preseed-data.ts:179:17                                    
+getQueryHighlightRanges      function  apps/web/lib/search/query-parser.ts:276:17                             
+requireAuth                  function  apps/web/lib/server/crud-helpers.ts:10:23                              
+AuthRequiredError            class     apps/web/lib/storage/adapters/api-adapter.ts:13:14                     
+AuthRequiredError                      apps/web/lib/storage/adapters/client-api.ts:21:10                      
+storageAdapter                         apps/web/lib/storage/index.ts:17:14                                    
+createClientApiAdapter                 apps/web/lib/storage/index.ts:19:10                                    
+UploadButton                           apps/web/lib/uploadthing.ts:9:14                                       
+UploadDropzone                         apps/web/lib/uploadthing.ts:10:14                                      
+useUploadThing                         apps/web/lib/uploadthing.ts:11:16                                      
+isStandalone                 function  apps/web/modules/install/utilities.ts:13:17                            
+chipIcons                              apps/web/modules/landing-page/utilities/icons.ts:22:14                 
+DrawerDescription            function  packages/ui/dialog-drawer.tsx:361:17                                   
+Unused exported types (71)
+Session                   type  apps/api/src/middleware/auth.ts:63:13                         
+Note                      type  apps/api/src/routes/notes.ts:11:15                            
+Folder                    type  apps/api/src/routes/notes.ts:11:21                            
+Item                      type  apps/api/src/routes/notes.ts:11:29                            
+SidebarContentType        type  apps/web/components/sidebar/index.ts:8:15                     
+TableOfContentsItem       type  apps/web/components/sidebar/table-of-contents.tsx:7:13        
+SidebarContentProps       type  apps/web/components/sidebar/types.ts:12:13                    
+NodeEntry                 type  apps/web/features/account/components/node-panel.tsx:11:13     
+ActivityEvent             type  apps/web/features/activity/types/index.ts:4:13                
+AIPromptResponse          type  apps/web/features/ai/hooks/use-ai-prompt.ts:35:15             
+RateLimitResult           type  apps/web/features/ai/utilities/index.ts:1:53                  
+KeySelectionResult        type  apps/web/features/ai/utilities/index.ts:3:51                  
+KeySelectionResult        type  apps/web/features/ai/utilities/key-rotation.ts:4:13           
+RateLimitResult           type  apps/web/features/ai/utilities/rate-limit.ts:5:13             
+BackupRunOptions          type  apps/web/features/backup/core/engine.ts:49:13                 
+HandshakeResult           type  apps/web/features/backup/core/handshake.ts:5:13               
+OAuth2Provider            type  apps/web/features/backup/core/oauth2.ts:4:13                  
+DestinationDefinition     type  apps/web/features/backup/core/registry.ts:8:13                
+DestinationFieldType      type  apps/web/features/backup/core/types.ts:3:13                   
+BackupJob                 type  apps/web/features/backup/core/types.ts:87:13                  
+ExportOptions             type  apps/web/features/backup/utils/export-notes.ts:6:13           
+ImportFormat              type  apps/web/features/backup/utils/import-notes.ts:6:13           
+ImportMode                type  apps/web/features/backup/utils/import-notes.ts:11:13          
+ImportOptions             type  apps/web/features/backup/utils/import-notes.ts:16:13          
+ParsedMarkdownNote        type  apps/web/features/backup/utils/import-notes.ts:34:13          
+TLanguage                 type  apps/web/features/editor/slash-menu/code-block/types.ts:31:13 
+TCustomTheme              type  apps/web/features/editor/slash-menu/code-block/types.ts:175:13
+TCodeBlockProps           type  apps/web/features/editor/slash-menu/code-block/types.ts:236:13
+TEditingState             type  apps/web/features/editor/slash-menu/file-tree/types.ts:33:13  
+TFileTreeBlockProps       type  apps/web/features/editor/slash-menu/file-tree/types.ts:40:13  
+FontSize                  type  apps/web/features/editor/styles/editor-tokens.ts:71:13        
+FontFamily                type  apps/web/features/editor/styles/editor-tokens.ts:72:13        
+MaxWidth                  type  apps/web/features/editor/styles/editor-tokens.ts:73:13        
+EditorTabsContextValue    type  apps/web/features/editor/tabs/index.ts:1:26                   
+GetAssetsParams           type  apps/web/features/media/api/queries/get-assets.ts:11:13       
+MediaFile                 type  apps/web/features/media/api/queries/get-files.ts:6:13         
+GetNotesOptions           type  apps/web/features/notes/api/queries/get-notes.ts:6:13         
+NoteTabDragPayload        type  apps/web/features/notes/types/index.ts:109:13                 
+WikilinkMatch             type  apps/web/features/notes/utils/wikilink-parser.ts:6:13         
+SettingsConfig            type  apps/web/features/settings/index.ts:6:2                       
+UserSetting               type  apps/web/features/settings/index.ts:7:2                       
+SettingsCategory          type  apps/web/features/settings/index.ts:8:2                       
+SettingsGroupType         type  apps/web/features/settings/index.ts:9:19                      
+ShortcutDisplayProps      type  apps/web/features/shortcuts/display.tsx:144:13                
+ShortcutContextValue      type  apps/web/features/shortcuts/global-shortcut-provider.tsx:9:13 
+ShortcutDefinition        type  apps/web/features/shortcuts/shortcut-definitions.ts:3:13      
+CreateCustomShortcutData  type  apps/web/features/shortcuts/types.ts:167:13                   
+Task                      type  apps/web/features/tasks/index.ts:12:15                        
+BaseEntity                type  apps/web/features/tasks/types.ts:1:15                         
+Timestamp                 type  apps/web/features/tasks/types.ts:1:27                         
+UUID                      type  apps/web/features/tasks/types.ts:1:38                         
+UploadResult              type  apps/web/features/uploads/index.ts:1:27                       
+Session                   type  apps/web/lib/api-auth.ts:10:13                                
+AuthResult                type  apps/web/lib/api-auth.ts:26:13                                
+AuthError                 type  apps/web/lib/api-auth.ts:32:13                                
+DebugFlag                 type  apps/web/lib/debug.ts:42:13                                   
+IdentityState             type  apps/web/lib/identity-guard.ts:6:13                           
+IdentityGuardResult       type  apps/web/lib/identity-guard.ts:13:13                          
+WithIdentityOptions       type  apps/web/lib/identity-guard.ts:43:13                          
+WithIdentityFn            type  apps/web/lib/identity-guard.ts:82:13                          
+AdvancedSearchOptions     type  apps/web/lib/search/use-advanced-search.ts:26:13              
+StorageKey                type  apps/web/lib/storage-keys.ts:42:13                            
+BaseEntity                type  apps/web/lib/storage/adapters/client-api.ts:18:15             
+OAuth2Provider            type  apps/web/lib/storage/oauth2.ts:54:13                          
+DrawerContentProps        type  packages/ui/dialog-drawer.tsx:154:13                          
+DrawerCloseProps          type  packages/ui/dialog-drawer.tsx:373:13                          
+DialogAsideProps          type  packages/ui/dialog-drawer.tsx:424:13                          
+DialogSectionProps        type  packages/ui/dialog-drawer.tsx:442:13                          
+DialogSeparatorProps      type  packages/ui/dialog-drawer.tsx:464:13                          
+DialogContentAreaProps    type  packages/ui/dialog-drawer.tsx:478:13                          
+DialogNavGroupProps       type  packages/ui/dialog-drawer.tsx:506:13                          
+Duplicate exports (2)
+LoginForm|default         apps/web/features/authentication/components/login-form.tsx
+findItemById|findInItems  apps/web/features/notes/utils/tree-helpers.ts             
+Configuration hints (5)

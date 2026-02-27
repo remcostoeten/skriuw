@@ -40,6 +40,7 @@ export function createClientApiAdapter(baseUrl?: string): StorageAdapter {
 
 	return {
 		name: 'client-api-strategy',
+		capabilities: { backends: ['local-storage', 'remote'], syncMode: 'sync-capable' },
 
 		async create<T>(key: string, data: any, options?: CreateAdapterOptions): Promise<T> {
 			const userId = options?.userId
