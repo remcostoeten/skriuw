@@ -82,19 +82,17 @@ export function AppLayoutManager({
 	// Only show skeleton on true initial load, not during navigation
 	const shouldShowSidebarSkeleton = isInitialLoading && !hasEverLoadedRef.current
 
-	const {
-		isMobileSidebarOpen,
-		toggleMobileSidebar,
-		isDesktopSidebarOpen,
-		toggleDesktopSidebar,
-		isSettingsOpen,
-		toggleSettings,
-		setSettingsOpen,
-		taskStack,
-		setLastActiveNote,
-		toggleRightSidebar,
-		isRightSidebarOpen
-	} = useUIStore()
+	const isMobileSidebarOpen = useUIStore((s) => s.isMobileSidebarOpen)
+	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar)
+	const isDesktopSidebarOpen = useUIStore((s) => s.isDesktopSidebarOpen)
+	const toggleDesktopSidebar = useUIStore((s) => s.toggleDesktopSidebar)
+	const isSettingsOpen = useUIStore((s) => s.isSettingsOpen)
+	const toggleSettings = useUIStore((s) => s.toggleSettings)
+	const setSettingsOpen = useUIStore((s) => s.setSettingsOpen)
+	const taskStack = useUIStore((s) => s.taskStack)
+	const setLastActiveNote = useUIStore((s) => s.setLastActiveNote)
+	const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar)
+	const isRightSidebarOpen = useUIStore((s) => s.isRightSidebarOpen)
 
 	const { titleDisplayMode = 'filename', multiNoteTabs = false, getSetting } = useSettings()
 	const sidebarHierarchyGuides = getSetting('sidebarHierarchyGuides') ?? false

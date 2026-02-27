@@ -93,30 +93,13 @@ export function ShortcutRecorder({
 				let normalizedKey = key
 				if (code === 'Backquote' || key === 'Backquote') {
 					normalizedKey = '`'
-					console.log('Backquote key detected via code/key:', {
-						key,
-						code,
-						keyCode: e.keyCode
-					})
 				} else {
-					// Use mapped key if available, otherwise use the key as-is
 					normalizedKey = keyMap[key] || key
 				}
 
-				// Debug logging for backquote key
-				if (normalizedKey === '`') {
-					console.log('Final backquote normalization:', {
-						originalKey: key,
-						code,
-						normalizedKey,
-						keyCode: e.keyCode
-					})
-				}
 
 				// Additional fallback for unusual key representations
 				if (!normalizedKey || normalizedKey === 'undefined' || normalizedKey === 'null') {
-					console.warn('Unrecognized key detected:', { key, code, keyCode: e.keyCode })
-					// Try to get a meaningful representation
 					normalizedKey = code || key || 'Unknown'
 				}
 
@@ -156,10 +139,6 @@ export function ShortcutRecorder({
 	}, [isRecording, onChange, onStopRecording])
 
 	function formatKeyCombo(combo: KeyCombo): string {
-		// Debug for backquote combos
-		if (combo.some((key) => key === '`' || key === 'Backquote')) {
-			console.log('Formatting backquote combo:', combo)
-		}
 		return combo.join(' + ')
 	}
 
@@ -199,11 +178,10 @@ export function ShortcutRecorder({
 				className={`
           flex-1 px-3 py-2 rounded-md border text-sm
           transition-all duration-200 cursor-pointer
-          ${
-				isRecording
-					? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/20'
-					: 'border-border bg-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-brand-500/50'
-			}
+          ${isRecording
+						? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/20'
+						: 'border-border bg-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-brand-500/50'
+					}
         `}
 			>
 				{isRecording ? (
