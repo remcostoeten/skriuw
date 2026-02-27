@@ -92,8 +92,8 @@ export function useNotesQuery() {
 			const allItems = Array.isArray(result.data) ? result.data : []
 			return filterActiveItems(allItems)
 		},
-		staleTime: isGuestUserId(userId) ? 0 : 5 * 60 * 1000,
-		refetchOnMount: isGuestUserId(userId) ? true : false,
+		staleTime: isGuestUserId(userId) ? 60 * 1000 : 5 * 60 * 1000,
+		refetchOnMount: false,
 		refetchOnWindowFocus: false,
 		refetchOnReconnect: true,
 	})
@@ -489,6 +489,27 @@ export function usePinItemMutation() {
 			if (!result.success) throw new Error('Failed to pin item')
 			return result.data
 		},
+		onMutate: async ({ id, pinned }) => {
+			await queryClient.cancelQueries({ queryKey: notesKeys.list(userId) })
+			const previousNotes = queryClient.getQueryData(notesKeys.list(userId))
+
+			queryClient.setQueryData(notesKeys.list(userId), (old: Item[] = []) => {
+				const pinItem = (items: Item[]): Item[] =>
+					items.map((item) => {
+						if (item.id === id) return { ...item, pinned, pinnedAt: pinned ? Date.now() : undefined }
+						if (item.type === 'folder') return { ...item, children: pinItem(item.children) }
+						return item
+					})
+				return pinItem(old)
+			})
+
+			return { previousNotes }
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previousNotes) {
+				queryClient.setQueryData(notesKeys.list(userId), context.previousNotes)
+			}
+		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })
 		}
@@ -505,6 +526,27 @@ export function useFavoriteNoteMutation() {
 			const result = await update<Note>(STORAGE_KEYS.NOTES, id, { favorite }, { userId })
 			if (!result.success) throw new Error('Failed to favorite note')
 			return result.data
+		},
+		onMutate: async ({ id, favorite }) => {
+			await queryClient.cancelQueries({ queryKey: notesKeys.list(userId) })
+			const previousNotes = queryClient.getQueryData(notesKeys.list(userId))
+
+			queryClient.setQueryData(notesKeys.list(userId), (old: Item[] = []) => {
+				const favItem = (items: Item[]): Item[] =>
+					items.map((item) => {
+						if (item.id === id) return { ...item, favorite }
+						if (item.type === 'folder') return { ...item, children: favItem(item.children) }
+						return item
+					})
+				return favItem(old)
+			})
+
+			return { previousNotes }
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previousNotes) {
+				queryClient.setQueryData(notesKeys.list(userId), context.previousNotes)
+			}
 		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: notesKeys.list(userId) })

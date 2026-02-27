@@ -1,5 +1,6 @@
 import type {
 	StorageAdapter,
+	StorageAdapterCapabilities,
 	ReadAdapterOptions,
 	CreateAdapterOptions,
 	UpdateAdapterOptions,
@@ -130,6 +131,7 @@ export async function apiRequest<T>(
 
 export class ApiAdapter implements StorageAdapter {
 	name = 'api-adapter'
+	capabilities: StorageAdapterCapabilities = { backends: ['remote'], syncMode: 'remote-only' }
 	private baseUrl: string
 
 	constructor(baseUrl?: string) {

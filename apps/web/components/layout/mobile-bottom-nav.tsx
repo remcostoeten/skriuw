@@ -6,7 +6,8 @@ import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { notify } from '@/lib/notify'
 import { cn } from '@skriuw/shared'
 import { haptic } from '@skriuw/shared'
-import { Plus, FolderOpen, Trash2, Archive, FileText, Sparkles } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Archive, FileText } from 'lucide-react'
+import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -14,10 +15,11 @@ type MobileBottomNavProps = {
 	onSettingsClick?: () => void
 }
 
-export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
+export function MobileBottomNav({ onSettingsClick: _onSettingsClick }: MobileBottomNavProps) {
 	const router = useRouter()
 	const pathname = usePathname()
-	const { toggleMobileSidebar, setSettingsOpen, isMobileSidebarOpen } = useUIStore()
+	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar)
+	const isMobileSidebarOpen = useUIStore((s) => s.isMobileSidebarOpen)
 	const { items, createNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
 	const [isCreating, setIsCreating] = useState(false)
@@ -50,23 +52,13 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
 		}
 	}
 
-	function handleSettingsClick() {
-		if (onSettingsClick) {
-			onSettingsClick()
-		} else {
-			setSettingsOpen(true)
-		}
-	}
-
 	const navItems = [
 		{
 			icon: FileText,
 			label: 'Notes',
 			active: isOnNotes,
-			onClick: () => {
-				haptic.light()
-				router.push('/')
-			}
+			href: '/',
+			onClick: () => haptic.light()
 		},
 		{
 			icon: FolderOpen,
@@ -92,19 +84,15 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
 			icon: Archive,
 			label: 'Archive',
 			active: isOnArchive,
-			onClick: () => {
-				haptic.light()
-				router.push('/archive')
-			}
+			href: '/archive',
+			onClick: () => haptic.light()
 		},
 		{
 			icon: Trash2,
 			label: 'Trash',
 			active: isOnTrash,
-			onClick: () => {
-				haptic.light()
-				router.push('/trash')
-			}
+			href: '/trash',
+			onClick: () => haptic.light()
 		}
 	]
 
@@ -119,70 +107,90 @@ export function MobileBottomNav({ onSettingsClick }: MobileBottomNavProps) {
 			)}
 		>
 			<div className='flex items-stretch justify-around h-[var(--nav-height)] px-1 max-w-lg mx-auto'>
-				{navItems.map((item) => (
-					<button
-						key={item.label}
-						type='button'
-						onClick={item.onClick}
-						disabled={item.disabled}
-						className={cn(
-							'relative flex flex-col items-center justify-center flex-1 gap-0.5',
-							'transition-all duration-150 ease-out',
-							'touch-manipulation select-none',
-							item.disabled && 'opacity-40 pointer-events-none',
-							item.primary && ['mx-1'],
-							!item.primary &&
-								!item.disabled && [
-									'text-white/40',
-									'active:scale-95 active:opacity-70'
-								],
-							!item.primary && !item.disabled && item.active && ['text-white']
-						)}
-					>
-						{item.primary ? (
+				{navItems.map((item) => {
+					const itemClasses = cn(
+						'relative flex flex-col items-center justify-center flex-1 gap-0.5',
+						'transition-all duration-150 ease-out',
+						'touch-manipulation select-none',
+						item.disabled && 'opacity-40 pointer-events-none',
+						item.primary && ['mx-1'],
+						!item.primary &&
+							!item.disabled && [
+								'text-white/40',
+								'active:scale-95 active:opacity-70'
+							],
+						!item.primary && !item.disabled && item.active && ['text-white']
+					)
+
+					const content = item.primary ? (
+						<div
+							className={cn(
+								'relative flex items-center justify-center',
+								'w-12 h-12 -mt-4 rounded-2xl',
+								'bg-gradient-to-b from-emerald-500 to-emerald-600',
+								'shadow-[0_4px_20px_rgba(16,185,129,0.4)]',
+								'transition-transform duration-150',
+								'active:scale-90',
+								item.disabled && 'from-gray-500 to-gray-600 shadow-none'
+							)}
+						>
+							<item.icon className='w-6 h-6 text-white' strokeWidth={2.5} />
+							<div className='absolute inset-0 rounded-2xl bg-gradient-to-t from-black/10 to-white/10' />
+						</div>
+					) : (
+						<>
 							<div
 								className={cn(
-									'relative flex items-center justify-center',
-									'w-12 h-12 -mt-4 rounded-2xl',
-									'bg-gradient-to-b from-emerald-500 to-emerald-600',
-									'shadow-[0_4px_20px_rgba(16,185,129,0.4)]',
-									'transition-transform duration-150',
-									'active:scale-90',
-									item.disabled && 'from-gray-500 to-gray-600 shadow-none'
+									'relative flex items-center justify-center w-7 h-7 rounded-lg',
+									'transition-colors duration-150',
+									item.active && 'bg-white/10'
 								)}
 							>
-								<item.icon className='w-6 h-6 text-white' strokeWidth={2.5} />
-								<div className='absolute inset-0 rounded-2xl bg-gradient-to-t from-black/10 to-white/10' />
+								<item.icon
+									className={cn(
+										'w-[22px] h-[22px] transition-all duration-150',
+										item.active && 'scale-105'
+									)}
+									strokeWidth={item.active ? 2.25 : 1.75}
+								/>
 							</div>
-						) : (
-							<>
-								<div
-									className={cn(
-										'relative flex items-center justify-center w-7 h-7 rounded-lg',
-										'transition-colors duration-150',
-										item.active && 'bg-white/10'
-									)}
-								>
-									<item.icon
-										className={cn(
-											'w-[22px] h-[22px] transition-all duration-150',
-											item.active && 'scale-105'
-										)}
-										strokeWidth={item.active ? 2.25 : 1.75}
-									/>
-								</div>
-								<span
-									className={cn(
-										'text-[10px] font-medium tracking-tight',
-										'transition-colors duration-150'
-									)}
-								>
-									{item.label}
-								</span>
-							</>
-						)}
-					</button>
-				))}
+							<span
+								className={cn(
+									'text-[10px] font-medium tracking-tight',
+									'transition-colors duration-150'
+								)}
+							>
+								{item.label}
+							</span>
+						</>
+					)
+
+					if (item.href) {
+						return (
+							<Link
+								key={item.label}
+								href={item.href}
+								prefetch
+								onClick={item.onClick}
+								className={itemClasses}
+							>
+								{content}
+							</Link>
+						)
+					}
+
+					return (
+						<button
+							key={item.label}
+							type='button'
+							onClick={item.onClick}
+							disabled={item.disabled}
+							className={itemClasses}
+						>
+							{content}
+						</button>
+					)
+				})}
 			</div>
 		</nav>
 	)

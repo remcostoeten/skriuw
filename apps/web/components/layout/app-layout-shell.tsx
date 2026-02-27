@@ -103,8 +103,8 @@ export function AppLayoutShell({
 						className={cn(
 							// Base positioning
 							'fixed md:static inset-y-0 left-0',
-							// Improved z-index handling
-							'z-50 md:z-0',
+							// Mobile: above backdrop (z-40), Desktop: auto stacking
+							'z-50 md:z-auto',
 							// Responsive width
 							isMobile ? 'w-[280px] max-w-[80vw]' : 'w-auto',
 							// Smooth transitions (only when not dragging)

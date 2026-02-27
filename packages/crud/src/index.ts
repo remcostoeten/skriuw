@@ -48,7 +48,15 @@ export * from './cache'
 // ADAPTER
 // ============================================================================
 
-export { setAdapter, getAdapter, hasAdapter, resetAdapter } from './adapter'
+export {
+	setAdapter,
+	getAdapter,
+	hasAdapter,
+	getAdapterCapabilities,
+	adapterSupportsBackend,
+	isPrivacyModeSafeAdapter,
+	resetAdapter
+} from './adapter'
 
 // ============================================================================
 // USER CONTEXT

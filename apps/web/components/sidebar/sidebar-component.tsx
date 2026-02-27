@@ -50,9 +50,11 @@ import {
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 
 const EXPANDED_FOLDERS_KEY = 'Skriuw_expanded_folders'
+const SKELETON_ITEMS = Array.from({ length: 8 }, (_, i) => i)
+const SKELETON_CHILDREN = Array.from({ length: 2 }, (_, i) => i)
 
 // Component to render folder options for moving
 function MoveFolderMenu({
@@ -201,7 +203,7 @@ const formatShortcut = (shortcutId: keyof typeof shortcutDefinitions): string | 
 		.join('+')
 }
 
-function FileTreeItem({
+const FileTreeItem = memo(function FileTreeItem({
 	item,
 	level = 0,
 	activeNoteId,
@@ -695,15 +697,17 @@ function FileTreeItem({
 
 	// Additional memoized handlers
 	const queryClient = useQueryClient()
+	const prefetchRouter = useRouter()
 
-	// On hover, pre-populate the detail cache from the already-loaded list data.
-	// No network request needed — the item is already in the notes list cache.
-	// By the time the user clicks, the detail query is warm and navigation is instant.
+	// On hover, pre-populate the detail cache and prefetch the route.
+	// No network request needed for data — the item is already in the notes list cache.
+	// Route prefetch warms the Next.js RSC payload so navigation is instant.
 	const handleMouseEnterNote = useCallback(() => {
 		if (!isFolder) {
 			queryClient.setQueryData(notesKeys.detail(item.id), item)
+			prefetchRouter.prefetch(`/note/${item.id}`)
 		}
-	}, [queryClient, item, isFolder])
+	}, [queryClient, item, isFolder, prefetchRouter])
 
 	const handleFolderIconMouseEnter = useCallback(() => {
 		setIsHovering(true)
@@ -1347,7 +1351,9 @@ function FileTreeItem({
 			</ContextMenu>
 		</>
 	)
-}
+})
+
+FileTreeItem.displayName = 'FileTreeItem'
 
 export function Sidebar({ activeNoteId, contentType, customContent, ruler, openTabIds }: props) {
 	const router = useRouter()
@@ -1356,7 +1362,8 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 
 	// Access sidebar state
-	const { isDesktopSidebarOpen, setMobileSidebarOpen } = useUIStore()
+	const isDesktopSidebarOpen = useUIStore((s) => s.isDesktopSidebarOpen)
+	const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen)
 
 	// All hooks must be called before any conditional returns
 	const {
@@ -2236,7 +2243,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 					{isInitialLoading || isRefreshing ? (
 						/* Skeleton loader to prevent layout shift during initial load and refreshes */
 						<div className='flex flex-col gap-0.5 w-full animate-pulse'>
-							{Array.from({ length: 8 }).map((_, i) => {
+							{SKELETON_ITEMS.map((i) => {
 								const isFolder = i % 3 === 0
 								const hasChildren = isFolder && i < 3
 								return (
@@ -2257,7 +2264,7 @@ export function Sidebar({ activeNoteId, contentType, customContent, ruler, openT
 										</div>
 										{hasChildren && (
 											<div className='ml-4 space-y-0.5 mt-0.5'>
-												{Array.from({ length: 2 }).map((_, j) => (
+												{SKELETON_CHILDREN.map((j) => (
 													<div
 														key={j}
 														className='flex items-center gap-1.5 h-7 px-1'

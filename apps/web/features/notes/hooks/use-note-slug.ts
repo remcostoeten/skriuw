@@ -16,14 +16,14 @@ export function useNoteSlug(items: Item[]) {
 
 		// First pass: count slugs
 		notesInOrder.forEach((note) => {
-			const baseSlug = slugify(note.name)
+			const baseSlug = slugify(note.name || '')
 			slugCounts.set(baseSlug, (slugCounts.get(baseSlug) || 0) + 1)
 		})
 
 		// Second pass: assign slugs (use ID suffix for duplicates)
 		const usedSlugs = new Map<string, string>()
 		notesInOrder.forEach((note) => {
-			const baseSlug = slugify(note.name)
+			const baseSlug = slugify(note.name || '')
 			const isDuplicate = (slugCounts.get(baseSlug) || 0) > 1
 			const slug = isDuplicate ? `${baseSlug}-${note.id.slice(-6)}` : baseSlug
 

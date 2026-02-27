@@ -3,9 +3,17 @@ import { beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 const mockRequireAuth = mock()
 const mockCheckRateLimit = mock()
 
-mock.module('@/lib/api-auth', () => ({
-	requireAuth: mockRequireAuth
-}))
+mock.module('@/lib/api-auth', () => {
+	return {
+		requireAuth: mockRequireAuth,
+		optionalAuth: mock(),
+		withAuth: mock(),
+		isAuthenticated: mock(),
+		evaluateAuthGuard: mock(),
+		allowReadAccess: mock(),
+		requireMutation: mock()
+	}
+})
 
 const createChainableMock = () => {
 	const results: any[] = []
@@ -54,18 +62,17 @@ const aiApiKeys = {
 	id: 'ai_api_keys.id'
 }
 
-mock.module('@skriuw/db', () => ({
-	getDatabase: () => mockDb,
-	aiProviderConfig,
-	eq: (a: unknown, b: unknown) => ({ type: 'eq', a, b }),
-	and: (...args: unknown[]) => ({ type: 'and', args })
-}))
-
-mock.module('@skriuw/db/src/schema', () => ({
-	aiProviderConfig,
-	aiPromptLog,
-	aiApiKeys
-}))
+mock.module('@skriuw/db', () => {
+	return {
+		getDatabase: () => mockDb,
+		aiProviderConfig,
+		aiPromptLog,
+		aiApiKeys,
+		eq: (a: unknown, b: unknown) => ({ type: 'eq', a, b }),
+		and: (...args: unknown[]) => ({ type: 'and', args }),
+		default: {}
+	}
+})
 
 mock.module('drizzle-orm', () => ({
 	eq: (a: unknown, b: unknown) => ({ type: 'eq', a, b }),
@@ -104,9 +111,9 @@ let configGet: typeof import('@/app/api/ai/config/route').GET
 let usageGet: typeof import('@/app/api/ai/usage/route').GET
 
 beforeAll(async () => {
-	;({ POST: promptPost } = await import('@/app/api/ai/prompt/route'))
-	;({ GET: configGet } = await import('@/app/api/ai/config/route'))
-	;({ GET: usageGet } = await import('@/app/api/ai/usage/route'))
+	; ({ POST: promptPost } = await import('@/app/api/ai/prompt/route'))
+		; ({ GET: configGet } = await import('@/app/api/ai/config/route'))
+		; ({ GET: usageGet } = await import('@/app/api/ai/usage/route'))
 })
 
 beforeEach(() => {

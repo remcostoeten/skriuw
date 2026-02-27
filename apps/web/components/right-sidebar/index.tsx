@@ -18,7 +18,9 @@ import { useState, useMemo, useCallback } from 'react'
 const DEFAULT_EXPANDED_SECTIONS = new Set<SectionKey>([SECTION_KEYS.TOC, SECTION_KEYS.METADATA])
 
 export function RightSidebar({ noteId, content = [] }: RightSidebarProps) {
-	const { isRightSidebarOpen, toggleRightSidebar, setRightSidebarOpen } = useUIStore()
+	const isRightSidebarOpen = useUIStore((s) => s.isRightSidebarOpen)
+	const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar)
+	const setRightSidebarOpen = useUIStore((s) => s.setRightSidebarOpen)
 	const { items, setNoteVisibility } = useNotesContext()
 	const isMobile = useMediaQuery(MOBILE_BREAKPOINT)
 

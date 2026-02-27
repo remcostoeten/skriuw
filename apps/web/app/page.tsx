@@ -1,17 +1,12 @@
 'use client'
 
 import { useShortcut } from '../features/shortcuts'
-import { SkriuwExplanation } from '@/components/landing/skriuw-explanation'
-import Integrations from '@/modules/landing-page/components/integrations'
 import { NoteSplitView } from '@/features/notes/components/note-split-view'
 import { useNotesContext } from '@/features/notes/context/notes-context'
 import { useNoteSlug } from '@/features/notes/hooks/use-note-slug'
 import { flattenNotes } from '@/features/notes/utils/flatten-notes'
-import { useCookie } from '@/hooks/use-cookie'
-import { useSession } from '@/lib/auth-client'
 import { notify } from '@/lib/notify'
-import { Icons } from '@skriuw/ui'
-import { HeroBadge } from '@skriuw/ui/hero-badge'
+import { Kbd } from '@skriuw/ui'
 import { useRouter } from 'next/navigation'
 import { useMemo, useEffect, useCallback, useState } from 'react'
 
@@ -19,18 +14,13 @@ export default function Index() {
 	const router = useRouter()
 	const { items, createNote, isInitialLoading } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
-	const { data: session, isPending: isAuthLoading } = useSession()
-
 	const welcomeNoteId = useMemo(() => {
-		if (session || !items.length) return null
+		if (!items.length) return null
 		const welcomeNote = items.find((item) => item.id.startsWith('welcome-'))
 		if (welcomeNote) return welcomeNote.id
 		const firstNote = flattenNotes(items)[0]
 		return firstNote?.id || null
-	}, [items, session])
-
-	const { value: hideBadgeCookie, updateCookie } = useCookie('hide-alpha-badge')
-	const showBadge = hideBadgeCookie !== 'true'
+	}, [items])
 
 	const [hasMounted, setHasMounted] = useState(false)
 	useEffect(() => {
@@ -62,10 +52,6 @@ export default function Index() {
 		}
 	}, [hasMounted, handleCreateNote])
 
-	const handleHideBadge = () => {
-		updateCookie('true')
-	}
-
 	useShortcut('create-note', (e) => {
 		e.preventDefault()
 		handleCreateNote()
@@ -76,49 +62,37 @@ export default function Index() {
 		router.push('/archive')
 	})
 
-	if (!hasMounted || isAuthLoading || (!session && isInitialLoading)) {
-		return null
+	if (!hasMounted || isInitialLoading) {
+		return (
+			<div className='flex-1 flex flex-col p-8 animate-pulse'>
+				<div className='h-8 w-48 bg-muted/50 rounded mb-6' />
+				<div className='space-y-3'>
+					<div className='h-4 w-full bg-muted/30 rounded' />
+					<div className='h-4 w-5/6 bg-muted/30 rounded' />
+					<div className='h-4 w-4/6 bg-muted/30 rounded' />
+				</div>
+			</div>
+		)
 	}
 
 	return (
-		<>
-			{showBadge && (
-				<div className='fixed bottom-6 w-full flex justify-center left-1/2 transform -translate-x-1/2 z-50 pointer-events-none'>
-					<div className='pointer-events-auto'>
-						<HeroBadge
-							href='/archive'
-							text='Bugs will occur! Still in alpha'
-							icon={<Icons.logo className='h-4 w-4' />}
-							endIcon={<Icons.close className='h-4 w-4' />}
-							onCancel={handleHideBadge}
-						/>
-					</div>
-				</div>
-			)}
-
-			{session ? (
-				<div className='flex-1 flex flex-col w-full overflow-y-auto no-scrollbar'>
-					<div className='min-h-[90vh] flex items-center justify-center p-4'>
-						<SkriuwExplanation onCreateNote={handleCreateNote} />
-					</div>
-					<Integrations />
-					<div className='py-12' />
-				</div>
+		<div className='flex-1 flex flex-col h-full'>
+			{welcomeNoteId ? (
+				<NoteSplitView noteId={welcomeNoteId} />
 			) : (
-				<div className='flex-1 flex flex-col h-full'>
-					{welcomeNoteId ? (
-						<NoteSplitView noteId={welcomeNoteId} />
-					) : (
-						<div className='flex-1 flex flex-col w-full overflow-y-auto no-scrollbar'>
-							<div className='min-h-[90vh] flex items-center justify-center p-4'>
-								<SkriuwExplanation onCreateNote={handleCreateNote} />
-							</div>
-							<Integrations />
-							<div className='py-12' />
-						</div>
-					)}
+				<div className='flex-1 flex items-center justify-center'>
+					<div className='flex flex-col items-center gap-3 text-muted-foreground'>
+						<p className='text-sm'>
+							Press{' '}
+							<Kbd className='mx-1'>⌘N</Kbd>{' '}
+							to create a note
+						</p>
+						<p className='text-xs text-muted-foreground/60'>
+							or pick one from the sidebar
+						</p>
+					</div>
 				</div>
 			)}
-		</>
+		</div>
 	)
 }

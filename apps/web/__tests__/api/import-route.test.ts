@@ -9,18 +9,25 @@ const mockDb = {
     onConflictDoUpdate: mock(() => Promise.resolve()),
 }
 
-mock.module('@skriuw/db', () => ({
-    getDatabase: () => mockDb,
-    getSafeTimestamp: () => 1600000000000,
-    notes: { id: 'notes_id_col', name: 'notes_name_col' },
-    folders: { id: 'folders_id_col', name: 'folders_name_col' },
-}))
+mock.module('@skriuw/db', () => {
+    return {
+        getDatabase: () => mockDb,
+        getSafeTimestamp: () => 1600000000000,
+        notes: { id: 'notes_id_col', name: 'notes_name_col' },
+        folders: { id: 'folders_id_col', name: 'folders_name_col' },
+        default: {}
+    }
+})
 
 // Mock auth
 const mockRequireMutation = mock()
-mock.module('@/lib/api-auth', () => ({
-    requireMutation: mockRequireMutation
-}))
+mock.module('@/lib/api-auth', () => {
+    return {
+        requireMutation: mockRequireMutation,
+        requireAuth: mock(),
+        default: {}
+    }
+})
 
 // Import the handler under test AFTER mocking
 import { POST } from '../../app/api/import/route'

@@ -3,4 +3,12 @@
  * @module @skriuw/crud/adapter
  */
 
-export { setAdapter, getAdapter, hasAdapter, resetAdapter } from './registry'
+export {
+	setAdapter,
+	getAdapter,
+	hasAdapter,
+	getAdapterCapabilities,
+	adapterSupportsBackend,
+	isPrivacyModeSafeAdapter,
+	resetAdapter
+} from './registry'

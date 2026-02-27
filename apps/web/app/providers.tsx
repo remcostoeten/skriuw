@@ -15,7 +15,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Analytics } from '@vercel/analytics/react'
 import { AlertCircle } from 'lucide-react'
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode } from 'react'
 
 type props = {
 	children: ReactNode
@@ -51,7 +51,7 @@ export function Providers({ children }: props) {
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<TooltipProvider delayDuration={0}>
+			<TooltipProvider delayDuration={200}>
 				<StorageInitializer>
 					<SettingsProvider>
 						<NotesProvider>

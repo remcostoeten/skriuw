@@ -1,5 +1,21 @@
 import type { BaseEntity } from './base'
 
+export type StorageBackend = 'remote' | 'sqlite' | 'filesystem' | 'local-storage'
+
+export type StorageSyncMode = 'local-only' | 'sync-capable' | 'remote-only'
+
+export type StorageAdapterCapabilities = {
+	/**
+	 * Backends this adapter can operate with.
+	 * Examples: ['sqlite'], ['filesystem'], ['remote'], ['local-storage']
+	 */
+	backends: StorageBackend[]
+	/**
+	 * Describes whether this adapter can remain local-only or sync remotely.
+	 */
+	syncMode: StorageSyncMode
+}
+
 /**
  * Storage adapter interface that backends must implement.
  * This is the contract between the CRUD layer and storage implementations.
@@ -26,6 +42,12 @@ import type { BaseEntity } from './base'
  * ```
  */
 export type StorageAdapter = {
+	/**
+	 * Optional runtime capability metadata for platform/strategy selection.
+	 * Keep optional for backwards compatibility with existing adapters.
+	 */
+	capabilities?: StorageAdapterCapabilities
+
 	/**
 	 * Creates a new entity in storage.
 	 * @param storageKey - Collection/table name

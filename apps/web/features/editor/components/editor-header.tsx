@@ -11,11 +11,12 @@ import {
 	X,
 	Check,
 	AlertCircle,
-	Share2,
-	PanelRight, // Assuming this exists or I'll check avail icons
-	MoreHorizontal
+	PanelRight,
+	MoreHorizontal,
+	ScanEye
 } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
+import { useSettings } from '@/features/settings'
 import { cn } from '@skriuw/shared'
 import {
 	Button,
@@ -110,7 +111,8 @@ export function EditorHeader({
 	const [pasteUrlError, setPasteUrlError] = React.useState<string | null>(null)
 	const [showPasteInput, setShowPasteInput] = React.useState(false)
 	const [activeTab, setActiveTab] = React.useState<'upload' | 'link' | 'library'>('upload')
-	const { setRightSidebarOpen } = useUIStore()
+	const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar)
+	const { settings } = useSettings()
 
 	const validateAndSetCover = () => {
 		if (!pasteUrlInput.trim()) {
@@ -357,19 +359,23 @@ export function EditorHeader({
 							variant='ghost'
 							size='icon'
 							className='h-8 w-8 text-muted-foreground hover:text-foreground'
-							onClick={() => setRightSidebarOpen(true)}
-							title='Share'
-						>
-							<Share2 className='w-4 h-4' />
-						</Button>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-8 w-8 text-muted-foreground hover:text-foreground'
-							onClick={() => setRightSidebarOpen(true)}
+							onClick={() => toggleRightSidebar()}
 							title='Note Details'
 						>
 							<PanelRight className='w-4 h-4' />
+						</Button>
+
+						<Button
+							variant='ghost'
+							size='icon'
+							className={cn(
+								'h-8 w-8 text-muted-foreground hover:text-foreground',
+								!showMetadata && 'text-primary hover:text-primary/80 bg-primary/10'
+							)}
+							onClick={() => settings.update('minimalNoteHeader', !(!showMetadata))}
+							title={showMetadata ? 'Enter Focus Mode' : 'Exit Focus Mode'}
+						>
+							<ScanEye className='w-4 h-4' />
 						</Button>
 
 						{shouldShowCover && !isValidCoverImageUrl(coverImage) && (

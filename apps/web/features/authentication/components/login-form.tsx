@@ -86,19 +86,18 @@ const styles = {
 	form: { display: 'flex', flexDirection: 'column' as const, gap: '0.75rem' },
 	inputWrapper: { position: 'relative' as const },
 	input: {
-		height: '44px',
-		borderRadius: '8px',
+		height: '50px',
+		borderRadius: '12px',
 		width: '100%',
 		padding: '0 1rem',
-		fontSize: '0.875rem',
+		fontSize: '0.925rem',
 		fontWeight: 400,
 		letterSpacing: '0.01em',
-		backgroundColor: 'var(--input)',
+		backgroundColor: 'rgba(255, 255, 255, 0.03)',
 		color: 'var(--foreground)',
-		borderWidth: '1px',
-		borderStyle: 'solid',
-		borderColor: 'var(--border)',
+		border: '1px solid rgba(255, 255, 255, 0.08)',
 		outline: 'none',
+		transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
 		WebkitFontSmoothing: 'antialiased' as const,
 		MozOsxFontSmoothing: 'grayscale' as const
 	},
@@ -118,18 +117,18 @@ const styles = {
 		justifyContent: 'center'
 	},
 	submitButton: {
-		height: '44px',
-		borderRadius: '8px',
+		height: '50px',
+		borderRadius: '12px',
 		width: '100%',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		backgroundColor: 'var(--primary)',
-		color: 'var(--primary-foreground)',
+		backgroundColor: '#EDEDED',
+		color: '#000000',
 		border: 'none',
 		cursor: 'pointer',
-		fontSize: '1rem',
-		fontWeight: 500,
+		fontSize: '0.925rem',
+		fontWeight: 600,
 		letterSpacing: '0.01em',
 		overflow: 'hidden',
 		position: 'relative' as const,
@@ -151,8 +150,8 @@ const styles = {
 		MozOsxFontSmoothing: 'grayscale' as const
 	},
 	authButton: {
-		height: '44px',
-		borderRadius: '8px',
+		height: '48px',
+		borderRadius: '12px',
 		width: '100%',
 		display: 'flex',
 		alignItems: 'center',
@@ -167,14 +166,12 @@ const styles = {
 		MozOsxFontSmoothing: 'grayscale' as const
 	},
 	authButtonPrimary: {
-		backgroundColor: 'var(--primary)',
-		color: 'var(--primary-foreground)'
+		backgroundColor: '#EDEDED',
+		color: '#000000'
 	},
 	authButtonOutline: {
 		backgroundColor: 'transparent',
-		borderWidth: '1px',
-		borderStyle: 'solid',
-		borderColor: 'var(--border)',
+		border: '1px solid rgba(255, 255, 255, 0.1)',
 		color: 'var(--foreground)'
 	},
 	inputError: {
@@ -439,7 +436,7 @@ export function LoginForm({
 			id: 'google',
 			label: 'Continue with Google',
 			icon: <GoogleIcon />,
-			variant: 'outline' as const,
+			variant: 'primary' as const,
 			action: handleGoogleSignIn
 		}
 	]

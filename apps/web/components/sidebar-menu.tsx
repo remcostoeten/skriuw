@@ -22,7 +22,6 @@ import {
 	DrawerClose,
 	DrawerHeader,
 	DrawerTitle,
-	DrawerFooter,
 	DialogAside,
 	DialogContentArea,
 	DialogNavGroup,
@@ -38,8 +37,6 @@ import {
 	Palette,
 	Sliders,
 	Search,
-	X,
-	ChevronDown,
 	ChevronRight,
 	HardDrive
 } from 'lucide-react'
@@ -68,9 +65,8 @@ function MobileSettingsSection({ title, children, defaultExpanded = false, descr
 			>
 				<div className='flex items-center gap-3 flex-1 text-left'>
 					<ChevronRight
-						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${
-							isExpanded ? 'rotate-90' : ''
-						}`}
+						className={`w-5 h-5 transition-transform duration-200 flex-shrink-0 text-muted-foreground ${isExpanded ? 'rotate-90' : ''
+							}`}
 						aria-hidden='true'
 					/>
 					<div>
@@ -88,9 +84,8 @@ function MobileSettingsSection({ title, children, defaultExpanded = false, descr
 			</button>
 			<div
 				id={`${sectionId}-content`}
-				className={`overflow-hidden transition-all duration-200 ${
-					isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
-				}`}
+				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'
+					}`}
 				aria-hidden={!isExpanded}
 			>
 				<div className='px-4 pb-4 pt-2'>{children}</div>
@@ -533,11 +528,10 @@ export function SidebarMenu({ open, onOpenChange }: props) {
 										key={item.id}
 										type='button'
 										onClick={() => setActiveItem(item.id)}
-										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
-											activeItem === item.id
+										className={`w-full px-4 py-3 flex items-center gap-3 touch-manipulation transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${activeItem === item.id
 												? 'bg-accent/50 text-accent-foreground border-l-4 border-primary'
 												: 'hover:bg-accent/30'
-										}`}
+											}`}
 										aria-current={activeItem === item.id ? 'page' : undefined}
 									>
 										<span className='flex-shrink-0'>{item.icon}</span>
