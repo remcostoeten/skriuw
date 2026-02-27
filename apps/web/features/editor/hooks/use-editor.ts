@@ -22,7 +22,7 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 	editableElements.forEach((element) => {
 		element.setAttribute('spellcheck', 'true')
 		if ('spellcheck' in element) {
-			;(element as any).spellcheck = true
+			; (element as any).spellcheck = true
 		}
 	})
 
@@ -34,14 +34,14 @@ function enforceSpellcheck(container: Element | null): MutationObserver | null {
 					if (element.hasAttribute && element.hasAttribute('contenteditable')) {
 						element.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in element) {
-							;(element as any).spellcheck = true
+							; (element as any).spellcheck = true
 						}
 					}
 					const nestedEditables = element.querySelectorAll('[contenteditable="true"]')
 					nestedEditables.forEach((nested) => {
 						nested.setAttribute('spellcheck', 'true')
 						if ('spellcheck' in nested) {
-							;(nested as any).spellcheck = true
+							; (nested as any).spellcheck = true
 						}
 					})
 				}
@@ -175,8 +175,15 @@ export function useEditor({
 	// We do NOT re-derive this on every content change — the editor owns its
 	// content after mount. Depending on note?.id (not note?.content) prevents
 	// stale memo from causing replaceBlocks hacks.
+	function isValidBlockArray(blocks: unknown): blocks is Block[] {
+		if (!Array.isArray(blocks) || blocks.length === 0) return false
+		return blocks.every(
+			(b) => b && typeof b === 'object' && typeof (b as any).type === 'string'
+		)
+	}
+
 	const initialContent = useMemo(() => {
-		if (note?.content && note.content.length > 0) {
+		if (note?.content && isValidBlockArray(note.content)) {
 			return note.content
 		}
 		return getDefaultContent()
@@ -185,12 +192,6 @@ export function useEditor({
 	const editor = useCreateBlockNote({
 		initialContent,
 		...editorConfig,
-		editorModuleSpec: {
-			// @ts-ignore — not all BlockNote versions expose this in types
-			editable: !readOnly
-		},
-		// Some versions of BlockNote use this
-		_editable: !readOnly
 	})
 
 	// Keep editable state in sync if readOnly prop changes after mount

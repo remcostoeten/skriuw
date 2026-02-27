@@ -52,7 +52,7 @@ export function NoteEditor({
 	})
 	const { items, createNote, createFolder, moveItem, deleteItem, updateNote } = useNotesContext()
 	const { getNoteUrl } = useNoteSlug(items)
-	const { toggleMobileSidebar } = useUIStore()
+	const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar)
 	const { settings } = useSettings()
 	const minimalNoteHeader = settings.minimalNoteHeader ?? false
 	const titleInEditor = settings.titleInEditor ?? false

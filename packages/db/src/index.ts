@@ -5,13 +5,10 @@ import { drizzle as drizzlePostgres, PostgresJsDatabase } from 'drizzle-orm/post
 import postgres from 'postgres'
 import ws from 'ws'
 
-// Config for Neon WebSocket in Node environments
 if (!globalThis.WebSocket) {
 	neonConfig.webSocketConstructor = ws
 }
 
-// Lazy import to avoid build-time validation
-// drizzle.config.ts uses dotenv, runtime uses @skriuw/env
 let _dbClient: NeonDatabase<typeof schema> | PostgresJsDatabase<typeof schema> | null = null
 
 export * from './schema'
@@ -25,40 +22,19 @@ export { eq, isNull, and, inArray, or, sql, desc, asc, like } from 'drizzle-orm'
 type DatabaseProvider = 'neon' | 'postgres'
 
 function detectProvider(url: string): DatabaseProvider {
-	// Check explicit provider first
 	const explicitProvider = process.env.DATABASE_PROVIDER as DatabaseProvider | undefined
 	if (explicitProvider && (explicitProvider === 'neon' || explicitProvider === 'postgres')) {
 		return explicitProvider
 	}
 
-	// Auto-detect from URL
-	// if (url.includes('neon.tech') || url.includes('neon')) {
-	// 	return 'neon'
-	// }
-
 	return 'postgres'
 }
 
-/**
- * Get the database connection.
- * Automatically detects Neon vs PostgreSQL and creates the appropriate client.
- * Uses @skriuw/env for validated environment configuration.
- *
- * @example
- * ```typescript
- * import { getDatabase } from '@skriuw/db'
- *
- * const db = getDatabase()
- * const users = await db.select().from(users)
- * ```
- */
 export function getDatabase() {
 	if (_dbClient) {
 		return _dbClient
 	}
 
-	// Try @skriuw/env first, fallback to process.env for drizzle-kit compatibility
-	// Fallback for drizzle-kit commands that use dotenv
 	const url = process.env.DATABASE_URL || ''
 
 	if (!url) {

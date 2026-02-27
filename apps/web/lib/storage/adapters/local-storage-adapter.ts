@@ -1,5 +1,6 @@
 import type {
 	StorageAdapter,
+	StorageAdapterCapabilities,
 	ReadAdapterOptions,
 	CreateAdapterOptions,
 	UpdateAdapterOptions,
@@ -73,6 +74,10 @@ function findItemLocation(
 
 export class LocalStorageAdapter implements StorageAdapter {
 	name = 'local-storage'
+	capabilities: StorageAdapterCapabilities = {
+		backends: ['local-storage'],
+		syncMode: 'local-only'
+	}
 
 	async create<T>(storageKey: string, data: any, options?: CreateAdapterOptions): Promise<T> {
 		const items = getLocalItems<StorageItem>(storageKey)

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMotionValue } from 'framer-motion'
 
 const DRAWER_STYLES = {
-	background: `linear-gradient(to top, var(--background) 0%, var(--background) 80%, transparent 100%)`
+	background: `linear-gradient(to top, var(--background) 0%, var(--muted) 100%)`
 }
 
 const styles = {
