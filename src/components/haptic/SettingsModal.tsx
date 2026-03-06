@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Check, FileText, BookOpen, Calendar, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Check, FileText, BookOpen, Calendar, Info, HelpCircle, ArrowLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, TEMPLATE_OPTIONS, TemplateStyle } from '@/modules/settings';
 import { getAuth } from '@/modules/auth';
+import { TroubleshootingGuide } from './TroubleshootingGuide';
+import { Button } from '@/components/ui/button';
 
 type Props = {
   open: boolean;
@@ -83,6 +86,7 @@ function TemplateCard({
 }
 
 export function SettingsModal({ open, onOpenChange }: Props) {
+  const [view, setView] = useState<'settings' | 'troubleshooting'>('settings');
   const { 
     settings, 
     isLoading, 
@@ -94,6 +98,13 @@ export function SettingsModal({ open, onOpenChange }: Props) {
   } = useSettingsStore();
   
   const user = getAuth();
+
+  // Reset view when modal closes
+  useEffect(() => {
+    if (!open) {
+      setView('settings');
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -114,11 +125,49 @@ export function SettingsModal({ open, onOpenChange }: Props) {
     );
   }
 
+  // Troubleshooting view
+  if (view === 'troubleshooting') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setView('settings')}
+                className="h-8 w-8 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <DialogTitle className="text-lg">Troubleshooting</DialogTitle>
+            </div>
+            <DialogDescription className="text-muted-foreground">
+              Diagnose and resolve issues with note settings.
+            </DialogDescription>
+          </DialogHeader>
+          <TroubleshootingGuide />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg">Settings</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-lg">Settings</DialogTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setView('troubleshooting')}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="text-xs">Help</span>
+            </Button>
+          </div>
           <DialogDescription className="text-muted-foreground">
             Customize your editing and note-taking experience.
           </DialogDescription>

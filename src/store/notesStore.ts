@@ -1,5 +1,42 @@
 import { useState, useCallback } from 'react';
 import { NoteFile, NoteFolder } from '@/types/notes';
+import { useSettingsStore } from '@/modules/settings';
+import { TemplateStyle } from '@/modules/settings/types';
+
+// Helper to generate note content based on template
+function generateNoteContent(name: string, template: TemplateStyle): string {
+  const title = name.replace('.md', '');
+  const date = new Date().toISOString().split('T')[0];
+  
+  switch (template) {
+    case 'notion':
+      return `# ${title}
+created: ${date}
+updated: ${date}
+
+Start writing here...`;
+    
+    case 'journal':
+      return `# ${new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })}
+
+mood: 
+tags: 
+
+---
+
+`;
+    
+    case 'simple':
+    default:
+      return `# ${title}
+
+`;
+  }
+}
 
 const initialFolders: NoteFolder[] = [
   { id: 'folder-1', name: 'Untitled 1', parentId: null, isOpen: true },
@@ -131,16 +168,24 @@ export function useNotesStore() {
   const activeFile = files.find(f => f.id === activeFileId) || null;
 
   const createFile = useCallback((name: string, parentId: string | null = null) => {
+    // Get current template style from settings
+    const settings = useSettingsStore.getState().settings;
+    const template = settings?.templateStyle || 'simple';
+    
     const newFile: NoteFile = {
       id: crypto.randomUUID(),
       name: name.endsWith('.md') ? name : `${name}.md`,
-      content: `# ${name.replace('.md', '')}\n`,
+      content: generateNoteContent(name, template),
       createdAt: new Date(),
       modifiedAt: new Date(),
       parentId,
     };
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newFile.id);
+    
+    // Increment note count in settings
+    useSettingsStore.getState().incrementNoteCount();
+    
     return newFile;
   }, []);
 
