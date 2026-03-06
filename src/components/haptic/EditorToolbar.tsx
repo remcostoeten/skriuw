@@ -1,25 +1,20 @@
-import { ChevronLeft, ChevronRight, Columns2, ZoomIn, Maximize, Code, Type } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight, Columns2, ZoomIn, Maximize } from 'lucide-react';
 
 export type EditorMode = 'markdown' | 'richtext';
 
-interface EditorToolbarProps {
+type Props = {
   fileName: string;
   breadcrumb?: string[];
-  editorMode: EditorMode;
   onToggleSidebar: () => void;
   onToggleMetadata: () => void;
-  onToggleEditorMode: () => void;
-}
+};
 
 export function EditorToolbar({ 
   fileName, 
   breadcrumb, 
-  editorMode,
   onToggleSidebar, 
-  onToggleMetadata,
-  onToggleEditorMode 
-}: EditorToolbarProps) {
+  onToggleMetadata 
+}: Props) {
   return (
     <div className="h-11 flex items-center px-3 border-b border-theme-divider bg-theme-editor">
       {/* Left controls */}
@@ -38,7 +33,7 @@ export function EditorToolbar({
         </button>
       </div>
 
-      {/* Center - filename and mode toggle */}
+      {/* Center - filename */}
       <div className="flex-1 flex items-center justify-center gap-3 text-sm">
         {breadcrumb && breadcrumb.length > 0 && (
           <>
@@ -51,30 +46,6 @@ export function EditorToolbar({
           </>
         )}
         <span className="text-foreground/80 font-medium">{fileName}</span>
-        
-        {/* Mode toggle */}
-        <div className="flex items-center ml-2">
-          <button
-            onClick={onToggleEditorMode}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors",
-              "border border-theme-divider hover:bg-theme-hover"
-            )}
-            title={editorMode === 'markdown' ? 'Switch to Rich Text' : 'Switch to Markdown'}
-          >
-            {editorMode === 'markdown' ? (
-              <>
-                <Code className="w-3.5 h-3.5" strokeWidth={1.5} />
-                <span className="text-theme-dim">Markdown</span>
-              </>
-            ) : (
-              <>
-                <Type className="w-3.5 h-3.5" strokeWidth={1.5} />
-                <span className="text-theme-dim">Rich Text</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Right controls */}

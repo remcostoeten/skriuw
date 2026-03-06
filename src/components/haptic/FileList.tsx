@@ -269,21 +269,23 @@ export function FileList({
                 strokeWidth={1.5}
               />
               <Folder className="w-[15px] h-[15px] shrink-0 text-theme-dim" strokeWidth={1.5} />
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  onBlur={finishRename}
-                  onKeyDown={handleKeyDown}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
-                  style={{ caretColor: 'currentColor' }}
-                />
-              ) : (
-                <span className="flex-1 text-left truncate select-none">{folder.name}</span>
-              )}
+              <span className="flex-1 min-w-0 h-[18px] flex items-center">
+                {isEditing ? (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={finishRename}
+                    onKeyDown={handleKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                    style={{ caretColor: 'currentColor' }}
+                  />
+                ) : (
+                  <span className="text-left truncate select-none">{folder.name}</span>
+                )}
+              </span>
               <span className="text-xs text-theme-dim tabular-nums">{totalCount}</span>
             </button>
           </ContextMenuTrigger>
@@ -338,21 +340,23 @@ export function FileList({
             )}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
           >
-            {isEditing ? (
-              <input
-                ref={inputRef}
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onBlur={finishRename}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
-                style={{ caretColor: 'currentColor' }}
-              />
-            ) : (
-              <span className="truncate select-none">{file.name}</span>
-            )}
+            <span className="flex-1 min-w-0 h-[18px] flex items-center">
+              {isEditing ? (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={finishRename}
+                  onKeyDown={handleKeyDown}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                  style={{ caretColor: 'currentColor' }}
+                />
+              ) : (
+                <span className="truncate select-none">{file.name}</span>
+              )}
+            </span>
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">

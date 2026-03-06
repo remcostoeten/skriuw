@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TopBar } from '@/components/haptic/TopBar';
 import { BottomBar } from '@/components/haptic/BottomBar';
 import { IconRail } from '@/components/haptic/IconRail';
 import { SidebarPanel } from '@/components/haptic/SidebarPanel';
@@ -36,7 +35,6 @@ function NotesApp() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <TopBar />
       <div className="flex-1 flex overflow-hidden">
         <IconRail activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -64,10 +62,8 @@ function NotesApp() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorToolbar
             fileName={store.activeFile?.name || 'No file selected'}
-            editorMode={editorMode}
             onToggleSidebar={() => setShowSidebar(!showSidebar)}
             onToggleMetadata={() => store.setShowMetadata(!store.showMetadata)}
-            onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')}
           />
           <div className="flex-1 flex overflow-hidden">
             <Editor
@@ -81,7 +77,10 @@ function NotesApp() {
           </div>
         </div>
       </div>
-      <BottomBar />
+      <BottomBar 
+        editorMode={editorMode} 
+        onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')} 
+      />
     </div>
   );
 }
