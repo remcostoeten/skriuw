@@ -1,6 +1,7 @@
 import { FolderOpen, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 
 interface IconRailProps {
   activeTab: string;
@@ -9,6 +10,11 @@ interface IconRailProps {
 
 export function IconRail({ activeTab, onTabChange }: IconRailProps) {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -37,10 +43,14 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
           className="w-9 h-9 flex items-center justify-center rounded-md text-haptic-dim hover:text-haptic-secondary hover:bg-haptic-hover transition-colors"
           title="Toggle theme"
         >
-          {theme === 'dark' ? (
-            <Sun className="w-[18px] h-[18px]" strokeWidth={1.5} />
+          {mounted ? (
+            theme === 'dark' ? (
+              <Sun className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            ) : (
+              <Moon className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            )
           ) : (
-            <Moon className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            <Sun className="w-[18px] h-[18px]" strokeWidth={1.5} />
           )}
         </button>
       </div>
