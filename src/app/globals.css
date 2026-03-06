@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 8%;
+    --foreground: 220 10% 82%;
+
+    --card: 220 14% 10%;
+    --card-foreground: 220 10% 82%;
+
+    --popover: 220 14% 12%;
+    --popover-foreground: 220 10% 82%;
+
+    --primary: 220 10% 72%;
+    --primary-foreground: 220 14% 8%;
+
+    --secondary: 220 12% 14%;
+    --secondary-foreground: 220 10% 72%;
+
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 8% 48%;
+
+    --accent: 220 12% 18%;
+    --accent-foreground: 220 10% 82%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
+    --ring: 220 10% 40%;
+
+    --radius: 0.375rem;
+
+    --haptic-bg-deep: 220 16% 6%;
+    --haptic-bg-sidebar: 220 14% 9%;
+    --haptic-bg-editor: 220 14% 8%;
+    --haptic-bg-hover: 220 12% 14%;
+    --haptic-bg-active: 220 12% 16%;
+    --haptic-text-dim: 220 8% 40%;
+    --haptic-text-secondary: 220 8% 55%;
+    --haptic-accent-blue: 217 91% 60%;
+    --haptic-icon-rail: 220 14% 11%;
+    --haptic-toolbar-bg: 220 14% 10%;
+    --haptic-divider: 220 10% 15%;
+    --haptic-btn-outline: 220 10% 25%;
+    --haptic-btn-fill: 220 10% 20%;
+
+    --sidebar-background: 220 14% 9%;
+    --sidebar-foreground: 220 10% 72%;
+    --sidebar-primary: 220 10% 82%;
+    --sidebar-primary-foreground: 220 14% 8%;
+    --sidebar-accent: 220 12% 16%;
+    --sidebar-accent-foreground: 220 10% 82%;
+    --sidebar-border: 220 10% 15%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--haptic-bg-hover));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--haptic-btn-outline));
+  }
+}
+
+@layer utilities {
+  .haptic-sidebar {
+    background: hsl(var(--haptic-bg-sidebar));
+  }
+  .haptic-icon-rail {
+    background: hsl(var(--haptic-icon-rail));
+  }
+  .haptic-editor {
+    background: hsl(var(--haptic-bg-editor));
+  }
+  .haptic-toolbar {
+    background: hsl(var(--haptic-toolbar-bg));
+  }
+  .haptic-hover {
+    background: hsl(var(--haptic-bg-hover));
+  }
+  .haptic-active {
+    background: hsl(var(--haptic-bg-active));
+  }
+  .haptic-divider {
+    border-color: hsl(var(--haptic-divider));
+  }
+  .haptic-text-dim {
+    color: hsl(var(--haptic-text-dim));
+  }
+  .haptic-text-secondary {
+    color: hsl(var(--haptic-text-secondary));
+  }
+}
