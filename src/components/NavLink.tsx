@@ -3,12 +3,11 @@ import { usePathname } from "next/navigation";
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-interface NavLinkProps {
+interface NavLinkProps extends Omit<React.ComponentPropsWithoutRef<typeof Link>, 'href'> {
   href: string;
   className?: string;
   activeClassName?: string;
   children: React.ReactNode;
-  [key: string]: any;
 }
 
 const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(
