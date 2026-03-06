@@ -29,6 +29,12 @@ const Index = () => {
             onToggleFolder={store.toggleFolder}
             onCreateFile={() => store.createFile('Untitled')}
             onCreateFolder={() => store.createFolder('Untitled')}
+            onRenameFile={store.renameFile}
+            onRenameFolder={store.renameFolder}
+            onDeleteFile={store.deleteFile}
+            onDeleteFolder={store.deleteFolder}
+            onMoveFile={store.moveFile}
+            onMoveFolder={store.moveFolder}
             getFilesInFolder={store.getFilesInFolder}
             getFoldersInFolder={store.getFoldersInFolder}
             countDescendants={store.countDescendants}
