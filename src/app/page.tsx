@@ -5,7 +5,7 @@ import { TopBar } from '@/components/haptic/TopBar';
 import { BottomBar } from '@/components/haptic/BottomBar';
 import { IconRail } from '@/components/haptic/IconRail';
 import { SidebarPanel } from '@/components/haptic/SidebarPanel';
-import { EditorToolbar } from '@/components/haptic/EditorToolbar';
+import { EditorToolbar, EditorMode } from '@/components/haptic/EditorToolbar';
 import { Editor } from '@/components/haptic/Editor';
 import { MetadataPanel } from '@/components/haptic/MetadataPanel';
 import { useNotesStore } from '@/store/notesStore';
@@ -16,6 +16,7 @@ const Index = () => {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('notes');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [editorMode, setEditorMode] = useState<EditorMode>('markdown');
 
   // Sync URL with active note (shallow routing - no server round trip)
   useEffect(() => {
@@ -64,12 +65,15 @@ const Index = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorToolbar
             fileName={store.activeFile?.name || 'No file selected'}
+            editorMode={editorMode}
             onToggleSidebar={() => setShowSidebar(!showSidebar)}
             onToggleMetadata={() => store.setShowMetadata(!store.showMetadata)}
+            onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')}
           />
           <div className="flex-1 flex overflow-hidden">
             <Editor
               file={store.activeFile}
+              editorMode={editorMode}
               onContentChange={store.updateFileContent}
             />
             {store.showMetadata && (
