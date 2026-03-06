@@ -160,19 +160,29 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       />
       <style jsx global>{`
         .blocknote-wrapper {
-          --bn-colors-editor-background: transparent;
-          --bn-colors-editor-text: var(--foreground);
-          --bn-colors-menu-background: hsl(var(--haptic-deep));
-          --bn-colors-menu-text: var(--foreground);
-          --bn-colors-tooltip-background: hsl(var(--haptic-deep));
-          --bn-colors-tooltip-text: var(--foreground);
-          --bn-colors-hovered-background: hsl(var(--haptic-hover));
-          --bn-colors-selected-background: hsl(var(--haptic-active));
-          --bn-colors-disabled-background: hsl(var(--haptic-divider));
-          --bn-colors-disabled-text: hsl(var(--haptic-dim));
-          --bn-colors-border: hsl(var(--haptic-divider));
-          --bn-colors-side-menu: hsl(var(--haptic-dim));
-          --bn-font-family: inherit;
+          --bn-colors-editor-background: hsl(220 14% 8%);
+          --bn-colors-editor-text: hsl(220 10% 82%);
+          --bn-colors-menu-background: hsl(220 16% 6%);
+          --bn-colors-menu-text: hsl(220 10% 82%);
+          --bn-colors-tooltip-background: hsl(220 16% 6%);
+          --bn-colors-tooltip-text: hsl(220 10% 82%);
+          --bn-colors-hovered-background: hsl(220 12% 14%);
+          --bn-colors-selected-background: hsl(220 12% 16%);
+          --bn-colors-disabled-background: hsl(220 10% 15%);
+          --bn-colors-disabled-text: hsl(220 8% 40%);
+          --bn-colors-border: hsl(220 10% 15%);
+          --bn-colors-side-menu: hsl(220 8% 40%);
+          --bn-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          background: hsl(220 14% 8%) !important;
+        }
+        .blocknote-wrapper .bn-container,
+        .blocknote-wrapper .bn-container [data-theming-css-variables-demo],
+        .blocknote-wrapper [class*="bn-"] {
+          background: transparent !important;
+        }
+        .blocknote-wrapper > div,
+        .blocknote-wrapper .bn-container > div {
+          background: hsl(220 14% 8%) !important;
         }
         .blocknote-wrapper .bn-container {
           height: 100%;
@@ -185,6 +195,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           max-width: 42rem;
           margin: 0 auto;
           min-height: 100%;
+          background: hsl(220 14% 8%) !important;
         }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;
@@ -195,10 +206,15 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           margin-bottom: 0.75rem;
         }
         .blocknote-wrapper .bn-inline-content code {
-          background: hsl(var(--haptic-hover));
+          background: hsl(220 12% 14%);
           padding: 0.125rem 0.375rem;
           border-radius: 0.25rem;
           font-size: 0.875em;
+        }
+        /* Override any mantine styles */
+        .blocknote-wrapper .mantine-Paper-root,
+        .blocknote-wrapper [class*="mantine-"] {
+          --mantine-color-body: hsl(220 14% 8%);
         }
       `}</style>
     </div>
