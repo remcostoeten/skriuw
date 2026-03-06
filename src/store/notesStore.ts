@@ -1,7 +1,22 @@
 import { useState, useCallback } from 'react';
 import { NoteFile, NoteFolder } from '@/types/notes';
 
+const initialFolders: NoteFolder[] = [
+  { id: 'folder-1', name: 'Untitled 1', parentId: null, isOpen: true },
+  { id: 'folder-2', name: 'Untitled 2', parentId: 'folder-1', isOpen: true },
+  { id: 'folder-3', name: 'Untitled', parentId: 'folder-2', isOpen: false },
+  { id: 'folder-4', name: 'Untitled 3', parentId: null, isOpen: false },
+];
+
 const initialFiles: NoteFile[] = [
+  {
+    id: 'nested-untitled',
+    name: 'Untitled.md',
+    content: `# Untitled\n`,
+    createdAt: new Date(Date.now() - 38000),
+    modifiedAt: new Date(Date.now() - 4000),
+    parentId: 'folder-1',
+  },
   {
     id: 'readme',
     name: 'README.md',
@@ -31,7 +46,7 @@ If you're interested in self-hosting your own web instance of Haptic, please che
 Haptic is currently still in active development. Here are some of the features planned for the future:
 
 - [ ] Haptic Sync
-- [ ] Mobile support for the web app
+- [ ] Mobile support for the web app (Currently dependent on PGlite support for mobile)
 - [ ] Native mobile apps for iOS & Android
 - [ ] Windows & Linux support for the desktop app
 
@@ -107,8 +122,6 @@ Haptic takes a different approach:
   },
 ];
 
-const initialFolders: NoteFolder[] = [];
-
 export function useNotesStore() {
   const [files, setFiles] = useState<NoteFile[]>(initialFiles);
   const [folders, setFolders] = useState<NoteFolder[]>(initialFolders);
@@ -143,7 +156,7 @@ export function useNotesStore() {
   }, []);
 
   const updateFileContent = useCallback((id: string, content: string) => {
-    setFiles(prev => prev.map(f => 
+    setFiles(prev => prev.map(f =>
       f.id === id ? { ...f, content, modifiedAt: new Date() } : f
     ));
   }, []);
@@ -175,6 +188,17 @@ export function useNotesStore() {
     return folders.filter(f => f.parentId === parentId);
   }, [folders]);
 
+  // Count all descendants (files + folders) recursively
+  const countDescendants = useCallback((folderId: string): number => {
+    const childFiles = files.filter(f => f.parentId === folderId).length;
+    const childFolders = folders.filter(f => f.parentId === folderId);
+    const childFolderCount = childFolders.reduce(
+      (sum, cf) => sum + countDescendants(cf.id),
+      0
+    );
+    return childFiles + childFolders.length + childFolderCount;
+  }, [files, folders]);
+
   return {
     files,
     folders,
@@ -191,5 +215,6 @@ export function useNotesStore() {
     toggleFolder,
     getFilesInFolder,
     getFoldersInFolder,
+    countDescendants,
   };
 }

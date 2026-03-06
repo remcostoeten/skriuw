@@ -17,10 +17,8 @@ const Index = () => {
     <div className="h-screen flex flex-col overflow-hidden">
       <TopBar />
       <div className="flex-1 flex overflow-hidden">
-        {/* Icon Rail */}
         <IconRail activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Sidebar */}
         {showSidebar && (
           <SidebarPanel
             files={store.files}
@@ -32,10 +30,10 @@ const Index = () => {
             onCreateFolder={() => store.createFolder('Untitled')}
             getFilesInFolder={store.getFilesInFolder}
             getFoldersInFolder={store.getFoldersInFolder}
+            countDescendants={store.countDescendants}
           />
         )}
 
-        {/* Main Editor Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorToolbar
             fileName={store.activeFile?.name || 'No file selected'}
