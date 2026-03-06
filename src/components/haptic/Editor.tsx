@@ -4,9 +4,10 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { NoteFile, MoodLevel, MOOD_OPTIONS } from '@/types/notes';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { JournalMetadataEditor } from './JournalMetadataEditor';
+import { DocumentProperties, DocumentProperty, PropertyType } from './DocumentProperties';
 import { EditorMode } from './EditorToolbar';
 import { cn } from '@/lib/utils';
+import { PanelRight } from 'lucide-react';
 
 // Dynamically import RichTextEditor to avoid SSR issues with BlockNote
 const RichTextEditor = dynamic(
@@ -110,19 +111,43 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
     }
   }, [file, onContentChange]);
 
-  const handleMoodChange = useCallback((mood: MoodLevel | undefined) => {
-    if (file && isJournal) {
-      const updated = updateJournalContent(file.content, mood, journalMeta.tags);
-      onContentChange(file.id, updated);
-    }
-  }, [file, isJournal, journalMeta.tags, onContentChange]);
+  // Build document properties from parsed metadata
+  const documentProperties = useMemo((): DocumentProperty[] => {
+    if (!isJournal) return [];
+    
+    return [
+      {
+        id: 'tags',
+        type: 'tags' as PropertyType,
+        name: 'Tags',
+        value: journalMeta.tags,
+      },
+      {
+        id: 'mood',
+        type: 'mood' as PropertyType,
+        name: 'Mood',
+        value: journalMeta.mood,
+      },
+      {
+        id: 'date',
+        type: 'date' as PropertyType,
+        name: 'Date',
+        value: file?.createdAt,
+      },
+    ];
+  }, [isJournal, journalMeta, file?.createdAt]);
 
-  const handleTagsChange = useCallback((tags: string[]) => {
-    if (file && isJournal) {
-      const updated = updateJournalContent(file.content, journalMeta.mood, tags);
+  const handlePropertyChange = useCallback((propertyId: string, value: unknown) => {
+    if (!file || !isJournal) return;
+    
+    if (propertyId === 'mood') {
+      const updated = updateJournalContent(file.content, value as MoodLevel | undefined, journalMeta.tags);
+      onContentChange(file.id, updated);
+    } else if (propertyId === 'tags') {
+      const updated = updateJournalContent(file.content, journalMeta.mood, value as string[]);
       onContentChange(file.id, updated);
     }
-  }, [file, isJournal, journalMeta.mood, onContentChange]);
+  }, [file, isJournal, journalMeta, onContentChange]);
 
   if (!file) {
     return (
@@ -174,27 +199,47 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
         </div>
       </div>
 
-      {/* Journal metadata sidebar */}
+      {/* Document properties sidebar - Notion-style */}
       {isJournal && showMetadataPanel && (
-        <div className="w-64 shrink-0 border-l border-border bg-card/50 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Journal Entry
+        <div className="w-72 shrink-0 border-l border-border bg-card/30 overflow-y-auto">
+          <div className="p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+              <h3 className="text-sm font-medium text-foreground">
+                Properties
               </h3>
               <button
                 onClick={() => setShowMetadataPanel(false)}
-                className="text-muted-foreground hover:text-foreground text-xs"
+                className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Hide panel"
               >
-                Hide
+                <PanelRight className="w-4 h-4" />
               </button>
             </div>
-            <JournalMetadataEditor
-              selectedMood={journalMeta.mood}
-              selectedTags={journalMeta.tags}
-              onMoodChange={handleMoodChange}
-              onTagsChange={handleTagsChange}
+
+            {/* Document Properties */}
+            <DocumentProperties
+              properties={documentProperties}
+              onPropertyChange={handlePropertyChange}
+              createdAt={file.createdAt}
+              updatedAt={file.modifiedAt}
             />
+
+            {/* Quick sections for journal - like Notion */}
+            <div className="mt-6 pt-4 border-t border-border/50 space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-muted-foreground">Intentions</h4>
+                <p className="text-xs text-muted-foreground/60 italic">
+                  Add your intentions for today...
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-muted-foreground">Grateful for</h4>
+                <p className="text-xs text-muted-foreground/60 italic">
+                  What are you grateful for?
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -203,9 +248,11 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
       {isJournal && !showMetadataPanel && (
         <button
           onClick={() => setShowMetadataPanel(true)}
-          className="absolute right-4 top-4 px-2 py-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-accent transition-colors"
+          className="absolute right-4 top-4 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-accent transition-colors"
+          title="Show properties panel"
         >
-          Show Journal Panel
+          <PanelRight className="w-3.5 h-3.5" />
+          Properties
         </button>
       )}
     </div>
