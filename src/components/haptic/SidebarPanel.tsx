@@ -12,6 +12,12 @@ interface SidebarPanelProps {
   onToggleFolder: (id: string) => void;
   onCreateFile: () => void;
   onCreateFolder: () => void;
+  onRenameFile: (id: string, name: string) => void;
+  onRenameFolder: (id: string, name: string) => void;
+  onDeleteFile: (id: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onMoveFile: (fileId: string, newParentId: string | null) => void;
+  onMoveFolder: (folderId: string, newParentId: string | null) => void;
   getFilesInFolder: (parentId: string | null) => NoteFile[];
   getFoldersInFolder: (parentId: string | null) => NoteFolder[];
   countDescendants: (folderId: string) => number;
@@ -65,6 +71,12 @@ export function SidebarPanel({
   onToggleFolder,
   onCreateFile,
   onCreateFolder,
+  onRenameFile,
+  onRenameFolder,
+  onDeleteFile,
+  onDeleteFolder,
+  onMoveFile,
+  onMoveFolder,
   getFilesInFolder,
   getFoldersInFolder,
   countDescendants,
@@ -145,6 +157,12 @@ export function SidebarPanel({
         activeFileId={activeFileId}
         onFileSelect={onFileSelect}
         onToggleFolder={onToggleFolder}
+        onRenameFile={onRenameFile}
+        onRenameFolder={onRenameFolder}
+        onDeleteFile={onDeleteFile}
+        onDeleteFolder={onDeleteFolder}
+        onMoveFile={onMoveFile}
+        onMoveFolder={onMoveFolder}
         getFilesInFolder={getFilesInFolder}
         getFoldersInFolder={getFoldersInFolder}
         countDescendants={countDescendants}

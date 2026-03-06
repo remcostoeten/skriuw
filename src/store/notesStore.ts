@@ -167,12 +167,53 @@ export function useNotesStore() {
     ));
   }, []);
 
+  const renameFolder = useCallback((id: string, name: string) => {
+    setFolders(prev => prev.map(f =>
+      f.id === id ? { ...f, name } : f
+    ));
+  }, []);
+
   const deleteFile = useCallback((id: string) => {
     setFiles(prev => prev.filter(f => f.id !== id));
     if (activeFileId === id) {
       setActiveFileId(files[0]?.id || '');
     }
   }, [activeFileId, files]);
+
+  const deleteFolder = useCallback((id: string) => {
+    // Get all descendant folder IDs
+    const getDescendantFolderIds = (folderId: string): string[] => {
+      const childFolders = folders.filter(f => f.parentId === folderId);
+      return [folderId, ...childFolders.flatMap(cf => getDescendantFolderIds(cf.id))];
+    };
+    const folderIds = getDescendantFolderIds(id);
+    
+    // Delete all files in these folders
+    setFiles(prev => prev.filter(f => !folderIds.includes(f.parentId || '')));
+    // Delete all folders
+    setFolders(prev => prev.filter(f => !folderIds.includes(f.id)));
+  }, [folders]);
+
+  const moveFile = useCallback((fileId: string, newParentId: string | null) => {
+    setFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, parentId: newParentId, modifiedAt: new Date() } : f
+    ));
+  }, []);
+
+  const moveFolder = useCallback((folderId: string, newParentId: string | null) => {
+    // Prevent moving a folder into itself or its descendants
+    const getDescendantFolderIds = (id: string): string[] => {
+      const childFolders = folders.filter(f => f.parentId === id);
+      return [id, ...childFolders.flatMap(cf => getDescendantFolderIds(cf.id))];
+    };
+    const descendantIds = getDescendantFolderIds(folderId);
+    if (newParentId && descendantIds.includes(newParentId)) {
+      return; // Can't move folder into its own descendant
+    }
+    setFolders(prev => prev.map(f =>
+      f.id === folderId ? { ...f, parentId: newParentId } : f
+    ));
+  }, [folders]);
 
   const toggleFolder = useCallback((id: string) => {
     setFolders(prev => prev.map(f =>
@@ -211,7 +252,11 @@ export function useNotesStore() {
     createFolder,
     updateFileContent,
     renameFile,
+    renameFolder,
     deleteFile,
+    deleteFolder,
+    moveFile,
+    moveFolder,
     toggleFolder,
     getFilesInFolder,
     getFoldersInFolder,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 interface MarkdownRendererProps {
   content: string;
@@ -8,9 +8,9 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const rendered = useMemo(() => {
     const lines = content.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let inList = false;
-    let listItems: JSX.Element[] = [];
+    let listItems: React.ReactElement[] = [];
     let listKey = 0;
 
     const flushList = () => {
@@ -101,7 +101,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         flushList();
         const level = headerMatch[1].length;
         const text = headerMatch[2];
-        const Tag = `h${level}` as keyof JSX.IntrinsicElements;
+        const Tag = `h${level}` as keyof React.JSX.IntrinsicElements;
         const sizes: Record<number, string> = {
           1: 'text-3xl font-bold mb-4 mt-2',
           2: 'text-xl font-bold mb-3 mt-6',
