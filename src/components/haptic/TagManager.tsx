@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, TAG_COLORS, SavedTag } from '@/modules/settings';
-import { X, Plus, Check, MoreHorizontal, Trash2, Palette, Hash } from 'lucide-react';
+import { Plus, MoreHorizontal, Trash2, Hash } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export function TagManager() {
@@ -12,8 +12,7 @@ export function TagManager() {
   
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(TAG_COLORS[0].value);
-  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0].value);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -148,9 +147,6 @@ export function TagManager() {
           <TagRow
             key={tag.id}
             tag={tag}
-            isEditing={editingTagId === tag.id}
-            onEdit={() => setEditingTagId(tag.id)}
-            onStopEdit={() => setEditingTagId(null)}
             onDelete={() => removeTag(tag.id)}
           />
         ))}
@@ -171,15 +167,9 @@ export function TagManager() {
 
 function TagRow({
   tag,
-  isEditing,
-  onEdit,
-  onStopEdit,
   onDelete,
 }: {
   tag: SavedTag;
-  isEditing: boolean;
-  onEdit: () => void;
-  onStopEdit: () => void;
   onDelete: () => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);

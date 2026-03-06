@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useSettingsStore, TAG_COLORS, SavedTag } from '@/modules/settings';
+import { useSettingsStore } from '@/modules/settings';
 import { MOOD_OPTIONS, MoodLevel } from '@/types/notes';
 import { 
   X, Plus, Check, ChevronDown, Hash, Calendar, 
@@ -271,7 +271,7 @@ function TagsPropertyValue({
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Create "{search}"</span>
+                <span>Create &quot;{search}&quot;</span>
               </button>
             )}
           </div>

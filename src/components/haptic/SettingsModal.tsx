@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/modules/settings';
 import { getAuth } from '@/modules/auth';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
