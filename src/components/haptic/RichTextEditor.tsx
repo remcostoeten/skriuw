@@ -151,12 +151,12 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   }, [content, editor]);
 
   return (
-    <div className="blocknote-wrapper flex-1 overflow-y-auto">
+    <div className="blocknote-wrapper h-full">
       <BlockNoteView
         editor={editor}
         onChange={handleEditorChange}
         theme="dark"
-        className="min-h-full"
+        className="h-full"
       />
       <style jsx global>{`
         .blocknote-wrapper {
@@ -174,10 +174,17 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           --bn-colors-side-menu: hsl(var(--haptic-dim));
           --bn-font-family: inherit;
         }
+        .blocknote-wrapper .bn-container {
+          height: 100%;
+        }
         .blocknote-wrapper .bn-editor {
-          padding: 2rem;
+          padding-left: 2rem;
+          padding-right: 2rem;
+          padding-top: 2rem;
+          padding-bottom: 2rem;
           max-width: 42rem;
           margin: 0 auto;
+          min-height: 100%;
         }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;

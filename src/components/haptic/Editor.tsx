@@ -61,10 +61,14 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
     );
   }
 
+  // Common container styles for both modes
+  const containerClass = "flex-1 overflow-y-auto bg-haptic-editor";
+  const contentClass = "max-w-[42rem] mx-auto px-8 py-8";
+
   // Rich Text Mode (BlockNote)
   if (editorMode === 'richtext') {
     return (
-      <div className="flex-1 overflow-hidden bg-haptic-editor">
+      <div className={containerClass}>
         <RichTextEditor
           content={file.content}
           onChange={handleContentChange}
@@ -75,8 +79,8 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
 
   // Markdown Mode
   return (
-    <div className="flex-1 overflow-y-auto bg-haptic-editor">
-      <div className="max-w-2xl mx-auto px-8 py-8">
+    <div className={containerClass}>
+      <div className={contentClass}>
         {isEditing ? (
           <textarea
             ref={textareaRef}
