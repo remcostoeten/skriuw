@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -46,6 +50,21 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        haptic: {
+          deep: "hsl(var(--haptic-bg-deep))",
+          sidebar: "hsl(var(--haptic-bg-sidebar))",
+          editor: "hsl(var(--haptic-bg-editor))",
+          hover: "hsl(var(--haptic-bg-hover))",
+          active: "hsl(var(--haptic-bg-active))",
+          dim: "hsl(var(--haptic-text-dim))",
+          secondary: "hsl(var(--haptic-text-secondary))",
+          blue: "hsl(var(--haptic-accent-blue))",
+          rail: "hsl(var(--haptic-icon-rail))",
+          toolbar: "hsl(var(--haptic-toolbar-bg))",
+          divider: "hsl(var(--haptic-divider))",
+          "btn-outline": "hsl(var(--haptic-btn-outline))",
+          "btn-fill": "hsl(var(--haptic-btn-fill))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

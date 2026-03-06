@@ -1,96 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 14% 8%;
+    --foreground: 220 10% 82%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 14% 10%;
+    --card-foreground: 220 10% 82%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 14% 12%;
+    --popover-foreground: 220 10% 82%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 220 10% 72%;
+    --primary-foreground: 220 14% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 12% 14%;
+    --secondary-foreground: 220 10% 72%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 8% 48%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 12% 18%;
+    --accent-foreground: 220 10% 82%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
+    --ring: 220 10% 40%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Haptic-specific tokens */
+    --haptic-bg-deep: 220 16% 6%;
+    --haptic-bg-sidebar: 220 14% 9%;
+    --haptic-bg-editor: 220 14% 8%;
+    --haptic-bg-hover: 220 12% 14%;
+    --haptic-bg-active: 220 12% 16%;
+    --haptic-text-dim: 220 8% 40%;
+    --haptic-text-secondary: 220 8% 55%;
+    --haptic-accent-blue: 217 91% 60%;
+    --haptic-icon-rail: 220 14% 11%;
+    --haptic-toolbar-bg: 220 14% 10%;
+    --haptic-divider: 220 10% 15%;
+    --haptic-btn-outline: 220 10% 25%;
+    --haptic-btn-fill: 220 10% 20%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 220 14% 9%;
+    --sidebar-foreground: 220 10% 72%;
+    --sidebar-primary: 220 10% 82%;
+    --sidebar-primary-foreground: 220 14% 8%;
+    --sidebar-accent: 220 12% 16%;
+    --sidebar-accent-foreground: 220 10% 82%;
+    --sidebar-border: 220 10% 15%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -100,6 +68,52 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--haptic-bg-hover));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--haptic-btn-outline));
+  }
+}
+
+@layer utilities {
+  .haptic-sidebar {
+    background: hsl(var(--haptic-bg-sidebar));
+  }
+  .haptic-icon-rail {
+    background: hsl(var(--haptic-icon-rail));
+  }
+  .haptic-editor {
+    background: hsl(var(--haptic-bg-editor));
+  }
+  .haptic-toolbar {
+    background: hsl(var(--haptic-toolbar-bg));
+  }
+  .haptic-hover {
+    background: hsl(var(--haptic-bg-hover));
+  }
+  .haptic-active {
+    background: hsl(var(--haptic-bg-active));
+  }
+  .haptic-divider {
+    border-color: hsl(var(--haptic-divider));
+  }
+  .haptic-text-dim {
+    color: hsl(var(--haptic-text-dim));
+  }
+  .haptic-text-secondary {
+    color: hsl(var(--haptic-text-secondary));
   }
 }
