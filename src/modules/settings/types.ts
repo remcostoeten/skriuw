@@ -13,9 +13,17 @@ export type ActivityItem = {
   createdAt: Date;
 };
 
+export type TemplateTimestamp = {
+  createdAt: Date;
+  updatedAt: Date;
+  lastUsedAt: Date | null;
+  useCount: number;
+};
+
 export type UserSettings = {
   userId: string;
   templateStyle: TemplateStyle;
+  templateTimestamps: Record<TemplateStyle, TemplateTimestamp>;
   defaultPlaceholder: string;
   defaultModeMarkdown: boolean;
   diaryModeEnabled: boolean;
