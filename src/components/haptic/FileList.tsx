@@ -255,7 +255,7 @@ export function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                'w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-haptic-hover transition-colors group',
+                'w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-accent transition-colors group',
                 isDragging && 'opacity-50',
                 isDropTarget && 'bg-primary/20 ring-1 ring-primary/40'
               )}
@@ -263,28 +263,30 @@ export function FileList({
             >
               <ChevronRight
                 className={cn(
-                  'w-3 h-3 shrink-0 transition-transform text-haptic-dim',
+                  'w-3 h-3 shrink-0 transition-transform text-muted-foreground',
                   folder.isOpen && 'rotate-90'
                 )}
                 strokeWidth={1.5}
               />
-              <Folder className="w-[15px] h-[15px] shrink-0 text-haptic-dim" strokeWidth={1.5} />
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  onBlur={finishRename}
-                  onKeyDown={handleKeyDown}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
-                  style={{ caretColor: 'currentColor' }}
-                />
-              ) : (
-                <span className="flex-1 text-left truncate select-none">{folder.name}</span>
-              )}
-              <span className="text-xs text-haptic-dim tabular-nums">{totalCount}</span>
+              <Folder className="w-[15px] h-[15px] shrink-0 text-muted-foreground" strokeWidth={1.5} />
+              <span className="flex-1 min-w-0 h-[18px] flex items-center">
+                {isEditing ? (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={finishRename}
+                    onKeyDown={handleKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                    style={{ caretColor: 'currentColor' }}
+                  />
+                ) : (
+                  <span className="text-left truncate select-none">{folder.name}</span>
+                )}
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">{totalCount}</span>
             </button>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-48">
@@ -332,27 +334,29 @@ export function FileList({
             className={cn(
               'w-full text-left h-[30px] text-[13px] transition-colors truncate flex items-center',
               activeFileId === file.id
-                ? 'bg-haptic-active text-foreground'
-                : 'text-foreground/60 hover:bg-haptic-hover hover:text-foreground/80',
+                ? 'bg-accent text-foreground'
+                : 'text-foreground/60 hover:bg-accent hover:text-foreground/80',
               isDragging && 'opacity-50'
             )}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
           >
-            {isEditing ? (
-              <input
-                ref={inputRef}
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onBlur={finishRename}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
-                style={{ caretColor: 'currentColor' }}
-              />
-            ) : (
-              <span className="truncate select-none">{file.name}</span>
-            )}
+            <span className="flex-1 min-w-0 h-[18px] flex items-center">
+              {isEditing ? (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={finishRename}
+                  onKeyDown={handleKeyDown}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                  style={{ caretColor: 'currentColor' }}
+                />
+              ) : (
+                <span className="truncate select-none">{file.name}</span>
+              )}
+            </span>
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">

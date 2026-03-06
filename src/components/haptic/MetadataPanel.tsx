@@ -39,16 +39,16 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
   ];
 
   return (
-    <div className="w-48 border-l border-haptic-divider bg-haptic-editor flex flex-col">
+    <div className="w-48 border-l border-border bg-background flex flex-col">
       {/* Tab switcher - right aligned */}
-      <div className="flex items-center justify-end gap-0.5 px-2 h-[40px] border-b border-haptic-divider shrink-0">
+      <div className="flex items-center justify-end gap-0.5 px-2 h-[40px] border-b border-border shrink-0">
         <button
           onClick={() => setActiveTab('info')}
           className={cn(
             'w-7 h-7 flex items-center justify-center rounded transition-colors',
             activeTab === 'info'
-              ? 'bg-haptic-active text-foreground'
-              : 'text-haptic-dim hover:text-foreground hover:bg-haptic-hover'
+              ? 'bg-accent text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           )}
         >
           <Info className="w-[15px] h-[15px]" strokeWidth={1.5} />
@@ -58,8 +58,8 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
           className={cn(
             'w-7 h-7 flex items-center justify-center rounded transition-colors',
             activeTab === 'outline'
-              ? 'bg-haptic-active text-foreground'
-              : 'text-haptic-dim hover:text-foreground hover:bg-haptic-hover'
+              ? 'bg-accent text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           )}
         >
           <Layers className="w-[15px] h-[15px]" strokeWidth={1.5} />
@@ -70,7 +70,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
         <div className="px-4 py-4 space-y-2.5 overflow-y-auto">
           {stats.map(stat => (
             <div key={stat.label} className="flex items-baseline justify-between">
-              <span className="text-[13px] text-haptic-secondary">{stat.label}</span>
+              <span className="text-[13px] text-muted-foreground">{stat.label}</span>
               <span className="text-[13px] text-foreground/80 font-medium tabular-nums">{stat.value}</span>
             </div>
           ))}
@@ -79,7 +79,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
 
       {activeTab === 'outline' && (
         <div className="px-4 py-4 overflow-y-auto">
-          <p className="text-[13px] text-haptic-dim mb-3">Document outline</p>
+          <p className="text-[13px] text-muted-foreground mb-3">Document outline</p>
           <div className="space-y-1">
             {file.content.split('\n')
               .filter(l => /^#{1,3}\s/.test(l))

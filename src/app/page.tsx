@@ -1,21 +1,64 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TopBar } from '@/components/haptic/TopBar';
 import { BottomBar } from '@/components/haptic/BottomBar';
 import { IconRail } from '@/components/haptic/IconRail';
 import { SidebarPanel } from '@/components/haptic/SidebarPanel';
 import { EditorToolbar, EditorMode } from '@/components/haptic/EditorToolbar';
 import { Editor } from '@/components/haptic/Editor';
 import { MetadataPanel } from '@/components/haptic/MetadataPanel';
+import { SettingsModal } from '@/components/haptic/SettingsModal';
 import { useNotesStore } from '@/store/notesStore';
+import { useSettingsStore } from '@/modules/settings';
 
 function NotesApp() {
   const store = useNotesStore();
+  const { settings, initializeSettings } = useSettingsStore();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('notes');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('markdown');
+
+  // Initialize settings on mount
+  useEffect(() => {
+    initializeSettings();
+  }, [initializeSettings]);
+
+  // Sync editor mode with settings default
+  useEffect(() => {
+    if (settings) {
+      setEditorMode(settings.defaultModeMarkdown ? 'markdown' : 'richtext');
+    }
+  }, [settings?.defaultModeMarkdown]);
+
+  // File navigation - get current index and navigation ability
+  const currentFileIndex = useMemo(() => 
+    store.files.findIndex(f => f.id === store.activeFileId), 
+    [store.files, store.activeFileId]
+  );
+  const canNavigatePrev = currentFileIndex > 0;
+  const canNavigateNext = currentFileIndex < store.files.length - 1;
+
+  const navigatePrev = useCallback(() => {
+    if (canNavigatePrev) {
+      const prevFile = store.files[currentFileIndex - 1];
+      store.setActiveFileId(prevFile.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('note', prevFile.id);
+      window.history.pushState({}, '', url.toString());
+    }
+  }, [canNavigatePrev, currentFileIndex, store]);
+
+  const navigateNext = useCallback(() => {
+    if (canNavigateNext) {
+      const nextFile = store.files[currentFileIndex + 1];
+      store.setActiveFileId(nextFile.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('note', nextFile.id);
+      window.history.pushState({}, '', url.toString());
+    }
+  }, [canNavigateNext, currentFileIndex, store]);
 
   // Sync URL with active note (shallow routing - no server round trip)
   useEffect(() => {
@@ -36,9 +79,12 @@ function NotesApp() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <TopBar />
       <div className="flex-1 flex overflow-hidden">
-        <IconRail activeTab={activeTab} onTabChange={setActiveTab} />
+        <IconRail 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onOpenSettings={() => setShowSettings(true)}
+        />
 
         {showSidebar && (
           <SidebarPanel
@@ -64,10 +110,12 @@ function NotesApp() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorToolbar
             fileName={store.activeFile?.name || 'No file selected'}
-            editorMode={editorMode}
             onToggleSidebar={() => setShowSidebar(!showSidebar)}
             onToggleMetadata={() => store.setShowMetadata(!store.showMetadata)}
-            onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')}
+            onNavigatePrev={navigatePrev}
+            onNavigateNext={navigateNext}
+            canNavigatePrev={canNavigatePrev}
+            canNavigateNext={canNavigateNext}
           />
           <div className="flex-1 flex overflow-hidden">
             <Editor
@@ -81,7 +129,11 @@ function NotesApp() {
           </div>
         </div>
       </div>
-      <BottomBar />
+      <BottomBar 
+        editorMode={editorMode} 
+        onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')} 
+      />
+      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
 }
@@ -89,8 +141,8 @@ function NotesApp() {
 export default function Index() {
   return (
     <Suspense fallback={
-      <div className="h-screen flex items-center justify-center bg-haptic-bg">
-        <div className="text-haptic-dim">Loading...</div>
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     }>
       <NotesApp />

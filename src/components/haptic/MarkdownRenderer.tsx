@@ -75,7 +75,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             remaining = remaining.slice(first.index + first.match[0].length);
             continue;
           case 'code':
-            parts.push(<code key={key++} className="px-1.5 py-0.5 rounded bg-haptic-hover text-sm font-mono">{first.match[1]}</code>);
+            parts.push(<code key={key++} className="px-1.5 py-0.5 rounded bg-accent text-sm font-mono">{first.match[1]}</code>);
             remaining = remaining.slice(first.index + first.match[0].length);
             continue;
         }
@@ -91,7 +91,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       // Horizontal rule
       if (/^---+$/.test(line.trim())) {
         flushList();
-        elements.push(<hr key={i} className="border-haptic-divider my-6" />);
+        elements.push(<hr key={i} className="border-border my-6" />);
         continue;
       }
 

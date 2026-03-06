@@ -85,9 +85,9 @@ export function SidebarPanel({
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <div className="w-56 flex flex-col bg-haptic-sidebar border-r border-haptic-divider">
+    <div className="w-56 flex flex-col bg-background border-r border-border">
       {/* Toolbar - matches Haptic exactly */}
-      <div className="relative min-h-[40px] w-full border-b border-haptic-divider overflow-hidden">
+      <div className="relative min-h-[40px] w-full border-b border-border overflow-hidden">
         {/* Main toolbar row */}
         <div
           className={cn(

@@ -6,58 +6,59 @@
 
 @layer base {
   :root {
-    --background: 220 14% 8%;
-    --foreground: 220 10% 82%;
+    /* Core colors - darker theme using only background/foreground/card */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 91%;
 
-    --card: 220 14% 10%;
-    --card-foreground: 220 10% 82%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 91%;
 
-    --popover: 220 14% 12%;
-    --popover-foreground: 220 10% 82%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 91%;
 
-    --primary: 220 10% 72%;
-    --primary-foreground: 220 14% 8%;
+    --primary: 0 0% 91%;
+    --primary-foreground: 0 0% 7%;
 
-    --secondary: 220 12% 14%;
-    --secondary-foreground: 220 10% 72%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 85%;
 
-    --muted: 220 12% 16%;
-    --muted-foreground: 220 8% 48%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 220 12% 18%;
-    --accent-foreground: 220 10% 82%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 91%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 10% 18%;
-    --input: 220 10% 18%;
-    --ring: 220 10% 40%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 40%;
 
     --radius: 0.375rem;
 
-    --haptic-bg-deep: 220 16% 6%;
-    --haptic-bg-sidebar: 220 14% 9%;
-    --haptic-bg-editor: 220 14% 8%;
-    --haptic-bg-hover: 220 12% 14%;
-    --haptic-bg-active: 220 12% 16%;
-    --haptic-text-dim: 220 8% 40%;
-    --haptic-text-secondary: 220 8% 55%;
-    --haptic-accent-blue: 217 91% 60%;
-    --haptic-icon-rail: 220 14% 11%;
-    --haptic-toolbar-bg: 220 14% 10%;
-    --haptic-divider: 220 10% 15%;
-    --haptic-btn-outline: 220 10% 25%;
-    --haptic-btn-fill: 220 10% 20%;
+    /* Simplified semantic tokens derived from core colors */
+    --haptic-bg-deep: 0 0% 5%;
+    --haptic-bg-sidebar: 0 0% 7%;
+    --haptic-bg-editor: 0 0% 7%;
+    --haptic-bg-hover: 0 0% 15%;
+    --haptic-bg-active: 0 0% 18%;
+    --haptic-text-dim: 0 0% 40%;
+    --haptic-text-secondary: 0 0% 55%;
+    --haptic-icon-rail: 0 0% 9%;
+    --haptic-toolbar-bg: 0 0% 9%;
+    --haptic-divider: 0 0% 15%;
+    --haptic-btn-outline: 0 0% 25%;
+    --haptic-btn-fill: 0 0% 20%;
 
-    --sidebar-background: 220 14% 9%;
-    --sidebar-foreground: 220 10% 72%;
-    --sidebar-primary: 220 10% 82%;
-    --sidebar-primary-foreground: 220 14% 8%;
-    --sidebar-accent: 220 12% 16%;
-    --sidebar-accent-foreground: 220 10% 82%;
-    --sidebar-border: 220 10% 15%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 0% 91%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 91%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 0% 55%;
   }
 }
 
