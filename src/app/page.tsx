@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { TopBar } from '@/components/haptic/TopBar';
 import { BottomBar } from '@/components/haptic/BottomBar';
 import { IconRail } from '@/components/haptic/IconRail';
@@ -10,9 +10,8 @@ import { Editor } from '@/components/haptic/Editor';
 import { MetadataPanel } from '@/components/haptic/MetadataPanel';
 import { useNotesStore } from '@/store/notesStore';
 
-const Index = () => {
+function NotesApp() {
   const store = useNotesStore();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('notes');
   const [showSidebar, setShowSidebar] = useState(true);
@@ -24,7 +23,7 @@ const Index = () => {
     if (noteId && store.files.some(f => f.id === noteId)) {
       store.setActiveFileId(noteId);
     }
-  }, [searchParams, store.files]);
+  }, [searchParams, store.files, store.setActiveFileId]);
 
   // Update URL when note changes (shallow - no navigation delay)
   const handleFileSelect = (id: string) => {
@@ -85,6 +84,16 @@ const Index = () => {
       <BottomBar />
     </div>
   );
-};
+}
 
-export default Index;
+export default function Index() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-haptic-bg">
+        <div className="text-haptic-dim">Loading...</div>
+      </div>
+    }>
+      <NotesApp />
+    </Suspense>
+  );
+}
