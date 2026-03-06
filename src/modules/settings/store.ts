@@ -6,8 +6,20 @@ import {
   TemplateStyle, 
   ActivityItem, 
   ActivityAction,
+  TemplateTimestamp,
   DEFAULT_SETTINGS 
 } from './types';
+
+// Helper to create initial timestamp
+function createInitialTimestamp(): TemplateTimestamp {
+  const now = new Date();
+  return {
+    createdAt: now,
+    updatedAt: now,
+    lastUsedAt: null,
+    useCount: 0,
+  };
+}
 
 type SettingsState = {
   settings: UserSettings | null;
@@ -15,6 +27,7 @@ type SettingsState = {
   
   // Queries
   getSettings: () => UserSettings;
+  getTemplateTimestamp: (style: TemplateStyle) => TemplateTimestamp;
   
   // Mutations
   initializeSettings: () => void;
@@ -23,6 +36,7 @@ type SettingsState = {
   updatePlaceholder: (placeholder: string) => void;
   toggleDiaryMode: () => void;
   incrementNoteCount: () => void;
+  recordTemplateUsage: (style: TemplateStyle) => void;
   logActivity: (action: ActivityAction) => void;
 };
 
@@ -46,6 +60,19 @@ export const useSettingsStore = create<SettingsState>()(
         return settings;
       },
 
+      getTemplateTimestamp: (style: TemplateStyle) => {
+        const { settings } = get();
+        if (!settings) {
+          return createInitialTimestamp();
+        }
+        
+        if (!settings.templateTimestamps[style]) {
+          return createInitialTimestamp();
+        }
+        
+        return settings.templateTimestamps[style];
+      },
+
       initializeSettings: () => {
         const user = requireUser();
         const { settings } = get();
@@ -67,10 +94,24 @@ export const useSettingsStore = create<SettingsState>()(
         const { settings, logActivity } = get();
         if (!settings) return;
         
+        // Update timestamp for selected template
+        const now = new Date();
+        const templateTimestamps = { ...settings.templateTimestamps };
+        
+        if (!templateTimestamps[style]) {
+          templateTimestamps[style] = createInitialTimestamp();
+        } else {
+          templateTimestamps[style] = {
+            ...templateTimestamps[style],
+            updatedAt: now,
+          };
+        }
+        
         set({
           settings: {
             ...settings,
             templateStyle: style,
+            templateTimestamps,
           },
         });
         logActivity('template_changed');
@@ -125,6 +166,31 @@ export const useSettingsStore = create<SettingsState>()(
           },
         });
         logActivity('note_created');
+      },
+
+      recordTemplateUsage: (style: TemplateStyle) => {
+        const { settings } = get();
+        if (!settings) return;
+        
+        const now = new Date();
+        const templateTimestamps = { ...settings.templateTimestamps };
+        
+        if (!templateTimestamps[style]) {
+          templateTimestamps[style] = createInitialTimestamp();
+        }
+        
+        templateTimestamps[style] = {
+          ...templateTimestamps[style],
+          lastUsedAt: now,
+          useCount: (templateTimestamps[style].useCount || 0) + 1,
+        };
+        
+        set({
+          settings: {
+            ...settings,
+            templateTimestamps,
+          },
+        });
       },
 
       logActivity: (action: ActivityAction) => {

@@ -183,7 +183,8 @@ export function useNotesStore() {
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newFile.id);
     
-    // Increment note count in settings
+    // Track template usage and increment note count in settings
+    useSettingsStore.getState().recordTemplateUsage(template);
     useSettingsStore.getState().incrementNoteCount();
     
     return newFile;

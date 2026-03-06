@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useState } from 'react';
-import { Check, FileText, BookOpen, Calendar, Info, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Info, HelpCircle, ArrowLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,20 +13,15 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useSettingsStore, TEMPLATE_OPTIONS, TemplateStyle } from '@/modules/settings';
+import { useSettingsStore } from '@/modules/settings';
 import { getAuth } from '@/modules/auth';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
+import { TemplateSelector } from './TemplateSelector';
 import { Button } from '@/components/ui/button';
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
-
-const TEMPLATE_ICONS: Record<TemplateStyle, typeof FileText> = {
-  simple: FileText,
-  notion: BookOpen,
-  journal: Calendar,
 };
 
 function SettingsSection({ 
@@ -42,46 +37,6 @@ function SettingsSection({
       <div className="border-t border-border" />
       {children}
     </div>
-  );
-}
-
-function TemplateCard({
-  template,
-  isSelected,
-  onSelect,
-}: {
-  template: typeof TEMPLATE_OPTIONS[number];
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = TEMPLATE_ICONS[template.id];
-  
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        'relative flex flex-col gap-3 p-4 rounded-lg border text-left transition-colors',
-        isSelected
-          ? 'border-foreground/50 bg-accent'
-          : 'border-border hover:border-foreground/30 hover:bg-accent/50'
-      )}
-    >
-      {isSelected && (
-        <div className="absolute top-3 right-3">
-          <Check className="w-4 h-4 text-foreground" strokeWidth={2} />
-        </div>
-      )}
-      <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-        <span className="text-sm font-medium text-foreground">{template.name}</span>
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        {template.description}
-      </p>
-      <pre className="mt-2 p-3 rounded bg-background text-[11px] text-muted-foreground font-mono whitespace-pre-wrap overflow-x-auto border border-border">
-        {template.preview}
-      </pre>
-    </button>
   );
 }
 
@@ -203,19 +158,10 @@ export function SettingsModal({ open, onOpenChange }: Props) {
 
           {/* Template Settings */}
           <SettingsSection title="Note Template Settings">
-            <p className="text-sm text-muted-foreground mb-4">
-              Choose a default template for new notes.
-            </p>
-            <div className="grid gap-4">
-              {TEMPLATE_OPTIONS.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  isSelected={settings.templateStyle === template.id}
-                  onSelect={() => updateTemplateStyle(template.id)}
-                />
-              ))}
-            </div>
+            <TemplateSelector 
+              selectedTemplate={settings.templateStyle}
+              onSelectTemplate={updateTemplateStyle}
+            />
           </SettingsSection>
 
           {/* Future Features */}

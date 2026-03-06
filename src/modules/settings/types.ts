@@ -33,6 +33,26 @@ export type UserSettings = {
 
 export const DEFAULT_SETTINGS: Omit<UserSettings, 'userId'> = {
   templateStyle: 'simple',
+  templateTimestamps: {
+    simple: {
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastUsedAt: null,
+      useCount: 0,
+    },
+    notion: {
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastUsedAt: null,
+      useCount: 0,
+    },
+    journal: {
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastUsedAt: null,
+      useCount: 0,
+    },
+  },
   defaultPlaceholder: 'Start writing...',
   defaultModeMarkdown: true,
   diaryModeEnabled: false,
