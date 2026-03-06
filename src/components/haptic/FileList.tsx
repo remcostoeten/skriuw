@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { NoteFile, NoteFolder } from '@/types/notes';
 import { ChevronRight, Folder, Pencil, Trash2, FolderInput } from 'lucide-react';
@@ -30,7 +30,15 @@ interface FileListProps {
   getFilesInFolder: (parentId: string | null) => NoteFile[];
   getFoldersInFolder: (parentId: string | null) => NoteFolder[];
   countDescendants: (folderId: string) => number;
+  onReorderFiles?: (fileId: string, targetIndex: number, parentId: string | null) => void;
+  onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
 }
+
+type DragItem = {
+  type: 'file' | 'folder';
+  id: string;
+  parentId: string | null;
+};
 
 export function FileList({
   folders,
@@ -50,14 +58,27 @@ export function FileList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingType, setEditingType] = useState<'file' | 'folder'>('file');
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Drag and drop state
+  const [dragItem, setDragItem] = useState<DragItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string | null; type: 'folder' | 'root' } | null>(null);
 
-  const startRename = (id: string, currentName: string, type: 'file' | 'folder') => {
+  // Focus and select text when editing starts
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  const startRename = useCallback((id: string, currentName: string, type: 'file' | 'folder') => {
     setEditingId(id);
     setEditingName(type === 'file' ? currentName.replace('.md', '') : currentName);
     setEditingType(type);
-  };
+  }, []);
 
-  const finishRename = () => {
+  const finishRename = useCallback(() => {
     if (editingId && editingName.trim()) {
       if (editingType === 'file') {
         onRenameFile(editingId, editingName.trim());
@@ -67,16 +88,110 @@ export function FileList({
     }
     setEditingId(null);
     setEditingName('');
-  };
+  }, [editingId, editingName, editingType, onRenameFile, onRenameFolder]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       finishRename();
     } else if (e.key === 'Escape') {
       setEditingId(null);
       setEditingName('');
     }
-  };
+  }, [finishRename]);
+
+  // Double-click handler for inline rename
+  const handleDoubleClick = useCallback((e: React.MouseEvent, id: string, name: string, type: 'file' | 'folder') => {
+    e.preventDefault();
+    e.stopPropagation();
+    startRename(id, name, type);
+  }, [startRename]);
+
+  // Drag handlers
+  const handleDragStart = useCallback((e: React.DragEvent, item: DragItem) => {
+    setDragItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify(item));
+    // Add a slight delay to allow the drag image to render
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.5';
+    }, 0);
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDragItem(null);
+    setDropTarget(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetId: string | null, targetType: 'folder' | 'root') => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!dragItem) return;
+    
+    // Prevent dropping a folder into itself or its descendants
+    if (dragItem.type === 'folder' && targetType === 'folder') {
+      const getDescendantIds = (folderId: string): string[] => {
+        const children = folders.filter(f => f.parentId === folderId);
+        return [folderId, ...children.flatMap(c => getDescendantIds(c.id))];
+      };
+      const descendants = getDescendantIds(dragItem.id);
+      if (targetId && descendants.includes(targetId)) {
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget({ id: targetId, type: targetType });
+  }, [dragItem, folders]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Only clear if we're leaving to outside the list
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const { clientX, clientY } = e;
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      setDropTarget(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!dragItem) return;
+    
+    // Don't drop on itself
+    if (dragItem.id === targetId) {
+      setDragItem(null);
+      setDropTarget(null);
+      return;
+    }
+    
+    // Prevent dropping folder into its descendants
+    if (dragItem.type === 'folder' && targetId) {
+      const getDescendantIds = (folderId: string): string[] => {
+        const children = folders.filter(f => f.parentId === folderId);
+        return [folderId, ...children.flatMap(c => getDescendantIds(c.id))];
+      };
+      if (getDescendantIds(dragItem.id).includes(targetId)) {
+        setDragItem(null);
+        setDropTarget(null);
+        return;
+      }
+    }
+    
+    if (dragItem.type === 'file') {
+      onMoveFile(dragItem.id, targetId);
+    } else {
+      onMoveFolder(dragItem.id, targetId);
+    }
+    
+    setDragItem(null);
+    setDropTarget(null);
+  }, [dragItem, folders, onMoveFile, onMoveFolder]);
 
   // Get all folders for "Move to" submenu
   const allFolders = folders;
@@ -123,14 +238,27 @@ export function FileList({
     const childFiles = getFilesInFolder(folder.id);
     const totalCount = countDescendants(folder.id);
     const isEditing = editingId === folder.id;
+    const isDragging = dragItem?.id === folder.id;
+    const isDropTarget = dropTarget?.id === folder.id;
 
     return (
       <div key={folder.id}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <button
-              onClick={() => onToggleFolder(folder.id)}
-              className="w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-haptic-hover transition-colors group"
+              onClick={() => !isEditing && onToggleFolder(folder.id)}
+              onDoubleClick={(e) => handleDoubleClick(e, folder.id, folder.name, 'folder')}
+              draggable={!isEditing}
+              onDragStart={(e) => handleDragStart(e, { type: 'folder', id: folder.id, parentId: folder.parentId })}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, folder.id, 'folder')}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, folder.id)}
+              className={cn(
+                'w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-haptic-hover transition-colors group',
+                isDragging && 'opacity-50',
+                isDropTarget && 'bg-primary/20 ring-1 ring-primary/40'
+              )}
               style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
             >
               <ChevronRight
@@ -143,17 +271,18 @@ export function FileList({
               <Folder className="w-[15px] h-[15px] shrink-0 text-haptic-dim" strokeWidth={1.5} />
               {isEditing ? (
                 <input
+                  ref={inputRef}
                   type="text"
                   value={editingName}
                   onChange={(e) => setEditingName(e.target.value)}
                   onBlur={finishRename}
                   onKeyDown={handleKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 bg-background border border-border rounded px-1 text-[13px] outline-none focus:ring-1 focus:ring-ring"
-                  autoFocus
+                  className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
+                  style={{ caretColor: 'currentColor' }}
                 />
               ) : (
-                <span className="flex-1 text-left truncate">{folder.name}</span>
+                <span className="flex-1 text-left truncate select-none">{folder.name}</span>
               )}
               <span className="text-xs text-haptic-dim tabular-nums">{totalCount}</span>
             </button>
@@ -189,33 +318,40 @@ export function FileList({
 
   const renderFile = (file: NoteFile, depth: number = 0) => {
     const isEditing = editingId === file.id;
+    const isDragging = dragItem?.id === file.id;
 
     return (
       <ContextMenu key={file.id}>
         <ContextMenuTrigger asChild>
           <button
             onClick={() => !isEditing && onFileSelect(file.id)}
+            onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, 'file')}
+            draggable={!isEditing}
+            onDragStart={(e) => handleDragStart(e, { type: 'file', id: file.id, parentId: file.parentId })}
+            onDragEnd={handleDragEnd}
             className={cn(
               'w-full text-left h-[30px] text-[13px] transition-colors truncate flex items-center',
               activeFileId === file.id
                 ? 'bg-haptic-active text-foreground'
-                : 'text-foreground/60 hover:bg-haptic-hover hover:text-foreground/80'
+                : 'text-foreground/60 hover:bg-haptic-hover hover:text-foreground/80',
+              isDragging && 'opacity-50'
             )}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
           >
             {isEditing ? (
               <input
+                ref={inputRef}
                 type="text"
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
                 onBlur={finishRename}
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-background border border-border rounded px-1 text-[13px] outline-none focus:ring-1 focus:ring-ring"
-                autoFocus
+                className="flex-1 bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0"
+                style={{ caretColor: 'currentColor' }}
               />
             ) : (
-              file.name
+              <span className="truncate select-none">{file.name}</span>
             )}
           </button>
         </ContextMenuTrigger>
@@ -243,9 +379,18 @@ export function FileList({
 
   const rootFolders = getFoldersInFolder(null);
   const rootFiles = getFilesInFolder(null);
+  const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === 'root';
 
   return (
-    <div className="flex-1 overflow-y-auto py-0.5">
+    <div 
+      className={cn(
+        "flex-1 overflow-y-auto py-0.5",
+        isRootDropTarget && 'bg-primary/10'
+      )}
+      onDragOver={(e) => handleDragOver(e, null, 'root')}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => handleDrop(e, null)}
+    >
       {rootFolders.map(f => renderFolder(f))}
       {rootFiles.map(f => renderFile(f))}
     </div>

@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { TooltipProvider } from "@/shared/ui/tooltip"
+import { ThemeProvider } from "next-themes"
 import { useState } from "react"
 
 type Props = {
@@ -22,7 +23,9 @@ export function AppProviders({ children }: Props) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
