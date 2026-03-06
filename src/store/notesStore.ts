@@ -17,16 +17,24 @@ updated: ${date}
 Start writing here...`;
     
     case 'journal':
-      return `# ${new Date().toLocaleDateString('en-US', { 
+      const dateStr = new Date().toLocaleDateString('en-US', { 
+        weekday: 'long',
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
-      })}
+      });
+      const timeStr = new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      return `# ${dateStr}
 
-mood: 
+mood: neutral
 tags: 
 
 ---
+
+*${timeStr}*
 
 `;
     
