@@ -24,19 +24,24 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
     return `${(bytes / 1024).toFixed(1)} KB`;
   };
 
+  const formatTime = (date: Date) => {
+    const distance = formatDistanceToNow(date, { addSuffix: false });
+    return distance + ' ago';
+  };
+
   const stats = [
-    { label: 'Created', value: formatDistanceToNow(file.createdAt, { addSuffix: false }) + ' ago' },
-    { label: 'Modified', value: formatDistanceToNow(file.modifiedAt, { addSuffix: false }) + ' ago' },
+    { label: 'Created', value: formatTime(file.createdAt) },
+    { label: 'Modified', value: formatTime(file.modifiedAt) },
     { label: 'File Size', value: formatSize(fileSize) },
     { label: 'Characters', value: charCount.toLocaleString() },
     { label: 'Words', value: wordCount.toLocaleString() },
-    { label: 'Read Time', value: `${readTime}m` },
+    { label: 'Read Time', value: readTime === 0 ? '0s' : `${readTime}m` },
   ];
 
   return (
-    <div className="w-52 border-l border-theme-divider bg-theme-editor overflow-y-auto">
-      {/* Tab switcher */}
-      <div className="flex items-center justify-end gap-1 p-2 border-b border-theme-divider">
+    <div className="w-48 border-l border-theme-divider bg-theme-editor flex flex-col">
+      {/* Tab switcher - right aligned */}
+      <div className="flex items-center justify-end gap-0.5 px-2 h-[40px] border-b border-theme-divider shrink-0">
         <button
           onClick={() => setActiveTab('info')}
           className={cn(
@@ -46,7 +51,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               : 'text-theme-dim hover:text-foreground hover:bg-theme-hover'
           )}
         >
-          <Info className="w-4 h-4" strokeWidth={1.5} />
+          <Info className="w-[15px] h-[15px]" strokeWidth={1.5} />
         </button>
         <button
           onClick={() => setActiveTab('outline')}
@@ -57,25 +62,25 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               : 'text-theme-dim hover:text-foreground hover:bg-theme-hover'
           )}
         >
-          <Layers className="w-4 h-4" strokeWidth={1.5} />
+          <Layers className="w-[15px] h-[15px]" strokeWidth={1.5} />
         </button>
       </div>
 
       {activeTab === 'info' && (
-        <div className="p-4 space-y-3">
+        <div className="px-4 py-4 space-y-2.5 overflow-y-auto">
           {stats.map(stat => (
-            <div key={stat.label} className="flex items-center justify-between text-sm">
-              <span className="text-theme-secondary">{stat.label}</span>
-              <span className="text-foreground/80 font-medium">{stat.value}</span>
+            <div key={stat.label} className="flex items-baseline justify-between">
+              <span className="text-[13px] text-theme-secondary">{stat.label}</span>
+              <span className="text-[13px] text-foreground/80 font-medium tabular-nums">{stat.value}</span>
             </div>
           ))}
         </div>
       )}
 
       {activeTab === 'outline' && (
-        <div className="p-4">
-          <p className="text-sm text-theme-dim">Document outline</p>
-          <div className="mt-3 space-y-1.5">
+        <div className="px-4 py-4 overflow-y-auto">
+          <p className="text-[13px] text-theme-dim mb-3">Document outline</p>
+          <div className="space-y-1">
             {file.content.split('\n')
               .filter(l => /^#{1,3}\s/.test(l))
               .map((heading, i) => {
@@ -84,7 +89,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
                 return (
                   <div
                     key={i}
-                    className="text-sm text-foreground/60 hover:text-foreground cursor-pointer transition-colors"
+                    className="text-[13px] text-foreground/50 hover:text-foreground cursor-pointer transition-colors truncate"
                     style={{ paddingLeft: `${(level - 1) * 12}px` }}
                   >
                     {text}
