@@ -1,4 +1,4 @@
-import { FolderOpen, Sun, Moon } from 'lucide-react';
+import { FolderOpen, Sun, Moon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react';
 interface IconRailProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onOpenSettings: () => void;
 }
 
-export function IconRail({ activeTab, onTabChange }: IconRailProps) {
+export function IconRail({ activeTab, onTabChange, onOpenSettings }: IconRailProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   
@@ -36,8 +37,15 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
         <FolderOpen className="w-[18px] h-[18px]" strokeWidth={1.5} />
       </button>
       
-      {/* Bottom icons - Theme toggle */}
+      {/* Bottom icons - Settings and Theme toggle */}
       <div className="mt-auto flex flex-col gap-1">
+        <button 
+          onClick={onOpenSettings}
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          title="Settings"
+        >
+          <Settings className="w-[18px] h-[18px]" strokeWidth={1.5} />
+        </button>
         <button 
           onClick={toggleTheme}
           className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"

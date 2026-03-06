@@ -7,14 +7,30 @@ import { SidebarPanel } from '@/components/haptic/SidebarPanel';
 import { EditorToolbar, EditorMode } from '@/components/haptic/EditorToolbar';
 import { Editor } from '@/components/haptic/Editor';
 import { MetadataPanel } from '@/components/haptic/MetadataPanel';
+import { SettingsModal } from '@/components/haptic/SettingsModal';
 import { useNotesStore } from '@/store/notesStore';
+import { useSettingsStore } from '@/modules/settings';
 
 function NotesApp() {
   const store = useNotesStore();
+  const { settings, initializeSettings } = useSettingsStore();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('notes');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('markdown');
+
+  // Initialize settings on mount
+  useEffect(() => {
+    initializeSettings();
+  }, [initializeSettings]);
+
+  // Sync editor mode with settings default
+  useEffect(() => {
+    if (settings) {
+      setEditorMode(settings.defaultModeMarkdown ? 'markdown' : 'richtext');
+    }
+  }, [settings?.defaultModeMarkdown]);
 
   // File navigation - get current index and navigation ability
   const currentFileIndex = useMemo(() => 
@@ -64,7 +80,11 @@ function NotesApp() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
-        <IconRail activeTab={activeTab} onTabChange={setActiveTab} />
+        <IconRail 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onOpenSettings={() => setShowSettings(true)}
+        />
 
         {showSidebar && (
           <SidebarPanel
@@ -113,6 +133,7 @@ function NotesApp() {
         editorMode={editorMode} 
         onToggleEditorMode={() => setEditorMode(editorMode === 'markdown' ? 'richtext' : 'markdown')} 
       />
+      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
 }
