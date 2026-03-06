@@ -17,6 +17,7 @@ import { useSettingsStore } from '@/modules/settings';
 import { getAuth } from '@/modules/auth';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
 import { TemplateSelector } from './TemplateSelector';
+import { TagManager } from './TagManager';
 import { Button } from '@/components/ui/button';
 
 type Props = {
@@ -162,6 +163,11 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               selectedTemplate={settings.templateStyle}
               onSelectTemplate={updateTemplateStyle}
             />
+          </SettingsSection>
+
+          {/* Tag Management */}
+          <SettingsSection title="Tag Management">
+            <TagManager />
           </SettingsSection>
 
           {/* Future Features */}
