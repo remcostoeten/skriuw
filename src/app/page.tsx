@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BottomBar } from '@/components/haptic/BottomBar';
 import { IconRail } from '@/components/haptic/IconRail';
@@ -15,6 +15,34 @@ function NotesApp() {
   const [activeTab, setActiveTab] = useState('notes');
   const [showSidebar, setShowSidebar] = useState(true);
   const [editorMode, setEditorMode] = useState<EditorMode>('markdown');
+
+  // File navigation - get current index and navigation ability
+  const currentFileIndex = useMemo(() => 
+    store.files.findIndex(f => f.id === store.activeFileId), 
+    [store.files, store.activeFileId]
+  );
+  const canNavigatePrev = currentFileIndex > 0;
+  const canNavigateNext = currentFileIndex < store.files.length - 1;
+
+  const navigatePrev = useCallback(() => {
+    if (canNavigatePrev) {
+      const prevFile = store.files[currentFileIndex - 1];
+      store.setActiveFileId(prevFile.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('note', prevFile.id);
+      window.history.pushState({}, '', url.toString());
+    }
+  }, [canNavigatePrev, currentFileIndex, store]);
+
+  const navigateNext = useCallback(() => {
+    if (canNavigateNext) {
+      const nextFile = store.files[currentFileIndex + 1];
+      store.setActiveFileId(nextFile.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('note', nextFile.id);
+      window.history.pushState({}, '', url.toString());
+    }
+  }, [canNavigateNext, currentFileIndex, store]);
 
   // Sync URL with active note (shallow routing - no server round trip)
   useEffect(() => {
@@ -64,6 +92,10 @@ function NotesApp() {
             fileName={store.activeFile?.name || 'No file selected'}
             onToggleSidebar={() => setShowSidebar(!showSidebar)}
             onToggleMetadata={() => store.setShowMetadata(!store.showMetadata)}
+            onNavigatePrev={navigatePrev}
+            onNavigateNext={navigateNext}
+            canNavigatePrev={canNavigatePrev}
+            canNavigateNext={canNavigateNext}
           />
           <div className="flex-1 flex overflow-hidden">
             <Editor
@@ -88,8 +120,8 @@ function NotesApp() {
 export default function Index() {
   return (
     <Suspense fallback={
-      <div className="h-screen flex items-center justify-center bg-theme-bg">
-        <div className="text-theme-dim">Loading...</div>
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     }>
       <NotesApp />

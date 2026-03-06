@@ -21,15 +21,15 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
   };
 
   return (
-    <div className="w-12 flex flex-col items-center py-3 gap-1 bg-theme-rail border-r border-theme-divider">
+    <div className="w-12 flex flex-col items-center py-3 gap-1 bg-card border-r border-border">
       {/* Notes/Folders tab */}
       <button
         onClick={() => onTabChange('notes')}
         className={cn(
           'w-9 h-9 flex items-center justify-center rounded-md transition-colors',
           activeTab === 'notes'
-            ? 'bg-theme-active text-foreground'
-            : 'text-theme-dim hover:text-theme-secondary hover:bg-theme-hover'
+            ? 'bg-accent text-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
         title="Notes"
       >
@@ -40,7 +40,7 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
       <div className="mt-auto flex flex-col gap-1">
         <button 
           onClick={toggleTheme}
-          className="w-9 h-9 flex items-center justify-center rounded-md text-theme-dim hover:text-theme-secondary hover:bg-theme-hover transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           title="Toggle theme"
         >
           {mounted ? (

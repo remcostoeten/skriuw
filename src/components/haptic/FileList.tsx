@@ -255,7 +255,7 @@ export function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                'w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-theme-hover transition-colors group',
+                'w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-accent transition-colors group',
                 isDragging && 'opacity-50',
                 isDropTarget && 'bg-primary/20 ring-1 ring-primary/40'
               )}
@@ -263,12 +263,12 @@ export function FileList({
             >
               <ChevronRight
                 className={cn(
-                  'w-3 h-3 shrink-0 transition-transform text-theme-dim',
+                  'w-3 h-3 shrink-0 transition-transform text-muted-foreground',
                   folder.isOpen && 'rotate-90'
                 )}
                 strokeWidth={1.5}
               />
-              <Folder className="w-[15px] h-[15px] shrink-0 text-theme-dim" strokeWidth={1.5} />
+              <Folder className="w-[15px] h-[15px] shrink-0 text-muted-foreground" strokeWidth={1.5} />
               <span className="flex-1 min-w-0 h-[18px] flex items-center">
                 {isEditing ? (
                   <input
@@ -286,7 +286,7 @@ export function FileList({
                   <span className="text-left truncate select-none">{folder.name}</span>
                 )}
               </span>
-              <span className="text-xs text-theme-dim tabular-nums">{totalCount}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{totalCount}</span>
             </button>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-48">
@@ -334,8 +334,8 @@ export function FileList({
             className={cn(
               'w-full text-left h-[30px] text-[13px] transition-colors truncate flex items-center',
               activeFileId === file.id
-                ? 'bg-theme-active text-foreground'
-                : 'text-foreground/60 hover:bg-theme-hover hover:text-foreground/80',
+                ? 'bg-accent text-foreground'
+                : 'text-foreground/60 hover:bg-accent hover:text-foreground/80',
               isDragging && 'opacity-50'
             )}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px' }}
