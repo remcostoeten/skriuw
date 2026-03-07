@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { ChevronRight, Folder, Pencil, Trash2, FolderInput } from "lucide-react";
+import { ChevronRight, Folder, Pencil, Trash2, FolderInput, Star, Briefcase } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,6 +14,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
+import { useSidebarStore } from "@/modules/sidebar";
 
 interface FileListProps {
   files: NoteFile[];
@@ -55,6 +56,16 @@ export function FileList({
   getFoldersInFolder,
   countDescendants,
 }: FileListProps) {
+  // Sidebar store for favorites and projects
+  const {
+    isFavorite,
+    addToFavorites,
+    removeFromFavorites,
+    getProjects,
+    addToProject,
+  } = useSidebarStore();
+  const projects = getProjects();
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingType, setEditingType] = useState<"file" | "folder">("file");
@@ -336,6 +347,44 @@ export function FileList({
             </ContextMenuItem>
             {renderMoveToSubmenu(folder.id, folder.parentId, "folder")}
             <ContextMenuSeparator />
+            {isFavorite(folder.id) ? (
+              <ContextMenuItem
+                onClick={() => removeFromFavorites(folder.id)}
+                className="gap-2"
+              >
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                Remove from Favorites
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                onClick={() => addToFavorites(folder.id, 'folder')}
+                className="gap-2"
+              >
+                <Star className="w-4 h-4" />
+                Add to Favorites
+              </ContextMenuItem>
+            )}
+            {projects.length > 0 && (
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  Add to Project
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-40">
+                  {projects.map((project) => (
+                    <ContextMenuItem
+                      key={project.id}
+                      onClick={() => addToProject(project.id, folder.id, 'folder')}
+                      className="gap-2"
+                    >
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
+                      {project.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            )}
+            <ContextMenuSeparator />
             <ContextMenuItem
               onClick={() => onDeleteFolder(folder.id)}
               className="gap-2 text-destructive focus:text-destructive"
@@ -407,6 +456,44 @@ export function FileList({
             Rename
           </ContextMenuItem>
           {renderMoveToSubmenu(file.id, file.parentId, "file")}
+          <ContextMenuSeparator />
+          {isFavorite(file.id) ? (
+            <ContextMenuItem
+              onClick={() => removeFromFavorites(file.id)}
+              className="gap-2"
+            >
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              Remove from Favorites
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onClick={() => addToFavorites(file.id, 'file')}
+              className="gap-2"
+            >
+              <Star className="w-4 h-4" />
+              Add to Favorites
+            </ContextMenuItem>
+          )}
+          {projects.length > 0 && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="gap-2">
+                <Briefcase className="w-4 h-4" />
+                Add to Project
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-40">
+                {projects.map((project) => (
+                  <ContextMenuItem
+                    key={project.id}
+                    onClick={() => addToProject(project.id, file.id, 'file')}
+                    className="gap-2"
+                  >
+                    <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
+                    {project.name}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => onDeleteFile(file.id)}

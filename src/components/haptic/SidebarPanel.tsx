@@ -1,8 +1,17 @@
-import { useState } from "react";
-import { FileList } from "./FileList";
+"use client";
+
+import { useCallback } from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { useSidebarStore, SidebarSection as SidebarSectionType } from "@/modules/sidebar";
+import {
+  SearchSection,
+  FavoritesSection,
+  RecentsSection,
+  ProjectsSection,
+  FileTreeSection,
+  SidebarConfigManager,
+} from "./sidebar";
 
 interface SidebarPanelProps {
   files: NoteFile[];
@@ -52,7 +61,7 @@ function NewFolderNoteIcon({ className }: { className?: string }) {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M6.54356 1H5.37683C4.56054 0.999976 3.87093 0.999955 3.32143 1.07383C2.73783 1.1523 2.19785 1.32663 1.76224 1.76224C1.32663 2.19785 1.1523 2.73783 1.07383 3.32143C0.999955 3.87093 0.999976 4.56048 1 5.37677V12.7983C0.999985 14.0429 0.999971 15.0553 1.10729 15.8535C1.21922 16.686 1.46048 17.4006 2.02993 17.9701C2.59937 18.5395 3.31398 18.7808 4.14647 18.8927C4.94475 19 5.95705 19 7.20173 19H12.7983C14.043 19 15.0553 19 15.8535 18.8927C16.686 18.7808 17.4006 18.5395 17.9701 17.9701C18.5395 17.4006 18.7808 16.686 18.8927 15.8535C19 15.0553 19 14.043 19 12.7983V10.4005C19 9.15583 19 8.14353 18.8927 7.34525C18.7808 6.51276 18.5395 5.79815 17.9701 5.22871C17.4006 4.65926 16.686 4.418 15.8535 4.30607C15.0553 4.19875 14.043 4.19877 12.7983 4.19878L11.5177 4.19878C11.2437 4.19878 11.0942 4.19791 10.9851 4.18711C10.9515 4.18379 10.9306 4.18021 10.9187 4.17768C10.9106 4.1686 10.8972 4.15227 10.8776 4.1247C10.8141 4.03534 10.7392 3.90601 10.6032 3.66806L10.3364 3.20108C10.0947 2.77812 9.88601 2.41293 9.68211 2.12595C9.46334 1.81806 9.21648 1.54999 8.87457 1.35157C8.53266 1.15315 8.17743 1.07182 7.80157 1.03463C7.45127 0.999976 7.03064 0.999987 6.54356 1ZM3.52785 2.60914C3.96198 2.55078 4.54667 2.54913 5.43032 2.54913H6.50758C7.04035 2.54913 7.38395 2.55 7.64905 2.57623C7.89714 2.60078 8.01344 2.64291 8.09703 2.69142C8.18061 2.73993 8.2749 2.82 8.4193 3.02323C8.57359 3.24038 8.74483 3.53828 9.00915 4.00085L9.27319 4.46291C9.38879 4.66527 9.50151 4.86259 9.61476 5.02197C9.74274 5.20209 9.90431 5.38312 10.1398 5.51981C10.3754 5.6565 10.6127 5.70696 10.8326 5.72871C11.0272 5.74797 11.2553 5.74794 11.4884 5.74791L12.7418 5.74791C14.0563 5.74791 14.9641 5.74956 15.6471 5.84138C16.3078 5.93021 16.641 6.09045 16.8747 6.3241C17.1083 6.55776 17.2686 6.89098 17.3574 7.55167C17.4492 8.23468 17.4509 9.14252 17.4509 10.457V12.7418C17.4509 14.0563 17.4492 14.9641 17.3574 15.6471C17.2686 16.3078 17.1083 16.641 16.8747 16.8747C16.641 17.1083 16.3078 17.2686 15.6471 17.3574C14.9641 17.4492 14.0563 17.4509 12.7418 17.4509H7.25819C5.94374 17.4509 5.0359 17.4492 4.35289 17.3574C3.6922 17.2686 3.35898 17.1083 3.12532 16.8747C2.89167 16.641 2.73143 16.3078 2.6426 15.6471C2.55077 14.9641 2.54913 14.0563 2.54913 12.7418V5.43032C2.54913 4.54667 2.55078 3.96198 2.60914 3.52785C2.6645 3.11609 2.7578 2.95747 2.85764 2.85764C2.95747 2.7578 3.11609 2.6645 3.52785 2.60914Z"
+        d="M6.54356 1H5.37683C4.56054 0.999976 3.87093 0.999955 3.32143 1.07383C2.73783 1.1523 2.19785 1.32663 1.76224 1.76224C1.32663 2.19785 1.1523 2.73783 1.07383 3.32143C0.999955 3.87093 0.999976 4.56048 1 5.37677V12.7983C0.999985 14.0429 0.999971 15.0553 1.10729 15.8535C1.21922 16.686 1.46048 17.4006 2.02993 17.9701C2.59937 18.5395 3.31398 18.7808 4.14647 18.8927C4.94475 19 5.95705 19 7.20173 19H12.7983C14.043 19 15.0553 19 15.8535 18.8927C16.686 18.7808 17.4006 18.5395 17.9701 17.9701C18.5395 17.4006 18.7808 16.686 18.8927 15.8535C19 15.0553 19 14.043 19 12.7983V10.4005C19 9.15583 19 8.14353 18.8927 7.34525C18.7808 6.51276 18.5395 5.79815 17.9701 5.22871C17.4006 4.65926 16.686 4.418 15.8535 4.30607C15.0553 4.19875 14.043 4.19877 12.7983 4.19878L11.5177 4.19878C11.2437 4.19878 11.0942 4.19791 10.9851 4.18711C10.9515 4.18379 10.9306 4.18021 10.9187 4.17768C10.9106 4.1686 10.8972 4.15227 10.8776 4.1247C10.8141 4.03534 10.7392 3.90601 10.6032 3.66806L10.3364 3.20108C10.0947 2.77812 9.88601 2.41293 9.68211 2.12595C9.46334 1.81806 9.21648 1.54999 8.87457 1.35157C8.53266 1.15315 8.17743 1.07182 7.80157 1.03463C7.45127 0.999976 7.03064 0.999987 6.54356 1ZM3.52785 2.60914C3.96198 2.55078 4.54667 2.54913 5.43032 2.54913H6.50758C7.04035 2.54913 7.38395 2.55 7.64905 2.57623C7.89714 2.60078 8.01344 2.64291 8.09703 2.69142C8.18061 2.73993 8.2749 2.82 8.4193 3.02323C8.57359 3.24038 8.74483 3.53828 9.00915 4.00085L9.27319 4.46291C9.38879 4.66527 9.50151 4.86259 9.61476 5.02197C9.74274 5.20209 9.90431 5.38312 10.1398 5.51981C10.3754 5.6565 10.6127 5.70696 10.8326 5.72871C11.0272 5.74797 11.2553 5.74794 11.4884 5.74791L12.7418 5.74791C14.0563 5.74791 14.9641 5.74956 15.6471 5.84138C16.3078 5.93021 16.641 6.09045 16.8747 6.3241C17.1083 6.55776 17.2686 6.89098 17.3574 7.55167C17.4492 8.23468 17.4509 9.14252 17.4509 10.457V12.7418C17.4509 14.0563 17.4492 14.9641 17.3574 15.6471C17.2686 16.3078 17.1083 16.641 16.8747 16.8747C16.641 17.1083 16.3078 17.2686 15.6471 17.3574C14.9641 17.4492 14.0563 17.4509 12.7418 17.4509H7.25824C5.94374 17.4509 5.03591 17.4492 4.35289 17.3574C3.6922 17.2686 3.35898 17.1083 3.12533 16.8747C2.89167 16.641 2.73143 16.3078 2.64261 15.6471C2.55079 14.9641 2.54913 14.0563 2.54913 12.7418V5.43032C2.54913 4.54667 2.55078 3.96198 2.60914 3.52785C2.66489 3.11259 2.76393 2.91933 2.87828 2.79828C2.99251 2.67739 3.19102 2.5699 3.52785 2.60914Z"
       />
     </svg>
   );
@@ -80,33 +89,6 @@ function ExpandIcon({ className }: { className?: string }) {
   );
 }
 
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M11.9059 2C7.94242 2 4.72941 5.17565 4.72941 9.09302C4.72941 13.0104 7.94242 16.186 11.9059 16.186C13.4193 16.186 14.8233 15.723 15.9808 14.9324L18.7007 17.7677C18.9868 18.066 19.4633 18.0785 19.7651 17.7958C20.0669 17.513 20.0796 17.042 19.7935 16.7437L17.1248 13.9617C18.3384 12.6914 19.0823 10.9781 19.0823 9.09302C19.0823 5.17565 15.8693 2 11.9059 2ZM6.23529 9.09302C6.23529 5.99766 8.7741 3.48837 11.9059 3.48837C15.0377 3.48837 17.5765 5.99766 17.5765 9.09302C17.5765 12.1884 15.0377 14.6977 11.9059 14.6977C8.7741 14.6977 6.23529 12.1884 6.23529 9.09302Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M0 17.2558C0 16.8448 0.337103 16.5116 0.752941 16.5116H7.17647C7.5923 16.5116 7.92941 16.8448 7.92941 17.2558C7.92941 17.6668 7.5923 18 7.17647 18H0.752941C0.337103 18 0 17.6668 0 17.2558Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M0 13.6279C0 13.2169 0.337103 12.8837 0.752941 12.8837H3.50588C3.92172 12.8837 4.25882 13.2169 4.25882 13.6279C4.25882 14.0389 3.92172 14.3721 3.50588 14.3721H0.752941C0.337103 14.3721 0 14.0389 0 13.6279Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M0 10C0 9.589 0.337103 9.25581 0.752941 9.25581H2.58823C3.00407 9.25581 3.34117 9.589 3.34117 10C3.34117 10.411 3.00407 10.7442 2.58823 10.7442H0.752941C0.337103 10.7442 0 10.411 0 10Z"
-      />
-    </svg>
-  );
-}
-
 export function SidebarPanel({
   files,
   folders,
@@ -125,95 +107,157 @@ export function SidebarPanel({
   getFoldersInFolder,
   countDescendants,
 }: SidebarPanelProps) {
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  // Sidebar store
+  const sidebarStore = useSidebarStore();
+  const sections = sidebarStore.getSections();
+
+  // Handle file select with recent tracking
+  const handleFileSelect = useCallback((id: string) => {
+    sidebarStore.addToRecents(id, 'file');
+    onFileSelect(id);
+  }, [sidebarStore, onFileSelect]);
+
+  // Render section based on type
+  const renderSection = (section: SidebarSectionType) => {
+    switch (section.type) {
+      case 'search':
+        return (
+          <SearchSection
+            key={section.id}
+            files={files}
+            folders={folders}
+            activeFileId={activeFileId}
+            onFileSelect={handleFileSelect}
+            onFolderSelect={onToggleFolder}
+          />
+        );
+
+      case 'favorites':
+        return (
+          <FavoritesSection
+            key={section.id}
+            favorites={sidebarStore.config.favorites}
+            files={files}
+            folders={folders}
+            activeFileId={activeFileId}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onFileSelect={handleFileSelect}
+            onRemoveFromFavorites={sidebarStore.removeFromFavorites}
+          />
+        );
+
+      case 'recents':
+        return (
+          <RecentsSection
+            key={section.id}
+            recents={sidebarStore.getRecents()}
+            files={files}
+            folders={folders}
+            activeFileId={activeFileId}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onFileSelect={handleFileSelect}
+            onClearRecents={sidebarStore.clearRecents}
+          />
+        );
+
+      case 'projects':
+        return (
+          <ProjectsSection
+            key={section.id}
+            projects={sidebarStore.getProjects()}
+            files={files}
+            folders={folders}
+            activeFileId={activeFileId}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onFileSelect={handleFileSelect}
+            onCreateProject={sidebarStore.createProject}
+            onUpdateProject={sidebarStore.updateProject}
+            onDeleteProject={sidebarStore.deleteProject}
+            onRemoveFromProject={sidebarStore.removeFromProject}
+          />
+        );
+
+      case 'file-tree':
+        return (
+          <FileTreeSection
+            key={section.id}
+            files={files}
+            folders={folders}
+            activeFileId={activeFileId}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onFileSelect={handleFileSelect}
+            onToggleFolder={onToggleFolder}
+            onRenameFile={onRenameFile}
+            onRenameFolder={onRenameFolder}
+            onDeleteFile={onDeleteFile}
+            onDeleteFolder={onDeleteFolder}
+            onMoveFile={onMoveFile}
+            onMoveFolder={onMoveFolder}
+            getFilesInFolder={getFilesInFolder}
+            getFoldersInFolder={getFoldersInFolder}
+            countDescendants={countDescendants}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="w-56 flex flex-col bg-background border-r border-border">
-      {/* Toolbar - matches Haptic exactly */}
-      <div className="relative min-h-[40px] w-full border-b border-border overflow-hidden">
-        {/* Main toolbar row */}
-        <div
-          className={cn(
-            "flex flex-row items-center justify-center w-full h-[40px] px-3.5 gap-2 shrink-0 transform transition-all",
-            isSearching ? "-translate-y-full" : "translate-y-0",
-          )}
+      {/* Toolbar */}
+      <div className="flex flex-row items-center justify-center w-full h-[40px] px-3.5 gap-2 border-b border-border">
+        <button
+          onClick={onCreateFile}
+          className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
+          title="New Note"
         >
-          <button
-            onClick={onCreateFile}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
-            title="New Note"
-          >
-            <NewNoteIcon />
-          </button>
-          <button
-            onClick={onCreateFolder}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
-            title="New Note in Folder"
-          >
-            <NewFolderNoteIcon />
-          </button>
-          <button
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
-            title="Expand"
-          >
-            <ExpandIcon />
-          </button>
-          <button
-            onClick={() => setIsSearching(true)}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
-            title="Search"
-          >
-            <SearchIcon />
-          </button>
-        </div>
-
-        {/* Search row */}
-        <div
-          className={cn(
-            "absolute inset-0 flex flex-row items-center justify-center w-full h-[40px] px-[5px] gap-1 shrink-0 transform transition-all",
-            isSearching ? "translate-y-0" : "translate-y-full",
-          )}
+          <NewNoteIcon />
+        </button>
+        <button
+          onClick={onCreateFolder}
+          className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
+          title="New Folder"
         >
-          <div className="rounded-md w-full flex items-center justify-start bg-background pl-2 pr-1 gap-0.5 border border-border focus-within:ring-1 focus-within:ring-ring transition-all">
-            <input
-              className="w-full bg-transparent outline-hidden placeholder:text-muted-foreground h-[30px] text-[13px]"
-              type="text"
-              placeholder="Search"
-              autoComplete="off"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus={isSearching}
-            />
-            <button
-              onClick={() => {
-                setIsSearching(false);
-                setSearchQuery("");
-              }}
-              className="inline-flex items-center justify-center rounded-md h-7 w-6 shrink-0 text-muted-foreground hover:text-foreground transition-all active:scale-95"
-            >
-              <X className="w-4 h-4" strokeWidth={1.5} />
-            </button>
-          </div>
-        </div>
+          <NewFolderNoteIcon />
+        </button>
+        <button
+          className="inline-flex items-center justify-center rounded-md h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-all active:scale-95"
+          title="Expand"
+        >
+          <ExpandIcon />
+        </button>
+        <SidebarConfigManager
+          sections={sidebarStore.config.sections}
+          showSectionHeaders={sidebarStore.config.showSectionHeaders}
+          compactMode={sidebarStore.config.compactMode}
+          onReorderSections={sidebarStore.reorderSections}
+          onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
+          onAddCustomSection={sidebarStore.addCustomSection}
+          onRemoveSection={sidebarStore.removeSection}
+          onRenameSection={sidebarStore.renameSection}
+          onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
+          onToggleCompactMode={sidebarStore.toggleCompactMode}
+          onResetToDefaults={sidebarStore.resetToDefaults}
+        />
       </div>
 
-      <FileList
-        files={files}
-        folders={folders}
-        activeFileId={activeFileId}
-        onFileSelect={onFileSelect}
-        onToggleFolder={onToggleFolder}
-        onRenameFile={onRenameFile}
-        onRenameFolder={onRenameFolder}
-        onDeleteFile={onDeleteFile}
-        onDeleteFolder={onDeleteFolder}
-        onMoveFile={onMoveFile}
-        onMoveFolder={onMoveFolder}
-        getFilesInFolder={getFilesInFolder}
-        getFoldersInFolder={getFoldersInFolder}
-        countDescendants={countDescendants}
-      />
+      {/* Modular sections */}
+      <div className={cn(
+        "flex-1 overflow-y-auto",
+        sidebarStore.config.compactMode && "text-sm"
+      )}>
+        {sections.map(renderSection)}
+      </div>
     </div>
   );
 }

@@ -1,14 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronRight, MoreHorizontal, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronRight, MoreHorizontal, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 type Props = {
   id: string;
@@ -39,6 +33,9 @@ export function SidebarSection({
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(title);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleRename = () => {
     if (onRename && editValue.trim() && editValue !== title) {
@@ -46,6 +43,25 @@ export function SidebarSection({
     }
     setIsEditing(false);
   };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   return (
     <div className="border-b border-border/50 last:border-b-0">
@@ -97,33 +113,59 @@ export function SidebarSection({
           {actions}
           
           {(isCustom || onToggleVisibility) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <MoreHorizontal className="w-3 h-3" strokeWidth={1.5} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                {onRename && (
-                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                    <Pencil className="w-3.5 h-3.5 mr-2" />
-                    Rename
-                  </DropdownMenuItem>
-                )}
-                {onToggleVisibility && (
-                  <DropdownMenuItem onClick={onToggleVisibility}>
-                    <EyeOff className="w-3.5 h-3.5 mr-2" />
-                    Hide section
-                  </DropdownMenuItem>
-                )}
-                {isCustom && onDelete && (
-                  <DropdownMenuItem onClick={onDelete} className="text-red-400">
-                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="relative">
+              <button 
+                ref={buttonRef}
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <MoreHorizontal className="w-3 h-3" strokeWidth={1.5} />
+              </button>
+              
+              {showMenu && (
+                <div 
+                  ref={menuRef}
+                  className="absolute right-0 top-full mt-1 z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                >
+                  {onRename && (
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setShowMenu(false);
+                      }}
+                      className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none w-full text-left hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Rename
+                    </button>
+                  )}
+                  {onToggleVisibility && (
+                    <button 
+                      onClick={() => {
+                        onToggleVisibility();
+                        setShowMenu(false);
+                      }}
+                      className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none w-full text-left hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                      Hide section
+                    </button>
+                  )}
+                  {isCustom && onDelete && (
+                    <button 
+                      onClick={() => {
+                        onDelete();
+                        setShowMenu(false);
+                      }}
+                      className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none w-full text-left text-red-400 hover:bg-accent"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
