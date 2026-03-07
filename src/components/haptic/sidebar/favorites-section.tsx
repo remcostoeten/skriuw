@@ -4,7 +4,7 @@ import { Star, FileText, Folder, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NoteFile, NoteFolder } from '@/types/notes';
 import { FavoriteItem } from '@/modules/sidebar';
-import { SidebarSection } from './SidebarSection';
+import { SidebarSection } from './sidebar-section';
 
 type Props = {
   favorites: FavoriteItem[];
