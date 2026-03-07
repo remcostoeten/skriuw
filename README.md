@@ -1,73 +1,129 @@
-# Welcome to your Lovable project
+# Haptic - Notes
 
-## Project info
+A minimal, keyboard-first note-taking application built with Next.js, React, and TypeScript.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Markdown and Rich Text Editing**: Switch between markdown and rich text modes
+- **File Management**: Create, organize, and manage notes with folders
+- **Keyboard-First**: Optimized for keyboard navigation and shortcuts
+- **Dark/Light Theme**: Built-in theme support
+- **Responsive Design**: Works seamlessly on desktop and mobile
+- **Local Storage**: All notes stored locally in your browser
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Custom components with Radix UI primitives
+- **State Management**: Zustand
+- **Editor**: Blocknote for rich text editing
+- **Icons**: Lucide React
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ 
+- npm, yarn, or bun
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd skriuwv2
 
-Follow these steps:
+# Install dependencies
+npm install
+# or
+yarn install
+# or
+bun install
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
+# or
+yarn dev
+# or
+bun dev
 ```
 
-**Edit a file directly in GitHub**
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Build
 
-**Use GitHub Codespaces**
+```bash
+npm run build
+npm run start
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Project Structure
 
-## What technologies are used for this project?
+```
+src/
+├── app/                    # Next.js app router pages
+├── components/
+│   ├── haptic/            # Core application components
+│   └── ui/                # Reusable UI components
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility functions
+├── modules/               # Feature modules (settings, auth)
+├── providers/             # React context providers
+├── store/                 # Zustand stores
+└── types/                 # TypeScript type definitions
+```
 
-This project is built with:
+## Usage
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Creating Notes
 
-## How can I deploy this project?
+1. Click "New File" in the sidebar or press `Ctrl+N`
+2. Choose between Markdown or Rich Text mode
+3. Start typing
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Organizing Notes
 
-## Can I connect a custom domain to my Lovable project?
+- Create folders to organize your notes
+- Drag and drop files to move them between folders
+- Use the search feature to find notes quickly
 
-Yes, you can!
+### Keyboard Shortcuts
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- `Ctrl+N`: Create new note
+- `Ctrl+S`: Save note (auto-saves by default)
+- `Ctrl+/`: Toggle sidebar
+- `Ctrl+Shift+P`: Command palette
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Development
+
+### Adding New Components
+
+1. Create component in `src/components/haptic/` for app-specific components
+2. Create component in `src/components/ui/` for reusable UI components
+3. Follow existing naming conventions and TypeScript patterns
+
+### State Management
+
+The app uses Zustand for state management:
+- `notesStore`: File and folder management
+- `settingsStore`: User preferences and settings
+
+### Styling
+
+- Uses Tailwind CSS for styling
+- Custom theme defined in `tailwind.config.ts`
+- Dark mode support via CSS variables
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details.

@@ -159,7 +159,7 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
 
   // Common container styles for both modes
   const containerClass = "flex-1 overflow-y-auto bg-background";
-  const contentClass = "max-w-[42rem] mx-auto px-8 py-8";
+  const contentClass = "max-w-2xl mx-auto px-8 py-8";
 
   // Rich Text Mode (BlockNote)
   if (editorMode === 'richtext') {
@@ -185,7 +185,7 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
               value={file.content}
               onChange={(e) => onContentChange(file.id, e.target.value)}
               onBlur={() => setIsEditing(false)}
-              className="w-full min-h-[80vh] bg-transparent text-foreground/90 font-mono text-sm resize-none outline-none leading-relaxed"
+              className="w-full min-h-[80vh] bg-transparent text-foreground/90 font-mono text-sm resize-none outline-hidden leading-relaxed"
               spellCheck={false}
             />
           ) : (

@@ -133,7 +133,7 @@ export function SidebarPanel({
         >
           <div className="rounded-md w-full flex items-center justify-start bg-background pl-2 pr-1 gap-0.5 border border-border focus-within:ring-1 focus-within:ring-ring transition-all">
             <input
-              className="w-full bg-transparent outline-none placeholder:text-muted-foreground h-[30px] text-[13px]"
+              className="w-full bg-transparent outline-hidden placeholder:text-muted-foreground h-[30px] text-[13px]"
               type="text"
               placeholder="Search"
               autoComplete="off"
