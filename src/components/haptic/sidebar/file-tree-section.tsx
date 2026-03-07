@@ -1,8 +1,8 @@
 'use client';
 
-import { FileList } from '../FileList';
+import { FileList } from '../file-list';
 import { NoteFile, NoteFolder } from '@/types/notes';
-import { SidebarSection } from './SidebarSection';
+import { SidebarSection } from './sidebar-section';
 
 type Props = {
   files: NoteFile[];

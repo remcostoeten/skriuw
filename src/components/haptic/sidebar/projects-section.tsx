@@ -5,7 +5,7 @@ import { ChevronRight, FileText, Folder, Plus, MoreHorizontal, Pencil, Trash2, P
 import { cn } from '@/lib/utils';
 import { NoteFile, NoteFolder } from '@/types/notes';
 import { Project, PROJECT_COLORS } from '@/modules/sidebar';
-import { SidebarSection } from './SidebarSection';
+import { SidebarSection } from './sidebar-section';
 import {
   ContextMenu,
   ContextMenuContent,
