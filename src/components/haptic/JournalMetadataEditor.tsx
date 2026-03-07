@@ -175,7 +175,7 @@ export function JournalMetadataEditor({
                   }
                 }}
                 placeholder="tag name"
-                className="w-20 px-2 py-1 text-xs bg-transparent outline-none"
+                className="w-20 px-2 py-1 text-xs bg-transparent outline-hidden"
               />
               <button
                 onClick={handleAddTag}

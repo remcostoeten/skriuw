@@ -6,6 +6,8 @@ import { Hash, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useSettingsStore, TAG_COLORS, SavedTag } from '@/modules/settings';
+import { Plus, MoreHorizontal, Trash2, Hash } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 export function TagManager() {
   const { getSavedTags, addTag, removeTag } = useSettingsStore();
@@ -206,9 +208,6 @@ export function TagManager() {
 
 type RowProps = {
   tag: SavedTag;
-  isEditing: boolean;
-  onEdit: () => void;
-  onStopEdit: () => void;
   onDelete: () => void;
 };
 

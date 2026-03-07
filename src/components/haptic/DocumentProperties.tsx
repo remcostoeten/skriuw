@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/modules/settings';
 import { MOOD_OPTIONS, MoodLevel } from '@/types/notes';
@@ -298,7 +299,7 @@ function TagsPropertyValue({ value, onChange }: TagsProps) {
                 setSearch(e.target.value);
               }}
               placeholder="Search or create tag..."
-              className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+              className="w-full text-xs bg-transparent outline-hidden placeholder:text-muted-foreground/50"
               autoFocus
               onKeyDown={function handleKey(e) {
                 if (e.key === 'Enter' && search.trim()) {
@@ -309,51 +310,38 @@ function TagsPropertyValue({ value, onChange }: TagsProps) {
           </div>
 
           <div className="max-h-48 overflow-y-auto p-1">
-            {filteredTags.map(function renderItem(tag) {
-              const active = value.includes(tag.name);
-
-              return (
-                <button
-                  key={tag.id}
-                  onClick={function handlePick() {
-                    handleToggleTag(tag.name);
-                  }}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-accent/50"
-                >
-                  <span
-                    className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded border',
-                      active ? 'border-foreground bg-foreground' : 'border-border'
-                    )}
-                  >
-                    {active && <Check className="h-3 w-3 text-background" />}
-                  </span>
-
-                  <span className={cn('rounded border px-1.5 py-0.5 text-[11px]', tag.color)}>
-                    {tag.name}
-                  </span>
-
-                  <span className="ml-auto text-[10px] text-muted-foreground/50">
-                    {tag.usageCount}
-                  </span>
-                </button>
-              );
-            })}
-
-            {search.trim() &&
-              !savedTags.find(function findTag(tag) {
-                return tag.name === search.toLowerCase();
-              }) && (
-                <button
-                  onClick={handleCreateTag}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/50"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>
-                    Create &quot;{search}&quot;
-                  </span>
-                </button>
-              )}
+            {filteredTags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => handleToggleTag(tag.name)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors"
+              >
+                <span className={cn(
+                  "w-4 h-4 rounded border flex items-center justify-center",
+                  value.includes(tag.name) ? "bg-foreground border-foreground" : "border-border"
+                )}>
+                  {value.includes(tag.name) && <Check className="w-3 h-3 text-background" />}
+                </span>
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded text-[11px] border",
+                  tag.color
+                )}>
+                  {tag.name}
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground/50">
+                  {tag.usageCount}
+                </span>
+              </button>
+            ))}
+            {search.trim() && !savedTags.find(t => t.name === search.toLowerCase()) && (
+              <button
+                onClick={handleCreateTag}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create &quot;{search}&quot;</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -504,7 +492,7 @@ function TextPropertyValue({
             onEndEdit();
           }
         }}
-        className="w-full bg-transparent text-xs outline-none"
+        className="w-full text-xs bg-transparent outline-hidden"
       />
     );
   }

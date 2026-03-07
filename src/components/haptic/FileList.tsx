@@ -13,7 +13,7 @@ import {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-} from '@/components/ui/context-menu';
+} from '@/shared/ui/context-menu';
 
 interface FileListProps {
   files: NoteFile[];
@@ -279,7 +279,7 @@ export function FileList({
                     onBlur={finishRename}
                     onKeyDown={handleKeyDown}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                    className="w-full bg-transparent border-none text-[13px] outline-hidden caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
                     style={{ caretColor: 'currentColor' }}
                   />
                 ) : (
@@ -350,7 +350,7 @@ export function FileList({
                   onBlur={finishRename}
                   onKeyDown={handleKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-transparent border-none text-[13px] outline-none caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                  className="w-full bg-transparent border-none text-[13px] outline-hidden caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
                   style={{ caretColor: 'currentColor' }}
                 />
               ) : (
