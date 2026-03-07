@@ -1,12 +1,14 @@
 {
   "name": "theme-ui-clone",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun --bun next dev --turbopack",
     "build": "bun --bun next build",
-    "start": "bun --bun next start"
+    "start": "bun --bun next start",
+    "lint": "oxlint",
+    "format": "oxfmt"
   },
   "dependencies": {
     "@blocknote/core": "^0.46.2",
@@ -41,6 +43,8 @@
     "@types/node": "^22.16.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.8.3"

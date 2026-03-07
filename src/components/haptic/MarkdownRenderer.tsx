@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo } from "react";
 
 interface MarkdownRendererProps {
   content: string;
@@ -7,7 +7,7 @@ interface MarkdownRendererProps {
 // Simple markdown renderer
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const rendered = useMemo(() => {
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const elements: React.ReactElement[] = [];
     let inList = false;
     let listItems: React.ReactElement[] = [];
@@ -15,7 +15,14 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
     const flushList = () => {
       if (listItems.length > 0) {
-        elements.push(<ul key={`list-${listKey}`} className="list-disc list-inside space-y-1 mb-4 text-foreground/80">{listItems}</ul>);
+        elements.push(
+          <ul
+            key={`list-${listKey}`}
+            className="list-disc list-inside space-y-1 mb-4 text-foreground/80"
+          >
+            {listItems}
+          </ul>,
+        );
         listItems = [];
         listKey++;
       }
@@ -36,12 +43,18 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         const codeMatch = remaining.match(/`([^`]+)`/);
 
         const matches = [
-          boldItalicMatch && { index: boldItalicMatch.index!, type: 'bolditalic', match: boldItalicMatch },
-          boldMatch && { index: boldMatch.index!, type: 'bold', match: boldMatch },
-          italicMatch && { index: italicMatch.index!, type: 'italic', match: italicMatch },
-          linkMatch && { index: linkMatch.index!, type: 'link', match: linkMatch },
-          codeMatch && { index: codeMatch.index!, type: 'code', match: codeMatch },
-        ].filter(Boolean).sort((a, b) => a!.index - b!.index);
+          boldItalicMatch && {
+            index: boldItalicMatch.index!,
+            type: "bolditalic",
+            match: boldItalicMatch,
+          },
+          boldMatch && { index: boldMatch.index!, type: "bold", match: boldMatch },
+          italicMatch && { index: italicMatch.index!, type: "italic", match: italicMatch },
+          linkMatch && { index: linkMatch.index!, type: "link", match: linkMatch },
+          codeMatch && { index: codeMatch.index!, type: "code", match: codeMatch },
+        ]
+          .filter(Boolean)
+          .sort((a, b) => a!.index - b!.index);
 
         if (matches.length === 0) {
           parts.push(<span key={key++}>{remaining}</span>);
@@ -54,28 +67,50 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         }
 
         switch (first.type) {
-          case 'bolditalic':
-            parts.push(<strong key={key++} className="italic">{first.match[1]}</strong>);
-            remaining = remaining.slice(first.index + first.match[0].length);
-            continue;
-          case 'bold':
-            parts.push(<strong key={key++} className="font-semibold text-foreground">{first.match[1]}</strong>);
-            remaining = remaining.slice(first.index + first.match[0].length);
-            continue;
-          case 'italic':
-            parts.push(<em key={key++} className="italic">{first.match[1]}</em>);
-            remaining = remaining.slice(first.index + first.match[0].length);
-            continue;
-          case 'link':
+          case "bolditalic":
             parts.push(
-              <a key={key++} href={first.match[2]} className="text-foreground underline decoration-foreground/40 underline-offset-2 hover:decoration-foreground/80 font-medium" target="_blank" rel="noopener">
+              <strong key={key++} className="italic">
                 {first.match[1]}
-              </a>
+              </strong>,
             );
             remaining = remaining.slice(first.index + first.match[0].length);
             continue;
-          case 'code':
-            parts.push(<code key={key++} className="px-1.5 py-0.5 rounded bg-accent text-sm font-mono">{first.match[1]}</code>);
+          case "bold":
+            parts.push(
+              <strong key={key++} className="font-semibold text-foreground">
+                {first.match[1]}
+              </strong>,
+            );
+            remaining = remaining.slice(first.index + first.match[0].length);
+            continue;
+          case "italic":
+            parts.push(
+              <em key={key++} className="italic">
+                {first.match[1]}
+              </em>,
+            );
+            remaining = remaining.slice(first.index + first.match[0].length);
+            continue;
+          case "link":
+            parts.push(
+              <a
+                key={key++}
+                href={first.match[2]}
+                className="text-foreground underline decoration-foreground/40 underline-offset-2 hover:decoration-foreground/80 font-medium"
+                target="_blank"
+                rel="noopener"
+              >
+                {first.match[1]}
+              </a>,
+            );
+            remaining = remaining.slice(first.index + first.match[0].length);
+            continue;
+          case "code":
+            parts.push(
+              <code key={key++} className="px-1.5 py-0.5 rounded bg-accent text-sm font-mono">
+                {first.match[1]}
+              </code>,
+            );
             remaining = remaining.slice(first.index + first.match[0].length);
             continue;
         }
@@ -103,15 +138,15 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         const text = headerMatch[2];
         const Tag = `h${level}` as keyof React.JSX.IntrinsicElements;
         const sizes: Record<number, string> = {
-          1: 'text-3xl font-bold mb-4 mt-2',
-          2: 'text-xl font-bold mb-3 mt-6',
-          3: 'text-lg font-semibold mb-2 mt-4',
-          4: 'text-base font-semibold mb-2 mt-3',
+          1: "text-3xl font-bold mb-4 mt-2",
+          2: "text-xl font-bold mb-3 mt-6",
+          3: "text-lg font-semibold mb-2 mt-4",
+          4: "text-base font-semibold mb-2 mt-3",
         };
         elements.push(
           <Tag key={i} className={`${sizes[level] || sizes[4]} text-foreground`}>
             {renderInline(text)}
-          </Tag>
+          </Tag>,
         );
         continue;
       }
@@ -120,17 +155,19 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       const checkboxMatch = line.match(/^-\s+\[([ x])\]\s+(.+)/);
       if (checkboxMatch) {
         flushList();
-        const checked = checkboxMatch[1] === 'x';
+        const checked = checkboxMatch[1] === "x";
         elements.push(
           <div key={i} className="flex items-start gap-2.5 mb-1.5">
-            <div className={`w-4 h-4 mt-0.5 rounded-full border-2 shrink-0 ${checked ? 'border-foreground/40 bg-foreground/20' : 'border-foreground/25'}`} />
+            <div
+              className={`w-4 h-4 mt-0.5 rounded-full border-2 shrink-0 ${checked ? "border-foreground/40 bg-foreground/20" : "border-foreground/25"}`}
+            />
             <span className="text-foreground/80">{renderInline(checkboxMatch[2])}</span>
-          </div>
+          </div>,
         );
         continue;
       }
 
-      // List items  
+      // List items
       const listMatch = line.match(/^[-*]\s+(.+)/);
       if (listMatch) {
         if (!inList) inList = true;
@@ -143,7 +180,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       if (numMatch) {
         flushList();
         elements.push(
-          <div key={i} className="mb-1 text-foreground/80">{renderInline(line)}</div>
+          <div key={i} className="mb-1 text-foreground/80">
+            {renderInline(line)}
+          </div>,
         );
         continue;
       }
@@ -151,7 +190,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       flushList();
 
       // Empty line
-      if (line.trim() === '') {
+      if (line.trim() === "") {
         elements.push(<div key={i} className="h-4" />);
         continue;
       }
@@ -160,7 +199,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       elements.push(
         <p key={i} className="mb-2 text-foreground/80 leading-relaxed">
           {renderInline(line)}
-        </p>
+        </p>,
       );
     }
 

@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "warn"
+  },
+  "settings": {
+    "javascript": {
+      "jsx": "react-jsx"
+    }
+  }
+}

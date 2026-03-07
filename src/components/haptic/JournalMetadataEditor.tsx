@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/modules/settings';
-import { MOOD_OPTIONS, MoodLevel } from '@/types/notes';
-import { X, Plus, Check } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/modules/settings";
+import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
+import { X, Plus, Check } from "lucide-react";
 
 type Props = {
   selectedMood?: MoodLevel;
@@ -23,9 +23,9 @@ export function JournalMetadataEditor({
 }: Props) {
   const { getSavedTags, addTag, updateTagUsage, recordMood } = useSettingsStore();
   const savedTags = getSavedTags();
-  
+
   const [isAddingTag, setIsAddingTag] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
+  const [newTagName, setNewTagName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,10 +45,10 @@ export function JournalMetadataEditor({
 
   const handleTagToggle = (tagName: string) => {
     if (selectedTags.includes(tagName)) {
-      onTagsChange(selectedTags.filter(t => t !== tagName));
+      onTagsChange(selectedTags.filter((t) => t !== tagName));
     } else {
       onTagsChange([...selectedTags, tagName]);
-      const tag = savedTags.find(t => t.name === tagName);
+      const tag = savedTags.find((t) => t.name === tagName);
       if (tag) {
         updateTagUsage(tag.id);
       }
@@ -57,7 +57,7 @@ export function JournalMetadataEditor({
 
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
-    if (trimmed && !savedTags.find(t => t.name === trimmed)) {
+    if (trimmed && !savedTags.find((t) => t.name === trimmed)) {
       addTag(trimmed);
       onTagsChange([...selectedTags, trimmed]);
     } else if (trimmed) {
@@ -66,17 +66,17 @@ export function JournalMetadataEditor({
         onTagsChange([...selectedTags, trimmed]);
       }
     }
-    setNewTagName('');
+    setNewTagName("");
     setIsAddingTag(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleAddTag();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsAddingTag(false);
-      setNewTagName('');
+      setNewTagName("");
     }
   };
 
@@ -112,7 +112,7 @@ export function JournalMetadataEditor({
                 "border hover:border-foreground/30",
                 selectedMood === level
                   ? cn("border-foreground/50 bg-accent", mood.color)
-                  : "border-border text-muted-foreground hover:text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
               )}
               title={mood.label}
             >
@@ -132,11 +132,9 @@ export function JournalMetadataEditor({
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Tags
           </span>
-          <span className="text-[10px] text-muted-foreground">
-            {selectedTags.length} selected
-          </span>
+          <span className="text-[10px] text-muted-foreground">{selectedTags.length} selected</span>
         </div>
-        
+
         <div className="flex flex-wrap gap-1.5">
           {sortedTags.map((tag) => {
             const isSelected = selectedTags.includes(tag.name);
@@ -148,7 +146,7 @@ export function JournalMetadataEditor({
                   "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all border",
                   isSelected
                     ? tag.color
-                    : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 )}
               >
                 {isSelected && <Check className="w-3 h-3" strokeWidth={2} />}
@@ -159,7 +157,7 @@ export function JournalMetadataEditor({
               </button>
             );
           })}
-          
+
           {/* Add tag button/input */}
           {isAddingTag ? (
             <div className="inline-flex items-center gap-1 border border-foreground/30 rounded-md overflow-hidden">
@@ -186,7 +184,7 @@ export function JournalMetadataEditor({
               <button
                 onClick={() => {
                   setIsAddingTag(false);
-                  setNewTagName('');
+                  setNewTagName("");
                 }}
                 className="px-1.5 py-1 text-muted-foreground hover:text-foreground"
               >
@@ -203,7 +201,7 @@ export function JournalMetadataEditor({
             </button>
           )}
         </div>
-        
+
         {/* Recently used hint */}
         {savedTags.length > 0 && (
           <p className="text-[10px] text-muted-foreground/60">

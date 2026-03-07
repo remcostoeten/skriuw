@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -12,12 +12,12 @@ import {
   FileText,
   Database,
   Eye,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/modules/settings';
-import { Button } from '@/shared/ui/button-component';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/modules/settings";
+import { Button } from "@/shared/ui/button-component";
 
-type DiagnosticStatus = 'pending' | 'checking' | 'pass' | 'fail';
+type DiagnosticStatus = "pending" | "checking" | "pass" | "fail";
 
 type DiagnosticResult = {
   id: string;
@@ -35,7 +35,7 @@ type Section = {
 
 export function TroubleshootingGuide() {
   const { settings, initializeSettings } = useSettingsStore();
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["overview"]));
   const [diagnostics, setDiagnostics] = useState<DiagnosticResult[]>([]);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
 
@@ -57,13 +57,13 @@ export function TroubleshootingGuide() {
     setIsRunningDiagnostics(true);
     const results: DiagnosticResult[] = [];
 
-    setDiagnostics([{ id: 'store', name: 'Settings Store', status: 'checking' }]);
+    setDiagnostics([{ id: "store", name: "Settings Store", status: "checking" }]);
     await delay(300);
 
     const storeCheck: DiagnosticResult = {
-      id: 'store',
-      name: 'Settings Store',
-      status: settings ? 'pass' : 'fail',
+      id: "store",
+      name: "Settings Store",
+      status: settings ? "pass" : "fail",
       message: settings
         ? `Store initialized with userId: ${settings.userId.slice(0, 8)}...`
         : 'Settings store not initialized. Click "Reset Settings" to fix.',
@@ -73,28 +73,28 @@ export function TroubleshootingGuide() {
     setDiagnostics([...results]);
 
     await delay(300);
-    setDiagnostics([...results, { id: 'storage', name: 'LocalStorage', status: 'checking' }]);
+    setDiagnostics([...results, { id: "storage", name: "LocalStorage", status: "checking" }]);
     await delay(300);
 
     let storageCheck: DiagnosticResult;
 
     try {
-      const stored = localStorage.getItem('theme-settings');
+      const stored = localStorage.getItem("theme-settings");
 
       storageCheck = {
-        id: 'storage',
-        name: 'LocalStorage',
-        status: stored ? 'pass' : 'fail',
+        id: "storage",
+        name: "LocalStorage",
+        status: stored ? "pass" : "fail",
         message: stored
           ? `Found persisted settings (${(stored.length / 1024).toFixed(2)} KB)`
-          : 'No persisted settings found. Settings will reset on refresh.',
+          : "No persisted settings found. Settings will reset on refresh.",
       };
     } catch {
       storageCheck = {
-        id: 'storage',
-        name: 'LocalStorage',
-        status: 'fail',
-        message: 'LocalStorage is not accessible. Check browser permissions.',
+        id: "storage",
+        name: "LocalStorage",
+        status: "fail",
+        message: "LocalStorage is not accessible. Check browser permissions.",
       };
     }
 
@@ -102,30 +102,30 @@ export function TroubleshootingGuide() {
     setDiagnostics([...results]);
 
     await delay(300);
-    setDiagnostics([...results, { id: 'template', name: 'Template Style', status: 'checking' }]);
+    setDiagnostics([...results, { id: "template", name: "Template Style", status: "checking" }]);
     await delay(300);
 
     const templateCheck: DiagnosticResult = {
-      id: 'template',
-      name: 'Template Style',
-      status: settings?.templateStyle ? 'pass' : 'fail',
+      id: "template",
+      name: "Template Style",
+      status: settings?.templateStyle ? "pass" : "fail",
       message: settings?.templateStyle
         ? `Current template: "${settings.templateStyle}"`
-        : 'No template style configured.',
+        : "No template style configured.",
     };
 
     results.push(templateCheck);
     setDiagnostics([...results]);
 
     await delay(300);
-    setDiagnostics([...results, { id: 'mode', name: 'Editor Mode', status: 'checking' }]);
+    setDiagnostics([...results, { id: "mode", name: "Editor Mode", status: "checking" }]);
     await delay(300);
 
     const modeCheck: DiagnosticResult = {
-      id: 'mode',
-      name: 'Editor Mode',
-      status: 'pass',
-      message: `Default mode: ${settings?.defaultModeMarkdown ? 'Markdown' : 'Rich Text'}`,
+      id: "mode",
+      name: "Editor Mode",
+      status: "pass",
+      message: `Default mode: ${settings?.defaultModeMarkdown ? "Markdown" : "Rich Text"}`,
     };
 
     results.push(modeCheck);
@@ -136,19 +136,19 @@ export function TroubleshootingGuide() {
 
   function clearCache() {
     try {
-      localStorage.removeItem('theme-settings');
-      localStorage.removeItem('theme-notes');
+      localStorage.removeItem("theme-settings");
+      localStorage.removeItem("theme-notes");
       initializeSettings();
-      alert('Cache cleared successfully. Settings have been reset to defaults.');
+      alert("Cache cleared successfully. Settings have been reset to defaults.");
     } catch {
-      alert('Failed to clear cache. Please try clearing browser data manually.');
+      alert("Failed to clear cache. Please try clearing browser data manually.");
     }
   }
 
   const sections: Section[] = [
     {
-      id: 'overview',
-      title: 'Issue Overview',
+      id: "overview",
+      title: "Issue Overview",
       icon: <AlertCircle className="w-4 h-4" />,
       content: (
         <div className="space-y-3 text-sm text-muted-foreground">
@@ -170,8 +170,8 @@ export function TroubleshootingGuide() {
       ),
     },
     {
-      id: 'diagnostics',
-      title: 'Run Diagnostics',
+      id: "diagnostics",
+      title: "Run Diagnostics",
       icon: <Settings className="w-4 h-4" />,
       content: (
         <div className="space-y-4">
@@ -185,8 +185,8 @@ export function TroubleshootingGuide() {
             size="sm"
             className="gap-2"
           >
-            <RefreshCw className={cn('w-4 h-4', isRunningDiagnostics && 'animate-spin')} />
-            {isRunningDiagnostics ? 'Running...' : 'Run Diagnostics'}
+            <RefreshCw className={cn("w-4 h-4", isRunningDiagnostics && "animate-spin")} />
+            {isRunningDiagnostics ? "Running..." : "Run Diagnostics"}
           </Button>
 
           {diagnostics.length > 0 && (
@@ -196,20 +196,20 @@ export function TroubleshootingGuide() {
                   <div
                     key={d.id}
                     className={cn(
-                      'flex items-start gap-3 p-3 rounded-md border',
-                      d.status === 'pass' && 'bg-green-500/5 border-green-500/20',
-                      d.status === 'fail' && 'bg-red-500/5 border-red-500/20',
-                      d.status === 'checking' && 'bg-muted border-border',
-                      d.status === 'pending' && 'bg-card border-border'
+                      "flex items-start gap-3 p-3 rounded-md border",
+                      d.status === "pass" && "bg-green-500/5 border-green-500/20",
+                      d.status === "fail" && "bg-red-500/5 border-red-500/20",
+                      d.status === "checking" && "bg-muted border-border",
+                      d.status === "pending" && "bg-card border-border",
                     )}
                   >
-                    {d.status === 'checking' && (
+                    {d.status === "checking" && (
                       <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground shrink-0 mt-0.5" />
                     )}
-                    {d.status === 'pass' && (
+                    {d.status === "pass" && (
                       <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
                     )}
-                    {d.status === 'fail' && (
+                    {d.status === "fail" && (
                       <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1 min-w-0">
@@ -227,8 +227,8 @@ export function TroubleshootingGuide() {
       ),
     },
     {
-      id: 'causes',
-      title: 'Potential Causes',
+      id: "causes",
+      title: "Potential Causes",
       icon: <Database className="w-4 h-4" />,
       content: (
         <div className="space-y-4 text-sm">
@@ -247,8 +247,9 @@ export function TroubleshootingGuide() {
             <h4 className="font-medium text-foreground">2. Note Creation Not Using Settings</h4>
             <p className="text-muted-foreground">
               The note creation function may not be reading from the settings store. This is a code
-              integration issue where <code className="px-1 py-0.5 rounded bg-muted">createFile()</code>{' '}
-              needs to apply the selected template.
+              integration issue where{" "}
+              <code className="px-1 py-0.5 rounded bg-muted">createFile()</code> needs to apply the
+              selected template.
             </p>
           </div>
 
@@ -271,8 +272,8 @@ export function TroubleshootingGuide() {
       ),
     },
     {
-      id: 'verify',
-      title: 'Verify Settings',
+      id: "verify",
+      title: "Verify Settings",
       icon: <Eye className="w-4 h-4" />,
       content: (
         <div className="space-y-4 text-sm">
@@ -308,7 +309,8 @@ export function TroubleshootingGuide() {
                       Template: <strong>{settings.templateStyle}</strong>
                     </p>
                     <p>
-                      Mode: <strong>{settings.defaultModeMarkdown ? 'Markdown' : 'Rich Text'}</strong>
+                      Mode:{" "}
+                      <strong>{settings.defaultModeMarkdown ? "Markdown" : "Rich Text"}</strong>
                     </p>
                   </div>
                 )}
@@ -343,8 +345,8 @@ export function TroubleshootingGuide() {
       ),
     },
     {
-      id: 'reset',
-      title: 'Reset Settings',
+      id: "reset",
+      title: "Reset Settings",
       icon: <Trash2 className="w-4 h-4" />,
       content: (
         <div className="space-y-4 text-sm">
@@ -377,8 +379,8 @@ export function TroubleshootingGuide() {
       ),
     },
     {
-      id: 'test',
-      title: 'Test Scenarios',
+      id: "test",
+      title: "Test Scenarios",
       icon: <FileText className="w-4 h-4" />,
       content: (
         <div className="space-y-4 text-sm">

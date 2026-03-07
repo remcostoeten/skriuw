@@ -1,17 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/modules/settings';
-import { MOOD_OPTIONS, MoodLevel } from '@/types/notes';
-import { 
-  X, Plus, Check, ChevronDown, Hash, Calendar, 
-  Smile, MoreHorizontal, Grip
-} from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/modules/settings";
+import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
+import {
+  X,
+  Plus,
+  Check,
+  ChevronDown,
+  Hash,
+  Calendar,
+  Smile,
+  MoreHorizontal,
+  Grip,
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
 // Property types that can be added to a document
-export type PropertyType = 'tags' | 'mood' | 'date' | 'text' | 'select';
+export type PropertyType = "tags" | "mood" | "date" | "text" | "select";
 
 export type DocumentProperty = {
   id: string;
@@ -31,11 +38,11 @@ type Props = {
 };
 
 // Property row component - Notion-style inline editing
-function PropertyRow({ 
-  property, 
+function PropertyRow({
+  property,
   onValueChange,
   onRemove,
-}: { 
+}: {
   property: DocumentProperty;
   onValueChange: (value: unknown) => void;
   onRemove?: () => void;
@@ -52,16 +59,18 @@ function PropertyRow({
   }[property.type];
 
   return (
-    <div 
+    <div
       className="group flex items-start gap-2 py-1.5 px-2 -mx-2 rounded-md hover:bg-accent/50 transition-colors"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Drag handle - shown on hover */}
-      <div className={cn(
-        "w-4 h-4 flex items-center justify-center text-muted-foreground/40 cursor-grab",
-        isHovered ? "opacity-100" : "opacity-0"
-      )}>
+      <div
+        className={cn(
+          "w-4 h-4 flex items-center justify-center text-muted-foreground/40 cursor-grab",
+          isHovered ? "opacity-100" : "opacity-0",
+        )}
+      >
         <Grip className="w-3 h-3" />
       </div>
 
@@ -73,7 +82,7 @@ function PropertyRow({
 
       {/* Property value */}
       <div className="flex-1 min-w-0">
-        <PropertyValue 
+        <PropertyValue
           property={property}
           isEditing={isEditing}
           onStartEdit={() => setIsEditing(true)}
@@ -110,21 +119,18 @@ function PropertyValue({
   onValueChange: (value: unknown) => void;
 }) {
   switch (property.type) {
-    case 'tags':
+    case "tags":
       return (
-        <TagsPropertyValue
-          value={(property.value as string[]) || []}
-          onChange={onValueChange}
-        />
+        <TagsPropertyValue value={(property.value as string[]) || []} onChange={onValueChange} />
       );
-    case 'mood':
+    case "mood":
       return (
         <MoodPropertyValue
           value={property.value as MoodLevel | undefined}
           onChange={onValueChange}
         />
       );
-    case 'date':
+    case "date":
       return (
         <DatePropertyValue
           value={property.value as Date | undefined}
@@ -134,10 +140,10 @@ function PropertyValue({
           onChange={onValueChange}
         />
       );
-    case 'text':
+    case "text":
       return (
         <TextPropertyValue
-          value={(property.value as string) || ''}
+          value={(property.value as string) || ""}
           isEditing={isEditing}
           onStartEdit={onStartEdit}
           onEndEdit={onEndEdit}
@@ -158,7 +164,7 @@ function TagsPropertyValue({
   onChange: (value: string[]) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const { getSavedTags, addTag, updateTagUsage } = useSettingsStore();
   const savedTags = getSavedTags();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -167,52 +173,50 @@ function TagsPropertyValue({
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
-        setSearch('');
+        setSearch("");
       }
     };
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  const filteredTags = savedTags.filter(t => 
-    t.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTags = savedTags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleToggleTag = (tagName: string) => {
     if (value.includes(tagName)) {
-      onChange(value.filter(t => t !== tagName));
+      onChange(value.filter((t) => t !== tagName));
     } else {
       onChange([...value, tagName]);
-      const tag = savedTags.find(t => t.name === tagName);
+      const tag = savedTags.find((t) => t.name === tagName);
       if (tag) updateTagUsage(tag.id);
     }
   };
 
   const handleCreateTag = () => {
-    if (search.trim() && !savedTags.find(t => t.name === search.toLowerCase())) {
+    if (search.trim() && !savedTags.find((t) => t.name === search.toLowerCase())) {
       addTag(search.trim().toLowerCase());
       onChange([...value, search.trim().toLowerCase()]);
-      setSearch('');
+      setSearch("");
     }
   };
 
   return (
     <div ref={containerRef} className="relative">
-      <div 
+      <div
         onClick={() => setIsOpen(true)}
         className="flex flex-wrap items-center gap-1 min-h-[24px] cursor-pointer"
       >
         {value.length > 0 ? (
-          value.map(tagName => {
-            const tag = savedTags.find(t => t.name === tagName);
+          value.map((tagName) => {
+            const tag = savedTags.find((t) => t.name === tagName);
             return (
               <span
                 key={tagName}
                 className={cn(
                   "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border",
-                  tag?.color || "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+                  tag?.color || "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
                 )}
               >
                 {tagName}
@@ -235,29 +239,28 @@ function TagsPropertyValue({
               className="w-full text-xs bg-transparent outline-hidden placeholder:text-muted-foreground/50"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && search.trim()) {
+                if (e.key === "Enter" && search.trim()) {
                   handleCreateTag();
                 }
               }}
             />
           </div>
           <div className="max-h-48 overflow-y-auto p-1">
-            {filteredTags.map(tag => (
+            {filteredTags.map((tag) => (
               <button
                 key={tag.id}
                 onClick={() => handleToggleTag(tag.name)}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors"
               >
-                <span className={cn(
-                  "w-4 h-4 rounded border flex items-center justify-center",
-                  value.includes(tag.name) ? "bg-foreground border-foreground" : "border-border"
-                )}>
+                <span
+                  className={cn(
+                    "w-4 h-4 rounded border flex items-center justify-center",
+                    value.includes(tag.name) ? "bg-foreground border-foreground" : "border-border",
+                  )}
+                >
                   {value.includes(tag.name) && <Check className="w-3 h-3 text-background" />}
                 </span>
-                <span className={cn(
-                  "px-1.5 py-0.5 rounded text-[11px] border",
-                  tag.color
-                )}>
+                <span className={cn("px-1.5 py-0.5 rounded text-[11px] border", tag.color)}>
                   {tag.name}
                 </span>
                 <span className="ml-auto text-[10px] text-muted-foreground/50">
@@ -265,7 +268,7 @@ function TagsPropertyValue({
                 </span>
               </button>
             ))}
-            {search.trim() && !savedTags.find(t => t.name === search.toLowerCase()) && (
+            {search.trim() && !savedTags.find((t) => t.name === search.toLowerCase()) && (
               <button
                 onClick={handleCreateTag}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
@@ -300,9 +303,9 @@ function MoodPropertyValue({
       }
     };
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   const handleSelect = (level: MoodLevel) => {
@@ -317,15 +320,14 @@ function MoodPropertyValue({
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 min-h-[24px]"
-      >
+      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-1.5 min-h-[24px]">
         {value ? (
-          <span className={cn(
-            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border border-border",
-            MOOD_OPTIONS[value].color
-          )}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border border-border",
+              MOOD_OPTIONS[value].color,
+            )}
+          >
             <span className="font-mono">{MOOD_OPTIONS[value].icon}</span>
             {MOOD_OPTIONS[value].label}
           </span>
@@ -343,7 +345,7 @@ function MoodPropertyValue({
                 onClick={() => handleSelect(level as MoodLevel)}
                 className={cn(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded hover:bg-accent/50 transition-colors",
-                  value === level && "bg-accent"
+                  value === level && "bg-accent",
                 )}
               >
                 <span className={cn("font-mono text-xs", mood.color)}>{mood.icon}</span>
@@ -355,7 +357,10 @@ function MoodPropertyValue({
               <>
                 <div className="h-px bg-border my-1" />
                 <button
-                  onClick={() => { onChange(undefined); setIsOpen(false); }}
+                  onClick={() => {
+                    onChange(undefined);
+                    setIsOpen(false);
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
                 >
                   <X className="w-3 h-3" />
@@ -389,7 +394,7 @@ function DatePropertyValue({
       onClick={onStartEdit}
       className="text-xs text-muted-foreground hover:text-foreground transition-colors"
     >
-      {value ? format(value, 'MMM d, yyyy') : 'Empty'}
+      {value ? format(value, "MMM d, yyyy") : "Empty"}
     </button>
   );
 }
@@ -425,7 +430,7 @@ function TextPropertyValue({
         onChange={(e) => onChange(e.target.value)}
         onBlur={onEndEdit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === 'Escape') {
+          if (e.key === "Enter" || e.key === "Escape") {
             onEndEdit();
           }
         }}
@@ -435,21 +440,14 @@ function TextPropertyValue({
   }
 
   return (
-    <button
-      onClick={onStartEdit}
-      className="text-xs text-left w-full truncate"
-    >
+    <button onClick={onStartEdit} className="text-xs text-left w-full truncate">
       {value || <span className="text-muted-foreground/60">Empty</span>}
     </button>
   );
 }
 
 // Add property button with dropdown
-function AddPropertyButton({
-  onAdd,
-}: {
-  onAdd: (type: PropertyType, name: string) => void;
-}) {
+function AddPropertyButton({ onAdd }: { onAdd: (type: PropertyType, name: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -460,16 +458,16 @@ function AddPropertyButton({
       }
     };
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   const propertyTypes: { type: PropertyType; name: string; icon: typeof Hash }[] = [
-    { type: 'tags', name: 'Tags', icon: Hash },
-    { type: 'mood', name: 'Mood', icon: Smile },
-    { type: 'date', name: 'Date', icon: Calendar },
-    { type: 'text', name: 'Text', icon: MoreHorizontal },
+    { type: "tags", name: "Tags", icon: Hash },
+    { type: "mood", name: "Mood", icon: Smile },
+    { type: "date", name: "Date", icon: Calendar },
+    { type: "text", name: "Text", icon: MoreHorizontal },
   ];
 
   return (
@@ -528,9 +526,7 @@ export function DocumentProperties({
       ))}
 
       {/* Add property button */}
-      {onAddProperty && (
-        <AddPropertyButton onAdd={onAddProperty} />
-      )}
+      {onAddProperty && <AddPropertyButton onAdd={onAddProperty} />}
 
       {/* Timestamps - subtle footer */}
       {(createdAt || updatedAt) && (

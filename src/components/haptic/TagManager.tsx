@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { useSettingsStore, TAG_COLORS, SavedTag } from '@/modules/settings';
-import { Plus, MoreHorizontal, Trash2, Hash } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useSettingsStore, TAG_COLORS, SavedTag } from "@/modules/settings";
+import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 export function TagManager() {
   const { getSavedTags, addTag, removeTag } = useSettingsStore();
   const savedTags = getSavedTags();
-  
+
   const [isAddingTag, setIsAddingTag] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
+  const [newTagName, setNewTagName] = useState("");
   const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0].value);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,21 +23,21 @@ export function TagManager() {
 
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
-    if (trimmed && !savedTags.find(t => t.name === trimmed)) {
+    if (trimmed && !savedTags.find((t) => t.name === trimmed)) {
       addTag(trimmed, selectedColor);
     }
-    setNewTagName('');
+    setNewTagName("");
     setSelectedColor(TAG_COLORS[0].value);
     setIsAddingTag(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleAddTag();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsAddingTag(false);
-      setNewTagName('');
+      setNewTagName("");
     }
   };
 
@@ -49,9 +49,7 @@ export function TagManager() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-foreground">Manage Tags</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {savedTags.length} tags created
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{savedTags.length} tags created</p>
         </div>
         {!isAddingTag && (
           <button
@@ -79,7 +77,7 @@ export function TagManager() {
               className="flex-1 text-sm bg-transparent outline-hidden placeholder:text-muted-foreground/50"
             />
           </div>
-          
+
           {/* Color picker */}
           <div className="space-y-2">
             <span className="text-xs text-muted-foreground">Color</span>
@@ -90,10 +88,10 @@ export function TagManager() {
                   onClick={() => setSelectedColor(color.value)}
                   className={cn(
                     "w-6 h-6 rounded-md border-2 transition-all",
-                    color.value.split(' ')[0], // Get bg class
+                    color.value.split(" ")[0], // Get bg class
                     selectedColor === color.value
                       ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-105"
+                      : "border-transparent hover:scale-105",
                   )}
                   title={color.name}
                 />
@@ -105,10 +103,12 @@ export function TagManager() {
           {newTagName && (
             <div className="pt-2 border-t border-border/50">
               <span className="text-xs text-muted-foreground">Preview: </span>
-              <span className={cn(
-                "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border ml-1",
-                selectedColor
-              )}>
+              <span
+                className={cn(
+                  "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border ml-1",
+                  selectedColor,
+                )}
+              >
                 {newTagName.toLowerCase()}
               </span>
             </div>
@@ -119,7 +119,7 @@ export function TagManager() {
             <button
               onClick={() => {
                 setIsAddingTag(false);
-                setNewTagName('');
+                setNewTagName("");
               }}
               className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -132,7 +132,7 @@ export function TagManager() {
                 "px-3 py-1.5 text-xs rounded-md transition-colors",
                 newTagName.trim()
                   ? "bg-foreground text-background hover:bg-foreground/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-muted text-muted-foreground cursor-not-allowed",
               )}
             >
               Create tag
@@ -144,11 +144,7 @@ export function TagManager() {
       {/* Tags list */}
       <div className="space-y-1">
         {sortedTags.map((tag) => (
-          <TagRow
-            key={tag.id}
-            tag={tag}
-            onDelete={() => removeTag(tag.id)}
-          />
+          <TagRow key={tag.id} tag={tag} onDelete={() => removeTag(tag.id)} />
         ))}
 
         {savedTags.length === 0 && !isAddingTag && (
@@ -165,13 +161,7 @@ export function TagManager() {
   );
 }
 
-function TagRow({
-  tag,
-  onDelete,
-}: {
-  tag: SavedTag;
-  onDelete: () => void;
-}) {
+function TagRow({ tag, onDelete }: { tag: SavedTag; onDelete: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -182,18 +172,20 @@ function TagRow({
       }
     };
     if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu]);
 
   return (
     <div className="group flex items-center gap-3 py-2 px-2 -mx-2 rounded-md hover:bg-accent/30 transition-colors">
       {/* Tag badge */}
-      <span className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border min-w-[60px]",
-        tag.color
-      )}>
+      <span
+        className={cn(
+          "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border min-w-[60px]",
+          tag.color,
+        )}
+      >
         {tag.name}
       </span>
 
@@ -215,7 +207,7 @@ function TagRow({
           onClick={() => setShowMenu(!showMenu)}
           className={cn(
             "w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors",
-            showMenu ? "bg-accent" : "opacity-0 group-hover:opacity-100"
+            showMenu ? "bg-accent" : "opacity-0 group-hover:opacity-100",
           )}
         >
           <MoreHorizontal className="w-4 h-4" />

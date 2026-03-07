@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useCallback, useRef } from 'react';
-import { BlockNoteEditor, PartialBlock } from '@blocknote/core';
-import { useCreateBlockNote } from '@blocknote/react';
-import { BlockNoteView } from '@blocknote/mantine';
-import '@blocknote/mantine/style.css';
+import { useEffect, useMemo, useCallback, useRef } from "react";
+import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
+import { useCreateBlockNote } from "@blocknote/react";
+import { BlockNoteView } from "@blocknote/mantine";
+import "@blocknote/mantine/style.css";
 
 interface RichTextEditorProps {
   content: string;
@@ -13,19 +13,19 @@ interface RichTextEditorProps {
 
 // Convert markdown to BlockNote blocks
 function markdownToBlocks(markdown: string): PartialBlock[] {
-  const lines = markdown.split('\n');
+  const lines = markdown.split("\n");
   const blocks: PartialBlock[] = [];
   let i = 0;
 
   while (i < lines.length) {
     const line = lines[i];
-    
+
     // Heading
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       const level = headingMatch[1].length as 1 | 2 | 3;
       blocks.push({
-        type: 'heading',
+        type: "heading",
         props: { level: Math.min(level, 3) as 1 | 2 | 3 },
         content: headingMatch[2],
       });
@@ -37,9 +37,9 @@ function markdownToBlocks(markdown: string): PartialBlock[] {
     if (line.match(/^[-*]\s+/)) {
       const listItems: PartialBlock[] = [];
       while (i < lines.length && lines[i].match(/^[-*]\s+/)) {
-        const itemContent = lines[i].replace(/^[-*]\s+/, '');
+        const itemContent = lines[i].replace(/^[-*]\s+/, "");
         listItems.push({
-          type: 'bulletListItem',
+          type: "bulletListItem",
           content: itemContent,
         });
         i++;
@@ -52,9 +52,9 @@ function markdownToBlocks(markdown: string): PartialBlock[] {
     if (line.match(/^\d+\.\s+/)) {
       const listItems: PartialBlock[] = [];
       while (i < lines.length && lines[i].match(/^\d+\.\s+/)) {
-        const itemContent = lines[i].replace(/^\d+\.\s+/, '');
+        const itemContent = lines[i].replace(/^\d+\.\s+/, "");
         listItems.push({
-          type: 'numberedListItem',
+          type: "numberedListItem",
           content: itemContent,
         });
         i++;
@@ -64,27 +64,27 @@ function markdownToBlocks(markdown: string): PartialBlock[] {
     }
 
     // Code block
-    if (line.startsWith('```')) {
+    if (line.startsWith("```")) {
       const language = line.slice(3).trim();
       i++;
       const codeLines: string[] = [];
-      while (i < lines.length && !lines[i].startsWith('```')) {
+      while (i < lines.length && !lines[i].startsWith("```")) {
         codeLines.push(lines[i]);
         i++;
       }
       blocks.push({
-        type: 'codeBlock',
-        props: { language: language || 'plaintext' },
-        content: codeLines.join('\n'),
+        type: "codeBlock",
+        props: { language: language || "plaintext" },
+        content: codeLines.join("\n"),
       });
       i++; // Skip closing ```
       continue;
     }
 
     // Blockquote
-    if (line.startsWith('> ')) {
+    if (line.startsWith("> ")) {
       blocks.push({
-        type: 'paragraph',
+        type: "paragraph",
         content: line.slice(2),
       });
       i++;
@@ -92,20 +92,20 @@ function markdownToBlocks(markdown: string): PartialBlock[] {
     }
 
     // Empty line
-    if (line.trim() === '') {
+    if (line.trim() === "") {
       i++;
       continue;
     }
 
     // Regular paragraph
     blocks.push({
-      type: 'paragraph',
+      type: "paragraph",
       content: line,
     });
     i++;
   }
 
-  return blocks.length > 0 ? blocks : [{ type: 'paragraph', content: '' }];
+  return blocks.length > 0 ? blocks : [{ type: "paragraph", content: "" }];
 }
 
 // Convert BlockNote blocks to markdown
@@ -114,16 +114,16 @@ async function blocksToMarkdown(editor: BlockNoteEditor): Promise<string> {
     const markdown = await editor.blocksToMarkdownLossy(editor.document);
     return markdown;
   } catch {
-    return '';
+    return "";
   }
 }
 
 export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
   const isInternalChangeRef = useRef(false);
-  
+
   const initialBlocks = useMemo(() => markdownToBlocks(content), []);
-  
+
   const editor = useCreateBlockNote({
     initialContent: initialBlocks,
   });
@@ -172,7 +172,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           --bn-colors-disabled-text: hsl(220 8% 40%);
           --bn-colors-border: hsl(220 10% 15%);
           --bn-colors-side-menu: hsl(220 8% 40%);
-          --bn-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          --bn-font-family: "Inter", system-ui, -apple-system, sans-serif;
           background: hsl(220 14% 8%) !important;
         }
         .blocknote-wrapper .bn-container,

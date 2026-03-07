@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { Check, Calendar, RotateCw, TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSettingsStore, TEMPLATE_OPTIONS, TemplateStyle } from '@/modules/settings';
-import { formatDistanceToNow, format } from 'date-fns';
+import { Check, Calendar, RotateCw, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSettingsStore, TEMPLATE_OPTIONS, TemplateStyle } from "@/modules/settings";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface TemplateSelectorProps {
   selectedTemplate: TemplateStyle;
@@ -11,12 +11,12 @@ interface TemplateSelectorProps {
 }
 
 function formatDate(date: Date | null): string {
-  if (!date) return 'Never used';
-  return format(date, 'MMM d, yyyy');
+  if (!date) return "Never used";
+  return format(date, "MMM d, yyyy");
 }
 
 function formatRelativeDate(date: Date | null): string {
-  if (!date) return 'Never';
+  if (!date) return "Never";
   return formatDistanceToNow(date, { addSuffix: true });
 }
 
@@ -27,9 +27,7 @@ export function TemplateSelector({ selectedTemplate, onSelectTemplate }: Templat
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Template Style</h3>
-        <span className="text-xs text-muted-foreground">
-          Choose your default note template
-        </span>
+        <span className="text-xs text-muted-foreground">Choose your default note template</span>
       </div>
 
       {/* Template Grid */}
@@ -43,20 +41,18 @@ export function TemplateSelector({ selectedTemplate, onSelectTemplate }: Templat
               key={template.id}
               onClick={() => onSelectTemplate(template.id)}
               className={cn(
-                'group relative cursor-pointer transition-all duration-200',
-                'border-2 rounded-lg p-4',
+                "group relative cursor-pointer transition-all duration-200",
+                "border-2 rounded-lg p-4",
                 isSelected
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-card hover:border-primary/50 hover:bg-card/80'
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-card hover:border-primary/50 hover:bg-card/80",
               )}
             >
               {/* Header with selection indicator */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-sm font-semibold text-foreground">
-                      {template.name}
-                    </h4>
+                    <h4 className="text-sm font-semibold text-foreground">{template.name}</h4>
                     {isSelected && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20">
                         <Check className="w-3 h-3 text-primary" />
@@ -143,7 +139,7 @@ export function TemplateSelector({ selectedTemplate, onSelectTemplate }: Templat
       {/* Info box */}
       <div className="p-3 rounded-lg bg-background/50 border border-border/50">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Templates track creation, modification, and usage statistics. These timestamps update 
+          Templates track creation, modification, and usage statistics. These timestamps update
           automatically when you change settings or create notes using each template.
         </p>
       </div>
