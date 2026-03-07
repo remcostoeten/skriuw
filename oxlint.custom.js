@@ -166,6 +166,34 @@ const noNamedViewFunctionExports = {
   },
 };
 
+const kebabCaseFilename = {
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Enforce kebab-case filenames',
+      category: 'Style',
+    },
+    fixable: 'code',
+  },
+  create(context) {
+    const filename = context.getFilename();
+    const basename = filename.split('/').pop();
+    
+    const kebabCasePattern = /^[a-z0-9]+(-[a-z0-9]+)*\.tsx?$/;
+    
+    if (!kebabCasePattern.test(basename)) {
+      const suggestedName = basename
+        .replace(/([a-z])([A-Z])/g, '$1-$2')
+        .replace(/[\s_]+/g, '-')
+        .toLowerCase();
+      
+      context.report({
+        message: `Filename must be kebab-case. Rename to "${suggestedName}"`,
+      });
+    }
+  },
+};
+
 module.exports = {
   rules: {
     'no-arrow-functions': noArrowFunctions,
@@ -173,5 +201,6 @@ module.exports = {
     'eol': eolRule,
     'no-named-exports-page-view': noNamedExportsRule,
     'no-named-view-function-exports': noNamedViewFunctionExports,
+    'kebab-case-filename': kebabCaseFilename,
   },
 };

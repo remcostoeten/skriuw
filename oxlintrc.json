@@ -43,6 +43,7 @@
     "custom/props-naming": "error",
     "custom/eol": "error",
     "custom/no-named-exports-page-view": "error",
-    "custom/no-named-view-function-exports": "error"
+    "custom/no-named-view-function-exports": "error",
+    "custom/kebab-case-filename": "error"
   }
 }

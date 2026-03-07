@@ -8,7 +8,9 @@
     "build": "bun --bun next build",
     "start": "bun --bun next start",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "fix:filenames": "node scripts/fix-filenames.mjs",
+    "check:filenames": "node scripts/fix-filenames.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.46.2",
