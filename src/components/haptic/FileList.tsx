@@ -13,7 +13,7 @@ import {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-} from '@/components/ui/context-menu';
+} from '@/shared/ui/context-menu';
 
 interface FileListProps {
   files: NoteFile[];
