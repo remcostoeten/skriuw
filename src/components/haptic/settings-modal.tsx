@@ -14,9 +14,9 @@ import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
 import { useSettingsStore } from "@/modules/settings";
 import { getAuth } from "@/modules/auth";
-import { TroubleshootingGuide } from "./TroubleshootingGuide";
-import { TemplateSelector } from "./TemplateSelector";
-import { TagManager } from "./TagManager";
+import { TroubleshootingGuide } from "./troubleshooting-guide";
+import { TemplateSelector } from "./template-selector";
+import { TagManager } from "./tag-manager";
 import { Button } from "@/shared/ui/button-component";
 
 type Props = {

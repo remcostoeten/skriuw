@@ -3,15 +3,15 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { NoteFile, MoodLevel, MOOD_OPTIONS } from "@/types/notes";
-import { MarkdownRenderer } from "./MarkdownRenderer";
-import { DocumentProperties, DocumentProperty, PropertyType } from "./DocumentProperties";
-import { EditorMode } from "./EditorToolbar";
+import { MarkdownRenderer } from "./markdown-renderer";
+import { DocumentProperties, DocumentProperty, PropertyType } from "./document-properties";
+import { EditorMode } from "./editor-toolbar";
 import { cn } from "@/lib/utils";
 import { PanelRight } from "lucide-react";
 
 // Dynamically import RichTextEditor to avoid SSR issues with BlockNote
 const RichTextEditor = dynamic(
-  () => import("./RichTextEditor").then((mod) => ({ default: mod.RichTextEditor })),
+  () => import("./rich-text-editor").then((mod) => ({ default: mod.RichTextEditor })),
   {
     ssr: false,
     loading: () => (

@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { BottomBar } from "@/components/haptic/BottomBar";
-import { IconRail } from "@/components/haptic/IconRail";
-import { SidebarPanel } from "@/components/haptic/SidebarPanel";
-import { EditorToolbar, EditorMode } from "@/components/haptic/EditorToolbar";
-import { Editor } from "@/components/haptic/Editor";
-import { MetadataPanel } from "@/components/haptic/MetadataPanel";
-import { SettingsModal } from "@/components/haptic/SettingsModal";
-import { useNotesStore } from "@/store/notesStore";
+import { BottomBar } from "@/components/haptic/bottom-bar";
+import { IconRail } from "@/components/haptic/icon-rail";
+import { SidebarPanel } from "@/components/haptic/sidebar-panel";
+import { EditorToolbar, EditorMode } from "@/components/haptic/editor-toolbar";
+import { Editor } from "@/components/haptic/editor";
+import { MetadataPanel } from "@/components/haptic/metadata-panel";
+import { SettingsModal } from "@/components/haptic/settings-modal";
+import { useNotesStore } from "@/store/notes-store";
 import { useSettingsStore } from "@/modules/settings";
 
 function NotesApp() {
