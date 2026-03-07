@@ -1,7 +1,7 @@
-import { ChevronLeft, ChevronRight, Columns2, ZoomIn, Maximize } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight, Columns2, ZoomIn, Maximize } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export type EditorMode = 'markdown' | 'richtext';
+export type EditorMode = "markdown" | "richtext";
 
 type Props = {
   fileName: string;
@@ -14,10 +14,10 @@ type Props = {
   canNavigateNext?: boolean;
 };
 
-export function EditorToolbar({ 
-  fileName, 
-  breadcrumb, 
-  onToggleSidebar, 
+export function EditorToolbar({
+  fileName,
+  breadcrumb,
+  onToggleSidebar,
   onToggleMetadata,
   onNavigatePrev,
   onNavigateNext,
@@ -28,33 +28,33 @@ export function EditorToolbar({
     <div className="h-11 flex items-center px-3 border-b border-border bg-card">
       {/* Left controls */}
       <div className="flex items-center gap-0.5">
-        <button 
+        <button
           onClick={onToggleSidebar}
           className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <Columns2 className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button 
+        <button
           onClick={onNavigatePrev}
           disabled={!canNavigatePrev}
           className={cn(
             "w-7 h-7 flex items-center justify-center rounded transition-colors",
-            canNavigatePrev 
-              ? "text-muted-foreground hover:text-foreground hover:bg-accent" 
-              : "text-muted-foreground/30 cursor-not-allowed"
+            canNavigatePrev
+              ? "text-muted-foreground hover:text-foreground hover:bg-accent"
+              : "text-muted-foreground/30 cursor-not-allowed",
           )}
           title="Previous file"
         >
           <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button 
+        <button
           onClick={onNavigateNext}
           disabled={!canNavigateNext}
           className={cn(
             "w-7 h-7 flex items-center justify-center rounded transition-colors",
-            canNavigateNext 
-              ? "text-muted-foreground hover:text-foreground hover:bg-accent" 
-              : "text-muted-foreground/30 cursor-not-allowed"
+            canNavigateNext
+              ? "text-muted-foreground hover:text-foreground hover:bg-accent"
+              : "text-muted-foreground/30 cursor-not-allowed",
           )}
           title="Next file"
         >
@@ -85,7 +85,7 @@ export function EditorToolbar({
         <button className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <ZoomIn className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button 
+        <button
           onClick={onToggleMetadata}
           className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >

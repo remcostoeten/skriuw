@@ -1,16 +1,16 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { requireUser } from '@/modules/auth';
-import { 
-  UserSettings, 
-  TemplateStyle, 
-  ActivityItem, 
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { requireUser } from "@/modules/auth";
+import {
+  UserSettings,
+  TemplateStyle,
+  ActivityItem,
   ActivityAction,
   TemplateTimestamp,
   SavedTag,
   TAG_COLORS,
-  DEFAULT_SETTINGS 
-} from './types';
+  DEFAULT_SETTINGS,
+} from "./types";
 
 // Helper to create initial timestamp
 function createInitialTimestamp(): TemplateTimestamp {
@@ -26,13 +26,13 @@ function createInitialTimestamp(): TemplateTimestamp {
 type SettingsState = {
   settings: UserSettings | null;
   isLoading: boolean;
-  
+
   // Queries
   getSettings: () => UserSettings;
   getTemplateTimestamp: (style: TemplateStyle) => TemplateTimestamp;
   getSavedTags: () => SavedTag[];
   getTagByName: (name: string) => SavedTag | undefined;
-  
+
   // Mutations
   initializeSettings: () => void;
   updateTemplateStyle: (style: TemplateStyle) => void;
@@ -42,7 +42,7 @@ type SettingsState = {
   incrementNoteCount: () => void;
   recordTemplateUsage: (style: TemplateStyle) => void;
   logActivity: (action: ActivityAction) => void;
-  
+
   // Tag management
   addTag: (name: string, color?: string) => SavedTag;
   removeTag: (id: string) => void;
@@ -75,11 +75,11 @@ export const useSettingsStore = create<SettingsState>()(
         if (!settings) {
           return createInitialTimestamp();
         }
-        
+
         if (!settings.templateTimestamps[style]) {
           return createInitialTimestamp();
         }
-        
+
         return settings.templateTimestamps[style];
       },
 
@@ -90,13 +90,13 @@ export const useSettingsStore = create<SettingsState>()(
 
       getTagByName: (name: string) => {
         const { settings } = get();
-        return settings?.savedTags.find(t => t.name.toLowerCase() === name.toLowerCase());
+        return settings?.savedTags.find((t) => t.name.toLowerCase() === name.toLowerCase());
       },
 
       initializeSettings: () => {
         const user = requireUser();
         const { settings } = get();
-        
+
         if (!settings || settings.userId !== user.id) {
           set({
             settings: {
@@ -113,11 +113,11 @@ export const useSettingsStore = create<SettingsState>()(
       updateTemplateStyle: (style: TemplateStyle) => {
         const { settings, logActivity } = get();
         if (!settings) return;
-        
+
         // Update timestamp for selected template
         const now = new Date();
         const templateTimestamps = { ...settings.templateTimestamps };
-        
+
         if (!templateTimestamps[style]) {
           templateTimestamps[style] = createInitialTimestamp();
         } else {
@@ -126,7 +126,7 @@ export const useSettingsStore = create<SettingsState>()(
             updatedAt: now,
           };
         }
-        
+
         set({
           settings: {
             ...settings,
@@ -134,26 +134,26 @@ export const useSettingsStore = create<SettingsState>()(
             templateTimestamps,
           },
         });
-        logActivity('template_changed');
+        logActivity("template_changed");
       },
 
       updateDefaultMode: (isMarkdown: boolean) => {
         const { settings, logActivity } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
             defaultModeMarkdown: isMarkdown,
           },
         });
-        logActivity('mode_changed');
+        logActivity("mode_changed");
       },
 
       updatePlaceholder: (placeholder: string) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
@@ -165,46 +165,46 @@ export const useSettingsStore = create<SettingsState>()(
       toggleDiaryMode: () => {
         const { settings, logActivity } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
             diaryModeEnabled: !settings.diaryModeEnabled,
           },
         });
-        logActivity('diary_toggled');
+        logActivity("diary_toggled");
       },
 
       incrementNoteCount: () => {
         const { settings, logActivity } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
             amountOfNotes: settings.amountOfNotes + 1,
           },
         });
-        logActivity('note_created');
+        logActivity("note_created");
       },
 
       recordTemplateUsage: (style: TemplateStyle) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         const now = new Date();
         const templateTimestamps = { ...settings.templateTimestamps };
-        
+
         if (!templateTimestamps[style]) {
           templateTimestamps[style] = createInitialTimestamp();
         }
-        
+
         templateTimestamps[style] = {
           ...templateTimestamps[style],
           lastUsedAt: now,
           useCount: (templateTimestamps[style].useCount || 0) + 1,
         };
-        
+
         set({
           settings: {
             ...settings,
@@ -216,13 +216,13 @@ export const useSettingsStore = create<SettingsState>()(
       logActivity: (action: ActivityAction) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         const newActivity: ActivityItem = {
           id: crypto.randomUUID(),
           action,
           createdAt: new Date(),
         };
-        
+
         set({
           settings: {
             ...settings,
@@ -244,11 +244,13 @@ export const useSettingsStore = create<SettingsState>()(
             createdAt: new Date(),
           };
         }
-        
+
         // Check if tag already exists
-        const existing = settings.savedTags.find(t => t.name.toLowerCase() === name.toLowerCase());
+        const existing = settings.savedTags.find(
+          (t) => t.name.toLowerCase() === name.toLowerCase(),
+        );
         if (existing) return existing;
-        
+
         const newTag: SavedTag = {
           id: crypto.randomUUID(),
           name: name.toLowerCase(),
@@ -257,25 +259,25 @@ export const useSettingsStore = create<SettingsState>()(
           lastUsedAt: new Date(),
           createdAt: new Date(),
         };
-        
+
         set({
           settings: {
             ...settings,
             savedTags: [...settings.savedTags, newTag],
           },
         });
-        
+
         return newTag;
       },
 
       removeTag: (id: string) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
-            savedTags: settings.savedTags.filter(t => t.id !== id),
+            savedTags: settings.savedTags.filter((t) => t.id !== id),
           },
         });
       },
@@ -283,14 +285,12 @@ export const useSettingsStore = create<SettingsState>()(
       updateTagUsage: (tagId: string) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         set({
           settings: {
             ...settings,
-            savedTags: settings.savedTags.map(t =>
-              t.id === tagId
-                ? { ...t, usageCount: t.usageCount + 1, lastUsedAt: new Date() }
-                : t
+            savedTags: settings.savedTags.map((t) =>
+              t.id === tagId ? { ...t, usageCount: t.usageCount + 1, lastUsedAt: new Date() } : t,
             ),
           },
         });
@@ -299,9 +299,9 @@ export const useSettingsStore = create<SettingsState>()(
       recordMood: (mood: string) => {
         const { settings } = get();
         if (!settings) return;
-        
+
         const newMood = { mood, date: new Date() };
-        
+
         set({
           settings: {
             ...settings,
@@ -311,8 +311,8 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: 'theme-settings',
+      name: "theme-settings",
       partialize: (state) => ({ settings: state.settings }),
-    }
-  )
+    },
+  ),
 );

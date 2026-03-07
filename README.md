@@ -25,7 +25,7 @@ A minimal, keyboard-first note-taking application built with Next.js, React, and
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm, yarn, or bun
 
 ### Installation
@@ -107,6 +107,7 @@ src/
 ### State Management
 
 The app uses Zustand for state management:
+
 - `notesStore`: File and folder management
 - `settingsStore`: User preferences and settings
 

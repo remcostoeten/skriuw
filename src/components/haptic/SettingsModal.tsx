@@ -1,36 +1,30 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useState } from 'react';
-import { Info, HelpCircle, ArrowLeft } from 'lucide-react';
+import { useEffect } from "react";
+import { useState } from "react";
+import { Info, HelpCircle, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/shared/ui/dialog';
-import { Switch } from '@/shared/ui/switch';
-import { Label } from '@/shared/ui/label';
-import { useSettingsStore } from '@/modules/settings';
-import { getAuth } from '@/modules/auth';
-import { TroubleshootingGuide } from './TroubleshootingGuide';
-import { TemplateSelector } from './TemplateSelector';
-import { TagManager } from './TagManager';
-import { Button } from '@/shared/ui/button-component';
+} from "@/shared/ui/dialog";
+import { Switch } from "@/shared/ui/switch";
+import { Label } from "@/shared/ui/label";
+import { useSettingsStore } from "@/modules/settings";
+import { getAuth } from "@/modules/auth";
+import { TroubleshootingGuide } from "./TroubleshootingGuide";
+import { TemplateSelector } from "./TemplateSelector";
+import { TagManager } from "./TagManager";
+import { Button } from "@/shared/ui/button-component";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-function SettingsSection({ 
-  title, 
-  children 
-}: { 
-  title: string; 
-  children: React.ReactNode;
-}) {
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-medium text-foreground">{title}</h3>
@@ -41,30 +35,30 @@ function SettingsSection({
 }
 
 export function SettingsModal({ open, onOpenChange }: Props) {
-  const [view, setView] = useState<'settings' | 'troubleshooting'>('settings');
-  const { 
-    settings, 
-    isLoading, 
-    initializeSettings, 
-    updateTemplateStyle, 
+  const [view, setView] = useState<"settings" | "troubleshooting">("settings");
+  const {
+    settings,
+    isLoading,
+    initializeSettings,
+    updateTemplateStyle,
     updateDefaultMode,
     toggleDiaryMode,
     logActivity,
   } = useSettingsStore();
-  
+
   const user = getAuth();
 
   // Reset view when modal closes
   useEffect(() => {
     if (!open) {
-      setView('settings');
+      setView("settings");
     }
   }, [open]);
 
   useEffect(() => {
     if (open) {
       initializeSettings();
-      logActivity('settings_opened');
+      logActivity("settings_opened");
     }
   }, [open, initializeSettings, logActivity]);
 
@@ -81,16 +75,16 @@ export function SettingsModal({ open, onOpenChange }: Props) {
   }
 
   // Troubleshooting view
-  if (view === 'troubleshooting') {
+  if (view === "troubleshooting") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setView('settings')}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setView("settings")}
                 className="h-8 w-8 p-0"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -113,10 +107,10 @@ export function SettingsModal({ open, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg">Settings</DialogTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setView('troubleshooting')}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView("troubleshooting")}
               className="gap-2 text-muted-foreground hover:text-foreground"
             >
               <HelpCircle className="w-4 h-4" />
@@ -152,13 +146,14 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               />
             </div>
             <p className="text-xs text-muted-foreground/70 italic">
-              Rich text mode remains exactly as it behaves today. This setting only affects the default mode for new notes.
+              Rich text mode remains exactly as it behaves today. This setting only affects the
+              default mode for new notes.
             </p>
           </SettingsSection>
 
           {/* Template Settings */}
           <SettingsSection title="Note Template Settings">
-            <TemplateSelector 
+            <TemplateSelector
               selectedTemplate={settings.templateStyle}
               onSelectTemplate={updateTemplateStyle}
             />
@@ -187,7 +182,8 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               />
             </div>
             <p className="text-xs text-muted-foreground/70 italic">
-              This feature is coming soon. When it ships, it will become the default layout for new notes when enabled.
+              This feature is coming soon. When it ships, it will become the default layout for new
+              notes when enabled.
             </p>
           </SettingsSection>
 
@@ -198,7 +194,10 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Developer Note</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  &ldquo;Eventually I want the editor to support multiple workflows, from simple note taking to more structured journaling. The settings should allow switching between minimal notes, Notion like structured documents, and a journal format.&rdquo;
+                  &ldquo;Eventually I want the editor to support multiple workflows, from simple
+                  note taking to more structured journaling. The settings should allow switching
+                  between minimal notes, Notion like structured documents, and a journal
+                  format.&rdquo;
                 </p>
               </div>
             </div>

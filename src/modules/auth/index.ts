@@ -1,6 +1,6 @@
 /**
  * Mock Authentication Module
- * 
+ *
  * This module provides a mock authentication layer for development.
  * When Better Auth is integrated, only this module needs to be replaced.
  */
@@ -12,9 +12,9 @@ export type User = {
 };
 
 const DEMO_USER: User = {
-  id: 'user_demo',
-  email: 'demo@example.com',
-  name: 'Demo User',
+  id: "user_demo",
+  email: "demo@example.com",
+  name: "Demo User",
 };
 
 /**
@@ -32,7 +32,7 @@ export function getAuth(): User | null {
 export function requireUser(): User {
   const user = getAuth();
   if (!user) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
   return user;
 }
