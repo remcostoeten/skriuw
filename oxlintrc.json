@@ -40,6 +40,9 @@
       "disallowTypeAnnotations": false
     }],
     "custom/no-arrow-functions": "error",
-    "custom/props-naming": "error"
+    "custom/props-naming": "error",
+    "custom/eol": "error",
+    "custom/no-named-exports-page-view": "error",
+    "custom/no-named-view-function-exports": "error"
   }
 }

@@ -82,9 +82,96 @@ const propsNamingRule = {
   },
 };
 
+const eolRule = {
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Require trailing newline at end of file',
+      category: 'Style',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        const sourceCode = context.getSourceCode();
+        const fullText = sourceCode.getText();
+        
+        if (!fullText.endsWith('\n')) {
+          context.report({
+            node,
+            message: 'File must end with a trailing newline',
+          });
+        }
+      },
+    };
+  },
+};
+
+const noNamedExportsRule = {
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Only allow default exports for page/view files and view functions',
+      category: 'Style',
+    },
+  },
+  create(context) {
+    const filename = context.getFilename();
+    const isPageOrViewFile = filename.includes('page') || filename.includes('view');
+    
+    if (!isPageOrViewFile) {
+      return {};
+    }
+
+    return {
+      ExportNamedDeclaration(node) {
+        context.report({
+          node,
+          message: 'Use default export for page/view files',
+        });
+      },
+      ExportSpecifier(node) {
+        context.report({
+          node,
+          message: 'Use default export for page/view files',
+        });
+      },
+    };
+  },
+};
+
+const noNamedViewFunctionExports = {
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Only allow default exports for functions containing "view" in name',
+      category: 'Style',
+    },
+  },
+  create(context) {
+    return {
+      FunctionDeclaration(node) {
+        if (node.id && node.id.name && node.id.name.toLowerCase().includes('view')) {
+          for (const stmt of node.parent.body || []) {
+            if (stmt.type === 'ExportNamedDeclaration') {
+              context.report({
+                node: stmt,
+                message: 'Use default export for view functions',
+              });
+            }
+          }
+        }
+      },
+    };
+  },
+};
+
 module.exports = {
   rules: {
     'no-arrow-functions': noArrowFunctions,
     'props-naming': propsNamingRule,
+    'eol': eolRule,
+    'no-named-exports-page-view': noNamedExportsRule,
+    'no-named-view-function-exports': noNamedViewFunctionExports,
   },
 };
