@@ -6,14 +6,12 @@
   "scripts": {
     "dev": "bun --bun next dev --turbopack",
     "build": "bun --bun next build",
-    "start": "bun --bun next start",
-    "lint": "bun --bun next lint"
+    "start": "bun --bun next start"
   },
   "dependencies": {
     "@blocknote/core": "^0.46.2",
     "@blocknote/mantine": "^0.46.2",
     "@blocknote/react": "^0.46.2",
-    "@eslint/eslintrc": "^3.3.4",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-context-menu": "^2.2.15",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -43,8 +41,6 @@
     "@types/node": "^22.16.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "^9.32.0",
-    "eslint-config-next": "16.1.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.8.3"
