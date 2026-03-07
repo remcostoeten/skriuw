@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/modules/settings';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button-component';
 
 type DiagnosticStatus = 'pending' | 'checking' | 'pass' | 'fail';
 

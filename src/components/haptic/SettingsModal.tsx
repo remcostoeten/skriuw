@@ -9,15 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+} from '@/shared/ui/dialog';
+import { Switch } from '@/shared/ui/switch';
+import { Label } from '@/shared/ui/label';
 import { useSettingsStore } from '@/modules/settings';
 import { getAuth } from '@/modules/auth';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
 import { TemplateSelector } from './TemplateSelector';
 import { TagManager } from './TagManager';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button-component';
 
 type Props = {
   open: boolean;

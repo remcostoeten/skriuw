@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "bun --bun next dev --turbopack",
+    "build": "bun --bun next build",
+    "start": "bun --bun next start",
+    "lint": "bun --bun next lint"
   },
   "dependencies": {
     "@blocknote/core": "^0.46.2",
