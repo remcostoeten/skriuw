@@ -232,7 +232,7 @@ function TagsPropertyValue({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search or create tag..."
-              className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground/50"
+              className="w-full text-xs bg-transparent outline-hidden placeholder:text-muted-foreground/50"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && search.trim()) {
@@ -429,7 +429,7 @@ function TextPropertyValue({
             onEndEdit();
           }
         }}
-        className="w-full text-xs bg-transparent outline-none"
+        className="w-full text-xs bg-transparent outline-hidden"
       />
     );
   }

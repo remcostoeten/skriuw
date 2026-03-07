@@ -9,7 +9,7 @@ interface MetadataPanelProps {
 }
 
 export function MetadataPanel({ file }: MetadataPanelProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'outline'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'outline-solid'>('info');
 
   if (!file) return null;
 
@@ -54,10 +54,10 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
           <Info className="w-[15px] h-[15px]" strokeWidth={1.5} />
         </button>
         <button
-          onClick={() => setActiveTab('outline')}
+          onClick={() => setActiveTab('outline-solid')}
           className={cn(
             'w-7 h-7 flex items-center justify-center rounded transition-colors',
-            activeTab === 'outline'
+            activeTab === 'outline-solid'
               ? 'bg-accent text-foreground'
               : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           )}
@@ -77,7 +77,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
         </div>
       )}
 
-      {activeTab === 'outline' && (
+      {activeTab === 'outline-solid' && (
         <div className="px-4 py-4 overflow-y-auto">
           <p className="text-[13px] text-muted-foreground mb-3">Document outline</p>
           <div className="space-y-1">

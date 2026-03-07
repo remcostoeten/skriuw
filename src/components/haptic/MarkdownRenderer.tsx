@@ -123,7 +123,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         const checked = checkboxMatch[1] === 'x';
         elements.push(
           <div key={i} className="flex items-start gap-2.5 mb-1.5">
-            <div className={`w-4 h-4 mt-0.5 rounded-full border-2 flex-shrink-0 ${checked ? 'border-foreground/40 bg-foreground/20' : 'border-foreground/25'}`} />
+            <div className={`w-4 h-4 mt-0.5 rounded-full border-2 shrink-0 ${checked ? 'border-foreground/40 bg-foreground/20' : 'border-foreground/25'}`} />
             <span className="text-foreground/80">{renderInline(checkboxMatch[2])}</span>
           </div>
         );

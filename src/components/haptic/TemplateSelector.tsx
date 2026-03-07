@@ -105,7 +105,7 @@ export function TemplateSelector({ selectedTemplate, onSelectTemplate }: Templat
 
               {/* Preview section */}
               <div className="rounded border border-border/50 bg-background p-3 mb-3">
-                <pre className="text-xs text-foreground/70 font-mono whitespace-pre-wrap break-words overflow-hidden max-h-24">
+                <pre className="text-xs text-foreground/70 font-mono whitespace-pre-wrap wrap-break-word overflow-hidden max-h-24">
                   {template.preview}
                 </pre>
               </div>
