@@ -1,6 +1,7 @@
 import type {
   CssColorValue,
   DateKey,
+  IsoTime,
   JournalEntryId,
   TagId,
   TagName,
@@ -29,4 +30,8 @@ export type CreateJournalTagInput = {
   id?: TagId;
   name: TagName;
   color: CssColorValue;
+  usageCount?: number;
+  lastUsedAt?: IsoTime | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 };

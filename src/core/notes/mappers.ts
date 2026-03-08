@@ -4,7 +4,9 @@ import type {
   IsoTime,
   MarkdownContent,
   NoteId,
+  PersistedNoteJournalMetadata,
   PersistedNote,
+  TagName,
 } from "@/core/shared/persistence-types";
 
 function toIsoTime(date: Date): IsoTime {
@@ -19,6 +21,12 @@ export function toPersistedNote(note: NoteFile): PersistedNote {
     parentId: note.parentId as FolderId | null,
     createdAt: toIsoTime(note.createdAt),
     updatedAt: toIsoTime(note.modifiedAt),
+    journalMeta: note.journalMeta
+      ? {
+          ...note.journalMeta,
+          tags: note.journalMeta.tags.map((tag) => tag as TagName),
+        }
+      : undefined,
   };
 }
 
@@ -30,5 +38,11 @@ export function fromPersistedNote(note: PersistedNote): NoteFile {
     parentId: note.parentId,
     createdAt: new Date(note.createdAt),
     modifiedAt: new Date(note.updatedAt),
+    journalMeta: note.journalMeta
+      ? {
+          ...note.journalMeta,
+          tags: note.journalMeta.tags.map((tag) => tag as string),
+        }
+      : undefined,
   };
 }

@@ -45,16 +45,18 @@ export function toPersistedJournalTag(tag: JournalTag): PersistedTag {
     id: tag.id as TagId,
     name: tag.name as TagName,
     color: tag.color as CssColorValue,
+    usageCount: tag.usageCount,
+    lastUsedAt: null,
     createdAt: toIsoTime(now),
     updatedAt: toIsoTime(now),
   };
 }
 
-export function fromPersistedJournalTag(tag: PersistedTag, usageCount = 0): JournalTag {
+export function fromPersistedJournalTag(tag: PersistedTag): JournalTag {
   return {
     id: tag.id,
     name: tag.name as string,
     color: tag.color as string,
-    usageCount,
+    usageCount: tag.usageCount,
   };
 }

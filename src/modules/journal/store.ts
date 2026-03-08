@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { format } from "date-fns";
+import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { MoodLevel } from "@/types/notes";
 import {
   createJournalEntry,
@@ -28,7 +29,9 @@ import {
 type JournalState = {
   config: JournalConfig;
   isHydrated: boolean;
+  saveStates: Record<string, SaveStatus>;
   initialize: () => Promise<void>;
+  getEntrySaveState: (id: string | null | undefined) => SaveStatus;
   getEntryByDate: (date: Date) => JournalEntry | undefined;
   getEntryByDateKey: (dateKey: string) => JournalEntry | undefined;
   getEntriesForMonth: (year: number, month: number) => JournalEntry[];
@@ -60,10 +63,26 @@ function normalizeTagName(tagName: string): string {
 }
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleSaveStatusReset(id: string, onReset: () => void) {
+  const existingTimeout = saveStatusResetTimeouts.get(id);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  const timeoutId = setTimeout(() => {
+    saveStatusResetTimeouts.delete(id);
+    onReset();
+  }, 1800);
+
+  saveStatusResetTimeouts.set(id, timeoutId);
+}
 
 export const useJournalStore = create<JournalState>()((set, get) => ({
   config: DEFAULT_JOURNAL_CONFIG,
   isHydrated: false,
+  saveStates: {},
 
   initialize: async () => {
     if (get().isHydrated) return;
@@ -76,6 +95,11 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       },
       isHydrated: true,
     });
+  },
+
+  getEntrySaveState: (id) => {
+    if (!id) return "idle";
+    return get().saveStates[id] ?? "idle";
   },
 
   getEntryByDate: (date: Date) => {
@@ -114,6 +138,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
             entry.id === existing.id ? nextEntry : entry,
           ),
         },
+        saveStates: { ...state.saveStates, [existing.id]: "saving" },
       }));
 
       void updateJournalEntry({
@@ -122,7 +147,22 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         tags: normalizedTags.map((tag) => tag as TagName),
         mood: mood ?? existing.mood,
         updatedAt,
-      });
+      })
+        .then(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [existing.id]: "saved" },
+          }));
+          scheduleSaveStatusReset(existing.id, () => {
+            set((state) => ({
+              saveStates: { ...state.saveStates, [existing.id]: "idle" },
+            }));
+          });
+        })
+        .catch(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [existing.id]: "error" },
+          }));
+        });
 
       return nextEntry;
     }
@@ -142,6 +182,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         ...state.config,
         entries: [...state.config.entries, newEntry],
       },
+      saveStates: { ...state.saveStates, [newEntry.id]: "saving" },
     }));
 
     void createJournalEntry({
@@ -152,7 +193,22 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       mood,
       createdAt: newEntry.createdAt,
       updatedAt: newEntry.updatedAt,
-    });
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newEntry.id]: "saved" },
+        }));
+        scheduleSaveStatusReset(newEntry.id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [newEntry.id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newEntry.id]: "error" },
+        }));
+      });
 
     return newEntry;
   },
@@ -163,6 +219,9 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         ...state.config,
         entries: state.config.entries.filter((entry) => entry.id !== id),
       },
+      saveStates: Object.fromEntries(
+        Object.entries(state.saveStates).filter(([key]) => key !== id),
+      ),
     }));
 
     const pendingTimeout = contentSaveTimeouts.get(id);
@@ -171,7 +230,11 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       contentSaveTimeouts.delete(id);
     }
 
-    void destroyJournalEntry(id as JournalEntryId);
+    void destroyJournalEntry(id as JournalEntryId).catch(() => {
+      set((state) => ({
+        saveStates: { ...state.saveStates, [id]: "error" },
+      }));
+    });
   },
 
   updateEntryContent: (id: string, content: string) => {
@@ -184,6 +247,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           entry.id === id ? { ...entry, content, updatedAt } : entry,
         ),
       },
+      saveStates: { ...state.saveStates, [id]: "saving" },
     }));
 
     const pendingTimeout = contentSaveTimeouts.get(id);
@@ -197,7 +261,22 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         id: id as JournalEntryId,
         content,
         updatedAt,
-      });
+      })
+        .then(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "saved" },
+          }));
+          scheduleSaveStatusReset(id, () => {
+            set((state) => ({
+              saveStates: { ...state.saveStates, [id]: "idle" },
+            }));
+          });
+        })
+        .catch(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "error" },
+          }));
+        });
     }, 220);
 
     contentSaveTimeouts.set(id, timeoutId);
@@ -213,13 +292,29 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           entry.id === id ? { ...entry, mood, updatedAt } : entry,
         ),
       },
+      saveStates: { ...state.saveStates, [id]: "saving" },
     }));
 
     void updateJournalEntry({
       id: id as JournalEntryId,
       mood,
       updatedAt,
-    });
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "saved" },
+        }));
+        scheduleSaveStatusReset(id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "error" },
+        }));
+      });
   },
 
   addTagToEntry: (entryId: string, tagName: string) => {

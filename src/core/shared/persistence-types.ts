@@ -52,6 +52,7 @@ export type PersistedNote = Entity<NoteId> & {
   name: string;
   content: MarkdownContent;
   parentId: FolderId | null;
+  journalMeta?: PersistedNoteJournalMetadata;
 };
 
 export type PersistedFolder = Entity<FolderId> & {
@@ -59,9 +60,15 @@ export type PersistedFolder = Entity<FolderId> & {
   parentId: FolderId | null;
 };
 
+export type PersistedNoteJournalMetadata = {
+  mood?: MoodLevel;
+  tags: TagName[];
+  weather?: string;
+  location?: string;
+};
+
 export type PersistedJournalEntry = Entity<JournalEntryId> & {
   dateKey: DateKey;
-  title?: string;
   content: MarkdownContent;
   mood?: MoodLevel | null;
   tags: TagName[];
@@ -70,6 +77,8 @@ export type PersistedJournalEntry = Entity<JournalEntryId> & {
 export type PersistedTag = Entity<TagId> & {
   name: TagName;
   color: CssColorValue;
+  usageCount: number;
+  lastUsedAt: IsoTime | null;
 };
 
 export type PersistedPreferences = Entity<PreferencesId> & {
