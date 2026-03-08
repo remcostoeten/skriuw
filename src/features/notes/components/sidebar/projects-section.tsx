@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronRight, FileText, Folder, Plus, Pencil, Trash2, Palette } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
-import { NoteFile, NoteFolder } from '@/types/notes';
-import { Project, PROJECT_COLORS } from '@/modules/sidebar';
-import { SidebarSection } from './sidebar-section';
+import { useState } from "react";
+import { ChevronRight, FileText, Folder, Plus, Pencil, Trash2, Palette } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+import { NoteFile, NoteFolder } from "@/types/notes";
+import { Project, PROJECT_COLORS } from "@/modules/sidebar";
+import { SidebarSection } from "./sidebar-section";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -15,7 +15,7 @@ import {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-} from '@/shared/ui/context-menu';
+} from "@/shared/ui/context-menu";
 
 type Props = {
   projects: Project[];
@@ -25,11 +25,12 @@ type Props = {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
+  onManageSections: () => void;
   onFileSelect: (id: string) => void;
   onCreateProject: (name: string, color?: string) => void;
   onUpdateProject: (projectId: string, updates: Partial<Project>) => void;
   onDeleteProject: (projectId: string) => void;
-  onRemoveFromProject: (projectId: string, itemId: string, itemType: 'file' | 'folder') => void;
+  onRemoveFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
 };
 
 export function ProjectsSection({
@@ -48,12 +49,12 @@ export function ProjectsSection({
 }: Props) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectName, setNewProjectName] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
+  const [editingName, setEditingName] = useState("");
 
   const toggleProject = (projectId: string) => {
-    setExpandedProjects(prev => {
+    setExpandedProjects((prev) => {
       const next = new Set(prev);
       if (next.has(projectId)) {
         next.delete(projectId);
@@ -67,7 +68,7 @@ export function ProjectsSection({
   const handleCreateProject = () => {
     if (newProjectName.trim()) {
       onCreateProject(newProjectName.trim());
-      setNewProjectName('');
+      setNewProjectName("");
       setIsCreating(false);
     }
   };
@@ -77,12 +78,12 @@ export function ProjectsSection({
       onUpdateProject(projectId, { name: editingName.trim() });
     }
     setEditingProjectId(null);
-    setEditingName('');
+    setEditingName("");
   };
 
   const getProjectItems = (project: Project) => {
-    const projectFiles = files.filter(f => project.fileIds.includes(f.id));
-    const projectFolders = folders.filter(f => project.folderIds.includes(f.id));
+    const projectFiles = files.filter((f) => project.fileIds.includes(f.id));
+    const projectFolders = folders.filter((f) => project.folderIds.includes(f.id));
     return { projectFiles, projectFolders };
   };
 
@@ -118,27 +119,25 @@ export function ProjectsSection({
               else handleCreateProject();
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateProject();
-              if (e.key === 'Escape') {
+              if (e.key === "Enter") handleCreateProject();
+              if (e.key === "Escape") {
                 setIsCreating(false);
-                setNewProjectName('');
+                setNewProjectName("");
               }
             }}
             placeholder="Project name..."
-            className="w-full rounded-2xl border border-border bg-accent/50 px-3 py-3 text-[13px] outline-none focus:border-ring"
+            className="w-full rounded-lg border border-border bg-accent/50 px-3 py-3 text-[13px] outline-none focus:border-ring"
             autoFocus
           />
         </div>
       )}
 
       {projects.length === 0 && !isCreating ? (
-        <div className="px-4 py-3">
-          <p className="text-xs text-muted-foreground/60 text-center">
-            No projects yet. Create one to organize your notes.
-          </p>
+        <div className="px-3 py-1.5">
+          <p className="text-xs text-muted-foreground/60">No projects yet.</p>
         </div>
       ) : (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 px-2">
           {projects.map((project) => {
             const { projectFiles, projectFolders } = getProjectItems(project);
             const isExpanded = expandedProjects.has(project.id);
@@ -151,14 +150,14 @@ export function ProjectsSection({
                   <ContextMenuTrigger asChild>
                     <button
                       onClick={() => toggleProject(project.id)}
-                      className="group flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-accent/50"
+                      className="group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-white/[0.045]"
                     >
-                      <ChevronRight 
+                      <ChevronRight
                         className={cn(
                           "w-3 h-3 text-muted-foreground transition-transform shrink-0",
-                          isExpanded && "rotate-90"
-                        )} 
-                        strokeWidth={1.5} 
+                          isExpanded && "rotate-90",
+                        )}
+                        strokeWidth={1.5}
                       />
                       <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
                       {isEditing ? (
@@ -168,10 +167,10 @@ export function ProjectsSection({
                           onChange={(e) => setEditingName(e.target.value)}
                           onBlur={() => handleRenameProject(project.id)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRenameProject(project.id);
-                            if (e.key === 'Escape') {
+                            if (e.key === "Enter") handleRenameProject(project.id);
+                            if (e.key === "Escape") {
                               setEditingProjectId(null);
-                              setEditingName('');
+                              setEditingName("");
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
@@ -179,11 +178,9 @@ export function ProjectsSection({
                           autoFocus
                         />
                       ) : (
-                        <span className="flex-1 text-[13px] text-foreground/80 truncate">
-                          {project.name}
-                        </span>
+                        <span className="flex-1 truncate text-foreground/80">{project.name}</span>
                       )}
-                      <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                      <span className="ml-2 w-4 shrink-0 text-right text-[10px] text-muted-foreground/60 tabular-nums">
                         {totalItems}
                       </span>
                     </button>
@@ -234,16 +231,17 @@ export function ProjectsSection({
                     {projectFolders.map((folder) => (
                       <ContextMenu key={folder.id}>
                         <ContextMenuTrigger asChild>
-                          <button
-                            className="group flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left text-foreground/70 transition-colors hover:bg-accent/50"
-                          >
-                            <Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                          <button className="group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-foreground/70 transition-colors hover:bg-white/[0.045]">
+                            <Folder
+                              className="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                              strokeWidth={1.5}
+                            />
                             <span className="flex-1 text-[13px] truncate">{folder.name}</span>
                           </button>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="w-40">
                           <ContextMenuItem
-                            onClick={() => onRemoveFromProject(project.id, folder.id, 'folder')}
+                            onClick={() => onRemoveFromProject(project.id, folder.id, "folder")}
                             className="gap-2"
                           >
                             Remove from project
@@ -257,19 +255,22 @@ export function ProjectsSection({
                           <button
                             onClick={() => onFileSelect(file.id)}
                             className={cn(
-                              "group flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left transition-colors",
+                              "group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
                               file.id === activeFileId
-                                ? "bg-accent text-foreground"
-                                : "text-foreground/70 hover:bg-accent/50"
+                                ? "bg-white/[0.07] text-foreground"
+                                : "text-foreground/70 hover:bg-white/[0.045]",
                             )}
                           >
-                            <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                            <FileText
+                              className="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                              strokeWidth={1.5}
+                            />
                             <span className="flex-1 text-[13px] truncate">{file.name}</span>
                           </button>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="w-40">
                           <ContextMenuItem
-                            onClick={() => onRemoveFromProject(project.id, file.id, 'file')}
+                            onClick={() => onRemoveFromProject(project.id, file.id, "file")}
                             className="gap-2"
                           >
                             Remove from project
@@ -278,7 +279,7 @@ export function ProjectsSection({
                       </ContextMenu>
                     ))}
                     {totalItems === 0 && (
-                      <p className="px-3 py-2 text-xs text-muted-foreground/60">
+                      <p className="px-2.5 py-1.5 text-xs text-muted-foreground/60">
                         Drag files here to add them
                       </p>
                     )}

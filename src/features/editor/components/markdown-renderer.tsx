@@ -171,7 +171,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       const listMatch = line.match(/^[-*]\s+(.+)/);
       if (listMatch) {
         if (!inList) inList = true;
-        listItems.push(<li key={i}>{renderInline(listMatch[1])}</li>);
+        listItems.push(<li key={i} className="cursor-pointer hover:text-foreground">{renderInline(listMatch[1])}</li>);
         continue;
       }
 

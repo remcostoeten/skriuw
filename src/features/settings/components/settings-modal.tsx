@@ -12,7 +12,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
-import { useSettingsStore } from "@/modules/settings";
+import { usePreferencesStore } from "@/store/preferences-store";
 import { getAuth } from "@/modules/auth";
 import { TroubleshootingGuide } from "@/features/notes/components/troubleshooting-guide";
 import { TemplateSelector } from "@/features/notes/components/template-selector";
@@ -37,14 +37,16 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 export function SettingsModal({ open, onOpenChange }: Props) {
   const [view, setView] = useState<"settings" | "troubleshooting">("settings");
   const {
-    settings,
     isLoading,
-    initializeSettings,
+    editor,
+    templateStyle,
+    journal,
+    initialize: initializePreferences,
     updateTemplateStyle,
-    updateDefaultMode,
+    updateEditorPreference,
     toggleDiaryMode,
     logActivity,
-  } = useSettingsStore();
+  } = usePreferencesStore();
 
   const user = getAuth();
 
@@ -57,12 +59,12 @@ export function SettingsModal({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (open) {
-      initializeSettings();
+      initializePreferences();
       logActivity("settings_opened");
     }
-  }, [open, initializeSettings, logActivity]);
+  }, [open, initializePreferences, logActivity]);
 
-  if (isLoading || !settings) {
+  if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -141,8 +143,8 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               </div>
               <Switch
                 id="default-mode"
-                checked={settings.defaultModeMarkdown}
-                onCheckedChange={updateDefaultMode}
+                checked={editor.defaultModeMarkdown}
+                onCheckedChange={(checked) => updateEditorPreference("defaultModeMarkdown", checked)}
               />
             </div>
             <p className="text-xs text-muted-foreground/70 italic">
@@ -154,7 +156,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           {/* Template Settings */}
           <SettingsSection title="Note Template Settings">
             <TemplateSelector
-              selectedTemplate={settings.templateStyle}
+              selectedTemplate={templateStyle}
               onSelectTemplate={updateTemplateStyle}
             />
           </SettingsSection>
@@ -177,7 +179,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               </div>
               <Switch
                 id="diary-mode"
-                checked={settings.diaryModeEnabled}
+                checked={journal.diaryModeEnabled}
                 onCheckedChange={toggleDiaryMode}
               />
             </div>

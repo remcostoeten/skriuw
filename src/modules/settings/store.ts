@@ -283,17 +283,21 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       updateTagUsage: (tagId: string) => {
-        const { settings } = get();
+        const { settings, logActivity } = get();
         if (!settings) return;
+
+        const updatedTags = settings.savedTags.map((t) =>
+          t.id === tagId ? { ...t, usageCount: t.usageCount + 1, lastUsedAt: new Date() } : t,
+        );
 
         set({
           settings: {
             ...settings,
-            savedTags: settings.savedTags.map((t) =>
-              t.id === tagId ? { ...t, usageCount: t.usageCount + 1, lastUsedAt: new Date() } : t,
-            ),
+            savedTags: updatedTags,
           },
         });
+        
+        logActivity("note_created");
       },
 
       recordMood: (mood: string) => {

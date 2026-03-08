@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useSettingsStore, TAG_COLORS, SavedTag } from "@/modules/settings";
+import { useTagStore, TAG_COLORS, type Tag } from "@/store/tag-store";
 import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export function TagManager() {
-  const { getSavedTags, addTag, removeTag } = useSettingsStore();
-  const savedTags = getSavedTags();
+  const tags = useTagStore((s) => s.tags);
+  const createTag = useTagStore((s) => s.create);
+  const removeTag = useTagStore((s) => s.remove);
 
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -23,8 +24,8 @@ export function TagManager() {
 
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
-    if (trimmed && !savedTags.find((t) => t.name === trimmed)) {
-      addTag(trimmed, selectedColor);
+    if (trimmed && !tags.find((t) => t.name === trimmed)) {
+      createTag(trimmed, selectedColor);
     }
     setNewTagName("");
     setSelectedColor(TAG_COLORS[0].value);
@@ -42,14 +43,14 @@ export function TagManager() {
   };
 
   // Sort by usage count
-  const sortedTags = [...savedTags].sort((a, b) => b.usageCount - a.usageCount);
+  const sortedTags = [...tags].sort((a, b) => b.usageCount - a.usageCount);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-foreground">Manage Tags</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{savedTags.length} tags created</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{tags.length} tags created</p>
         </div>
         {!isAddingTag && (
           <button
@@ -147,7 +148,7 @@ export function TagManager() {
           <TagRow key={tag.id} tag={tag} onDelete={() => removeTag(tag.id)} />
         ))}
 
-        {savedTags.length === 0 && !isAddingTag && (
+        {tags.length === 0 && !isAddingTag && (
           <div className="py-8 text-center">
             <Hash className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
             <p className="text-sm text-muted-foreground">No tags yet</p>
@@ -161,7 +162,7 @@ export function TagManager() {
   );
 }
 
-function TagRow({ tag, onDelete }: { tag: SavedTag; onDelete: () => void }) {
+function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 

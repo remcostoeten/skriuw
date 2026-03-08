@@ -27,7 +27,6 @@ export interface NotesState {
   files: NoteFile[];
   folders: NoteFolder[];
   activeFileId: string | null;
-  showMetadata: boolean;
 }
 
 export interface NotesActions {
@@ -45,9 +44,6 @@ export interface NotesActions {
   renameFolder: (id: string, name: string) => void;
   moveFolder: (id: string, parentId?: string) => void;
   toggleFolder: (id: string) => void;
-  
-  // UI operations
-  setShowMetadata: (show: boolean) => void;
   
   // Utility operations
   getFilesInFolder: (folderId?: string) => NoteFile[];
