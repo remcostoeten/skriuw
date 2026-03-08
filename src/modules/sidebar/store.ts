@@ -1,14 +1,14 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { 
-  SidebarConfig, 
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  SidebarConfig,
   SidebarSection,
-  FavoriteItem, 
-  RecentItem, 
+  FavoriteItem,
+  RecentItem,
   Project,
   DEFAULT_SIDEBAR_CONFIG,
   PROJECT_COLORS,
-} from './types';
+} from "./types";
 
 type SidebarState = {
   config: SidebarConfig;
@@ -21,14 +21,16 @@ type SidebarState = {
   addCustomSection: (name: string) => void;
   removeSection: (sectionId: string) => void;
   renameSection: (sectionId: string, name: string) => void;
+  addToCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
+  removeFromCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
 
   // Favorites
-  addToFavorites: (itemId: string, itemType: 'file' | 'folder') => void;
+  addToFavorites: (itemId: string, itemType: "file" | "folder") => void;
   removeFromFavorites: (itemId: string) => void;
   isFavorite: (itemId: string) => boolean;
 
   // Recents
-  addToRecents: (itemId: string, itemType: 'file' | 'folder') => void;
+  addToRecents: (itemId: string, itemType: "file" | "folder") => void;
   clearRecents: () => void;
   getRecents: () => RecentItem[];
 
@@ -36,8 +38,8 @@ type SidebarState = {
   createProject: (name: string, color?: string) => Project;
   updateProject: (projectId: string, updates: Partial<Project>) => void;
   deleteProject: (projectId: string) => void;
-  addToProject: (projectId: string, itemId: string, itemType: 'file' | 'folder') => void;
-  removeFromProject: (projectId: string, itemId: string, itemType: 'file' | 'folder') => void;
+  addToProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
+  removeFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
   getProjects: () => Project[];
   getProjectById: (projectId: string) => Project | undefined;
 
@@ -56,38 +58,42 @@ export const useSidebarStore = create<SidebarState>()(
 
       // Section management
       getSections: () => {
-        return get().config.sections
-          .filter((section) => section.isVisible)
-          .toSorted((left, right) => left.order - right.order);
+        return get()
+          .config.sections.filter((section) => section.isVisible)
+          .toSorted((left, right) => {
+            if (left.type === "file-tree" && right.type !== "file-tree") return -1;
+            if (right.type === "file-tree" && left.type !== "file-tree") return 1;
+            return left.order - right.order;
+          });
       },
 
       toggleSectionCollapse: (sectionId: string) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            sections: state.config.sections.map(s =>
-              s.id === sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s
+            sections: state.config.sections.map((s) =>
+              s.id === sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s,
             ),
           },
         }));
       },
 
       toggleSectionVisibility: (sectionId: string) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            sections: state.config.sections.map(s =>
-              s.id === sectionId ? { ...s, isVisible: !s.isVisible } : s
+            sections: state.config.sections.map((s) =>
+              s.id === sectionId ? { ...s, isVisible: !s.isVisible } : s,
             ),
           },
         }));
       },
 
       reorderSections: (sectionIds: string[]) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            sections: state.config.sections.map(s => ({
+            sections: state.config.sections.map((s) => ({
               ...s,
               order: sectionIds.indexOf(s.id),
             })),
@@ -98,13 +104,17 @@ export const useSidebarStore = create<SidebarState>()(
       addCustomSection: (name: string) => {
         const newSection: SidebarSection = {
           id: `custom-${crypto.randomUUID()}`,
-          type: 'custom',
+          type: "custom",
           name,
           isCollapsed: false,
           isVisible: true,
           order: get().config.sections.length,
+          customConfig: {
+            fileIds: [],
+            folderIds: [],
+          },
         };
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             sections: [...state.config.sections, newSection],
@@ -114,31 +124,90 @@ export const useSidebarStore = create<SidebarState>()(
 
       removeSection: (sectionId: string) => {
         // Only allow removing custom sections
-        const section = get().config.sections.find(s => s.id === sectionId);
-        if (section?.type !== 'custom') return;
-        
-        set(state => ({
+        const section = get().config.sections.find((s) => s.id === sectionId);
+        if (section?.type !== "custom") return;
+
+        set((state) => ({
           config: {
             ...state.config,
-            sections: state.config.sections.filter(s => s.id !== sectionId),
+            sections: state.config.sections.filter((s) => s.id !== sectionId),
           },
         }));
       },
 
       renameSection: (sectionId: string, name: string) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            sections: state.config.sections.map(s =>
-              s.id === sectionId ? { ...s, name } : s
-            ),
+            sections: state.config.sections.map((s) => (s.id === sectionId ? { ...s, name } : s)),
+          },
+        }));
+      },
+
+      addToCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => {
+        set((state) => ({
+          config: {
+            ...state.config,
+            sections: state.config.sections.map((section) => {
+              if (section.id !== sectionId || section.type !== "custom") return section;
+
+              const customConfig = section.customConfig ?? { fileIds: [], folderIds: [] };
+
+              if (itemType === "file") {
+                if (customConfig.fileIds?.includes(itemId)) return section;
+                return {
+                  ...section,
+                  customConfig: {
+                    ...customConfig,
+                    fileIds: [...(customConfig.fileIds ?? []), itemId],
+                  },
+                };
+              }
+
+              if (customConfig.folderIds?.includes(itemId)) return section;
+              return {
+                ...section,
+                customConfig: {
+                  ...customConfig,
+                  folderIds: [...(customConfig.folderIds ?? []), itemId],
+                },
+              };
+            }),
+          },
+        }));
+      },
+
+      removeFromCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => {
+        set((state) => ({
+          config: {
+            ...state.config,
+            sections: state.config.sections.map((section) => {
+              if (section.id !== sectionId || section.type !== "custom") return section;
+
+              const customConfig = section.customConfig ?? { fileIds: [], folderIds: [] };
+
+              return {
+                ...section,
+                customConfig: {
+                  ...customConfig,
+                  fileIds:
+                    itemType === "file"
+                      ? (customConfig.fileIds ?? []).filter((id) => id !== itemId)
+                      : (customConfig.fileIds ?? []),
+                  folderIds:
+                    itemType === "folder"
+                      ? (customConfig.folderIds ?? []).filter((id) => id !== itemId)
+                      : (customConfig.folderIds ?? []),
+                },
+              };
+            }),
           },
         }));
       },
 
       // Favorites
-      addToFavorites: (itemId: string, itemType: 'file' | 'folder') => {
-        const existing = get().config.favorites.find(f => f.itemId === itemId);
+      addToFavorites: (itemId: string, itemType: "file" | "folder") => {
+        const existing = get().config.favorites.find((f) => f.itemId === itemId);
         if (existing) return;
 
         const newFavorite: FavoriteItem = {
@@ -147,7 +216,7 @@ export const useSidebarStore = create<SidebarState>()(
           itemType,
           addedAt: new Date(),
         };
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             favorites: [...state.config.favorites, newFavorite],
@@ -156,33 +225,33 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       removeFromFavorites: (itemId: string) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            favorites: state.config.favorites.filter(f => f.itemId !== itemId),
+            favorites: state.config.favorites.filter((f) => f.itemId !== itemId),
           },
         }));
       },
 
       isFavorite: (itemId: string) => {
-        return get().config.favorites.some(f => f.itemId === itemId);
+        return get().config.favorites.some((f) => f.itemId === itemId);
       },
 
       // Recents
-      addToRecents: (itemId: string, itemType: 'file' | 'folder') => {
+      addToRecents: (itemId: string, itemType: "file" | "folder") => {
         const { maxRecents } = get().config;
-        
-        set(state => {
+
+        set((state) => {
           // Remove existing entry for this item
-          const filtered = state.config.recents.filter(r => r.itemId !== itemId);
-          
+          const filtered = state.config.recents.filter((r) => r.itemId !== itemId);
+
           const newRecent: RecentItem = {
             id: crypto.randomUUID(),
             itemId,
             itemType,
             accessedAt: new Date(),
           };
-          
+
           // Add to front and limit to maxRecents
           return {
             config: {
@@ -194,7 +263,7 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       clearRecents: () => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             recents: [],
@@ -217,7 +286,7 @@ export const useSidebarStore = create<SidebarState>()(
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             projects: [...state.config.projects, newProject],
@@ -227,32 +296,32 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       updateProject: (projectId: string, updates: Partial<Project>) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            projects: state.config.projects.map(p =>
-              p.id === projectId ? { ...p, ...updates, updatedAt: new Date() } : p
+            projects: state.config.projects.map((p) =>
+              p.id === projectId ? { ...p, ...updates, updatedAt: new Date() } : p,
             ),
           },
         }));
       },
 
       deleteProject: (projectId: string) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
-            projects: state.config.projects.filter(p => p.id !== projectId),
+            projects: state.config.projects.filter((p) => p.id !== projectId),
           },
         }));
       },
 
-      addToProject: (projectId: string, itemId: string, itemType: 'file' | 'folder') => {
-        set(state => ({
+      addToProject: (projectId: string, itemId: string, itemType: "file" | "folder") => {
+        set((state) => ({
           config: {
             ...state.config,
-            projects: state.config.projects.map(p => {
+            projects: state.config.projects.map((p) => {
               if (p.id !== projectId) return p;
-              if (itemType === 'file') {
+              if (itemType === "file") {
                 if (p.fileIds.includes(itemId)) return p;
                 return { ...p, fileIds: [...p.fileIds, itemId], updatedAt: new Date() };
               } else {
@@ -264,16 +333,24 @@ export const useSidebarStore = create<SidebarState>()(
         }));
       },
 
-      removeFromProject: (projectId: string, itemId: string, itemType: 'file' | 'folder') => {
-        set(state => ({
+      removeFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => {
+        set((state) => ({
           config: {
             ...state.config,
-            projects: state.config.projects.map(p => {
+            projects: state.config.projects.map((p) => {
               if (p.id !== projectId) return p;
-              if (itemType === 'file') {
-                return { ...p, fileIds: p.fileIds.filter(id => id !== itemId), updatedAt: new Date() };
+              if (itemType === "file") {
+                return {
+                  ...p,
+                  fileIds: p.fileIds.filter((id) => id !== itemId),
+                  updatedAt: new Date(),
+                };
               } else {
-                return { ...p, folderIds: p.folderIds.filter(id => id !== itemId), updatedAt: new Date() };
+                return {
+                  ...p,
+                  folderIds: p.folderIds.filter((id) => id !== itemId),
+                  updatedAt: new Date(),
+                };
               }
             }),
           },
@@ -285,12 +362,12 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       getProjectById: (projectId: string) => {
-        return get().config.projects.find(p => p.id === projectId);
+        return get().config.projects.find((p) => p.id === projectId);
       },
 
       // Config
       setMaxRecents: (max: number) => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             maxRecents: max,
@@ -300,7 +377,7 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       toggleShowSectionHeaders: () => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             showSectionHeaders: !state.config.showSectionHeaders,
@@ -309,7 +386,7 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       toggleCompactMode: () => {
-        set(state => ({
+        set((state) => ({
           config: {
             ...state.config,
             compactMode: !state.config.compactMode,
@@ -322,8 +399,8 @@ export const useSidebarStore = create<SidebarState>()(
       },
     }),
     {
-      name: 'haptic-sidebar',
+      name: "haptic-sidebar",
       partialize: (state) => ({ config: state.config }),
-    }
-  )
+    },
+  ),
 );

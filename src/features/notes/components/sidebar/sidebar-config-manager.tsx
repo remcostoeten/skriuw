@@ -18,6 +18,9 @@ type Props = {
   sections: SidebarSectionType[];
   showSectionHeaders: boolean;
   compactMode: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
   onReorderSections: (sectionIds: string[]) => void;
   onToggleSectionVisibility: (sectionId: string) => void;
   onAddCustomSection: (name: string) => void;
@@ -32,6 +35,9 @@ export function SidebarConfigManager({
   sections,
   showSectionHeaders,
   compactMode,
+  open,
+  onOpenChange,
+  hideTrigger = false,
   onReorderSections,
   onToggleSectionVisibility,
   onAddCustomSection,
@@ -41,13 +47,19 @@ export function SidebarConfigManager({
   onToggleCompactMode,
   onResetToDefaults,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const isOpen = open ?? isOpenInternal;
+  const setIsOpen = onOpenChange ?? setIsOpenInternal;
 
   // Sort sections by order
-  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+  const sortedSections = [...sections].sort((a, b) => {
+    if (a.type === 'file-tree' && b.type !== 'file-tree') return -1;
+    if (b.type === 'file-tree' && a.type !== 'file-tree') return 1;
+    return a.order - b.order;
+  });
 
   const handleAddSection = () => {
     if (newSectionName.trim()) {
@@ -70,7 +82,12 @@ export function SidebarConfigManager({
 
   const handleDrop = (e: React.DragEvent, targetSectionId: string) => {
     e.preventDefault();
-    
+
+    if (draggedSectionId === 'file-tree' || targetSectionId === 'file-tree') {
+      setDraggedSectionId(null);
+      return;
+    }
+
     if (!draggedSectionId || draggedSectionId === targetSectionId) {
       setDraggedSectionId(null);
       return;
@@ -106,14 +123,16 @@ export function SidebarConfigManager({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <button
-          className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          title="Configure sidebar"
-        >
-          <Sliders className="w-4 h-4" strokeWidth={1.5} />
-        </button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <button
+            className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Configure sidebar"
+          >
+            <Sliders className="w-4 h-4" strokeWidth={1.5} />
+          </button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -177,24 +196,36 @@ export function SidebarConfigManager({
               {sortedSections.map((section) => (
                 <div
                   key={section.id}
-                  draggable
+                  draggable={section.type !== 'file-tree'}
                   onDragStart={(e) => handleDragStart(e, section.id)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, section.id)}
                   onDragEnd={handleDragEnd}
                   className={cn(
-                    "flex items-center gap-2 p-2 rounded border border-transparent transition-all cursor-move",
+                    "flex items-center gap-2 rounded-lg border border-transparent p-2 transition-all",
+                    section.type !== 'file-tree' && "cursor-move",
                     draggedSectionId === section.id 
                       ? "opacity-50 border-primary/50" 
                       : "hover:bg-accent/30",
                     !section.isVisible && "opacity-60"
                   )}
                 >
-                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <GripVertical
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0 text-muted-foreground",
+                      section.type === 'file-tree' && "opacity-30",
+                    )}
+                  />
                   <span className="flex-1 text-sm truncate">{section.name}</span>
-                  <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">
-                    {getSectionIcon(section.type)}
-                  </span>
+                  {section.type === 'file-tree' ? (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
+                      Pinned
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">
+                      {getSectionIcon(section.type)}
+                    </span>
+                  )}
                   <button
                     onClick={() => onToggleSectionVisibility(section.id)}
                     className="p-1 text-muted-foreground hover:text-foreground transition-colors"

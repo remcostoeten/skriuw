@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn, coerceDate } from "@/shared/lib/utils";
-import { useSettingsStore } from "@/modules/settings";
+import { useTagStore } from "@/store/tag-store";
+import { usePreferencesStore } from "@/store/preferences-store";
 import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
 import {
   X,
@@ -165,8 +166,10 @@ function TagsPropertyValue({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const { getSavedTags, addTag, updateTagUsage } = useSettingsStore();
-  const savedTags = getSavedTags();
+  const tags = useTagStore((s) => s.tags);
+  const createTag = useTagStore((s) => s.create);
+  const incrementUsage = useTagStore((s) => s.incrementUsage);
+  const getByName = useTagStore((s) => s.getByName);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -182,21 +185,22 @@ function TagsPropertyValue({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  const filteredTags = savedTags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredTags = tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleToggleTag = (tagName: string) => {
     if (value.includes(tagName)) {
       onChange(value.filter((t) => t !== tagName));
     } else {
       onChange([...value, tagName]);
-      const tag = savedTags.find((t) => t.name === tagName);
-      if (tag) updateTagUsage(tag.id);
+      const tag = getByName(tagName);
+      if (tag) incrementUsage(tag.id);
     }
   };
 
   const handleCreateTag = () => {
-    if (search.trim() && !savedTags.find((t) => t.name === search.toLowerCase())) {
-      addTag(search.trim().toLowerCase());
+    if (search.trim() && !getByName(search.toLowerCase())) {
+      const newTag = createTag(search.trim().toLowerCase());
+      incrementUsage(newTag.id);
       onChange([...value, search.trim().toLowerCase()]);
       setSearch("");
     }
@@ -210,7 +214,7 @@ function TagsPropertyValue({
       >
         {value.length > 0 ? (
           value.map((tagName) => {
-            const tag = savedTags.find((t) => t.name === tagName);
+            const tag = getByName(tagName);
             return (
               <span
                 key={tagName}
@@ -268,7 +272,7 @@ function TagsPropertyValue({
                 </span>
               </button>
             ))}
-            {search.trim() && !savedTags.find((t) => t.name === search.toLowerCase()) && (
+            {search.trim() && !getByName(search.toLowerCase()) && (
               <button
                 onClick={handleCreateTag}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
@@ -293,7 +297,7 @@ function MoodPropertyValue({
   onChange: (value: MoodLevel | undefined) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { recordMood } = useSettingsStore();
+  const recordMood = usePreferencesStore((s) => s.recordMood);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

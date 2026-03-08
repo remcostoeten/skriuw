@@ -15,7 +15,7 @@ type Props = {
 };
 
 const desktopIconButtonClass =
-  "flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors";
+  "pressable flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground";
 
 export function BottomBar({
   editorMode,
@@ -36,45 +36,62 @@ export function BottomBar({
 
   if (isMobile) {
     return (
-      <div className="relative border-t border-border/70 bg-card/82 px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-3 backdrop-blur-xl">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/[0.04] to-transparent" />
-        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 rounded-[1.8rem] border border-border/70 bg-background/78 p-2 shadow-[0_18px_44px_rgba(0,0,0,0.32)]">
+      <div className="native-panel relative border-t border-border/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-2.5">
+        <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-foreground/12 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-14 bg-gradient-to-b from-white/[0.035] to-transparent" />
+        <div className="mx-auto grid max-w-xl grid-cols-[0.95fr_1.3fr_0.95fr] gap-2">
           <button
             onClick={toggleTheme}
-            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+            className="pressable native-surface group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
             title="Toggle theme"
           >
-            {mounted && theme === "light" ? (
-              <Moon className="h-4 w-4" strokeWidth={1.7} />
-            ) : (
-              <Sun className="h-4 w-4" strokeWidth={1.7} />
-            )}
-            <span className="text-[11px] font-medium tracking-[0.02em]">Theme</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/70 transition-colors group-hover:text-foreground/65">
+              Theme
+            </span>
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium tracking-[0.04em]">
+                {mounted && theme === "light" ? "Night" : "Light"}
+              </span>
+              {mounted && theme === "light" ? (
+                <Moon className="h-4 w-4" strokeWidth={1.7} />
+              ) : (
+                <Sun className="h-4 w-4" strokeWidth={1.7} />
+              )}
+            </span>
           </button>
           <button
             onClick={onToggleEditorMode}
-            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] bg-accent px-4 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all hover:bg-accent/80 active:scale-[0.97]"
+            className="pressable relative flex min-h-[58px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background shadow-[0_14px_30px_rgba(0,0,0,0.28)] transition-all hover:opacity-95"
             title={editorMode === "markdown" ? "Switch to Rich Text" : "Switch to Markdown"}
           >
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
+            <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-background/55">
+              Editor
+            </span>
             {editorMode === "markdown" ? (
-              <>
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold tracking-[0.06em]">Markdown</span>
                 <Code className="h-4 w-4" strokeWidth={1.7} />
-                <span className="text-[11px] font-semibold tracking-[0.02em]">Markdown</span>
-              </>
+              </span>
             ) : (
-              <>
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold tracking-[0.06em]">Rich Text</span>
                 <Type className="h-4 w-4" strokeWidth={1.7} />
-                <span className="text-[11px] font-semibold tracking-[0.02em]">Rich Text</span>
-              </>
+              </span>
             )}
           </button>
           <button
             onClick={onOpenSettings}
-            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+            className="pressable native-surface group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
             title="Open settings"
           >
-            <Settings2 className="h-4 w-4" strokeWidth={1.7} />
-            <span className="text-[11px] font-medium tracking-[0.02em]">Settings</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/70 transition-colors group-hover:text-foreground/65">
+              System
+            </span>
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium tracking-[0.04em]">Settings</span>
+              <Settings2 className="h-4 w-4" strokeWidth={1.7} />
+            </span>
           </button>
         </div>
       </div>
@@ -82,7 +99,7 @@ export function BottomBar({
   }
 
   return (
-    <div className="h-8 flex items-center justify-between px-3 bg-background border-t border-border">
+    <div className="native-panel flex h-8 items-center justify-between border-t border-border px-3">
       <div className="flex items-center gap-1">
         <button className={desktopIconButtonClass} onClick={toggleTheme} title="Toggle theme">
           {mounted && theme === "light" ? (
@@ -95,8 +112,8 @@ export function BottomBar({
       <button
         onClick={onToggleEditorMode}
         className={cn(
-          "flex items-center gap-1.5 px-2 py-0.5 text-[11px] rounded transition-colors",
-          "text-muted-foreground hover:text-foreground hover:bg-accent",
+          "pressable flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[11px] transition-colors",
+          "text-muted-foreground hover:bg-accent/65 hover:text-foreground",
         )}
         title={editorMode === "markdown" ? "Switch to Rich Text" : "Switch to Markdown"}
       >

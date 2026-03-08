@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useSettingsStore } from "@/modules/settings";
+import { useTagStore } from "@/store/tag-store";
+import { usePreferencesStore } from "@/store/preferences-store";
 import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
 import { X, Plus, Check } from "lucide-react";
 
@@ -21,8 +22,11 @@ export function JournalMetadataEditor({
   onTagsChange,
   compact = false,
 }: Props) {
-  const { getSavedTags, addTag, updateTagUsage, recordMood } = useSettingsStore();
-  const savedTags = getSavedTags();
+  const tags = useTagStore((s) => s.tags);
+  const createTag = useTagStore((s) => s.create);
+  const incrementUsage = useTagStore((s) => s.incrementUsage);
+  const getByName = useTagStore((s) => s.getByName);
+  const recordMood = usePreferencesStore((s) => s.recordMood);
 
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -48,22 +52,27 @@ export function JournalMetadataEditor({
       onTagsChange(selectedTags.filter((t) => t !== tagName));
     } else {
       onTagsChange([...selectedTags, tagName]);
-      const tag = savedTags.find((t) => t.name === tagName);
+      const tag = getByName(tagName);
       if (tag) {
-        updateTagUsage(tag.id);
+        incrementUsage(tag.id);
       }
     }
   };
 
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
-    if (trimmed && !savedTags.find((t) => t.name === trimmed)) {
-      addTag(trimmed);
+    if (trimmed && !getByName(trimmed)) {
+      const newTag = createTag(trimmed);
+      incrementUsage(newTag.id);
       onTagsChange([...selectedTags, trimmed]);
     } else if (trimmed) {
       // Tag exists, just add it to selection
       if (!selectedTags.includes(trimmed)) {
         onTagsChange([...selectedTags, trimmed]);
+        const tag = getByName(trimmed);
+        if (tag) {
+          incrementUsage(tag.id);
+        }
       }
     }
     setNewTagName("");
@@ -81,7 +90,7 @@ export function JournalMetadataEditor({
   };
 
   // Sort tags: selected first, then by usage count
-  const sortedTags = [...savedTags].sort((a, b) => {
+  const sortedTags = [...tags].sort((a, b) => {
     const aSelected = selectedTags.includes(a.name) ? 1 : 0;
     const bSelected = selectedTags.includes(b.name) ? 1 : 0;
     if (aSelected !== bSelected) return bSelected - aSelected;
@@ -203,7 +212,7 @@ export function JournalMetadataEditor({
         </div>
 
         {/* Recently used hint */}
-        {savedTags.length > 0 && (
+        {tags.length > 0 && (
           <p className="text-[10px] text-muted-foreground/60">
             Tags are saved and reused across your journal entries
           </p>

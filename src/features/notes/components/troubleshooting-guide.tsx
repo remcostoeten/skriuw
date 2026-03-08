@@ -14,7 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useSettingsStore } from "@/modules/settings";
+import { usePreferencesStore } from "@/store/preferences-store";
 import { Button } from "@/shared/ui/button-component";
 
 type DiagnosticStatus = "pending" | "checking" | "pass" | "fail";
@@ -34,7 +34,8 @@ type Section = {
 };
 
 export function TroubleshootingGuide() {
-  const { settings, initializeSettings } = useSettingsStore();
+  const preferences = usePreferencesStore();
+  const { templateStyle, editor, initialize: initializePreferences } = preferences;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["overview"]));
   const [diagnostics, setDiagnostics] = useState<DiagnosticResult[]>([]);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
@@ -63,9 +64,9 @@ export function TroubleshootingGuide() {
     const storeCheck: DiagnosticResult = {
       id: "store",
       name: "Settings Store",
-      status: settings ? "pass" : "fail",
-      message: settings
-        ? `Store initialized with userId: ${settings.userId.slice(0, 8)}...`
+      status: preferences.userId ? "pass" : "fail",
+      message: preferences.userId
+        ? `Store initialized with userId: ${preferences.userId.slice(0, 8)}...`
         : 'Settings store not initialized. Click "Reset Settings" to fix.',
     };
 
@@ -108,9 +109,9 @@ export function TroubleshootingGuide() {
     const templateCheck: DiagnosticResult = {
       id: "template",
       name: "Template Style",
-      status: settings?.templateStyle ? "pass" : "fail",
-      message: settings?.templateStyle
-        ? `Current template: "${settings.templateStyle}"`
+      status: templateStyle ? "pass" : "fail",
+      message: templateStyle
+        ? `Current template: "${templateStyle}"`
         : "No template style configured.",
     };
 
@@ -125,7 +126,7 @@ export function TroubleshootingGuide() {
       id: "mode",
       name: "Editor Mode",
       status: "pass",
-      message: `Default mode: ${settings?.defaultModeMarkdown ? "Markdown" : "Rich Text"}`,
+      message: `Default mode: ${editor.defaultModeMarkdown ? "Markdown" : "Rich Text"}`,
     };
 
     results.push(modeCheck);
@@ -136,9 +137,10 @@ export function TroubleshootingGuide() {
 
   function clearCache() {
     try {
-      localStorage.removeItem("haptic-settings");
-      localStorage.removeItem("haptic-notes");
-      initializeSettings();
+      localStorage.removeItem("preferences-store");
+      localStorage.removeItem("tag-store");
+      localStorage.removeItem("document-store");
+      initializePreferences();
       alert("Cache cleared successfully. Settings have been reset to defaults.");
     } catch {
       alert("Failed to clear cache. Please try clearing browser data manually.");
@@ -303,17 +305,15 @@ export function TroubleshootingGuide() {
                 <p className="text-muted-foreground text-xs">
                   Note your current selections for Template Style and Default Mode.
                 </p>
-                {settings && (
-                  <div className="mt-2 p-2 rounded bg-muted text-xs">
-                    <p>
-                      Template: <strong>{settings.templateStyle}</strong>
-                    </p>
-                    <p>
-                      Mode:{" "}
-                      <strong>{settings.defaultModeMarkdown ? "Markdown" : "Rich Text"}</strong>
-                    </p>
-                  </div>
-                )}
+                <div className="mt-2 p-2 rounded bg-muted text-xs">
+                  <p>
+                    Template: <strong>{templateStyle}</strong>
+                  </p>
+                  <p>
+                    Mode:{" "}
+                    <strong>{editor.defaultModeMarkdown ? "Markdown" : "Rich Text"}</strong>
+                  </p>
+                </div>
               </div>
             </div>
 

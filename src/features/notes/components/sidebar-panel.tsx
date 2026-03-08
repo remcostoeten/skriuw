@@ -1,22 +1,25 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { useSidebarStore, SidebarSection as SidebarSectionType } from "@/modules/sidebar";
-import { X } from "lucide-react";
+import { FileText, Folder, PanelTopClose, Search, X } from "lucide-react";
 import {
-  SearchSection,
   FavoritesSection,
   RecentsSection,
   ProjectsSection,
+  CustomSection,
   FileTreeSection,
   SidebarConfigManager,
+  JournalSection,
 } from "./sidebar";
 
 interface SidebarPanelProps {
   files: NoteFile[];
   folders: NoteFolder[];
+  filesById: Map<string, NoteFile>;
+  foldersById: Map<string, NoteFolder>;
   activeFileId: string;
   onFileSelect: (id: string) => void;
   onToggleFolder: (id: string) => void;
@@ -71,31 +74,11 @@ function NewFolderNoteIcon({ className }: { className?: string }) {
   );
 }
 
-function ExpandIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M10 2.5C5.85786 2.5 2.5 5.85786 2.5 10C2.5 14.1421 5.85786 17.5 10 17.5C14.1421 17.5 17.5 14.1421 17.5 10C17.5 5.85786 14.1421 2.5 10 2.5ZM1 10C1 5.02944 5.02944 1 10 1C14.9706 1 19 5.02944 19 10C19 14.9706 14.9706 19 10 19C5.02944 19 1 14.9706 1 10Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M11.0312 6.625C10.617 6.625 10.2812 6.28921 10.2812 5.875C10.2812 5.46079 10.617 5.125 11.0312 5.125H14.125C14.5392 5.125 14.875 5.46079 14.875 5.875V8.96875C14.875 9.38296 14.5392 9.71875 14.125 9.71875C13.7108 9.71875 13.375 9.38296 13.375 8.96875V7.68566L11.5616 9.49908C11.2687 9.79197 10.7938 9.79197 10.5009 9.49908C10.208 9.20619 10.208 8.73131 10.5009 8.43842L12.3143 6.625H11.0312Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M8.96875 13.375C9.38296 13.375 9.71875 13.7108 9.71875 14.125C9.71875 14.5392 9.38296 14.875 8.96875 14.875H5.875C5.46079 14.875 5.125 14.5392 5.125 14.125L5.125 11.0312C5.125 10.617 5.46079 10.2812 5.875 10.2812C6.28921 10.2812 6.625 10.617 6.625 11.0312L6.625 12.3143L8.43842 10.5009C8.73131 10.208 9.20619 10.208 9.49908 10.5009C9.79197 10.7938 9.79197 11.2687 9.49908 11.5616L7.68566 13.375H8.96875Z"
-      />
-    </svg>
-  );
-}
-
 export function SidebarPanel({
   files,
   folders,
+  filesById,
+  foldersById,
   activeFileId,
   onFileSelect,
   onToggleFolder,
@@ -114,65 +97,127 @@ export function SidebarPanel({
   onRequestClose,
   showCloseButton = false,
 }: SidebarPanelProps) {
-  // Sidebar store
   const sidebarStore = useSidebarStore();
   const sections = sidebarStore.getSections();
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const hasSearchSection = sections.some((section) => section.type === "search");
+  const visibleSections = useMemo(
+    () => sections.filter((section) => section.type !== "search"),
+    [sections],
+  );
 
-  // Handle file select with recent tracking
-  const handleFileSelect = useCallback((id: string) => {
-    sidebarStore.addToRecents(id, 'file');
-    onFileSelect(id);
-    onRequestClose?.();
-  }, [sidebarStore, onFileSelect, onRequestClose]);
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return { files: [], folders: [] };
+    }
 
-  // Render section based on type
+    const lowerQuery = searchQuery.toLowerCase();
+
+    return {
+      files: files.filter(
+        (file) =>
+          file.name.toLowerCase().includes(lowerQuery) ||
+          file.content.toLowerCase().includes(lowerQuery),
+      ),
+      folders: folders.filter((folder) => folder.name.toLowerCase().includes(lowerQuery)),
+    };
+  }, [files, folders, searchQuery]);
+
+  const handleFileSelect = useCallback(
+    (id: string) => {
+      sidebarStore.addToRecents(id, "file");
+      onFileSelect(id);
+      onRequestClose?.();
+    },
+    [sidebarStore, onFileSelect, onRequestClose],
+  );
+
+  const openConfigPanel = useCallback(() => {
+    setIsConfigOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  }, []);
+
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+
+  const handleSearchFileSelect = useCallback(
+    (id: string) => {
+      handleFileSelect(id);
+      closeSearch();
+    },
+    [closeSearch, handleFileSelect],
+  );
+
+  const handleSearchFolderSelect = useCallback(
+    (id: string) => {
+      onToggleFolder(id);
+      closeSearch();
+    },
+    [closeSearch, onToggleFolder],
+  );
+
+  useEffect(() => {
+    if (!hasSearchSection && isSearchOpen) {
+      closeSearch();
+    }
+  }, [closeSearch, hasSearchSection, isSearchOpen]);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [isSearchOpen]);
+
+  const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
+
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
-      case 'search':
-        return (
-          <SearchSection
-            key={section.id}
-            files={files}
-            folders={folders}
-            activeFileId={activeFileId}
-            onFileSelect={handleFileSelect}
-            onFolderSelect={onToggleFolder}
-          />
-        );
+      case "search":
+        return null;
 
-      case 'favorites':
+      case "favorites":
         return (
           <FavoritesSection
             key={section.id}
             favorites={sidebarStore.config.favorites}
-            files={files}
-            folders={folders}
+            filesById={filesById}
+            foldersById={foldersById}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onRemoveFromFavorites={sidebarStore.removeFromFavorites}
           />
         );
 
-      case 'recents':
+      case "recents":
         return (
           <RecentsSection
             key={section.id}
             recents={sidebarStore.getRecents()}
-            files={files}
-            folders={folders}
+            filesById={filesById}
+            foldersById={foldersById}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onClearRecents={sidebarStore.clearRecents}
           />
         );
 
-      case 'projects':
+      case "projects":
         return (
           <ProjectsSection
             key={section.id}
@@ -183,6 +228,7 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onCreateProject={sidebarStore.createProject}
             onUpdateProject={sidebarStore.updateProject}
@@ -191,7 +237,17 @@ export function SidebarPanel({
           />
         );
 
-      case 'file-tree':
+      case "journal":
+        return (
+          <JournalSection
+            key={section.id}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+          />
+        );
+
+      case "file-tree":
         return (
           <FileTreeSection
             key={section.id}
@@ -216,78 +272,205 @@ export function SidebarPanel({
         );
 
       default:
-        return null;
+        return (
+          <CustomSection
+            key={section.id}
+            section={section}
+            filesById={filesById}
+            foldersById={foldersById}
+            activeFileId={activeFileId}
+            isCollapsed={section.isCollapsed}
+            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
+            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onRename={(name) => sidebarStore.renameSection(section.id, name)}
+            onDelete={() => sidebarStore.removeSection(section.id)}
+            onFileSelect={handleFileSelect}
+            onRemoveFromSection={sidebarStore.removeFromCustomSection}
+          />
+        );
     }
   };
 
   return (
-    <div className={cn("flex h-full w-56 flex-col border-r border-border bg-background", className)}>
-      {/* Toolbar */}
-      <div className="sticky top-0 z-10 border-b border-border/70 bg-background/88 backdrop-blur-xl">
-        <div className="flex w-full items-center gap-2 px-3.5 py-3 md:justify-center md:py-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onCreateFile}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-              title="New Note"
-            >
-              <NewNoteIcon />
-            </button>
-            <button
-              onClick={onCreateFolder}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-              title="New Folder"
-            >
-              <NewFolderNoteIcon />
-            </button>
-            <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-              title="Expand"
-            >
-              <ExpandIcon />
-            </button>
-            <SidebarConfigManager
-              sections={sidebarStore.config.sections}
-              showSectionHeaders={sidebarStore.config.showSectionHeaders}
-              compactMode={sidebarStore.config.compactMode}
-              onReorderSections={sidebarStore.reorderSections}
-              onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
-              onAddCustomSection={sidebarStore.addCustomSection}
-              onRemoveSection={sidebarStore.removeSection}
-              onRenameSection={sidebarStore.renameSection}
-              onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
-              onToggleCompactMode={sidebarStore.toggleCompactMode}
-              onResetToDefaults={sidebarStore.resetToDefaults}
-            />
+    <div
+      className={cn(
+        "flex h-full w-full flex-col border-r border-sidebar-border/60 bg-sidebar text-sidebar-foreground",
+        className,
+      )}
+    >
+      <div className="sticky top-0 z-10 border-b border-sidebar-border/50 bg-sidebar/95 backdrop-blur-xl">
+        <div className="relative min-h-11 overflow-hidden px-3 py-2.5">
+          <div
+            className={cn(
+              "flex w-full items-center gap-2 transition-transform duration-200 md:py-0",
+              isSearchOpen && "-translate-y-12",
+            )}
+          >
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={onCreateFile}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                title="New Note"
+              >
+                <NewNoteIcon />
+              </button>
+              <button
+                onClick={onCreateFolder}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                title="New Folder"
+              >
+                <NewFolderNoteIcon />
+              </button>
+              <button
+                onClick={openConfigPanel}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                title="Manage sections"
+              >
+                <PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+              {hasSearchSection && (
+                <button
+                  onClick={openSearch}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                  title="Search notes"
+                >
+                  <Search className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              )}
+              <SidebarConfigManager
+                open={isConfigOpen}
+                onOpenChange={setIsConfigOpen}
+                hideTrigger
+                sections={sidebarStore.config.sections}
+                showSectionHeaders={sidebarStore.config.showSectionHeaders}
+                compactMode={sidebarStore.config.compactMode}
+                onReorderSections={sidebarStore.reorderSections}
+                onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
+                onAddCustomSection={sidebarStore.addCustomSection}
+                onRemoveSection={sidebarStore.removeSection}
+                onRenameSection={sidebarStore.renameSection}
+                onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
+                onToggleCompactMode={sidebarStore.toggleCompactMode}
+                onResetToDefaults={sidebarStore.resetToDefaults}
+              />
+            </div>
+
+            {showCloseButton && (
+              <button
+                onClick={onRequestClose}
+                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground md:hidden"
+                title="Close sidebar"
+              >
+                <X className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            )}
           </div>
 
-          <div className="min-w-0 flex-1 md:hidden">
-            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground/70">
-              Workspace
-            </p>
-            <p className="truncate text-sm font-semibold tracking-[-0.02em] text-foreground">
-              Notes Library
-            </p>
-          </div>
-
-          {showCloseButton && (
-            <button
-              onClick={onRequestClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
-              title="Close sidebar"
+          {hasSearchSection && (
+            <div
+              className={cn(
+                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200",
+                isSearchOpen ? "translate-y-0" : "translate-y-12",
+              )}
             >
-              <X className="h-4 w-4" strokeWidth={1.5} />
-            </button>
+              <div className="flex items-center gap-2 rounded-xl border border-white/7 bg-white/[0.045] px-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      closeSearch();
+                    }
+                  }}
+                  placeholder="Search"
+                  className="h-9 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
+                />
+                <button
+                  onClick={closeSearch}
+                  className="inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                  title="Close search"
+                >
+                  <X className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Modular sections */}
-      <div className={cn(
-        "flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-0",
-        sidebarStore.config.compactMode && "text-sm"
-      )}>
-        {sections.map(renderSection)}
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:pb-0",
+          sidebarStore.config.compactMode && "text-sm",
+        )}
+      >
+        {searchQuery.trim() ? (
+          <div className="px-3 py-3">
+            {hasSearchResults ? (
+              <div className="overflow-hidden rounded-xl border border-white/6 bg-white/[0.025]">
+                {searchResults.folders.length > 0 && (
+                  <div className="border-b border-white/6 p-2 last:border-b-0">
+                    <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
+                      Folders
+                    </p>
+                    {searchResults.folders.map((folder) => (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleSearchFolderSelect(folder.id)}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
+                      >
+                        <Folder
+                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                          strokeWidth={1.5}
+                        />
+                        <span className="truncate text-[13px]">{folder.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.files.length > 0 && (
+                  <div className="p-2">
+                    <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/70">
+                      Files
+                    </p>
+                    {searchResults.files.slice(0, 10).map((file) => (
+                      <button
+                        key={file.id}
+                        onClick={() => handleSearchFileSelect(file.id)}
+                        className={cn(
+                          "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
+                          file.id === activeFileId
+                            ? "bg-accent text-foreground"
+                            : "text-foreground/80 hover:bg-accent",
+                        )}
+                      >
+                        <FileText
+                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                          strokeWidth={1.5}
+                        />
+                        <span className="truncate text-[13px]">{file.name}</span>
+                      </button>
+                    ))}
+                    {searchResults.files.length > 10 && (
+                      <p className="px-2 py-1 text-[10px] text-muted-foreground">
+                        +{searchResults.files.length - 10} more results
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-2 py-3">
+                <p className="text-xs text-muted-foreground/70">No results found</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          visibleSections.map(renderSection)
+        )}
       </div>
     </div>
   );

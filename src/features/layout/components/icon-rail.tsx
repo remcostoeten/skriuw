@@ -1,7 +1,9 @@
-import { FolderOpen, Sun, Moon, Settings } from "lucide-react";
+import { FolderOpen, BookOpen, Sun, Moon, Settings } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface IconRailProps {
   activeTab: string;
@@ -12,6 +14,7 @@ interface IconRailProps {
 export function IconRail({ activeTab, onTabChange, onOpenSettings }: IconRailProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -22,33 +25,47 @@ export function IconRail({ activeTab, onTabChange, onOpenSettings }: IconRailPro
   };
 
   return (
-    <div className="w-12 flex flex-col items-center py-3 gap-1 bg-card border-r border-border">
+    <div className="native-panel w-12 flex flex-col items-center gap-1 border-r border-border py-3">
       {/* Notes/Folders tab */}
-      <button
-        onClick={() => onTabChange("notes")}
+      <Link
+        href="/"
         className={cn(
-          "w-9 h-9 flex items-center justify-center rounded-md transition-colors",
-          activeTab === "notes"
-            ? "bg-accent text-foreground"
-            : "text-muted-foreground hover:text-foreground hover:bg-accent",
+          "pressable flex h-9 w-9 items-center justify-center rounded-xl border border-transparent transition-colors",
+          pathname === "/"
+            ? "native-surface border-border/60 text-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-accent/65",
         )}
         title="Notes"
       >
         <FolderOpen className="w-[18px] h-[18px]" strokeWidth={1.5} />
-      </button>
+      </Link>
+
+      {/* Journal tab */}
+      <Link
+        href="/journal"
+        className={cn(
+          "pressable flex h-9 w-9 items-center justify-center rounded-xl border border-transparent transition-colors",
+          pathname === "/journal"
+            ? "native-surface border-border/60 text-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-accent/65",
+        )}
+        title="Journal"
+      >
+        <BookOpen className="w-[18px] h-[18px]" strokeWidth={1.5} />
+      </Link>
 
       {/* Bottom icons - Settings and Theme toggle */}
       <div className="mt-auto flex flex-col gap-1">
         <button
           onClick={onOpenSettings}
-          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="pressable flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
           title="Settings"
         >
           <Settings className="w-[18px] h-[18px]" strokeWidth={1.5} />
         </button>
         <button
           onClick={toggleTheme}
-          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="pressable flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
           title="Toggle theme"
         >
           {mounted ? (

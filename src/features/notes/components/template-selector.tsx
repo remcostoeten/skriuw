@@ -2,7 +2,7 @@
 
 import { Check, Calendar, RotateCw, TrendingUp } from "lucide-react";
 import { cn, coerceDate } from "@/shared/lib/utils";
-import { useSettingsStore, TEMPLATE_OPTIONS, TemplateStyle } from "@/modules/settings";
+import { usePreferencesStore, TEMPLATE_OPTIONS, type TemplateStyle } from "@/store/preferences-store";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface TemplateSelectorProps {
@@ -21,7 +21,7 @@ function formatRelativeDate(date: Date | null): string {
 }
 
 export function TemplateSelector({ selectedTemplate, onSelectTemplate }: TemplateSelectorProps) {
-  const { getTemplateTimestamp } = useSettingsStore();
+  const templateTimestamps = usePreferencesStore((s) => s.templateTimestamps);
 
   return (
     <div className="space-y-4">
@@ -33,7 +33,7 @@ export function TemplateSelector({ selectedTemplate, onSelectTemplate }: Templat
       {/* Template Grid */}
       <div className="grid grid-cols-1 gap-3">
         {TEMPLATE_OPTIONS.map((template) => {
-          const timestamp = getTemplateTimestamp(template.id);
+          const timestamp = templateTimestamps[template.id];
           const createdAt = coerceDate(timestamp.createdAt);
           const updatedAt = coerceDate(timestamp.updatedAt);
           const lastUsedAt = coerceDate(timestamp.lastUsedAt);

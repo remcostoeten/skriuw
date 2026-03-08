@@ -1,9 +1,8 @@
-import { useState, useCallback } from "react";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { useSettingsStore } from "@/modules/settings";
-import { TemplateStyle } from "@/modules/settings/types";
+import { usePreferencesStore, type TemplateStyle } from "@/store/preferences-store";
 
-// Helper to generate note content based on template
 function generateNoteContent(name: string, template: TemplateStyle): string {
   const title = name.replace(".md", "");
   const date = new Date().toISOString().split("T")[0];
@@ -16,7 +15,7 @@ updated: ${date}
 
 Start writing here...`;
 
-    case "journal":
+    case "journal": {
       const dateStr = new Date().toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
@@ -37,6 +36,7 @@ tags:
 *${timeStr}*
 
 `;
+    }
 
     case "simple":
     default:
@@ -167,175 +167,172 @@ Haptic takes a different approach:
   },
 ];
 
-export function useNotesStore() {
-  const [files, setFiles] = useState<NoteFile[]>(initialFiles);
-  const [folders, setFolders] = useState<NoteFolder[]>(initialFolders);
-  const [activeFileId, setActiveFileId] = useState<string>("readme");
-  const [showMetadata, setShowMetadata] = useState(false);
+type NotesState = {
+  files: NoteFile[];
+  folders: NoteFolder[];
+  activeFileId: string;
+  setActiveFileId: (id: string) => void;
+  createFile: (name: string, parentId?: string | null) => NoteFile;
+  createFolder: (name: string, parentId?: string | null) => NoteFolder;
+  updateFileContent: (id: string, content: string) => void;
+  renameFile: (id: string, name: string) => void;
+  renameFolder: (id: string, name: string) => void;
+  deleteFile: (id: string) => void;
+  deleteFolder: (id: string) => void;
+  moveFile: (fileId: string, newParentId: string | null) => void;
+  moveFolder: (folderId: string, newParentId: string | null) => void;
+  toggleFolder: (id: string) => void;
+};
 
-  const activeFile = files.find((f) => f.id === activeFileId) || null;
+function collectDescendantFolderIds(folders: NoteFolder[], folderId: string): string[] {
+  const childFolders = folders.filter((folder) => folder.parentId === folderId);
+  return [
+    folderId,
+    ...childFolders.flatMap((childFolder) => collectDescendantFolderIds(folders, childFolder.id)),
+  ];
+}
 
-  const createFile = useCallback((name: string, parentId: string | null = null) => {
-    // Get current template style from settings
-    const settings = useSettingsStore.getState().settings;
-    const template = settings?.templateStyle || "simple";
+export const useNotesStore = create<NotesState>()(
+  persist(
+    (set, get) => ({
+      files: initialFiles,
+      folders: initialFolders,
+      activeFileId: "readme",
 
-    const newFile: NoteFile = {
-      id: crypto.randomUUID(),
-      name: name.endsWith(".md") ? name : `${name}.md`,
-      content: generateNoteContent(name, template),
-      createdAt: new Date(),
-      modifiedAt: new Date(),
-      parentId,
-    };
-    setFiles((prev) => [...prev, newFile]);
-    setActiveFileId(newFile.id);
+      setActiveFileId: (id) => {
+        set({ activeFileId: id });
+      },
 
-    // Track template usage and increment note count in settings
-    useSettingsStore.getState().recordTemplateUsage(template);
-    useSettingsStore.getState().incrementNoteCount();
+      createFile: (name, parentId = null) => {
+        const template = usePreferencesStore.getState().templateStyle;
+        const newFile: NoteFile = {
+          id: crypto.randomUUID(),
+          name: name.endsWith(".md") ? name : `${name}.md`,
+          content: generateNoteContent(name, template),
+          createdAt: new Date(),
+          modifiedAt: new Date(),
+          parentId,
+        };
 
-    return newFile;
-  }, []);
+        set((state) => ({
+          files: [...state.files, newFile],
+          activeFileId: newFile.id,
+        }));
 
-  const createFolder = useCallback((name: string, parentId: string | null = null) => {
-    const newFolder: NoteFolder = {
-      id: crypto.randomUUID(),
-      name,
-      parentId,
-      isOpen: true,
-    };
-    setFolders((prev) => [...prev, newFolder]);
-    return newFolder;
-  }, []);
+        usePreferencesStore.getState().recordTemplateUsage(template);
+        usePreferencesStore.getState().incrementNoteCount();
 
-  const updateFileContent = useCallback((id: string, content: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, content, modifiedAt: new Date() } : f)),
-    );
-  }, []);
+        return newFile;
+      },
 
-  const renameFile = useCallback((id: string, name: string) => {
-    setFiles((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? { ...f, name: name.endsWith(".md") ? name : `${name}.md`, modifiedAt: new Date() }
-          : f,
-      ),
-    );
-  }, []);
+      createFolder: (name, parentId = null) => {
+        const newFolder: NoteFolder = {
+          id: crypto.randomUUID(),
+          name,
+          parentId,
+          isOpen: true,
+        };
 
-  const renameFolder = useCallback((id: string, name: string) => {
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
-  }, []);
+        set((state) => ({
+          folders: [...state.folders, newFolder],
+        }));
 
-  const deleteFile = useCallback(
-    (id: string) => {
-      setFiles((prev) => {
-        const nextFiles = prev.filter((file) => file.id !== id);
+        return newFolder;
+      },
 
-        if (activeFileId === id) {
-          setActiveFileId(nextFiles[0]?.id || "");
+      updateFileContent: (id, content) => {
+        set((state) => ({
+          files: state.files.map((file) =>
+            file.id === id ? { ...file, content, modifiedAt: new Date() } : file,
+          ),
+        }));
+      },
+
+      renameFile: (id, name) => {
+        set((state) => ({
+          files: state.files.map((file) =>
+            file.id === id
+              ? {
+                  ...file,
+                  name: name.endsWith(".md") ? name : `${name}.md`,
+                  modifiedAt: new Date(),
+                }
+              : file,
+          ),
+        }));
+      },
+
+      renameFolder: (id, name) => {
+        set((state) => ({
+          folders: state.folders.map((folder) => (folder.id === id ? { ...folder, name } : folder)),
+        }));
+      },
+
+      deleteFile: (id) => {
+        set((state) => {
+          const nextFiles = state.files.filter((file) => file.id !== id);
+          return {
+            files: nextFiles,
+            activeFileId: state.activeFileId === id ? (nextFiles[0]?.id ?? "") : state.activeFileId,
+          };
+        });
+      },
+
+      deleteFolder: (id) => {
+        set((state) => {
+          const folderIds = collectDescendantFolderIds(state.folders, id);
+          return {
+            files: state.files.filter((file) => !folderIds.includes(file.parentId || "")),
+            folders: state.folders.filter((folder) => !folderIds.includes(folder.id)),
+          };
+        });
+      },
+
+      moveFile: (fileId, newParentId) => {
+        set((state) => ({
+          files: state.files.map((file) =>
+            file.id === fileId ? { ...file, parentId: newParentId, modifiedAt: new Date() } : file,
+          ),
+        }));
+      },
+
+      moveFolder: (folderId, newParentId) => {
+        const descendantIds = collectDescendantFolderIds(get().folders, folderId);
+        if (newParentId && descendantIds.includes(newParentId)) {
+          return;
         }
 
-        return nextFiles;
-      });
+        set((state) => ({
+          folders: state.folders.map((folder) =>
+            folder.id === folderId ? { ...folder, parentId: newParentId } : folder,
+          ),
+        }));
+      },
+
+      toggleFolder: (id) => {
+        set((state) => ({
+          folders: state.folders.map((folder) =>
+            folder.id === id ? { ...folder, isOpen: !folder.isOpen } : folder,
+          ),
+        }));
+      },
+    }),
+    {
+      name: "notes-store",
+      partialize: (state) => ({
+        files: state.files,
+        folders: state.folders,
+        activeFileId: state.activeFileId,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+
+        state.files = state.files.map((file) => ({
+          ...file,
+          createdAt: new Date(file.createdAt),
+          modifiedAt: new Date(file.modifiedAt),
+        }));
+      },
     },
-    [activeFileId],
-  );
-
-  const deleteFolder = useCallback(
-    (id: string) => {
-      // Get all descendant folder IDs
-      const getDescendantFolderIds = (folderId: string): string[] => {
-        const childFolders = folders.filter((f) => f.parentId === folderId);
-        return [folderId, ...childFolders.flatMap((cf) => getDescendantFolderIds(cf.id))];
-      };
-      const folderIds = getDescendantFolderIds(id);
-
-      // Delete all files in these folders
-      setFiles((prev) => prev.filter((f) => !folderIds.includes(f.parentId || "")));
-      // Delete all folders
-      setFolders((prev) => prev.filter((f) => !folderIds.includes(f.id)));
-    },
-    [folders],
-  );
-
-  const moveFile = useCallback((fileId: string, newParentId: string | null) => {
-    setFiles((prev) =>
-      prev.map((f) =>
-        f.id === fileId ? { ...f, parentId: newParentId, modifiedAt: new Date() } : f,
-      ),
-    );
-  }, []);
-
-  const moveFolder = useCallback(
-    (folderId: string, newParentId: string | null) => {
-      // Prevent moving a folder into itself or its descendants
-      const getDescendantFolderIds = (id: string): string[] => {
-        const childFolders = folders.filter((f) => f.parentId === id);
-        return [id, ...childFolders.flatMap((cf) => getDescendantFolderIds(cf.id))];
-      };
-      const descendantIds = getDescendantFolderIds(folderId);
-      if (newParentId && descendantIds.includes(newParentId)) {
-        return; // Can't move folder into its own descendant
-      }
-      setFolders((prev) =>
-        prev.map((f) => (f.id === folderId ? { ...f, parentId: newParentId } : f)),
-      );
-    },
-    [folders],
-  );
-
-  const toggleFolder = useCallback((id: string) => {
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, isOpen: !f.isOpen } : f)));
-  }, []);
-
-  const getFilesInFolder = useCallback(
-    (parentId: string | null) => {
-      return files.filter((f) => f.parentId === parentId);
-    },
-    [files],
-  );
-
-  const getFoldersInFolder = useCallback(
-    (parentId: string | null) => {
-      return folders.filter((f) => f.parentId === parentId);
-    },
-    [folders],
-  );
-
-  // Count all descendants (files + folders) recursively
-  const countDescendants = useCallback(
-    (folderId: string): number => {
-      const childFiles = files.filter((f) => f.parentId === folderId).length;
-      const childFolders = folders.filter((f) => f.parentId === folderId);
-      const childFolderCount = childFolders.reduce((sum, cf) => sum + countDescendants(cf.id), 0);
-      return childFiles + childFolders.length + childFolderCount;
-    },
-    [files, folders],
-  );
-
-  return {
-    files,
-    folders,
-    activeFile,
-    activeFileId,
-    showMetadata,
-    setActiveFileId,
-    setShowMetadata,
-    createFile,
-    createFolder,
-    updateFileContent,
-    renameFile,
-    renameFolder,
-    deleteFile,
-    deleteFolder,
-    moveFile,
-    moveFolder,
-    toggleFolder,
-    getFilesInFolder,
-    getFoldersInFolder,
-    countDescendants,
-  };
-}
+  ),
+);

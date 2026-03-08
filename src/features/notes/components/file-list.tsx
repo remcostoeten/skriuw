@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { ChevronRight, Folder, Pencil, Trash2, FolderInput, Star, Briefcase } from "lucide-react";
+import {
+  Briefcase,
+  ChevronRight,
+  FileText,
+  Folder,
+  FolderInput,
+  Pencil,
+  Star,
+  Trash2,
+} from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -35,6 +44,12 @@ interface FileListProps {
   onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
 }
 
+type SelectedItem = {
+  id: string;
+  type: "file" | "folder";
+  parentId: string | null;
+};
+
 type DragItem = {
   type: "file" | "folder";
   id: string;
@@ -43,6 +58,7 @@ type DragItem = {
 
 export function FileList({
   folders,
+  files,
   activeFileId,
   onFileSelect,
   onToggleFolder,
@@ -56,15 +72,56 @@ export function FileList({
   getFoldersInFolder,
   countDescendants,
 }: FileListProps) {
-  // Sidebar store for favorites and projects
+  // Sidebar store for favorites, projects, and custom sections
   const {
+    config,
     isFavorite,
     addToFavorites,
     removeFromFavorites,
     getProjects,
     addToProject,
+    addToCustomSection,
   } = useSidebarStore();
   const projects = getProjects();
+  const customSections = config.sections.filter((section) => section.type === "custom");
+
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
+  const flattenedVisibleItems = useMemo<SelectedItem[]>(() => {
+    const list: SelectedItem[] = [];
+
+    const visit = (parentId: string | null) => {
+      const folderChildren = getFoldersInFolder(parentId);
+      folderChildren.forEach((folder) => {
+        list.push({ id: folder.id, type: "folder", parentId: folder.parentId });
+        if (folder.isOpen) {
+          visit(folder.id);
+        }
+      });
+      const fileChildren = getFilesInFolder(parentId);
+      fileChildren.forEach((file) => {
+        list.push({ id: file.id, type: "file", parentId: file.parentId });
+      });
+    };
+
+    visit(null);
+    return list;
+  }, [files, folders, getFilesInFolder, getFoldersInFolder]);
+
+  const getDescendantIds = useCallback(
+    function collect(folderId: string): string[] {
+      const children = getFoldersInFolder(folderId);
+      return [folderId, ...children.flatMap((child) => collect(child.id))];
+    },
+    [getFoldersInFolder],
+  );
+
+  const isItemSelected = useCallback(
+    (item: SelectedItem) =>
+      selectedItems.some((selection) => selection.id === item.id && selection.type === item.type),
+    [selectedItems],
+  );
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -122,9 +179,15 @@ export function FileList({
     (e: React.MouseEvent, id: string, name: string, type: "file" | "folder") => {
       e.preventDefault();
       e.stopPropagation();
+      if (
+        selectedItems.length > 1 &&
+        selectedItems.some((selection) => selection.id === id && selection.type === type)
+      ) {
+        return;
+      }
       startRename(id, name, type);
     },
-    [startRename],
+    [selectedItems, startRename],
   );
 
   // Drag handlers
@@ -144,6 +207,112 @@ export function FileList({
     setDropTarget(null);
   }, []);
 
+  const getSelectionForAction = useCallback(
+    (item: SelectedItem) => {
+      const alreadySelected = selectedItems.some(
+        (selection) => selection.id === item.id && selection.type === item.type,
+      );
+      const base = alreadySelected ? selectedItems : [...selectedItems, item];
+      const deduped: SelectedItem[] = [];
+      const seen = new Set<string>();
+      base.forEach((selection) => {
+        const key = `${selection.type}:${selection.id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(selection);
+        }
+      });
+      return deduped.length ? deduped : [item];
+    },
+    [selectedItems],
+  );
+
+  const deleteSelection = useCallback(
+    (items: SelectedItem[]) => {
+      items.forEach((item) => {
+        if (item.type === "file") {
+          onDeleteFile(item.id);
+        } else {
+          onDeleteFolder(item.id);
+        }
+      });
+      setSelectedItems([]);
+    },
+    [onDeleteFile, onDeleteFolder, setSelectedItems],
+  );
+
+  const moveSelected = useCallback(
+    (items: SelectedItem[], targetParentId: string | null) => {
+      items.forEach((item) => {
+        if (item.type === "file") {
+          onMoveFile(item.id, targetParentId);
+        } else {
+          if (targetParentId && getDescendantIds(item.id).includes(targetParentId)) {
+            return;
+          }
+          onMoveFolder(item.id, targetParentId);
+        }
+      });
+      setSelectedItems([]);
+    },
+    [onMoveFile, onMoveFolder, getDescendantIds, setSelectedItems],
+  );
+
+  const handleItemClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>, item: SelectedItem, action: () => void) => {
+      const metaKey = event.metaKey || event.ctrlKey;
+      const shiftKey = event.shiftKey;
+      const itemIndex = flattenedVisibleItems.findIndex(
+        (entry) => entry.id === item.id && entry.type === item.type,
+      );
+
+      if (shiftKey && lastSelectedIndexRef.current !== null && itemIndex !== -1) {
+        const start = Math.min(lastSelectedIndexRef.current, itemIndex);
+        const end = Math.max(lastSelectedIndexRef.current, itemIndex);
+        const range = flattenedVisibleItems.slice(start, end + 1);
+        setSelectedItems(range);
+        lastSelectedIndexRef.current = itemIndex;
+        event.preventDefault();
+        return;
+      }
+
+      if (metaKey) {
+        setSelectedItems((prev) => {
+          const exists = prev.some(
+            (selection) => selection.id === item.id && selection.type === item.type,
+          );
+          if (exists) {
+            return prev.filter(
+              (selection) => !(selection.id === item.id && selection.type === item.type),
+            );
+          }
+          return [...prev, item];
+        });
+        lastSelectedIndexRef.current = itemIndex;
+        event.preventDefault();
+        return;
+      }
+
+      setSelectedItems([item]);
+      lastSelectedIndexRef.current = itemIndex;
+      action();
+    },
+    [flattenedVisibleItems, setSelectedItems],
+  );
+
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent, item: SelectedItem) => {
+      if (!isItemSelected(item)) {
+        setSelectedItems([item]);
+        const index = flattenedVisibleItems.findIndex(
+          (entry) => entry.id === item.id && entry.type === item.type,
+        );
+        lastSelectedIndexRef.current = index !== -1 ? index : null;
+      }
+    },
+    [flattenedVisibleItems, isItemSelected, setSelectedItems],
+  );
+
   const handleDragOver = useCallback(
     (e: React.DragEvent, targetId: string | null, targetType: "folder" | "root") => {
       e.preventDefault();
@@ -153,10 +322,6 @@ export function FileList({
 
       // Prevent dropping a folder into itself or its descendants
       if (dragItem.type === "folder" && targetType === "folder") {
-        const getDescendantIds = (folderId: string): string[] => {
-          const children = folders.filter((f) => f.parentId === folderId);
-          return [folderId, ...children.flatMap((c) => getDescendantIds(c.id))];
-        };
         const descendants = getDescendantIds(dragItem.id);
         if (targetId && descendants.includes(targetId)) {
           e.dataTransfer.dropEffect = "none";
@@ -201,10 +366,6 @@ export function FileList({
 
       // Prevent dropping folder into its descendants
       if (dragItem.type === "folder" && targetId) {
-        const getDescendantIds = (folderId: string): string[] => {
-          const children = folders.filter((f) => f.parentId === folderId);
-          return [folderId, ...children.flatMap((c) => getDescendantIds(c.id))];
-        };
         if (getDescendantIds(dragItem.id).includes(targetId)) {
           setDragItem(null);
           setDropTarget(null);
@@ -225,56 +386,44 @@ export function FileList({
   );
 
   // Get all folders for "Move to" submenu
-  const allFolders = folders;
+  const renderMoveToSubmenu = useCallback(
+    (items: SelectedItem[]) => {
+      const selectionFolders = items.filter((item) => item.type === "folder");
+      const invalidFolderIds = new Set<string>();
+      selectionFolders.forEach((folderItem) => {
+        getDescendantIds(folderItem.id).forEach((descendantId) =>
+          invalidFolderIds.add(descendantId),
+        );
+      });
 
-  const renderMoveToSubmenu = (
-    currentId: string,
-    currentParentId: string | null,
-    type: "file" | "folder",
-  ) => {
-    const availableFolders =
-      type === "folder"
-        ? allFolders.filter((f) => f.id !== currentId && f.parentId !== currentId)
-        : allFolders;
+      const availableFolders = folders.filter((folder) => !invalidFolderIds.has(folder.id));
+      const hasSelectionAtNonRoot = items.some((item) => item.parentId !== null);
 
-    return (
-      <ContextMenuSub>
-        <ContextMenuSubTrigger className="gap-2">
-          <FolderInput className="w-4 h-4" />
-          Move to
-        </ContextMenuSubTrigger>
-        <ContextMenuSubContent className="w-48">
-          {currentParentId !== null && (
-            <ContextMenuItem
-              onClick={() =>
-                type === "file" ? onMoveFile(currentId, null) : onMoveFolder(currentId, null)
-              }
-            >
-              Root
-            </ContextMenuItem>
-          )}
-          {availableFolders.map(
-            (folder) =>
-              folder.id !== currentParentId && (
-                <ContextMenuItem
-                  key={folder.id}
-                  onClick={() =>
-                    type === "file"
-                      ? onMoveFile(currentId, folder.id)
-                      : onMoveFolder(currentId, folder.id)
-                  }
-                >
-                  {folder.name}
-                </ContextMenuItem>
-              ),
-          )}
-          {availableFolders.length === 0 && currentParentId === null && (
-            <ContextMenuItem disabled>No folders available</ContextMenuItem>
-          )}
-        </ContextMenuSubContent>
-      </ContextMenuSub>
-    );
-  };
+      return (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="gap-2">
+            <FolderInput className="w-4 h-4" />
+            Move to
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48">
+            {hasSelectionAtNonRoot && (
+              <ContextMenuItem onClick={() => moveSelected(items, null)}>Root</ContextMenuItem>
+            )}
+            {availableFolders.length > 0
+              ? availableFolders.map((folder) => (
+                  <ContextMenuItem key={folder.id} onClick={() => moveSelected(items, folder.id)}>
+                    {folder.name}
+                  </ContextMenuItem>
+                ))
+              : !hasSelectionAtNonRoot && (
+                  <ContextMenuItem disabled>No folders available</ContextMenuItem>
+                )}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      );
+    },
+    [folders, getDescendantIds, moveSelected],
+  );
 
   const renderFolder = (folder: NoteFolder, depth: number = 0) => {
     const childFolders = getFoldersInFolder(folder.id);
@@ -283,14 +432,25 @@ export function FileList({
     const isEditing = editingId === folder.id;
     const isDragging = dragItem?.id === folder.id;
     const isDropTarget = dropTarget?.id === folder.id;
+    const folderItem: SelectedItem = { id: folder.id, type: "folder", parentId: folder.parentId };
+    const selectionForAction = getSelectionForAction(folderItem);
+    const selectionHasMultiple = selectionForAction.length > 1;
+    const isSelected = isItemSelected(folderItem);
 
     return (
       <div key={folder.id}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <button
-              onClick={() => !isEditing && onToggleFolder(folder.id)}
+              onClick={(event) =>
+                handleItemClick(event, folderItem, () => {
+                  if (!isEditing) {
+                    onToggleFolder(folder.id);
+                  }
+                })
+              }
               onDoubleClick={(e) => handleDoubleClick(e, folder.id, folder.name, "folder")}
+              onContextMenu={(event) => handleContextMenu(event, folderItem)}
               draggable={!isEditing}
               onDragStart={(e) =>
                 handleDragStart(e, { type: "folder", id: folder.id, parentId: folder.parentId })
@@ -300,11 +460,14 @@ export function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                "group flex min-h-11 w-full items-center gap-1.5 rounded-xl text-[14px] text-foreground/70 transition-colors hover:bg-accent md:h-[30px] md:min-h-0 md:rounded-lg md:text-[13px]",
+                "group flex min-h-10 w-full items-center gap-1.5 rounded-lg text-[13px] transition-colors md:h-[28px] md:min-h-0",
+                isSelected
+                  ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                  : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground/88",
                 isDragging && "opacity-50",
-                isDropTarget && "bg-primary/20 ring-1 ring-primary/40",
+                isDropTarget && "bg-primary/12 ring-1 ring-white/10",
               )}
-              style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "12px" }}
+              style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
             >
               <ChevronRight
                 className={cn(
@@ -334,30 +497,34 @@ export function FileList({
                   <span className="text-left truncate select-none">{folder.name}</span>
                 )}
               </span>
-              <span className="text-xs text-muted-foreground tabular-nums">{totalCount}</span>
+              <span className="ml-2 w-4 shrink-0 text-right text-[10px] text-muted-foreground/65 tabular-nums">
+                {totalCount}
+              </span>
             </button>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-48">
             <ContextMenuItem
-              onClick={() => startRename(folder.id, folder.name, "folder")}
+              onClick={() => {
+                if (!selectionHasMultiple) {
+                  startRename(folder.id, folder.name, "folder");
+                }
+              }}
               className="gap-2"
+              disabled={selectionHasMultiple}
             >
               <Pencil className="w-4 h-4" />
               Rename
             </ContextMenuItem>
-            {renderMoveToSubmenu(folder.id, folder.parentId, "folder")}
+            {renderMoveToSubmenu(selectionForAction)}
             <ContextMenuSeparator />
             {isFavorite(folder.id) ? (
-              <ContextMenuItem
-                onClick={() => removeFromFavorites(folder.id)}
-                className="gap-2"
-              >
+              <ContextMenuItem onClick={() => removeFromFavorites(folder.id)} className="gap-2">
                 <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                 Remove from Favorites
               </ContextMenuItem>
             ) : (
               <ContextMenuItem
-                onClick={() => addToFavorites(folder.id, 'folder')}
+                onClick={() => addToFavorites(folder.id, "folder")}
                 className="gap-2"
               >
                 <Star className="w-4 h-4" />
@@ -374,7 +541,7 @@ export function FileList({
                   {projects.map((project) => (
                     <ContextMenuItem
                       key={project.id}
-                      onClick={() => addToProject(project.id, folder.id, 'folder')}
+                      onClick={() => addToProject(project.id, folder.id, "folder")}
                       className="gap-2"
                     >
                       <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
@@ -384,13 +551,32 @@ export function FileList({
                 </ContextMenuSubContent>
               </ContextMenuSub>
             )}
+            {customSections.length > 0 && (
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="gap-2">
+                  <Folder className="w-4 h-4" />
+                  Add to Section
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-44">
+                  {customSections.map((section) => (
+                    <ContextMenuItem
+                      key={section.id}
+                      onClick={() => addToCustomSection(section.id, folder.id, "folder")}
+                      className="gap-2"
+                    >
+                      {section.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            )}
             <ContextMenuSeparator />
             <ContextMenuItem
-              onClick={() => onDeleteFolder(folder.id)}
+              onClick={() => deleteSelection(selectionForAction)}
               className="gap-2 text-destructive focus:text-destructive"
             >
               <Trash2 className="w-4 h-4" />
-              Delete
+              {selectionHasMultiple ? "Delete selected" : "Delete"}
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
@@ -407,12 +593,23 @@ export function FileList({
   const renderFile = (file: NoteFile, depth: number = 0) => {
     const isEditing = editingId === file.id;
     const isDragging = dragItem?.id === file.id;
+    const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
+    const selectionForAction = getSelectionForAction(fileItem);
+    const selectionHasMultiple = selectionForAction.length > 1;
+    const isSelected = isItemSelected(fileItem);
 
     return (
       <ContextMenu key={file.id}>
         <ContextMenuTrigger asChild>
           <button
-            onClick={() => !isEditing && onFileSelect(file.id)}
+            onClick={(event) =>
+              handleItemClick(event, fileItem, () => {
+                if (!isEditing) {
+                  onFileSelect(file.id);
+                }
+              })
+            }
+            onContextMenu={(event) => handleContextMenu(event, fileItem)}
             onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
             draggable={!isEditing}
             onDragStart={(e) =>
@@ -420,14 +617,18 @@ export function FileList({
             }
             onDragEnd={handleDragEnd}
             className={cn(
-              "flex min-h-11 w-full items-center truncate rounded-xl text-left text-[14px] transition-colors md:h-[30px] md:min-h-0 md:rounded-lg md:text-[13px]",
-              activeFileId === file.id
-                ? "bg-accent text-foreground"
-                : "text-foreground/60 hover:bg-accent hover:text-foreground/80",
+              "flex min-h-10 w-full items-center gap-2 truncate rounded-lg text-left text-[13px] transition-colors md:h-[28px] md:min-h-0",
+              isSelected || activeFileId === file.id
+                ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
-            style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "12px" }}
+            style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
           >
+            <FileText
+              className="h-[14px] w-[14px] shrink-0 text-muted-foreground/70"
+              strokeWidth={1.5}
+            />
             <span className="flex-1 min-w-0 h-[18px] flex items-center">
               {isEditing ? (
                 <input
@@ -449,27 +650,26 @@ export function FileList({
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem
-            onClick={() => startRename(file.id, file.name, "file")}
+            onClick={() => {
+              if (!selectionHasMultiple) {
+                startRename(file.id, file.name, "file");
+              }
+            }}
             className="gap-2"
+            disabled={selectionHasMultiple}
           >
             <Pencil className="w-4 h-4" />
             Rename
           </ContextMenuItem>
-          {renderMoveToSubmenu(file.id, file.parentId, "file")}
+          {renderMoveToSubmenu(selectionForAction)}
           <ContextMenuSeparator />
           {isFavorite(file.id) ? (
-            <ContextMenuItem
-              onClick={() => removeFromFavorites(file.id)}
-              className="gap-2"
-            >
+            <ContextMenuItem onClick={() => removeFromFavorites(file.id)} className="gap-2">
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               Remove from Favorites
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem
-              onClick={() => addToFavorites(file.id, 'file')}
-              className="gap-2"
-            >
+            <ContextMenuItem onClick={() => addToFavorites(file.id, "file")} className="gap-2">
               <Star className="w-4 h-4" />
               Add to Favorites
             </ContextMenuItem>
@@ -484,7 +684,7 @@ export function FileList({
                 {projects.map((project) => (
                   <ContextMenuItem
                     key={project.id}
-                    onClick={() => addToProject(project.id, file.id, 'file')}
+                    onClick={() => addToProject(project.id, file.id, "file")}
                     className="gap-2"
                   >
                     <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
@@ -494,13 +694,32 @@ export function FileList({
               </ContextMenuSubContent>
             </ContextMenuSub>
           )}
+          {customSections.length > 0 && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="gap-2">
+                <Folder className="w-4 h-4" />
+                Add to Section
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-44">
+                {customSections.map((section) => (
+                  <ContextMenuItem
+                    key={section.id}
+                    onClick={() => addToCustomSection(section.id, file.id, "file")}
+                    className="gap-2"
+                  >
+                    {section.name}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => onDeleteFile(file.id)}
+            onClick={() => deleteSelection(selectionForAction)}
             className="gap-2 text-destructive focus:text-destructive"
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {selectionHasMultiple ? "Delete selected" : "Delete"}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -509,11 +728,19 @@ export function FileList({
 
   const rootFolders = getFoldersInFolder(null);
   const rootFiles = getFilesInFolder(null);
+  useEffect(() => {
+    const validKeys = new Set<string>();
+    files.forEach((file) => validKeys.add(`file:${file.id}`));
+    folders.forEach((folder) => validKeys.add(`folder:${folder.id}`));
+    setSelectedItems((prev) =>
+      prev.filter((selection) => validKeys.has(`${selection.type}:${selection.id}`)),
+    );
+  }, [files, folders, setSelectedItems]);
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
 
   return (
     <div
-      className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/10")}
+      className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/6")}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}
       onDrop={(e) => handleDrop(e, null)}

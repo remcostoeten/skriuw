@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { FileList } from '../file-list';
-import { NoteFile, NoteFolder } from '@/types/notes';
-import { SidebarSection } from './sidebar-section';
+import { memo } from "react";
+import { FileList } from "../file-list";
+import { NoteFile, NoteFolder } from "@/types/notes";
+import { SidebarSection } from "./sidebar-section";
 
 type Props = {
   files: NoteFile[];
@@ -23,11 +24,11 @@ type Props = {
   getFoldersInFolder: (parentId: string | null) => NoteFolder[];
   countDescendants: (folderId: string) => number;
   // Section-specific handlers for adding to favorites/projects
-  onAddToFavorites?: (itemId: string, itemType: 'file' | 'folder') => void;
-  onAddToProject?: (projectId: string, itemId: string, itemType: 'file' | 'folder') => void;
+  onAddToFavorites?: (itemId: string, itemType: "file" | "folder") => void;
+  onAddToProject?: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
 };
 
-export function FileTreeSection({
+export const FileTreeSection = memo(function FileTreeSection({
   files,
   folders,
   activeFileId,
@@ -51,13 +52,13 @@ export function FileTreeSection({
   return (
     <SidebarSection
       id="file-tree"
-      title="All Notes"
+      title="File Tree"
       isCollapsed={isCollapsed}
       itemCount={totalItems}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
     >
-      <div className="max-h-none overflow-y-auto md:max-h-[400px]">
+      <div className="max-h-none overflow-y-auto md:max-h-[420px]">
         <FileList
           files={files}
           folders={folders}
@@ -77,4 +78,4 @@ export function FileTreeSection({
       </div>
     </SidebarSection>
   );
-}
+});

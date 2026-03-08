@@ -84,7 +84,7 @@ export function MetadataPanel({
                   <button
                     onClick={onRequestClose}
                     onPointerDown={(event) => event.stopPropagation()}
-                    className="flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="pressable flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     title="Close details"
                   >
                     <X className="h-4 w-4" strokeWidth={1.6} />
@@ -105,6 +105,7 @@ export function MetadataPanel({
             onClick={() => setActiveTab("info")}
             className={cn(
               "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              "pressable",
               isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
               activeTab === "info"
                 ? "bg-accent text-foreground"
@@ -118,6 +119,7 @@ export function MetadataPanel({
             onClick={() => setActiveTab("outline-solid")}
             className={cn(
               "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              "pressable",
               isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
               activeTab === "outline-solid"
                 ? "bg-accent text-foreground"
@@ -131,7 +133,12 @@ export function MetadataPanel({
       </div>
 
       {activeTab === "info" && (
-        <div className={cn("overflow-y-auto", isMobile ? "space-y-3 px-4 py-4" : "space-y-2.5 px-4 py-4")}>
+        <div
+          className={cn(
+            "overflow-y-auto",
+            isMobile ? "space-y-3 px-4 py-4" : "space-y-2.5 px-4 py-4",
+          )}
+        >
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -167,7 +174,9 @@ export function MetadataPanel({
                       isMobile && "min-h-11 rounded-2xl bg-background/45 px-4 py-3",
                     )}
                     style={{
-                      paddingLeft: isMobile ? `${16 + (level - 1) * 12}px` : `${(level - 1) * 12}px`,
+                      paddingLeft: isMobile
+                        ? `${16 + (level - 1) * 12}px`
+                        : `${(level - 1) * 12}px`,
                     }}
                   >
                     {text}
