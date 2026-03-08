@@ -1,31 +1,49 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { format } from 'date-fns';
-import { MoodLevel } from '@/types/notes';
+import { create } from "zustand";
+import { format } from "date-fns";
+import type { MoodLevel } from "@/types/notes";
+import {
+  createJournalEntry,
+  createJournalTag,
+  destroyJournalEntry,
+  destroyJournalTag,
+  readJournalEntries,
+  readJournalTags,
+  updateJournalEntry,
+} from "@/core/journal";
+import type {
+  CssColorValue,
+  DateKey,
+  JournalEntryId,
+  TagId,
+  TagName,
+} from "@/core/shared/persistence-types";
 import {
   JournalConfig,
   JournalEntry,
   JournalTag,
   TAG_COLORS,
   DEFAULT_JOURNAL_CONFIG,
-} from './types';
+} from "./types";
 
 type JournalState = {
   config: JournalConfig;
-
-  // Entry management
+  isHydrated: boolean;
+  initialize: () => Promise<void>;
   getEntryByDate: (date: Date) => JournalEntry | undefined;
   getEntryByDateKey: (dateKey: string) => JournalEntry | undefined;
   getEntriesForMonth: (year: number, month: number) => JournalEntry[];
-  createOrUpdateEntry: (date: Date, content: string, tags?: string[], mood?: MoodLevel) => JournalEntry;
+  createOrUpdateEntry: (
+    date: Date,
+    content: string,
+    tags?: string[],
+    mood?: MoodLevel,
+  ) => JournalEntry;
   deleteEntry: (id: string) => void;
   updateEntryContent: (id: string, content: string) => void;
   updateEntryMood: (id: string, mood: MoodLevel | undefined) => void;
   addTagToEntry: (entryId: string, tagName: string) => void;
   removeTagFromEntry: (entryId: string, tagName: string) => void;
   getDatesWithEntries: () => string[];
-
-  // Tag management
   getAllTags: () => JournalTag[];
   createTag: (name: string) => JournalTag;
   deleteTag: (id: string) => void;
@@ -34,217 +52,339 @@ type JournalState = {
 };
 
 function toDateKey(date: Date): string {
-  return format(date, 'yyyy-MM-dd');
+  return format(date, "yyyy-MM-dd");
 }
 
-export const useJournalStore = create<JournalState>()(
-  persist(
-    (set, get) => ({
-      config: DEFAULT_JOURNAL_CONFIG,
+function normalizeTagName(tagName: string): string {
+  return tagName.toLowerCase().trim();
+}
 
-      getEntryByDate: (date: Date) => {
-        const key = toDateKey(date);
-        return get().config.entries.find((e) => e.dateKey === key);
+const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+export const useJournalStore = create<JournalState>()((set, get) => ({
+  config: DEFAULT_JOURNAL_CONFIG,
+  isHydrated: false,
+
+  initialize: async () => {
+    if (get().isHydrated) return;
+
+    const [entries, tags] = await Promise.all([readJournalEntries(), readJournalTags()]);
+    set({
+      config: {
+        entries,
+        tags,
       },
+      isHydrated: true,
+    });
+  },
 
-      getEntryByDateKey: (dateKey: string) => {
-        return get().config.entries.find((e) => e.dateKey === dateKey);
+  getEntryByDate: (date: Date) => {
+    const key = toDateKey(date);
+    return get().config.entries.find((entry) => entry.dateKey === key);
+  },
+
+  getEntryByDateKey: (dateKey: string) => {
+    return get().config.entries.find((entry) => entry.dateKey === dateKey);
+  },
+
+  getEntriesForMonth: (year: number, month: number) => {
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    return get().config.entries.filter((entry) => entry.dateKey.startsWith(prefix));
+  },
+
+  createOrUpdateEntry: (date: Date, content: string, tags?: string[], mood?: MoodLevel) => {
+    const key = toDateKey(date);
+    const existing = get().config.entries.find((entry) => entry.dateKey === key);
+    const normalizedTags = tags?.map(normalizeTagName) ?? existing?.tags ?? [];
+    const updatedAt = new Date();
+
+    if (existing) {
+      const nextEntry: JournalEntry = {
+        ...existing,
+        content,
+        tags: normalizedTags,
+        mood: mood ?? existing.mood,
+        updatedAt,
+      };
+
+      set((state) => ({
+        config: {
+          ...state.config,
+          entries: state.config.entries.map((entry) =>
+            entry.id === existing.id ? nextEntry : entry,
+          ),
+        },
+      }));
+
+      void updateJournalEntry({
+        id: existing.id as JournalEntryId,
+        content,
+        tags: normalizedTags.map((tag) => tag as TagName),
+        mood: mood ?? existing.mood,
+        updatedAt,
+      });
+
+      return nextEntry;
+    }
+
+    const newEntry: JournalEntry = {
+      id: crypto.randomUUID(),
+      dateKey: key,
+      content,
+      tags: normalizedTags,
+      mood,
+      createdAt: updatedAt,
+      updatedAt,
+    };
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        entries: [...state.config.entries, newEntry],
       },
+    }));
 
-      getEntriesForMonth: (year: number, month: number) => {
-        const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-        return get().config.entries.filter((e) => e.dateKey.startsWith(prefix));
+    void createJournalEntry({
+      id: newEntry.id as JournalEntryId,
+      dateKey: newEntry.dateKey as DateKey,
+      content: newEntry.content,
+      tags: normalizedTags.map((tag) => tag as TagName),
+      mood,
+      createdAt: newEntry.createdAt,
+      updatedAt: newEntry.updatedAt,
+    });
+
+    return newEntry;
+  },
+
+  deleteEntry: (id: string) => {
+    set((state) => ({
+      config: {
+        ...state.config,
+        entries: state.config.entries.filter((entry) => entry.id !== id),
       },
+    }));
 
-      createOrUpdateEntry: (date: Date, content: string, tags?: string[], mood?: MoodLevel) => {
-        const key = toDateKey(date);
-        const existing = get().config.entries.find((e) => e.dateKey === key);
+    const pendingTimeout = contentSaveTimeouts.get(id);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+      contentSaveTimeouts.delete(id);
+    }
 
-        if (existing) {
-          set((state) => ({
-            config: {
-              ...state.config,
-              entries: state.config.entries.map((e) =>
-                e.id === existing.id
-                  ? {
-                      ...e,
-                      content,
-                      tags: tags ?? e.tags,
-                      mood: mood ?? e.mood,
-                      updatedAt: new Date(),
-                    }
-                  : e,
-              ),
+    void destroyJournalEntry(id as JournalEntryId);
+  },
+
+  updateEntryContent: (id: string, content: string) => {
+    const updatedAt = new Date();
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        entries: state.config.entries.map((entry) =>
+          entry.id === id ? { ...entry, content, updatedAt } : entry,
+        ),
+      },
+    }));
+
+    const pendingTimeout = contentSaveTimeouts.get(id);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+    }
+
+    const timeoutId = setTimeout(() => {
+      contentSaveTimeouts.delete(id);
+      void updateJournalEntry({
+        id: id as JournalEntryId,
+        content,
+        updatedAt,
+      });
+    }, 220);
+
+    contentSaveTimeouts.set(id, timeoutId);
+  },
+
+  updateEntryMood: (id: string, mood: MoodLevel | undefined) => {
+    const updatedAt = new Date();
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        entries: state.config.entries.map((entry) =>
+          entry.id === id ? { ...entry, mood, updatedAt } : entry,
+        ),
+      },
+    }));
+
+    void updateJournalEntry({
+      id: id as JournalEntryId,
+      mood,
+      updatedAt,
+    });
+  },
+
+  addTagToEntry: (entryId: string, tagName: string) => {
+    const normalizedTag = normalizeTagName(tagName);
+    if (!normalizedTag) return;
+
+    const updatedAt = new Date();
+
+    set((state) => {
+      const tagExists = state.config.tags.some((tag) => tag.name === normalizedTag);
+      const updatedTags = tagExists
+        ? state.config.tags.map((tag) =>
+            tag.name === normalizedTag ? { ...tag, usageCount: tag.usageCount + 1 } : tag,
+          )
+        : [
+            ...state.config.tags,
+            {
+              id: crypto.randomUUID(),
+              name: normalizedTag,
+              color: TAG_COLORS[state.config.tags.length % TAG_COLORS.length],
+              usageCount: 1,
             },
-          }));
-          return { ...existing, content, tags: tags ?? existing.tags, mood: mood ?? existing.mood };
-        }
+          ];
 
-        const newEntry: JournalEntry = {
-          id: crypto.randomUUID(),
-          dateKey: key,
-          content,
-          tags: tags ?? [],
-          mood,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+      const entry = state.config.entries.find((item) => item.id === entryId);
+      const nextEntryTags =
+        entry && !entry.tags.includes(normalizedTag) ? [...entry.tags, normalizedTag] : entry?.tags;
 
-        set((state) => ({
-          config: {
-            ...state.config,
-            entries: [...state.config.entries, newEntry],
-          },
-        }));
+      return {
+        config: {
+          ...state.config,
+          tags: updatedTags,
+          entries: state.config.entries.map((item) =>
+            item.id === entryId && nextEntryTags
+              ? { ...item, tags: nextEntryTags, updatedAt }
+              : item,
+          ),
+        },
+      };
+    });
 
-        return newEntry;
+    const createdTag = get().config.tags.find((tag) => tag.name === normalizedTag);
+    if (!createdTag) {
+      void createJournalTag({
+        name: normalizedTag as TagName,
+        color: TAG_COLORS[
+          (get().config.tags.length - 1 + TAG_COLORS.length) % TAG_COLORS.length
+        ] as CssColorValue,
+      });
+    }
+
+    const entry = get().config.entries.find((item) => item.id === entryId);
+    if (entry) {
+      void updateJournalEntry({
+        id: entry.id as JournalEntryId,
+        tags: entry.tags.map((tag) => tag as TagName),
+        updatedAt,
+      });
+    }
+  },
+
+  removeTagFromEntry: (entryId: string, tagName: string) => {
+    const normalizedTag = normalizeTagName(tagName);
+    const updatedAt = new Date();
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        entries: state.config.entries.map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                tags: entry.tags.filter((tag) => tag !== normalizedTag),
+                updatedAt,
+              }
+            : entry,
+        ),
+        tags: state.config.tags.map((tag) =>
+          tag.name === normalizedTag
+            ? { ...tag, usageCount: Math.max(0, tag.usageCount - 1) }
+            : tag,
+        ),
       },
+    }));
 
-      deleteEntry: (id: string) => {
-        set((state) => ({
-          config: {
-            ...state.config,
-            entries: state.config.entries.filter((e) => e.id !== id),
-          },
-        }));
+    const entry = get().config.entries.find((item) => item.id === entryId);
+    if (entry) {
+      void updateJournalEntry({
+        id: entry.id as JournalEntryId,
+        tags: entry.tags.map((tag) => tag as TagName),
+        updatedAt,
+      });
+    }
+  },
+
+  getDatesWithEntries: () => {
+    return get().config.entries.map((entry) => entry.dateKey);
+  },
+
+  getAllTags: () => {
+    return get().config.tags.toSorted((a, b) => b.usageCount - a.usageCount);
+  },
+
+  createTag: (name: string) => {
+    const normalizedName = normalizeTagName(name);
+    const existing = get().config.tags.find((tag) => tag.name === normalizedName);
+    if (existing) return existing;
+
+    const newTag: JournalTag = {
+      id: crypto.randomUUID(),
+      name: normalizedName,
+      color: TAG_COLORS[get().config.tags.length % TAG_COLORS.length],
+      usageCount: 0,
+    };
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        tags: [...state.config.tags, newTag],
       },
+    }));
 
-      updateEntryContent: (id: string, content: string) => {
-        set((state) => ({
-          config: {
-            ...state.config,
-            entries: state.config.entries.map((e) =>
-              e.id === id ? { ...e, content, updatedAt: new Date() } : e,
-            ),
-          },
-        }));
+    void createJournalTag({
+      id: newTag.id as TagId,
+      name: newTag.name as TagName,
+      color: newTag.color as CssColorValue,
+    });
+
+    return newTag;
+  },
+
+  deleteTag: (id: string) => {
+    const tag = get().config.tags.find((item) => item.id === id);
+    if (!tag) return;
+
+    set((state) => ({
+      config: {
+        ...state.config,
+        tags: state.config.tags.filter((item) => item.id !== id),
+        entries: state.config.entries.map((entry) => ({
+          ...entry,
+          tags: entry.tags.filter((entryTag) => entryTag !== tag.name),
+        })),
       },
+    }));
 
-      updateEntryMood: (id: string, mood: MoodLevel | undefined) => {
-        set((state) => ({
-          config: {
-            ...state.config,
-            entries: state.config.entries.map((e) =>
-              e.id === id ? { ...e, mood, updatedAt: new Date() } : e,
-            ),
-          },
-        }));
-      },
+    void destroyJournalTag(id as TagId);
+  },
 
-      addTagToEntry: (entryId: string, tagName: string) => {
-        const normalizedTag = tagName.toLowerCase().trim();
-        if (!normalizedTag) return;
+  getTagSuggestions: (query: string) => {
+    const lower = query.toLowerCase().trim();
+    if (!lower) {
+      return get()
+        .config.tags.toSorted((a, b) => b.usageCount - a.usageCount)
+        .slice(0, 8);
+    }
 
-        set((state) => {
-          // Ensure tag exists in tag registry
-          const tagExists = state.config.tags.some((t) => t.name === normalizedTag);
-          const updatedTags = tagExists
-            ? state.config.tags.map((t) =>
-                t.name === normalizedTag ? { ...t, usageCount: t.usageCount + 1 } : t,
-              )
-            : [
-                ...state.config.tags,
-                {
-                  id: crypto.randomUUID(),
-                  name: normalizedTag,
-                  color: TAG_COLORS[state.config.tags.length % TAG_COLORS.length],
-                  usageCount: 1,
-                },
-              ];
+    return get()
+      .config.tags.filter((tag) => tag.name.includes(lower))
+      .toSorted((a, b) => b.usageCount - a.usageCount)
+      .slice(0, 8);
+  },
 
-          return {
-            config: {
-              ...state.config,
-              tags: updatedTags,
-              entries: state.config.entries.map((e) =>
-                e.id === entryId && !e.tags.includes(normalizedTag)
-                  ? { ...e, tags: [...e.tags, normalizedTag], updatedAt: new Date() }
-                  : e,
-              ),
-            },
-          };
-        });
-      },
-
-      removeTagFromEntry: (entryId: string, tagName: string) => {
-        set((state) => ({
-          config: {
-            ...state.config,
-            entries: state.config.entries.map((e) =>
-              e.id === entryId
-                ? { ...e, tags: e.tags.filter((t) => t !== tagName), updatedAt: new Date() }
-                : e,
-            ),
-            tags: state.config.tags.map((t) =>
-              t.name === tagName ? { ...t, usageCount: Math.max(0, t.usageCount - 1) } : t,
-            ),
-          },
-        }));
-      },
-
-      getDatesWithEntries: () => {
-        return get().config.entries.map((e) => e.dateKey);
-      },
-
-      // Tag management
-      getAllTags: () => {
-        return get().config.tags.toSorted((a, b) => b.usageCount - a.usageCount);
-      },
-
-      createTag: (name: string) => {
-        const normalizedName = name.toLowerCase().trim();
-        const existing = get().config.tags.find((t) => t.name === normalizedName);
-        if (existing) return existing;
-
-        const newTag: JournalTag = {
-          id: crypto.randomUUID(),
-          name: normalizedName,
-          color: TAG_COLORS[get().config.tags.length % TAG_COLORS.length],
-          usageCount: 0,
-        };
-
-        set((state) => ({
-          config: {
-            ...state.config,
-            tags: [...state.config.tags, newTag],
-          },
-        }));
-
-        return newTag;
-      },
-
-      deleteTag: (id: string) => {
-        const tag = get().config.tags.find((t) => t.id === id);
-        if (!tag) return;
-
-        set((state) => ({
-          config: {
-            ...state.config,
-            tags: state.config.tags.filter((t) => t.id !== id),
-            entries: state.config.entries.map((e) => ({
-              ...e,
-              tags: e.tags.filter((t) => t !== tag.name),
-            })),
-          },
-        }));
-      },
-
-      getTagSuggestions: (query: string) => {
-        const lower = query.toLowerCase().trim();
-        if (!lower) return get().config.tags.toSorted((a, b) => b.usageCount - a.usageCount).slice(0, 8);
-        return get()
-          .config.tags.filter((t) => t.name.includes(lower))
-          .toSorted((a, b) => b.usageCount - a.usageCount)
-          .slice(0, 8);
-      },
-
-      getEntriesByTag: (tagName: string) => {
-        return get().config.entries.filter((e) => e.tags.includes(tagName));
-      },
-    }),
-    {
-      name: 'theme-journal',
-      partialize: (state) => ({ config: state.config }),
-    },
-  ),
-);
+  getEntriesByTag: (tagName: string) => {
+    const normalizedTag = normalizeTagName(tagName);
+    return get().config.entries.filter((entry) => entry.tags.includes(normalizedTag));
+  },
+}));

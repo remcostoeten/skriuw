@@ -8,6 +8,7 @@ import { Code, Type, ChevronLeft } from "lucide-react";
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import { useJournalStore } from "@/modules/journal";
 import { useDocumentStore } from "@/store/document-store";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";

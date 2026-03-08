@@ -115,24 +115,27 @@ If a value is not required after reload, it should not be in this contract.
 
 These are the baseline shapes for part 1.
 
-### Persisted Record Base
+### Semantic Building Blocks
 
 ```ts
-type PersistedRecordBase = {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
+type Id<TName extends string> = Brand<string, `${TName}Id`>;
+type IsoTime = Brand<string, "IsoTime">;
+type Timestamps = {
+  createdAt: IsoTime;
+  updatedAt: IsoTime;
 };
+type Entity<TId extends string> = {
+  id: TId;
+} & Timestamps;
 ```
 
 ### Persisted Note
 
 ```ts
-type PersistedNote = PersistedRecordBase & {
+type PersistedNote = Entity<NoteId> & {
   name: string;
-  content: string;
-  parentId: string | null;
-  isFavorite?: boolean;
+  content: MarkdownContent;
+  parentId: FolderId | null;
 };
 ```
 
@@ -145,27 +148,25 @@ Notes:
 ### Persisted Folder
 
 ```ts
-type PersistedFolder = PersistedRecordBase & {
+type PersistedFolder = Entity<FolderId> & {
   name: string;
-  parentId: string | null;
-  isOpen?: boolean;
+  parentId: FolderId | null;
 };
 ```
 
 Notes:
 
-- `isOpen` is optional and should only remain if the team decides it is intentionally durable.
-- if folder-open state is considered ephemeral, remove it before implementation starts.
+- `isOpen` is treated as ephemeral UI state and excluded from persistence.
 
 ### Persisted Journal Entry
 
 ```ts
-type PersistedJournalEntry = PersistedRecordBase & {
-  dateKey: string;
+type PersistedJournalEntry = Entity<JournalEntryId> & {
+  dateKey: DateKey;
   title?: string;
-  content: string;
-  mood?: string | null;
-  tags: string[];
+  content: MarkdownContent;
+  mood?: MoodLevel | null;
+  tags: TagName[];
 };
 ```
 
@@ -177,9 +178,9 @@ Notes:
 ### Persisted Tag
 
 ```ts
-type PersistedTag = PersistedRecordBase & {
-  name: string;
-  color: string;
+type PersistedTag = Entity<TagId> & {
+  name: TagName;
+  color: CssColorValue;
 };
 ```
 
@@ -188,10 +189,10 @@ type PersistedTag = PersistedRecordBase & {
 ```ts
 type PersistedPreferences = {
   id: "preferences";
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoTime;
+  updatedAt: IsoTime;
   editorDefaultModeMarkdown: boolean;
-  templateStyle: string;
+  templateStyle: TemplateStyle;
   diaryModeEnabled: boolean;
 };
 ```
@@ -212,7 +213,10 @@ And that file exports:
 - `PERSISTENCE_SCHEMA_VERSION`
 - `PERSISTED_STORE_NAMES`
 - `PersistedStoreName`
-- `PersistedRecordBase`
+- `Brand`
+- `Id`
+- `Timestamps`
+- `Entity`
 - `PersistedNote`
 - `PersistedFolder`
 - `PersistedJournalEntry`
@@ -223,15 +227,16 @@ And that file exports:
 
 These must be resolved while writing the contract, not deferred into implementation:
 
-1. Should folder open state be durable or ephemeral?
-2. Should journal tags store tag names or tag IDs?
-3. Should note favorite state live on the note record or in a separate user-configuration layer?
+1. Should note `journalMeta` persist inside notes or be normalized into journal entries?
+2. Should journal entries derive `title` from content or persist it directly?
+3. Should tag persistence include usage metadata and `lastUsedAt`, or stay minimal?
 
 Default decisions for Part 1 if no one objects:
 
 - folder open state: `ephemeral`, do not persist
 - journal tags: store `tag names` for now
 - favorites: keep out of note persistence unless already part of the current domain model
+- preferences: persist only durable user choices, not activity/history/cache fields
 
 ## Acceptance Criteria
 
