@@ -14,7 +14,6 @@ type SidebarState = {
   config: SidebarConfig;
   isLoading: boolean;
 
-  // Section management
   getSections: () => SidebarSection[];
   toggleSectionCollapse: (sectionId: string) => void;
   toggleSectionVisibility: (sectionId: string) => void;
@@ -58,8 +57,8 @@ export const useSidebarStore = create<SidebarState>()(
       // Section management
       getSections: () => {
         return get().config.sections
-          .filter(s => s.isVisible)
-          .sort((a, b) => a.order - b.order);
+          .filter((section) => section.isVisible)
+          .toSorted((left, right) => left.order - right.order);
       },
 
       toggleSectionCollapse: (sectionId: string) => {
