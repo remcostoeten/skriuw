@@ -26,6 +26,7 @@ import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-pal
 import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
+import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 
 const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const SHEET_DISMISS_VELOCITY = 0.11;
@@ -44,6 +45,7 @@ export function NotesLayout() {
   const files = useNotesStore((state) => state.files);
   const folders = useNotesStore((state) => state.folders);
   const activeFileId = useNotesStore((state) => state.activeFileId);
+  const activeFileSaveState = useNotesStore((state) => state.getFileSaveState(state.activeFileId));
   const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
   const createFile = useNotesStore((state) => state.createFile);
   const createFolder = useNotesStore((state) => state.createFolder);
@@ -512,6 +514,9 @@ export function NotesLayout() {
         <div className="relative flex min-w-0 flex-1 overflow-hidden">
           <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-white/[0.04] to-transparent" />
+            <div className="pointer-events-none absolute right-4 top-3 z-20">
+              <SaveStatusBadge status={activeFileSaveState} />
+            </div>
             <EditorContainer
               file={activeFile}
               editorMode={editorMode}

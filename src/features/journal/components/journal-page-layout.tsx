@@ -17,6 +17,7 @@ import { JournalDatabaseView } from "./journal-database-view";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 
 type JournalView = "list" | "editor";
 
@@ -28,6 +29,8 @@ const SettingsModal = dynamic(
 export function JournalPageLayout() {
   const router = useRouter();
   const $ = useShortcut({ ignoreInputs: true });
+  const getEntryByDate = useJournalStore((state) => state.getEntryByDate);
+  const getEntrySaveState = useJournalStore((state) => state.getEntrySaveState);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -38,6 +41,8 @@ export function JournalPageLayout() {
   const ui = useDocumentStore((s) => s.ui);
   const setUIState = useDocumentStore((s) => s.setUIState);
   const { isMobile } = ui;
+  const selectedEntryId = getEntryByDate(selectedDate)?.id;
+  const selectedEntrySaveState = getEntrySaveState(selectedEntryId);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -271,6 +276,7 @@ export function JournalPageLayout() {
                 </span>
 
                 <div className="ml-auto flex items-center gap-1">
+                  <SaveStatusBadge status={selectedEntrySaveState} className="mr-2" />
                   <button
                     onClick={handleToggleEditorMode}
                     className="pressable flex h-7 items-center gap-1.5 rounded-xl px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

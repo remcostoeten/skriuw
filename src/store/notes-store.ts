@@ -12,6 +12,7 @@ import {
   updateFolder,
 } from "@/core/folders";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
+import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteFile, NoteFolder } from "@/types/notes";
 import { usePreferencesStore, type TemplateStyle } from "@/store/preferences-store";
 
@@ -180,6 +181,21 @@ Haptic takes a different approach:
 ];
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleSaveStatusReset(id: string, onReset: () => void) {
+  const existingTimeout = saveStatusResetTimeouts.get(id);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  const timeoutId = setTimeout(() => {
+    saveStatusResetTimeouts.delete(id);
+    onReset();
+  }, 1800);
+
+  saveStatusResetTimeouts.set(id, timeoutId);
+}
 
 function collectDescendantFolderIds(folders: NoteFolder[], folderId: string): string[] {
   const childFolders = folders.filter((folder) => folder.parentId === folderId);
@@ -231,7 +247,9 @@ type NotesState = {
   folders: NoteFolder[];
   activeFileId: string;
   isHydrated: boolean;
+  saveStates: Record<string, SaveStatus>;
   initialize: () => Promise<void>;
+  getFileSaveState: (id: string | null | undefined) => SaveStatus;
   setActiveFileId: (id: string) => void;
   createFile: (name: string, parentId?: string | null) => NoteFile;
   createFolder: (name: string, parentId?: string | null) => NoteFolder;
@@ -250,6 +268,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   folders: [],
   activeFileId: "",
   isHydrated: false,
+  saveStates: {},
 
   initialize: async () => {
     if (get().isHydrated) return;
@@ -281,6 +300,11 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     });
   },
 
+  getFileSaveState: (id) => {
+    if (!id) return "idle";
+    return get().saveStates[id] ?? "idle";
+  },
+
   setActiveFileId: (id) => {
     set({ activeFileId: id });
   },
@@ -299,6 +323,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     set((state) => ({
       files: [...state.files, newFile],
       activeFileId: newFile.id,
+      saveStates: { ...state.saveStates, [newFile.id]: "saving" },
     }));
 
     void persistCreateNote({
@@ -308,7 +333,22 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       parentId: newFile.parentId as FolderId | null,
       createdAt: newFile.createdAt,
       updatedAt: newFile.modifiedAt,
-    });
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newFile.id]: "saved" },
+        }));
+        scheduleSaveStatusReset(newFile.id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [newFile.id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newFile.id]: "error" },
+        }));
+      });
 
     usePreferencesStore.getState().recordTemplateUsage(template);
     usePreferencesStore.getState().incrementNoteCount();
@@ -346,6 +386,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       files: state.files.map((file) =>
         file.id === id ? { ...file, content, modifiedAt: updatedAt } : file,
       ),
+      saveStates: { ...state.saveStates, [id]: "saving" },
     }));
 
     const pendingTimeout = contentSaveTimeouts.get(id);
@@ -359,7 +400,22 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         id: id as NoteId,
         content: content as MarkdownContent,
         updatedAt,
-      });
+      })
+        .then(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "saved" },
+          }));
+          scheduleSaveStatusReset(id, () => {
+            set((state) => ({
+              saveStates: { ...state.saveStates, [id]: "idle" },
+            }));
+          });
+        })
+        .catch(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "error" },
+          }));
+        });
     }, 220);
 
     contentSaveTimeouts.set(id, timeoutId);
@@ -373,13 +429,29 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       files: state.files.map((file) =>
         file.id === id ? { ...file, name: normalizedName, modifiedAt: updatedAt } : file,
       ),
+      saveStates: { ...state.saveStates, [id]: "saving" },
     }));
 
     void updateNote({
       id: id as NoteId,
       name: normalizedName,
       updatedAt,
-    });
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "saved" },
+        }));
+        scheduleSaveStatusReset(id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "error" },
+        }));
+      });
   },
 
   renameFolder: (id, name) => {
@@ -402,6 +474,9 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       return {
         files: nextFiles,
         activeFileId: state.activeFileId === id ? (nextFiles[0]?.id ?? "") : state.activeFileId,
+        saveStates: Object.fromEntries(
+          Object.entries(state.saveStates).filter(([key]) => key !== id),
+        ),
       };
     });
 
@@ -411,7 +486,11 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       contentSaveTimeouts.delete(id);
     }
 
-    void persistDestroyNote(id as NoteId);
+    void persistDestroyNote(id as NoteId).catch(() => {
+      set((state) => ({
+        saveStates: { ...state.saveStates, [id]: "error" },
+      }));
+    });
   },
 
   deleteFolder: (id) => {

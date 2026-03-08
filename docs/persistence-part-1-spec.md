@@ -136,6 +136,7 @@ type PersistedNote = Entity<NoteId> & {
   name: string;
   content: MarkdownContent;
   parentId: FolderId | null;
+  journalMeta?: PersistedNoteJournalMetadata;
 };
 ```
 
@@ -144,6 +145,7 @@ Notes:
 - `content` is the durable source of truth.
 - `parentId` must be nullable for root notes.
 - do not persist derived lookup/index fields.
+- optional `journalMeta` remains attached to notes so note-level mood/tag/location data is not dropped.
 
 ### Persisted Folder
 
@@ -163,7 +165,6 @@ Notes:
 ```ts
 type PersistedJournalEntry = Entity<JournalEntryId> & {
   dateKey: DateKey;
-  title?: string;
   content: MarkdownContent;
   mood?: MoodLevel | null;
   tags: TagName[];
@@ -173,7 +174,8 @@ type PersistedJournalEntry = Entity<JournalEntryId> & {
 Notes:
 
 - `dateKey` must remain stable and sortable.
-- `tags` should store names or IDs consistently. Part 1 must choose one and document it.
+- journal titles are derived from content at read time, not persisted separately.
+- tags are persisted as normalized tag names.
 
 ### Persisted Tag
 
@@ -181,6 +183,8 @@ Notes:
 type PersistedTag = Entity<TagId> & {
   name: TagName;
   color: CssColorValue;
+  usageCount: number;
+  lastUsedAt: IsoTime | null;
 };
 ```
 
@@ -227,9 +231,9 @@ And that file exports:
 
 These must be resolved while writing the contract, not deferred into implementation:
 
-1. Should note `journalMeta` persist inside notes or be normalized into journal entries?
-2. Should journal entries derive `title` from content or persist it directly?
-3. Should tag persistence include usage metadata and `lastUsedAt`, or stay minimal?
+1. Should folder timestamps be persistence-owned, since the current UI model has no folder timestamps?
+2. Should journal tags eventually move to dedicated tag IDs in entries, or keep normalized names?
+3. Should note-level and journal-entry-level mood/tag metadata eventually be unified?
 
 Default decisions for Part 1 if no one objects:
 
@@ -237,6 +241,9 @@ Default decisions for Part 1 if no one objects:
 - journal tags: store `tag names` for now
 - favorites: keep out of note persistence unless already part of the current domain model
 - preferences: persist only durable user choices, not activity/history/cache fields
+- note `journalMeta`: persist on notes to avoid lossy round-tripping
+- journal titles: derive from content, do not persist separately
+- tags: persist `usageCount` and `lastUsedAt`
 
 ## Acceptance Criteria
 
