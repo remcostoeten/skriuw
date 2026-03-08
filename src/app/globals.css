@@ -209,17 +209,33 @@ layer(base);
 }
 
 @layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
     font-family:
       "Inter",
       system-ui,
       -apple-system,
       sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"],
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
   }
 
   ::-webkit-scrollbar {

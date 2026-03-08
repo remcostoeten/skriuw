@@ -231,12 +231,17 @@ export function useNotesStore() {
 
   const deleteFile = useCallback(
     (id: string) => {
-      setFiles((prev) => prev.filter((f) => f.id !== id));
-      if (activeFileId === id) {
-        setActiveFileId(files[0]?.id || "");
-      }
+      setFiles((prev) => {
+        const nextFiles = prev.filter((file) => file.id !== id);
+
+        if (activeFileId === id) {
+          setActiveFileId(nextFiles[0]?.id || "");
+        }
+
+        return nextFiles;
+      });
     },
-    [activeFileId, files],
+    [activeFileId],
   );
 
   const deleteFolder = useCallback(
