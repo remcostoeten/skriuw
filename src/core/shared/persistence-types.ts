@@ -1,5 +1,6 @@
 import type { TemplateStyle } from "@/store/preferences-store";
 import type { MoodLevel } from "@/types/notes";
+import type { RichTextDocument } from "@/types/notes";
 
 export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };
 export type Id<TName extends string> = Brand<string, `${TName}Id`>;
@@ -51,6 +52,8 @@ export type Entity<TId extends string = string> = {
 export type PersistedNote = Entity<NoteId> & {
   name: string;
   content: MarkdownContent;
+  richContent: RichTextDocument;
+  preferredEditorMode: "raw" | "block";
   parentId: FolderId | null;
   journalMeta?: PersistedNoteJournalMetadata;
 };
@@ -82,7 +85,7 @@ export type PersistedTag = Entity<TagId> & {
 };
 
 export type PersistedPreferences = Entity<PreferencesId> & {
-  editorDefaultModeMarkdown: boolean;
+  editorDefaultModeRaw: boolean;
   templateStyle: TemplateStyle;
   diaryModeEnabled: boolean;
 };

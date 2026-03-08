@@ -27,6 +27,7 @@ import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { SaveStatusBadge } from "@/shared/components/save-status-badge";
+import { markdownToRichDocument } from "@/shared/lib/rich-document";
 
 const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const SHEET_DISMISS_VELOCITY = 0.11;
@@ -106,15 +107,11 @@ export function NotesLayout() {
   const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
   const setSidebarWidth = useDocumentStore((s) => s.setSidebarWidth);
 
-  const {
-    editor,
-    isHydrated: isPreferencesHydrated,
-    initialize: initializePreferences,
-  } = usePreferencesStore();
+  const { initialize: initializePreferences } = usePreferencesStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-  const [editorMode, setEditorMode] = useState<"markdown" | "richtext" | null>(null);
+  const [editorMode, setEditorMode] = useState<"raw" | "block" | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const metadataDragControls = useDragControls();
   const sidebarResizeActiveRef = useRef(false);
@@ -157,16 +154,17 @@ export function NotesLayout() {
     }
   }, [setSidebarWidth]);
 
-  // Initialize preferences on mount
   useEffect(() => {
     initializePreferences();
   }, [initializePreferences]);
 
-  // Sync editor mode with preferences default
   useEffect(() => {
-    if (!isPreferencesHydrated) return;
-    setEditorMode(editor.defaultModeMarkdown ? "markdown" : "richtext");
-  }, [editor.defaultModeMarkdown, isPreferencesHydrated]);
+    if (!activeFile) {
+      setEditorMode(null);
+      return;
+    }
+    setEditorMode(activeFile.preferredEditorMode ?? "block");
+  }, [activeFile]);
 
   useEffect(() => {
     window.localStorage.setItem(DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
@@ -223,7 +221,7 @@ export function NotesLayout() {
   );
 
   const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
-  const isEditorReady = isNotesHydrated && isPreferencesHydrated && editorMode !== null;
+  const isEditorReady = isNotesHydrated && editorMode !== null;
 
   const handleFileSelect = useCallback(
     (id: string) => {
@@ -271,9 +269,24 @@ export function NotesLayout() {
   }, []);
 
   const handleToggleEditorMode = useCallback(() => {
+    if (!activeFile || !editorMode) return;
+
     triggerNativeFeedback("impact");
-    setEditorMode((current) => (current === "markdown" ? "richtext" : "markdown"));
-  }, []);
+    const nextMode = editorMode === "raw" ? "block" : "raw";
+
+    if (nextMode === "block") {
+      updateFileContent(activeFile.id, activeFile.content, {
+        richContent: markdownToRichDocument(activeFile.content),
+        preferredEditorMode: nextMode,
+      });
+    } else {
+      updateFileContent(activeFile.id, activeFile.content, {
+        preferredEditorMode: nextMode,
+      });
+    }
+
+    setEditorMode(nextMode);
+  }, [activeFile, editorMode, updateFileContent]);
 
   const handleOpenCommandPalette = useCallback(() => {
     triggerNativeFeedback("selection");
@@ -441,10 +454,10 @@ export function NotesLayout() {
     },
     {
       id: "toggle-editor-mode",
-      label: "Switch editor mode",
+      label: "Toggle editor surface",
       shortcut: "mod+e",
-      keywords: ["markdown", "rich text", "editor"],
-      description: "Swap between markdown and rich text.",
+      keywords: ["raw mdx", "block note", "editor"],
+      description: "Swap between raw MDX and Block Note.",
       action: handleToggleEditorMode,
     },
     {
@@ -491,7 +504,7 @@ export function NotesLayout() {
         },
         {
           id: "toggle-editor",
-          label: "Switch editor mode",
+          label: "Toggle editor surface",
           combo: "mod+e",
         },
         {
@@ -519,7 +532,7 @@ export function NotesLayout() {
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {!isMobile && (
-          <IconRail activeTab="notes" onTabChange={() => {}} onOpenSettings={handleOpenSettings} />
+          <IconRail onOpenSettings={handleOpenSettings} />
         )}
 
         {isEditorReady ? (
@@ -597,7 +610,7 @@ export function NotesLayout() {
       </div>
 
       <BottomBar
-        editorMode={editorMode ?? "markdown"}
+        editorMode={editorMode ?? "raw"}
         isMobile={isMobile}
         onOpenSettings={handleOpenSettings}
         onToggleEditorMode={handleToggleEditorMode}

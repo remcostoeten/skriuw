@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { useJournalStore, JournalTag } from '@/modules/journal';
+import { useJournalStore } from '@/modules/journal';
 import { MoodLevel, MOOD_OPTIONS } from '@/types/notes';
 
 type JournalEntryEditorProps = {

@@ -163,22 +163,22 @@ export function SettingsModal({ open, onOpenChange }: Props) {
             <div className="flex items-center justify-between py-2">
               <div className="space-y-1">
                 <Label htmlFor="default-mode" className="text-sm font-medium">
-                  Default to Markdown
+                  Default to Raw MDX
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  New notes will open in Markdown mode instead of Rich Text.
+                  New notes will open in raw MDX mode instead of Block Note.
                 </p>
               </div>
               <Switch
                 id="default-mode"
-                checked={editor.defaultModeMarkdown}
+                checked={editor.defaultModeRaw}
                 onCheckedChange={(checked) =>
-                  updateEditorPreference("defaultModeMarkdown", checked)
+                  updateEditorPreference("defaultModeRaw", checked)
                 }
               />
             </div>
             <p className="text-xs text-muted-foreground/70 italic">
-              Rich text mode remains exactly as it behaves today. This setting only affects the
+              Block Note remains the standard editing surface. This setting only affects the
               default mode for new notes.
             </p>
           </SettingsSection>

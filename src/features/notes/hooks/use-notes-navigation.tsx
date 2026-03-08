@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { NoteFile } from "../types";
+import type { NoteFile } from "@/types/notes";
 
 function UrlSyncInner({ onFileSelect }: { onFileSelect: (id: string) => void }) {
   const searchParams = useSearchParams();

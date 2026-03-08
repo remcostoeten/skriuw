@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { format, subDays, isAfter, startOfDay, endOfDay } from 'date-fns';
-import { Calendar, TrendingUp, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
+import { format, subDays, isAfter, startOfDay } from 'date-fns';
+import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { useJournalStore } from '@/modules/journal';
 import { MOOD_OPTIONS } from '@/types/notes';
@@ -362,7 +362,7 @@ export function JournalStats({ className }: JournalStatsProps) {
           </div>
           
           <div className="grid grid-cols-7 gap-0.5">
-            {stats.heatmap.map((day, index) => (
+            {stats.heatmap.map((day) => (
               <div
                 key={day.dateKey}
                 className={cn(

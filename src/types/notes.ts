@@ -1,5 +1,9 @@
+import type { PartialBlock } from "@blocknote/core";
+
 // Mood system for journal entries
 export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
+export type NoteEditorMode = "raw" | "block";
+export type RichTextDocument = PartialBlock[];
 
 export type Mood = {
   level: MoodLevel;
@@ -37,6 +41,8 @@ export interface NoteFile {
   id: string;
   name: string;
   content: string;
+  richContent: RichTextDocument;
+  preferredEditorMode: NoteEditorMode;
   createdAt: Date;
   modifiedAt: Date;
   parentId: string | null;

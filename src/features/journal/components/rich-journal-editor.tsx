@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
-import { X, Trash2, Type } from 'lucide-react';
+import { Trash2, Type } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { useJournalStore } from '@/modules/journal';
 import { MoodLevel, MOOD_OPTIONS } from '@/types/notes';
@@ -51,9 +51,9 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
   );
 
   const handleContentChange = useCallback(
-    (newContent: string) => {
-      setContent(newContent);
-      debouncedSave(newContent);
+    (next: { markdown: string }) => {
+      setContent(next.markdown);
+      debouncedSave(next.markdown);
     },
     [debouncedSave],
   );

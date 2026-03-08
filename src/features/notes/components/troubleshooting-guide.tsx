@@ -126,7 +126,7 @@ export function TroubleshootingGuide() {
       id: "mode",
       name: "Editor Mode",
       status: "pass",
-      message: `Default mode: ${editor.defaultModeMarkdown ? "Markdown" : "Rich Text"}`,
+      message: `Default mode: ${editor.defaultModeRaw ? "Raw MDX" : "Block Note"}`,
     };
 
     results.push(modeCheck);
@@ -311,7 +311,7 @@ export function TroubleshootingGuide() {
                   </p>
                   <p>
                     Mode:{" "}
-                    <strong>{editor.defaultModeMarkdown ? "Markdown" : "Rich Text"}</strong>
+                    <strong>{editor.defaultModeRaw ? "Raw MDX" : "Block Note"}</strong>
                   </p>
                 </div>
               </div>

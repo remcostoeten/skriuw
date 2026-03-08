@@ -13,8 +13,9 @@ import {
 } from "@/core/folders";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
-import type { NoteFile, NoteFolder } from "@/types/notes";
+import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore, type TemplateStyle } from "@/store/preferences-store";
+import { markdownToRichDocument } from "@/shared/lib/rich-document";
 
 function generateNoteContent(name: string, template: TemplateStyle): string {
   const title = name.replace(".md", "");
@@ -65,6 +66,14 @@ const initialFolders: NoteFolder[] = [
   { id: "folder-3", name: "Untitled", parentId: "folder-2", isOpen: false },
   { id: "folder-4", name: "Untitled 3", parentId: null, isOpen: false },
 ];
+
+function withCanonicalDocumentState(file: Omit<NoteFile, "richContent" | "preferredEditorMode">): NoteFile {
+  return {
+    ...file,
+    richContent: markdownToRichDocument(file.content),
+    preferredEditorMode: "block",
+  };
+}
 
 const initialFiles: NoteFile[] = [
   {
@@ -178,7 +187,7 @@ Haptic takes a different approach:
     modifiedAt: new Date("2024-02-20"),
     parentId: null,
   },
-];
+].map(withCanonicalDocumentState);
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -229,6 +238,8 @@ async function seedInitialNotesData() {
       id: file.id as NoteId,
       name: file.name,
       content: file.content as MarkdownContent,
+      richContent: markdownToRichDocument(file.content),
+      preferredEditorMode: "block",
       parentId: file.parentId as FolderId | null,
       createdAt: file.createdAt,
       updatedAt: file.modifiedAt,
@@ -253,7 +264,14 @@ type NotesState = {
   setActiveFileId: (id: string) => void;
   createFile: (name: string, parentId?: string | null) => NoteFile;
   createFolder: (name: string, parentId?: string | null) => NoteFolder;
-  updateFileContent: (id: string, content: string) => void;
+  updateFileContent: (
+    id: string,
+    content: string,
+    options?: {
+      richContent?: RichTextDocument;
+      preferredEditorMode?: NoteEditorMode;
+    },
+  ) => void;
   renameFile: (id: string, name: string) => void;
   renameFolder: (id: string, name: string) => void;
   deleteFile: (id: string) => void;
@@ -311,10 +329,16 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
 
   createFile: (name, parentId = null) => {
     const template = usePreferencesStore.getState().templateStyle;
+    const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
+    const generatedContent = generateNoteContent(name, template);
+    const richContent = markdownToRichDocument(generatedContent);
+    const preferredEditorMode = defaultModeRaw ? "raw" : "block";
     const newFile: NoteFile = {
       id: crypto.randomUUID(),
       name: name.endsWith(".md") ? name : `${name}.md`,
-      content: generateNoteContent(name, template),
+      content: generatedContent,
+      richContent,
+      preferredEditorMode,
       createdAt: new Date(),
       modifiedAt: new Date(),
       parentId,
@@ -330,6 +354,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       id: newFile.id as NoteId,
       name: newFile.name,
       content: newFile.content as MarkdownContent,
+      richContent: newFile.richContent,
+      preferredEditorMode: newFile.preferredEditorMode,
       parentId: newFile.parentId as FolderId | null,
       createdAt: newFile.createdAt,
       updatedAt: newFile.modifiedAt,
@@ -379,12 +405,22 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     return newFolder;
   },
 
-  updateFileContent: (id, content) => {
+  updateFileContent: (id, content, options) => {
     const updatedAt = new Date();
+    const richContent = options?.richContent ?? markdownToRichDocument(content);
+    const preferredEditorMode = options?.preferredEditorMode;
 
     set((state) => ({
       files: state.files.map((file) =>
-        file.id === id ? { ...file, content, modifiedAt: updatedAt } : file,
+        file.id === id
+          ? {
+              ...file,
+              content,
+              richContent,
+              preferredEditorMode: preferredEditorMode ?? file.preferredEditorMode,
+              modifiedAt: updatedAt,
+            }
+          : file,
       ),
       saveStates: { ...state.saveStates, [id]: "saving" },
     }));
@@ -399,6 +435,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       void updateNote({
         id: id as NoteId,
         content: content as MarkdownContent,
+        richContent,
+        preferredEditorMode,
         updatedAt,
       })
         .then(() => {

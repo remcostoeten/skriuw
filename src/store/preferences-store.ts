@@ -62,7 +62,7 @@ function createInitialTimestamp(): TemplateTimestamp {
 }
 
 interface EditorPreferences {
-  defaultModeMarkdown: boolean;
+  defaultModeRaw: boolean;
   defaultPlaceholder: string;
 }
 
@@ -109,7 +109,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       isHydrated: false,
 
       editor: {
-        defaultModeMarkdown: true,
+        defaultModeRaw: false,
         defaultPlaceholder: "Start writing...",
       },
 

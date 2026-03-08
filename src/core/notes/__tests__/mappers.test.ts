@@ -1,3 +1,4 @@
+import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { describe, expect, test } from "bun:test";
 import { fromPersistedNote, toPersistedNote } from "../mappers";
 
@@ -7,6 +8,8 @@ describe("note mappers", () => {
       id: "note-1",
       name: "Test.md",
       content: "# Test",
+      richContent: markdownToRichDocument("# Test"),
+      preferredEditorMode: "block" as const,
       parentId: "folder-1",
       createdAt: new Date("2026-03-01T10:00:00.000Z"),
       modifiedAt: new Date("2026-03-02T12:00:00.000Z"),
@@ -16,9 +19,12 @@ describe("note mappers", () => {
       id: "note-1",
       name: "Test.md",
       content: "# Test",
+      richContent: markdownToRichDocument("# Test"),
+      preferredEditorMode: "block",
       parentId: "folder-1",
       createdAt: "2026-03-01T10:00:00.000Z",
       updatedAt: "2026-03-02T12:00:00.000Z",
+      journalMeta: undefined,
     });
   });
 
@@ -27,6 +33,8 @@ describe("note mappers", () => {
       id: "note-1" as never,
       name: "Test.md",
       content: "# Test" as never,
+      richContent: markdownToRichDocument("# Test"),
+      preferredEditorMode: "block",
       parentId: "folder-1" as never,
       createdAt: "2026-03-01T10:00:00.000Z" as never,
       updatedAt: "2026-03-02T12:00:00.000Z" as never,
@@ -35,5 +43,7 @@ describe("note mappers", () => {
     expect(note.createdAt).toBeInstanceOf(Date);
     expect(note.modifiedAt).toBeInstanceOf(Date);
     expect(note.modifiedAt.toISOString()).toBe("2026-03-02T12:00:00.000Z");
+    expect(note.preferredEditorMode).toBe("block");
+    expect(note.richContent).toEqual(markdownToRichDocument("# Test"));
   });
 });

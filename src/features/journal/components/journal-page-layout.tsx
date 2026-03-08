@@ -286,11 +286,7 @@ export function JournalPageLayout() {
       <div className="relative flex min-h-0 flex-1">
         {/* Icon rail (desktop) */}
         {!isMobile && (
-          <IconRail
-            activeTab="journal"
-            onTabChange={() => {}}
-            onOpenSettings={handleOpenSettings}
-          />
+          <IconRail onOpenSettings={handleOpenSettings} />
         )}
 
         {/* Sidebar (desktop) */}

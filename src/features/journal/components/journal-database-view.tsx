@@ -8,7 +8,6 @@ import {
   Search,
   CalendarDays,
   Sparkles,
-  ChevronLeft,
   SortAsc,
   SortDesc,
 } from "lucide-react";

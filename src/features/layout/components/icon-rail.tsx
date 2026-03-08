@@ -6,12 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 interface IconRailProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
   onOpenSettings: () => void;
 }
 
-export function IconRail({ activeTab, onTabChange, onOpenSettings }: IconRailProps) {
+export function IconRail({ onOpenSettings }: IconRailProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
