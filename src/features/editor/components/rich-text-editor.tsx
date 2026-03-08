@@ -120,7 +120,10 @@ async function blocksToMarkdown(editor: BlockNoteEditor): Promise<string> {
 
 export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
+  const pendingMarkdownRef = useRef(content);
   const isInternalChangeRef = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serializeRunIdRef = useRef(0);
 
   const initialBlocks = useMemo(() => markdownToBlocks(content), []);
 
@@ -131,13 +134,32 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   // Handle content changes from editor
   const handleEditorChange = useCallback(async () => {
     if (!editor) return;
-    isInternalChangeRef.current = true;
+
+    const runId = ++serializeRunIdRef.current;
     const markdown = await blocksToMarkdown(editor);
-    lastContentRef.current = markdown;
-    onChange(markdown);
-    setTimeout(() => {
-      isInternalChangeRef.current = false;
-    }, 100);
+    if (runId !== serializeRunIdRef.current) {
+      return;
+    }
+
+    pendingMarkdownRef.current = markdown;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      if (pendingMarkdownRef.current === lastContentRef.current) {
+        return;
+      }
+
+      isInternalChangeRef.current = true;
+      lastContentRef.current = pendingMarkdownRef.current;
+      onChange(pendingMarkdownRef.current);
+
+      window.setTimeout(() => {
+        isInternalChangeRef.current = false;
+      }, 80);
+    }, 180);
   }, [editor, onChange]);
 
   // Sync external content changes to editor
@@ -147,8 +169,17 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       const blocks = markdownToBlocks(content);
       editor.replaceBlocks(editor.document, blocks);
       lastContentRef.current = content;
+      pendingMarkdownRef.current = content;
     }
   }, [content, editor]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="blocknote-wrapper h-full">

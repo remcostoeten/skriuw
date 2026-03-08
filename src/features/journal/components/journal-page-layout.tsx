@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Code, Type, ChevronLeft } from "lucide-react";
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { SettingsModal } from "@/features/settings/components/settings-modal";
 import { useDocumentStore } from "@/store/document-store";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
@@ -18,6 +18,11 @@ import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 
 type JournalView = "list" | "editor";
+
+const SettingsModal = dynamic(
+  () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
+  { ssr: false },
+);
 
 export function JournalPageLayout() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { useSidebarStore, SidebarSection as SidebarSectionType } from "@/modules/sidebar";
@@ -102,6 +102,7 @@ export function SidebarPanel({
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hasSearchSection = sections.some((section) => section.type === "search");
   const visibleSections = useMemo(
@@ -110,11 +111,11 @@ export function SidebarPanel({
   );
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!deferredSearchQuery.trim()) {
       return { files: [], folders: [] };
     }
 
-    const lowerQuery = searchQuery.toLowerCase();
+    const lowerQuery = deferredSearchQuery.toLowerCase();
 
     return {
       files: files.filter(
@@ -124,7 +125,7 @@ export function SidebarPanel({
       ),
       folders: folders.filter((folder) => folder.name.toLowerCase().includes(lowerQuery)),
     };
-  }, [files, folders, searchQuery]);
+  }, [deferredSearchQuery, files, folders]);
 
   const handleFileSelect = useCallback(
     (id: string) => {

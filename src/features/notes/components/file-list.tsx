@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import {
@@ -56,7 +56,14 @@ type DragItem = {
   parentId: string | null;
 };
 
-export function FileList({
+type VisibleItem =
+  | (SelectedItem & { depth: number; folder: NoteFolder; file?: never })
+  | (SelectedItem & { depth: number; file: NoteFile; folder?: never });
+
+const FILE_TREE_ROW_HEIGHT = 40;
+const FILE_TREE_OVERSCAN = 10;
+
+export const FileList = memo(function FileList({
   folders,
   files,
   activeFileId,
@@ -84,30 +91,44 @@ export function FileList({
   } = useSidebarStore();
   const projects = getProjects();
   const customSections = config.sections.filter((section) => section.type === "custom");
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const lastSelectedIndexRef = useRef<number | null>(null);
 
-  const flattenedVisibleItems = useMemo<SelectedItem[]>(() => {
-    const list: SelectedItem[] = [];
+  const flattenedVisibleItems = useMemo<VisibleItem[]>(() => {
+    const list: VisibleItem[] = [];
 
-    const visit = (parentId: string | null) => {
+    const visit = (parentId: string | null, depth: number) => {
       const folderChildren = getFoldersInFolder(parentId);
       folderChildren.forEach((folder) => {
-        list.push({ id: folder.id, type: "folder", parentId: folder.parentId });
+        list.push({
+          id: folder.id,
+          type: "folder",
+          parentId: folder.parentId,
+          depth,
+          folder,
+        });
         if (folder.isOpen) {
-          visit(folder.id);
+          visit(folder.id, depth + 1);
         }
       });
       const fileChildren = getFilesInFolder(parentId);
       fileChildren.forEach((file) => {
-        list.push({ id: file.id, type: "file", parentId: file.parentId });
+        list.push({
+          id: file.id,
+          type: "file",
+          parentId: file.parentId,
+          depth,
+          file,
+        });
       });
     };
 
-    visit(null);
+    visit(null, 0);
     return list;
-  }, [files, folders, getFilesInFolder, getFoldersInFolder]);
+  }, [getFilesInFolder, getFoldersInFolder]);
 
   const getDescendantIds = useCallback(
     function collect(folderId: string): string[] {
@@ -425,9 +446,7 @@ export function FileList({
     [folders, getDescendantIds, moveSelected],
   );
 
-  const renderFolder = (folder: NoteFolder, depth: number = 0) => {
-    const childFolders = getFoldersInFolder(folder.id);
-    const childFiles = getFilesInFolder(folder.id);
+  const renderFolderRow = (folder: NoteFolder, depth: number) => {
     const totalCount = countDescendants(folder.id);
     const isEditing = editingId === folder.id;
     const isDragging = dragItem?.id === folder.id;
@@ -580,17 +599,11 @@ export function FileList({
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
-        {folder.isOpen && (
-          <div>
-            {childFolders.map((f) => renderFolder(f, depth + 1))}
-            {childFiles.map((f) => renderFile(f, depth + 1))}
-          </div>
-        )}
       </div>
     );
   };
 
-  const renderFile = (file: NoteFile, depth: number = 0) => {
+  const renderFileRow = (file: NoteFile, depth: number) => {
     const isEditing = editingId === file.id;
     const isDragging = dragItem?.id === file.id;
     const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
@@ -725,9 +738,6 @@ export function FileList({
       </ContextMenu>
     );
   };
-
-  const rootFolders = getFoldersInFolder(null);
-  const rootFiles = getFilesInFolder(null);
   useEffect(() => {
     const validKeys = new Set<string>();
     files.forEach((file) => validKeys.add(`file:${file.id}`));
@@ -737,16 +747,43 @@ export function FileList({
     );
   }, [files, folders, setSelectedItems]);
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
+  const totalHeight = flattenedVisibleItems.length * FILE_TREE_ROW_HEIGHT;
+  const viewportHeight = listRef.current?.clientHeight ?? 0;
+  const visibleCount = Math.ceil(viewportHeight / FILE_TREE_ROW_HEIGHT) + FILE_TREE_OVERSCAN * 2;
+  const startIndex = Math.max(0, Math.floor(scrollTop / FILE_TREE_ROW_HEIGHT) - FILE_TREE_OVERSCAN);
+  const endIndex = Math.min(flattenedVisibleItems.length, startIndex + visibleCount);
+  const windowedItems = flattenedVisibleItems.slice(startIndex, endIndex);
 
   return (
     <div
+      ref={listRef}
       className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/6")}
+      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}
       onDrop={(e) => handleDrop(e, null)}
     >
-      {rootFolders.map((f) => renderFolder(f))}
-      {rootFiles.map((f) => renderFile(f))}
+      <div className="relative" style={{ height: totalHeight }}>
+        {windowedItems.map((item, visibleIndex) => {
+          const rowIndex = startIndex + visibleIndex;
+          const rowContent =
+            item.type === "folder" && item.folder
+              ? renderFolderRow(item.folder, item.depth)
+              : item.file
+                ? renderFileRow(item.file, item.depth)
+                : null;
+
+          return (
+            <div
+              key={`${item.type}:${item.id}`}
+              className="absolute left-0 right-0"
+              style={{ top: rowIndex * FILE_TREE_ROW_HEIGHT, height: FILE_TREE_ROW_HEIGHT }}
+            >
+              {rowContent}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
-}
+});

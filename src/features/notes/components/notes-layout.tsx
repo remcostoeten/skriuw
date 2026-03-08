@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   AnimatePresence,
@@ -20,7 +21,6 @@ import { EditorContainer } from "@/features/editor/components/editor-container";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { BottomBar } from "@/features/layout/components/bottom-bar";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { SettingsModal } from "@/features/settings/components/settings-modal";
 import { useFileNavigation, useUrlSync } from "../hooks/use-notes-navigation";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
@@ -32,6 +32,11 @@ const SHEET_DISMISS_VELOCITY = 0.11;
 const DESKTOP_SIDEBAR_MIN_WIDTH = 248;
 const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
 const DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY = "notes-sidebar-width";
+
+const SettingsModal = dynamic(
+  () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
+  { ssr: false },
+);
 
 export function NotesLayout() {
   const router = useRouter();

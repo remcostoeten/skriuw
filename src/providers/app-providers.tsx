@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
+import { PerformanceMonitor } from "@/shared/components/performance-monitor";
 
 type Props = {
   children: React.ReactNode;
@@ -26,7 +27,10 @@ export function AppProviders({ children }: Props) {
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <PerformanceMonitor />
+            {children}
+          </TooltipProvider>
         </ThemeProvider>
       </MotionConfig>
     </QueryClientProvider>
