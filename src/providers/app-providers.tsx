@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 
@@ -23,9 +24,11 @@ export function AppProviders({ children }: Props) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-      </ThemeProvider>
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }
