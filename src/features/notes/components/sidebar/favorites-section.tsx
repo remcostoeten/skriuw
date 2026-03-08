@@ -64,7 +64,7 @@ export function FavoritesSection({
               key={fav.id}
               onClick={() => fav.itemType === 'file' && onFileSelect(fav.itemId)}
               className={cn(
-                "group w-full flex items-center gap-2 px-4 py-1.5 text-left transition-colors",
+                "group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left transition-colors",
                 fav.itemType === 'file' && fav.itemId === activeFileId
                   ? "bg-accent text-foreground"
                   : "text-foreground/70 hover:bg-accent/50 hover:text-foreground"
@@ -82,7 +82,7 @@ export function FavoritesSection({
                   e.stopPropagation();
                   onRemoveFromFavorites(fav.itemId);
                 }}
-                className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground md:h-4 md:w-4 md:rounded-none md:opacity-0 md:group-hover:opacity-100"
               >
                 <X className="w-3 h-3" strokeWidth={1.5} />
               </button>

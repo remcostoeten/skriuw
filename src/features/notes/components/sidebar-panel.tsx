@@ -221,51 +221,65 @@ export function SidebarPanel({
   };
 
   return (
-    <div className={cn("flex h-full w-56 flex-col bg-background border-r border-border", className)}>
+    <div className={cn("flex h-full w-56 flex-col border-r border-border bg-background", className)}>
       {/* Toolbar */}
-      <div className="flex w-full flex-row items-center justify-center gap-2 border-b border-border px-3.5 py-2 sm:h-[40px]">
-        <button
-          onClick={onCreateFile}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-          title="New Note"
-        >
-          <NewNoteIcon />
-        </button>
-        <button
-          onClick={onCreateFolder}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-          title="New Folder"
-        >
-          <NewFolderNoteIcon />
-        </button>
-        <button
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
-          title="Expand"
-        >
-          <ExpandIcon />
-        </button>
-        <SidebarConfigManager
-          sections={sidebarStore.config.sections}
-          showSectionHeaders={sidebarStore.config.showSectionHeaders}
-          compactMode={sidebarStore.config.compactMode}
-          onReorderSections={sidebarStore.reorderSections}
-          onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
-          onAddCustomSection={sidebarStore.addCustomSection}
-          onRemoveSection={sidebarStore.removeSection}
-          onRenameSection={sidebarStore.renameSection}
-          onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
-          onToggleCompactMode={sidebarStore.toggleCompactMode}
-          onResetToDefaults={sidebarStore.resetToDefaults}
-        />
-        {showCloseButton && (
-          <button
-            onClick={onRequestClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
-            title="Close sidebar"
-          >
-            <X className="h-4 w-4" strokeWidth={1.5} />
-          </button>
-        )}
+      <div className="sticky top-0 z-10 border-b border-border/70 bg-background/88 backdrop-blur-xl">
+        <div className="flex w-full items-center gap-2 px-3.5 py-3 md:justify-center md:py-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onCreateFile}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+              title="New Note"
+            >
+              <NewNoteIcon />
+            </button>
+            <button
+              onClick={onCreateFolder}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+              title="New Folder"
+            >
+              <NewFolderNoteIcon />
+            </button>
+            <button
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+              title="Expand"
+            >
+              <ExpandIcon />
+            </button>
+            <SidebarConfigManager
+              sections={sidebarStore.config.sections}
+              showSectionHeaders={sidebarStore.config.showSectionHeaders}
+              compactMode={sidebarStore.config.compactMode}
+              onReorderSections={sidebarStore.reorderSections}
+              onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
+              onAddCustomSection={sidebarStore.addCustomSection}
+              onRemoveSection={sidebarStore.removeSection}
+              onRenameSection={sidebarStore.renameSection}
+              onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
+              onToggleCompactMode={sidebarStore.toggleCompactMode}
+              onResetToDefaults={sidebarStore.resetToDefaults}
+            />
+          </div>
+
+          <div className="min-w-0 flex-1 md:hidden">
+            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground/70">
+              Workspace
+            </p>
+            <p className="truncate text-sm font-semibold tracking-[-0.02em] text-foreground">
+              Notes Library
+            </p>
+          </div>
+
+          {showCloseButton && (
+            <button
+              onClick={onRequestClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+              title="Close sidebar"
+            >
+              <X className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modular sections */}

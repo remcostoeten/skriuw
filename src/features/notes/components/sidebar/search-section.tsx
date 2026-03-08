@@ -44,12 +44,12 @@ export function SearchSection({
   const showResults = query.trim() && isFocused;
 
   return (
-    <div className="px-3 py-2 border-b border-border/50">
+    <div className="border-b border-border/50 px-3 py-3">
       <div className={cn(
-        "relative flex items-center gap-2 rounded-md px-2 py-1.5 bg-accent/30 border border-transparent transition-colors",
+        "relative flex items-center gap-3 rounded-2xl border border-transparent bg-accent/30 px-3 py-2.5 transition-colors",
         isFocused && "border-ring bg-accent/50"
       )}>
-        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
+        <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         <input
           type="text"
           value={query}
@@ -57,12 +57,12 @@ export function SearchSection({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setTimeout(() => setIsFocused(false), 150)}
           placeholder="Search notes..."
-          className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
         />
         {query && (
           <button
             onClick={() => setQuery('')}
-            className="w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="w-3 h-3" strokeWidth={1.5} />
           </button>
@@ -71,12 +71,12 @@ export function SearchSection({
 
       {/* Search results dropdown */}
       {showResults && (
-        <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+        <div className="mt-3 max-h-64 overflow-y-auto rounded-2xl border border-border bg-popover shadow-lg">
           {hasResults ? (
             <>
               {results.folders.length > 0 && (
-                <div className="p-1">
-                  <p className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <div className="p-2">
+                  <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     Folders
                   </p>
                   {results.folders.map((folder) => (
@@ -86,17 +86,17 @@ export function SearchSection({
                         onFolderSelect(folder.id);
                         setQuery('');
                       }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-foreground/80 hover:bg-accent transition-colors"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
                     >
-                      <Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                      <span className="text-[13px] truncate">{folder.name}</span>
+                      <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                      <span className="truncate text-[13px]">{folder.name}</span>
                     </button>
                   ))}
                 </div>
               )}
               {results.files.length > 0 && (
-                <div className="p-1">
-                  <p className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <div className="p-2">
+                  <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     Files
                   </p>
                   {results.files.slice(0, 10).map((file) => (
@@ -107,14 +107,14 @@ export function SearchSection({
                         setQuery('');
                       }}
                       className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
+                        "flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors",
                         file.id === activeFileId
                           ? "bg-accent text-foreground"
                           : "text-foreground/80 hover:bg-accent"
                       )}
                     >
-                      <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                      <span className="text-[13px] truncate">{file.name}</span>
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                      <span className="truncate text-[13px]">{file.name}</span>
                     </button>
                   ))}
                   {results.files.length > 10 && (

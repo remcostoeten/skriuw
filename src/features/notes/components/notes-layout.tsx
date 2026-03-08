@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  useReducedMotion,
+  type PanInfo,
+  type Transition,
+} from "framer-motion";
 import { useNotesStore } from "@/store/notes-store";
 import { useSettingsStore } from "@/modules/settings";
 import { SidebarPanel } from "./sidebar-panel";
@@ -11,6 +19,9 @@ import { BottomBar } from "@/features/layout/components/bottom-bar";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { SettingsModal } from "@/features/settings/components/settings-modal";
 import { useFileNavigation, useUrlSync } from "../hooks/use-notes-navigation";
+
+const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
+const SHEET_DISMISS_VELOCITY = 0.11;
 
 export function NotesLayout() {
   const {
@@ -40,6 +51,8 @@ export function NotesLayout() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [editorMode, setEditorMode] = useState<"markdown" | "richtext">("markdown");
+  const prefersReducedMotion = useReducedMotion();
+  const metadataDragControls = useDragControls();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -125,8 +138,54 @@ export function NotesLayout() {
     createFolder("Untitled");
   }, [createFolder]);
 
+  const closeSidebar = useCallback(() => {
+    setShowSidebar(false);
+  }, []);
+
+  const closeMetadata = useCallback(() => {
+    setShowMetadata(false);
+  }, [setShowMetadata]);
+
+  const handleSidebarDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.x < -72 || info.velocity.x < -SHEET_DISMISS_VELOCITY) {
+      closeSidebar();
+    }
+  }, [closeSidebar]);
+
+  const handleMetadataDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.y > 96 || info.velocity.y > SHEET_DISMISS_VELOCITY) {
+      closeMetadata();
+    }
+  }, [closeMetadata]);
+
+  const handleMetadataDragStart = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      metadataDragControls.start(event);
+    },
+    [metadataDragControls],
+  );
+
+  const overlayTransition: Transition = prefersReducedMotion
+    ? { duration: 0.12, ease: "linear" }
+    : { duration: 0.2, ease: "easeOut" };
+
+  const sidebarTransition: Transition = prefersReducedMotion
+    ? { duration: 0.16, ease: "easeOut" }
+    : { duration: 0.5, ease: SHEET_EASE };
+
+  const metadataTransition: Transition = prefersReducedMotion
+    ? { duration: 0.16, ease: "easeOut" }
+    : { duration: 0.5, ease: SHEET_EASE };
+
   return (
     <LayoutContainer className="bg-background">
+      {isMobile && (
+        <>
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-40 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_62%)]" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-48 bg-[radial-gradient(circle_at_bottom,rgba(255,255,255,0.05),transparent_68%)]" />
+        </>
+      )}
+
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {!isMobile && (
           <IconRail
@@ -189,54 +248,105 @@ export function NotesLayout() {
       />
       <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
 
-      {isMobile && showSidebar && (
-        <>
-          <button
-            className="absolute inset-0 z-40 bg-black/55 backdrop-blur-[1px]"
-            onClick={() => setShowSidebar(false)}
-            aria-label="Close sidebar"
-          />
-          <div className="absolute inset-y-0 left-0 z-50 w-[min(88vw,24rem)] max-w-full shadow-2xl">
-            <SidebarPanel
-              files={files}
-              folders={folders}
-              activeFileId={activeFileId}
-              onFileSelect={handleFileSelect}
-              onToggleFolder={toggleFolder}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-              onRenameFile={renameFile}
-              onRenameFolder={renameFolder}
-              onDeleteFile={deleteFile}
-              onDeleteFolder={deleteFolder}
-              onMoveFile={moveFile}
-              onMoveFolder={moveFolder}
-              getFilesInFolder={getFilesInFolder}
-              getFoldersInFolder={getFoldersInFolder}
-              countDescendants={countDescendants}
-              className="w-full border-r-0 bg-card/95 backdrop-blur-xl"
-              onRequestClose={() => setShowSidebar(false)}
-              showCloseButton
+      <AnimatePresence>
+        {isMobile && showSidebar && (
+          <>
+            <motion.button
+              key="sidebar-backdrop"
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={overlayTransition}
+              className="absolute inset-0 z-40 bg-black/58 backdrop-blur-[2px]"
+              onClick={closeSidebar}
+              aria-label="Close sidebar"
             />
-          </div>
-        </>
-      )}
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full max-w-full items-stretch pr-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+              <motion.div
+                key="sidebar-panel"
+                initial={prefersReducedMotion ? { x: -12, opacity: 0 } : { x: -24, opacity: 0.96 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={prefersReducedMotion ? { x: -8, opacity: 0 } : { x: -32, opacity: 0.94 }}
+                transition={sidebarTransition}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragDirectionLock
+                dragElastic={{ left: 0.14, right: 0.05 }}
+                onDragEnd={handleSidebarDragEnd}
+                style={{ willChange: "transform, opacity" }}
+                className="pointer-events-auto h-full w-[min(92vw,24rem)] max-w-full overflow-hidden rounded-r-[2rem] border border-l-0 border-border/70 bg-card/92 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+              >
+                <SidebarPanel
+                  files={files}
+                  folders={folders}
+                  activeFileId={activeFileId}
+                  onFileSelect={handleFileSelect}
+                  onToggleFolder={toggleFolder}
+                  onCreateFile={handleCreateFile}
+                  onCreateFolder={handleCreateFolder}
+                  onRenameFile={renameFile}
+                  onRenameFolder={renameFolder}
+                  onDeleteFile={deleteFile}
+                  onDeleteFolder={deleteFolder}
+                  onMoveFile={moveFile}
+                  onMoveFolder={moveFolder}
+                  getFilesInFolder={getFilesInFolder}
+                  getFoldersInFolder={getFoldersInFolder}
+                  countDescendants={countDescendants}
+                  className="w-full border-r-0 bg-transparent"
+                  onRequestClose={closeSidebar}
+                  showCloseButton
+                />
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {isMobile && showMetadata && (
-        <>
-          <button
-            className="absolute inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
-            onClick={() => setShowMetadata(false)}
-            aria-label="Close metadata panel"
-          />
-          <div className="absolute inset-x-0 bottom-0 z-50 rounded-t-[1.75rem] border border-b-0 border-border bg-card/95 shadow-2xl backdrop-blur-xl">
-            <MetadataPanel
-              file={activeFile}
-              className="h-[min(68dvh,34rem)] w-full rounded-t-[1.75rem] border-l-0"
+      <AnimatePresence>
+        {isMobile && showMetadata && (
+          <>
+            <motion.button
+              key="metadata-backdrop"
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={overlayTransition}
+              className="absolute inset-0 z-40 bg-black/52 backdrop-blur-[2px]"
+              onClick={closeMetadata}
+              aria-label="Close metadata panel"
             />
-          </div>
-        </>
-      )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.35rem)]">
+              <motion.div
+                key="metadata-panel"
+                initial={prefersReducedMotion ? { y: 16, opacity: 0 } : { y: 56, opacity: 0.98 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={prefersReducedMotion ? { y: 12, opacity: 0 } : { y: 88, opacity: 0.94 }}
+                transition={metadataTransition}
+                drag="y"
+                dragControls={metadataDragControls}
+                dragListener={false}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragDirectionLock
+                dragElastic={{ top: 0.05, bottom: 0.16 }}
+                onDragEnd={handleMetadataDragEnd}
+                style={{ willChange: "transform, opacity" }}
+                className="pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden rounded-[2rem] border border-border/70 bg-card/92 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl"
+              >
+                <MetadataPanel
+                  file={activeFile}
+                  isMobile
+                  onDragHandlePointerDown={handleMetadataDragStart}
+                  onRequestClose={closeMetadata}
+                  className="h-full w-full border-l-0 rounded-[2rem]"
+                />
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </LayoutContainer>
   );
 }

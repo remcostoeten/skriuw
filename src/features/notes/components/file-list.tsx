@@ -300,7 +300,7 @@ export function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                "w-full flex items-center gap-1.5 h-[30px] text-[13px] text-foreground/70 hover:bg-accent transition-colors group",
+                "group flex min-h-11 w-full items-center gap-1.5 rounded-xl text-[14px] text-foreground/70 transition-colors hover:bg-accent md:h-[30px] md:min-h-0 md:rounded-lg md:text-[13px]",
                 isDragging && "opacity-50",
                 isDropTarget && "bg-primary/20 ring-1 ring-primary/40",
               )}
@@ -327,7 +327,7 @@ export function FileList({
                     onBlur={finishRename}
                     onKeyDown={handleKeyDown}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full bg-transparent border-none text-[13px] outline-hidden caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                    className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
                     style={{ caretColor: "currentColor" }}
                   />
                 ) : (
@@ -420,7 +420,7 @@ export function FileList({
             }
             onDragEnd={handleDragEnd}
             className={cn(
-              "w-full text-left h-[30px] text-[13px] transition-colors truncate flex items-center",
+              "flex min-h-11 w-full items-center truncate rounded-xl text-left text-[14px] transition-colors md:h-[30px] md:min-h-0 md:rounded-lg md:text-[13px]",
               activeFileId === file.id
                 ? "bg-accent text-foreground"
                 : "text-foreground/60 hover:bg-accent hover:text-foreground/80",
@@ -438,7 +438,7 @@ export function FileList({
                   onBlur={finishRename}
                   onKeyDown={handleKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-transparent border-none text-[13px] outline-hidden caret-foreground selection:bg-primary/30 p-0 m-0 h-[18px] leading-[18px]"
+                  className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
                   style={{ caretColor: "currentColor" }}
                 />
               ) : (
@@ -513,7 +513,7 @@ export function FileList({
 
   return (
     <div
-      className={cn("flex-1 overflow-y-auto py-0.5", isRootDropTarget && "bg-primary/10")}
+      className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/10")}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}
       onDrop={(e) => handleDrop(e, null)}

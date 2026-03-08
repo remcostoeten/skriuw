@@ -1,15 +1,24 @@
 import { NoteFile } from "@/types/notes";
 import { formatDistanceToNow } from "date-fns";
-import { Info, Layers } from "lucide-react";
+import { Info, Layers, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
 
 interface MetadataPanelProps {
   file: NoteFile | null;
   className?: string;
+  isMobile?: boolean;
+  onDragHandlePointerDown?: React.PointerEventHandler<HTMLDivElement>;
+  onRequestClose?: () => void;
 }
 
-export function MetadataPanel({ file, className }: MetadataPanelProps) {
+export function MetadataPanel({
+  file,
+  className,
+  isMobile = false,
+  onDragHandlePointerDown,
+  onRequestClose,
+}: MetadataPanelProps) {
   const [activeTab, setActiveTab] = useState<"info" | "outline-solid">("info");
 
   if (!file) return null;
@@ -40,39 +49,99 @@ export function MetadataPanel({ file, className }: MetadataPanelProps) {
   ];
 
   return (
-    <div className={cn("flex w-48 flex-col border-l border-border bg-background", className)}>
-      {/* Tab switcher - right aligned */}
-      <div className="flex items-center justify-end gap-0.5 px-2 h-[40px] border-b border-border shrink-0">
-        <button
-          onClick={() => setActiveTab("info")}
+    <div
+      className={cn(
+        "flex flex-col bg-background",
+        isMobile
+          ? "h-full w-full rounded-[inherit] border-0 bg-transparent"
+          : "w-48 border-l border-border",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "shrink-0 border-b border-border/70",
+          isMobile ? "bg-background/75 px-4 pb-3 pt-3 backdrop-blur-xl" : "px-2 h-[40px]",
+        )}
+      >
+        {isMobile ? (
+          <>
+            <div
+              className="cursor-grab touch-none active:cursor-grabbing"
+              onPointerDown={onDragHandlePointerDown}
+            >
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/90" />
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground/70">
+                    Inspector
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold tracking-[-0.02em] text-foreground">
+                    {file.name}
+                  </p>
+                </div>
+                {onRequestClose && (
+                  <button
+                    onClick={onRequestClose}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className="flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    title="Close details"
+                  >
+                    <X className="h-4 w-4" strokeWidth={1.6} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        <div
           className={cn(
-            "w-7 h-7 flex items-center justify-center rounded transition-colors",
-            activeTab === "info"
-              ? "bg-accent text-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+            "flex items-center gap-1",
+            isMobile ? "mt-3 rounded-2xl bg-background/80 p-1.5" : "h-full justify-end gap-0.5",
           )}
         >
-          <Info className="w-[15px] h-[15px]" strokeWidth={1.5} />
-        </button>
-        <button
-          onClick={() => setActiveTab("outline-solid")}
-          className={cn(
-            "w-7 h-7 flex items-center justify-center rounded transition-colors",
-            activeTab === "outline-solid"
-              ? "bg-accent text-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
-          )}
-        >
-          <Layers className="w-[15px] h-[15px]" strokeWidth={1.5} />
-        </button>
+          <button
+            onClick={() => setActiveTab("info")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
+              activeTab === "info"
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <Info className="h-[15px] w-[15px]" strokeWidth={1.5} />
+            {isMobile && <span>Info</span>}
+          </button>
+          <button
+            onClick={() => setActiveTab("outline-solid")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
+              activeTab === "outline-solid"
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            <Layers className="h-[15px] w-[15px]" strokeWidth={1.5} />
+            {isMobile && <span>Outline</span>}
+          </button>
+        </div>
       </div>
 
       {activeTab === "info" && (
-        <div className="px-4 py-4 space-y-2.5 overflow-y-auto">
+        <div className={cn("overflow-y-auto", isMobile ? "space-y-3 px-4 py-4" : "space-y-2.5 px-4 py-4")}>
           {stats.map((stat) => (
-            <div key={stat.label} className="flex items-baseline justify-between">
+            <div
+              key={stat.label}
+              className={cn(
+                "flex items-baseline justify-between gap-4",
+                isMobile && "rounded-2xl border border-border/60 bg-background/60 px-4 py-3",
+              )}
+            >
               <span className="text-[13px] text-muted-foreground">{stat.label}</span>
-              <span className="text-[13px] text-foreground/80 font-medium tabular-nums">
+              <span className="text-[13px] font-medium text-foreground/80 tabular-nums">
                 {stat.value}
               </span>
             </div>
@@ -81,8 +150,8 @@ export function MetadataPanel({ file, className }: MetadataPanelProps) {
       )}
 
       {activeTab === "outline-solid" && (
-        <div className="px-4 py-4 overflow-y-auto">
-          <p className="text-[13px] text-muted-foreground mb-3">Document outline</p>
+        <div className="overflow-y-auto px-4 py-4">
+          <p className="mb-3 text-[13px] text-muted-foreground">Document outline</p>
           <div className="space-y-1">
             {file.content
               .split("\n")
@@ -93,8 +162,13 @@ export function MetadataPanel({ file, className }: MetadataPanelProps) {
                 return (
                   <div
                     key={i}
-                    className="text-[13px] text-foreground/50 hover:text-foreground cursor-pointer transition-colors truncate"
-                    style={{ paddingLeft: `${(level - 1) * 12}px` }}
+                    className={cn(
+                      "cursor-pointer truncate text-[13px] text-foreground/50 transition-colors hover:text-foreground",
+                      isMobile && "min-h-11 rounded-2xl bg-background/45 px-4 py-3",
+                    )}
+                    style={{
+                      paddingLeft: isMobile ? `${16 + (level - 1) * 12}px` : `${(level - 1) * 12}px`,
+                    }}
                   >
                     {text}
                   </div>

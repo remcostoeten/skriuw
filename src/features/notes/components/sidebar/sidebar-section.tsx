@@ -66,10 +66,10 @@ export function SidebarSection({
   return (
     <div className="border-b border-border/50 last:border-b-0">
       {/* Section header */}
-      <div className="group flex items-center h-8 px-3 gap-1 hover:bg-accent/50 transition-colors">
+      <div className="group flex min-h-11 items-center gap-1.5 px-3.5 transition-colors hover:bg-accent/50 md:h-8 md:min-h-0 md:gap-1 md:px-3">
         <button
           onClick={onToggleCollapse}
-          className="w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-4 md:w-4 md:rounded-none md:hover:bg-transparent"
         >
           <ChevronRight 
             className={cn(
@@ -97,7 +97,7 @@ export function SidebarSection({
             autoFocus
           />
         ) : (
-          <span className="flex-1 text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+          <span className="flex-1 truncate text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground md:text-xs md:tracking-wider">
             {title}
           </span>
         )}
@@ -109,7 +109,7 @@ export function SidebarSection({
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           {actions}
           
           {(isCustom || onToggleVisibility) && (
@@ -117,7 +117,7 @@ export function SidebarSection({
               <button 
                 ref={buttonRef}
                 onClick={() => setShowMenu(!showMenu)}
-                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-5 md:w-5 md:rounded"
               >
                 <MoreHorizontal className="w-3 h-3" strokeWidth={1.5} />
               </button>
@@ -172,7 +172,7 @@ export function SidebarSection({
 
       {/* Section content */}
       {!isCollapsed && (
-        <div className="pb-2">
+        <div className="pb-3 md:pb-2">
           {children}
         </div>
       )}

@@ -36,42 +36,45 @@ export function BottomBar({
 
   if (isMobile) {
     return (
-      <div className="border-t border-border bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-xl items-center gap-2 rounded-[1.5rem] border border-border/70 bg-background/80 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.28)]">
+      <div className="relative border-t border-border/70 bg-card/82 px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-3 backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/[0.04] to-transparent" />
+        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 rounded-[1.8rem] border border-border/70 bg-background/78 p-2 shadow-[0_18px_44px_rgba(0,0,0,0.32)]">
           <button
             onClick={toggleTheme}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
             title="Toggle theme"
           >
             {mounted && theme === "light" ? (
-              <Moon className="h-4 w-4" strokeWidth={1.5} />
+              <Moon className="h-4 w-4" strokeWidth={1.7} />
             ) : (
-              <Sun className="h-4 w-4" strokeWidth={1.5} />
+              <Sun className="h-4 w-4" strokeWidth={1.7} />
             )}
+            <span className="text-[11px] font-medium tracking-[0.02em]">Theme</span>
           </button>
           <button
             onClick={onToggleEditorMode}
-            className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent/80"
+            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] bg-accent px-4 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all hover:bg-accent/80 active:scale-[0.97]"
             title={editorMode === "markdown" ? "Switch to Rich Text" : "Switch to Markdown"}
           >
             {editorMode === "markdown" ? (
               <>
-                <Code className="h-4 w-4" strokeWidth={1.5} />
-                <span>Markdown</span>
+                <Code className="h-4 w-4" strokeWidth={1.7} />
+                <span className="text-[11px] font-semibold tracking-[0.02em]">Markdown</span>
               </>
             ) : (
               <>
-                <Type className="h-4 w-4" strokeWidth={1.5} />
-                <span>Rich Text</span>
+                <Type className="h-4 w-4" strokeWidth={1.7} />
+                <span className="text-[11px] font-semibold tracking-[0.02em]">Rich Text</span>
               </>
             )}
           </button>
           <button
             onClick={onOpenSettings}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[1.35rem] text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
             title="Open settings"
           >
-            <Settings2 className="h-4 w-4" strokeWidth={1.5} />
+            <Settings2 className="h-4 w-4" strokeWidth={1.7} />
+            <span className="text-[11px] font-medium tracking-[0.02em]">Settings</span>
           </button>
         </div>
       </div>

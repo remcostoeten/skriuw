@@ -57,7 +57,7 @@ export function FileTreeSection({
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
     >
-      <div className="max-h-[400px] overflow-y-auto">
+      <div className="max-h-none overflow-y-auto md:max-h-[400px]">
         <FileList
           files={files}
           folders={folders}

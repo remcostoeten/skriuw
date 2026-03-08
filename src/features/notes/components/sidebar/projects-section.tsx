@@ -89,7 +89,7 @@ export function ProjectsSection({
   const addButton = (
     <button
       onClick={() => setIsCreating(true)}
-      className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-5 md:w-5 md:rounded"
       title="Create project"
     >
       <Plus className="w-3 h-3" strokeWidth={1.5} />
@@ -108,7 +108,7 @@ export function ProjectsSection({
     >
       {/* Create new project input */}
       {isCreating && (
-        <div className="px-3 py-1.5">
+        <div className="px-3 py-2">
           <input
             type="text"
             value={newProjectName}
@@ -125,7 +125,7 @@ export function ProjectsSection({
               }
             }}
             placeholder="Project name..."
-            className="w-full bg-accent/50 rounded px-2 py-1 text-[13px] outline-none border border-border focus:border-ring"
+            className="w-full rounded-2xl border border-border bg-accent/50 px-3 py-3 text-[13px] outline-none focus:border-ring"
             autoFocus
           />
         </div>
@@ -151,7 +151,7 @@ export function ProjectsSection({
                   <ContextMenuTrigger asChild>
                     <button
                       onClick={() => toggleProject(project.id)}
-                      className="group w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-accent/50"
+                      className="group flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-accent/50"
                     >
                       <ChevronRight 
                         className={cn(
@@ -175,7 +175,7 @@ export function ProjectsSection({
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="flex-1 bg-transparent text-[13px] outline-none border-b border-foreground/30"
+                          className="flex-1 border-b border-foreground/30 bg-transparent text-[13px] outline-none"
                           autoFocus
                         />
                       ) : (
@@ -235,7 +235,7 @@ export function ProjectsSection({
                       <ContextMenu key={folder.id}>
                         <ContextMenuTrigger asChild>
                           <button
-                            className="group w-full flex items-center gap-2 px-3 py-1 text-left transition-colors text-foreground/70 hover:bg-accent/50"
+                            className="group flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left text-foreground/70 transition-colors hover:bg-accent/50"
                           >
                             <Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
                             <span className="flex-1 text-[13px] truncate">{folder.name}</span>
@@ -257,7 +257,7 @@ export function ProjectsSection({
                           <button
                             onClick={() => onFileSelect(file.id)}
                             className={cn(
-                              "group w-full flex items-center gap-2 px-3 py-1 text-left transition-colors",
+                              "group flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left transition-colors",
                               file.id === activeFileId
                                 ? "bg-accent text-foreground"
                                 : "text-foreground/70 hover:bg-accent/50"

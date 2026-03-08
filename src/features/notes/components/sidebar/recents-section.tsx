@@ -46,7 +46,7 @@ export function RecentsSection({
   const clearButton = resolvedRecents.length > 0 ? (
     <button
       onClick={onClearRecents}
-      className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-5 md:w-5 md:rounded"
       title="Clear recents"
     >
       <X className="w-3 h-3" strokeWidth={1.5} />
@@ -76,7 +76,7 @@ export function RecentsSection({
               key={recent.id}
               onClick={() => recent.itemType === 'file' && onFileSelect(recent.itemId)}
               className={cn(
-                "group w-full flex items-center gap-2 px-4 py-1.5 text-left transition-colors",
+                "group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left transition-colors",
                 recent.itemType === 'file' && recent.itemId === activeFileId
                   ? "bg-accent text-foreground"
                   : "text-foreground/70 hover:bg-accent/50 hover:text-foreground"
