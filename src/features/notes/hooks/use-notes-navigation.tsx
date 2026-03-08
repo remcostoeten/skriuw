@@ -1,6 +1,37 @@
+'use client';
+
 import { useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { NoteFile } from "../types";
+
+function UrlSyncInner({ onFileSelect }: { onFileSelect: (id: string) => void }) {
+  const searchParams = useSearchParams();
+
+  const syncWithUrl = useCallback((noteId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('note', noteId);
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  const handleFileSelect = useCallback((id: string) => {
+    onFileSelect(id);
+    syncWithUrl(id);
+  }, [onFileSelect, syncWithUrl]);
+
+  useEffect(() => {
+    const noteId = searchParams.get("note");
+    if (noteId) {
+      onFileSelect(noteId);
+    }
+  }, [searchParams, onFileSelect]);
+
+  return { handleFileSelect, syncWithUrl };
+}
+
+export function UrlSync({ onFileSelect, children }: { onFileSelect: (id: string) => void; children: (props: { handleFileSelect: (id: string) => void }) => React.ReactNode }) {
+  const { handleFileSelect } = UrlSyncInner({ onFileSelect });
+  return <>{children({ handleFileSelect })}</>;
+}
 
 export function useFileNavigation(files: NoteFile[], activeFileId: string | null) {
   const currentFileIndex = files.findIndex((file) => file.id === activeFileId);

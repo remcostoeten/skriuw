@@ -39,12 +39,55 @@ const SettingsModal = dynamic(
   { ssr: false },
 );
 
+function NotesSidebarSkeleton({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div
+      className={`relative shrink-0 border-r border-border/60 bg-sidebar/70 ${
+        isMobile ? "hidden" : "w-[min(22rem,28vw)]"
+      }`}
+    >
+      <div className="space-y-3 p-4">
+        <div className="h-8 w-full animate-pulse rounded-xl bg-white/6" />
+        <div className="h-7 w-24 animate-pulse rounded-lg bg-white/6" />
+        <div className="space-y-2 pt-2">
+          <div className="h-9 w-full animate-pulse rounded-xl bg-white/6" />
+          <div className="h-9 w-[88%] animate-pulse rounded-xl bg-white/6" />
+          <div className="h-9 w-[82%] animate-pulse rounded-xl bg-white/6" />
+          <div className="h-9 w-[74%] animate-pulse rounded-xl bg-white/6" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotesEditorSkeleton() {
+  return (
+    <div className="relative flex min-w-0 flex-1 overflow-hidden">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-white/[0.04] to-transparent" />
+        <div className="flex flex-1 flex-col gap-4 px-5 py-6 md:px-8">
+          <div className="h-5 w-32 animate-pulse rounded-full bg-white/8" />
+          <div className="h-10 w-[min(24rem,70%)] animate-pulse rounded-2xl bg-white/7" />
+          <div className="space-y-3 pt-2">
+            <div className="h-4 w-full animate-pulse rounded-full bg-white/6" />
+            <div className="h-4 w-[96%] animate-pulse rounded-full bg-white/6" />
+            <div className="h-4 w-[90%] animate-pulse rounded-full bg-white/6" />
+            <div className="h-4 w-[78%] animate-pulse rounded-full bg-white/6" />
+          </div>
+        </div>
+      </div>
+      <div className="hidden w-56 shrink-0 border-l border-border/50 bg-card/30 xl:block" />
+    </div>
+  );
+}
+
 export function NotesLayout() {
   const router = useRouter();
   const $ = useShortcut({ ignoreInputs: true });
   const files = useNotesStore((state) => state.files);
   const folders = useNotesStore((state) => state.folders);
   const activeFileId = useNotesStore((state) => state.activeFileId);
+  const isNotesHydrated = useNotesStore((state) => state.isHydrated);
   const activeFileSaveState = useNotesStore((state) => state.getFileSaveState(state.activeFileId));
   const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
   const createFile = useNotesStore((state) => state.createFile);
@@ -63,11 +106,15 @@ export function NotesLayout() {
   const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
   const setSidebarWidth = useDocumentStore((s) => s.setSidebarWidth);
 
-  const { editor, initialize: initializePreferences } = usePreferencesStore();
+  const {
+    editor,
+    isHydrated: isPreferencesHydrated,
+    initialize: initializePreferences,
+  } = usePreferencesStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-  const [editorMode, setEditorMode] = useState<"markdown" | "richtext">("markdown");
+  const [editorMode, setEditorMode] = useState<"markdown" | "richtext" | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const metadataDragControls = useDragControls();
   const sidebarResizeActiveRef = useRef(false);
@@ -117,8 +164,9 @@ export function NotesLayout() {
 
   // Sync editor mode with preferences default
   useEffect(() => {
+    if (!isPreferencesHydrated) return;
     setEditorMode(editor.defaultModeMarkdown ? "markdown" : "richtext");
-  }, [editor.defaultModeMarkdown]);
+  }, [editor.defaultModeMarkdown, isPreferencesHydrated]);
 
   useEffect(() => {
     window.localStorage.setItem(DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
@@ -175,6 +223,7 @@ export function NotesLayout() {
   );
 
   const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
+  const isEditorReady = isNotesHydrated && isPreferencesHydrated && editorMode !== null;
 
   const handleFileSelect = useCallback(
     (id: string) => {
@@ -473,73 +522,82 @@ export function NotesLayout() {
           <IconRail activeTab="notes" onTabChange={() => {}} onOpenSettings={handleOpenSettings} />
         )}
 
-        {!isMobile && showSidebar && (
-          <div
-            ref={sidebarRef}
-            className="relative shrink-0 bg-sidebar"
-            style={{ width: sidebarWidth }}
-          >
-            <SidebarPanel
-              files={files}
-              folders={folders}
-              filesById={filesById}
-              foldersById={foldersById}
-              activeFileId={activeFileId}
-              onFileSelect={handleFileSelect}
-              onToggleFolder={toggleFolder}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-              onRenameFile={renameFile}
-              onRenameFolder={renameFolder}
-              onDeleteFile={deleteFile}
-              onDeleteFolder={deleteFolder}
-              onMoveFile={moveFile}
-              onMoveFolder={moveFolder}
-              getFilesInFolder={getFilesInFolder}
-              getFoldersInFolder={getFoldersInFolder}
-              countDescendants={countDescendants}
-            />
+        {isEditorReady ? (
+          !isMobile &&
+          showSidebar && (
             <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize sidebar"
-              onPointerDown={handleDesktopSidebarResizeStart}
-              className="absolute inset-y-0 right-0 z-20 hidden w-3 -translate-x-1/2 cursor-col-resize md:flex md:items-center md:justify-center"
+              ref={sidebarRef}
+              className="relative shrink-0 bg-sidebar"
+              style={{ width: sidebarWidth }}
             >
-              <div className="h-16 w-px rounded-full bg-white/10 transition-colors hover:bg-white/20" />
+              <SidebarPanel
+                files={files}
+                folders={folders}
+                filesById={filesById}
+                foldersById={foldersById}
+                activeFileId={activeFileId}
+                onFileSelect={handleFileSelect}
+                onToggleFolder={toggleFolder}
+                onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
+                onRenameFile={renameFile}
+                onRenameFolder={renameFolder}
+                onDeleteFile={deleteFile}
+                onDeleteFolder={deleteFolder}
+                onMoveFile={moveFile}
+                onMoveFolder={moveFolder}
+                getFilesInFolder={getFilesInFolder}
+                getFoldersInFolder={getFoldersInFolder}
+                countDescendants={countDescendants}
+              />
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize sidebar"
+                onPointerDown={handleDesktopSidebarResizeStart}
+                className="absolute inset-y-0 right-0 z-20 hidden w-3 -translate-x-1/2 cursor-col-resize md:flex md:items-center md:justify-center"
+              >
+                <div className="h-16 w-px rounded-full bg-white/10 transition-colors hover:bg-white/20" />
+              </div>
             </div>
-          </div>
+          )
+        ) : (
+          <NotesSidebarSkeleton isMobile={isMobile} />
         )}
 
-        <div className="relative flex min-w-0 flex-1 overflow-hidden">
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-white/[0.04] to-transparent" />
-            <div className="pointer-events-none absolute right-4 top-3 z-20">
-              <SaveStatusBadge status={activeFileSaveState} />
+        {isEditorReady ? (
+          <div className="relative flex min-w-0 flex-1 overflow-hidden">
+            <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-white/[0.04] to-transparent" />
+              <div className="pointer-events-none absolute right-4 top-3 z-20">
+                <SaveStatusBadge status={activeFileSaveState} />
+              </div>
+              <EditorContainer
+                file={activeFile}
+                editorMode={editorMode}
+                isMobile={isMobile}
+                onContentChange={updateFileContent}
+                onToggleSidebar={handleToggleSidebar}
+                onToggleMetadata={handleToggleMetadata}
+                onNavigatePrev={() => navigatePrev(handleFileSelect)}
+                onNavigateNext={() => navigateNext(handleFileSelect)}
+                canNavigatePrev={canNavigatePrev}
+                canNavigateNext={canNavigateNext}
+                fileName={activeFile?.name || "No file selected"}
+              />
             </div>
-            <EditorContainer
-              file={activeFile}
-              editorMode={editorMode}
-              isMobile={isMobile}
-              onContentChange={updateFileContent}
-              onToggleSidebar={handleToggleSidebar}
-              onToggleMetadata={handleToggleMetadata}
-              onNavigatePrev={() => navigatePrev(handleFileSelect)}
-              onNavigateNext={() => navigateNext(handleFileSelect)}
-              canNavigatePrev={canNavigatePrev}
-              canNavigateNext={canNavigateNext}
-              fileName={activeFile?.name || "No file selected"}
-            />
-          </div>
 
-          {!isMobile && showMetadata && (
-            <MetadataPanel file={activeFile} className="w-56 xl:w-64 shrink-0" />
-          )}
-        </div>
+            {!isMobile && showMetadata && (
+              <MetadataPanel file={activeFile} className="w-56 xl:w-64 shrink-0" />
+            )}
+          </div>
+        ) : (
+          <NotesEditorSkeleton />
+        )}
       </div>
 
       <BottomBar
-        editorMode={editorMode}
+        editorMode={editorMode ?? "markdown"}
         isMobile={isMobile}
         onOpenSettings={handleOpenSettings}
         onToggleEditorMode={handleToggleEditorMode}
@@ -559,7 +617,7 @@ export function NotesLayout() {
       />
 
       <AnimatePresence>
-        {isMobile && showSidebar && (
+        {isEditorReady && isMobile && showSidebar && (
           <>
             <motion.button
               key="sidebar-backdrop"
@@ -617,7 +675,7 @@ export function NotesLayout() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isMobile && showMetadata && (
+        {isEditorReady && isMobile && showMetadata && (
           <>
             <motion.button
               key="metadata-backdrop"
