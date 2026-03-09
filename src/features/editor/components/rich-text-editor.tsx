@@ -101,7 +101,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
   }, []);
 
   return (
-    <div className="blocknote-wrapper h-full">
+    <div className="blocknote-wrapper h-full min-h-full">
       <BlockNoteView
         editor={editor}
         onChange={handleEditorChange}
@@ -110,7 +110,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
       />
       <style jsx global>{`
         .blocknote-wrapper {
-          --bn-colors-editor-background: hsl(220 14% 8%);
+          --bn-colors-editor-background: #1e1e1e;
           --bn-colors-editor-text: hsl(220 10% 82%);
           --bn-colors-menu-background: hsl(220 16% 6%);
           --bn-colors-menu-text: hsl(220 10% 82%);
@@ -123,7 +123,9 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           --bn-colors-border: hsl(220 10% 15%);
           --bn-colors-side-menu: hsl(220 8% 40%);
           --bn-font-family: "Inter", system-ui, -apple-system, sans-serif;
-          background: hsl(220 14% 8%) !important;
+          height: 100%;
+          min-height: 100%;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-container,
         .blocknote-wrapper .bn-container [data-theming-css-variables-demo],
@@ -132,20 +134,25 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         }
         .blocknote-wrapper > div,
         .blocknote-wrapper .bn-container > div {
-          background: hsl(220 14% 8%) !important;
+          height: 100%;
+          min-height: 100%;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-container {
           height: 100%;
+          min-height: 100%;
         }
         .blocknote-wrapper .bn-editor {
+          box-sizing: border-box;
           padding-left: 2rem;
           padding-right: 2rem;
           padding-top: 2rem;
           padding-bottom: 2rem;
+          width: 100%;
           max-width: 42rem;
           margin: 0 auto;
           min-height: 100%;
-          background: hsl(220 14% 8%) !important;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;
@@ -161,10 +168,22 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
+        .blocknote-wrapper pre,
+        .blocknote-wrapper pre code,
+        .blocknote-wrapper [data-content-type="codeBlock"],
+        .blocknote-wrapper [data-content-type="codeBlock"] * {
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .blocknote-wrapper pre {
+          max-width: 100%;
+          overflow-x: hidden;
+        }
         /* Override any mantine styles */
         .blocknote-wrapper .mantine-Paper-root,
         .blocknote-wrapper [class*="mantine-"] {
-          --mantine-color-body: hsl(220 14% 8%);
+          --mantine-color-body: #1e1e1e;
         }
       `}</style>
     </div>

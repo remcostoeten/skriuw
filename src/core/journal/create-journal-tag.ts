@@ -1,6 +1,6 @@
 import { PERSISTED_STORE_NAMES, type IsoTime, type TagId } from "@/core/shared/persistence-types";
 import { putRecord } from "@/core/storage";
-import type { JournalTag } from "@/modules/journal";
+import type { JournalTag } from "@/features/journal/types";
 import { fromPersistedJournalTag } from "./mappers";
 import type { CreateJournalTagInput } from "./types";
 

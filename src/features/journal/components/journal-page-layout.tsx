@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { useRouter, useSearchParams } from "next/navigation";
+import { format, isValid, parseISO } from "date-fns";
 import { Code, Type, ChevronLeft } from "lucide-react";
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { useJournalStore } from "@/modules/journal";
+import { useJournalStore } from "@/features/journal/store";
 import { useDocumentStore } from "@/store/document-store";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
@@ -70,6 +70,7 @@ function JournalContentSkeleton() {
 
 export function JournalPageLayout() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const $ = useShortcut({ ignoreInputs: true });
   const isHydrated = useJournalStore((state) => state.isHydrated);
   const getEntryByDate = useJournalStore((state) => state.getEntryByDate);
@@ -86,6 +87,17 @@ export function JournalPageLayout() {
   const { isMobile } = ui;
   const selectedEntryId = getEntryByDate(selectedDate)?.id;
   const selectedEntrySaveState = getEntrySaveState(selectedEntryId);
+
+  useEffect(() => {
+    const requestedDate = searchParams.get("date");
+    if (!requestedDate) return;
+
+    const parsedDate = parseISO(requestedDate);
+    if (!isValid(parsedDate)) return;
+
+    setSelectedDate(parsedDate);
+    setView("editor");
+  }, [searchParams]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -313,7 +325,7 @@ export function JournalPageLayout() {
                   </button>
 
                   <span className="text-[12px] text-muted-foreground/40">
-                    {format(selectedDate, "MMMM d, yyyy")}
+                    {format(selectedDate, "dd MM yyyy")}
                   </span>
 
                   <div className="ml-auto flex items-center gap-1">

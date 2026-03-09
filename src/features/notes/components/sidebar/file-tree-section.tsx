@@ -3,7 +3,6 @@
 import { memo } from "react";
 import { FileList } from "../file-list";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { SidebarSection } from "./sidebar-section";
 
 type Props = {
   files: NoteFile[];
@@ -32,9 +31,9 @@ export const FileTreeSection = memo(function FileTreeSection({
   files,
   folders,
   activeFileId,
-  isCollapsed,
-  onToggleCollapse,
-  onToggleVisibility,
+  isCollapsed: _isCollapsed,
+  onToggleCollapse: _onToggleCollapse,
+  onToggleVisibility: _onToggleVisibility,
   onFileSelect,
   onToggleFolder,
   onRenameFile,
@@ -47,35 +46,24 @@ export const FileTreeSection = memo(function FileTreeSection({
   getFoldersInFolder,
   countDescendants,
 }: Props) {
-  const totalItems = files.length;
-
   return (
-    <SidebarSection
-      id="file-tree"
-      title="File Tree"
-      isCollapsed={isCollapsed}
-      itemCount={totalItems}
-      onToggleCollapse={onToggleCollapse}
-      onToggleVisibility={onToggleVisibility}
-    >
-      <div className="max-h-none overflow-y-auto md:max-h-[420px]">
-        <FileList
-          files={files}
-          folders={folders}
-          activeFileId={activeFileId}
-          onFileSelect={onFileSelect}
-          onToggleFolder={onToggleFolder}
-          onRenameFile={onRenameFile}
-          onRenameFolder={onRenameFolder}
-          onDeleteFile={onDeleteFile}
-          onDeleteFolder={onDeleteFolder}
-          onMoveFile={onMoveFile}
-          onMoveFolder={onMoveFolder}
-          getFilesInFolder={getFilesInFolder}
-          getFoldersInFolder={getFoldersInFolder}
-          countDescendants={countDescendants}
-        />
-      </div>
-    </SidebarSection>
+    <div>
+      <FileList
+        files={files}
+        folders={folders}
+        activeFileId={activeFileId}
+        onFileSelect={onFileSelect}
+        onToggleFolder={onToggleFolder}
+        onRenameFile={onRenameFile}
+        onRenameFolder={onRenameFolder}
+        onDeleteFile={onDeleteFile}
+        onDeleteFolder={onDeleteFolder}
+        onMoveFile={onMoveFile}
+        onMoveFolder={onMoveFolder}
+        getFilesInFolder={getFilesInFolder}
+        getFoldersInFolder={getFoldersInFolder}
+        countDescendants={countDescendants}
+      />
+    </div>
   );
 });

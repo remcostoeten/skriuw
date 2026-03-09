@@ -4,7 +4,7 @@ import {
   type JournalEntryId,
 } from "@/core/shared/persistence-types";
 import { getRecord, listRecords } from "@/core/storage";
-import type { JournalEntry, JournalTag } from "@/modules/journal";
+import type { JournalEntry, JournalTag } from "@/features/journal/types";
 import { fromPersistedJournalEntry, fromPersistedJournalTag } from "./mappers";
 
 export async function readJournalEntries(): Promise<JournalEntry[]> {

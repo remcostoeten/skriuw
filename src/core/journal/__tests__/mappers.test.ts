@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { DateKey, CssColorValue } from "@/core/shared/persistence-types";
 import {
   fromPersistedJournalEntry,
   fromPersistedJournalTag,
@@ -10,7 +11,7 @@ describe("journal mappers", () => {
   test("maps journal entries to persisted records", () => {
     const entry = {
       id: "entry-1",
-      dateKey: "2026-03-08",
+      dateKey: "2026-03-08" as DateKey,
       content: "hello",
       tags: ["work", "focus"],
       mood: "good" as const,
@@ -52,7 +53,7 @@ describe("journal mappers", () => {
     const tag = toPersistedJournalTag({
       id: "tag-1",
       name: "work",
-      color: "#111111",
+      color: "#111111" as CssColorValue,
       usageCount: 2,
     });
 

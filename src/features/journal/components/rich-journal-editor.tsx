@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { Trash2, Type } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { useJournalStore } from '@/modules/journal';
-import { MoodLevel, MOOD_OPTIONS } from '@/types/notes';
+import { useJournalStore } from '@/features/journal/store';
+import { type MoodLevel, MOOD_OPTIONS } from '@/features/journal/types';
 import { RichTextEditor } from '@/features/editor/components/rich-text-editor';
 
 type RichJournalEditorProps = {
@@ -103,7 +103,7 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
             {formatDateHeading(selectedDate)}
           </h1>
           <p className="mt-1 text-[14px] text-muted-foreground/60">
-            {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            {format(selectedDate, "EEEE, dd MM yyyy")}
           </p>
         </div>
 
@@ -168,8 +168,8 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
 
         {/* Rich text editor area */}
         <div className="relative min-h-[400px]">
-          <RichTextEditor 
-            content={content} 
+          <RichTextEditor
+            content={content}
             onChange={handleContentChange}
           />
         </div>

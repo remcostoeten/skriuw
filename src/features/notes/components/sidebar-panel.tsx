@@ -178,6 +178,8 @@ export function SidebarPanel({
   }, [isSearchOpen]);
 
   const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
+  const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
+  const navigationSections = visibleSections.filter((section) => section.type !== "file-tree");
 
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
@@ -470,7 +472,17 @@ export function SidebarPanel({
             )}
           </div>
         ) : (
-          visibleSections.map(renderSection)
+          <>
+            {fileTreeSection ? renderSection(fileTreeSection) : null}
+            {navigationSections.length > 0 ? (
+              <div className="px-3 pb-2 pt-3">
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  Navigation
+                </p>
+              </div>
+            ) : null}
+            {navigationSections.map(renderSection)}
+          </>
         )}
       </div>
     </div>
