@@ -1,12 +1,16 @@
 import { NoteFile, NoteFolder } from '@/types/notes';
+import { markdownToRichDocument } from '@/shared/lib/rich-document';
 
 export class NotesService {
   // File operations
   static createFile(name: string, parentId?: string): NoteFile {
+    const content = '';
     return {
       id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
-      content: '',
+      content,
+      richContent: markdownToRichDocument(content),
+      preferredEditorMode: 'block',
       parentId: parentId || null,
       createdAt: new Date(),
       modifiedAt: new Date(),
@@ -17,6 +21,7 @@ export class NotesService {
     return {
       ...file,
       content,
+      richContent: markdownToRichDocument(content),
       modifiedAt: new Date(),
     };
   }

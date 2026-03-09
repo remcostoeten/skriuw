@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   Plus,
@@ -8,19 +8,21 @@ import {
   Search,
   CalendarDays,
   Sparkles,
-  ChevronLeft,
   SortAsc,
   SortDesc,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { useJournalStore } from "@/modules/journal";
-import { MoodLevel, MOOD_OPTIONS } from "@/types/notes";
+import { useJournalStore } from "@/features/journal/store";
+import { type MoodLevel, MOOD_OPTIONS } from "@/features/journal/types";
 
 type JournalDatabaseViewProps = {
   onSelectEntry: (dateKey: string) => void;
   onNewEntry: () => void;
 };
+
+const JOURNAL_ROW_HEIGHT = 54;
+const JOURNAL_OVERSCAN = 8;
 
 const MOOD_TAG_COLORS: Record<MoodLevel, { bg: string; text: string }> = {
   great: { bg: "bg-emerald-500/15", text: "text-emerald-400" },
@@ -37,8 +39,11 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
   const store = useJournalStore();
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showSearch, setShowSearch] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
   const allTags = store.getAllTags();
   const entries = store.config.entries;
@@ -57,8 +62,8 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
     }
 
     // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase();
       filtered = filtered.filter(
         (e) =>
           e.content.toLowerCase().includes(q) || e.tags.some((t) => t.toLowerCase().includes(q)),
@@ -73,7 +78,7 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
     );
 
     return filtered;
-  }, [entries, activeTab, searchQuery, sortOrder]);
+  }, [entries, activeTab, deferredSearchQuery, sortOrder]);
 
   const getEntryTitle = (entry: (typeof entries)[0]): string => {
     const firstLine = entry.content.split("\n")[0]?.trim();
@@ -101,6 +106,13 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
     { id: "tagged", label: "Tagged", icon: Filter },
     { id: "moods", label: "With mood", icon: Sparkles },
   ];
+
+  const totalHeight = filteredEntries.length * JOURNAL_ROW_HEIGHT;
+  const viewportHeight = listRef.current?.clientHeight ?? 0;
+  const visibleCount = Math.ceil(viewportHeight / JOURNAL_ROW_HEIGHT) + JOURNAL_OVERSCAN * 2;
+  const startIndex = Math.max(0, Math.floor(scrollTop / JOURNAL_ROW_HEIGHT) - JOURNAL_OVERSCAN);
+  const endIndex = Math.min(filteredEntries.length, startIndex + visibleCount);
+  const visibleEntries = filteredEntries.slice(startIndex, endIndex);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -209,7 +221,11 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
       </div>
 
       {/* Entry list */}
-      <div className="mx-auto w-full max-w-[900px] flex-1 overflow-y-auto px-8 md:px-16">
+      <div
+        ref={listRef}
+        className="mx-auto w-full max-w-[900px] flex-1 overflow-y-auto px-8 md:px-16"
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
         <div className="mt-2">
           {filteredEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -223,76 +239,78 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
             </div>
           ) : (
             <div>
-              {filteredEntries.map((entry) => {
-                const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
-                const moodColors = entry.mood ? MOOD_TAG_COLORS[entry.mood] : null;
-                const entryDate = new Date(entry.dateKey + "T00:00:00");
-                const title = getEntryTitle(entry);
+              <div className="relative" style={{ height: totalHeight }}>
+                {visibleEntries.map((entry, visibleIndex) => {
+                  const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
+                  const moodColors = entry.mood ? MOOD_TAG_COLORS[entry.mood] : null;
+                  const entryDate = new Date(entry.dateKey + "T00:00:00");
+                  const title = getEntryTitle(entry);
+                  const rowIndex = startIndex + visibleIndex;
 
-                return (
-                  <button
-                    key={entry.id}
-                    onClick={() => {
-                      triggerNativeFeedback("selection");
-                      onSelectEntry(entry.dateKey);
-                    }}
-                    className="pressable-soft group flex w-full items-center gap-3 border-b border-border/20 px-1 py-2.5 text-left transition-colors hover:bg-accent/30"
-                  >
-                    {/* Mood icon */}
-                    <span className="w-5 shrink-0 text-center text-[14px]">
-                      {mood ? (
-                        <span className={mood.color}>{mood.icon}</span>
-                      ) : (
-                        <span className="text-muted-foreground/20">·</span>
-                      )}
-                    </span>
-
-                    {/* Title */}
-                    <span className="min-w-0 flex-1 truncate text-[14px] text-foreground/80 group-hover:text-foreground">
-                      {title}
-                    </span>
-
-                    {/* Tags */}
-                    <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
-                      {entry.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                          style={{
-                            backgroundColor: `${getTagColor(tag)}18`,
-                            color: getTagColor(tag),
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {entry.tags.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground/40">
-                          +{entry.tags.length - 3}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Mood tag */}
-                    {mood && moodColors && (
-                      <span
-                        className={cn(
-                          "hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-block",
-                          moodColors.bg,
-                          moodColors.text,
+                  return (
+                    <button
+                      key={entry.id}
+                      onClick={() => {
+                        triggerNativeFeedback("selection");
+                        onSelectEntry(entry.dateKey);
+                      }}
+                      className="pressable-soft group absolute left-0 flex w-full items-center gap-3 border-b border-border/20 px-1 py-2.5 text-left transition-colors hover:bg-accent/30"
+                      style={{
+                        top: rowIndex * JOURNAL_ROW_HEIGHT,
+                        height: JOURNAL_ROW_HEIGHT,
+                      }}
+                    >
+                      <span className="w-5 shrink-0 text-center text-[14px]">
+                        {mood ? (
+                          <span className={mood.color}>{mood.icon}</span>
+                        ) : (
+                          <span className="text-muted-foreground/20">·</span>
                         )}
-                      >
-                        {mood.label}
                       </span>
-                    )}
 
-                    {/* Date */}
-                    <span className="shrink-0 text-[12px] text-muted-foreground/40">
-                      {format(entryDate, "MMM d, yyyy h:mm a")}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-foreground/80 group-hover:text-foreground">
+                        {title}
+                      </span>
+
+                      <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                        {entry.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style={{
+                              backgroundColor: `${getTagColor(tag)}18`,
+                              color: getTagColor(tag),
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {entry.tags.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground/40">
+                            +{entry.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+
+                      {mood && moodColors && (
+                        <span
+                          className={cn(
+                            "hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-block",
+                            moodColors.bg,
+                            moodColors.text,
+                          )}
+                        >
+                          {mood.label}
+                        </span>
+                      )}
+
+                      <span className="shrink-0 text-[12px] text-muted-foreground/40">
+                        {format(entryDate, "MMM d, yyyy h:mm a")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* New page row */}
               <button

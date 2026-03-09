@@ -1,7 +1,21 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { NoteFile, NoteFolder } from "@/types/notes";
+import {
+  createNote as persistCreateNote,
+  destroyNote as persistDestroyNote,
+  readNotes,
+  updateNote,
+} from "@/core/notes";
+import {
+  createFolder as persistCreateFolder,
+  destroyFolder as persistDestroyFolder,
+  readFolders,
+  updateFolder,
+} from "@/core/folders";
+import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
+import type { SaveStatus } from "@/shared/components/save-status-badge";
+import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore, type TemplateStyle } from "@/store/preferences-store";
+import { markdownToRichDocument } from "@/shared/lib/rich-document";
 
 function generateNoteContent(name: string, template: TemplateStyle): string {
   const title = name.replace(".md", "");
@@ -16,13 +30,13 @@ updated: ${date}
 Start writing here...`;
 
     case "journal": {
-      const dateStr = new Date().toLocaleDateString("en-US", {
+      const dateStr = new Date().toLocaleDateString("nl-NL", {
         weekday: "long",
         year: "numeric",
-        month: "long",
-        day: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
-      const timeStr = new Date().toLocaleTimeString("en-US", {
+      const timeStr = new Date().toLocaleTimeString("nl-NL", {
         hour: "numeric",
         minute: "2-digit",
       });
@@ -52,6 +66,14 @@ const initialFolders: NoteFolder[] = [
   { id: "folder-3", name: "Untitled", parentId: "folder-2", isOpen: false },
   { id: "folder-4", name: "Untitled 3", parentId: null, isOpen: false },
 ];
+
+function withCanonicalDocumentState(file: Omit<NoteFile, "richContent" | "preferredEditorMode">): NoteFile {
+  return {
+    ...file,
+    richContent: markdownToRichDocument(file.content),
+    preferredEditorMode: "block",
+  };
+}
 
 const initialFiles: NoteFile[] = [
   {
@@ -165,24 +187,24 @@ Haptic takes a different approach:
     modifiedAt: new Date("2024-02-20"),
     parentId: null,
   },
-];
+].map(withCanonicalDocumentState);
 
-type NotesState = {
-  files: NoteFile[];
-  folders: NoteFolder[];
-  activeFileId: string;
-  setActiveFileId: (id: string) => void;
-  createFile: (name: string, parentId?: string | null) => NoteFile;
-  createFolder: (name: string, parentId?: string | null) => NoteFolder;
-  updateFileContent: (id: string, content: string) => void;
-  renameFile: (id: string, name: string) => void;
-  renameFolder: (id: string, name: string) => void;
-  deleteFile: (id: string) => void;
-  deleteFolder: (id: string) => void;
-  moveFile: (fileId: string, newParentId: string | null) => void;
-  moveFolder: (folderId: string, newParentId: string | null) => void;
-  toggleFolder: (id: string) => void;
-};
+const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleSaveStatusReset(id: string, onReset: () => void) {
+  const existingTimeout = saveStatusResetTimeouts.get(id);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  const timeoutId = setTimeout(() => {
+    saveStatusResetTimeouts.delete(id);
+    onReset();
+  }, 1800);
+
+  saveStatusResetTimeouts.set(id, timeoutId);
+}
 
 function collectDescendantFolderIds(folders: NoteFolder[], folderId: string): string[] {
   const childFolders = folders.filter((folder) => folder.parentId === folderId);
@@ -192,147 +214,385 @@ function collectDescendantFolderIds(folders: NoteFolder[], folderId: string): st
   ];
 }
 
-export const useNotesStore = create<NotesState>()(
-  persist(
-    (set, get) => ({
-      files: initialFiles,
-      folders: initialFolders,
-      activeFileId: "readme",
+function applyFolderUiState(nextFolders: NoteFolder[], currentFolders: NoteFolder[]): NoteFolder[] {
+  const currentState = new Map(currentFolders.map((folder) => [folder.id, folder.isOpen]));
+  return nextFolders.map((folder) => ({
+    ...folder,
+    isOpen: currentState.get(folder.id) ?? folder.parentId === null,
+  }));
+}
 
-      setActiveFileId: (id) => {
-        set({ activeFileId: id });
-      },
+async function seedInitialNotesData() {
+  for (const folder of initialFolders) {
+    await persistCreateFolder({
+      id: folder.id as FolderId,
+      name: folder.name,
+      parentId: folder.parentId as FolderId | null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
 
-      createFile: (name, parentId = null) => {
-        const template = usePreferencesStore.getState().templateStyle;
-        const newFile: NoteFile = {
-          id: crypto.randomUUID(),
-          name: name.endsWith(".md") ? name : `${name}.md`,
-          content: generateNoteContent(name, template),
-          createdAt: new Date(),
-          modifiedAt: new Date(),
-          parentId,
-        };
+  for (const file of initialFiles) {
+    await persistCreateNote({
+      id: file.id as NoteId,
+      name: file.name,
+      content: file.content as MarkdownContent,
+      richContent: markdownToRichDocument(file.content),
+      preferredEditorMode: "block",
+      parentId: file.parentId as FolderId | null,
+      createdAt: file.createdAt,
+      updatedAt: file.modifiedAt,
+    });
+  }
 
-        set((state) => ({
-          files: [...state.files, newFile],
-          activeFileId: newFile.id,
-        }));
+  return {
+    files: initialFiles,
+    folders: initialFolders,
+    activeFileId: "readme",
+  };
+}
 
-        usePreferencesStore.getState().recordTemplateUsage(template);
-        usePreferencesStore.getState().incrementNoteCount();
-
-        return newFile;
-      },
-
-      createFolder: (name, parentId = null) => {
-        const newFolder: NoteFolder = {
-          id: crypto.randomUUID(),
-          name,
-          parentId,
-          isOpen: true,
-        };
-
-        set((state) => ({
-          folders: [...state.folders, newFolder],
-        }));
-
-        return newFolder;
-      },
-
-      updateFileContent: (id, content) => {
-        set((state) => ({
-          files: state.files.map((file) =>
-            file.id === id ? { ...file, content, modifiedAt: new Date() } : file,
-          ),
-        }));
-      },
-
-      renameFile: (id, name) => {
-        set((state) => ({
-          files: state.files.map((file) =>
-            file.id === id
-              ? {
-                  ...file,
-                  name: name.endsWith(".md") ? name : `${name}.md`,
-                  modifiedAt: new Date(),
-                }
-              : file,
-          ),
-        }));
-      },
-
-      renameFolder: (id, name) => {
-        set((state) => ({
-          folders: state.folders.map((folder) => (folder.id === id ? { ...folder, name } : folder)),
-        }));
-      },
-
-      deleteFile: (id) => {
-        set((state) => {
-          const nextFiles = state.files.filter((file) => file.id !== id);
-          return {
-            files: nextFiles,
-            activeFileId: state.activeFileId === id ? (nextFiles[0]?.id ?? "") : state.activeFileId,
-          };
-        });
-      },
-
-      deleteFolder: (id) => {
-        set((state) => {
-          const folderIds = collectDescendantFolderIds(state.folders, id);
-          return {
-            files: state.files.filter((file) => !folderIds.includes(file.parentId || "")),
-            folders: state.folders.filter((folder) => !folderIds.includes(folder.id)),
-          };
-        });
-      },
-
-      moveFile: (fileId, newParentId) => {
-        set((state) => ({
-          files: state.files.map((file) =>
-            file.id === fileId ? { ...file, parentId: newParentId, modifiedAt: new Date() } : file,
-          ),
-        }));
-      },
-
-      moveFolder: (folderId, newParentId) => {
-        const descendantIds = collectDescendantFolderIds(get().folders, folderId);
-        if (newParentId && descendantIds.includes(newParentId)) {
-          return;
-        }
-
-        set((state) => ({
-          folders: state.folders.map((folder) =>
-            folder.id === folderId ? { ...folder, parentId: newParentId } : folder,
-          ),
-        }));
-      },
-
-      toggleFolder: (id) => {
-        set((state) => ({
-          folders: state.folders.map((folder) =>
-            folder.id === id ? { ...folder, isOpen: !folder.isOpen } : folder,
-          ),
-        }));
-      },
-    }),
-    {
-      name: "notes-store",
-      partialize: (state) => ({
-        files: state.files,
-        folders: state.folders,
-        activeFileId: state.activeFileId,
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-
-        state.files = state.files.map((file) => ({
-          ...file,
-          createdAt: new Date(file.createdAt),
-          modifiedAt: new Date(file.modifiedAt),
-        }));
-      },
+type NotesState = {
+  files: NoteFile[];
+  folders: NoteFolder[];
+  activeFileId: string;
+  isHydrated: boolean;
+  saveStates: Record<string, SaveStatus>;
+  initialize: () => Promise<void>;
+  getFileSaveState: (id: string | null | undefined) => SaveStatus;
+  setActiveFileId: (id: string) => void;
+  createFile: (name: string, parentId?: string | null) => NoteFile;
+  createFolder: (name: string, parentId?: string | null) => NoteFolder;
+  updateFileContent: (
+    id: string,
+    content: string,
+    options?: {
+      richContent?: RichTextDocument;
+      preferredEditorMode?: NoteEditorMode;
     },
-  ),
-);
+  ) => void;
+  renameFile: (id: string, name: string) => void;
+  renameFolder: (id: string, name: string) => void;
+  deleteFile: (id: string) => void;
+  deleteFolder: (id: string) => void;
+  moveFile: (fileId: string, newParentId: string | null) => void;
+  moveFolder: (folderId: string, newParentId: string | null) => void;
+  toggleFolder: (id: string) => void;
+};
+
+export const useNotesStore = create<NotesState>()((set, get) => ({
+  files: [],
+  folders: [],
+  activeFileId: "",
+  isHydrated: false,
+  saveStates: {},
+
+  initialize: async () => {
+    if (get().isHydrated) return;
+
+    const [persistedFiles, persistedFolders] = await Promise.all([readNotes(), readFolders()]);
+
+    if (persistedFiles.length === 0 && persistedFolders.length === 0) {
+      const seeded = await seedInitialNotesData();
+      set({
+        files: seeded.files,
+        folders: seeded.folders,
+        activeFileId: seeded.activeFileId,
+        isHydrated: true,
+      });
+      return;
+    }
+
+    const nextFolders = applyFolderUiState(persistedFolders, get().folders);
+    const activeFileId =
+      persistedFiles.find((file) => file.id === get().activeFileId)?.id ??
+      persistedFiles[0]?.id ??
+      "";
+
+    set({
+      files: persistedFiles,
+      folders: nextFolders,
+      activeFileId,
+      isHydrated: true,
+    });
+  },
+
+  getFileSaveState: (id) => {
+    if (!id) return "idle";
+    return get().saveStates[id] ?? "idle";
+  },
+
+  setActiveFileId: (id) => {
+    set({ activeFileId: id });
+  },
+
+  createFile: (name, parentId = null) => {
+    const template = usePreferencesStore.getState().templateStyle;
+    const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
+    const generatedContent = generateNoteContent(name, template);
+    const richContent = markdownToRichDocument(generatedContent);
+    const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+    const newFile: NoteFile = {
+      id: crypto.randomUUID(),
+      name: name.endsWith(".md") ? name : `${name}.md`,
+      content: generatedContent,
+      richContent,
+      preferredEditorMode,
+      createdAt: new Date(),
+      modifiedAt: new Date(),
+      parentId,
+    };
+
+    set((state) => ({
+      files: [...state.files, newFile],
+      activeFileId: newFile.id,
+      saveStates: { ...state.saveStates, [newFile.id]: "saving" },
+    }));
+
+    void persistCreateNote({
+      id: newFile.id as NoteId,
+      name: newFile.name,
+      content: newFile.content as MarkdownContent,
+      richContent: newFile.richContent,
+      preferredEditorMode: newFile.preferredEditorMode,
+      parentId: newFile.parentId as FolderId | null,
+      createdAt: newFile.createdAt,
+      updatedAt: newFile.modifiedAt,
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newFile.id]: "saved" },
+        }));
+        scheduleSaveStatusReset(newFile.id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [newFile.id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [newFile.id]: "error" },
+        }));
+      });
+
+    usePreferencesStore.getState().recordTemplateUsage(template);
+    usePreferencesStore.getState().incrementNoteCount();
+
+    return newFile;
+  },
+
+  createFolder: (name, parentId = null) => {
+    const newFolder: NoteFolder = {
+      id: crypto.randomUUID(),
+      name,
+      parentId,
+      isOpen: true,
+    };
+
+    set((state) => ({
+      folders: [...state.folders, newFolder],
+    }));
+
+    void persistCreateFolder({
+      id: newFolder.id as FolderId,
+      name: newFolder.name,
+      parentId: newFolder.parentId as FolderId | null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return newFolder;
+  },
+
+  updateFileContent: (id, content, options) => {
+    const updatedAt = new Date();
+    const richContent = options?.richContent ?? markdownToRichDocument(content);
+    const preferredEditorMode = options?.preferredEditorMode;
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === id
+          ? {
+              ...file,
+              content,
+              richContent,
+              preferredEditorMode: preferredEditorMode ?? file.preferredEditorMode,
+              modifiedAt: updatedAt,
+            }
+          : file,
+      ),
+      saveStates: { ...state.saveStates, [id]: "saving" },
+    }));
+
+    const pendingTimeout = contentSaveTimeouts.get(id);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+    }
+
+    const timeoutId = setTimeout(() => {
+      contentSaveTimeouts.delete(id);
+      void updateNote({
+        id: id as NoteId,
+        content: content as MarkdownContent,
+        richContent,
+        preferredEditorMode,
+        updatedAt,
+      })
+        .then(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "saved" },
+          }));
+          scheduleSaveStatusReset(id, () => {
+            set((state) => ({
+              saveStates: { ...state.saveStates, [id]: "idle" },
+            }));
+          });
+        })
+        .catch(() => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "error" },
+          }));
+        });
+    }, 220);
+
+    contentSaveTimeouts.set(id, timeoutId);
+  },
+
+  renameFile: (id, name) => {
+    const updatedAt = new Date();
+    const normalizedName = name.endsWith(".md") ? name : `${name}.md`;
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === id ? { ...file, name: normalizedName, modifiedAt: updatedAt } : file,
+      ),
+      saveStates: { ...state.saveStates, [id]: "saving" },
+    }));
+
+    void updateNote({
+      id: id as NoteId,
+      name: normalizedName,
+      updatedAt,
+    })
+      .then(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "saved" },
+        }));
+        scheduleSaveStatusReset(id, () => {
+          set((state) => ({
+            saveStates: { ...state.saveStates, [id]: "idle" },
+          }));
+        });
+      })
+      .catch(() => {
+        set((state) => ({
+          saveStates: { ...state.saveStates, [id]: "error" },
+        }));
+      });
+  },
+
+  renameFolder: (id, name) => {
+    const updatedAt = new Date();
+
+    set((state) => ({
+      folders: state.folders.map((folder) => (folder.id === id ? { ...folder, name } : folder)),
+    }));
+
+    void updateFolder({
+      id: id as FolderId,
+      name,
+      updatedAt,
+    });
+  },
+
+  deleteFile: (id) => {
+    set((state) => {
+      const nextFiles = state.files.filter((file) => file.id !== id);
+      return {
+        files: nextFiles,
+        activeFileId: state.activeFileId === id ? (nextFiles[0]?.id ?? "") : state.activeFileId,
+        saveStates: Object.fromEntries(
+          Object.entries(state.saveStates).filter(([key]) => key !== id),
+        ),
+      };
+    });
+
+    const pendingTimeout = contentSaveTimeouts.get(id);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+      contentSaveTimeouts.delete(id);
+    }
+
+    void persistDestroyNote(id as NoteId).catch(() => {
+      set((state) => ({
+        saveStates: { ...state.saveStates, [id]: "error" },
+      }));
+    });
+  },
+
+  deleteFolder: (id) => {
+    set((state) => {
+      const folderIds = collectDescendantFolderIds(state.folders, id);
+      const nextFiles = state.files.filter((file) => !folderIds.includes(file.parentId || ""));
+      const activeFileId = folderIds.includes(
+        state.files.find((file) => file.id === state.activeFileId)?.parentId || "",
+      )
+        ? (nextFiles[0]?.id ?? "")
+        : state.activeFileId;
+
+      return {
+        files: nextFiles,
+        folders: state.folders.filter((folder) => !folderIds.includes(folder.id)),
+        activeFileId,
+      };
+    });
+
+    void persistDestroyFolder(id as FolderId);
+  },
+
+  moveFile: (fileId, newParentId) => {
+    const updatedAt = new Date();
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === fileId ? { ...file, parentId: newParentId, modifiedAt: updatedAt } : file,
+      ),
+    }));
+
+    void updateNote({
+      id: fileId as NoteId,
+      parentId: newParentId as FolderId | null,
+      updatedAt,
+    });
+  },
+
+  moveFolder: (folderId, newParentId) => {
+    const descendantIds = collectDescendantFolderIds(get().folders, folderId);
+    if (newParentId && descendantIds.includes(newParentId)) {
+      return;
+    }
+
+    const updatedAt = new Date();
+
+    set((state) => ({
+      folders: state.folders.map((folder) =>
+        folder.id === folderId ? { ...folder, parentId: newParentId } : folder,
+      ),
+    }));
+
+    void updateFolder({
+      id: folderId as FolderId,
+      parentId: newParentId as FolderId | null,
+      updatedAt,
+    });
+  },
+
+  toggleFolder: (id) => {
+    set((state) => ({
+      folders: state.folders.map((folder) =>
+        folder.id === id ? { ...folder, isOpen: !folder.isOpen } : folder,
+      ),
+    }));
+  },
+}));

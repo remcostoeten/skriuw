@@ -7,6 +7,7 @@
     "dev": "bun --bun next dev --turbopack",
     "build": "bun --bun next build",
     "start": "bun --bun next start",
+    "test": "bun test",
     "lint": "oxlint",
     "format": "oxfmt"
   },

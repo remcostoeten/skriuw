@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useTagStore, type Tag } from "@/store/tag-store";
+import { useTagStore } from "@/store/tag-store";
 
 /**
  * Hook for tag operations on a document.

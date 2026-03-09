@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/utils";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
-type EditorMode = "markdown" | "richtext";
+type EditorMode = "raw" | "block";
 
 type Props = {
   editorMode: EditorMode;
@@ -62,20 +62,20 @@ export function BottomBar({
           <button
             onClick={onToggleEditorMode}
             className="pressable relative flex min-h-[58px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background shadow-[0_14px_30px_rgba(0,0,0,0.28)] transition-all hover:opacity-95"
-            title={editorMode === "markdown" ? "Switch to Rich Text" : "Switch to Markdown"}
+            title={editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX"}
           >
             <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
             <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-background/55">
               Editor
             </span>
-            {editorMode === "markdown" ? (
+            {editorMode === "raw" ? (
               <span className="flex items-center justify-between gap-3">
-                <span className="text-[13px] font-semibold tracking-[0.06em]">Markdown</span>
+                <span className="text-[13px] font-semibold tracking-[0.06em]">Raw MDX</span>
                 <Code className="h-4 w-4" strokeWidth={1.7} />
               </span>
             ) : (
               <span className="flex items-center justify-between gap-3">
-                <span className="text-[13px] font-semibold tracking-[0.06em]">Rich Text</span>
+                <span className="text-[13px] font-semibold tracking-[0.06em]">Block Note</span>
                 <Type className="h-4 w-4" strokeWidth={1.7} />
               </span>
             )}
@@ -115,17 +115,17 @@ export function BottomBar({
           "pressable flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[11px] transition-colors",
           "text-muted-foreground hover:bg-accent/65 hover:text-foreground",
         )}
-        title={editorMode === "markdown" ? "Switch to Rich Text" : "Switch to Markdown"}
+        title={editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX"}
       >
-        {editorMode === "markdown" ? (
+        {editorMode === "raw" ? (
           <>
             <Code className="w-3 h-3" strokeWidth={1.5} />
-            <span>Markdown</span>
+            <span>Raw MDX</span>
           </>
         ) : (
           <>
             <Type className="w-3 h-3" strokeWidth={1.5} />
-            <span>Rich Text</span>
+            <span>Block Note</span>
           </>
         )}
       </button>

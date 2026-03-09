@@ -2,11 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { NoteFile } from "@/types/notes";
+import { NoteFile, RichTextDocument } from "@/types/notes";
 import { MarkdownRenderer } from "./markdown-renderer";
-import { cn } from "@/shared/lib/utils";
 
-type EditorMode = "markdown" | "richtext";
+type EditorMode = "raw" | "block";
 
 // Dynamically import RichTextEditor to avoid SSR issues with BlockNote
 const RichTextEditor = dynamic(
@@ -15,7 +14,7 @@ const RichTextEditor = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="text-muted-foreground text-sm">Loading editor...</div>
+        <div className="text-muted-foreground text-sm">Loading block editor...</div>
       </div>
     ),
   },
@@ -25,13 +24,19 @@ interface EditorProps {
   file: NoteFile | null;
   editorMode: EditorMode;
   isMobile?: boolean;
-  onContentChange: (id: string, content: string) => void;
+  onContentChange: (
+    id: string,
+    content: string,
+    options?: {
+      richContent?: RichTextDocument;
+      preferredEditorMode?: EditorMode;
+    },
+  ) => void;
 }
 
-export function Editor({ file, editorMode, isMobile = false, onContentChange }: EditorProps) {
+export function Editor({ file, editorMode, onContentChange }: EditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
 
   // Auto-resize textarea
   useEffect(() => {
@@ -51,10 +56,22 @@ export function Editor({ file, editorMode, isMobile = false, onContentChange }: 
     }
   }, [isEditing]);
 
-  const handleContentChange = useCallback(
+  const handleMarkdownChange = useCallback(
     (content: string) => {
       if (file) {
         onContentChange(file.id, content);
+      }
+    },
+    [file, onContentChange],
+  );
+
+  const handleRichTextChange = useCallback(
+    (next: { markdown: string; richContent: RichTextDocument }) => {
+      if (file) {
+        onContentChange(file.id, next.markdown, {
+          richContent: next.richContent,
+          preferredEditorMode: "block",
+        });
       }
     },
     [file, onContentChange],
@@ -68,20 +85,22 @@ export function Editor({ file, editorMode, isMobile = false, onContentChange }: 
     );
   }
 
-  // Common container styles for both modes
-  const containerClass = "flex-1 overflow-y-auto bg-background";
+  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-[#1e1e1e]";
   const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
 
-  // Rich Text Mode (BlockNote)
-  if (editorMode === "richtext") {
+  if (editorMode === "block") {
     return (
       <div className={containerClass}>
-        <RichTextEditor content={file.content} onChange={handleContentChange} />
+        <RichTextEditor
+          content={file.content}
+          richContent={file.richContent}
+          onChange={handleRichTextChange}
+        />
       </div>
     );
   }
 
-  // Markdown Mode
+  // Raw mode
   return (
     <div className={containerClass}>
       <div className={contentClass}>
@@ -89,7 +108,7 @@ export function Editor({ file, editorMode, isMobile = false, onContentChange }: 
           <textarea
             ref={textareaRef}
             value={file.content}
-            onChange={(e) => onContentChange(file.id, e.target.value)}
+            onChange={(e) => handleMarkdownChange(e.target.value)}
             onBlur={() => setIsEditing(false)}
             className="w-full min-h-[80vh] bg-transparent text-foreground/90 font-mono text-sm resize-none outline-hidden leading-relaxed"
             spellCheck={false}

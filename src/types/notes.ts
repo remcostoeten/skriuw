@@ -1,20 +1,12 @@
-// Mood system for journal entries
-export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
+import type { PartialBlock } from "@blocknote/core";
+import type { MoodLevel } from "@/features/journal/types";
 
-export type Mood = {
-  level: MoodLevel;
-  label: string;
-  icon: string;
-  color: string;
-};
+// Re-export journal mood types from their canonical location
+export type { MoodLevel, Mood } from "@/features/journal/types";
+export { MOOD_OPTIONS } from "@/features/journal/types";
 
-export const MOOD_OPTIONS: Record<MoodLevel, Mood> = {
-  great: { level: "great", label: "Great", icon: "++", color: "text-emerald-400" },
-  good: { level: "good", label: "Good", icon: "+", color: "text-green-400" },
-  neutral: { level: "neutral", label: "Neutral", icon: "~", color: "text-muted-foreground" },
-  low: { level: "low", label: "Low", icon: "-", color: "text-amber-400" },
-  rough: { level: "rough", label: "Rough", icon: "--", color: "text-red-400" },
-};
+export type NoteEditorMode = "raw" | "block";
+export type RichTextDocument = PartialBlock[];
 
 // Tag system for organizing notes
 export type NoteTag = {
@@ -37,6 +29,8 @@ export interface NoteFile {
   id: string;
   name: string;
   content: string;
+  richContent: RichTextDocument;
+  preferredEditorMode: NoteEditorMode;
   createdAt: Date;
   modifiedAt: Date;
   parentId: string | null;

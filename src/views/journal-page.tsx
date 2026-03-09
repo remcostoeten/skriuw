@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { JournalPageLayout } from "@/features/journal";
+import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 
 export default function JournalPage() {
-  return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center">Loading...</div>}>
-      <JournalPageLayout />
-    </Suspense>
-  );
+  return <JournalPageLayout />;
 }

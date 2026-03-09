@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import {
   Briefcase,
   ChevronRight,
-  FileText,
   Folder,
   FolderInput,
   Pencil,
@@ -56,7 +55,14 @@ type DragItem = {
   parentId: string | null;
 };
 
-export function FileList({
+type VisibleItem =
+  | (SelectedItem & { depth: number; folder: NoteFolder; file?: never })
+  | (SelectedItem & { depth: number; file: NoteFile; folder?: never });
+
+const FILE_TREE_ROW_HEIGHT = 32;
+const FILE_TREE_OVERSCAN = 10;
+
+export const FileList = memo(function FileList({
   folders,
   files,
   activeFileId,
@@ -84,30 +90,44 @@ export function FileList({
   } = useSidebarStore();
   const projects = getProjects();
   const customSections = config.sections.filter((section) => section.type === "custom");
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const lastSelectedIndexRef = useRef<number | null>(null);
 
-  const flattenedVisibleItems = useMemo<SelectedItem[]>(() => {
-    const list: SelectedItem[] = [];
+  const flattenedVisibleItems = useMemo<VisibleItem[]>(() => {
+    const list: VisibleItem[] = [];
 
-    const visit = (parentId: string | null) => {
+    const visit = (parentId: string | null, depth: number) => {
       const folderChildren = getFoldersInFolder(parentId);
       folderChildren.forEach((folder) => {
-        list.push({ id: folder.id, type: "folder", parentId: folder.parentId });
+        list.push({
+          id: folder.id,
+          type: "folder",
+          parentId: folder.parentId,
+          depth,
+          folder,
+        });
         if (folder.isOpen) {
-          visit(folder.id);
+          visit(folder.id, depth + 1);
         }
       });
       const fileChildren = getFilesInFolder(parentId);
       fileChildren.forEach((file) => {
-        list.push({ id: file.id, type: "file", parentId: file.parentId });
+        list.push({
+          id: file.id,
+          type: "file",
+          parentId: file.parentId,
+          depth,
+          file,
+        });
       });
     };
 
-    visit(null);
+    visit(null, 0);
     return list;
-  }, [files, folders, getFilesInFolder, getFoldersInFolder]);
+  }, [getFilesInFolder, getFoldersInFolder]);
 
   const getDescendantIds = useCallback(
     function collect(folderId: string): string[] {
@@ -425,9 +445,7 @@ export function FileList({
     [folders, getDescendantIds, moveSelected],
   );
 
-  const renderFolder = (folder: NoteFolder, depth: number = 0) => {
-    const childFolders = getFoldersInFolder(folder.id);
-    const childFiles = getFilesInFolder(folder.id);
+  const renderFolderRow = (folder: NoteFolder, depth: number) => {
     const totalCount = countDescendants(folder.id);
     const isEditing = editingId === folder.id;
     const isDragging = dragItem?.id === folder.id;
@@ -460,43 +478,45 @@ export function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                "group flex min-h-10 w-full items-center gap-1.5 rounded-lg text-[13px] transition-colors md:h-[28px] md:min-h-0",
+                "group flex h-7 w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
                 isSelected
                   ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                   : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground/88",
                 isDragging && "opacity-50",
                 isDropTarget && "bg-primary/12 ring-1 ring-white/10",
               )}
-              style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
+              style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
             >
-              <ChevronRight
-                className={cn(
-                  "w-3 h-3 shrink-0 transition-transform text-muted-foreground",
-                  folder.isOpen && "rotate-90",
-                )}
-                strokeWidth={1.5}
-              />
-              <Folder
-                className="w-[15px] h-[15px] shrink-0 text-muted-foreground"
-                strokeWidth={1.5}
-              />
-              <span className="flex-1 min-w-0 h-[18px] flex items-center">
-                {isEditing ? (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={finishRename}
-                    onKeyDown={handleKeyDown}
-                    onClick={(e) => e.stopPropagation()}
-                    className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
-                    style={{ caretColor: "currentColor" }}
-                  />
-                ) : (
-                  <span className="text-left truncate select-none">{folder.name}</span>
-                )}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                <ChevronRight
+                  className={cn(
+                    "h-3 w-3 shrink-0 text-muted-foreground/80 transition-transform",
+                    folder.isOpen && "rotate-90",
+                  )}
+                  strokeWidth={1.5}
+                />
+                <Folder
+                  className="h-4 w-4 shrink-0 text-muted-foreground/85"
+                  strokeWidth={1.5}
+                />
+                <span className="flex h-[18px] min-w-0 flex-1 items-center">
+                  {isEditing ? (
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={finishRename}
+                      onKeyDown={handleKeyDown}
+                      onClick={(e) => e.stopPropagation()}
+                      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs caret-foreground outline-hidden selection:bg-primary/30"
+                      style={{ caretColor: "currentColor" }}
+                    />
+                  ) : (
+                    <span className="truncate text-left select-none">{folder.name}</span>
+                  )}
+                </span>
+              </div>
               <span className="ml-2 w-4 shrink-0 text-right text-[10px] text-muted-foreground/65 tabular-nums">
                 {totalCount}
               </span>
@@ -580,17 +600,11 @@ export function FileList({
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
-        {folder.isOpen && (
-          <div>
-            {childFolders.map((f) => renderFolder(f, depth + 1))}
-            {childFiles.map((f) => renderFile(f, depth + 1))}
-          </div>
-        )}
       </div>
     );
   };
 
-  const renderFile = (file: NoteFile, depth: number = 0) => {
+  const renderFileRow = (file: NoteFile, depth: number) => {
     const isEditing = editingId === file.id;
     const isDragging = dragItem?.id === file.id;
     const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
@@ -617,19 +631,15 @@ export function FileList({
             }
             onDragEnd={handleDragEnd}
             className={cn(
-              "flex min-h-10 w-full items-center gap-2 truncate rounded-lg text-left text-[13px] transition-colors md:h-[28px] md:min-h-0",
+              "flex h-7 w-full items-center rounded-md text-left text-xs font-medium transition-colors",
               isSelected || activeFileId === file.id
                 ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                 : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
-            style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
+            style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
           >
-            <FileText
-              className="h-[14px] w-[14px] shrink-0 text-muted-foreground/70"
-              strokeWidth={1.5}
-            />
-            <span className="flex-1 min-w-0 h-[18px] flex items-center">
+            <span className="flex h-[18px] min-w-0 flex-1 items-center truncate">
               {isEditing ? (
                 <input
                   ref={inputRef}
@@ -639,7 +649,7 @@ export function FileList({
                   onBlur={finishRename}
                   onKeyDown={handleKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
+                  className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs caret-foreground outline-hidden selection:bg-primary/30"
                   style={{ caretColor: "currentColor" }}
                 />
               ) : (
@@ -725,9 +735,6 @@ export function FileList({
       </ContextMenu>
     );
   };
-
-  const rootFolders = getFoldersInFolder(null);
-  const rootFiles = getFilesInFolder(null);
   useEffect(() => {
     const validKeys = new Set<string>();
     files.forEach((file) => validKeys.add(`file:${file.id}`));
@@ -737,16 +744,43 @@ export function FileList({
     );
   }, [files, folders, setSelectedItems]);
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
+  const totalHeight = flattenedVisibleItems.length * FILE_TREE_ROW_HEIGHT;
+  const viewportHeight = listRef.current?.clientHeight ?? 0;
+  const visibleCount = Math.ceil(viewportHeight / FILE_TREE_ROW_HEIGHT) + FILE_TREE_OVERSCAN * 2;
+  const startIndex = Math.max(0, Math.floor(scrollTop / FILE_TREE_ROW_HEIGHT) - FILE_TREE_OVERSCAN);
+  const endIndex = Math.min(flattenedVisibleItems.length, startIndex + visibleCount);
+  const windowedItems = flattenedVisibleItems.slice(startIndex, endIndex);
 
   return (
     <div
-      className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/6")}
+      ref={listRef}
+      className={cn("flex-1 overflow-y-auto px-2 pb-4 pt-2", isRootDropTarget && "bg-primary/6")}
+      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}
       onDrop={(e) => handleDrop(e, null)}
     >
-      {rootFolders.map((f) => renderFolder(f))}
-      {rootFiles.map((f) => renderFile(f))}
+      <div className="relative" style={{ height: totalHeight }}>
+        {windowedItems.map((item, visibleIndex) => {
+          const rowIndex = startIndex + visibleIndex;
+          const rowContent =
+            item.type === "folder" && item.folder
+              ? renderFolderRow(item.folder, item.depth)
+              : item.file
+                ? renderFileRow(item.file, item.depth)
+                : null;
+
+          return (
+            <div
+              key={`${item.type}:${item.id}`}
+              className="absolute left-0 right-0"
+              style={{ top: rowIndex * FILE_TREE_ROW_HEIGHT, height: FILE_TREE_ROW_HEIGHT }}
+            >
+              {rowContent}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
-}
+});
