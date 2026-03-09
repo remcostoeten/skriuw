@@ -62,7 +62,7 @@ function createInitialTimestamp(): TemplateTimestamp {
 }
 
 interface EditorPreferences {
-  defaultModeMarkdown: boolean;
+  defaultModeRaw: boolean;
   defaultPlaceholder: string;
 }
 
@@ -74,6 +74,7 @@ interface JournalPreferences {
 interface PreferencesState {
   userId: string | null;
   isLoading: boolean;
+  isHydrated: boolean;
 
   // Editor
   editor: EditorPreferences;
@@ -105,9 +106,10 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set, get) => ({
       userId: null,
       isLoading: true,
+      isHydrated: false,
 
       editor: {
-        defaultModeMarkdown: true,
+        defaultModeRaw: false,
         defaultPlaceholder: "Start writing...",
       },
 
@@ -218,6 +220,12 @@ export const usePreferencesStore = create<PreferencesState>()(
         amountOfNotes: state.amountOfNotes,
         activity: state.activity,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isHydrated = true;
+          state.isLoading = false;
+        }
+      },
     },
   ),
 );

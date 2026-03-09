@@ -1,11 +1,11 @@
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 
 interface MarkdownRendererProps {
   content: string;
 }
 
 // Simple markdown renderer
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export const MarkdownRenderer = memo(function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const rendered = useMemo(() => {
     const lines = content.split("\n");
     const elements: React.ReactElement[] = [];
@@ -171,7 +171,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       const listMatch = line.match(/^[-*]\s+(.+)/);
       if (listMatch) {
         if (!inList) inList = true;
-        listItems.push(<li key={i} className="cursor-pointer hover:text-foreground">{renderInline(listMatch[1])}</li>);
+        listItems.push(
+          <li key={i} className="cursor-pointer hover:text-foreground">
+            {renderInline(listMatch[1])}
+          </li>,
+        );
         continue;
       }
 
@@ -208,4 +212,4 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   }, [content]);
 
   return <div className="prose-haptic">{rendered}</div>;
-}
+});

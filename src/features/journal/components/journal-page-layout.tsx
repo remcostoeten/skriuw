@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { format, isValid, parseISO } from "date-fns";
 import { Code, Type, ChevronLeft } from "lucide-react";
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { SettingsModal } from "@/features/settings/components/settings-modal";
+import { useJournalStore } from "@/features/journal/store";
 import { useDocumentStore } from "@/store/document-store";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
@@ -16,12 +17,64 @@ import { JournalDatabaseView } from "./journal-database-view";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 
 type JournalView = "list" | "editor";
 
+const SettingsModal = dynamic(
+  () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
+  { ssr: false },
+);
+
+function JournalSidebarSkeleton({ isMobile }: { isMobile: boolean }) {
+  if (isMobile) return null;
+
+  return (
+    <div className="w-[260px] shrink-0 border-r border-border bg-card/45 p-3">
+      <div className="space-y-3">
+        <div className="h-8 w-full animate-pulse rounded-xl bg-white/6" />
+        <div className="grid grid-cols-5 gap-1">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-7 animate-pulse rounded-md bg-white/6" />
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1 pt-2">
+          {Array.from({ length: 35 }).map((_, index) => (
+            <div key={index} className="h-7 animate-pulse rounded-md bg-white/6" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JournalContentSkeleton() {
+  return (
+    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="native-panel flex items-center gap-2 border-b border-border/40 px-4 py-2">
+        <div className="h-7 w-24 animate-pulse rounded-xl bg-white/6" />
+        <div className="h-4 w-32 animate-pulse rounded-full bg-white/6" />
+      </div>
+      <div className="flex flex-1 flex-col gap-4 px-5 py-6 md:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-2xl bg-white/7" />
+        <div className="space-y-3">
+          <div className="h-4 w-full animate-pulse rounded-full bg-white/6" />
+          <div className="h-4 w-[94%] animate-pulse rounded-full bg-white/6" />
+          <div className="h-4 w-[88%] animate-pulse rounded-full bg-white/6" />
+          <div className="h-4 w-[76%] animate-pulse rounded-full bg-white/6" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function JournalPageLayout() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const $ = useShortcut({ ignoreInputs: true });
+  const isHydrated = useJournalStore((state) => state.isHydrated);
+  const getEntryByDate = useJournalStore((state) => state.getEntryByDate);
+  const getEntrySaveState = useJournalStore((state) => state.getEntrySaveState);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -32,6 +85,19 @@ export function JournalPageLayout() {
   const ui = useDocumentStore((s) => s.ui);
   const setUIState = useDocumentStore((s) => s.setUIState);
   const { isMobile } = ui;
+  const selectedEntryId = getEntryByDate(selectedDate)?.id;
+  const selectedEntrySaveState = getEntrySaveState(selectedEntryId);
+
+  useEffect(() => {
+    const requestedDate = searchParams.get("date");
+    if (!requestedDate) return;
+
+    const parsedDate = parseISO(requestedDate);
+    if (!isValid(parsedDate)) return;
+
+    setSelectedDate(parsedDate);
+    setView("editor");
+  }, [searchParams]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -232,71 +298,73 @@ export function JournalPageLayout() {
       <div className="relative flex min-h-0 flex-1">
         {/* Icon rail (desktop) */}
         {!isMobile && (
-          <IconRail
-            activeTab="journal"
-            onTabChange={() => {}}
-            onOpenSettings={handleOpenSettings}
-          />
+          <IconRail onOpenSettings={handleOpenSettings} />
         )}
 
         {/* Sidebar (desktop) */}
-        {!isMobile && showSidebar && (
+        {isHydrated && !isMobile && showSidebar && (
           <JournalSidebar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
         )}
+        {!isHydrated && <JournalSidebarSkeleton isMobile={isMobile} />}
 
         {/* Main content area */}
-        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-          {view === "list" ? (
-            <JournalDatabaseView onSelectEntry={handleSelectEntry} onNewEntry={handleNewEntry} />
-          ) : (
-            <>
-              {/* Editor header with back navigation */}
-              <div className="native-panel flex items-center gap-2 border-b border-border/40 px-4 py-2">
-                <button
-                  onClick={handleBackToList}
-                  className="pressable flex h-7 items-center gap-1 rounded-xl px-2 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  Journal
-                </button>
-
-                <span className="text-[12px] text-muted-foreground/40">
-                  {format(selectedDate, "MMMM d, yyyy")}
-                </span>
-
-                <div className="ml-auto flex items-center gap-1">
+        {isHydrated ? (
+          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+            {view === "list" ? (
+              <JournalDatabaseView onSelectEntry={handleSelectEntry} onNewEntry={handleNewEntry} />
+            ) : (
+              <>
+                {/* Editor header with back navigation */}
+                <div className="native-panel flex items-center gap-2 border-b border-border/40 px-4 py-2">
                   <button
-                    onClick={handleToggleEditorMode}
-                    className="pressable flex h-7 items-center gap-1.5 rounded-xl px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    title={editorMode === "plain" ? "Switch to Rich Text" : "Switch to Plain Text"}
+                    onClick={handleBackToList}
+                    className="pressable flex h-7 items-center gap-1 rounded-xl px-2 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    {editorMode === "plain" ? (
-                      <>
-                        <Type className="h-3 w-3" strokeWidth={1.5} />
-                        Rich
-                      </>
-                    ) : (
-                      <>
-                        <Code className="h-3 w-3" strokeWidth={1.5} />
-                        Plain
-                      </>
-                    )}
+                    <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    Journal
                   </button>
-                </div>
-              </div>
 
-              {editorMode === "plain" ? (
-                <JournalEditor selectedDate={selectedDate} />
-              ) : (
-                <RichJournalEditor selectedDate={selectedDate} />
-              )}
-            </>
-          )}
-        </div>
+                  <span className="text-[12px] text-muted-foreground/40">
+                    {format(selectedDate, "dd MM yyyy")}
+                  </span>
+
+                  <div className="ml-auto flex items-center gap-1">
+                    <SaveStatusBadge status={selectedEntrySaveState} className="mr-2" />
+                    <button
+                      onClick={handleToggleEditorMode}
+                      className="pressable flex h-7 items-center gap-1.5 rounded-xl px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      title={editorMode === "plain" ? "Switch to Rich Text" : "Switch to Plain Text"}
+                    >
+                      {editorMode === "plain" ? (
+                        <>
+                          <Type className="h-3 w-3" strokeWidth={1.5} />
+                          Rich
+                        </>
+                      ) : (
+                        <>
+                          <Code className="h-3 w-3" strokeWidth={1.5} />
+                          Plain
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {editorMode === "plain" ? (
+                  <JournalEditor selectedDate={selectedDate} />
+                ) : (
+                  <RichJournalEditor selectedDate={selectedDate} />
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <JournalContentSkeleton />
+        )}
       </div>
 
       {/* Mobile sidebar overlay */}
-      {isMobile && showSidebar && (
+      {isHydrated && isMobile && showSidebar && (
         <>
           <button
             type="button"

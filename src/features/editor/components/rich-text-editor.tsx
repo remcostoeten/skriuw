@@ -1,111 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useCallback, useRef } from "react";
-import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
+import { BlockNoteEditor } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
+import type { RichTextDocument } from "@/types/notes";
+import { cloneRichDocument, markdownToRichDocument } from "@/shared/lib/rich-document";
 
 interface RichTextEditorProps {
   content: string;
-  onChange: (markdown: string) => void;
-}
-
-// Convert markdown to BlockNote blocks
-function markdownToBlocks(markdown: string): PartialBlock[] {
-  const lines = markdown.split("\n");
-  const blocks: PartialBlock[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Heading
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
-    if (headingMatch) {
-      const level = headingMatch[1].length as 1 | 2 | 3;
-      blocks.push({
-        type: "heading",
-        props: { level: Math.min(level, 3) as 1 | 2 | 3 },
-        content: headingMatch[2],
-      });
-      i++;
-      continue;
-    }
-
-    // Bullet list item
-    if (line.match(/^[-*]\s+/)) {
-      const listItems: PartialBlock[] = [];
-      while (i < lines.length && lines[i].match(/^[-*]\s+/)) {
-        const itemContent = lines[i].replace(/^[-*]\s+/, "");
-        listItems.push({
-          type: "bulletListItem",
-          content: itemContent,
-        });
-        i++;
-      }
-      blocks.push(...listItems);
-      continue;
-    }
-
-    // Numbered list item
-    if (line.match(/^\d+\.\s+/)) {
-      const listItems: PartialBlock[] = [];
-      while (i < lines.length && lines[i].match(/^\d+\.\s+/)) {
-        const itemContent = lines[i].replace(/^\d+\.\s+/, "");
-        listItems.push({
-          type: "numberedListItem",
-          content: itemContent,
-        });
-        i++;
-      }
-      blocks.push(...listItems);
-      continue;
-    }
-
-    // Code block
-    if (line.startsWith("```")) {
-      const language = line.slice(3).trim();
-      i++;
-      const codeLines: string[] = [];
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      blocks.push({
-        type: "codeBlock",
-        props: { language: language || "plaintext" },
-        content: codeLines.join("\n"),
-      });
-      i++; // Skip closing ```
-      continue;
-    }
-
-    // Blockquote
-    if (line.startsWith("> ")) {
-      blocks.push({
-        type: "paragraph",
-        content: line.slice(2),
-      });
-      i++;
-      continue;
-    }
-
-    // Empty line
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-
-    // Regular paragraph
-    blocks.push({
-      type: "paragraph",
-      content: line,
-    });
-    i++;
-  }
-
-  return blocks.length > 0 ? blocks : [{ type: "paragraph", content: "" }];
+  richContent?: RichTextDocument;
+  onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
 }
 
 // Convert BlockNote blocks to markdown
@@ -118,11 +24,18 @@ async function blocksToMarkdown(editor: BlockNoteEditor): Promise<string> {
   }
 }
 
-export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
+export function RichTextEditor({ content, richContent, onChange }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
+  const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
+  const pendingMarkdownRef = useRef(content);
   const isInternalChangeRef = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serializeRunIdRef = useRef(0);
 
-  const initialBlocks = useMemo(() => markdownToBlocks(content), []);
+  const initialBlocks = useMemo(
+    () => (richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content)),
+    [],
+  );
 
   const editor = useCreateBlockNote({
     initialContent: initialBlocks,
@@ -131,27 +44,64 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   // Handle content changes from editor
   const handleEditorChange = useCallback(async () => {
     if (!editor) return;
-    isInternalChangeRef.current = true;
+
+    const runId = ++serializeRunIdRef.current;
     const markdown = await blocksToMarkdown(editor);
-    lastContentRef.current = markdown;
-    onChange(markdown);
-    setTimeout(() => {
-      isInternalChangeRef.current = false;
-    }, 100);
+    if (runId !== serializeRunIdRef.current) {
+      return;
+    }
+
+    const nextRichContent = cloneRichDocument(editor.document);
+    const nextRichContentKey = JSON.stringify(nextRichContent);
+    pendingMarkdownRef.current = markdown;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      if (
+        pendingMarkdownRef.current === lastContentRef.current &&
+        nextRichContentKey === lastRichContentRef.current
+      ) {
+        return;
+      }
+
+      isInternalChangeRef.current = true;
+      lastContentRef.current = pendingMarkdownRef.current;
+      lastRichContentRef.current = nextRichContentKey;
+      onChange({ markdown: pendingMarkdownRef.current, richContent: nextRichContent });
+
+      window.setTimeout(() => {
+        isInternalChangeRef.current = false;
+      }, 80);
+    }, 180);
   }, [editor, onChange]);
 
   // Sync external content changes to editor
   useEffect(() => {
     if (!editor || isInternalChangeRef.current) return;
-    if (content !== lastContentRef.current) {
-      const blocks = markdownToBlocks(content);
-      editor.replaceBlocks(editor.document, blocks);
+    const nextRichContent =
+      richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content);
+    const nextRichContentKey = JSON.stringify(nextRichContent);
+    if (content !== lastContentRef.current || nextRichContentKey !== lastRichContentRef.current) {
+      editor.replaceBlocks(editor.document, nextRichContent);
       lastContentRef.current = content;
+      lastRichContentRef.current = nextRichContentKey;
+      pendingMarkdownRef.current = content;
     }
-  }, [content, editor]);
+  }, [content, editor, richContent]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div className="blocknote-wrapper h-full">
+    <div className="blocknote-wrapper h-full min-h-full">
       <BlockNoteView
         editor={editor}
         onChange={handleEditorChange}
@@ -160,7 +110,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       />
       <style jsx global>{`
         .blocknote-wrapper {
-          --bn-colors-editor-background: hsl(220 14% 8%);
+          --bn-colors-editor-background: #1e1e1e;
           --bn-colors-editor-text: hsl(220 10% 82%);
           --bn-colors-menu-background: hsl(220 16% 6%);
           --bn-colors-menu-text: hsl(220 10% 82%);
@@ -173,7 +123,9 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           --bn-colors-border: hsl(220 10% 15%);
           --bn-colors-side-menu: hsl(220 8% 40%);
           --bn-font-family: "Inter", system-ui, -apple-system, sans-serif;
-          background: hsl(220 14% 8%) !important;
+          height: 100%;
+          min-height: 100%;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-container,
         .blocknote-wrapper .bn-container [data-theming-css-variables-demo],
@@ -182,20 +134,25 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         }
         .blocknote-wrapper > div,
         .blocknote-wrapper .bn-container > div {
-          background: hsl(220 14% 8%) !important;
+          height: 100%;
+          min-height: 100%;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-container {
           height: 100%;
+          min-height: 100%;
         }
         .blocknote-wrapper .bn-editor {
+          box-sizing: border-box;
           padding-left: 2rem;
           padding-right: 2rem;
           padding-top: 2rem;
           padding-bottom: 2rem;
+          width: 100%;
           max-width: 42rem;
           margin: 0 auto;
           min-height: 100%;
-          background: hsl(220 14% 8%) !important;
+          background: #1e1e1e !important;
         }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;
@@ -211,10 +168,22 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
+        .blocknote-wrapper pre,
+        .blocknote-wrapper pre code,
+        .blocknote-wrapper [data-content-type="codeBlock"],
+        .blocknote-wrapper [data-content-type="codeBlock"] * {
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .blocknote-wrapper pre {
+          max-width: 100%;
+          overflow-x: hidden;
+        }
         /* Override any mantine styles */
         .blocknote-wrapper .mantine-Paper-root,
         .blocknote-wrapper [class*="mantine-"] {
-          --mantine-color-body: hsl(220 14% 8%);
+          --mantine-color-body: #1e1e1e;
         }
       `}</style>
     </div>

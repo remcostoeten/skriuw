@@ -1,15 +1,23 @@
 'use client';
 
-import { useMemo } from 'react';
-import { format, subDays, isAfter, startOfDay, endOfDay } from 'date-fns';
-import { Calendar, TrendingUp, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
+import { useMemo, useCallback } from 'react';
+import { format, subDays, isAfter, startOfDay } from 'date-fns';
+import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { useJournalStore } from '@/modules/journal';
-import { MOOD_OPTIONS } from '@/types/notes';
+import { useJournalStore } from '@/features/journal/store';
+import { type MoodLevel, type Mood, MOOD_OPTIONS } from '@/features/journal/types';
 
 type JournalStatsProps = {
   className?: string;
 };
+
+function getStreakColor(streak: number) {
+  if (streak >= 30) return 'text-emerald-400';
+  if (streak >= 14) return 'text-green-400';
+  if (streak >= 7) return 'text-lime-400';
+  if (streak >= 3) return 'text-yellow-400';
+  return 'text-muted-foreground';
+}
 
 export function JournalStats({ className }: JournalStatsProps) {
   const store = useJournalStore();
@@ -22,9 +30,12 @@ export function JournalStats({ className }: JournalStatsProps) {
     const yesterday = startOfDay(subDays(now, 1));
     const lastWeek = startOfDay(subDays(now, 7));
     const lastMonth = startOfDay(subDays(now, 30));
-    
-    const todayEntries = entries.filter(e => e.dateKey === format(today, 'yyyy-MM-dd'));
-    const yesterdayEntries = entries.filter(e => e.dateKey === format(yesterday, 'yyyy-MM-dd'));
+
+    const todayKey = format(today, 'yyyy-MM-dd');
+    const yesterdayKey = format(yesterday, 'yyyy-MM-dd');
+
+    const todayEntries = entries.filter(e => e.dateKey === todayKey);
+    const yesterdayEntries = entries.filter(e => e.dateKey === yesterdayKey);
     const lastWeekEntries = entries.filter(e => isAfter(new Date(e.dateKey), lastWeek));
     const lastMonthEntries = entries.filter(e => isAfter(new Date(e.dateKey), lastMonth));
 
@@ -51,13 +62,13 @@ export function JournalStats({ className }: JournalStatsProps) {
         lastDate = entryDate;
       }
     });
-    
+
     longestStreak = Math.max(longestStreak, tempStreak);
-    
+
     // Check if today has entry to continue streak
-    const todayEntry = entries.find(e => e.dateKey === format(today, 'yyyy-MM-dd'));
-    const yesterdayEntry = entries.find(e => e.dateKey === format(yesterday, 'yyyy-MM-dd'));
-    
+    const todayEntry = todayEntries.length > 0;
+    const yesterdayEntry = yesterdayEntries.length > 0;
+
     if (todayEntry) {
       currentStreak = tempStreak;
     } else if (yesterdayEntry) {
@@ -67,29 +78,37 @@ export function JournalStats({ className }: JournalStatsProps) {
     }
 
     // Mood stats
-    const moodCounts = entries.reduce((acc, entry) => {
+    const moodCounts: Partial<Record<MoodLevel, number>> = {};
+    for (const entry of entries) {
       if (entry.mood) {
-        acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+        moodCounts[entry.mood] = (moodCounts[entry.mood] ?? 0) + 1;
       }
-      return acc;
-    }, {} as Record<string, number>);
+    }
 
     // Word count
     const totalWords = entries.reduce((acc, entry) => {
-      return acc + (entry.content.trim() ? entry.content.trim().split(/\s+/).length : 0);
+      const trimmed = entry.content.trim();
+      return acc + (trimmed ? trimmed.split(/\s+/).length : 0);
     }, 0);
 
     // Tag usage
     const tagUsage = tags.slice(0, 5);
 
     // Activity heatmap (last 30 days)
+    const entryDateSet = new Set(entries.map(e => e.dateKey as string));
     const heatmap = [];
     for (let i = 29; i >= 0; i--) {
       const date = startOfDay(subDays(now, i));
       const dateKey = format(date, 'yyyy-MM-dd');
-      const hasEntry = entries.some(e => e.dateKey === dateKey);
-      heatmap.push({ date, dateKey, hasEntry });
+      heatmap.push({ date, dateKey, hasEntry: entryDateSet.has(dateKey) });
     }
+
+    // Most common mood (computed once, not per-render)
+    const moodEntries = Object.entries(moodCounts) as [MoodLevel, number][];
+    const mostCommonMood: Mood | null =
+      moodEntries.length > 0
+        ? MOOD_OPTIONS[moodEntries.sort((a, b) => b[1] - a[1])[0][0]]
+        : null;
 
     return {
       totalEntries: entries.length,
@@ -103,45 +122,33 @@ export function JournalStats({ className }: JournalStatsProps) {
       totalWords,
       tagUsage,
       heatmap,
+      mostCommonMood,
     };
   }, [entries, tags]);
 
-  const getStreakColor = (streak: number) => {
-    if (streak >= 30) return 'text-emerald-400';
-    if (streak >= 14) return 'text-green-400';
-    if (streak >= 7) return 'text-lime-400';
-    if (streak >= 3) return 'text-yellow-400';
-    return 'text-muted-foreground';
-  };
-
-  const getMostCommonMood = () => {
-    const sorted = Object.entries(stats.moodCounts).sort((a, b) => b[1] - a[1]);
-    return sorted[0] ? MOOD_OPTIONS[sorted[0][0] as keyof typeof MOOD_OPTIONS] : null;
-  };
-
-  const exportAsMarkdown = () => {
+  const exportAsMarkdown = useCallback(() => {
     const sortedEntries = [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
     let markdown = '# Journal Export\n\n';
     markdown += `Exported on ${format(new Date(), 'MMMM d, yyyy')}\n\n`;
     markdown += `Total entries: ${sortedEntries.length}\n\n`;
     markdown += '---\n\n';
-    
+
     sortedEntries.forEach(entry => {
       const date = new Date(entry.dateKey + 'T00:00:00');
       markdown += `## ${format(date, 'EEEE, MMMM d, yyyy')}\n\n`;
-      
+
       if (entry.mood) {
         const mood = MOOD_OPTIONS[entry.mood];
         markdown += `**Mood:** ${mood.icon} ${mood.label}\n\n`;
       }
-      
+
       if (entry.tags.length > 0) {
         markdown += `**Tags:** ${entry.tags.map(tag => `@${tag}`).join(', ')}\n\n`;
       }
-      
+
       markdown += `${entry.content || '*No content*'}\n\n---\n\n`;
     });
-    
+
     const blob = new Blob([markdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -149,9 +156,9 @@ export function JournalStats({ className }: JournalStatsProps) {
     a.download = `journal-export-${format(new Date(), 'yyyy-MM-dd')}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [entries]);
 
-  const exportAsJSON = () => {
+  const exportAsJSON = useCallback(() => {
     const exportData = {
       exportedAt: new Date().toISOString(),
       entries: entries,
@@ -164,7 +171,7 @@ export function JournalStats({ className }: JournalStatsProps) {
         moodCounts: stats.moodCounts,
       }
     };
-    
+
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -172,9 +179,9 @@ export function JournalStats({ className }: JournalStatsProps) {
     a.download = `journal-export-${format(new Date(), 'yyyy-MM-dd')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [entries, tags, stats]);
 
-  const exportAsPDF = () => {
+  const exportAsPDF = useCallback(() => {
     // For PDF export, we'll create a simple HTML version and trigger print
     const sortedEntries = [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
     let html = `
@@ -199,28 +206,28 @@ export function JournalStats({ className }: JournalStatsProps) {
         <p>Total entries: ${sortedEntries.length}</p>
         <hr>
     `;
-    
+
     sortedEntries.forEach(entry => {
       const date = new Date(entry.dateKey + 'T00:00:00');
       html += `
         <div class="entry">
           <h2>${format(date, 'EEEE, MMMM d, yyyy')}</h2>
       `;
-      
+
       if (entry.mood) {
         const mood = MOOD_OPTIONS[entry.mood];
         html += `<p class="mood">Mood: ${mood.icon} ${mood.label}</p>`;
       }
-      
+
       if (entry.tags.length > 0) {
         html += `<p class="tags">Tags: ${entry.tags.map(tag => `@${tag}`).join(', ')}</p>`;
       }
-      
+
       html += `<div class="content">${entry.content || 'No content'}</div></div>`;
     });
-    
+
     html += '</body></html>';
-    
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(html);
@@ -231,196 +238,196 @@ export function JournalStats({ className }: JournalStatsProps) {
         printWindow.close();
       }, 250);
     }
-  };
+  }, [entries]);
 
   return (
     <div className={cn('p-2 space-y-4', className)}>
-        {/* Entry Stats */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-              Entries
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-accent/20 p-2">
-              <p className="text-[18px] font-bold text-foreground">{stats.totalEntries}</p>
-              <p className="text-[9px] text-muted-foreground/60">Total</p>
-            </div>
-            <div className="rounded-lg bg-accent/20 p-2">
-              <p className="text-[18px] font-bold text-foreground">{stats.todayEntries}</p>
-              <p className="text-[9px] text-muted-foreground/60">Today</p>
-            </div>
-          </div>
+      {/* Entry Stats */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            Entries
+          </span>
+        </div>
 
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px]">
-              <span className="text-muted-foreground/60">Last 7 days</span>
-              <span className="font-medium text-foreground">{stats.lastWeekEntries}</span>
-            </div>
-            <div className="flex justify-between text-[10px]">
-              <span className="text-muted-foreground/60">Last 30 days</span>
-              <span className="font-medium text-foreground">{stats.lastMonthEntries}</span>
-            </div>
-            <div className="flex justify-between text-[10px]">
-              <span className="text-muted-foreground/60">Total words</span>
-              <span className="font-medium text-foreground">{stats.totalWords.toLocaleString()}</span>
-            </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-accent/20 p-2">
+            <p className="text-[18px] font-bold text-foreground">{stats.totalEntries}</p>
+            <p className="text-[9px] text-muted-foreground/60">Total</p>
+          </div>
+          <div className="rounded-lg bg-accent/20 p-2">
+            <p className="text-[18px] font-bold text-foreground">{stats.todayEntries}</p>
+            <p className="text-[9px] text-muted-foreground/60">Today</p>
           </div>
         </div>
 
-        {/* Streaks */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5">
-            <Zap className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-              Streaks
-            </span>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-muted-foreground/60">Last 7 days</span>
+            <span className="font-medium text-foreground">{stats.lastWeekEntries}</span>
           </div>
-          
-          <div className="space-y-1.5">
-            <div className="flex justify-between">
-              <span className="text-[10px] text-muted-foreground/60">Current</span>
-              <span className={cn('text-[12px] font-bold', getStreakColor(stats.currentStreak))}>
-                {stats.currentStreak} {stats.currentStreak === 1 ? 'day' : 'days'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[10px] text-muted-foreground/60">Longest</span>
-              <span className="text-[12px] font-bold text-foreground">
-                {stats.longestStreak} {stats.longestStreak === 1 ? 'day' : 'days'}
-              </span>
-            </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="text-muted-foreground/60">Last 30 days</span>
+            <span className="font-medium text-foreground">{stats.lastMonthEntries}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="text-muted-foreground/60">Total words</span>
+            <span className="font-medium text-foreground">{stats.totalWords.toLocaleString()}</span>
           </div>
         </div>
+      </div>
 
-        {/* Mood Analysis */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5">
-            <Heart className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-              Mood
+      {/* Streaks */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <Zap className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            Streaks
+          </span>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted-foreground/60">Current</span>
+            <span className={cn('text-[12px] font-bold', getStreakColor(stats.currentStreak))}>
+              {stats.currentStreak} {stats.currentStreak === 1 ? 'day' : 'days'}
             </span>
           </div>
-          
-          {getMostCommonMood() && (
-            <div className="rounded-lg bg-accent/20 p-2">
-              <p className="text-[10px] text-muted-foreground/60">Most common</p>
-              <p className="text-[12px] font-bold text-foreground mt-0.5">
-                {getMostCommonMood()?.icon} {getMostCommonMood()?.label}
-              </p>
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted-foreground/60">Longest</span>
+            <span className="text-[12px] font-bold text-foreground">
+              {stats.longestStreak} {stats.longestStreak === 1 ? 'day' : 'days'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Mood Analysis */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <Heart className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            Mood
+          </span>
+        </div>
+
+        {stats.mostCommonMood && (
+          <div className="rounded-lg bg-accent/20 p-2">
+            <p className="text-[10px] text-muted-foreground/60">Most common</p>
+            <p className="text-[12px] font-bold text-foreground mt-0.5">
+              {stats.mostCommonMood.icon} {stats.mostCommonMood.label}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          {(Object.entries(stats.moodCounts) as [MoodLevel, number][]).map(([mood, count]) => (
+            <div key={mood} className="flex items-center gap-1.5">
+              <span className={cn('text-[10px]', MOOD_OPTIONS[mood].color)}>
+                {MOOD_OPTIONS[mood].icon}
+              </span>
+              <span className="text-[10px] text-muted-foreground/60">{MOOD_OPTIONS[mood].label}</span>
+              <span className="ml-auto text-[10px] font-medium text-foreground">{count}</span>
             </div>
-          )}
+          ))}
+        </div>
+      </div>
+
+      {/* Top Tags */}
+      {stats.tagUsage.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-1.5">
+            <Hash className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+              Top Tags
+            </span>
+          </div>
 
           <div className="space-y-1">
-            {(Object.entries(stats.moodCounts) as [keyof typeof MOOD_OPTIONS, number][]).map(([mood, count]) => (
-              <div key={mood} className="flex items-center gap-1.5">
-                <span className={cn('text-[10px]', MOOD_OPTIONS[mood].color)}>
-                  {MOOD_OPTIONS[mood].icon}
-                </span>
-                <span className="text-[10px] text-muted-foreground/60">{MOOD_OPTIONS[mood].label}</span>
-                <span className="ml-auto text-[10px] font-medium text-foreground">{count}</span>
+            {stats.tagUsage.map((tag) => (
+              <div key={tag.id} className="flex items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: tag.color }}
+                />
+                <span className="text-[10px] text-muted-foreground/60">@{tag.name}</span>
+                <span className="ml-auto text-[10px] font-medium text-foreground">{tag.usageCount}</span>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Top Tags */}
-        {stats.tagUsage.length > 0 && (
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-1.5">
-              <Hash className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-              <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-                Top Tags
-              </span>
-            </div>
-            
-            <div className="space-y-1">
-              {stats.tagUsage.map((tag) => (
-                <div key={tag.id} className="flex items-center gap-1.5">
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
-                  <span className="text-[10px] text-muted-foreground/60">@{tag.name}</span>
-                  <span className="ml-auto text-[10px] font-medium text-foreground">{tag.usageCount}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Activity Heatmap */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5">
-            <Target className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-              Activity (30 days)
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-7 gap-0.5">
-            {stats.heatmap.map((day, index) => (
-              <div
-                key={day.dateKey}
-                className={cn(
-                  'aspect-square rounded-sm',
-                  day.hasEntry
-                    ? 'bg-indigo-400'
-                    : 'bg-border/30'
-                )}
-                title={`${format(day.date, 'MMM d')}${day.hasEntry ? ' - Entry' : ' - No entry'}`}
-              />
-            ))}
-          </div>
-          
-          <div className="flex items-center justify-between text-[8px] text-muted-foreground/40">
-            <span>30 days ago</span>
-            <span>Today</span>
-          </div>
+      {/* Activity Heatmap */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <Target className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            Activity (30 days)
+          </span>
         </div>
 
-        {/* Export Options */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5">
-            <Download className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-              Export
-            </span>
-          </div>
-          
-          <div className="space-y-1.5">
-            <button
-              onClick={exportAsMarkdown}
-              className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
-            >
-              <FileText className="h-3 w-3" strokeWidth={1.5} />
-              Markdown
-            </button>
-            
-            <button
-              onClick={exportAsJSON}
-              className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
-            >
-              <Download className="h-3 w-3" strokeWidth={1.5} />
-              JSON
-            </button>
-            
-            <button
-              onClick={exportAsPDF}
-              className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
-            >
-              <FileText className="h-3 w-3" strokeWidth={1.5} />
-              Print / PDF
-            </button>
-          </div>
-          
-          <p className="text-[8px] text-muted-foreground/40">
-            Export for backup or sharing
-          </p>
+        <div className="grid grid-cols-7 gap-0.5">
+          {stats.heatmap.map((day) => (
+            <div
+              key={day.dateKey}
+              className={cn(
+                'aspect-square rounded-sm',
+                day.hasEntry
+                  ? 'bg-indigo-400'
+                  : 'bg-border/30'
+              )}
+              title={`${format(day.date, 'MMM d')}${day.hasEntry ? ' - Entry' : ' - No entry'}`}
+            />
+          ))}
         </div>
+
+        <div className="flex items-center justify-between text-[8px] text-muted-foreground/40">
+          <span>30 days ago</span>
+          <span>Today</span>
+        </div>
+      </div>
+
+      {/* Export Options */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5">
+          <Download className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            Export
+          </span>
+        </div>
+
+        <div className="space-y-1.5">
+          <button
+            onClick={exportAsMarkdown}
+            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+          >
+            <FileText className="h-3 w-3" strokeWidth={1.5} />
+            Markdown
+          </button>
+
+          <button
+            onClick={exportAsJSON}
+            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+          >
+            <Download className="h-3 w-3" strokeWidth={1.5} />
+            JSON
+          </button>
+
+          <button
+            onClick={exportAsPDF}
+            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+          >
+            <FileText className="h-3 w-3" strokeWidth={1.5} />
+            Print / PDF
+          </button>
+        </div>
+
+        <p className="text-[8px] text-muted-foreground/40">
+          Export for backup or sharing
+        </p>
+      </div>
     </div>
   );
 }

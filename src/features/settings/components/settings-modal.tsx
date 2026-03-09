@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Info, HelpCircle, ArrowLeft } from "lucide-react";
 import {
   Dialog,
@@ -14,15 +15,42 @@ import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore } from "@/store/preferences-store";
 import { getAuth } from "@/modules/auth";
-import { TroubleshootingGuide } from "@/features/notes/components/troubleshooting-guide";
-import { TemplateSelector } from "@/features/notes/components/template-selector";
-import { TagManager } from "./tag-manager";
 import { Button } from "@/shared/ui/button-component";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
+
+const TroubleshootingGuide = dynamic(
+  () =>
+    import("@/features/notes/components/troubleshooting-guide").then((mod) => ({
+      default: mod.TroubleshootingGuide,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="py-8 text-sm text-muted-foreground">Loading help…</div>,
+  },
+);
+
+const TemplateSelector = dynamic(
+  () =>
+    import("@/features/notes/components/template-selector").then((mod) => ({
+      default: mod.TemplateSelector,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="py-6 text-sm text-muted-foreground">Loading templates…</div>,
+  },
+);
+
+const TagManager = dynamic(
+  () => import("./tag-manager").then((mod) => ({ default: mod.TagManager })),
+  {
+    ssr: false,
+    loading: () => <div className="py-6 text-sm text-muted-foreground">Loading tags…</div>,
+  },
+);
 
 function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -135,20 +163,22 @@ export function SettingsModal({ open, onOpenChange }: Props) {
             <div className="flex items-center justify-between py-2">
               <div className="space-y-1">
                 <Label htmlFor="default-mode" className="text-sm font-medium">
-                  Default to Markdown
+                  Default to Raw MDX
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  New notes will open in Markdown mode instead of Rich Text.
+                  New notes will open in raw MDX mode instead of Block Note.
                 </p>
               </div>
               <Switch
                 id="default-mode"
-                checked={editor.defaultModeMarkdown}
-                onCheckedChange={(checked) => updateEditorPreference("defaultModeMarkdown", checked)}
+                checked={editor.defaultModeRaw}
+                onCheckedChange={(checked) =>
+                  updateEditorPreference("defaultModeRaw", checked)
+                }
               />
             </div>
             <p className="text-xs text-muted-foreground/70 italic">
-              Rich text mode remains exactly as it behaves today. This setting only affects the
+              Block Note remains the standard editing surface. This setting only affects the
               default mode for new notes.
             </p>
           </SettingsSection>
