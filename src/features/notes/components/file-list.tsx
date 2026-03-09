@@ -6,7 +6,6 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import {
   Briefcase,
   ChevronRight,
-  FileText,
   Folder,
   FolderInput,
   Pencil,
@@ -60,7 +59,7 @@ type VisibleItem =
   | (SelectedItem & { depth: number; folder: NoteFolder; file?: never })
   | (SelectedItem & { depth: number; file: NoteFile; folder?: never });
 
-const FILE_TREE_ROW_HEIGHT = 40;
+const FILE_TREE_ROW_HEIGHT = 32;
 const FILE_TREE_OVERSCAN = 10;
 
 export const FileList = memo(function FileList({
@@ -479,43 +478,45 @@ export const FileList = memo(function FileList({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
-                "group flex min-h-10 w-full items-center gap-1.5 rounded-lg text-[13px] transition-colors md:h-[28px] md:min-h-0",
+                "group flex h-7 w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
                 isSelected
                   ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                   : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground/88",
                 isDragging && "opacity-50",
                 isDropTarget && "bg-primary/12 ring-1 ring-white/10",
               )}
-              style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
+              style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
             >
-              <ChevronRight
-                className={cn(
-                  "w-3 h-3 shrink-0 transition-transform text-muted-foreground",
-                  folder.isOpen && "rotate-90",
-                )}
-                strokeWidth={1.5}
-              />
-              <Folder
-                className="w-[15px] h-[15px] shrink-0 text-muted-foreground"
-                strokeWidth={1.5}
-              />
-              <span className="flex-1 min-w-0 h-[18px] flex items-center">
-                {isEditing ? (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={finishRename}
-                    onKeyDown={handleKeyDown}
-                    onClick={(e) => e.stopPropagation()}
-                    className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
-                    style={{ caretColor: "currentColor" }}
-                  />
-                ) : (
-                  <span className="text-left truncate select-none">{folder.name}</span>
-                )}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                <ChevronRight
+                  className={cn(
+                    "h-3 w-3 shrink-0 text-muted-foreground/80 transition-transform",
+                    folder.isOpen && "rotate-90",
+                  )}
+                  strokeWidth={1.5}
+                />
+                <Folder
+                  className="h-4 w-4 shrink-0 text-muted-foreground/85"
+                  strokeWidth={1.5}
+                />
+                <span className="flex h-[18px] min-w-0 flex-1 items-center">
+                  {isEditing ? (
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={finishRename}
+                      onKeyDown={handleKeyDown}
+                      onClick={(e) => e.stopPropagation()}
+                      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs caret-foreground outline-hidden selection:bg-primary/30"
+                      style={{ caretColor: "currentColor" }}
+                    />
+                  ) : (
+                    <span className="truncate text-left select-none">{folder.name}</span>
+                  )}
+                </span>
+              </div>
               <span className="ml-2 w-4 shrink-0 text-right text-[10px] text-muted-foreground/65 tabular-nums">
                 {totalCount}
               </span>
@@ -630,19 +631,15 @@ export const FileList = memo(function FileList({
             }
             onDragEnd={handleDragEnd}
             className={cn(
-              "flex min-h-10 w-full items-center gap-2 truncate rounded-lg text-left text-[13px] transition-colors md:h-[28px] md:min-h-0",
+              "flex h-7 w-full items-center rounded-md text-left text-xs font-medium transition-colors",
               isSelected || activeFileId === file.id
                 ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                 : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
-            style={{ paddingLeft: `${10 + depth * 14}px`, paddingRight: "8px" }}
+            style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
           >
-            <FileText
-              className="h-[14px] w-[14px] shrink-0 text-muted-foreground/70"
-              strokeWidth={1.5}
-            />
-            <span className="flex-1 min-w-0 h-[18px] flex items-center">
+            <span className="flex h-[18px] min-w-0 flex-1 items-center truncate">
               {isEditing ? (
                 <input
                   ref={inputRef}
@@ -652,7 +649,7 @@ export const FileList = memo(function FileList({
                   onBlur={finishRename}
                   onKeyDown={handleKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[13px] caret-foreground outline-hidden selection:bg-primary/30"
+                  className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs caret-foreground outline-hidden selection:bg-primary/30"
                   style={{ caretColor: "currentColor" }}
                 />
               ) : (
@@ -757,7 +754,7 @@ export const FileList = memo(function FileList({
   return (
     <div
       ref={listRef}
-      className={cn("flex-1 overflow-y-auto px-2 py-1.5", isRootDropTarget && "bg-primary/6")}
+      className={cn("flex-1 overflow-y-auto px-2 pb-4 pt-2", isRootDropTarget && "bg-primary/6")}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}

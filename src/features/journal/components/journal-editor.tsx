@@ -1,43 +1,47 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
-import { X, Trash2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
-import { useJournalStore } from '@/modules/journal';
-import { MoodLevel, MOOD_OPTIONS } from '@/types/notes';
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
+import { format, isToday, isYesterday, isTomorrow } from "date-fns";
+import { X, Trash2 } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+import { useJournalStore } from "@/features/journal/store";
+import { type MoodLevel, MOOD_OPTIONS } from "@/features/journal/types";
+import { findActiveTagMention, replaceActiveTagMention } from "./tag-mention-utils";
 
 type JournalEditorProps = {
   selectedDate: Date;
 };
 
 function formatDateHeading(date: Date): string {
-  if (isToday(date)) return 'Today';
-  if (isYesterday(date)) return 'Yesterday';
-  if (isTomorrow(date)) return 'Tomorrow';
-  return format(date, 'EEEE');
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (isTomorrow(date)) return "Tomorrow";
+  return format(date, "EEEE");
 }
 
 export function JournalEditor({ selectedDate }: JournalEditorProps) {
   const store = useJournalStore();
-  const dateKey = format(selectedDate, 'yyyy-MM-dd');
+  const dateKey = format(selectedDate, "yyyy-MM-dd");
   const entry = store.getEntryByDateKey(dateKey);
 
-  const [content, setContent] = useState(entry?.content ?? '');
+  const [content, setContent] = useState(entry?.content ?? "");
   const [showTagPopup, setShowTagPopup] = useState(false);
-  const [tagQuery, setTagQuery] = useState('');
+  const [tagQuery, setTagQuery] = useState("");
   const [tagCursorStart, setTagCursorStart] = useState<number | null>(null);
   const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popupId = useId();
+  const helpTextId = `${popupId}-help`;
+  const statusTextId = `${popupId}-status`;
 
   // Sync content when date changes
   useEffect(() => {
     const e = store.getEntryByDateKey(dateKey);
-    setContent(e?.content ?? '');
+    setContent(e?.content ?? "");
     setShowTagPopup(false);
-    setTagQuery('');
+    setTagQuery("");
     setShowDeleteConfirm(false);
 
     // Focus the editor
@@ -50,13 +54,60 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.style.height = 'auto';
+    textarea.style.height = "auto";
     textarea.style.height = `${Math.max(400, textarea.scrollHeight)}px`;
   }, [content]);
 
   const suggestions = useMemo(() => {
     return store.getTagSuggestions(tagQuery);
   }, [store, tagQuery]);
+
+  const canCreateTag =
+    tagQuery.trim().length > 0 &&
+    !suggestions.some((suggestion) => suggestion.name === tagQuery.trim().toLowerCase());
+
+  const popupOptions = useMemo(
+    () => [
+      ...suggestions.map((tag) => ({
+        id: `${popupId}-${tag.id}`,
+        key: tag.id,
+        kind: "suggestion" as const,
+        name: tag.name,
+        color: tag.color,
+        usageCount: tag.usageCount,
+      })),
+      ...(canCreateTag
+        ? [
+            {
+              id: `${popupId}-create`,
+              key: "__create__",
+              kind: "create" as const,
+              name: tagQuery.trim().toLowerCase(),
+            },
+          ]
+        : []),
+    ],
+    [canCreateTag, popupId, suggestions, tagQuery],
+  );
+
+  const activeOptionId =
+    showTagPopup && popupOptions[selectedSuggestionIdx]
+      ? popupOptions[selectedSuggestionIdx].id
+      : undefined;
+
+  useEffect(() => {
+    if (selectedSuggestionIdx >= popupOptions.length) {
+      setSelectedSuggestionIdx(0);
+    }
+  }, [popupOptions.length, selectedSuggestionIdx]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const debouncedSave = useCallback(
     (newContent: string) => {
@@ -81,18 +132,16 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
     setContent(newContent);
     debouncedSave(newContent);
 
-    // Detect @ trigger
-    const textBeforeCursor = newContent.slice(0, cursorPos);
-    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    const activeMention = findActiveTagMention(newContent, cursorPos);
 
-    if (atMatch) {
+    if (activeMention) {
       setShowTagPopup(true);
-      setTagQuery(atMatch[1]);
-      setTagCursorStart(cursorPos - atMatch[0].length);
+      setTagQuery(activeMention.query);
+      setTagCursorStart(activeMention.start);
       setSelectedSuggestionIdx(0);
     } else {
       setShowTagPopup(false);
-      setTagQuery('');
+      setTagQuery("");
       setTagCursorStart(null);
     }
   };
@@ -101,15 +150,15 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
     (tagName: string) => {
       if (tagCursorStart === null) return;
 
-      const before = content.slice(0, tagCursorStart);
       const cursorPos = textareaRef.current?.selectionStart ?? content.length;
-      const after = content.slice(cursorPos);
-      const newContent = `${before}@${tagName} ${after}`;
+      const replacement = replaceActiveTagMention(content, tagCursorStart, cursorPos, tagName);
+      const newContent = replacement.content;
 
       setContent(newContent);
       setShowTagPopup(false);
-      setTagQuery('');
+      setTagQuery("");
       setTagCursorStart(null);
+      setSelectedSuggestionIdx(0);
 
       // Cancel any pending debounced save to prevent it from overwriting tags
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -126,9 +175,11 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
 
       requestAnimationFrame(() => {
         if (textareaRef.current) {
-          const newCursorPos = tagCursorStart + tagName.length + 2;
           textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textareaRef.current.setSelectionRange(
+            replacement.cursorPosition,
+            replacement.cursorPosition,
+          );
         }
       });
     },
@@ -136,26 +187,35 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!showTagPopup || suggestions.length === 0) return;
+    if (!showTagPopup || popupOptions.length === 0) return;
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedSuggestionIdx((prev) => (prev + 1) % suggestions.length);
-    } else if (e.key === 'ArrowUp') {
+      setSelectedSuggestionIdx((prev) => (prev + 1) % popupOptions.length);
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedSuggestionIdx((prev) => (prev - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      setSelectedSuggestionIdx((prev) => (prev - 1 + popupOptions.length) % popupOptions.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      insertTag(suggestions[selectedSuggestionIdx].name);
-    } else if (e.key === 'Escape') {
+      const option = popupOptions[selectedSuggestionIdx];
+      if (!option) return;
+      if (option.kind === "create") {
+        handleCreateAndInsertTag();
+      } else {
+        insertTag(option.name);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
       setShowTagPopup(false);
+      setSelectedSuggestionIdx(0);
     }
   };
 
   const handleCreateAndInsertTag = () => {
     if (!tagQuery.trim()) return;
-    store.createTag(tagQuery.trim());
-    insertTag(tagQuery.trim());
+    const normalizedTag = tagQuery.trim().toLowerCase();
+    store.createTag(normalizedTag);
+    insertTag(normalizedTag);
   };
 
   const handleMoodSelect = (mood: MoodLevel) => {
@@ -172,7 +232,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
     if (existing) {
       store.removeTagFromEntry(existing.id, tagName);
       // Also remove @tag from content text
-      const cleaned = content.replace(new RegExp(`@${tagName}\\s?`, 'g'), '');
+      const cleaned = content.replace(new RegExp(`@${tagName}\\s?`, "g"), "");
       setContent(cleaned);
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       store.updateEntryContent(existing.id, cleaned);
@@ -183,7 +243,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
     const existing = store.getEntryByDateKey(dateKey);
     if (existing) {
       store.deleteEntry(existing.id);
-      setContent('');
+      setContent("");
       setShowDeleteConfirm(false);
     }
   };
@@ -196,7 +256,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
 
   const getTagColor = (name: string): string => {
     const tag = allTags.find((t) => t.name === name);
-    return tag?.color ?? '#6366f1';
+    return tag?.color ?? "#6366f1";
   };
 
   return (
@@ -209,7 +269,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
             {formatDateHeading(selectedDate)}
           </h1>
           <p className="mt-1 text-[14px] text-muted-foreground/60">
-            {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            {format(selectedDate, "EEEE, MMMM d, yyyy")}
           </p>
         </div>
 
@@ -219,20 +279,20 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
             Mood
           </span>
           <div className="flex items-center gap-1">
-            {(Object.entries(MOOD_OPTIONS) as [MoodLevel, typeof MOOD_OPTIONS[MoodLevel]][]).map(
+            {(Object.entries(MOOD_OPTIONS) as [MoodLevel, (typeof MOOD_OPTIONS)[MoodLevel]][]).map(
               ([key, mood]) => (
                 <button
                   key={key}
                   onClick={() => handleMoodSelect(key)}
                   className={cn(
-                    'flex h-8 items-center gap-1 rounded-lg px-2.5 text-[12px] transition-all',
+                    "flex h-8 items-center gap-1 rounded-lg px-2.5 text-[12px] transition-all",
                     entryMood === key
-                      ? 'bg-accent font-medium text-foreground ring-1 ring-border'
-                      : 'text-muted-foreground/50 hover:bg-accent/40 hover:text-muted-foreground',
+                      ? "bg-accent font-medium text-foreground ring-1 ring-border"
+                      : "text-muted-foreground/50 hover:bg-accent/40 hover:text-muted-foreground",
                   )}
                   title={mood.label}
                 >
-                  <span className={cn('text-[13px]', entryMood === key && mood.color)}>
+                  <span className={cn("text-[13px]", entryMood === key && mood.color)}>
                     {mood.icon}
                   </span>
                   <span className="hidden sm:inline">{mood.label}</span>
@@ -274,55 +334,93 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
 
         {/* Editor area */}
         <div className="relative">
+          <span id={helpTextId} className="sr-only">
+            Type at-sign to open tag suggestions. Use arrow keys to move through results, Enter or
+            Tab to insert a tag, and Escape to close the menu.
+          </span>
+          <span id={statusTextId} className="sr-only" aria-live="polite" aria-atomic="true">
+            {showTagPopup
+              ? popupOptions.length > 0
+                ? `${popupOptions.length} tag option${popupOptions.length === 1 ? "" : "s"} available.`
+                : "No tag options available."
+              : ""}
+          </span>
           <textarea
             ref={textareaRef}
             value={content}
             onChange={handleContentChange}
             onKeyDown={handleKeyDown}
+            onBlur={() => {
+              setShowTagPopup(false);
+              setSelectedSuggestionIdx(0);
+            }}
             placeholder="Start writing... Use @ to mention tags."
+            aria-label="Journal entry"
+            aria-describedby={`${helpTextId} ${statusTextId}`}
+            aria-autocomplete="list"
+            aria-controls={showTagPopup ? popupId : undefined}
+            aria-expanded={showTagPopup}
+            aria-activedescendant={activeOptionId}
             className="w-full resize-none bg-transparent text-[16px] leading-[1.75] text-foreground outline-none placeholder:text-muted-foreground/30 md:text-[17px]"
-            style={{ minHeight: '400px' }}
+            style={{ minHeight: "400px" }}
             spellCheck
           />
 
           {/* Tag autocomplete popup */}
           {showTagPopup && (
-            <div className="absolute left-0 top-8 z-50 w-64 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-              {suggestions.length > 0 ? (
-                <div className="max-h-[180px] overflow-y-auto p-1.5">
-                  {suggestions.map((tag, idx) => (
+            <div
+              id={popupId}
+              role="listbox"
+              aria-label="Tag suggestions"
+              className="absolute left-0 top-8 z-50 w-64 overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
+            >
+              {popupOptions.length > 0 ? (
+                <div className="max-h-[220px] overflow-y-auto p-1.5">
+                  {popupOptions.map((option, idx) => (
                     <button
-                      key={tag.id}
-                      onClick={() => insertTag(tag.name)}
+                      key={option.key}
+                      id={option.id}
+                      role="option"
+                      type="button"
+                      aria-selected={idx === selectedSuggestionIdx}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        option.kind === "create"
+                          ? handleCreateAndInsertTag()
+                          : insertTag(option.name)
+                      }
                       className={cn(
-                        'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors',
+                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
                         idx === selectedSuggestionIdx
-                          ? 'bg-accent text-foreground'
-                          : 'text-foreground/70 hover:bg-accent/50',
+                          ? "bg-accent text-foreground"
+                          : "text-foreground/70 hover:bg-accent/50",
+                        option.kind === "create" && "border-t border-border/40 text-indigo-400",
                       )}
                     >
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="truncate">@{tag.name}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground/40">
-                        {tag.usageCount}
+                      {option.kind === "create" ? (
+                        <span className="text-[11px]">+</span>
+                      ) : (
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: option.color }}
+                        />
+                      )}
+                      <span className="truncate">
+                        {option.kind === "create" ? `Create @${option.name}` : `@${option.name}`}
                       </span>
+                      {option.kind === "suggestion" ? (
+                        <span className="ml-auto text-[10px] text-muted-foreground/40">
+                          {option.usageCount}
+                        </span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
-              ) : null}
-              {tagQuery.trim() &&
-                !suggestions.some((s) => s.name === tagQuery.trim().toLowerCase()) && (
-                  <button
-                    onClick={handleCreateAndInsertTag}
-                    className="flex w-full items-center gap-2 border-t border-border/40 px-3 py-2.5 text-left text-[13px] text-indigo-400 transition-colors hover:bg-accent/50"
-                  >
-                    <span className="text-[11px]">+</span>
-                    <span>Create @{tagQuery.trim()}</span>
-                  </button>
-                )}
+              ) : (
+                <div className="px-3 py-2 text-[13px] text-muted-foreground/70">
+                  Continue typing to find or create a tag.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -331,7 +429,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
         <div className="mt-8 flex items-center justify-between border-t border-border/30 pt-4">
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground/40">
-              {wordCount} {wordCount === 1 ? 'word' : 'words'}
+              {wordCount} {wordCount === 1 ? "word" : "words"}
             </span>
             {content.trim() && (
               <span className="text-[11px] text-muted-foreground/30">auto-saved</span>

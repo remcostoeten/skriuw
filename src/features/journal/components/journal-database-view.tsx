@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { useJournalStore } from "@/modules/journal";
-import { MoodLevel, MOOD_OPTIONS } from "@/types/notes";
+import { useJournalStore } from "@/features/journal/store";
+import { type MoodLevel, MOOD_OPTIONS } from "@/features/journal/types";
 
 type JournalDatabaseViewProps = {
   onSelectEntry: (dateKey: string) => void;

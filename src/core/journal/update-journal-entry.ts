@@ -4,7 +4,7 @@ import {
   type MarkdownContent,
 } from "@/core/shared/persistence-types";
 import { getRecord, putRecord } from "@/core/storage";
-import type { JournalEntry } from "@/modules/journal";
+import type { JournalEntry } from "@/features/journal/types";
 import { fromPersistedJournalEntry } from "./mappers";
 import type { UpdateJournalEntryInput } from "./types";
 

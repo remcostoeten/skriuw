@@ -9,7 +9,7 @@ import type {
   TagId,
   TagName,
 } from "@/core/shared/persistence-types";
-import type { JournalEntry, JournalTag } from "@/modules/journal";
+import type { JournalEntry, JournalTag } from "@/features/journal/types";
 
 function toIsoTime(date: Date): IsoTime {
   return date.toISOString() as IsoTime;
@@ -30,7 +30,7 @@ export function toPersistedJournalEntry(entry: JournalEntry): PersistedJournalEn
 export function fromPersistedJournalEntry(entry: PersistedJournalEntry): JournalEntry {
   return {
     id: entry.id,
-    dateKey: entry.dateKey,
+    dateKey: entry.dateKey as DateKey,
     content: entry.content,
     tags: entry.tags.map((tag) => tag as string),
     mood: entry.mood ?? undefined,
@@ -56,7 +56,7 @@ export function fromPersistedJournalTag(tag: PersistedTag): JournalTag {
   return {
     id: tag.id,
     name: tag.name as string,
-    color: tag.color as string,
+    color: tag.color,
     usageCount: tag.usageCount,
   };
 }

@@ -1,5 +1,5 @@
 import type { TemplateStyle } from "@/store/preferences-store";
-import type { MoodLevel } from "@/types/notes";
+import type { MoodLevel } from "@/features/journal/types";
 import type { RichTextDocument } from "@/types/notes";
 
 export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };

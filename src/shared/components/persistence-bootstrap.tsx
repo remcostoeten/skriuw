@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useJournalStore } from "@/modules/journal";
+import { useJournalStore } from "@/features/journal/store";
 import { useNotesStore } from "@/store/notes-store";
 
 export function PersistenceBootstrap() {

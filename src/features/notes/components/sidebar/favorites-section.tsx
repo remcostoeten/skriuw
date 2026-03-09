@@ -82,11 +82,6 @@ export const FavoritesSection = memo(function FavoritesSection({
                 <Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
               )}
               <span className="flex-1 truncate">{fav.name}</span>
-              <Star
-                className="w-3 h-3 text-amber-400 shrink-0"
-                fill="currentColor"
-                strokeWidth={0}
-              />
               <button
                 onClick={(e) => {
                   e.stopPropagation();

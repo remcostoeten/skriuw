@@ -30,13 +30,13 @@ updated: ${date}
 Start writing here...`;
 
     case "journal": {
-      const dateStr = new Date().toLocaleDateString("en-US", {
+      const dateStr = new Date().toLocaleDateString("nl-NL", {
         weekday: "long",
         year: "numeric",
-        month: "long",
-        day: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
-      const timeStr = new Date().toLocaleTimeString("en-US", {
+      const timeStr = new Date().toLocaleTimeString("nl-NL", {
         hour: "numeric",
         minute: "2-digit",
       });

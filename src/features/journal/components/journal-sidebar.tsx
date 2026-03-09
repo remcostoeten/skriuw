@@ -28,8 +28,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useJournalStore } from "@/modules/journal";
-import { MoodLevel, MOOD_OPTIONS } from "@/types/notes";
+import { useJournalStore } from "@/features/journal/store";
+import { type MoodLevel, type DateKey, MOOD_OPTIONS } from "@/features/journal/types";
 
 const JournalStats = dynamic(
   () => import("./journal-stats").then((mod) => ({ default: mod.JournalStats })),
@@ -196,7 +196,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
             {/* Days grid */}
             <div className="grid grid-cols-7 gap-0.5">
               {calendarDays.map((day) => {
-                const dateKey = format(day, "yyyy-MM-dd");
+                const dateKey = format(day, "yyyy-MM-dd") as DateKey;
                 const inCurrentMonth = isSameMonth(day, currentMonth);
                 const isSelected = isSameDay(day, selectedDate);
                 const hasEntry = entrySet.has(dateKey);
@@ -212,8 +212,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                       inCurrentMonth && !isSelected && "text-foreground/70 hover:bg-accent/60",
                       isSelected && "bg-foreground text-background font-semibold shadow-sm",
                       dayIsToday &&
-                        !isSelected &&
-                        "font-bold text-foreground ring-1 ring-foreground/20",
+                      !isSelected &&
+                      "font-bold text-foreground ring-1 ring-foreground/20",
                     )}
                   >
                     {format(day, "d")}
@@ -250,8 +250,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                           isActive ? "bg-accent text-foreground" : "hover:bg-accent/40",
                         )}
                       >
-                        <span className="w-7 shrink-0 text-[10px] font-medium text-muted-foreground">
-                          {format(new Date(entry.dateKey + "T00:00:00"), "d MMM")}
+                        <span className="w-[72px] shrink-0 text-[10px] font-medium text-muted-foreground">
+                          {format(new Date(entry.dateKey + "T00:00:00"), "dd MM yyyy")}
                         </span>
                         {mood && <span className={cn("text-[10px]", mood.color)}>{mood.icon}</span>}
                         <span className="flex-1 truncate text-[11px] text-foreground/70">
@@ -409,7 +409,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-medium text-foreground/80">
-                              {format(new Date(entry.dateKey + "T00:00:00"), "EEE, MMM d")}
+                              {format(new Date(entry.dateKey + "T00:00:00"), "EEE, dd MM yyyy")}
                             </span>
                             {mood && (
                               <span className={cn("text-[10px]", mood.color)}>{mood.icon}</span>
@@ -471,7 +471,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-[12px] font-medium text-foreground/80">
-                            {format(new Date(entry.dateKey + "T00:00:00"), "EEE, MMM d yyyy")}
+                            {format(new Date(entry.dateKey + "T00:00:00"), "EEE, dd MM yyyy")}
                           </span>
                           {mood && (
                             <span className={cn("text-[11px]", mood.color)}>{mood.icon}</span>
@@ -545,7 +545,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                               }}
                               className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:bg-accent/40 hover:text-muted-foreground"
                             >
-                              <span>{format(new Date(entry.dateKey + "T00:00:00"), "MMM d")}</span>
+                              <span>{format(new Date(entry.dateKey + "T00:00:00"), "dd MM yyyy")}</span>
                               <span className="truncate">{entry.content.slice(0, 30)}</span>
                             </button>
                           ))}

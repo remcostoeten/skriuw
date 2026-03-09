@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { format } from "date-fns";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
-import type { MoodLevel } from "@/types/notes";
+import type {
+  CssColorValue,
+  DateKey,
+  JournalEntryId,
+  TagId,
+  TagName,
+} from "@/core/shared/persistence-types";
 import {
   createJournalEntry,
   createJournalTag,
@@ -11,19 +17,13 @@ import {
   readJournalTags,
   updateJournalEntry,
 } from "@/core/journal";
-import type {
-  CssColorValue,
-  DateKey,
-  JournalEntryId,
-  TagId,
-  TagName,
-} from "@/core/shared/persistence-types";
+import type { MoodLevel } from "./types";
 import {
-  JournalConfig,
-  JournalEntry,
-  JournalTag,
-  TAG_COLORS,
   DEFAULT_JOURNAL_CONFIG,
+  TAG_COLORS,
+  type JournalConfig,
+  type JournalEntry,
+  type JournalTag,
 } from "./types";
 
 type JournalState = {
@@ -33,7 +33,7 @@ type JournalState = {
   initialize: () => Promise<void>;
   getEntrySaveState: (id: string | null | undefined) => SaveStatus;
   getEntryByDate: (date: Date) => JournalEntry | undefined;
-  getEntryByDateKey: (dateKey: string) => JournalEntry | undefined;
+  getEntryByDateKey: (dateKey: DateKey | string) => JournalEntry | undefined;
   getEntriesForMonth: (year: number, month: number) => JournalEntry[];
   createOrUpdateEntry: (
     date: Date,
@@ -46,7 +46,7 @@ type JournalState = {
   updateEntryMood: (id: string, mood: MoodLevel | undefined) => void;
   addTagToEntry: (entryId: string, tagName: string) => void;
   removeTagFromEntry: (entryId: string, tagName: string) => void;
-  getDatesWithEntries: () => string[];
+  getDatesWithEntries: () => DateKey[];
   getAllTags: () => JournalTag[];
   createTag: (name: string) => JournalTag;
   deleteTag: (id: string) => void;
@@ -54,8 +54,8 @@ type JournalState = {
   getEntriesByTag: (tagName: string) => JournalEntry[];
 };
 
-function toDateKey(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+function toDateKey(date: Date): DateKey {
+  return format(date, "yyyy-MM-dd") as DateKey;
 }
 
 function normalizeTagName(tagName: string): string {
@@ -107,7 +107,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     return get().config.entries.find((entry) => entry.dateKey === key);
   },
 
-  getEntryByDateKey: (dateKey: string) => {
+  getEntryByDateKey: (dateKey: DateKey | string) => {
     return get().config.entries.find((entry) => entry.dateKey === dateKey);
   },
 
@@ -138,7 +138,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
             entry.id === existing.id ? nextEntry : entry,
           ),
         },
-        saveStates: { ...state.saveStates, [existing.id]: "saving" },
+        saveStates: { ...state.saveStates, [existing.id]: "saving" as const },
       }));
 
       void updateJournalEntry({
@@ -150,17 +150,17 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       })
         .then(() => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [existing.id]: "saved" },
+            saveStates: { ...state.saveStates, [existing.id]: "saved" as const },
           }));
           scheduleSaveStatusReset(existing.id, () => {
             set((state) => ({
-              saveStates: { ...state.saveStates, [existing.id]: "idle" },
+              saveStates: { ...state.saveStates, [existing.id]: "idle" as const },
             }));
           });
         })
         .catch(() => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [existing.id]: "error" },
+            saveStates: { ...state.saveStates, [existing.id]: "error" as const },
           }));
         });
 
@@ -182,12 +182,12 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         ...state.config,
         entries: [...state.config.entries, newEntry],
       },
-      saveStates: { ...state.saveStates, [newEntry.id]: "saving" },
+      saveStates: { ...state.saveStates, [newEntry.id]: "saving" as const },
     }));
 
     void createJournalEntry({
       id: newEntry.id as JournalEntryId,
-      dateKey: newEntry.dateKey as DateKey,
+      dateKey: newEntry.dateKey,
       content: newEntry.content,
       tags: normalizedTags.map((tag) => tag as TagName),
       mood,
@@ -196,17 +196,17 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     })
       .then(() => {
         set((state) => ({
-          saveStates: { ...state.saveStates, [newEntry.id]: "saved" },
+          saveStates: { ...state.saveStates, [newEntry.id]: "saved" as const },
         }));
         scheduleSaveStatusReset(newEntry.id, () => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [newEntry.id]: "idle" },
+            saveStates: { ...state.saveStates, [newEntry.id]: "idle" as const },
           }));
         });
       })
       .catch(() => {
         set((state) => ({
-          saveStates: { ...state.saveStates, [newEntry.id]: "error" },
+          saveStates: { ...state.saveStates, [newEntry.id]: "error" as const },
         }));
       });
 
@@ -232,7 +232,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     void destroyJournalEntry(id as JournalEntryId).catch(() => {
       set((state) => ({
-        saveStates: { ...state.saveStates, [id]: "error" },
+        saveStates: { ...state.saveStates, [id]: "error" as const },
       }));
     });
   },
@@ -247,7 +247,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           entry.id === id ? { ...entry, content, updatedAt } : entry,
         ),
       },
-      saveStates: { ...state.saveStates, [id]: "saving" },
+      saveStates: { ...state.saveStates, [id]: "saving" as const },
     }));
 
     const pendingTimeout = contentSaveTimeouts.get(id);
@@ -264,17 +264,17 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       })
         .then(() => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "saved" },
+            saveStates: { ...state.saveStates, [id]: "saved" as const },
           }));
           scheduleSaveStatusReset(id, () => {
             set((state) => ({
-              saveStates: { ...state.saveStates, [id]: "idle" },
+              saveStates: { ...state.saveStates, [id]: "idle" as const },
             }));
           });
         })
         .catch(() => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "error" },
+            saveStates: { ...state.saveStates, [id]: "error" as const },
           }));
         });
     }, 220);
@@ -292,7 +292,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           entry.id === id ? { ...entry, mood, updatedAt } : entry,
         ),
       },
-      saveStates: { ...state.saveStates, [id]: "saving" },
+      saveStates: { ...state.saveStates, [id]: "saving" as const },
     }));
 
     void updateJournalEntry({
@@ -302,17 +302,17 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     })
       .then(() => {
         set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "saved" },
+          saveStates: { ...state.saveStates, [id]: "saved" as const },
         }));
         scheduleSaveStatusReset(id, () => {
           set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "idle" },
+            saveStates: { ...state.saveStates, [id]: "idle" as const },
           }));
         });
       })
       .catch(() => {
         set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "error" },
+          saveStates: { ...state.saveStates, [id]: "error" as const },
         }));
       });
   },
@@ -362,7 +362,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         name: normalizedTag as TagName,
         color: TAG_COLORS[
           (get().config.tags.length - 1 + TAG_COLORS.length) % TAG_COLORS.length
-        ] as CssColorValue,
+        ],
       });
     }
 
@@ -440,7 +440,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     void createJournalTag({
       id: newTag.id as TagId,
       name: newTag.name as TagName,
-      color: newTag.color as CssColorValue,
+      color: newTag.color,
     });
 
     return newTag;

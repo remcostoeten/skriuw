@@ -85,7 +85,7 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
     );
   }
 
-  const containerClass = "flex-1 overflow-y-auto bg-background";
+  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-[#1e1e1e]";
   const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
 
   if (editorMode === "block") {
