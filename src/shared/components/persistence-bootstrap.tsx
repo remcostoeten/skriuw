@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useJournalStore } from "@/features/journal/store";
+import { resolveLocalPersistenceBackend } from "@/core/persistence/repositories";
 import { useNotesStore } from "@/store/notes-store";
 
 export function PersistenceBootstrap() {
@@ -9,6 +10,7 @@ export function PersistenceBootstrap() {
   const initializeJournal = useJournalStore((state) => state.initialize);
 
   useEffect(() => {
+    void resolveLocalPersistenceBackend();
     void initializeNotes();
     void initializeJournal();
   }, [initializeJournal, initializeNotes]);

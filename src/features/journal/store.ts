@@ -7,7 +7,7 @@ import type {
   TagId,
   TagName,
 } from "@/core/shared/persistence-types";
-import { indexedDbJournalRepository } from "@/core/persistence/repositories";
+import { journalRepository } from "@/core/persistence/repositories";
 import type { MoodLevel } from "./types";
 import {
   DEFAULT_JOURNAL_CONFIG,
@@ -79,8 +79,8 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     if (get().isHydrated) return;
 
     const [entries, tags] = await Promise.all([
-      indexedDbJournalRepository.listEntries(),
-      indexedDbJournalRepository.listTags(),
+      journalRepository.listEntries(),
+      journalRepository.listTags(),
     ]);
     set({
       config: {
@@ -135,7 +135,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         saveStates: { ...state.saveStates, [existing.id]: "saving" as const },
       }));
 
-      void indexedDbJournalRepository.updateEntry({
+      void journalRepository.updateEntry({
         id: existing.id as JournalEntryId,
         content,
         tags: normalizedTags.map((tag) => tag as TagName),
@@ -179,7 +179,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       saveStates: { ...state.saveStates, [newEntry.id]: "saving" as const },
     }));
 
-    void indexedDbJournalRepository.createEntry({
+    void journalRepository.createEntry({
       id: newEntry.id as JournalEntryId,
       dateKey: newEntry.dateKey,
       content: newEntry.content,
@@ -224,7 +224,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       contentSaveTimeouts.delete(id);
     }
 
-    void indexedDbJournalRepository.destroyEntry(id as JournalEntryId).catch(() => {
+    void journalRepository.destroyEntry(id as JournalEntryId).catch(() => {
       set((state) => ({
         saveStates: { ...state.saveStates, [id]: "error" as const },
       }));
@@ -251,7 +251,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
-      void indexedDbJournalRepository.updateEntry({
+      void journalRepository.updateEntry({
         id: id as JournalEntryId,
         content,
         updatedAt,
@@ -289,7 +289,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       saveStates: { ...state.saveStates, [id]: "saving" as const },
     }));
 
-    void indexedDbJournalRepository.updateEntry({
+    void journalRepository.updateEntry({
       id: id as JournalEntryId,
       mood,
       updatedAt,
@@ -352,7 +352,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     const createdTag = get().config.tags.find((tag) => tag.name === normalizedTag);
     if (!createdTag) {
-      void indexedDbJournalRepository.createTag({
+      void journalRepository.createTag({
         name: normalizedTag as TagName,
         color: TAG_COLORS[
           (get().config.tags.length - 1 + TAG_COLORS.length) % TAG_COLORS.length
@@ -362,7 +362,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     const entry = get().config.entries.find((item) => item.id === entryId);
     if (entry) {
-      void indexedDbJournalRepository.updateEntry({
+      void journalRepository.updateEntry({
         id: entry.id as JournalEntryId,
         tags: entry.tags.map((tag) => tag as TagName),
         updatedAt,
@@ -396,7 +396,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     const entry = get().config.entries.find((item) => item.id === entryId);
     if (entry) {
-      void indexedDbJournalRepository.updateEntry({
+      void journalRepository.updateEntry({
         id: entry.id as JournalEntryId,
         tags: entry.tags.map((tag) => tag as TagName),
         updatedAt,
@@ -431,7 +431,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       },
     }));
 
-    void indexedDbJournalRepository.createTag({
+    void journalRepository.createTag({
       id: newTag.id as TagId,
       name: newTag.name as TagName,
       color: newTag.color,
@@ -455,7 +455,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       },
     }));
 
-    void indexedDbJournalRepository.destroyTag(id as TagId);
+    void journalRepository.destroyTag(id as TagId);
   },
 
   getTagSuggestions: (query: string) => {

@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
 import {
-  indexedDbFoldersRepository,
-  indexedDbNotesRepository,
+  foldersRepository,
+  notesRepository,
 } from "@/core/persistence/repositories";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
@@ -216,7 +216,7 @@ function applyFolderUiState(nextFolders: NoteFolder[], currentFolders: NoteFolde
 
 async function seedInitialNotesData() {
   for (const folder of initialFolders) {
-    await indexedDbFoldersRepository.create({
+    await foldersRepository.create({
       id: folder.id as FolderId,
       name: folder.name,
       parentId: folder.parentId as FolderId | null,
@@ -226,7 +226,7 @@ async function seedInitialNotesData() {
   }
 
   for (const file of initialFiles) {
-    await indexedDbNotesRepository.create({
+    await notesRepository.create({
       id: file.id as NoteId,
       name: file.name,
       content: file.content as MarkdownContent,
@@ -284,8 +284,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     if (get().isHydrated) return;
 
     const [persistedFiles, persistedFolders] = await Promise.all([
-      indexedDbNotesRepository.list(),
-      indexedDbFoldersRepository.list(),
+      notesRepository.list(),
+      foldersRepository.list(),
     ]);
 
     if (persistedFiles.length === 0 && persistedFolders.length === 0) {
@@ -345,7 +345,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       saveStates: { ...state.saveStates, [newFile.id]: "saving" },
     }));
 
-    void indexedDbNotesRepository.create({
+    void notesRepository.create({
       id: newFile.id as NoteId,
       name: newFile.name,
       content: newFile.content as MarkdownContent,
@@ -389,7 +389,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       folders: [...state.folders, newFolder],
     }));
 
-    void indexedDbFoldersRepository.create({
+    void foldersRepository.create({
       id: newFolder.id as FolderId,
       name: newFolder.name,
       parentId: newFolder.parentId as FolderId | null,
@@ -427,7 +427,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
 
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
-      void indexedDbNotesRepository.update({
+      void notesRepository.update({
         id: id as NoteId,
         content: content as MarkdownContent,
         richContent,
@@ -465,7 +465,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       saveStates: { ...state.saveStates, [id]: "saving" },
     }));
 
-    void indexedDbNotesRepository.update({
+    void notesRepository.update({
       id: id as NoteId,
       name: normalizedName,
       updatedAt,
@@ -494,7 +494,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       folders: state.folders.map((folder) => (folder.id === id ? { ...folder, name } : folder)),
     }));
 
-    void indexedDbFoldersRepository.update({
+    void foldersRepository.update({
       id: id as FolderId,
       name,
       updatedAt,
@@ -519,7 +519,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       contentSaveTimeouts.delete(id);
     }
 
-    void indexedDbNotesRepository.destroy(id as NoteId).catch(() => {
+    void notesRepository.destroy(id as NoteId).catch(() => {
       set((state) => ({
         saveStates: { ...state.saveStates, [id]: "error" },
       }));
@@ -543,7 +543,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       };
     });
 
-    void indexedDbFoldersRepository.destroy(id as FolderId);
+    void foldersRepository.destroy(id as FolderId);
   },
 
   moveFile: (fileId, newParentId) => {
@@ -555,7 +555,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       ),
     }));
 
-    void indexedDbNotesRepository.update({
+    void notesRepository.update({
       id: fileId as NoteId,
       parentId: newParentId as FolderId | null,
       updatedAt,
@@ -576,7 +576,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       ),
     }));
 
-    void indexedDbFoldersRepository.update({
+    void foldersRepository.update({
       id: folderId as FolderId,
       parentId: newParentId as FolderId | null,
       updatedAt,
