@@ -24,6 +24,9 @@ export function EditorToolbar({
   canNavigatePrev = false,
   canNavigateNext = false,
 }: Props) {
+  const sidebarIconButtonClass =
+    "pressable flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200";
+
   if (isMobile) {
     return (
       <div className="border-b border-border/80 bg-card/88 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] backdrop-blur-xl">
@@ -94,7 +97,7 @@ export function EditorToolbar({
   return (
     <div
       className={cn(
-        "border-b border-border bg-card/95 backdrop-blur-sm",
+        "border-b border-sidebar-border/60 bg-sidebar/95 text-sidebar-foreground backdrop-blur supports-[backdrop-filter]:bg-sidebar/85",
         "flex h-11 items-center px-3",
       )}
     >
@@ -103,8 +106,8 @@ export function EditorToolbar({
         <button
           onClick={onToggleSidebar}
           className={cn(
-            "flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-            "h-7 w-7",
+            sidebarIconButtonClass,
+            "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
           )}
           title="Toggle sidebar"
         >
@@ -114,11 +117,10 @@ export function EditorToolbar({
           onClick={onNavigatePrev}
           disabled={!canNavigatePrev}
           className={cn(
-            "flex items-center justify-center rounded-xl transition-colors",
-            "h-7 w-7",
+            sidebarIconButtonClass,
             canNavigatePrev
-              ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-              : "text-muted-foreground/30 cursor-not-allowed",
+              ? "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+              : "cursor-not-allowed text-sidebar-foreground/25",
           )}
           title="Previous file"
         >
@@ -128,11 +130,10 @@ export function EditorToolbar({
           onClick={onNavigateNext}
           disabled={!canNavigateNext}
           className={cn(
-            "flex items-center justify-center rounded-xl transition-colors",
-            "h-7 w-7",
+            sidebarIconButtonClass,
             canNavigateNext
-              ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-              : "text-muted-foreground/30 cursor-not-allowed",
+              ? "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+              : "cursor-not-allowed text-sidebar-foreground/25",
           )}
           title="Next file"
         >
@@ -146,15 +147,15 @@ export function EditorToolbar({
           <>
             {breadcrumb.map((part, i) => (
               <span key={i} className="flex items-center gap-1.5">
-                <span className="text-muted-foreground">{part}</span>
-                <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                <span className="text-sidebar-foreground/58">{part}</span>
+                <ChevronRight className="w-3 h-3 text-sidebar-foreground/40" />
               </span>
             ))}
           </>
         )}
         <span
           className={cn(
-            "font-medium text-foreground/80",
+            "font-medium text-sidebar-foreground/80",
             "max-w-[28rem] truncate",
           )}
         >
@@ -167,8 +168,8 @@ export function EditorToolbar({
         <button
           onClick={onToggleMetadata}
           className={cn(
-            "flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-            "h-7 w-7",
+            sidebarIconButtonClass,
+            "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
           )}
           title="Toggle metadata"
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowRight, Command, Search } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
@@ -37,10 +37,15 @@ export function CommandPalette({
   items,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const listboxId = useId();
+  const inputId = useId();
+  const selectedItemRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
+      setSelectedIndex(0);
     }
   }, [open]);
 
@@ -57,6 +62,16 @@ export function CommandPalette({
       return haystack.includes(normalizedQuery);
     });
   }, [items, query]);
+
+  useEffect(() => {
+    if (selectedIndex >= filteredItems.length) {
+      setSelectedIndex(0);
+    }
+  }, [filteredItems.length, selectedIndex]);
+
+  useEffect(() => {
+    selectedItemRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
 
   const runItem = (item: CommandPaletteItem) => {
     triggerNativeFeedback("selection");
@@ -77,32 +92,57 @@ export function CommandPalette({
         </DialogHeader>
 
         <div className="border-b border-border/50 px-4 py-3">
-          <label className="native-surface flex items-center gap-3 rounded-[1.15rem] border border-border/70 px-3 py-3">
+          <label
+            htmlFor={inputId}
+            className="native-surface flex items-center gap-3 rounded-[1.15rem] border border-border/70 px-3 py-3"
+          >
             <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />
             <input
+              id={inputId}
               autoFocus
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && filteredItems[0]) {
+                if (event.key === "ArrowDown" && filteredItems.length > 0) {
                   event.preventDefault();
-                  runItem(filteredItems[0]);
+                  setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
+                }
+
+                if (event.key === "ArrowUp" && filteredItems.length > 0) {
+                  event.preventDefault();
+                  setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
+                }
+
+                if (event.key === "Enter" && filteredItems[selectedIndex]) {
+                  event.preventDefault();
+                  runItem(filteredItems[selectedIndex]);
                 }
               }}
               placeholder="Search commands..."
+              aria-controls={listboxId}
+              aria-activedescendant={
+                filteredItems[selectedIndex] ? `${listboxId}-item-${filteredItems[selectedIndex].id}` : undefined
+              }
+              aria-expanded={open}
+              aria-autocomplete="list"
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
             />
           </label>
         </div>
 
-        <div className="max-h-[52vh] overflow-y-auto px-2 py-2">
+        <div id={listboxId} role="listbox" className="max-h-[52vh] overflow-y-auto px-2 py-2">
           {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
+            filteredItems.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => runItem(item)}
+                onMouseEnter={() => setSelectedIndex(index)}
+                role="option"
+                aria-selected={index === selectedIndex}
+                id={`${listboxId}-item-${item.id}`}
+                ref={index === selectedIndex ? selectedItemRef : null}
                 className="pressable native-surface flex w-full items-center gap-3 rounded-[1.15rem] border border-transparent px-3 py-3 text-left transition-colors hover:border-border/60 hover:bg-accent/55"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
