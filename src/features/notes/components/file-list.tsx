@@ -91,9 +91,11 @@ export const FileList = memo(function FileList({
   const projects = getProjects();
   const customSections = config.sections.filter((section) => section.type === "custom");
   const listRef = useRef<HTMLDivElement>(null);
+  const itemButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const [scrollTop, setScrollTop] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
   const lastSelectedIndexRef = useRef<number | null>(null);
 
   const flattenedVisibleItems = useMemo<VisibleItem[]>(() => {
@@ -135,6 +137,55 @@ export const FileList = memo(function FileList({
       return [folderId, ...children.flatMap((child) => collect(child.id))];
     },
     [getFoldersInFolder],
+  );
+
+  const getItemKey = useCallback((item: SelectedItem) => `${item.type}:${item.id}`, []);
+
+  const focusItemAtIndex = useCallback(
+    (index: number) => {
+      const target = flattenedVisibleItems[index];
+      if (!target || !listRef.current) {
+        return;
+      }
+
+      const targetKey = getItemKey(target);
+      setFocusedItemKey(targetKey);
+      setSelectedItems([{ id: target.id, type: target.type, parentId: target.parentId }]);
+      lastSelectedIndexRef.current = index;
+
+      const targetTop = index * FILE_TREE_ROW_HEIGHT;
+      const targetBottom = targetTop + FILE_TREE_ROW_HEIGHT;
+      const viewportTop = listRef.current.scrollTop;
+      const viewportBottom = viewportTop + listRef.current.clientHeight;
+
+      if (targetTop < viewportTop) {
+        listRef.current.scrollTo({ top: targetTop });
+      } else if (targetBottom > viewportBottom) {
+        listRef.current.scrollTo({ top: targetBottom - listRef.current.clientHeight });
+      }
+
+      requestAnimationFrame(() => {
+        itemButtonRefs.current.get(targetKey)?.focus();
+      });
+    },
+    [flattenedVisibleItems, getItemKey],
+  );
+
+  const focusParentFolder = useCallback(
+    (item: SelectedItem) => {
+      if (!item.parentId) {
+        return;
+      }
+
+      const parentIndex = flattenedVisibleItems.findIndex(
+        (entry) => entry.type === "folder" && entry.id === item.parentId,
+      );
+
+      if (parentIndex !== -1) {
+        focusItemAtIndex(parentIndex);
+      }
+    },
+    [flattenedVisibleItems, focusItemAtIndex],
   );
 
   const isItemSelected = useCallback(
@@ -314,23 +365,113 @@ export const FileList = memo(function FileList({
       }
 
       setSelectedItems([item]);
+      setFocusedItemKey(getItemKey(item));
       lastSelectedIndexRef.current = itemIndex;
       action();
     },
-    [flattenedVisibleItems, setSelectedItems],
+    [flattenedVisibleItems, getItemKey, setSelectedItems],
   );
 
   const handleContextMenu = useCallback(
     (event: React.MouseEvent, item: SelectedItem) => {
       if (!isItemSelected(item)) {
         setSelectedItems([item]);
+        setFocusedItemKey(getItemKey(item));
         const index = flattenedVisibleItems.findIndex(
           (entry) => entry.id === item.id && entry.type === item.type,
         );
         lastSelectedIndexRef.current = index !== -1 ? index : null;
       }
     },
-    [flattenedVisibleItems, isItemSelected, setSelectedItems],
+    [flattenedVisibleItems, getItemKey, isItemSelected, setSelectedItems],
+  );
+
+  const handleTreeItemKeyDown = useCallback(
+    (
+      event: React.KeyboardEvent<HTMLButtonElement>,
+      item: SelectedItem,
+      options?: { isFolder?: boolean; isOpen?: boolean },
+    ) => {
+      const currentIndex = flattenedVisibleItems.findIndex(
+        (entry) => entry.id === item.id && entry.type === item.type,
+      );
+
+      if (currentIndex === -1) {
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        focusItemAtIndex(Math.min(flattenedVisibleItems.length - 1, currentIndex + 1));
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        focusItemAtIndex(Math.max(0, currentIndex - 1));
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        focusItemAtIndex(0);
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        focusItemAtIndex(flattenedVisibleItems.length - 1);
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        if (options?.isFolder) {
+          event.preventDefault();
+          if (!options.isOpen) {
+            onToggleFolder(item.id);
+            return;
+          }
+
+          const nextItem = flattenedVisibleItems[currentIndex + 1];
+          if (nextItem && nextItem.parentId === item.id) {
+            focusItemAtIndex(currentIndex + 1);
+          }
+        }
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (options?.isFolder && options.isOpen) {
+          onToggleFolder(item.id);
+          return;
+        }
+
+        focusParentFolder(item);
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        setSelectedItems([item]);
+        setFocusedItemKey(getItemKey(item));
+
+        if (options?.isFolder) {
+          onToggleFolder(item.id);
+        } else {
+          onFileSelect(item.id);
+        }
+      }
+    },
+    [
+      flattenedVisibleItems,
+      focusItemAtIndex,
+      focusParentFolder,
+      getItemKey,
+      onFileSelect,
+      onToggleFolder,
+      setSelectedItems,
+    ],
   );
 
   const handleDragOver = useCallback(
@@ -460,6 +601,14 @@ export const FileList = memo(function FileList({
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <button
+              ref={(node) => {
+                const key = getItemKey(folderItem);
+                if (node) {
+                  itemButtonRefs.current.set(key, node);
+                } else {
+                  itemButtonRefs.current.delete(key);
+                }
+              }}
               onClick={(event) =>
                 handleItemClick(event, folderItem, () => {
                   if (!isEditing) {
@@ -477,6 +626,19 @@ export const FileList = memo(function FileList({
               onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
+              onFocus={() => setFocusedItemKey(getItemKey(folderItem))}
+              onKeyDown={(event) =>
+                !isEditing &&
+                handleTreeItemKeyDown(event, folderItem, {
+                  isFolder: true,
+                  isOpen: folder.isOpen,
+                })
+              }
+              role="treeitem"
+              aria-level={depth + 1}
+              aria-expanded={folder.isOpen}
+              aria-selected={isSelected}
+              tabIndex={focusedItemKey === getItemKey(folderItem) ? 0 : -1}
               className={cn(
                 "group flex h-7 w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
                 isSelected
@@ -616,6 +778,14 @@ export const FileList = memo(function FileList({
       <ContextMenu key={file.id}>
         <ContextMenuTrigger asChild>
           <button
+            ref={(node) => {
+              const key = getItemKey(fileItem);
+              if (node) {
+                itemButtonRefs.current.set(key, node);
+              } else {
+                itemButtonRefs.current.delete(key);
+              }
+            }}
             onClick={(event) =>
               handleItemClick(event, fileItem, () => {
                 if (!isEditing) {
@@ -630,6 +800,12 @@ export const FileList = memo(function FileList({
               handleDragStart(e, { type: "file", id: file.id, parentId: file.parentId })
             }
             onDragEnd={handleDragEnd}
+            onFocus={() => setFocusedItemKey(getItemKey(fileItem))}
+            onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
+            role="treeitem"
+            aria-level={depth + 1}
+            aria-selected={isSelected || activeFileId === file.id}
+            tabIndex={focusedItemKey === getItemKey(fileItem) ? 0 : -1}
             className={cn(
               "flex h-7 w-full items-center rounded-md text-left text-xs font-medium transition-colors",
               isSelected || activeFileId === file.id
@@ -742,7 +918,20 @@ export const FileList = memo(function FileList({
     setSelectedItems((prev) =>
       prev.filter((selection) => validKeys.has(`${selection.type}:${selection.id}`)),
     );
+    setFocusedItemKey((prev) => (prev && validKeys.has(prev) ? prev : null));
   }, [files, folders, setSelectedItems]);
+
+  useEffect(() => {
+    if (focusedItemKey && flattenedVisibleItems.some((item) => getItemKey(item) === focusedItemKey)) {
+      return;
+    }
+
+    const preferredItem =
+      flattenedVisibleItems.find((item) => item.type === "file" && item.id === activeFileId) ??
+      flattenedVisibleItems[0];
+
+    setFocusedItemKey(preferredItem ? getItemKey(preferredItem) : null);
+  }, [activeFileId, flattenedVisibleItems, focusedItemKey, getItemKey]);
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
   const totalHeight = flattenedVisibleItems.length * FILE_TREE_ROW_HEIGHT;
   const viewportHeight = listRef.current?.clientHeight ?? 0;
@@ -755,6 +944,8 @@ export const FileList = memo(function FileList({
     <div
       ref={listRef}
       className={cn("flex-1 overflow-y-auto px-2 pb-4 pt-2", isRootDropTarget && "bg-primary/6")}
+      role="tree"
+      aria-label="Notes file tree"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragOver={(e) => handleDragOver(e, null, "root")}
       onDragLeave={handleDragLeave}

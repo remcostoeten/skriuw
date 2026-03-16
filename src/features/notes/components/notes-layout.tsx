@@ -391,8 +391,11 @@ export function NotesLayout() {
         preventDefault: true,
         description: "Create a new folder",
       }),
-      $.in("notes").mod.key("slash").except("typing").on(handleToggleSidebar, {
+      $.in("notes").mod.key("b").except("typing").on(handleToggleSidebar, {
         description: "Toggle the notes sidebar",
+      }),
+      $.in("notes").mod.shift.key("b").except("typing").on(handleToggleMetadata, {
+        description: "Toggle the note details panel",
       }),
       $.in("notes").mod.key("comma").except("typing").on(handleOpenSettings, {
         preventDefault: true,
@@ -417,6 +420,7 @@ export function NotesLayout() {
     handleOpenSettings,
     handleOpenShortcutHelp,
     handleToggleEditorMode,
+    handleToggleMetadata,
     handleToggleSidebar,
   ]);
 
@@ -440,7 +444,7 @@ export function NotesLayout() {
     {
       id: "toggle-sidebar",
       label: "Toggle sidebar",
-      shortcut: "mod+slash",
+      shortcut: "mod+b",
       keywords: ["sidebar", "navigation", "panel"],
       description: "Show or hide the notes navigation panel.",
       action: handleToggleSidebar,
@@ -448,6 +452,7 @@ export function NotesLayout() {
     {
       id: "toggle-metadata",
       label: "Toggle note details",
+      shortcut: "mod+shift+b",
       keywords: ["metadata", "details", "properties"],
       description: "Show or hide the metadata panel.",
       action: handleToggleMetadata,
@@ -500,7 +505,12 @@ export function NotesLayout() {
         {
           id: "toggle-sidebar",
           label: "Toggle sidebar",
-          combo: "mod+slash",
+          combo: "mod+b",
+        },
+        {
+          id: "toggle-metadata",
+          label: "Toggle note details",
+          combo: "mod+shift+b",
         },
         {
           id: "toggle-editor",

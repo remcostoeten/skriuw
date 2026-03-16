@@ -1,7 +1,7 @@
 import { NoteFile } from "@/types/notes";
 import { formatDistanceToNow } from "date-fns";
 import { Info, Layers, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 
 interface MetadataPanelProps {
@@ -20,6 +20,10 @@ export function MetadataPanel({
   onRequestClose,
 }: MetadataPanelProps) {
   const [activeTab, setActiveTab] = useState<"info" | "outline-solid">("info");
+  const infoTabId = useId();
+  const outlineTabId = useId();
+  const infoPanelId = useId();
+  const outlinePanelId = useId();
 
   if (!file) return null;
 
@@ -47,6 +51,23 @@ export function MetadataPanel({
     { label: "Words", value: wordCount.toLocaleString() },
     { label: "Read Time", value: readTime === 0 ? "0s" : `${readTime}m` },
   ];
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      setActiveTab((current) => (current === "info" ? "outline-solid" : "info"));
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setActiveTab("info");
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setActiveTab("outline-solid");
+    }
+  };
 
   return (
     <div
@@ -84,6 +105,7 @@ export function MetadataPanel({
                   <button
                     onClick={onRequestClose}
                     onPointerDown={(event) => event.stopPropagation()}
+                    aria-label="Close details"
                     className="pressable flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     title="Close details"
                   >
@@ -96,6 +118,9 @@ export function MetadataPanel({
         ) : null}
 
         <div
+          role="tablist"
+          aria-label="Metadata sections"
+          onKeyDown={handleTabKeyDown}
           className={cn(
             "flex items-center gap-1",
             isMobile ? "mt-3 rounded-2xl bg-background/80 p-1.5" : "h-full justify-end gap-0.5",
@@ -103,6 +128,12 @@ export function MetadataPanel({
         >
           <button
             onClick={() => setActiveTab("info")}
+            id={infoTabId}
+            role="tab"
+            aria-selected={activeTab === "info"}
+            aria-controls={infoPanelId}
+            tabIndex={activeTab === "info" ? 0 : -1}
+            aria-label="Show file information"
             className={cn(
               "flex items-center justify-center gap-2 rounded-xl transition-colors",
               "pressable",
@@ -117,6 +148,12 @@ export function MetadataPanel({
           </button>
           <button
             onClick={() => setActiveTab("outline-solid")}
+            id={outlineTabId}
+            role="tab"
+            aria-selected={activeTab === "outline-solid"}
+            aria-controls={outlinePanelId}
+            tabIndex={activeTab === "outline-solid" ? 0 : -1}
+            aria-label="Show document outline"
             className={cn(
               "flex items-center justify-center gap-2 rounded-xl transition-colors",
               "pressable",
@@ -134,6 +171,9 @@ export function MetadataPanel({
 
       {activeTab === "info" && (
         <div
+          id={infoPanelId}
+          role="tabpanel"
+          aria-labelledby={infoTabId}
           className={cn(
             "overflow-y-auto",
             isMobile ? "space-y-3 px-4 py-4" : "space-y-2.5 px-4 py-4",
@@ -157,9 +197,14 @@ export function MetadataPanel({
       )}
 
       {activeTab === "outline-solid" && (
-        <div className="overflow-y-auto px-4 py-4">
+        <div
+          id={outlinePanelId}
+          role="tabpanel"
+          aria-labelledby={outlineTabId}
+          className="overflow-y-auto px-4 py-4"
+        >
           <p className="mb-3 text-[13px] text-muted-foreground">Document outline</p>
-          <div className="space-y-1">
+          <ul className="space-y-1">
             {file.content
               .split("\n")
               .filter((l) => /^#{1,3}\s/.test(l))
@@ -167,10 +212,10 @@ export function MetadataPanel({
                 const level = heading.match(/^(#+)/)?.[1].length || 1;
                 const text = heading.replace(/^#+\s+/, "");
                 return (
-                  <div
+                  <li
                     key={i}
                     className={cn(
-                      "cursor-pointer truncate text-[13px] text-foreground/50 transition-colors hover:text-foreground",
+                      "truncate text-[13px] text-foreground/50",
                       isMobile && "min-h-11 rounded-2xl bg-background/45 px-4 py-3",
                     )}
                     style={{
@@ -180,10 +225,10 @@ export function MetadataPanel({
                     }}
                   >
                     {text}
-                  </div>
+                  </li>
                 );
               })}
-          </div>
+          </ul>
         </div>
       )}
     </div>
