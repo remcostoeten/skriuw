@@ -13,6 +13,7 @@ import {
   FileTreeSection,
   SidebarConfigManager,
   JournalSection,
+  WorkspaceSwitcher,
 } from "./sidebar";
 
 interface SidebarPanelProps {
@@ -301,6 +302,11 @@ export function SidebarPanel({
         className,
       )}
     >
+      {/* Workspace Switcher */}
+      <div className="border-b border-sidebar-border/40 px-2.5 py-2">
+        <WorkspaceSwitcher />
+      </div>
+
       <div className="sticky top-0 z-10 border-b border-sidebar-border/50 bg-sidebar/95 backdrop-blur-xl">
         <div className="relative min-h-11 overflow-hidden px-3 py-2.5">
           <div
