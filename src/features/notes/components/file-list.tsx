@@ -940,6 +940,19 @@ export const FileList = memo(function FileList({
   const endIndex = Math.min(flattenedVisibleItems.length, startIndex + visibleCount);
   const windowedItems = flattenedVisibleItems.slice(startIndex, endIndex);
 
+  if (flattenedVisibleItems.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 pb-6 pt-4">
+        <div className="max-w-[14rem] text-center">
+          <p className="text-[12px] font-medium text-foreground/72">No notes yet</p>
+          <p className="mt-1 text-[11px] leading-5 text-muted-foreground/55">
+            Create your first note or folder from the action bar above to get started.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={listRef}

@@ -13,7 +13,6 @@ import {
   FileTreeSection,
   SidebarConfigManager,
   JournalSection,
-  WorkspaceSwitcher,
 } from "./sidebar";
 
 interface SidebarPanelProps {
@@ -180,10 +179,7 @@ export function SidebarPanel({
 
   const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
   const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
-  // Filter out file-tree and projects (workspace switcher handles projects now)
-  const navigationSections = visibleSections.filter(
-    (section) => section.type !== "file-tree" && section.type !== "projects"
-  );
+  const navigationSections = visibleSections.filter((section) => section.type !== "file-tree");
 
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
@@ -307,16 +303,11 @@ export function SidebarPanel({
         className,
       )}
     >
-      {/* Workspace Switcher */}
-      <div className="border-b border-sidebar-border/40 px-2.5 py-2">
-        <WorkspaceSwitcher />
-      </div>
-
       <div className="sticky top-0 z-10 border-b border-sidebar-border/50 bg-sidebar/95 backdrop-blur-xl">
-        <div className="relative min-h-11 overflow-hidden px-3 py-2.5">
+        <div className="relative min-h-11 overflow-hidden px-3 py-2.5 md:h-11 md:min-h-0 md:py-0">
           <div
             className={cn(
-              "flex w-full items-center gap-2 transition-transform duration-200 md:py-0",
+              "flex h-full w-full items-center gap-2 transition-transform duration-200",
               isSearchOpen && "-translate-y-12",
             )}
           >
@@ -383,7 +374,7 @@ export function SidebarPanel({
           {hasSearchSection && (
             <div
               className={cn(
-                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200",
+                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200 md:h-11 md:py-2",
                 isSearchOpen ? "translate-y-0" : "translate-y-12",
               )}
             >

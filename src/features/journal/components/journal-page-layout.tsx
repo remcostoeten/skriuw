@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format, isValid, parseISO } from "date-fns";
 import { Code, Type, ChevronLeft } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -82,6 +83,7 @@ export function JournalPageLayout() {
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [editorMode, setEditorMode] = useState<"plain" | "rich">("plain");
   const [view, setView] = useState<JournalView>("list");
+  const prefersReducedMotion = useReducedMotion();
   const ui = useDocumentStore((s) => s.ui);
   const setUIState = useDocumentStore((s) => s.setUIState);
   const { isMobile } = ui;
@@ -170,6 +172,19 @@ export function JournalPageLayout() {
     triggerNativeFeedback("selection");
     setShowShortcutHelp(true);
   }, []);
+
+  const closeSidebar = useCallback(() => {
+    triggerNativeFeedback("dismiss");
+    setShowSidebar(false);
+  }, []);
+
+  const overlayTransition: Transition = prefersReducedMotion
+    ? { duration: 0.12, ease: "linear" }
+    : { duration: 0.2, ease: "easeOut" };
+
+  const sidebarTransition: Transition = prefersReducedMotion
+    ? { duration: 0.16, ease: "easeOut" }
+    : { duration: 0.46, ease: [0.32, 0.72, 0, 1] };
 
   useEffect(() => {
     $.setScopes(["journal"]);
@@ -364,23 +379,40 @@ export function JournalPageLayout() {
       </div>
 
       {/* Mobile sidebar overlay */}
-      {isHydrated && isMobile && showSidebar && (
-        <>
-          <button
-            type="button"
-            className="absolute inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
-            onClick={() => setShowSidebar(false)}
-            aria-label="Close sidebar"
-          />
-          <div className="absolute inset-y-0 left-0 z-50 w-[min(85vw,320px)]">
-            <JournalSidebar
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              className="h-full w-full bg-card shadow-2xl"
+      <AnimatePresence>
+        {isHydrated && isMobile && showSidebar && (
+          <>
+            <motion.button
+              key="journal-sidebar-backdrop"
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={overlayTransition}
+              className="absolute inset-0 z-40 bg-black/54 backdrop-blur-[3px]"
+              onClick={closeSidebar}
+              aria-label="Close sidebar"
             />
-          </div>
-        </>
-      )}
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full items-stretch pr-5 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+              <motion.div
+                key="journal-sidebar-panel"
+                initial={prefersReducedMotion ? { x: -12, opacity: 0 } : { x: -28, opacity: 0.96 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={prefersReducedMotion ? { x: -8, opacity: 0 } : { x: -34, opacity: 0.94 }}
+                transition={sidebarTransition}
+                style={{ willChange: "transform, opacity" }}
+                className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden rounded-r-[2rem] border border-l-0 border-border/70 shadow-[0_28px_90px_rgba(0,0,0,0.42)]"
+              >
+                <JournalSidebar
+                  selectedDate={selectedDate}
+                  onSelectDate={handleSelectDate}
+                  className="h-full w-full border-r-0 bg-transparent"
+                />
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
       <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
       <CommandPalette

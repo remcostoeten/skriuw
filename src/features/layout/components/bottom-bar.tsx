@@ -2,6 +2,7 @@
 
 import { Code, Settings2, Sun, Moon, Type } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -31,6 +32,7 @@ export function BottomBar({
   }, []);
 
   const toggleTheme = () => {
+    triggerNativeFeedback("selection");
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
@@ -60,7 +62,10 @@ export function BottomBar({
             </span>
           </button>
           <button
-            onClick={onToggleEditorMode}
+            onClick={() => {
+              triggerNativeFeedback("impact");
+              onToggleEditorMode();
+            }}
             className="pressable relative flex min-h-[58px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background shadow-[0_14px_30px_rgba(0,0,0,0.28)] transition-all hover:opacity-95"
             title={editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX"}
           >
@@ -81,7 +86,10 @@ export function BottomBar({
             )}
           </button>
           <button
-            onClick={onOpenSettings}
+            onClick={() => {
+              triggerNativeFeedback("selection");
+              onOpenSettings?.();
+            }}
             className="pressable native-surface group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
             title="Open settings"
           >

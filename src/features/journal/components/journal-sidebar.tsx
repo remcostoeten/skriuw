@@ -113,6 +113,14 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
     onSelectDate(today);
   };
 
+  const journalTabs = [
+    { id: "calendar" as const, label: "Calendar", icon: CalendarDays },
+    { id: "stats" as const, label: "Stats", icon: BarChart3 },
+    { id: "search" as const, label: "Search", icon: Search },
+    { id: "all" as const, label: "All entries", icon: Clock },
+    { id: "tags" as const, label: "Tags", icon: Tag },
+  ];
+
   return (
     <div
       className={cn(
@@ -134,17 +142,39 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
       </div>
 
       {/* View tabs */}
-      <div className="flex items-center border-b border-border/40 px-2 py-1">
-        {[
-          { id: "calendar" as const, label: "Calendar", icon: CalendarDays },
-          { id: "stats" as const, label: "Stats", icon: BarChart3 },
-          { id: "search" as const, label: "Search", icon: Search },
-          { id: "all" as const, label: "All", icon: Clock },
-          { id: "tags" as const, label: "Tags", icon: Tag },
-        ].map((tab) => (
+      <div
+        role="tablist"
+        aria-label="Journal sidebar views"
+        onKeyDown={(event) => {
+          const currentIndex = journalTabs.findIndex((tab) => tab.id === view);
+          if (currentIndex === -1) {
+            return;
+          }
+
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            setView(journalTabs[(currentIndex + 1) % journalTabs.length].id);
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            setView(journalTabs[(currentIndex - 1 + journalTabs.length) % journalTabs.length].id);
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            setView(journalTabs[0].id);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            setView(journalTabs[journalTabs.length - 1].id);
+          }
+        }}
+        className="flex items-center border-b border-border/40 px-2 py-1"
+      >
+        {journalTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setView(tab.id)}
+            role="tab"
+            aria-selected={view === tab.id}
+            aria-label={tab.label}
+            tabIndex={view === tab.id ? 0 : -1}
             title={tab.label}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded-md transition-colors",

@@ -275,40 +275,56 @@ layer(base);
     .pressable,
     .pressable-soft {
       transition:
-        transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
         background-color 180ms ease-out,
         border-color 180ms ease-out,
         color 180ms ease-out,
         box-shadow 220ms ease-out,
-        opacity 180ms ease-out;
+        opacity 180ms ease-out,
+        filter 180ms ease-out;
       transform-origin: center;
+      will-change: transform;
+    }
+
+    .pressable:hover,
+    .pressable-soft:hover {
+      transform: translateY(-0.5px);
     }
 
     .pressable:active,
     .pressable-soft:active {
-      transform: scale(0.97);
+      transform: scale(0.965);
+      filter: saturate(1.05) brightness(0.98);
     }
   }
 
   .pressable-soft:active {
-    transform: scale(0.985);
+    transform: scale(0.982);
   }
 
   .native-surface {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015)),
-      rgba(10, 10, 10, 0.38);
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 72%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
+      rgba(10, 10, 10, 0.42);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.02),
       0 16px 40px rgba(0, 0, 0, 0.22);
   }
 
   .native-panel {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012)),
       rgba(14, 14, 14, 0.82);
+    -webkit-backdrop-filter: blur(28px);
     backdrop-filter: blur(28px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 24px 80px rgba(0, 0, 0, 0.28);
   }
 
   .drag-handle {
