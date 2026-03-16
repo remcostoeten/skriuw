@@ -95,7 +95,7 @@ export const RecentsSection = memo(function RecentsSection({
                 <Folder className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" strokeWidth={1.5} />
               )}
               <span className="flex-1 truncate">{recent.name}</span>
-              <span className="w-8 shrink-0 text-right text-[10px] text-muted-foreground/50">
+              <span className="ml-3 shrink-0 text-right text-[10px] text-muted-foreground/40 tabular-nums">
                 {formatDistanceToNow(new Date(recent.accessedAt), { addSuffix: false })}
               </span>
             </button>
