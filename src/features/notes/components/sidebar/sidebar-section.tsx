@@ -64,11 +64,11 @@ export function SidebarSection({
   }, [showMenu]);
 
   return (
-    <section className="mx-2 mb-1 last:mb-0">
-      <div className="group relative flex min-h-9 items-center gap-1 rounded-lg px-2.5 transition-colors hover:bg-white/[0.025] md:h-7 md:min-h-0">
+    <section className="mx-2 mb-0.5 last:mb-0">
+      <div className="group relative flex min-h-8 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/[0.025] md:h-7 md:min-h-0">
         <button
           onClick={onToggleCollapse}
-          className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/80 transition-colors hover:bg-white/[0.04] hover:text-foreground md:h-4 md:w-4"
+          className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground"
         >
           <ChevronRight
             className={cn("h-3 w-3 transition-transform", !isCollapsed && "rotate-90")}
@@ -89,24 +89,24 @@ export function SidebarSection({
                 setIsEditing(false);
               }
             }}
-            className="flex-1 bg-transparent text-xs font-medium text-muted-foreground outline-none border-b border-foreground/30"
+            className="flex-1 bg-transparent text-[11px] font-medium uppercase tracking-wide text-muted-foreground outline-none border-b border-foreground/30"
             autoFocus
           />
         ) : (
-          <span className="flex-1 truncate pr-10 text-[12px] font-medium text-muted-foreground/78 md:pr-16">
+          <span className="flex-1 truncate pr-8 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
             {title}
           </span>
         )}
 
-        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center justify-end">
+        <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center justify-end">
           {itemCount !== undefined && (
-            <span className="w-4 shrink-0 text-right text-[11px] text-muted-foreground/45 tabular-nums transition-opacity md:group-hover:opacity-0">
+            <span className="w-4 shrink-0 text-right text-[10px] text-muted-foreground/40 tabular-nums transition-opacity md:group-hover:opacity-0">
               {itemCount}
             </span>
           )}
         </div>
 
-        <div className="absolute inset-y-0 right-2 flex items-center justify-end gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+        <div className="absolute inset-y-0 right-1.5 flex items-center justify-end gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           {actions}
 
           {(isCustom || onToggleVisibility) && (
@@ -168,7 +168,7 @@ export function SidebarSection({
       </div>
 
       {/* Section content */}
-      {!isCollapsed && <div className="pb-3 md:pb-2">{children}</div>}
+      {!isCollapsed && <div className="pb-2 pt-0.5">{children}</div>}
     </section>
   );
 }
