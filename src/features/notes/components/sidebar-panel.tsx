@@ -13,6 +13,7 @@ import {
   FileTreeSection,
   SidebarConfigManager,
   JournalSection,
+  WorkspaceSwitcher,
 } from "./sidebar";
 
 interface SidebarPanelProps {
@@ -179,7 +180,10 @@ export function SidebarPanel({
 
   const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
   const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
-  const navigationSections = visibleSections.filter((section) => section.type !== "file-tree");
+  // Filter out file-tree and projects (workspace switcher handles projects now)
+  const navigationSections = visibleSections.filter(
+    (section) => section.type !== "file-tree" && section.type !== "projects"
+  );
 
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
@@ -187,6 +191,8 @@ export function SidebarPanel({
         return null;
 
       case "favorites":
+        // Only show favorites section if there are favorites
+        if (sidebarStore.config.favorites.length === 0) return null;
         return (
           <FavoritesSection
             key={section.id}
@@ -301,6 +307,11 @@ export function SidebarPanel({
         className,
       )}
     >
+      {/* Workspace Switcher */}
+      <div className="border-b border-sidebar-border/40 px-2.5 py-2">
+        <WorkspaceSwitcher />
+      </div>
+
       <div className="sticky top-0 z-10 border-b border-sidebar-border/50 bg-sidebar/95 backdrop-blur-xl">
         <div className="relative min-h-11 overflow-hidden px-3 py-2.5">
           <div
@@ -474,13 +485,6 @@ export function SidebarPanel({
         ) : (
           <>
             {fileTreeSection ? renderSection(fileTreeSection) : null}
-            {navigationSections.length > 0 ? (
-              <div className="px-3 pb-2 pt-3">
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Navigation
-                </p>
-              </div>
-            ) : null}
             {navigationSections.map(renderSection)}
           </>
         )}

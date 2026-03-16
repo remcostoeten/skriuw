@@ -647,18 +647,18 @@ export const FileList = memo(function FileList({
                 isDragging && "opacity-50",
                 isDropTarget && "bg-primary/12 ring-1 ring-white/10",
               )}
-              style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
+              style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <ChevronRight
                   className={cn(
-                    "h-3 w-3 shrink-0 text-muted-foreground/80 transition-transform",
+                    "h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform",
                     folder.isOpen && "rotate-90",
                   )}
                   strokeWidth={1.5}
                 />
                 <Folder
-                  className="h-4 w-4 shrink-0 text-muted-foreground/85"
+                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
                   strokeWidth={1.5}
                 />
                 <span className="flex h-[18px] min-w-0 flex-1 items-center">
@@ -679,7 +679,7 @@ export const FileList = memo(function FileList({
                   )}
                 </span>
               </div>
-              <span className="ml-2 w-4 shrink-0 text-right text-[10px] text-muted-foreground/65 tabular-nums">
+              <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
                 {totalCount}
               </span>
             </button>
@@ -813,7 +813,7 @@ export const FileList = memo(function FileList({
                 : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
-            style={{ paddingLeft: `${12 + depth * 12}px`, paddingRight: "12px" }}
+            style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}
           >
             <span className="flex h-[18px] min-w-0 flex-1 items-center truncate">
               {isEditing ? (
@@ -943,7 +943,7 @@ export const FileList = memo(function FileList({
   return (
     <div
       ref={listRef}
-      className={cn("flex-1 overflow-y-auto px-2 pb-4 pt-2", isRootDropTarget && "bg-primary/6")}
+      className={cn("flex-1 overflow-y-auto px-1.5 pb-4 pt-1", isRootDropTarget && "bg-primary/6")}
       role="tree"
       aria-label="Notes file tree"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
@@ -951,7 +951,7 @@ export const FileList = memo(function FileList({
       onDragLeave={handleDragLeave}
       onDrop={(e) => handleDrop(e, null)}
     >
-      <div className="relative" style={{ height: totalHeight }}>
+      <div className="relative space-y-px" style={{ height: totalHeight }}>
         {windowedItems.map((item, visibleIndex) => {
           const rowIndex = startIndex + visibleIndex;
           const rowContent =

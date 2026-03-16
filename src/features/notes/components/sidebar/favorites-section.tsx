@@ -57,29 +57,29 @@ export const FavoritesSection = memo(function FavoritesSection({
       onToggleVisibility={onToggleVisibility}
     >
       {resolvedFavorites.length === 0 ? (
-        <div className="px-3 py-1.5">
-          <p className="text-xs text-muted-foreground/60">No favorites yet.</p>
+        <div className="px-2 py-1">
+          <p className="text-[11px] text-muted-foreground/50">No favorites yet</p>
         </div>
       ) : (
-        <div className="space-y-0.5 px-2">
+        <div className="space-y-px px-1">
           {resolvedFavorites.map((fav) => (
             <button
               key={fav.id}
               onClick={() => fav.itemType === "file" && onFileSelect(fav.itemId)}
               className={cn(
-                "group flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                "group flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
                 fav.itemType === "file" && fav.itemId === activeFileId
                   ? "bg-white/[0.07] text-foreground"
-                  : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground",
+                  : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground",
               )}
             >
               {fav.itemType === "file" ? (
                 <FileText
-                  className="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                  className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0"
                   strokeWidth={1.5}
                 />
               ) : (
-                <Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                <Folder className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" strokeWidth={1.5} />
               )}
               <span className="flex-1 truncate">{fav.name}</span>
               <button
@@ -87,7 +87,7 @@ export const FavoritesSection = memo(function FavoritesSection({
                   e.stopPropagation();
                   onRemoveFromFavorites(fav.itemId);
                 }}
-                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-all hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+                className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 transition-all hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
               >
                 <X className="w-3 h-3" strokeWidth={1.5} />
               </button>
