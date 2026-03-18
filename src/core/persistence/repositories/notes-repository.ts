@@ -10,6 +10,7 @@ import {
 } from "@/core/persistence/pglite";
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
 import { resolveLocalPersistenceBackend } from "./local-backend";
 
 export interface NotesRepository {
@@ -47,6 +48,8 @@ export const pGliteNotesRepository: NotesRepository = {
     const persistedNote = toPersistedNote(note);
     await putPGliteRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
 
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.notes, persistedNote as unknown as Record<string, unknown>);
+
     return fromPersistedNote(persistedNote);
   },
   update: async (input) => {
@@ -75,9 +78,14 @@ export const pGliteNotesRepository: NotesRepository = {
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.notes, updated);
 
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.notes, updated as unknown as Record<string, unknown>);
+
     return fromPersistedNote(updated);
   },
-  destroy: (id) => destroyPGliteRecord(PERSISTED_STORE_NAMES.notes, id),
+  destroy: async (id) => {
+    await destroyPGliteRecord(PERSISTED_STORE_NAMES.notes, id);
+    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.notes, id);
+  },
 };
 
 export const notesRepository: NotesRepository = {

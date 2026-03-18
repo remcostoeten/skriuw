@@ -14,8 +14,8 @@ import {
 import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore } from "@/store/preferences-store";
-import { getAuth } from "@/modules/auth";
 import { Button } from "@/shared/ui/button-component";
+import { useAuthSnapshot } from "@/modules/auth/use-auth";
 
 type Props = {
   open: boolean;
@@ -76,7 +76,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
     logActivity,
   } = usePreferencesStore();
 
-  const user = getAuth();
+  const auth = useAuthSnapshot();
 
   // Reset view when modal closes
   useEffect(() => {
@@ -150,9 +150,15 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           <DialogDescription className="text-muted-foreground">
             Customize your editing and note-taking experience.
           </DialogDescription>
-          {user && (
+          {auth.user && (
             <p className="text-xs text-muted-foreground mt-1">
-              Signed in as {user.name} ({user.email})
+              Signed in as {auth.user.name} ({auth.user.email})
+            </p>
+          )}
+          {!auth.user && auth.mode === "privacy" && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Privacy mode keeps everything local on this device. In private browsing, storage may
+              be temporary.
             </p>
           )}
         </DialogHeader>

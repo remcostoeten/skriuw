@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { requireUser } from "@/modules/auth";
+import { getAuthActorId } from "@/modules/auth";
 
 // --- Types ---
 
@@ -43,8 +43,8 @@ export const TEMPLATE_OPTIONS: TemplatePreview[] = [
   {
     id: "notion",
     name: "Notion Style",
-    description: "Title with inline metadata including timestamps.",
-    preview: `# My Note Title\ncreated: 2026-03-06\nupdated: 2026-03-06\n\nStart writing here...`,
+    description: "A more structured workspace page with lightweight properties and starter sections.",
+    preview: `# My Note Title\n\nStatus: Draft\nLast edited: 2026-03-06\nTags: planning, ideas\n\n---\n\n## Summary\nOne-line overview.\n\n## Notes\n- First thought\n- Next step`,
   },
   {
     id: "journal",
@@ -99,6 +99,7 @@ interface PreferencesState {
   recordMood: (mood: string) => void;
   incrementNoteCount: () => void;
   logActivity: (action: ActivityAction) => void;
+  syncActor: (actorId: string) => void;
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -130,11 +131,11 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       // Actions
       initialize: () => {
-        const user = requireUser();
+        const actorId = getAuthActorId();
         const { userId } = get();
 
-        if (!userId || userId !== user.id) {
-          set({ userId: user.id, isLoading: false });
+        if (!userId || userId !== actorId) {
+          set({ userId: actorId, isLoading: false });
         } else {
           set({ isLoading: false });
         }
@@ -207,6 +208,10 @@ export const usePreferencesStore = create<PreferencesState>()(
             ...state.activity,
           ].slice(0, 50),
         }));
+      },
+
+      syncActor: (actorId) => {
+        set((state) => (state.userId === actorId ? state : { userId: actorId }));
       },
     }),
     {

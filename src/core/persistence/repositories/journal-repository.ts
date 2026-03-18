@@ -32,6 +32,7 @@ import {
   putPGliteRecord,
 } from "@/core/persistence/pglite";
 import type { JournalEntry, JournalTag } from "@/features/journal/types";
+import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
 import { resolveLocalPersistenceBackend } from "./local-backend";
 
 export interface JournalRepository {
@@ -73,6 +74,8 @@ export const pGliteJournalRepository: JournalRepository = {
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
 
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.journalEntries, entry as unknown as Record<string, unknown>);
+
     return fromPersistedJournalEntry(entry);
   },
   updateEntry: async (input) => {
@@ -91,9 +94,14 @@ export const pGliteJournalRepository: JournalRepository = {
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
 
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.journalEntries, updated as unknown as Record<string, unknown>);
+
     return fromPersistedJournalEntry(updated);
   },
-  destroyEntry: (id) => destroyPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, id),
+  destroyEntry: async (id) => {
+    await destroyPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, id);
+    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.journalEntries, id);
+  },
   listTags: async () => {
     const tags = await listPGliteRecords(PERSISTED_STORE_NAMES.tags);
     return tags.map(fromPersistedJournalTag);
@@ -111,6 +119,8 @@ export const pGliteJournalRepository: JournalRepository = {
     };
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.tags, tag);
+
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.tags, tag as unknown as Record<string, unknown>);
 
     return fromPersistedJournalTag(tag);
   },
@@ -135,6 +145,7 @@ export const pGliteJournalRepository: JournalRepository = {
     );
 
     await destroyPGliteRecord(PERSISTED_STORE_NAMES.tags, id);
+    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.tags, id);
   },
 };
 

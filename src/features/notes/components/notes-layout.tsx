@@ -28,6 +28,7 @@ import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 
 const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const SHEET_DISMISS_VELOCITY = 0.11;
@@ -533,6 +534,10 @@ export function NotesLayout() {
 
   return (
     <LayoutContainer className="bg-background">
+      <div className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-30 md:right-4">
+        <AuthEntryPoint />
+      </div>
+
       {isMobile && (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-40 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_62%)]" />
@@ -592,7 +597,7 @@ export function NotesLayout() {
           <div className="relative flex min-w-0 flex-1 overflow-hidden">
             <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-white/[0.04] to-transparent" />
-              <div className="pointer-events-none absolute right-4 top-3 z-20">
+              <div className="pointer-events-none absolute right-[5.25rem] top-3 z-20 md:right-[6rem]">
                 <SaveStatusBadge status={activeFileSaveState} />
               </div>
               <EditorContainer

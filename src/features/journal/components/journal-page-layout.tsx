@@ -19,6 +19,7 @@ import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-pal
 import { ShortcutHelpDialog, type ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { SaveStatusBadge } from "@/shared/components/save-status-badge";
+import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 
 type JournalView = "list" | "editor";
 
@@ -310,6 +311,10 @@ export function JournalPageLayout() {
 
   return (
     <LayoutContainer className="bg-background">
+      <div className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-30 md:right-4">
+        <AuthEntryPoint />
+      </div>
+
       <div className="relative flex min-h-0 flex-1">
         {/* Icon rail (desktop) */}
         {!isMobile && (

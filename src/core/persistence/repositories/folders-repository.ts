@@ -14,6 +14,7 @@ import {
   putPGliteRecord,
 } from "@/core/persistence/pglite";
 import type { NoteFolder } from "@/types/notes";
+import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
 import { resolveLocalPersistenceBackend } from "./local-backend";
 
 export interface FoldersRepository {
@@ -71,6 +72,8 @@ export const pGliteFoldersRepository: FoldersRepository = {
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
 
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.folders, persistedFolder as unknown as Record<string, unknown>);
+
     return fromPersistedFolder(persistedFolder);
   },
   update: async (input) => {
@@ -87,6 +90,8 @@ export const pGliteFoldersRepository: FoldersRepository = {
     };
 
     await putPGliteRecord(PERSISTED_STORE_NAMES.folders, updated);
+
+    void pushRecordToRemote(PERSISTED_STORE_NAMES.folders, updated as unknown as Record<string, unknown>);
 
     return fromPersistedFolder(updated);
   },
@@ -105,6 +110,14 @@ export const pGliteFoldersRepository: FoldersRepository = {
       ),
       ...noteIdsToDelete.map((noteId) => destroyPGliteRecord(PERSISTED_STORE_NAMES.notes, noteId)),
     ]);
+
+    // Fire-and-forget remote deletes
+    for (const folderId of descendantIds) {
+      void deleteRecordFromRemote(PERSISTED_STORE_NAMES.folders, folderId);
+    }
+    for (const noteId of noteIdsToDelete) {
+      void deleteRecordFromRemote(PERSISTED_STORE_NAMES.notes, noteId);
+    }
   },
 };
 
