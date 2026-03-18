@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 describe("resolveLocalPersistenceBackend", () => {
   const originalWarn = console.warn;
+  const originalNavigator = globalThis.navigator;
 
   beforeEach(() => {
     mock.restore();
@@ -11,6 +12,10 @@ describe("resolveLocalPersistenceBackend", () => {
   afterEach(async () => {
     const module = await import("../local-backend");
     module.resetLocalPersistenceBackendForTests();
+    Object.defineProperty(globalThis, "navigator", {
+      value: originalNavigator,
+      configurable: true,
+    });
     mock.restore();
     console.warn = originalWarn;
   });
@@ -54,5 +59,48 @@ describe("resolveLocalPersistenceBackend", () => {
     await expect(module.resolveLocalPersistenceBackend()).resolves.toBe("indexeddb");
     expect(openPGliteDbCalls).toBe(1);
     expect(warnCalls).toBe(1);
+  });
+
+  test("detects durable local persistence when Storage API reports persisted", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        storage: {
+          persisted: async () => true,
+          estimate: async () => ({ quota: 64 * 1024 * 1024 }),
+        },
+      },
+      configurable: true,
+    });
+
+    const module = await import("../local-backend");
+
+    await expect(module.detectLocalPersistenceDurability()).resolves.toBe("durable");
+  });
+
+  test("detects likely ephemeral local persistence when quota is very small", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        storage: {
+          persisted: async () => false,
+          estimate: async () => ({ quota: 16 * 1024 * 1024 }),
+        },
+      },
+      configurable: true,
+    });
+
+    const module = await import("../local-backend");
+
+    await expect(module.detectLocalPersistenceDurability()).resolves.toBe("ephemeral");
+  });
+
+  test("returns unknown durability when Storage API is unavailable", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: {},
+      configurable: true,
+    });
+
+    const module = await import("../local-backend");
+
+    await expect(module.detectLocalPersistenceDurability()).resolves.toBe("unknown");
   });
 });

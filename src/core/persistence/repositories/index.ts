@@ -18,5 +18,7 @@ export {
 } from "./notes-repository";
 export {
   resolveLocalPersistenceBackend,
+  detectLocalPersistenceDurability,
   type LocalPersistenceBackend,
+  type LocalPersistenceDurability,
 } from "./local-backend";

@@ -9,7 +9,8 @@ A minimal, keyboard-first note-taking application built with Next.js, React, and
 - **Keyboard-First**: Optimized for keyboard navigation and shortcuts
 - **Dark/Light Theme**: Built-in theme support
 - **Responsive Design**: Works seamlessly on desktop and mobile
-- **Local Storage**: All notes stored locally in your browser
+- **Local-First Storage**: All notes save locally first, with optional Supabase backup/sync
+- **Privacy Mode**: Continue without an account when you want local-only notes
 
 ## Tech Stack
 
@@ -51,6 +52,27 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Optional Supabase Auth + Sync
+
+Cloud backup/sync is optional. Privacy mode still works without any auth setup.
+
+```bash
+cp .env.example .env.local
+```
+
+Set these client-safe env vars in `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Supabase project notes:
+
+- Enable Email/Password, Google, and GitHub providers if you want all auth options in the drawer.
+- Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
+- Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
 
 ### Build
 
