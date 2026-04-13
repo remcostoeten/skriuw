@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getAuthActorId } from "@/platform/auth";
 import { NoteFile, NoteFolder } from "@/types/notes";
 
 export interface DocumentMetadata {
@@ -22,7 +23,16 @@ export interface UIState {
   isMobile: boolean;
 }
 
+const DEFAULT_UI_STATE: UIState = {
+  showSidebar: true,
+  showMetadata: false,
+  activePanel: null,
+  sidebarWidth: 296,
+  isMobile: false,
+};
+
 interface DocumentState {
+  currentActorId: string;
   // Core document data
   documents: Map<string, NoteFile>;
   folders: Map<string, NoteFolder>;
@@ -33,6 +43,8 @@ interface DocumentState {
   
   // UI state
   ui: UIState;
+
+  syncActor: (actorId: string) => Promise<void>;
   
   // Actions - Documents
   setDocuments: (documents: NoteFile[]) => void;
@@ -65,6 +77,12 @@ interface DocumentState {
   getDocumentsInFolder: (folderId?: string) => NoteFile[];
 }
 
+const DOCUMENT_STORE_KEY_PREFIX = "document-store";
+
+function getDocumentStoreKey(actorId: string) {
+  return `${DOCUMENT_STORE_KEY_PREFIX}:${actorId}`;
+}
+
 const calculateMetadata = (content: string): Omit<DocumentMetadata, 'id' | 'createdAt' | 'updatedAt' | 'lastAccessedAt'> => {
   const wordCount = content.split(/\s+/).filter(Boolean).length;
   const characterCount = content.length;
@@ -81,17 +99,30 @@ const calculateMetadata = (content: string): Omit<DocumentMetadata, 'id' | 'crea
 export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => ({
+      currentActorId: getAuthActorId(),
       // Initial state
       documents: new Map(),
       folders: new Map(),
       activeDocumentId: null,
       metadata: new Map(),
-      ui: {
-        showSidebar: true,
-        showMetadata: false,
-        activePanel: null,
-        sidebarWidth: 296,
-        isMobile: false,
+      ui: { ...DEFAULT_UI_STATE },
+
+      syncActor: async (actorId) => {
+        if (actorId === get().currentActorId) {
+          return;
+        }
+
+        set({
+          currentActorId: actorId,
+          documents: new Map(),
+          folders: new Map(),
+          activeDocumentId: null,
+          metadata: new Map(),
+          ui: { ...DEFAULT_UI_STATE },
+        });
+
+        useDocumentStore.persist.setOptions({ name: getDocumentStoreKey(actorId) });
+        await useDocumentStore.persist.rehydrate();
       },
       
       // Document actions
@@ -261,20 +292,17 @@ export const useDocumentStore = create<DocumentState>()(
       },
     }),
     {
-      name: "document-store",
+      name: getDocumentStoreKey(getAuthActorId()),
       partialize: (state) => ({
-        documents: Array.from(state.documents.entries()),
-        folders: Array.from(state.folders.entries()),
-        metadata: Array.from(state.metadata.entries()),
         ui: state.ui,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.documents = new Map(state.documents as any);
-          state.folders = new Map(state.folders as any);
-          state.metadata = new Map(state.metadata as any);
-        }
-      },
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ui: {
+          ...DEFAULT_UI_STATE,
+          ...((persistedState as Partial<DocumentState> | undefined)?.ui),
+        },
+      }),
     }
   )
 );

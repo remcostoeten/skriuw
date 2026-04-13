@@ -232,13 +232,11 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                     key={dateKey}
                     onClick={() => onSelectDate(day)}
                     className={cn(
-                      "relative flex h-7 w-full items-center justify-center rounded-md text-[11px] transition-all",
+                      "relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",
                       !inCurrentMonth && "text-muted-foreground/25",
-                      inCurrentMonth && !isSelected && "text-foreground/70 hover:bg-accent/60",
-                      isSelected && "bg-foreground text-background font-semibold shadow-sm",
-                      dayIsToday &&
-                      !isSelected &&
-                      "font-bold text-foreground ring-1 ring-foreground/20",
+                      inCurrentMonth && !isSelected && "text-foreground/70 hover:border-border hover:bg-muted",
+                      isSelected && "border-border bg-muted text-foreground font-semibold",
+                      dayIsToday && !isSelected && "border-border font-bold text-foreground",
                     )}
                   >
                     {format(day, "d")}
@@ -271,8 +269,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                           onSelectDate(new Date(y, m - 1, d));
                         }}
                         className={cn(
-                          "flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors",
-                          isActive ? "bg-accent text-foreground" : "hover:bg-accent/40",
+                          "flex w-full items-center gap-1.5 border border-transparent px-2 py-1.5 text-left transition-colors",
+                          isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
                         )}
                       >
                         <span className="w-[72px] shrink-0 text-[10px] font-medium text-muted-foreground">
@@ -306,12 +304,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search entries..."
-                className="w-full rounded-lg border border-border bg-accent/20 pl-8 pr-2.5 py-1.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-accent/30"
+                className="w-full border border-border bg-background pl-8 pr-2.5 py-1.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-muted"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-md text-muted-foreground/50 transition-colors hover:bg-accent/50 hover:text-foreground"
+                  className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 border border-transparent text-muted-foreground/50 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-2.5 w-2.5" strokeWidth={1.5} />
                 </button>
@@ -334,8 +332,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                     className={cn(
                       "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
                       selectedMood === "all"
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:bg-accent/40",
+                        ? "border border-border bg-muted text-foreground"
+                        : "text-muted-foreground hover:bg-muted",
                     )}
                   >
                     All
@@ -349,8 +347,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                       className={cn(
                         "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
                         selectedMood === key
-                          ? cn("bg-accent text-foreground", mood.color)
-                          : "text-muted-foreground hover:bg-accent/40",
+                          ? cn("border border-border bg-muted text-foreground", mood.color)
+                          : "text-muted-foreground hover:bg-muted",
                       )}
                     >
                       {mood.icon}
@@ -374,8 +372,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                       className={cn(
                         "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
                         selectedTag === "all"
-                          ? "bg-accent text-foreground"
-                          : "text-muted-foreground hover:bg-accent/40",
+                          ? "border border-border bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted",
                       )}
                     >
                       All
@@ -387,8 +385,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                         className={cn(
                           "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
                           selectedTag === tag.name
-                            ? "bg-accent text-foreground"
-                            : "text-muted-foreground hover:bg-accent/40",
+                            ? "border border-border bg-muted text-foreground"
+                            : "text-muted-foreground hover:bg-muted",
                         )}
                       >
                         @{tag.name}
@@ -405,7 +403,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                 {filteredEntries.length} {filteredEntries.length === 1 ? "result" : "results"}
               </p>
               {filteredEntries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-accent/10 px-3 py-4 text-center">
+                <div className="border border-dashed border-border bg-background px-3 py-4 text-center">
                   <p className="text-[11px] text-muted-foreground/60">No entries found.</p>
                   <p className="mt-1 text-[10px] text-muted-foreground/40">
                     Try adjusting your search or filters.
@@ -427,8 +425,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                           setView("calendar");
                         }}
                         className={cn(
-                          "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors",
-                          isActive ? "bg-accent text-foreground" : "hover:bg-accent/40",
+                          "flex w-full items-start gap-2 border border-transparent px-2 py-2 text-left transition-colors",
+                          isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
                         )}
                       >
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -448,7 +446,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                               {entry.tags.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="rounded-full bg-accent/80 px-1 py-px text-[8px] text-muted-foreground"
+                                  className="border border-border bg-background px-1 py-px text-[8px] text-muted-foreground"
                                 >
                                   @{tag}
                                 </span>
@@ -468,7 +466,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
         {view === "all" && (
           <div className="p-3">
             {allEntries.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-accent/10 px-4 py-6 text-center">
+              <div className="border border-dashed border-border bg-background px-4 py-6 text-center">
                 <p className="text-[12px] text-muted-foreground/60">No entries yet.</p>
                 <p className="mt-1 text-[11px] text-muted-foreground/40">
                   Select a date to start writing.
@@ -489,8 +487,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                         onSelectDate(date);
                       }}
                       className={cn(
-                        "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors",
-                        isActive ? "bg-accent text-foreground" : "hover:bg-accent/40",
+                        "flex w-full items-start gap-2.5 border border-transparent px-2.5 py-2.5 text-left transition-colors",
+                        isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -510,7 +508,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                             {entry.tags.slice(0, 4).map((tag) => (
                               <span
                                 key={tag}
-                                className="rounded-full bg-accent/80 px-1.5 py-px text-[9px] text-muted-foreground"
+                                className="border border-border bg-background px-1.5 py-px text-[9px] text-muted-foreground"
                               >
                                 @{tag}
                               </span>
@@ -529,7 +527,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
         {view === "tags" && (
           <div className="p-3">
             {allTags.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-accent/10 px-4 py-6 text-center">
+              <div className="border border-dashed border-border bg-background px-4 py-6 text-center">
                 <p className="text-[12px] text-muted-foreground/60">No tags yet.</p>
                 <p className="mt-1 text-[11px] text-muted-foreground/40">
                   Use @tag in your entries to create tags.
@@ -542,7 +540,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                   return (
                     <div
                       key={tag.id}
-                      className="rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/30"
+                      className="border border-transparent px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -568,7 +566,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                                 onSelectDate(date);
                                 setView("calendar");
                               }}
-                              className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:bg-accent/40 hover:text-muted-foreground"
+                              className="flex w-full items-center gap-1.5 border border-transparent px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-muted-foreground"
                             >
                               <span>{format(new Date(entry.dateKey + "T00:00:00"), "dd MM yyyy")}</span>
                               <span className="truncate">{entry.content.slice(0, 30)}</span>
@@ -589,7 +587,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
       <div className="border-t border-border p-2">
         <button
           onClick={goToToday}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-foreground/[0.07] px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.12]"
+          className="flex w-full items-center justify-center gap-1.5 border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted"
         >
           <Plus className="h-3 w-3" strokeWidth={2} />
           New entry

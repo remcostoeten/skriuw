@@ -254,7 +254,7 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
                         triggerNativeFeedback("selection");
                         onSelectEntry(entry.dateKey);
                       }}
-                      className="pressable-soft group absolute left-0 flex w-full items-center gap-3 border-b border-border/20 px-1 py-2.5 text-left transition-colors hover:bg-accent/30"
+                      className="pressable-soft group absolute left-0 flex w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left transition-colors hover:bg-muted"
                       style={{
                         top: rowIndex * JOURNAL_ROW_HEIGHT,
                         height: JOURNAL_ROW_HEIGHT,
@@ -276,10 +276,11 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
                         {entry.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            className="border px-2 py-0.5 text-[11px] font-medium"
                             style={{
                               backgroundColor: `${getTagColor(tag)}18`,
                               color: getTagColor(tag),
+                              borderColor: `${getTagColor(tag)}35`,
                             }}
                           >
                             {tag}
@@ -295,7 +296,7 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
                       {mood && moodColors && (
                         <span
                           className={cn(
-                            "hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-block",
+                            "hidden shrink-0 border px-2 py-0.5 text-[11px] font-medium sm:inline-block",
                             moodColors.bg,
                             moodColors.text,
                           )}

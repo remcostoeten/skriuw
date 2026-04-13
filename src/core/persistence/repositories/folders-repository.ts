@@ -8,7 +8,7 @@ import {
 } from "@/core/shared/persistence-types";
 import type { NoteFolder } from "@/types/notes";
 import {
-  canUseRemotePersistence,
+  getRemotePersistenceUserId,
   getRemoteRecord,
   listRemoteRecords,
   putRemoteRecord,
@@ -49,13 +49,15 @@ function collectDescendantFolderIds(
 
 export const foldersRepository: FoldersRepository = {
   list: async () => {
-    const records = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders)
+    const remoteUserId = getRemotePersistenceUserId();
+    const records = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
 
     return records.map((folder) => fromPersistedFolder(folder));
   },
   create: async (input) => {
+    const remoteUserId = getRemotePersistenceUserId();
     const timestamp = input.createdAt ?? new Date();
     const persistedFolder: PersistedFolder = {
       id: (input.id ?? crypto.randomUUID()) as FolderId,
@@ -65,8 +67,8 @@ export const foldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? timestamp).toISOString() as IsoTime,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
     }
@@ -74,8 +76,9 @@ export const foldersRepository: FoldersRepository = {
     return fromPersistedFolder(persistedFolder);
   },
   update: async (input) => {
-    const existing = canUseRemotePersistence()
-      ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id)
+    const remoteUserId = getRemotePersistenceUserId();
+    const existing = remoteUserId
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id, remoteUserId)
       : await getLocalRecord(PERSISTED_STORE_NAMES.folders, input.id);
 
     if (!existing) {
@@ -89,8 +92,8 @@ export const foldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.folders, updated);
     }
@@ -98,24 +101,25 @@ export const foldersRepository: FoldersRepository = {
     return fromPersistedFolder(updated);
   },
   destroy: async (id) => {
-    const folders = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders)
+    const remoteUserId = getRemotePersistenceUserId();
+    const folders = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
 
     const descendantIds = collectDescendantFolderIds(folders, id);
 
-    const notes = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes)
+    const notes = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
 
     const noteIdsToDelete = notes
       .filter((note) => note.parentId && descendantIds.has(note.parentId))
       .map((note) => note.id);
 
-    if (canUseRemotePersistence()) {
+    if (remoteUserId) {
       await Promise.all([
-        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.folders, Array.from(descendantIds)),
-        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.notes, noteIdsToDelete),
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.folders, Array.from(descendantIds), remoteUserId),
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.notes, noteIdsToDelete, remoteUserId),
       ]);
       return;
     }

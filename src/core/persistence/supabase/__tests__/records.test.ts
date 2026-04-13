@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
@@ -24,52 +24,58 @@ let selectCalls: Array<{
 }> = [];
 let upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> = [];
 
-mock.module("@/platform/auth", () => ({
-  getAuthStateSnapshot: () => authSnapshot,
-}));
+async function loadRecordsModule() {
+  mock.restore();
 
-mock.module("../client", () => ({
-  getSupabaseClient: () => ({
-    from: (table: string) => {
-      const filters: Array<[string, string, unknown]> = [];
-      let orderBy: [string, boolean] | undefined;
+  const authModuleMock = {
+    getAuthStateSnapshot: () => authSnapshot,
+  };
 
-      const selectBuilder = {
-        eq(field: string, value: unknown) {
-          filters.push(["eq", field, value]);
-          return this;
-        },
-        is(field: string, value: unknown) {
-          filters.push(["is", field, value]);
-          return this;
-        },
-        order(field: string, options?: { ascending?: boolean }) {
-          orderBy = [field, options?.ascending ?? true];
-          selectCalls.push({ table, filters: [...filters], orderBy });
-          return Promise.resolve({ data: selectRows[table] ?? [], error: null });
-        },
-        maybeSingle() {
-          selectCalls.push({ table, filters: [...filters], maybeSingle: true });
-          const rows = selectRows[table];
-          return Promise.resolve({
-            data: Array.isArray(rows) ? (rows[0] ?? null) : rows,
-            error: null,
-          });
-        },
-      };
+  mock.module("@/platform/auth", () => authModuleMock);
+  mock.module("@/platform/auth/index", () => authModuleMock);
+  mock.module("../client", () => ({
+    getSupabaseClient: () => ({
+      from: (table: string) => {
+        const filters: Array<[string, string, unknown]> = [];
+        let orderBy: [string, boolean] | undefined;
 
-      return {
-        select: () => selectBuilder,
-        upsert: async (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-          upsertCalls.push({ table, rows, onConflict: options?.onConflict });
-          return { error: null };
-        },
-      };
-    },
-  }),
-}));
+        const selectBuilder = {
+          eq(field: string, value: unknown) {
+            filters.push(["eq", field, value]);
+            return this;
+          },
+          is(field: string, value: unknown) {
+            filters.push(["is", field, value]);
+            return this;
+          },
+          order(field: string, options?: { ascending?: boolean }) {
+            orderBy = [field, options?.ascending ?? true];
+            selectCalls.push({ table, filters: [...filters], orderBy });
+            return Promise.resolve({ data: selectRows[table] ?? [], error: null });
+          },
+          maybeSingle() {
+            selectCalls.push({ table, filters: [...filters], maybeSingle: true });
+            const rows = selectRows[table];
+            return Promise.resolve({
+              data: Array.isArray(rows) ? (rows[0] ?? null) : rows,
+              error: null,
+            });
+          },
+        };
 
-const recordsModulePromise = import("../records");
+        return {
+          select: () => selectBuilder,
+          upsert: async (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+            upsertCalls.push({ table, rows, onConflict: options?.onConflict });
+            return { error: null };
+          },
+        };
+      },
+    }),
+  }));
+
+  return import(`../records?test=${Math.random().toString(36).slice(2)}`);
+}
 
 beforeEach(() => {
   authSnapshot = {
@@ -89,9 +95,13 @@ beforeEach(() => {
   upsertCalls = [];
 });
 
+afterEach(() => {
+  mock.restore();
+});
+
 describe("supabase record helpers", () => {
   test("lists remote notes for the authenticated user and filters out soft-deleted rows", async () => {
-    const recordsModule = await recordsModulePromise;
+    const recordsModule = await loadRecordsModule();
 
     authSnapshot = {
       ...authSnapshot,
@@ -147,7 +157,7 @@ describe("supabase record helpers", () => {
   });
 
   test("upserts remote journal entries with user scope", async () => {
-    const recordsModule = await recordsModulePromise;
+    const recordsModule = await loadRecordsModule();
 
     authSnapshot = {
       ...authSnapshot,
@@ -191,5 +201,44 @@ describe("supabase record helpers", () => {
         ],
       },
     ]);
+  });
+
+  test("uses an explicit user id override instead of the live auth snapshot", async () => {
+    const recordsModule = await loadRecordsModule();
+
+    authSnapshot = {
+      ...authSnapshot,
+      mode: "account",
+      status: "authenticated",
+      user: {
+        id: "user-live",
+        email: "live@example.com",
+        name: "Live User",
+      },
+      actorId: "user-live",
+      canSync: true,
+    };
+
+    await recordsModule.putRemoteRecord(
+      PERSISTED_STORE_NAMES.notes,
+      {
+        id: "note-1",
+        name: "Inbox.md",
+        content: "# Inbox",
+        richContent: { type: "doc", content: [] },
+        preferredEditorMode: "block",
+        parentId: null,
+        createdAt: "2026-04-12T10:00:00.000Z",
+        updatedAt: "2026-04-12T10:00:00.000Z",
+      } as never,
+      "user-bound",
+    );
+
+    expect(upsertCalls[0]?.rows[0]).toEqual(
+      expect.objectContaining({
+        user_id: "user-bound",
+        id: "note-1",
+      }),
+    );
   });
 });

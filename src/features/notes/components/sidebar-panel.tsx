@@ -377,7 +377,7 @@ export function SidebarPanel({
             {showCloseButton && (
               <button
                 onClick={onRequestClose}
-                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground md:hidden"
+                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground md:hidden"
                 title="Close sidebar"
               >
                 <X className="h-4 w-4" strokeWidth={1.5} />
@@ -392,7 +392,7 @@ export function SidebarPanel({
                 isSearchOpen ? "translate-y-0" : "translate-y-12",
               )}
             >
-              <div className="flex items-center gap-2 border border-white bg-white/[0.045] px-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+              <div className="flex items-center gap-2 border border-border bg-background px-3">
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
                 <input
                   ref={searchInputRef}
@@ -429,9 +429,9 @@ export function SidebarPanel({
         {searchQuery.trim() ? (
           <div className="px-3 py-3">
             {hasSearchResults ? (
-              <div className="overflow-hidden border border-white bg-white/[0.025]">
+              <div className="overflow-hidden border border-border bg-background">
                 {searchResults.folders.length > 0 && (
-                  <div className="border-b border-white p-2 last:border-b-0">
+                  <div className="border-b border-border p-2 last:border-b-0">
                     <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
                       Folders
                     </p>
@@ -439,7 +439,7 @@ export function SidebarPanel({
                       <button
                         key={folder.id}
                         onClick={() => handleSearchFolderSelect(folder.id)}
-                        className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
+                        className="flex min-h-11 w-full items-center gap-2 border border-transparent px-3 py-2 text-left text-foreground/80 transition-colors hover:border-border hover:bg-muted"
                       >
                         <Folder
                           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -460,10 +460,10 @@ export function SidebarPanel({
                         key={file.id}
                         onClick={() => handleSearchFileSelect(file.id)}
                         className={cn(
-                          "flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left transition-colors",
+                          "flex min-h-11 w-full items-center gap-2 border border-transparent px-3 py-2 text-left transition-colors",
                           file.id === activeFileId
-                            ? "bg-accent text-foreground"
-                            : "text-foreground/80 hover:bg-accent",
+                            ? "border-border bg-muted text-foreground"
+                            : "text-foreground/80 hover:border-border hover:bg-muted",
                         )}
                       >
                         <FileText

@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useTagStore } from "@/features/tags/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useJournalStore } from "@/features/journal/store";
 import { MOOD_OPTIONS } from "@/features/journal/types";
 import type { MoodLevel } from "@/types/journal";
 import { X, Plus, Check } from "lucide-react";
@@ -23,10 +23,9 @@ export function JournalMetadataEditor({
   onTagsChange,
   compact = false,
 }: Props) {
-  const tags = useTagStore((s) => s.tags);
-  const createTag = useTagStore((s) => s.create);
-  const incrementUsage = useTagStore((s) => s.incrementUsage);
-  const getByName = useTagStore((s) => s.getByName);
+  const tags = useJournalStore((s) => s.config.tags);
+  const createTag = useJournalStore((s) => s.createTag);
+  const initializeJournal = useJournalStore((s) => s.initialize);
   const recordMood = usePreferencesStore((s) => s.recordMood);
 
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -38,6 +37,12 @@ export function JournalMetadataEditor({
       inputRef.current.focus();
     }
   }, [isAddingTag]);
+
+  useEffect(() => {
+    void initializeJournal();
+  }, [initializeJournal]);
+
+  const getByName = (name: string) => tags.find((tag) => tag.name === name.toLowerCase());
 
   const handleMoodSelect = (level: MoodLevel) => {
     if (selectedMood === level) {
@@ -53,27 +58,18 @@ export function JournalMetadataEditor({
       onTagsChange(selectedTags.filter((t) => t !== tagName));
     } else {
       onTagsChange([...selectedTags, tagName]);
-      const tag = getByName(tagName);
-      if (tag) {
-        incrementUsage(tag.id);
-      }
     }
   };
 
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
     if (trimmed && !getByName(trimmed)) {
-      const newTag = createTag(trimmed);
-      incrementUsage(newTag.id);
+      createTag(trimmed);
       onTagsChange([...selectedTags, trimmed]);
     } else if (trimmed) {
       // Tag exists, just add it to selection
       if (!selectedTags.includes(trimmed)) {
         onTagsChange([...selectedTags, trimmed]);
-        const tag = getByName(trimmed);
-        if (tag) {
-          incrementUsage(tag.id);
-        }
       }
     }
     setNewTagName("");
@@ -153,11 +149,19 @@ export function JournalMetadataEditor({
                 key={tag.id}
                 onClick={() => handleTagToggle(tag.name)}
                 className={cn(
-                  "inline-flex items-center gap-1  py-1 rounded-md text-xs transition-all border",
-                  isSelected
-                    ? tag.color
-                    : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                  "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-all",
+                  !isSelected &&
+                    "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 )}
+                style={
+                  isSelected
+                    ? {
+                        borderColor: `${tag.color}55`,
+                        backgroundColor: `${tag.color}1f`,
+                        color: tag.color,
+                      }
+                    : undefined
+                }
               >
                 {isSelected && <Check className="w-3 h-3" strokeWidth={2} />}
                 <span>{tag.name}</span>

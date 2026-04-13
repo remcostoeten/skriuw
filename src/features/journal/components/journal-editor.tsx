@@ -285,10 +285,10 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
                   key={key}
                   onClick={() => handleMoodSelect(key)}
                   className={cn(
-                    "flex h-8 items-center gap-1 rounded-lg px-2.5 text-[12px] transition-all",
+                    "flex h-8 items-center gap-1 border border-transparent px-2.5 text-[12px] transition-colors",
                     entryMood === key
-                      ? "bg-accent font-medium text-foreground ring-1 ring-border"
-                      : "text-muted-foreground/50 hover:bg-accent/40 hover:text-muted-foreground",
+                      ? "border-border bg-muted font-medium text-foreground"
+                      : "text-muted-foreground/50 hover:border-border hover:bg-muted hover:text-muted-foreground",
                   )}
                   title={mood.label}
                 >
@@ -311,16 +311,17 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
             {entryTags.map((tagName) => (
               <span
                 key={tagName}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
+                className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
                 style={{
                   backgroundColor: `${getTagColor(tagName)}15`,
                   color: getTagColor(tagName),
+                  borderColor: `${getTagColor(tagName)}35`,
                 }}
               >
                 @{tagName}
                 <button
                   onClick={() => handleRemoveTag(tagName)}
-                  className="rounded-full p-0.5 transition-colors hover:bg-white/10"
+                  className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-white/10"
                 >
                   <X className="h-2.5 w-2.5" strokeWidth={2} />
                 </button>
@@ -372,7 +373,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
               id={popupId}
               role="listbox"
               aria-label="Tag suggestions"
-              className="absolute left-0 top-8 z-50 w-64 overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
+              className="absolute left-0 top-8 z-50 w-64 overflow-hidden border border-border bg-popover"
             >
               {popupOptions.length > 0 ? (
                 <div className="max-h-[220px] overflow-y-auto p-1.5">
@@ -390,11 +391,11 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
                           : insertTag(option.name)
                       }
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
+                        "flex w-full items-center gap-2.5 border border-transparent px-3 py-2 text-left text-[13px] transition-colors",
                         idx === selectedSuggestionIdx
-                          ? "bg-accent text-foreground"
-                          : "text-foreground/70 hover:bg-accent/50",
-                        option.kind === "create" && "border-t border-border/40 text-indigo-400",
+                          ? "border-border bg-muted text-foreground"
+                          : "text-foreground/70 hover:border-border hover:bg-muted",
+                        option.kind === "create" && "border-t border-border text-indigo-400",
                       )}
                     >
                       {option.kind === "create" ? (
@@ -426,7 +427,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 flex items-center justify-between border-t border-border/30 pt-4">
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-4">
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground/40">
               {wordCount} {wordCount === 1 ? "word" : "words"}
@@ -442,13 +443,13 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
                   <span className="text-[11px] text-red-400/70">Delete this entry?</span>
                   <button
                     onClick={handleDeleteEntry}
-                    className="rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
+                    className="border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
                   >
                     Delete
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent"
+                    className="border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
                   >
                     Cancel
                   </button>
@@ -456,7 +457,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
               ) : (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:bg-accent hover:text-red-400"
+                  className="flex items-center gap-1 border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-red-400"
                 >
                   <Trash2 className="h-3 w-3" strokeWidth={1.5} />
                   Delete

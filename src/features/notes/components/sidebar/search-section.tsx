@@ -44,10 +44,10 @@ export function SearchSection({
   const showResults = query.trim() && isFocused;
 
   return (
-    <div className="border-b border-border/50 px-3 py-3">
+    <div className="border-b border-border px-3 py-3">
       <div className={cn(
-        "relative flex items-center gap-3 rounded-xl border border-transparent bg-accent/30 px-3 py-2.5 transition-colors",
-        isFocused && "border-ring bg-accent/50"
+        "relative flex items-center gap-3 border border-border bg-background px-3 py-2.5 transition-colors",
+        isFocused && "bg-muted"
       )}>
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         <input
@@ -62,7 +62,7 @@ export function SearchSection({
         {query && (
           <button
             onClick={() => setQuery('')}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-7 w-7 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
           >
             <X className="w-3 h-3" strokeWidth={1.5} />
           </button>
@@ -71,7 +71,7 @@ export function SearchSection({
 
       {/* Search results dropdown */}
       {showResults && (
-        <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+        <div className="mt-3 max-h-64 overflow-y-auto border border-border bg-popover">
           {hasResults ? (
             <>
               {results.folders.length > 0 && (
@@ -86,7 +86,7 @@ export function SearchSection({
                         onFolderSelect(folder.id);
                         setQuery('');
                       }}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
+                      className="flex min-h-11 w-full items-center gap-2 border border-transparent px-3 py-2 text-left text-foreground/80 transition-colors hover:border-border hover:bg-muted"
                     >
                       <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
                       <span className="truncate text-[13px]">{folder.name}</span>
@@ -107,10 +107,10 @@ export function SearchSection({
                         setQuery('');
                       }}
                       className={cn(
-                        "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
+                        "flex min-h-11 w-full items-center gap-2 border border-transparent px-3 py-2 text-left transition-colors",
                         file.id === activeFileId
-                          ? "bg-accent text-foreground"
-                          : "text-foreground/80 hover:bg-accent"
+                          ? "border-border bg-muted text-foreground"
+                          : "text-foreground/80 hover:border-border hover:bg-muted"
                       )}
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />

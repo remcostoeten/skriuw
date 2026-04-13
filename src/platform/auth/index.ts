@@ -38,6 +38,7 @@ type AuthListener = () => void;
 
 const AUTH_PREFERENCES_KEY = "haptic:auth:preferences:v1";
 const PRIVACY_ACTOR_ID = "privacy-local";
+const ACCOUNT_LOCAL_ACTOR_ID = "account-local";
 
 let snapshot: AuthSnapshot = {
   mode: "privacy",
@@ -139,6 +140,10 @@ function clearError(): void {
   }
 }
 
+function getLocalActorId(mode: AuthMode): string {
+  return mode === "account" ? ACCOUNT_LOCAL_ACTOR_ID : PRIVACY_ACTOR_ID;
+}
+
 function applySession(session: Session | null, modeOverride?: AuthMode): AuthSnapshot {
   const user = toUser(session);
   const preferredMode = modeOverride ?? snapshot.mode;
@@ -152,7 +157,7 @@ function applySession(session: Session | null, modeOverride?: AuthMode): AuthSna
     user,
     session,
     error: null,
-    actorId: user?.id ?? PRIVACY_ACTOR_ID,
+    actorId: user?.id ?? getLocalActorId(nextMode),
     canSync: Boolean(user) && isSupabaseConfigured(),
   };
 
@@ -260,6 +265,7 @@ export async function enableAccountMode(): Promise<AuthSnapshot> {
     ...current,
     mode: "account",
     status: current.user ? "authenticated" : "signed_out",
+    actorId: current.user?.id ?? getLocalActorId("account"),
   }));
 }
 

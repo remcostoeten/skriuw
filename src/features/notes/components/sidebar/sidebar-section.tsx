@@ -72,7 +72,7 @@ export function SidebarSection({
       {showHeader && (
         <div
           className={cn(
-            "group relative flex items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/[0.025]",
+            "group relative flex items-center gap-1.5 px-2 transition-colors hover:bg-muted",
             compactMode ? "min-h-7" : "min-h-8 md:h-7 md:min-h-0",
           )}
         >
@@ -136,7 +136,7 @@ export function SidebarSection({
                   ref={buttonRef}
                   onClick={() => setShowMenu(!showMenu)}
                   className={cn(
-                    "flex items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-white/[0.04] hover:text-foreground",
+                    "flex items-center justify-center border border-transparent text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground",
                     compactMode ? "h-4 w-4" : "h-5 w-5 md:h-4 md:w-4",
                   )}
                 >
@@ -146,7 +146,7 @@ export function SidebarSection({
                 {showMenu && (
                   <div
                     ref={menuRef}
-                    className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden rounded-xl border border-white/8 bg-popover/96 p-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 backdrop-blur-xl"
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden border border-border bg-popover p-1 text-popover-foreground animate-in fade-in-0"
                   >
                     {onRename && (
                       <button
@@ -154,7 +154,7 @@ export function SidebarSection({
                           setIsEditing(true);
                           setShowMenu(false);
                         }}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                        className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         Rename
@@ -166,7 +166,7 @@ export function SidebarSection({
                           onToggleVisibility();
                           setShowMenu(false);
                         }}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                        className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
                         Hide section
@@ -178,7 +178,7 @@ export function SidebarSection({
                           onDelete();
                           setShowMenu(false);
                         }}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-red-400 outline-none hover:bg-accent"
+                        className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm text-red-400 outline-none hover:bg-muted"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         Delete

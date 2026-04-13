@@ -2,18 +2,20 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useTagStore, TAG_COLORS, type Tag } from "@/features/tags/store";
+import { useJournalStore } from "@/features/journal/store";
+import { TAG_COLORS } from "@/features/journal/types";
+import type { JournalTag as Tag } from "@/types/journal";
 import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
 export function TagManager() {
-  const tags = useTagStore((s) => s.tags);
-  const createTag = useTagStore((s) => s.create);
-  const removeTag = useTagStore((s) => s.remove);
+  const tags = useJournalStore((s) => s.config.tags);
+  const createTag = useJournalStore((s) => s.createTag);
+  const removeTag = useJournalStore((s) => s.deleteTag);
+  const initializeJournal = useJournalStore((s) => s.initialize);
 
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0].value);
+  const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -22,13 +24,17 @@ export function TagManager() {
     }
   }, [isAddingTag]);
 
+  useEffect(() => {
+    void initializeJournal();
+  }, [initializeJournal]);
+
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
     if (trimmed && !tags.find((t) => t.name === trimmed)) {
       createTag(trimmed, selectedColor);
     }
     setNewTagName("");
-    setSelectedColor(TAG_COLORS[0].value);
+    setSelectedColor(TAG_COLORS[0]);
     setIsAddingTag(false);
   };
 
@@ -55,7 +61,7 @@ export function TagManager() {
         {!isAddingTag && (
           <button
             onClick={() => setIsAddingTag(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            className="flex items-center gap-1.5 border border-dashed border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Plus className="w-3.5 h-3.5" />
             New tag
@@ -65,7 +71,7 @@ export function TagManager() {
 
       {/* Add tag form */}
       {isAddingTag && (
-        <div className="p-3 rounded-lg border border-border bg-card/50 space-y-3">
+        <div className="space-y-3 border border-border bg-card p-3">
           <div className="flex items-center gap-2">
             <Hash className="w-4 h-4 text-muted-foreground" />
             <input
@@ -85,16 +91,16 @@ export function TagManager() {
             <div className="flex flex-wrap gap-1.5">
               {TAG_COLORS.map((color) => (
                 <button
-                  key={color.name}
-                  onClick={() => setSelectedColor(color.value)}
+                  key={color}
+                  onClick={() => setSelectedColor(color)}
                   className={cn(
-                    "w-6 h-6 rounded-md border-2 transition-all",
-                    color.value.split(" ")[0], // Get bg class
-                    selectedColor === color.value
-                      ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-105",
+                    "h-6 w-6 border transition-colors",
+                    selectedColor === color
+                      ? "border-foreground"
+                      : "border-transparent hover:border-border",
                   )}
-                  title={color.name}
+                  style={{ backgroundColor: color }}
+                  title={color}
                 />
               ))}
             </div>
@@ -102,13 +108,15 @@ export function TagManager() {
 
           {/* Preview */}
           {newTagName && (
-            <div className="pt-2 border-t border-border/50">
+            <div className="border-t border-border pt-2">
               <span className="text-xs text-muted-foreground">Preview: </span>
               <span
-                className={cn(
-                  "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border ml-1",
-                  selectedColor,
-                )}
+                className="ml-1 inline-flex items-center border px-1.5 py-0.5 text-[11px] font-medium"
+                style={{
+                  borderColor: `${selectedColor}55`,
+                  backgroundColor: `${selectedColor}1f`,
+                  color: selectedColor,
+                }}
               >
                 {newTagName.toLowerCase()}
               </span>
@@ -130,10 +138,10 @@ export function TagManager() {
               onClick={handleAddTag}
               disabled={!newTagName.trim()}
               className={cn(
-                "px-3 py-1.5 text-xs rounded-md transition-colors",
+                "border px-3 py-1.5 text-xs transition-colors",
                 newTagName.trim()
-                  ? "bg-foreground text-background hover:bg-foreground/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed",
+                  ? "border-border bg-foreground text-background hover:bg-foreground/90"
+                  : "cursor-not-allowed border-border bg-muted text-muted-foreground",
               )}
             >
               Create tag
@@ -179,13 +187,15 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
   }, [showMenu]);
 
   return (
-    <div className="group flex items-center gap-3 py-2 px-2 -mx-2 rounded-md hover:bg-accent/30 transition-colors">
+    <div className="group -mx-2 flex items-center gap-3 border border-transparent px-2 py-2 transition-colors hover:border-border hover:bg-muted">
       {/* Tag badge */}
       <span
-        className={cn(
-          "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border min-w-[60px]",
-          tag.color,
-        )}
+        className="inline-flex min-w-[60px] items-center border px-2 py-0.5 text-xs font-medium"
+        style={{
+          borderColor: `${tag.color}55`,
+          backgroundColor: `${tag.color}1f`,
+          color: tag.color,
+        }}
       >
         {tag.name}
       </span>
@@ -194,11 +204,6 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
           <span className="tabular-nums">{tag.usageCount} uses</span>
-          {tag.lastUsedAt && (
-            <span className="truncate">
-              Last used {formatDistanceToNow(new Date(tag.lastUsedAt), { addSuffix: true })}
-            </span>
-          )}
         </div>
       </div>
 
@@ -207,22 +212,22 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
         <button
           onClick={() => setShowMenu(!showMenu)}
           className={cn(
-            "w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors",
-            showMenu ? "bg-accent" : "opacity-0 group-hover:opacity-100",
+            "flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground",
+            showMenu ? "border-border bg-muted" : "opacity-0 group-hover:opacity-100",
           )}
         >
           <MoreHorizontal className="w-4 h-4" />
         </button>
 
         {showMenu && (
-          <div className="absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden border border-border bg-card">
             <div className="p-1">
               <button
                 onClick={() => {
                   onDelete();
                   setShowMenu(false);
                 }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                className="flex w-full items-center gap-2 border border-transparent px-2 py-1.5 text-xs text-red-400 transition-colors hover:border-border hover:bg-red-500/10"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete tag

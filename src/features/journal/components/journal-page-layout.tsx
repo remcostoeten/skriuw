@@ -172,7 +172,7 @@ export function JournalPageLayout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={overlayTransition}
-              className="absolute inset-0 z-40 bg-black/54 backdrop-blur-[3px]"
+              className="absolute inset-0 z-40 bg-black/54"
               onClick={closeSidebar}
               aria-label="Close sidebar"
             />
@@ -184,7 +184,7 @@ export function JournalPageLayout() {
                 exit={prefersReducedMotion ? { x: -8, opacity: 0 } : { x: -34, opacity: 0.94 }}
                 transition={sidebarTransition}
                 style={{ willChange: "transform, opacity" }}
-                className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden rounded-r-[2rem] border border-l-0 border-border shadow-[0_28px_90px_rgba(0,0,0,0.42)]"
+                className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden border border-l-0 border-border"
               >
                 <JournalSidebar
                   selectedDate={selectedDate}

@@ -74,7 +74,7 @@ export const CustomSection = memo(function CustomSection({
             <div
               key={folder.id}
               className={cn(
-                "group flex w-full items-center gap-2 rounded-md px-2 text-xs text-foreground/60 transition-colors hover:bg-white/[0.045] hover:text-foreground",
+                "group flex w-full items-center gap-2 border border-transparent px-2 text-xs text-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground",
                 compactMode ? "h-6" : "h-7",
               )}
             >
@@ -82,7 +82,7 @@ export const CustomSection = memo(function CustomSection({
               <span className="flex-1 truncate">{folder.name}</span>
               <button
                 onClick={() => onRemoveFromSection(section.id, folder.id, "folder")}
-                className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition hover:text-foreground group-hover:opacity-100"
+                className="inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 opacity-0 transition hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100"
                 title="Remove from section"
               >
                 <X className="h-3 w-3" strokeWidth={1.5} />
@@ -93,11 +93,11 @@ export const CustomSection = memo(function CustomSection({
             <div
               key={file.id}
               className={cn(
-                "group flex w-full items-center gap-2 rounded-md px-2 text-xs transition-colors",
+                "group flex w-full items-center gap-2 border border-transparent px-2 text-xs transition-colors",
                 compactMode ? "h-6" : "h-7",
                 file.id === activeFileId
-                  ? "bg-white/[0.07] text-foreground"
-                  : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground",
+                  ? "border-border bg-muted text-foreground"
+                  : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
               )}
             >
               <button
@@ -112,7 +112,7 @@ export const CustomSection = memo(function CustomSection({
               </button>
               <button
                 onClick={() => onRemoveFromSection(section.id, file.id, "file")}
-                className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition hover:text-foreground group-hover:opacity-100"
+                className="inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 opacity-0 transition hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100"
                 title="Remove from section"
               >
                 <X className="h-3 w-3" strokeWidth={1.5} />

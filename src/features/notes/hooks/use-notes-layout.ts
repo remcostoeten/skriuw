@@ -22,10 +22,11 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 
 const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
-const SHEET_DISMISS_VELOCITY = 0.11;
+const SHEET_DISMISS_VELOCITY = 480;
+const SHEET_DRAG_BLOCKLIST =
+  "button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
 const DESKTOP_SIDEBAR_MIN_WIDTH = 248;
 const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
-const DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY = "notes-sidebar-width";
 
 const NOTES_SHORTCUT_GROUPS: ShortcutHelpGroup[] = [
   {
@@ -79,6 +80,7 @@ export function useNotesLayout() {
   const folders = useNotesStore((state) => state.folders);
   const activeFileId = useNotesStore((state) => state.activeFileId);
   const isNotesHydrated = useNotesStore((state) => state.isHydrated);
+  const hydratedForActorId = useNotesStore((state) => state.hydratedForActorId);
   const activeFileSaveState = useNotesStore((state) =>
     state.getFileSaveState(state.activeFileId),
   );
@@ -97,6 +99,7 @@ export function useNotesLayout() {
   const ui = useDocumentStore((state) => state.ui);
   const setUIState = useDocumentStore((state) => state.setUIState);
   const setSidebarWidth = useDocumentStore((state) => state.setSidebarWidth);
+  const syncLayoutActor = useDocumentStore((state) => state.syncActor);
   const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
 
   const initializePreferences = usePreferencesStore((state) => state.initialize);
@@ -108,7 +111,6 @@ export function useNotesLayout() {
   const metadataDragControls = useDragControls();
   const sidebarResizeActiveRef = useRef(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const initializeNotes = useNotesStore((state) => state.initialize);
   const { activeFile, filesById, foldersById, filesByParentId, foldersByParentId, descendantCountByFolderId } =
     useMemo(() => buildNoteIndexes(files, folders, activeFileId), [files, folders, activeFileId]);
 
@@ -136,24 +138,12 @@ export function useNotesLayout() {
   }, [setUIState]);
 
   useEffect(() => {
-    const savedSidebarWidth = window.localStorage.getItem(DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY);
-    if (!savedSidebarWidth) return;
-
-    const parsedWidth = Number(savedSidebarWidth);
-    if (!Number.isNaN(parsedWidth)) {
-      setSidebarWidth(
-        Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, parsedWidth)),
-      );
-    }
-  }, [setSidebarWidth]);
-
-  useEffect(() => {
     initializePreferences();
   }, [initializePreferences]);
 
   useEffect(() => {
-    void initializeNotes();
-  }, [initializeNotes, auth.actorId]);
+    void syncLayoutActor(auth.actorId);
+  }, [auth.actorId, syncLayoutActor]);
 
   useEffect(() => {
     if (!activeFile) {
@@ -163,10 +153,6 @@ export function useNotesLayout() {
 
     setEditorMode(activeFile.preferredEditorMode ?? "block");
   }, [activeFile]);
-
-  useEffect(() => {
-    window.localStorage.setItem(DESKTOP_SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
-  }, [sidebarWidth]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -311,7 +297,7 @@ export function useNotesLayout() {
 
   const handleSidebarDragEnd = useCallback(
     (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (info.offset.x < -72 || info.velocity.x < -SHEET_DISMISS_VELOCITY) {
+      if (info.offset.x < -52 || info.velocity.x < -SHEET_DISMISS_VELOCITY) {
         closeSidebar();
       }
     },
@@ -320,7 +306,7 @@ export function useNotesLayout() {
 
   const handleMetadataDragEnd = useCallback(
     (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (info.offset.y > 96 || info.velocity.y > SHEET_DISMISS_VELOCITY) {
+      if (info.offset.y > 80 || info.velocity.y > SHEET_DISMISS_VELOCITY) {
         closeMetadata();
       }
     },
@@ -329,6 +315,12 @@ export function useNotesLayout() {
 
   const handleMetadataDragStart = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(SHEET_DRAG_BLOCKLIST)) return;
+
       metadataDragControls.start(event);
     },
     [metadataDragControls],
@@ -491,7 +483,7 @@ export function useNotesLayout() {
     ],
   );
 
-  const isEditorReady = isNotesHydrated;
+  const isEditorReady = isNotesHydrated && hydratedForActorId === auth.actorId;
   const sidebarPanelProps = {
     files,
     folders,

@@ -8,6 +8,7 @@
     "build": "bun --bun next build",
     "start": "bun --bun next start",
     "test": "bun test",
+    "test:smoke": "bun run build && playwright test",
     "lint": "oxlint",
     "format": "oxfmt"
   },
@@ -44,6 +45,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",

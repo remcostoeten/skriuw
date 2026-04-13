@@ -4,7 +4,7 @@ import { PERSISTED_STORE_NAMES, type NoteId } from "@/core/shared/persistence-ty
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import {
-  canUseRemotePersistence,
+  getRemotePersistenceUserId,
   getRemoteRecord,
   listRemoteRecords,
   putRemoteRecord,
@@ -21,12 +21,14 @@ export interface NotesRepository {
 
 export const notesRepository: NotesRepository = {
   list: async () => {
-    const records = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes)
+    const remoteUserId = getRemotePersistenceUserId();
+    const records = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
     return records.map(fromPersistedNote);
   },
   create: async (input) => {
+    const remoteUserId = getRemotePersistenceUserId();
     const timestamp = input.createdAt ?? new Date();
     const note: NoteFile = {
       id: (input.id ?? crypto.randomUUID()) as NoteId,
@@ -39,8 +41,8 @@ export const notesRepository: NotesRepository = {
       modifiedAt: input.updatedAt ?? timestamp,
     };
     const persistedNote = toPersistedNote(note);
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
     }
@@ -48,8 +50,9 @@ export const notesRepository: NotesRepository = {
     return fromPersistedNote(persistedNote);
   },
   update: async (input) => {
-    const existing = canUseRemotePersistence()
-      ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id)
+    const remoteUserId = getRemotePersistenceUserId();
+    const existing = remoteUserId
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id, remoteUserId)
       : await getLocalRecord(PERSISTED_STORE_NAMES.notes, input.id);
 
     if (!existing) {
@@ -74,16 +77,18 @@ export const notesRepository: NotesRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.notes, updated);
     }
 
     return fromPersistedNote(updated);
   },
-  destroy: (id) =>
-    canUseRemotePersistence()
-      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id)
-      : destroyLocalRecord(PERSISTED_STORE_NAMES.notes, id),
+  destroy: (id) => {
+    const remoteUserId = getRemotePersistenceUserId();
+    return remoteUserId
+      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id, remoteUserId)
+      : destroyLocalRecord(PERSISTED_STORE_NAMES.notes, id);
+  },
 };

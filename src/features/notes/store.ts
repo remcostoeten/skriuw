@@ -1,9 +1,8 @@
 import { create } from "zustand";
+import type { CreateNoteInput } from "@/core/notes";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
-import {
-  foldersRepository,
-  notesRepository,
-} from "@/core/persistence/repositories";
+import { foldersRepository } from "@/core/persistence/repositories/folders-repository";
+import { notesRepository } from "@/core/persistence/repositories/notes-repository";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -17,7 +16,7 @@ function generateNoteContent(name: string): string {
 `;
 }
 
-function buildStarterNote(): NoteFile {
+function buildStarterNote(): CreateNoteInput {
   const content = `# Welcome
 
 This workspace starts with one note instead of an empty state.
@@ -33,19 +32,37 @@ This workspace starts with one note instead of an empty state.
 `;
 
   return {
-    id: crypto.randomUUID(),
+    id: crypto.randomUUID() as NoteId,
     name: "Welcome.md",
-    content,
+    content: content as MarkdownContent,
     richContent: markdownToRichDocument(content),
     preferredEditorMode: "block",
     createdAt: new Date(),
-    modifiedAt: new Date(),
-    parentId: null,
+    updatedAt: new Date(),
+    parentId: null as FolderId | null,
   };
 }
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+let notesStoreSessionVersion = 0;
+
+function clearTimeoutMap(timeoutMap: Map<string, ReturnType<typeof setTimeout>>) {
+  for (const timeoutId of timeoutMap.values()) {
+    clearTimeout(timeoutId);
+  }
+
+  timeoutMap.clear();
+}
+
+function resetPendingNoteSideEffects() {
+  clearTimeoutMap(contentSaveTimeouts);
+  clearTimeoutMap(saveStatusResetTimeouts);
+}
+
+function isStaleNotesSession(actorId: string, sessionVersion: number) {
+  return getAuthActorId() !== actorId || notesStoreSessionVersion !== sessionVersion;
+}
 
 function scheduleSaveStatusReset(id: string, onReset: () => void) {
   const existingTimeout = saveStatusResetTimeouts.get(id);
@@ -84,7 +101,8 @@ type NotesState = {
   isHydrated: boolean;
   hydratedForActorId: string | null;
   saveStates: Record<string, SaveStatus>;
-  initialize: () => Promise<void>;
+  beginActorTransition: (actorId?: string) => void;
+  initialize: (actorId?: string) => Promise<void>;
   getFileSaveState: (id: string | null | undefined) => SaveStatus;
   setActiveFileId: (id: string) => void;
   createFile: (name: string, parentId?: string | null) => NoteFile;
@@ -114,8 +132,22 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   hydratedForActorId: null,
   saveStates: {},
 
-  initialize: async () => {
-    const actorId = getAuthActorId();
+  beginActorTransition: () => {
+    notesStoreSessionVersion += 1;
+    resetPendingNoteSideEffects();
+    set({
+      files: [],
+      folders: [],
+      activeFileId: "",
+      isHydrated: false,
+      hydratedForActorId: null,
+      saveStates: {},
+    });
+  },
+
+  initialize: async (actorId = getAuthActorId()) => {
+    const sessionVersion = notesStoreSessionVersion;
+
     if (get().isHydrated && get().hydratedForActorId === actorId) return;
 
     const [persistedFiles, persistedFolders] = await Promise.all([
@@ -123,10 +155,18 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       foldersRepository.list(),
     ]);
 
+    if (isStaleNotesSession(actorId, sessionVersion)) {
+      return;
+    }
+
     const files =
       persistedFiles.length > 0
         ? persistedFiles
         : [await notesRepository.create(buildStarterNote())];
+
+    if (isStaleNotesSession(actorId, sessionVersion)) {
+      return;
+    }
 
     const nextFolders = applyFolderUiState(persistedFolders, get().folders);
     const activeFileId =
@@ -154,6 +194,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   createFile: (name, parentId = null) => {
+    const actorId = getAuthActorId();
+    const sessionVersion = notesStoreSessionVersion;
     const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
     const generatedContent = generateNoteContent(name);
     const richContent = markdownToRichDocument(generatedContent);
@@ -186,16 +228,28 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt: newFile.modifiedAt,
     })
       .then(() => {
+        if (isStaleNotesSession(actorId, sessionVersion)) {
+          return;
+        }
+
         set((state) => ({
           saveStates: { ...state.saveStates, [newFile.id]: "saved" },
         }));
         scheduleSaveStatusReset(newFile.id, () => {
+          if (isStaleNotesSession(actorId, sessionVersion)) {
+            return;
+          }
+
           set((state) => ({
             saveStates: { ...state.saveStates, [newFile.id]: "idle" },
           }));
         });
       })
       .catch(() => {
+        if (isStaleNotesSession(actorId, sessionVersion)) {
+          return;
+        }
+
         set((state) => ({
           saveStates: { ...state.saveStates, [newFile.id]: "error" },
         }));
@@ -230,6 +284,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   updateFileContent: (id, content, options) => {
+    const actorId = getAuthActorId();
+    const sessionVersion = notesStoreSessionVersion;
     const updatedAt = new Date();
     const richContent = options?.richContent ?? markdownToRichDocument(content);
     const preferredEditorMode = options?.preferredEditorMode;
@@ -256,6 +312,11 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
 
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
+
+      if (isStaleNotesSession(actorId, sessionVersion)) {
+        return;
+      }
+
       void notesRepository.update({
         id: id as NoteId,
         content: content as MarkdownContent,
@@ -264,16 +325,28 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
+          if (isStaleNotesSession(actorId, sessionVersion)) {
+            return;
+          }
+
           set((state) => ({
             saveStates: { ...state.saveStates, [id]: "saved" },
           }));
           scheduleSaveStatusReset(id, () => {
+            if (isStaleNotesSession(actorId, sessionVersion)) {
+              return;
+            }
+
             set((state) => ({
               saveStates: { ...state.saveStates, [id]: "idle" },
             }));
           });
         })
         .catch(() => {
+          if (isStaleNotesSession(actorId, sessionVersion)) {
+            return;
+          }
+
           set((state) => ({
             saveStates: { ...state.saveStates, [id]: "error" },
           }));
@@ -284,6 +357,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   renameFile: (id, name) => {
+    const actorId = getAuthActorId();
+    const sessionVersion = notesStoreSessionVersion;
     const updatedAt = new Date();
     const normalizedName = name.endsWith(".md") ? name : `${name}.md`;
 
@@ -300,16 +375,28 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt,
     })
       .then(() => {
+        if (isStaleNotesSession(actorId, sessionVersion)) {
+          return;
+        }
+
         set((state) => ({
           saveStates: { ...state.saveStates, [id]: "saved" },
         }));
         scheduleSaveStatusReset(id, () => {
+          if (isStaleNotesSession(actorId, sessionVersion)) {
+            return;
+          }
+
           set((state) => ({
             saveStates: { ...state.saveStates, [id]: "idle" },
           }));
         });
       })
       .catch(() => {
+        if (isStaleNotesSession(actorId, sessionVersion)) {
+          return;
+        }
+
         set((state) => ({
           saveStates: { ...state.saveStates, [id]: "error" },
         }));
@@ -331,6 +418,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   deleteFile: (id) => {
+    const actorId = getAuthActorId();
+    const sessionVersion = notesStoreSessionVersion;
     set((state) => {
       const nextFiles = state.files.filter((file) => file.id !== id);
       return {
@@ -349,6 +438,10 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     }
 
     void notesRepository.destroy(id as NoteId).catch(() => {
+      if (isStaleNotesSession(actorId, sessionVersion)) {
+        return;
+      }
+
       set((state) => ({
         saveStates: { ...state.saveStates, [id]: "error" },
       }));

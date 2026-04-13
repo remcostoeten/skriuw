@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
@@ -23,44 +23,49 @@ let updateCalls: Array<{
   filters: Array<[string, unknown]>;
 }> = [];
 
-mock.module("@/platform/auth", () => ({
-  getAuthStateSnapshot: () => authSnapshot,
-}));
+async function loadSyncModule() {
+  mock.restore();
 
-mock.module("@/core/persistence/pglite/records", () => ({
-  listPGliteRecords: async () => {
-    listPGliteRecordsCalls += 1;
-    return [];
-  },
-}));
+  const authModuleMock = {
+    getAuthStateSnapshot: () => authSnapshot,
+  };
 
-mock.module("../client", () => ({
-  getSupabaseClient: () => ({
-    from: (table: string) => ({
-      upsert: async (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        upsertCalls.push({ table, rows, onConflict: options?.onConflict });
-        return { error: null };
-      },
-      update: (payload: Record<string, unknown>) => ({
-        eq: (field: string, value: unknown) => ({
-          eq: async (fieldTwo: string, valueTwo: unknown) => {
-            updateCalls.push({
-              table,
-              payload,
-              filters: [
-                [field, value],
-                [fieldTwo, valueTwo],
-              ],
-            });
-            return { error: null };
-          },
+  mock.module("@/platform/auth", () => authModuleMock);
+  mock.module("@/platform/auth/index", () => authModuleMock);
+  mock.module("@/core/persistence/pglite/records", () => ({
+    listPGliteRecords: async () => {
+      listPGliteRecordsCalls += 1;
+      return [];
+    },
+  }));
+  mock.module("../client", () => ({
+    getSupabaseClient: () => ({
+      from: (table: string) => ({
+        upsert: async (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
+          upsertCalls.push({ table, rows, onConflict: options?.onConflict });
+          return { error: null };
+        },
+        update: (payload: Record<string, unknown>) => ({
+          eq: (field: string, value: unknown) => ({
+            eq: async (fieldTwo: string, valueTwo: unknown) => {
+              updateCalls.push({
+                table,
+                payload,
+                filters: [
+                  [field, value],
+                  [fieldTwo, valueTwo],
+                ],
+              });
+              return { error: null };
+            },
+          }),
         }),
       }),
     }),
-  }),
-}));
+  }));
 
-const syncModulePromise = import("../sync");
+  return import(`../sync?test=${Math.random().toString(36).slice(2)}`);
+}
 
 beforeEach(() => {
   authSnapshot = {
@@ -80,9 +85,13 @@ beforeEach(() => {
   updateCalls = [];
 });
 
+afterEach(() => {
+  mock.restore();
+});
+
 describe("supabase sync gating", () => {
   test("skips full sync when privacy mode is active", async () => {
-    const syncModule = await syncModulePromise;
+    const syncModule = await loadSyncModule();
 
     await syncModule.pushAllToRemote();
 
@@ -91,7 +100,7 @@ describe("supabase sync gating", () => {
   });
 
   test("scopes record upserts by user identity when authenticated", async () => {
-    const syncModule = await syncModulePromise;
+    const syncModule = await loadSyncModule();
 
     authSnapshot = {
       ...authSnapshot,
@@ -140,7 +149,7 @@ describe("supabase sync gating", () => {
   });
 
   test("scopes remote deletes by user identity when authenticated", async () => {
-    const syncModule = await syncModulePromise;
+    const syncModule = await loadSyncModule();
 
     authSnapshot = {
       ...authSnapshot,

@@ -11,6 +11,7 @@ import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
+import { useAuthSnapshot } from "@/platform/auth/use-auth";
 
 export type JournalView = "list" | "editor";
 export type JournalEditorMode = "plain" | "rich";
@@ -60,7 +61,9 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const router = useRouter();
   const searchParams = useSearchParams();
   const $ = useShortcut({ ignoreInputs: true });
-  const isHydrated = useJournalStore((state) => state.isHydrated);
+  const auth = useAuthSnapshot();
+  const isJournalHydrated = useJournalStore((state) => state.isHydrated);
+  const hydratedForActorId = useJournalStore((state) => state.hydratedForActorId);
   const getEntryByDate = useJournalStore((state) => state.getEntryByDate);
   const getEntrySaveState = useJournalStore((state) => state.getEntrySaveState);
   const ui = useDocumentStore((state) => state.ui);
@@ -74,6 +77,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const [view, setView] = useState<JournalView>("list");
   const prefersReducedMotion = Boolean(useReducedMotion());
   const { isMobile } = ui;
+  const isHydrated = isJournalHydrated && hydratedForActorId === auth.actorId;
   const selectedEntryId = getEntryByDate(selectedDate)?.id;
   const selectedEntrySaveState = getEntrySaveState(selectedEntryId);
 

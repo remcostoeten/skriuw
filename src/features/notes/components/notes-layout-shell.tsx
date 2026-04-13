@@ -7,7 +7,6 @@ import { IconRail } from "@/features/layout/components/icon-rail";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
-import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useNotesLayout } from "../hooks/use-notes-layout";
@@ -29,7 +28,6 @@ export function NotesLayoutShell() {
   const layout = useNotesLayout();
   const {
     activeFile,
-    activeFileSaveState,
     canNavigateNext,
     canNavigatePrev,
     closeMetadata,
@@ -101,9 +99,6 @@ export function NotesLayoutShell() {
           <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
             <div className="relative flex min-w-0 flex-1 overflow-hidden">
               <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="pointer-events-none absolute right-[5.25rem] top-3 z-20 md:right-[6rem]">
-                  <SaveStatusBadge status={activeFileSaveState} />
-                </div>
                 <EditorContainer
                   file={activeFile}
                   editorMode={editorMode ?? "raw"}
@@ -155,7 +150,7 @@ export function NotesLayoutShell() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={overlayTransition}
-              className="absolute inset-0 z-40 bg-black/58 backdrop-blur-[2px]"
+              className="absolute inset-0 z-40 bg-black/58"
               onClick={closeSidebar}
               aria-label="Close sidebar"
             />
@@ -172,8 +167,11 @@ export function NotesLayoutShell() {
                 dragElastic={{ left: 0.14, right: 0.05 }}
                 onDragEnd={handleSidebarDragEnd}
                 style={{ willChange: "transform, opacity" }}
-                className="native-panel pointer-events-auto h-full w-[min(92vw,24rem)] max-w-full overflow-hidden rounded-r-[2rem] border border-l-0 border-border shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+                className="native-panel pointer-events-auto relative h-full w-[min(92vw,24rem)] max-w-full overflow-hidden border border-l-0 border-border touch-pan-y"
               >
+                <div className="pointer-events-none absolute inset-y-0 right-2 z-10 flex items-center">
+                  <div className="h-14 w-1.5 rounded-full bg-border/70" />
+                </div>
                 <SidebarPanel
                   {...sidebarPanelProps}
                   className="w-full border-r-0 bg-transparent"
@@ -196,7 +194,7 @@ export function NotesLayoutShell() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={overlayTransition}
-              className="absolute inset-0 z-40 bg-black/52 backdrop-blur-[2px]"
+              className="absolute inset-0 z-40 bg-black/52"
               onClick={closeMetadata}
               aria-label="Close metadata panel"
             />
@@ -213,16 +211,16 @@ export function NotesLayoutShell() {
                 dragConstraints={{ top: 0, bottom: 0 }}
                 dragDirectionLock
                 dragElastic={{ top: 0.05, bottom: 0.16 }}
+                onPointerDownCapture={handleMetadataDragStart}
                 onDragEnd={handleMetadataDragEnd}
                 style={{ willChange: "transform, opacity" }}
-                className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden rounded-[2rem] border border-border shadow-[0_24px_80px_rgba(0,0,0,0.42)]"
+                className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
               >
                 <MetadataPanel
                   file={activeFile}
                   isMobile
-                  onDragHandlePointerDown={handleMetadataDragStart}
                   onRequestClose={closeMetadata}
-                  className="h-full w-full rounded-[2rem] border-l-0"
+                  className="h-full w-full border-l-0"
                 />
               </motion.div>
             </div>
