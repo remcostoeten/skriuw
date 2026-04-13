@@ -9,7 +9,7 @@ import type {
   TagId,
   TagName,
 } from "@/core/shared/persistence-types";
-import type { JournalEntry, JournalTag } from "@/features/journal/types";
+import type { JournalEntry, JournalTag } from "@/types/journal";
 
 function toIsoTime(date: Date): IsoTime {
   return date.toISOString() as IsoTime;

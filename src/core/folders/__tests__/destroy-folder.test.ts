@@ -60,19 +60,13 @@ describe("destroyFolder", () => {
       },
     };
 
-    mock.module("@/core/storage", () => ({
-      runInTransaction: async (
+    mock.module("../persistence", () => ({
+      runFolderTransaction: async (
         _storeNames: string[],
         _mode: string,
         run: (stores: Map<string, unknown>) => Promise<void>,
-      ) =>
-        run(
-          new Map([
-            ["folders", folderStore],
-            ["notes", noteStore],
-          ]),
-        ),
-      toStorageError: (_code: string, message: string) => new Error(message),
+      ) => run(new Map([["folders", folderStore], ["notes", noteStore]])),
+      createFolderStorageError: (_code: string, message: string) => new Error(message),
     }));
 
     const { destroyFolder } = await import("../destroy-folder");

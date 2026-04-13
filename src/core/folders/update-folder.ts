@@ -1,5 +1,6 @@
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
-import { getRecord, putRecord } from "@/core/storage";
+import { getRecord } from "@/core/storage/get-record";
+import { putRecord } from "@/core/storage/put-record";
 import type { NoteFolder } from "@/types/notes";
 import { fromPersistedFolder } from "./mappers";
 import type { UpdateFolderInput } from "./types";

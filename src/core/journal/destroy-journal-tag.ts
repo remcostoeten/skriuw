@@ -1,24 +1,24 @@
+import { type IsoTime, type TagId, type TagName } from "@/core/shared/persistence-types";
 import {
-  PERSISTED_STORE_NAMES,
-  type IsoTime,
-  type TagId,
-  type TagName,
-} from "@/core/shared/persistence-types";
-import { destroyRecord, listRecords, putRecord } from "@/core/storage";
+  destroyJournalTagRecord,
+  listJournalEntryRecords,
+  listJournalTagRecords,
+  writeJournalEntryRecord,
+} from "./persistence";
 
 export async function destroyJournalTag(id: TagId): Promise<void> {
-  const tags = await listRecords(PERSISTED_STORE_NAMES.tags);
+  const tags = await listJournalTagRecords();
   const tag = tags.find((item) => item.id === id);
   if (!tag) {
     return;
   }
 
-  const entries = await listRecords(PERSISTED_STORE_NAMES.journalEntries);
+  const entries = await listJournalEntryRecords();
   await Promise.all(
     entries
       .filter((entry) => entry.tags.includes(tag.name as TagName))
       .map((entry) =>
-        putRecord(PERSISTED_STORE_NAMES.journalEntries, {
+        writeJournalEntryRecord({
           ...entry,
           tags: entry.tags.filter((tagName) => tagName !== tag.name),
           updatedAt: new Date().toISOString() as IsoTime,
@@ -26,5 +26,5 @@ export async function destroyJournalTag(id: TagId): Promise<void> {
       ),
   );
 
-  await destroyRecord(PERSISTED_STORE_NAMES.tags, id);
+  await destroyJournalTagRecord(id);
 }

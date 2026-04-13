@@ -48,7 +48,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
-  }, [dateKey, store]);
+  }, [dateKey]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -121,7 +121,7 @@ export function JournalEditor({ selectedDate }: JournalEditorProps) {
             store.createOrUpdateEntry(selectedDate, newContent);
           }
         }
-      }, 400);
+      }, 900);
     },
     [dateKey, selectedDate, store],
   );

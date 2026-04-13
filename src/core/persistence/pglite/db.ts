@@ -2,8 +2,8 @@
 
 import { PGlite } from "@electric-sql/pglite";
 import type { PersistedStoreName } from "@/core/shared/persistence-types";
-import { listRecords } from "@/core/storage";
 import { getPersistenceStoreNames, PERSISTENCE_DB_VERSION } from "@/core/storage/schema";
+import { listLegacyRecords } from "./legacy-records";
 
 const PGLITE_DATA_DIR = "idb://theme-persistence-pglite";
 const LEGACY_IMPORT_KEY = `legacy_indexeddb_import_v${PERSISTENCE_DB_VERSION}`;
@@ -81,7 +81,7 @@ async function getRecordCount(db: PGlite): Promise<number> {
 }
 
 async function importLegacyStore(db: PGlite, storeName: PersistedStoreName): Promise<number> {
-  const records = await listRecords(storeName);
+  const records = await listLegacyRecords(storeName);
 
   for (const record of records) {
     await db.query(

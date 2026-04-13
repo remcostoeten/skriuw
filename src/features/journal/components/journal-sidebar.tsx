@@ -35,11 +35,7 @@ const JournalStats = dynamic(
   () => import("./journal-stats").then((mod) => ({ default: mod.JournalStats })),
   {
     ssr: false,
-    loading: () => (
-      <div className="p-4">
-        <div className="text-xs text-muted-foreground">Loading stats…</div>
-      </div>
-    ),
+    loading: () => null,
   },
 );
 
@@ -128,8 +124,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
         className,
       )}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <h2 className="text-sm font-semibold text-foreground">Journal</h2>
         <button
           onClick={goToToday}
@@ -165,7 +160,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
             setView(journalTabs[journalTabs.length - 1].id);
           }
         }}
-        className="flex items-center border-b border-border/40 px-2 py-1"
+        className="flex items-center border-b border-border px-2 py-1"
       >
         {journalTabs.map((tab) => (
           <button
@@ -179,8 +174,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
               view === tab.id
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+                ? "border border-border bg-muted text-foreground/80"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground/75",
             )}
           >
             <tab.icon className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -311,7 +306,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search entries..."
-                className="w-full rounded-lg border border-border/60 bg-accent/20 pl-8 pr-2.5 py-1.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-accent/30"
+                className="w-full rounded-lg border border-border bg-accent/20 pl-8 pr-2.5 py-1.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-accent/30"
               />
               {searchQuery && (
                 <button
@@ -410,7 +405,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                 {filteredEntries.length} {filteredEntries.length === 1 ? "result" : "results"}
               </p>
               {filteredEntries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/60 bg-accent/10 px-3 py-4 text-center">
+                <div className="rounded-lg border border-dashed border-border bg-accent/10 px-3 py-4 text-center">
                   <p className="text-[11px] text-muted-foreground/60">No entries found.</p>
                   <p className="mt-1 text-[10px] text-muted-foreground/40">
                     Try adjusting your search or filters.
@@ -473,7 +468,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
         {view === "all" && (
           <div className="p-3">
             {allEntries.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/60 bg-accent/10 px-4 py-6 text-center">
+              <div className="rounded-lg border border-dashed border-border bg-accent/10 px-4 py-6 text-center">
                 <p className="text-[12px] text-muted-foreground/60">No entries yet.</p>
                 <p className="mt-1 text-[11px] text-muted-foreground/40">
                   Select a date to start writing.
@@ -534,7 +529,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
         {view === "tags" && (
           <div className="p-3">
             {allTags.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/60 bg-accent/10 px-4 py-6 text-center">
+              <div className="rounded-lg border border-dashed border-border bg-accent/10 px-4 py-6 text-center">
                 <p className="text-[12px] text-muted-foreground/60">No tags yet.</p>
                 <p className="mt-1 text-[11px] text-muted-foreground/40">
                   Use @tag in your entries to create tags.
@@ -591,7 +586,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
       </div>
 
       {/* New entry button */}
-      <div className="border-t border-border/60 p-2">
+      <div className="border-t border-border p-2">
         <button
           onClick={goToToday}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-foreground/[0.07] px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.12]"

@@ -1,22 +1,18 @@
-import {
-  PERSISTED_STORE_NAMES,
-  type IsoTime,
-  type MarkdownContent,
-} from "@/core/shared/persistence-types";
-import { getRecord, putRecord } from "@/core/storage";
-import type { JournalEntry } from "@/features/journal/types";
+import { type IsoTime, type MarkdownContent } from "@/core/shared/persistence-types";
+import type { JournalEntry } from "@/types/journal";
 import { fromPersistedJournalEntry } from "./mappers";
+import { readJournalEntryRecord, writeJournalEntryRecord } from "./persistence";
 import type { UpdateJournalEntryInput } from "./types";
 
 export async function updateJournalEntry(
   input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
-  const existing = await getRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
+  const existing = await readJournalEntryRecord(input.id);
   if (!existing) {
     return undefined;
   }
 
-  const updated = await putRecord(PERSISTED_STORE_NAMES.journalEntries, {
+  const updated = await writeJournalEntryRecord({
     ...existing,
     content: (input.content ?? existing.content) as MarkdownContent,
     tags: input.tags ?? existing.tags,

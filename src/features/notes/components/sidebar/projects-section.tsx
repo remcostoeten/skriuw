@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ChevronRight, FileText, Folder, Plus, Pencil, Trash2, Palette } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { Project, PROJECT_COLORS } from "@/modules/sidebar";
+import { PROJECT_COLORS } from "./types";
+import type { Project } from "./types";
 import { SidebarSection } from "./sidebar-section";
 import {
   ContextMenu,
@@ -23,6 +24,8 @@ type Props = {
   folders: NoteFolder[];
   activeFileId: string;
   isCollapsed: boolean;
+  showHeader?: boolean;
+  compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
   onManageSections: () => void;
@@ -39,6 +42,8 @@ export function ProjectsSection({
   folders,
   activeFileId,
   isCollapsed,
+  showHeader = true,
+  compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
   onFileSelect,
@@ -102,6 +107,8 @@ export function ProjectsSection({
       id="projects"
       title="Projects"
       isCollapsed={isCollapsed}
+      showHeader={showHeader}
+      compactMode={compactMode}
       itemCount={projects.length}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
@@ -109,7 +116,7 @@ export function ProjectsSection({
     >
       {/* Create new project input */}
       {isCreating && (
-        <div className="px-2 py-1">
+        <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>
           <input
             type="text"
             value={newProjectName}
@@ -126,18 +133,21 @@ export function ProjectsSection({
               }
             }}
             placeholder="Project name..."
-            className="w-full rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs outline-none focus:border-white/20"
+            className={cn(
+              "w-full rounded-md border border-white/10 bg-white/[0.03] px-2.5 text-xs outline-none focus:border-white/20",
+              compactMode ? "py-1" : "py-1.5",
+            )}
             autoFocus
           />
         </div>
       )}
 
       {projects.length === 0 && !isCreating ? (
-        <div className="px-2 py-1">
+        <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>
           <p className="text-[11px] text-muted-foreground/50">No projects yet</p>
         </div>
       ) : (
-        <div className="space-y-px px-1">
+        <div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
           {projects.map((project) => {
             const { projectFiles, projectFolders } = getProjectItems(project);
             const isExpanded = expandedProjects.has(project.id);
@@ -150,7 +160,10 @@ export function ProjectsSection({
                   <ContextMenuTrigger asChild>
                     <button
                       onClick={() => toggleProject(project.id)}
-                      className="group flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.045]"
+                      className={cn(
+                        "group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.045]",
+                        compactMode ? "h-6" : "h-7",
+                      )}
                     >
                       <ChevronRight
                         className={cn(
@@ -174,7 +187,10 @@ export function ProjectsSection({
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="flex-1 border-b border-foreground/30 bg-transparent text-xs outline-none"
+                          className={cn(
+                            "flex-1 border-b border-foreground/30 bg-transparent text-xs outline-none",
+                            compactMode && "py-0.5",
+                          )}
                           autoFocus
                         />
                       ) : (
@@ -227,11 +243,16 @@ export function ProjectsSection({
 
                 {/* Project items */}
                 {isExpanded && (
-                  <div className="ml-5 space-y-px">
+                  <div className={cn("ml-5 space-y-px", compactMode && "space-y-[1px]")}>
                     {projectFolders.map((folder) => (
                       <ContextMenu key={folder.id}>
                         <ContextMenuTrigger asChild>
-                          <button className="group flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-foreground/60 transition-colors hover:bg-white/[0.045]">
+                          <button
+                            className={cn(
+                              "group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs text-foreground/60 transition-colors hover:bg-white/[0.045]",
+                              compactMode ? "h-6" : "h-7",
+                            )}
+                          >
                             <Folder
                               className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0"
                               strokeWidth={1.5}
@@ -255,7 +276,8 @@ export function ProjectsSection({
                           <button
                             onClick={() => onFileSelect(file.id)}
                             className={cn(
-                              "group flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
+                              "group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
+                              compactMode ? "h-6" : "h-7",
                               file.id === activeFileId
                                 ? "bg-white/[0.07] text-foreground"
                                 : "text-foreground/60 hover:bg-white/[0.045]",

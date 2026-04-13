@@ -1,26 +1,15 @@
-import { FolderOpen, BookOpen, Sun, Moon, Settings } from "lucide-react";
+import { FolderOpen, BookOpen, Settings } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 
 interface IconRailProps {
   onOpenSettings: () => void;
 }
 
 export function IconRail({ onOpenSettings }: IconRailProps) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
 
   const navItems = [
     {
@@ -42,7 +31,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-12 flex-col items-center justify-between border-r border-sidebar-border/70 bg-sidebar/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-12 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex">
         <div className="flex flex-col items-center gap-2">
           {navItems.map(({ href, label, isActive, icon: Icon }) => (
             <Link
@@ -64,25 +53,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
         </div>
 
         <div className="flex flex-col items-center gap-2">
-          <button
-            onClick={toggleTheme}
-            className={cn(
-              iconButtonClass,
-              "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-            )}
-            title="Toggle theme"
-            aria-label="Toggle theme"
-          >
-            {mounted ? (
-              theme === "dark" ? (
-                <Sun className="h-[18px] w-[18px]" strokeWidth={1.6} />
-              ) : (
-                <Moon className="h-[18px] w-[18px]" strokeWidth={1.6} />
-              )
-            ) : (
-              <Sun className="h-[18px] w-[18px]" strokeWidth={1.6} />
-            )}
-          </button>
+          <AuthEntryPoint triggerVariant="rail-avatar" />
           <button
             onClick={onOpenSettings}
             className={cn(

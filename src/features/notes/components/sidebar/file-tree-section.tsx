@@ -9,6 +9,7 @@ type Props = {
   folders: NoteFolder[];
   activeFileId: string;
   isCollapsed: boolean;
+  compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
   onFileSelect: (id: string) => void;
@@ -32,6 +33,7 @@ export const FileTreeSection = memo(function FileTreeSection({
   folders,
   activeFileId,
   isCollapsed: _isCollapsed,
+  compactMode = false,
   onToggleCollapse: _onToggleCollapse,
   onToggleVisibility: _onToggleVisibility,
   onFileSelect,
@@ -52,6 +54,7 @@ export const FileTreeSection = memo(function FileTreeSection({
         files={files}
         folders={folders}
         activeFileId={activeFileId}
+        compactMode={compactMode}
         onFileSelect={onFileSelect}
         onToggleFolder={onToggleFolder}
         onRenameFile={onRenameFile}

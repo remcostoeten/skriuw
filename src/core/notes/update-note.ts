@@ -1,17 +1,16 @@
-import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
-import { getRecord, putRecord } from "@/core/storage";
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { fromPersistedNote } from "./mappers";
+import { readNoteRecord, writeNoteRecord } from "./persistence";
 import type { UpdateNoteInput } from "./types";
 
 export async function updateNote(input: UpdateNoteInput): Promise<NoteFile | undefined> {
-  const existing = await getRecord(PERSISTED_STORE_NAMES.notes, input.id);
+  const existing = await readNoteRecord(input.id);
   if (!existing) {
     return undefined;
   }
 
-  const updated = await putRecord(PERSISTED_STORE_NAMES.notes, {
+  const updated = await writeNoteRecord({
     ...existing,
     name: input.name
       ? input.name.endsWith(".md")

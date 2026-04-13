@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  SidebarConfig,
-  SidebarSection,
-  FavoriteItem,
-  RecentItem,
-  Project,
   DEFAULT_SIDEBAR_CONFIG,
   PROJECT_COLORS,
+  type FavoriteItem,
+  type Project,
+  type RecentItem,
+  type SidebarConfig,
+  type SidebarSection,
 } from "./types";
 
 type SidebarState = {
@@ -24,17 +24,14 @@ type SidebarState = {
   addToCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
   removeFromCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
 
-  // Favorites
   addToFavorites: (itemId: string, itemType: "file" | "folder") => void;
   removeFromFavorites: (itemId: string) => void;
   isFavorite: (itemId: string) => boolean;
 
-  // Recents
   addToRecents: (itemId: string, itemType: "file" | "folder") => void;
   clearRecents: () => void;
   getRecents: () => RecentItem[];
 
-  // Projects
   createProject: (name: string, color?: string) => Project;
   updateProject: (projectId: string, updates: Partial<Project>) => void;
   deleteProject: (projectId: string) => void;
@@ -43,7 +40,6 @@ type SidebarState = {
   getProjects: () => Project[];
   getProjectById: (projectId: string) => Project | undefined;
 
-  // Config
   setMaxRecents: (max: number) => void;
   toggleShowSectionHeaders: () => void;
   toggleCompactMode: () => void;
@@ -56,7 +52,6 @@ export const useSidebarStore = create<SidebarState>()(
       config: DEFAULT_SIDEBAR_CONFIG,
       isLoading: false,
 
-      // Section management
       getSections: () => {
         return get()
           .config.sections.filter((section) => section.isVisible)
@@ -123,7 +118,6 @@ export const useSidebarStore = create<SidebarState>()(
       },
 
       removeSection: (sectionId: string) => {
-        // Only allow removing custom sections
         const section = get().config.sections.find((s) => s.id === sectionId);
         if (section?.type !== "custom") return;
 
@@ -205,7 +199,6 @@ export const useSidebarStore = create<SidebarState>()(
         }));
       },
 
-      // Favorites
       addToFavorites: (itemId: string, itemType: "file" | "folder") => {
         const existing = get().config.favorites.find((f) => f.itemId === itemId);
         if (existing) return;
@@ -237,12 +230,10 @@ export const useSidebarStore = create<SidebarState>()(
         return get().config.favorites.some((f) => f.itemId === itemId);
       },
 
-      // Recents
       addToRecents: (itemId: string, itemType: "file" | "folder") => {
         const { maxRecents } = get().config;
 
         set((state) => {
-          // Remove existing entry for this item
           const filtered = state.config.recents.filter((r) => r.itemId !== itemId);
 
           const newRecent: RecentItem = {
@@ -252,7 +243,6 @@ export const useSidebarStore = create<SidebarState>()(
             accessedAt: new Date(),
           };
 
-          // Add to front and limit to maxRecents
           return {
             config: {
               ...state.config,
@@ -275,7 +265,6 @@ export const useSidebarStore = create<SidebarState>()(
         return get().config.recents;
       },
 
-      // Projects
       createProject: (name: string, color?: string) => {
         const newProject: Project = {
           id: crypto.randomUUID(),
@@ -324,10 +313,10 @@ export const useSidebarStore = create<SidebarState>()(
               if (itemType === "file") {
                 if (p.fileIds.includes(itemId)) return p;
                 return { ...p, fileIds: [...p.fileIds, itemId], updatedAt: new Date() };
-              } else {
-                if (p.folderIds.includes(itemId)) return p;
-                return { ...p, folderIds: [...p.folderIds, itemId], updatedAt: new Date() };
               }
+
+              if (p.folderIds.includes(itemId)) return p;
+              return { ...p, folderIds: [...p.folderIds, itemId], updatedAt: new Date() };
             }),
           },
         }));
@@ -345,13 +334,13 @@ export const useSidebarStore = create<SidebarState>()(
                   fileIds: p.fileIds.filter((id) => id !== itemId),
                   updatedAt: new Date(),
                 };
-              } else {
-                return {
-                  ...p,
-                  folderIds: p.folderIds.filter((id) => id !== itemId),
-                  updatedAt: new Date(),
-                };
               }
+
+              return {
+                ...p,
+                folderIds: p.folderIds.filter((id) => id !== itemId),
+                updatedAt: new Date(),
+              };
             }),
           },
         }));
@@ -365,7 +354,6 @@ export const useSidebarStore = create<SidebarState>()(
         return get().config.projects.find((p) => p.id === projectId);
       },
 
-      // Config
       setMaxRecents: (max: number) => {
         set((state) => ({
           config: {

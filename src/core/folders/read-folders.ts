@@ -1,5 +1,6 @@
 import { PERSISTED_STORE_NAMES, type FolderId } from "@/core/shared/persistence-types";
-import { getRecord, listRecords } from "@/core/storage";
+import { getRecord } from "@/core/storage/get-record";
+import { listRecords } from "@/core/storage/list-records";
 import type { NoteFolder } from "@/types/notes";
 import { fromPersistedFolder } from "./mappers";
 

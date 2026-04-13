@@ -1,4 +1,3 @@
-import { createFolder, destroyFolder, readFolders, updateFolder } from "@/core/folders";
 import type { CreateFolderInput, UpdateFolderInput } from "@/core/folders";
 import { fromPersistedFolder } from "@/core/folders";
 import {
@@ -7,15 +6,15 @@ import {
   type IsoTime,
   type PersistedFolder,
 } from "@/core/shared/persistence-types";
-import {
-  destroyPGliteRecord,
-  getPGliteRecord,
-  listPGliteRecords,
-  putPGliteRecord,
-} from "@/core/persistence/pglite";
 import type { NoteFolder } from "@/types/notes";
-import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
-import { resolveLocalPersistenceBackend } from "./local-backend";
+import {
+  canUseRemotePersistence,
+  getRemoteRecord,
+  listRemoteRecords,
+  putRemoteRecord,
+  softDeleteRemoteRecords,
+} from "@/core/persistence/supabase";
+import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
 
 export interface FoldersRepository {
   list(): Promise<NoteFolder[]>;
@@ -23,13 +22,6 @@ export interface FoldersRepository {
   update(input: UpdateFolderInput): Promise<NoteFolder | undefined>;
   destroy(id: FolderId): Promise<void>;
 }
-
-export const indexedDbFoldersRepository: FoldersRepository = {
-  list: () => readFolders(),
-  create: (input) => createFolder(input),
-  update: (input) => updateFolder(input),
-  destroy: (id) => destroyFolder(id),
-};
 
 function collectDescendantFolderIds(
   folders: Array<{ id: FolderId; parentId: FolderId | null }>,
@@ -55,9 +47,12 @@ function collectDescendantFolderIds(
   return descendants;
 }
 
-export const pGliteFoldersRepository: FoldersRepository = {
+export const foldersRepository: FoldersRepository = {
   list: async () => {
-    const records = await listPGliteRecords(PERSISTED_STORE_NAMES.folders);
+    const records = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
+
     return records.map((folder) => fromPersistedFolder(folder));
   },
   create: async (input) => {
@@ -70,14 +65,19 @@ export const pGliteFoldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? timestamp).toISOString() as IsoTime,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.folders, persistedFolder as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
+    }
 
     return fromPersistedFolder(persistedFolder);
   },
   update: async (input) => {
-    const existing = await getPGliteRecord(PERSISTED_STORE_NAMES.folders, input.id);
+    const existing = canUseRemotePersistence()
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id)
+      : await getLocalRecord(PERSISTED_STORE_NAMES.folders, input.id);
+
     if (!existing) {
       return undefined;
     }
@@ -89,59 +89,42 @@ export const pGliteFoldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.folders, updated);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.folders, updated as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.folders, updated);
+    }
 
     return fromPersistedFolder(updated);
   },
   destroy: async (id) => {
-    const folders = await listPGliteRecords(PERSISTED_STORE_NAMES.folders);
+    const folders = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
+
     const descendantIds = collectDescendantFolderIds(folders, id);
 
-    const notes = await listPGliteRecords(PERSISTED_STORE_NAMES.notes);
+    const notes = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
+
     const noteIdsToDelete = notes
       .filter((note) => note.parentId && descendantIds.has(note.parentId))
       .map((note) => note.id);
 
+    if (canUseRemotePersistence()) {
+      await Promise.all([
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.folders, Array.from(descendantIds)),
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.notes, noteIdsToDelete),
+      ]);
+      return;
+    }
+
     await Promise.all([
       ...Array.from(descendantIds).map((folderId) =>
-        destroyPGliteRecord(PERSISTED_STORE_NAMES.folders, folderId),
+        destroyLocalRecord(PERSISTED_STORE_NAMES.folders, folderId),
       ),
-      ...noteIdsToDelete.map((noteId) => destroyPGliteRecord(PERSISTED_STORE_NAMES.notes, noteId)),
+      ...noteIdsToDelete.map((noteId) => destroyLocalRecord(PERSISTED_STORE_NAMES.notes, noteId)),
     ]);
-
-    // Fire-and-forget remote deletes
-    for (const folderId of descendantIds) {
-      void deleteRecordFromRemote(PERSISTED_STORE_NAMES.folders, folderId);
-    }
-    for (const noteId of noteIdsToDelete) {
-      void deleteRecordFromRemote(PERSISTED_STORE_NAMES.notes, noteId);
-    }
-  },
-};
-
-export const foldersRepository: FoldersRepository = {
-  list: async () => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite" ? pGliteFoldersRepository.list() : indexedDbFoldersRepository.list();
-  },
-  create: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteFoldersRepository.create(input)
-      : indexedDbFoldersRepository.create(input);
-  },
-  update: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteFoldersRepository.update(input)
-      : indexedDbFoldersRepository.update(input);
-  },
-  destroy: async (id) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteFoldersRepository.destroy(id)
-      : indexedDbFoldersRepository.destroy(id);
   },
 };

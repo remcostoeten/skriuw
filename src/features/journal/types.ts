@@ -1,9 +1,8 @@
 import type { DateKey, CssColorValue } from "@/core/shared/persistence-types";
+import type { JournalEntry, JournalTag, MoodLevel } from "@/types/journal";
 
 export type { DateKey, CssColorValue };
-
-// Mood system for journal entries
-export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
+export type { JournalEntry, JournalTag, MoodLevel };
 
 export type Mood = {
   level: MoodLevel;
@@ -19,24 +18,6 @@ export const MOOD_OPTIONS = {
   low: { level: "low", label: "Low", icon: "-", color: "text-amber-400" },
   rough: { level: "rough", label: "Rough", icon: "--", color: "text-red-400" },
 } as const satisfies Record<MoodLevel, Mood>;
-
-export type JournalTag = {
-  id: string;
-  name: string;
-  color: CssColorValue;
-  usageCount: number;
-};
-
-export type JournalEntry = {
-  id: string;
-  /** Date key in YYYY-MM-DD format */
-  dateKey: DateKey;
-  content: string;
-  tags: string[];
-  mood?: MoodLevel;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 export type JournalConfig = {
   entries: JournalEntry[];

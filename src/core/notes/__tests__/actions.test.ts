@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 describe("note actions", () => {
   beforeEach(() => {
     mock.restore();
-    mock.module("@/core/storage", () => ({
-      getRecord: async () => ({
+    mock.module("../persistence", () => ({
+      readNoteRecord: async () => ({
         id: "note-1",
         name: "Existing.md",
         content: "# old",
@@ -12,13 +12,9 @@ describe("note actions", () => {
         createdAt: "2026-03-08T08:00:00.000Z",
         updatedAt: "2026-03-08T08:00:00.000Z",
       }),
-      putRecord: async (_storeName: string, record: unknown) => record,
-      runInTransaction: async () => undefined,
-      destroyRecord: async () => undefined,
-      listRecords: async () => [],
-      openPersistenceDb: async () => undefined,
-      closePersistenceDb: async () => undefined,
-      toStorageError: (_code: string, message: string) => new Error(message),
+      listNoteRecords: async () => [],
+      writeNoteRecord: async (_record: unknown) => _record,
+      destroyNoteRecord: async () => undefined,
     }));
   });
 

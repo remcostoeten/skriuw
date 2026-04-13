@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn, coerceDate } from "@/shared/lib/utils";
-import { useTagStore } from "@/store/tag-store";
-import { usePreferencesStore } from "@/store/preferences-store";
-import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
+import { useTagStore } from "@/features/tags/store";
+import { usePreferencesStore } from "@/features/settings/store";
+import { MOOD_OPTIONS } from "@/features/journal/types";
+import type { MoodLevel } from "@/types/journal";
 import {
   X,
   Plus,

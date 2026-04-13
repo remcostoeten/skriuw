@@ -1,48 +1,44 @@
-"use client";
+"use client"
 
-import { useEffect } from "react";
-import { useState } from "react";
-import dynamic from "next/dynamic";
-import { Info, HelpCircle, ArrowLeft } from "lucide-react";
+import * as React from "react"
+import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
+import {
+  Code,
+  FlaskConical,
+  Hash,
+  Info,
+} from "lucide-react"
+
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/shared/ui/breadcrumb"
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
-} from "@/shared/ui/dialog";
-import { Switch } from "@/shared/ui/switch";
-import { Label } from "@/shared/ui/label";
-import { usePreferencesStore } from "@/store/preferences-store";
-import { Button } from "@/shared/ui/button-component";
-import { useAuthSnapshot } from "@/modules/auth/use-auth";
+  DialogTitle,
+} from "@/shared/ui/dialog"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/shared/ui/sidebar"
+import { Switch } from "@/shared/ui/switch"
+import { Label } from "@/shared/ui/label"
+import { usePreferencesStore } from "@/features/settings/store"
+import { useAuthSnapshot } from "@/platform/auth/use-auth"
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
-
-const TroubleshootingGuide = dynamic(
-  () =>
-    import("@/features/notes/components/troubleshooting-guide").then((mod) => ({
-      default: mod.TroubleshootingGuide,
-    })),
-  {
-    ssr: false,
-    loading: () => <div className="py-8 text-sm text-muted-foreground">Loading help…</div>,
-  },
-);
-
-const TemplateSelector = dynamic(
-  () =>
-    import("@/features/notes/components/template-selector").then((mod) => ({
-      default: mod.TemplateSelector,
-    })),
-  {
-    ssr: false,
-    loading: () => <div className="py-6 text-sm text-muted-foreground">Loading templates…</div>,
-  },
-);
 
 const TagManager = dynamic(
   () => import("./tag-manager").then((mod) => ({ default: mod.TagManager })),
@@ -62,28 +58,33 @@ function SettingsSection({ title, children }: { title: string; children: React.R
   );
 }
 
+const data = {
+  nav: [
+    { id: "editor", name: "Editor", icon: Code },
+    { id: "tags", name: "Tags", icon: Hash },
+    { id: "experimental", name: "Experimental", icon: FlaskConical },
+  ],
+}
+
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
 export function SettingsModal({ open, onOpenChange }: Props) {
-  const [view, setView] = useState<"settings" | "troubleshooting">("settings");
+  const [activeTab, setActiveTab] = useState("editor");
+
   const {
     isLoading,
     editor,
-    templateStyle,
     journal,
     initialize: initializePreferences,
-    updateTemplateStyle,
     updateEditorPreference,
     toggleDiaryMode,
     logActivity,
   } = usePreferencesStore();
 
   const auth = useAuthSnapshot();
-
-  // Reset view when modal closes
-  useEffect(() => {
-    if (!open) {
-      setView("settings");
-    }
-  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -92,156 +93,151 @@ export function SettingsModal({ open, onOpenChange }: Props) {
     }
   }, [open, initializePreferences, logActivity]);
 
-  if (isLoading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground text-sm">Loading settings...</div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // Troubleshooting view
-  if (view === "troubleshooting") {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setView("settings")}
-                className="h-8 w-8 p-0"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <DialogTitle className="text-lg">Troubleshooting</DialogTitle>
-            </div>
-            <DialogDescription className="text-muted-foreground">
-              Diagnose and resolve issues with note settings.
-            </DialogDescription>
-          </DialogHeader>
-          <TroubleshootingGuide />
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const activeNavItem = data.nav.find(item => item.id === activeTab) || data.nav[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg">Settings</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setView("troubleshooting")}
-              className="gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span className="text-xs">Help</span>
-            </Button>
+      <DialogContent className="overflow-hidden p-0 md:max-h-[500px] md:max-w-[700px] lg:max-w-[800px] flex flex-col">
+        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogDescription className="sr-only">
+          Customize your settings here.
+        </DialogDescription>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12 h-[480px]">
+            <div className="text-muted-foreground text-sm">Loading settings...</div>
           </div>
-          <DialogDescription className="text-muted-foreground">
-            Customize your editing and note-taking experience.
-          </DialogDescription>
-          {auth.user && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Signed in as {auth.user.name} ({auth.user.email})
-            </p>
-          )}
-          {!auth.user && auth.mode === "privacy" && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Privacy mode keeps everything local on this device. In private browsing, storage may
-              be temporary.
-            </p>
-          )}
-        </DialogHeader>
+        ) : (
+          <SidebarProvider className="items-start min-h-[480px]">
+            <Sidebar collapsible="none" className="hidden md:flex">
+              <SidebarContent>
+                <div className="px-4 py-3">
+                  <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
+                  {auth.user ? (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {auth.user.email}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {auth.mode === "privacy" ? "Privacy mode on this device" : "Account mode"}
+                    </p>
+                  )}
+                </div>
+                <SidebarGroup>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {data.nav.map((item) => (
+                        <SidebarMenuItem key={item.id}>
+                          <SidebarMenuButton
+                            isActive={activeTab === item.id}
+                            onClick={() => setActiveTab(item.id)}
+                          >
+                            <item.icon />
+                            <span>{item.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </SidebarContent>
+            </Sidebar>
+            <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
+              <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-border/40">
+                <div className="flex items-center gap-2 px-4">
+                  <Breadcrumb>
+                    <BreadcrumbList>
+                      <BreadcrumbItem className="hidden md:block">
+                        <BreadcrumbLink className="cursor-pointer" onClick={() => setActiveTab("editor")}>Settings</BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="hidden md:block" />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage>{activeNavItem.name}</BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </div>
+              </header>
+              <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-4 md:p-6 pb-12">
+                
+                {activeTab === "editor" && (
+                  <SettingsSection title="Editor Settings">
+                    <div className="flex items-center justify-between py-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="default-mode" className="text-sm font-medium">
+                          Default to Raw MDX
+                        </Label>
+                        <p className="text-xs text-muted-foreground pr-4">
+                          New notes will open in raw MDX mode instead of Block Note.
+                        </p>
+                      </div>
+                      <Switch
+                        id="default-mode"
+                        checked={editor.defaultModeRaw}
+                        onCheckedChange={(checked) =>
+                          updateEditorPreference("defaultModeRaw", checked)
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground/70 italic">
+                      Block Note remains the standard editing surface. This setting only affects the
+                      default mode for new notes.
+                    </p>
+                  </SettingsSection>
+                )}
 
-        <div className="space-y-8 py-4">
-          {/* Editor Settings */}
-          <SettingsSection title="Editor Settings">
-            <div className="flex items-center justify-between py-2">
-              <div className="space-y-1">
-                <Label htmlFor="default-mode" className="text-sm font-medium">
-                  Default to Raw MDX
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  New notes will open in raw MDX mode instead of Block Note.
-                </p>
+
+                {activeTab === "tags" && (
+                  <SettingsSection title="Tag Management">
+                    <TagManager />
+                  </SettingsSection>
+                )}
+
+                {activeTab === "experimental" && (
+                  <>
+                    <SettingsSection title="Future Features">
+                      <div className="flex items-center justify-between py-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="diary-mode" className="text-sm font-medium">
+                            Diary View
+                          </Label>
+                          <p className="text-xs text-muted-foreground pr-4">
+                            Enable a layout optimized for chronological journaling.
+                          </p>
+                        </div>
+                        <Switch
+                          id="diary-mode"
+                          checked={journal.diaryModeEnabled}
+                          onCheckedChange={toggleDiaryMode}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground/70 italic">
+                        This feature is coming soon. When it ships, it will become the default layout for new notes when enabled.
+                      </p>
+                    </SettingsSection>
+
+                    <div className="rounded-lg bg-accent/50 border border-border p-4 mt-8">
+                      <div className="flex gap-3">
+                        <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.5} />
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-foreground">Developer Note</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            &ldquo;Eventually I want the editor to support multiple workflows, from simple
+                            note taking to more structured journaling. The settings should allow switching
+                            between minimal notes, Notion like structured documents, and a journal
+                            format.&rdquo;
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
               </div>
-              <Switch
-                id="default-mode"
-                checked={editor.defaultModeRaw}
-                onCheckedChange={(checked) =>
-                  updateEditorPreference("defaultModeRaw", checked)
-                }
-              />
-            </div>
-            <p className="text-xs text-muted-foreground/70 italic">
-              Block Note remains the standard editing surface. This setting only affects the
-              default mode for new notes.
-            </p>
-          </SettingsSection>
-
-          {/* Template Settings */}
-          <SettingsSection title="Note Template Settings">
-            <TemplateSelector
-              selectedTemplate={templateStyle}
-              onSelectTemplate={updateTemplateStyle}
-            />
-          </SettingsSection>
-
-          {/* Tag Management */}
-          <SettingsSection title="Tag Management">
-            <TagManager />
-          </SettingsSection>
-
-          {/* Future Features */}
-          <SettingsSection title="Future Features">
-            <div className="flex items-center justify-between py-2">
-              <div className="space-y-1">
-                <Label htmlFor="diary-mode" className="text-sm font-medium">
-                  Diary View
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable a different layout optimized for chronological journaling.
-                </p>
-              </div>
-              <Switch
-                id="diary-mode"
-                checked={journal.diaryModeEnabled}
-                onCheckedChange={toggleDiaryMode}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground/70 italic">
-              This feature is coming soon. When it ships, it will become the default layout for new
-              notes when enabled.
-            </p>
-          </SettingsSection>
-
-          {/* User Note */}
-          <div className="rounded-lg bg-accent/50 border border-border p-4">
-            <div className="flex gap-3">
-              <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.5} />
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Developer Note</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  &ldquo;Eventually I want the editor to support multiple workflows, from simple
-                  note taking to more structured journaling. The settings should allow switching
-                  between minimal notes, Notion like structured documents, and a journal
-                  format.&rdquo;
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+            </main>
+          </SidebarProvider>
+        )}
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { AuthSnapshot } from "@/modules/auth";
+import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
@@ -23,7 +23,7 @@ let updateCalls: Array<{
   filters: Array<[string, unknown]>;
 }> = [];
 
-mock.module("@/modules/auth", () => ({
+mock.module("@/platform/auth", () => ({
   getAuthStateSnapshot: () => authSnapshot,
 }));
 
@@ -132,6 +132,7 @@ describe("supabase sync gating", () => {
           journal_meta: null,
           created_at: "2026-03-18T10:00:00.000Z",
           updated_at: "2026-03-18T10:00:00.000Z",
+          deleted_at: null,
           user_id: "user-123",
         },
       ],

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useTagStore, TAG_COLORS, type Tag } from "@/store/tag-store";
+import { useTagStore, TAG_COLORS, type Tag } from "@/features/tags/store";
 import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 

@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useTagStore } from "@/store/tag-store";
-import { usePreferencesStore } from "@/store/preferences-store";
-import { MOOD_OPTIONS, MoodLevel } from "@/types/notes";
+import { useTagStore } from "@/features/tags/store";
+import { usePreferencesStore } from "@/features/settings/store";
+import { MOOD_OPTIONS } from "@/features/journal/types";
+import type { MoodLevel } from "@/types/journal";
 import { X, Plus, Check } from "lucide-react";
 
 type Props = {
@@ -152,7 +153,7 @@ export function JournalMetadataEditor({
                 key={tag.id}
                 onClick={() => handleTagToggle(tag.name)}
                 className={cn(
-                  "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all border",
+                  "inline-flex items-center gap-1  py-1 rounded-md text-xs transition-all border",
                   isSelected
                     ? tag.color
                     : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",

@@ -33,7 +33,7 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
     const e = store.getEntryByDateKey(dateKey);
     setContent(e?.content ?? '');
     setShowDeleteConfirm(false);
-  }, [dateKey, store]);
+  }, [dateKey]);
 
   const debouncedSave = useCallback(
     (newContent: string) => {
@@ -45,7 +45,7 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
         } else if (newContent.trim()) {
           store.createOrUpdateEntry(selectedDate, newContent);
         }
-      }, 400);
+      }, 900);
     },
     [dateKey, selectedDate, store],
   );

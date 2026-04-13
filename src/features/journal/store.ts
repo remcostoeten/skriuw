@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { format } from "date-fns";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type {
+  CssColorValue,
   DateKey,
   JournalEntryId,
   TagId,
@@ -16,10 +17,12 @@ import {
   type JournalEntry,
   type JournalTag,
 } from "./types";
+import { getAuthActorId } from "@/platform/auth";
 
 type JournalState = {
   config: JournalConfig;
   isHydrated: boolean;
+  hydratedForActorId: string | null;
   saveStates: Record<string, SaveStatus>;
   initialize: () => Promise<void>;
   getEntrySaveState: (id: string | null | undefined) => SaveStatus;
@@ -73,10 +76,12 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
 export const useJournalStore = create<JournalState>()((set, get) => ({
   config: DEFAULT_JOURNAL_CONFIG,
   isHydrated: false,
+  hydratedForActorId: null,
   saveStates: {},
 
   initialize: async () => {
-    if (get().isHydrated) return;
+    const actorId = getAuthActorId();
+    if (get().isHydrated && get().hydratedForActorId === actorId) return;
 
     const [entries, tags] = await Promise.all([
       journalRepository.listEntries(),
@@ -88,6 +93,8 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         tags,
       },
       isHydrated: true,
+      hydratedForActorId: actorId,
+      saveStates: {},
     });
   },
 
@@ -181,7 +188,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
 
     void journalRepository.createEntry({
       id: newEntry.id as JournalEntryId,
-      dateKey: newEntry.dateKey,
+      dateKey: newEntry.dateKey as DateKey,
       content: newEntry.content,
       tags: normalizedTags.map((tag) => tag as TagName),
       mood,
@@ -405,7 +412,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   getDatesWithEntries: () => {
-    return get().config.entries.map((entry) => entry.dateKey);
+    return get().config.entries.map((entry) => entry.dateKey as DateKey);
   },
 
   getAllTags: () => {
@@ -434,7 +441,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     void journalRepository.createTag({
       id: newTag.id as TagId,
       name: newTag.name as TagName,
-      color: newTag.color,
+      color: newTag.color as CssColorValue,
     });
 
     return newTag;

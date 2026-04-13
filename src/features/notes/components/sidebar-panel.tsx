@@ -3,8 +3,9 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
-import { useSidebarStore, SidebarSection as SidebarSectionType } from "@/modules/sidebar";
 import { FileText, Folder, PanelTopClose, Search, X } from "lucide-react";
+import { useSidebarStore } from "./sidebar/store";
+import type { SidebarSection as SidebarSectionType } from "./sidebar/types";
 import {
   FavoritesSection,
   RecentsSection,
@@ -98,6 +99,8 @@ export function SidebarPanel({
   showCloseButton = false,
 }: SidebarPanelProps) {
   const sidebarStore = useSidebarStore();
+  const showSectionHeaders = sidebarStore.config.showSectionHeaders;
+  const compactMode = sidebarStore.config.compactMode;
   const sections = sidebarStore.getSections();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -197,6 +200,8 @@ export function SidebarPanel({
             foldersById={foldersById}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
+            showHeader={showSectionHeaders}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
             onManageSections={openConfigPanel}
@@ -214,6 +219,8 @@ export function SidebarPanel({
             foldersById={foldersById}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
+            showHeader={showSectionHeaders}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
             onManageSections={openConfigPanel}
@@ -231,6 +238,8 @@ export function SidebarPanel({
             folders={folders}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
+            showHeader={showSectionHeaders}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
             onManageSections={openConfigPanel}
@@ -247,6 +256,8 @@ export function SidebarPanel({
           <JournalSection
             key={section.id}
             isCollapsed={section.isCollapsed}
+            showHeader={showSectionHeaders}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
           />
@@ -260,6 +271,7 @@ export function SidebarPanel({
             folders={folders}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
             onFileSelect={handleFileSelect}
@@ -285,6 +297,8 @@ export function SidebarPanel({
             foldersById={foldersById}
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
+            showHeader={showSectionHeaders}
+            compactMode={compactMode}
             onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
             onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
             onRename={(name) => sidebarStore.renameSection(section.id, name)}
@@ -299,11 +313,11 @@ export function SidebarPanel({
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col border-r border-sidebar-border/60 bg-sidebar text-sidebar-foreground",
+        "flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
         className,
       )}
     >
-      <div className="sticky top-0 z-10 border-b border-sidebar-border/50 bg-sidebar/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
         <div className="relative min-h-11 overflow-hidden px-3 py-2.5 md:h-11 md:min-h-0 md:py-0">
           <div
             className={cn(
@@ -314,21 +328,21 @@ export function SidebarPanel({
             <div className="flex items-center gap-1.5">
               <button
                 onClick={onCreateFile}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
                 title="New Note"
               >
                 <NewNoteIcon />
               </button>
               <button
                 onClick={onCreateFolder}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
                 title="New Folder"
               >
                 <NewFolderNoteIcon />
               </button>
               <button
                 onClick={openConfigPanel}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
                 title="Manage sections"
               >
                 <PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
@@ -336,7 +350,7 @@ export function SidebarPanel({
               {hasSearchSection && (
                 <button
                   onClick={openSearch}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7 md:rounded-md"
+                  className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
                   title="Search notes"
                 >
                   <Search className="h-4 w-4" strokeWidth={1.5} />
@@ -363,7 +377,7 @@ export function SidebarPanel({
             {showCloseButton && (
               <button
                 onClick={onRequestClose}
-                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground md:hidden"
+                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground md:hidden"
                 title="Close sidebar"
               >
                 <X className="h-4 w-4" strokeWidth={1.5} />
@@ -378,7 +392,7 @@ export function SidebarPanel({
                 isSearchOpen ? "translate-y-0" : "translate-y-12",
               )}
             >
-              <div className="flex items-center gap-2 rounded-xl border border-white/7 bg-white/[0.045] px-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+              <div className="flex items-center gap-2 border border-white bg-white/[0.045] px-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
                 <input
                   ref={searchInputRef}
@@ -395,7 +409,7 @@ export function SidebarPanel({
                 />
                 <button
                   onClick={closeSearch}
-                  className="inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex h-7 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                   title="Close search"
                 >
                   <X className="h-4 w-4" strokeWidth={1.5} />
@@ -409,15 +423,15 @@ export function SidebarPanel({
       <div
         className={cn(
           "flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:pb-0",
-          sidebarStore.config.compactMode && "text-sm",
+          compactMode && "pt-1 text-sm",
         )}
       >
         {searchQuery.trim() ? (
           <div className="px-3 py-3">
             {hasSearchResults ? (
-              <div className="overflow-hidden rounded-xl border border-white/6 bg-white/[0.025]">
+              <div className="overflow-hidden border border-white bg-white/[0.025]">
                 {searchResults.folders.length > 0 && (
-                  <div className="border-b border-white/6 p-2 last:border-b-0">
+                  <div className="border-b border-white p-2 last:border-b-0">
                     <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
                       Folders
                     </p>
@@ -425,7 +439,7 @@ export function SidebarPanel({
                       <button
                         key={folder.id}
                         onClick={() => handleSearchFolderSelect(folder.id)}
-                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
+                        className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-foreground/80 transition-colors hover:bg-accent"
                       >
                         <Folder
                           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -446,7 +460,7 @@ export function SidebarPanel({
                         key={file.id}
                         onClick={() => handleSearchFileSelect(file.id)}
                         className={cn(
-                          "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
+                          "flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left transition-colors",
                           file.id === activeFileId
                             ? "bg-accent text-foreground"
                             : "text-foreground/80 hover:bg-accent",

@@ -3,7 +3,7 @@ import {
   type FolderId,
   type PersistedFolder,
 } from "@/core/shared/persistence-types";
-import { runInTransaction, toStorageError } from "@/core/storage";
+import { createFolderStorageError, runFolderTransaction } from "./persistence";
 
 function collectDescendantFolderIds(folders: PersistedFolder[], folderId: FolderId): Set<FolderId> {
   const descendants = new Set<FolderId>([folderId]);
@@ -25,7 +25,7 @@ function collectDescendantFolderIds(folders: PersistedFolder[], folderId: Folder
 }
 
 export async function destroyFolder(id: FolderId): Promise<void> {
-  await runInTransaction(
+  await runFolderTransaction(
     [PERSISTED_STORE_NAMES.folders, PERSISTED_STORE_NAMES.notes],
     "readwrite",
     async (stores) => {
@@ -33,18 +33,21 @@ export async function destroyFolder(id: FolderId): Promise<void> {
       const noteStore = stores.get(PERSISTED_STORE_NAMES.notes);
 
       if (!folderStore || !noteStore) {
-        throw toStorageError("transaction_failed", "Missing object stores for folder destruction.");
+        throw createFolderStorageError(
+          "transaction_failed",
+          "Missing object stores for folder destruction.",
+        );
       }
 
       const folders = await new Promise<PersistedFolder[]>((resolve, reject) => {
         const request = folderStore.getAll();
         request.onsuccess = () => resolve(request.result as PersistedFolder[]);
-        request.onerror = () =>
-          reject(
-            toStorageError(
-              "transaction_failed",
-              "Failed to list folders before recursive destroy.",
-              request.error,
+            request.onerror = () =>
+              reject(
+                createFolderStorageError(
+                  "transaction_failed",
+                  "Failed to list folders before recursive destroy.",
+                  request.error,
             ),
           );
       });
@@ -57,12 +60,12 @@ export async function destroyFolder(id: FolderId): Promise<void> {
             new Promise<void>((resolve, reject) => {
               const request = folderStore.delete(folderId);
               request.onsuccess = () => resolve();
-              request.onerror = () =>
-                reject(
-                  toStorageError(
-                    "transaction_failed",
-                    `Failed to destroy folder: ${folderId}`,
-                    request.error,
+                request.onerror = () =>
+                  reject(
+                    createFolderStorageError(
+                      "transaction_failed",
+                      `Failed to destroy folder: ${folderId}`,
+                      request.error,
                   ),
                 );
             }),
@@ -76,7 +79,7 @@ export async function destroyFolder(id: FolderId): Promise<void> {
             resolve(request.result as Array<{ id: IDBValidKey; parentId: FolderId | null }>);
           request.onerror = () =>
             reject(
-              toStorageError(
+              createFolderStorageError(
                 "transaction_failed",
                 "Failed to list notes before recursive folder destroy.",
                 request.error,
@@ -95,7 +98,7 @@ export async function destroyFolder(id: FolderId): Promise<void> {
                 request.onsuccess = () => resolve();
                 request.onerror = () =>
                   reject(
-                    toStorageError(
+                    createFolderStorageError(
                       "transaction_failed",
                       `Failed to destroy note: ${String(note.id)}`,
                       request.error,

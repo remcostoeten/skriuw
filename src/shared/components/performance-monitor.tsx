@@ -1,112 +1,87 @@
+// src/components/fps-meter.tsx
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-type LayoutShiftLike = PerformanceEntry & {
-  hadRecentInput?: boolean;
-  value?: number;
+type Rating = "good" | "degraded" | "poor";
+
+type State = {
+  fps: number;
+  delta: number;
+  rating: Rating;
 };
 
-type MetricEntry =
-  | PerformanceEntry
-  | PerformanceEventTiming
-  | LargestContentfulPaint
-  | LayoutShiftLike;
-
-function logMetric(label: string, payload: Record<string, number | string>) {
-  console.info(`[perf] ${label}`, payload);
+function rateFrames(fps: number): Rating {
+  if (fps >= 55) return "good";
+  if (fps >= 30) return "degraded";
+  return "poor";
 }
 
-export function PerformanceMonitor() {
-  const pathname = usePathname();
-  const routeStartRef = useRef<number | null>(null);
+const DOT: Record<Rating, string> = {
+  good: "bg-foreground/20",
+  degraded: "bg-foreground/55",
+  poor: "bg-foreground animate-pulse",
+};
+
+const NUM: Record<Rating, string> = {
+  good: "text-foreground/35",
+  degraded: "text-foreground/70",
+  poor: "text-foreground",
+};
+
+export function FpsMeter() {
+  const [state, setState] = useState<State>({ fps: 0, delta: 0, rating: "good" });
+  const rafRef = useRef(0);
+  const countRef = useRef(0);
+  const lastRef = useRef(performance.now());
+  const prevRef = useRef(0);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
+    let alive = true;
 
-    routeStartRef.current = performance.now();
+    function tick(now: number): void {
+      if (!alive) return;
+      countRef.current++;
 
-    requestAnimationFrame(() => {
-      const routeDuration = performance.now() - (routeStartRef.current ?? 0);
-      logMetric("route-ready", {
-        pathname,
-        duration: Number(routeDuration.toFixed(1)),
-      });
-    });
-  }, [pathname]);
+      const elapsed = now - lastRef.current;
+      if (elapsed >= 500) {
+        const fps = Math.round((countRef.current * 1000) / elapsed);
+        const delta = fps - prevRef.current;
+        setState({ fps, delta, rating: rateFrames(fps) });
+        prevRef.current = fps;
+        countRef.current = 0;
+        lastRef.current = now;
+      }
 
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || typeof PerformanceObserver === "undefined") {
-      return;
+      rafRef.current = requestAnimationFrame(tick);
     }
 
-    const observers: PerformanceObserver[] = [];
-
-    const observe = (
-      type: string,
-      handler: (entry: MetricEntry) => void,
-      options?: PerformanceObserverInit,
-    ) => {
-      try {
-        const observer = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => handler(entry as MetricEntry));
-        });
-        observer.observe(options ?? { type, buffered: true });
-        observers.push(observer);
-      } catch {
-        // Ignore unsupported entry types per browser.
-      }
-    };
-
-    observe("paint", (entry) => {
-      logMetric(entry.name, { duration: Number(entry.startTime.toFixed(1)) });
-    });
-
-    observe("largest-contentful-paint", (entry) => {
-      const lcpEntry = entry as LargestContentfulPaint;
-      logMetric("lcp", {
-        pathname,
-        startTime: Number(lcpEntry.startTime.toFixed(1)),
-      });
-    });
-
-    observe("layout-shift", (entry) => {
-      const layoutShiftEntry = entry as LayoutShiftLike;
-      if (layoutShiftEntry.hadRecentInput) return;
-
-      logMetric("cls", {
-        pathname,
-        value: Number((layoutShiftEntry.value ?? 0).toFixed(4)),
-      });
-    });
-
-    observe("longtask", (entry) => {
-      logMetric("longtask", {
-        pathname,
-        duration: Number(entry.duration.toFixed(1)),
-      });
-    });
-
-    observe(
-      "event",
-      (entry) => {
-        const eventEntry = entry as PerformanceEventTiming;
-        if (eventEntry.duration < 120) return;
-
-        logMetric("interaction", {
-          pathname,
-          name: eventEntry.name,
-          duration: Number(eventEntry.duration.toFixed(1)),
-        });
-      },
-      { type: "event", buffered: true, durationThreshold: 120 } as PerformanceObserverInit,
-    );
-
+    rafRef.current = requestAnimationFrame(tick);
     return () => {
-      observers.forEach((observer) => observer.disconnect());
+      alive = false;
+      cancelAnimationFrame(rafRef.current);
     };
-  }, [pathname]);
+  }, []);
 
-  return null;
+  const sign = state.delta > 0 ? "+" : "";
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={`${state.fps} fps, ${state.rating}`}
+      className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-1 rounded-md border border-border bg-background px-3 py-2 font-mono"
+    >
+      <div className="flex items-center gap-2">
+        <span className={`size-1.5 rounded-full transition-all duration-300 ${DOT[state.rating]}`} aria-hidden />
+        <span className={`text-lg font-medium leading-none transition-colors duration-300 ${NUM[state.rating]}`}>
+          {state.fps}
+          <span className="ml-1 text-[11px] text-foreground/25">fps</span>
+        </span>
+      </div>
+      <span className="text-[10px] text-foreground/30" aria-hidden>
+        {state.fps === 0 ? "—" : `${sign}${state.delta}`}
+      </span>
+    </div>
+  );
 }

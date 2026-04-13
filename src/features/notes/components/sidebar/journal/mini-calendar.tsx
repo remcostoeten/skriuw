@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo } from 'react';
 import { 
   startOfMonth, 
   endOfMonth, 
@@ -35,8 +34,6 @@ export function MiniCalendar({
   onSelectDate,
   onChangeMonth,
 }: MiniCalendarProps) {
-  const [direction, setDirection] = useState(0);
-  
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -46,18 +43,6 @@ export function MiniCalendar({
   }, [currentMonth]);
 
   const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);
-
-  const handlePrevMonth = () => {
-    setDirection(-1);
-    onChangeMonth(subMonths(currentMonth, 1));
-  };
-
-  const handleNextMonth = () => {
-    setDirection(1);
-    onChangeMonth(addMonths(currentMonth, 1));
-  };
-
-  const monthKey = format(currentMonth, 'yyyy-MM');
 
   return (
     <div className="px-2">

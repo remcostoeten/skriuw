@@ -3,7 +3,7 @@ import {
   type FolderId,
   type IsoTime,
 } from "@/core/shared/persistence-types";
-import { putRecord } from "@/core/storage";
+import { putRecord } from "@/core/storage/put-record";
 import type { NoteFolder } from "@/types/notes";
 import { fromPersistedFolder } from "./mappers";
 import type { CreateFolderInput } from "./types";

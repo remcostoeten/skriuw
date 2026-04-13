@@ -1,12 +1,3 @@
-import {
-  createJournalEntry,
-  createJournalTag,
-  destroyJournalEntry,
-  destroyJournalTag,
-  readJournalEntries,
-  readJournalTags,
-  updateJournalEntry,
-} from "@/core/journal";
 import type {
   CreateJournalEntryInput,
   CreateJournalTagInput,
@@ -25,15 +16,15 @@ import {
   type PersistedTag,
   type TagId,
 } from "@/core/shared/persistence-types";
+import type { JournalEntry, JournalTag } from "@/types/journal";
 import {
-  destroyPGliteRecord,
-  getPGliteRecord,
-  listPGliteRecords,
-  putPGliteRecord,
-} from "@/core/persistence/pglite";
-import type { JournalEntry, JournalTag } from "@/features/journal/types";
-import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
-import { resolveLocalPersistenceBackend } from "./local-backend";
+  canUseRemotePersistence,
+  getRemoteRecord,
+  listRemoteRecords,
+  putRemoteRecord,
+  softDeleteRemoteRecord,
+} from "@/core/persistence/supabase";
+import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
 
 export interface JournalRepository {
   listEntries(): Promise<JournalEntry[]>;
@@ -45,19 +36,12 @@ export interface JournalRepository {
   destroyTag(id: TagId): Promise<void>;
 }
 
-export const indexedDbJournalRepository: JournalRepository = {
-  listEntries: () => readJournalEntries(),
-  createEntry: (input) => createJournalEntry(input),
-  updateEntry: (input) => updateJournalEntry(input),
-  destroyEntry: (id) => destroyJournalEntry(id),
-  listTags: () => readJournalTags(),
-  createTag: (input) => createJournalTag(input),
-  destroyTag: (id) => destroyJournalTag(id),
-};
-
-export const pGliteJournalRepository: JournalRepository = {
+export const journalRepository: JournalRepository = {
   listEntries: async () => {
-    const entries = await listPGliteRecords(PERSISTED_STORE_NAMES.journalEntries);
+    const entries = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
+
     return entries.map(fromPersistedJournalEntry);
   },
   createEntry: async (input) => {
@@ -72,14 +56,19 @@ export const pGliteJournalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? now).toISOString() as IsoTime,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.journalEntries, entry as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
+    }
 
     return fromPersistedJournalEntry(entry);
   },
   updateEntry: async (input) => {
-    const existing = await getPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
+    const existing = canUseRemotePersistence()
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, input.id)
+      : await getLocalRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
+
     if (!existing) {
       return undefined;
     }
@@ -92,18 +81,23 @@ export const pGliteJournalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as IsoTime,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.journalEntries, updated as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
+    }
 
     return fromPersistedJournalEntry(updated);
   },
-  destroyEntry: async (id) => {
-    await destroyPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, id);
-    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.journalEntries, id);
-  },
+  destroyEntry: (id) =>
+    canUseRemotePersistence()
+      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, id)
+      : destroyLocalRecord(PERSISTED_STORE_NAMES.journalEntries, id),
   listTags: async () => {
-    const tags = await listPGliteRecords(PERSISTED_STORE_NAMES.tags);
+    const tags = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
+
     return tags.map(fromPersistedJournalTag);
   },
   createTag: async (input) => {
@@ -118,78 +112,52 @@ export const pGliteJournalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? now).toISOString() as IsoTime,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.tags, tag);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.tags, tag as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.tags, tag);
+    }
 
     return fromPersistedJournalTag(tag);
   },
   destroyTag: async (id) => {
-    const tags = await listPGliteRecords(PERSISTED_STORE_NAMES.tags);
+    const tags = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
+
     const tag = tags.find((item) => item.id === id);
     if (!tag) {
       return;
     }
 
-    const entries = await listPGliteRecords(PERSISTED_STORE_NAMES.journalEntries);
+    const entries = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
+
+    const updatedAt = new Date().toISOString() as IsoTime;
+
     await Promise.all(
       entries
         .filter((entry) => entry.tags.includes(tag.name))
         .map((entry) =>
-          putPGliteRecord(PERSISTED_STORE_NAMES.journalEntries, {
-            ...entry,
-            tags: entry.tags.filter((tagName) => tagName !== tag.name),
-            updatedAt: new Date().toISOString() as IsoTime,
-          }),
+          canUseRemotePersistence()
+            ? putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, {
+                ...entry,
+                tags: entry.tags.filter((tagName) => tagName !== tag.name),
+                updatedAt,
+              })
+            : putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, {
+                ...entry,
+                tags: entry.tags.filter((tagName) => tagName !== tag.name),
+                updatedAt,
+              }),
         ),
     );
 
-    await destroyPGliteRecord(PERSISTED_STORE_NAMES.tags, id);
-    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.tags, id);
-  },
-};
-
-export const journalRepository: JournalRepository = {
-  listEntries: async () => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.listEntries()
-      : indexedDbJournalRepository.listEntries();
-  },
-  createEntry: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.createEntry(input)
-      : indexedDbJournalRepository.createEntry(input);
-  },
-  updateEntry: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.updateEntry(input)
-      : indexedDbJournalRepository.updateEntry(input);
-  },
-  destroyEntry: async (id) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.destroyEntry(id)
-      : indexedDbJournalRepository.destroyEntry(id);
-  },
-  listTags: async () => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.listTags()
-      : indexedDbJournalRepository.listTags();
-  },
-  createTag: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.createTag(input)
-      : indexedDbJournalRepository.createTag(input);
-  },
-  destroyTag: async (id) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteJournalRepository.destroyTag(id)
-      : indexedDbJournalRepository.destroyTag(id);
+    if (canUseRemotePersistence()) {
+      await softDeleteRemoteRecord(PERSISTED_STORE_NAMES.tags, id);
+    } else {
+      await destroyLocalRecord(PERSISTED_STORE_NAMES.tags, id);
+    }
   },
 };

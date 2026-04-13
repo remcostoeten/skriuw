@@ -6,7 +6,7 @@ import type {
   TagId,
   TagName,
 } from "@/core/shared/persistence-types";
-import type { MoodLevel } from "@/features/journal/types";
+import type { MoodLevel } from "@/types/journal";
 
 export type CreateJournalEntryInput = {
   id?: JournalEntryId;

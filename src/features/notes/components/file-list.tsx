@@ -22,12 +22,13 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
-import { useSidebarStore } from "@/modules/sidebar";
+import { useSidebarStore } from "./sidebar/store";
 
 interface FileListProps {
   files: NoteFile[];
   folders: NoteFolder[];
   activeFileId: string;
+  compactMode?: boolean;
   onFileSelect: (id: string) => void;
   onToggleFolder: (id: string) => void;
   onRenameFile: (id: string, name: string) => void;
@@ -66,6 +67,7 @@ export const FileList = memo(function FileList({
   folders,
   files,
   activeFileId,
+  compactMode = false,
   onFileSelect,
   onToggleFolder,
   onRenameFile,
@@ -640,7 +642,8 @@ export const FileList = memo(function FileList({
               aria-selected={isSelected}
               tabIndex={focusedItemKey === getItemKey(folderItem) ? 0 : -1}
               className={cn(
-                "group flex h-7 w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
+                "group flex w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
+                compactMode ? "h-6" : "h-7",
                 isSelected
                   ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                   : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground/88",
@@ -806,8 +809,9 @@ export const FileList = memo(function FileList({
             aria-level={depth + 1}
             aria-selected={isSelected || activeFileId === file.id}
             tabIndex={focusedItemKey === getItemKey(fileItem) ? 0 : -1}
-            className={cn(
-              "flex h-7 w-full items-center rounded-md text-left text-xs font-medium transition-colors",
+              className={cn(
+              "flex w-full items-center rounded-md text-left text-xs font-medium transition-colors",
+              compactMode ? "h-6" : "h-7",
               isSelected || activeFileId === file.id
                 ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                 : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
@@ -932,11 +936,12 @@ export const FileList = memo(function FileList({
 
     setFocusedItemKey(preferredItem ? getItemKey(preferredItem) : null);
   }, [activeFileId, flattenedVisibleItems, focusedItemKey, getItemKey]);
+  const rowHeight = compactMode ? 28 : FILE_TREE_ROW_HEIGHT;
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
-  const totalHeight = flattenedVisibleItems.length * FILE_TREE_ROW_HEIGHT;
+  const totalHeight = flattenedVisibleItems.length * rowHeight;
   const viewportHeight = listRef.current?.clientHeight ?? 0;
-  const visibleCount = Math.ceil(viewportHeight / FILE_TREE_ROW_HEIGHT) + FILE_TREE_OVERSCAN * 2;
-  const startIndex = Math.max(0, Math.floor(scrollTop / FILE_TREE_ROW_HEIGHT) - FILE_TREE_OVERSCAN);
+  const visibleCount = Math.ceil(viewportHeight / rowHeight) + FILE_TREE_OVERSCAN * 2;
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - FILE_TREE_OVERSCAN);
   const endIndex = Math.min(flattenedVisibleItems.length, startIndex + visibleCount);
   const windowedItems = flattenedVisibleItems.slice(startIndex, endIndex);
 
@@ -978,7 +983,7 @@ export const FileList = memo(function FileList({
             <div
               key={`${item.type}:${item.id}`}
               className="absolute left-0 right-0"
-              style={{ top: rowIndex * FILE_TREE_ROW_HEIGHT, height: FILE_TREE_ROW_HEIGHT }}
+              style={{ top: rowIndex * rowHeight, height: rowHeight }}
             >
               {rowContent}
             </div>

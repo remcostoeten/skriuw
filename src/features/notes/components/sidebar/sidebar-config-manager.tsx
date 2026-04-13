@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Settings, GripVertical, Eye, EyeOff, Plus, RotateCcw, Sliders, X } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { SidebarSection as SidebarSectionType } from '@/modules/sidebar';
+import type { SidebarSection as SidebarSectionType } from './types';
 import {
   Dialog,
   DialogContent,

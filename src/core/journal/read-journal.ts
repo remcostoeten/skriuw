@@ -1,19 +1,19 @@
-import {
-  PERSISTED_STORE_NAMES,
-  type DateKey,
-  type JournalEntryId,
-} from "@/core/shared/persistence-types";
-import { getRecord, listRecords } from "@/core/storage";
-import type { JournalEntry, JournalTag } from "@/features/journal/types";
+import { type DateKey, type JournalEntryId } from "@/core/shared/persistence-types";
+import type { JournalEntry, JournalTag } from "@/types/journal";
 import { fromPersistedJournalEntry, fromPersistedJournalTag } from "./mappers";
+import {
+  listJournalEntryRecords,
+  listJournalTagRecords,
+  readJournalEntryRecord,
+} from "./persistence";
 
 export async function readJournalEntries(): Promise<JournalEntry[]> {
-  const entries = await listRecords(PERSISTED_STORE_NAMES.journalEntries);
+  const entries = await listJournalEntryRecords();
   return entries.map(fromPersistedJournalEntry);
 }
 
 export async function readJournalEntryById(id: JournalEntryId): Promise<JournalEntry | undefined> {
-  const entry = await getRecord(PERSISTED_STORE_NAMES.journalEntries, id);
+  const entry = await readJournalEntryRecord(id);
   return entry ? fromPersistedJournalEntry(entry) : undefined;
 }
 
@@ -25,6 +25,6 @@ export async function readJournalEntryByDateKey(
 }
 
 export async function readJournalTags(): Promise<JournalTag[]> {
-  const tags = await listRecords(PERSISTED_STORE_NAMES.tags);
+  const tags = await listJournalTagRecords();
   return tags.map((tag) => fromPersistedJournalTag(tag));
 }

@@ -1,89 +1,35 @@
-# Domain-Driven Architecture Strategy
+# Architecture Notes
 
-## 🏗️ **Chosen Architecture: Feature-Based Domain Structure**
+This repo now runs as a Supabase-backed app with a privacy-mode fallback and a feature-based structure:
 
-Based on research from Robin Wieruch and modern React best practices, I'm implementing:
+1. `src/app/` owns routing and page composition.
+2. `src/features/` owns domain code such as notes, journal, settings, and layout.
+3. `src/platform/` owns auth and runtime/platform integrations.
+4. `src/shared/` owns reusable UI and generic utilities.
+5. `src/core/` owns persistence adapters and repository code.
+6. `src/providers/` contains app-level providers.
 
-### **Core Principles:**
-1. **Feature over Type** - Group by business domain, not technical concern
-2. **Colocation** - Keep related code together
-3. **Separation of Concerns** - UI, logic, and types separated within features
-4. **Reusability** - Shared components separate from feature components
+Runtime rules now:
 
-## 📁 **Current Directory Structure:**
+- Account mode is auth-gated before feature UI mounts.
+- Privacy mode mounts the same shell against local persistence and seeds a small demo workspace on first run.
+- Notes, folders, journal entries, and tags are read from Supabase only when account mode is authenticated.
+- Preferences are still local browser state.
+- Local persistence still uses PGlite first with IndexedDB fallback.
 
-```
-src/
-├── app/                    # Next.js App Router (pages only)
-├── views/                  # 📄 Page components
-│   └── home-page.tsx      # Main application page
-├── features/               # 🎯 Domain-driven features
-│   ├── notes/             # Notes domain
-│   ├── editor/            # Editor domain
-│   ├── settings/          # Settings domain
-│   └── layout/           # Layout domain
-├── shared/               # 🔄 Cross-cutting concerns
-│   ├── components/         # Reusable components
-│   ├── ui/                # UI components (dropdown, button, etc.)
-│   ├── lib/               # Utilities and helpers
-│   ├── types/             # Global types
-│   └── constants/         # Constants
-├── modules/              # 📦 Technical modules
-├── providers/             # React providers
-└── store/                # Global state
-```
+## Rules Of Thumb
 
-## 🎯 **Benefits of This Approach:**
+- Keep route files in `src/app/` thin.
+- Prefer colocating feature UI, state, and helpers under the owning feature.
+- Put auth and runtime adapters in `src/platform/`.
+- Keep reusable primitives in `src/shared/`.
+- Keep persistence adapters out of feature components.
+- Avoid introducing new top-level folders unless they clearly fit the structure above.
+- Do not let lower-level persistence code depend upward on feature modules.
+- Keep Supabase row mapping and user scoping inside persistence adapters, not feature stores.
 
-1. **Scalability** - Easy to add new features
-2. **Maintainability** - Related code grouped together
-3. **Team Collaboration** - Teams can own domains
-4. **Lazy Loading** - Feature-based code splitting
-5. **Type Safety** - Domain-specific types
-6. **Testing** - Feature-focused test suites
+## Cleanup Focus
 
-## 🔄 **Migration Status: ✅ COMPLETED**
-
-1. **✅ Created feature directories**
-2. **✅ Moved components from haptic/ to appropriate features**
-3. **✅ Extracted business logic into services**
-4. **✅ Created domain-specific hooks**
-5. **✅ Removed unused hooks (use-mobile)**
-6. **✅ Cleaned up haptic folder (removed completely)**
-7. **✅ Organized components by business domain**
-8. **✅ Created proper index files for each feature**
-9. **✅ Removed all Vite-related files and configurations**
-10. **✅ Cleaned up duplicate CSS files**
-11. **✅ Removed unused development scripts**
-
-## 🧹 **Cleanup Summary:**
-
-### **Removed:**
-- `src/components/haptic/` (entire folder)
-- `src/hooks/use-mobile.tsx` (unused)
-- `src/components/ui/` (moved to shared)
-- `src/lib/` (moved to shared)
-- `tsconfig.app.json` (Vite-specific)
-- `tsconfig.node.json` (Vite-specific)
-- `src/index.css` (duplicate)
-- `pack.json` (duplicate package.json)
-- `scripts/` directory (development utilities)
-- `.fix-filenames-manifest.json` (build artifact)
-
-### **Reorganized:**
-- All haptic components → appropriate feature directories
-- `document-properties.tsx` → `features/notes/`
-- `tag-manager.tsx` → `features/settings/`
-- `sidebar/` components → `features/notes/components/sidebar/`
-- Layout components → `features/layout/`
-- Editor components → `features/editor/`
-- Page components → `views/` directory
-- UI components → `shared/ui/` (dropdown, button, etc.)
-- Utils → `shared/lib/` (centralized utilities)
-
-### **Final Structure:**
-- **`src/views/`** - Page components only
-- **`src/shared/ui/`** - All reusable UI components
-- **`src/shared/lib/`** - All utilities and helpers
-- **`src/app/`** - Next.js routing only
-- **Clean package.json** - Only essential scripts
+- Decide whether privacy-mode data should remain seeded-only or gain an explicit reset/import flow.
+- Move synced preferences into the repository layer if cross-device settings are required.
+- Keep documentation aligned with the actual runtime, not outdated cloud-only assumptions.

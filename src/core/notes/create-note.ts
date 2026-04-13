@@ -1,8 +1,8 @@
-import { PERSISTED_STORE_NAMES, type NoteId } from "@/core/shared/persistence-types";
-import { putRecord } from "@/core/storage";
+import type { NoteId } from "@/core/shared/persistence-types";
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { fromPersistedNote, toPersistedNote } from "./mappers";
+import { writeNoteRecord } from "./persistence";
 import type { CreateNoteInput } from "./types";
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
@@ -18,6 +18,6 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
     modifiedAt: input.updatedAt ?? timestamp,
   });
 
-  const createdNote = await putRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
+  const createdNote = await writeNoteRecord(persistedNote);
   return fromPersistedNote(createdNote);
 }

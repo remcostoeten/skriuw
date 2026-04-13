@@ -64,8 +64,8 @@ describe("openPGliteDb", () => {
       PGlite: FakePGlite,
     }));
 
-    mock.module("@/core/storage", () => ({
-      listRecords: async (storeName: string) => {
+    mock.module("../legacy-records", () => ({
+      listLegacyRecords: async (storeName: string) => {
         listRecordsCalls.push(storeName);
 
         if (storeName === "notes") {

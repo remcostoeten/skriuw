@@ -18,6 +18,8 @@ interface EditorContainerProps {
   ) => void;
   onToggleSidebar: () => void;
   onToggleMetadata: () => void;
+  onToggleEditorMode: () => void;
+  onOpenSettings?: () => void;
   onNavigatePrev: () => void;
   onNavigateNext: () => void;
   canNavigatePrev: boolean;
@@ -32,6 +34,8 @@ export function EditorContainer({
   onContentChange,
   onToggleSidebar,
   onToggleMetadata,
+  onToggleEditorMode,
+  onOpenSettings,
   onNavigatePrev,
   onNavigateNext,
   canNavigatePrev,
@@ -39,18 +43,21 @@ export function EditorContainer({
   fileName,
 }: EditorContainerProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <EditorToolbar
         fileName={fileName}
+        editorMode={editorMode}
         isMobile={isMobile}
         onToggleSidebar={onToggleSidebar}
         onToggleMetadata={onToggleMetadata}
+        onToggleEditorMode={onToggleEditorMode}
+        onOpenSettings={onOpenSettings}
         onNavigatePrev={onNavigatePrev}
         onNavigateNext={onNavigateNext}
         canNavigatePrev={canNavigatePrev}
         canNavigateNext={canNavigateNext}
       />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <Editor
           file={file}
           editorMode={editorMode}

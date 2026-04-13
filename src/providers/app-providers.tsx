@@ -5,8 +5,9 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
-import { PerformanceMonitor } from "@/shared/components/performance-monitor";
+import { FpsMeter } from "@/shared/components/performance-monitor";
 import { PersistenceBootstrap } from "@/shared/components/persistence-bootstrap";
+import { AppAuthGate } from "@/features/auth/components/app-auth-gate";
 
 type Props = {
   children: React.ReactNode;
@@ -29,9 +30,11 @@ export function AppProviders({ children }: Props) {
       <MotionConfig reducedMotion="user">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <TooltipProvider delayDuration={300}>
-            <PerformanceMonitor />
-            <PersistenceBootstrap />
-            {children}
+            <AppAuthGate>
+              <FpsMeter />
+              <PersistenceBootstrap />
+              {children}
+            </AppAuthGate>
           </TooltipProvider>
         </ThemeProvider>
       </MotionConfig>

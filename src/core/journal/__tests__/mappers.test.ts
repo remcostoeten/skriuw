@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DateKey, CssColorValue } from "@/core/shared/persistence-types";
 import {
-  fromPersistedJournalEntry,
   fromPersistedJournalTag,
   toPersistedJournalEntry,
   toPersistedJournalTag,

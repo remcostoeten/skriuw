@@ -1,4 +1,4 @@
-// Sidebar section types for the modular sidebar system
+// Sidebar section types for the notes-owned sidebar system
 
 export type SidebarSectionType =
   | "search"
@@ -18,7 +18,6 @@ export type SidebarSection = {
   isCollapsed: boolean;
   isVisible: boolean;
   order: number;
-  // For custom sections
   customConfig?: {
     color?: string;
     description?: string;

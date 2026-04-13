@@ -1,25 +1,54 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Cloud, Github, LoaderCircle, LogIn, Shield, UserRound } from "lucide-react";
+import { Cloud, Github, LoaderCircle, LogIn, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button-component";
+import { DialogTitle } from "@/shared/ui/dialog";
 import { cn } from "@/shared/lib/utils";
 import {
+  enableAccountMode,
   initializeAuth,
   setPrivacyMode,
   signInWithOAuth,
   signInWithPassword,
   signOut,
   signUpWithPassword,
-} from "@/modules/auth";
-import { useAuthSnapshot } from "@/modules/auth/use-auth";
+} from "@/platform/auth";
+import { useAuthSnapshot } from "@/platform/auth/use-auth";
 
 type Props = {
   className?: string;
+  triggerVariant?: "default" | "rail-avatar";
 };
 
-type AuthIntent = "sign-in" | "sign-up" | "google" | "github" | "privacy" | "sign-out";
+type AuthIntent = "sign-in" | "sign-up" | "google" | "github" | "sign-out" | "privacy" | "account";
+
+type OAuthButtonProps = {
+  label: string;
+  icon: React.ReactNode;
+  loading: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+function OAuthButton({ label, icon, loading, disabled, onClick }: OAuthButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-11 w-full justify-start border-border bg-background px-3 text-left"
+      disabled={disabled || loading}
+      onClick={onClick}
+    >
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-border bg-card">
+        {loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : icon}
+      </span>
+      <span className="min-w-0 truncate text-sm font-medium">{label}</span>
+      {loading && <span className="ml-auto text-xs text-muted-foreground">Connecting</span>}
+    </Button>
+  );
+}
 
 function resolveButtonCopy(auth: ReturnType<typeof useAuthSnapshot>) {
   if (auth.status === "authenticated") {
@@ -32,21 +61,37 @@ function resolveButtonCopy(auth: ReturnType<typeof useAuthSnapshot>) {
 
   if (auth.mode === "privacy") {
     return {
-      icon: Shield,
+      icon: UserRound,
       label: "Private",
-      detail: "Local only",
+      detail: "On-device workspace",
     };
   }
 
   return {
     icon: LogIn,
     label: "Sign in",
-    detail: "Backup + sync",
+    detail: "Cloud workspace",
   };
 }
 
-export function AuthEntryPoint({ className }: Props) {
+function getAvatarLabel(auth: ReturnType<typeof useAuthSnapshot>) {
+  const name = auth.user?.name?.trim();
+  if (name) {
+    const initials = name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("");
+
+    if (initials) return initials;
+  }
+
+  return "U";
+}
+
+export function AuthEntryPoint({ className, triggerVariant = "default" }: Props) {
   const auth = useAuthSnapshot();
+  const [isMounted, setIsMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,6 +103,7 @@ export function AuthEntryPoint({ className }: Props) {
   const ButtonIcon = buttonCopy.icon;
 
   useEffect(() => {
+    setIsMounted(true);
     void initializeAuth();
   }, []);
 
@@ -73,6 +119,11 @@ export function AuthEntryPoint({ className }: Props) {
   }, [open]);
 
   const isPending = pendingIntent !== null;
+  const avatarLabel = useMemo(() => getAvatarLabel(auth), [auth]);
+
+  if (!isMounted) {
+    return null;
+  }
 
   const runIntent = async (intent: AuthIntent, action: () => Promise<void>) => {
     try {
@@ -92,23 +143,46 @@ export function AuthEntryPoint({ className }: Props) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "pressable native-surface flex items-center gap-2 rounded-full border border-border/70 px-3 py-2 text-left shadow-[0_12px_40px_rgba(0,0,0,0.24)]",
-            "text-foreground/92 hover:border-border hover:text-foreground",
-            className,
-          )}
-          aria-label={buttonCopy.label}
-        >
-          <ButtonIcon className="h-4 w-4 text-foreground/78" strokeWidth={1.7} />
-          <span className="flex flex-col leading-none">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
-              {buttonCopy.label}
+        {triggerVariant === "rail-avatar" ? (
+          <button
+            type="button"
+            className={cn(
+              "pressable group flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78",
+              "hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+              className,
+            )}
+            aria-label={buttonCopy.label}
+            title={auth.user ? `Account: ${buttonCopy.detail}` : buttonCopy.label}
+          >
+            {auth.user ? (
+              <span className="text-[11px] font-medium tracking-[0.08em]">{avatarLabel}</span>
+            ) : (
+              <UserRound className="h-4 w-4" strokeWidth={1.7} />
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              "pressable group flex items-center gap-2 border border-border bg-background px-3 py-2 text-left",
+              "text-foreground/90 hover:border-border hover:bg-accent/40 hover:text-foreground",
+              className,
+            )}
+            aria-label={buttonCopy.label}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground/72 transition-colors group-hover:text-foreground/88">
+              <ButtonIcon className="h-4 w-4" strokeWidth={1.7} />
             </span>
-            <span className="text-[11px] text-muted-foreground">{buttonCopy.detail}</span>
-          </span>
-        </button>
+            <span className="flex min-w-0 flex-col leading-none">
+              <span className="block truncate text-[12px] font-medium tracking-[0.01em]">
+                {buttonCopy.label}
+              </span>
+              <span className="block truncate pt-0.5 text-[11px] text-muted-foreground">
+                {buttonCopy.detail}
+              </span>
+            </span>
+          </button>
+        )}
       </DialogPrimitive.Trigger>
 
       <DialogPrimitive.Portal>
@@ -116,63 +190,22 @@ export function AuthEntryPoint({ className }: Props) {
           className={cn(
             "fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "bg-[linear-gradient(180deg,hsl(var(--background)/0)_0%,hsl(var(--background)/0.15)_48%,hsl(var(--background)/0.68)_75%,hsl(var(--background)/0.94)_100%)] backdrop-blur-[3px]",
+            "bg-black/55 backdrop-blur-[2px]",
           )}
         />
         <DialogPrimitive.Content
           className={cn(
-            "native-panel fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-t-[2rem] border border-b-0 border-border/70",
-            "p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] outline-hidden duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+            "fixed left-1/2 top-1/2 z-50 max-h-[88dvh] w-[calc(100vw-1.5rem)] max-w-[26rem] -translate-x-1/2 -translate-y-1/2 overflow-hidden border border-border bg-card",
+            "p-6 outline-hidden duration-200 ease-out sm:p-7",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:slide-out-to-bottom-8 data-[state=open]:slide-in-from-bottom-8 motion-reduce:duration-150",
+            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 motion-reduce:duration-150",
           )}
         >
-          <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/16" />
-
-          <div className="space-y-5 overflow-y-auto px-1 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
-            <div className="space-y-2 pr-10">
-              <DialogPrimitive.Title className="text-lg font-semibold tracking-tight text-foreground">
-                Keep this workspace local, or sync it to your account
-              </DialogPrimitive.Title>
-              <DialogPrimitive.Description className="max-w-xl text-sm text-muted-foreground">
-                Privacy mode stays local-first and fastest. Signing in adds best-effort backup and
-                cross-device sync without changing how edits save locally.
-              </DialogPrimitive.Description>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="native-surface rounded-[1.5rem] border border-border/65 p-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Shield className="h-4 w-4 text-foreground/70" strokeWidth={1.6} />
-                  Privacy mode
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Local writes only. In private browsing, the browser may clear notes when the
-                  session ends.
-                </p>
-              </div>
-              <div className="native-surface rounded-[1.5rem] border border-border/65 p-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Cloud className="h-4 w-4 text-foreground/70" strokeWidth={1.6} />
-                  Signed-in mode
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Local writes still land first. Remote sync runs in the background for backup and
-                  multi-device continuity.
-                </p>
-              </div>
-            </div>
-
-            {!auth.isSupabaseConfigured && (
-              <div className="rounded-[1.25rem] border border-amber-400/30 bg-amber-400/8 px-4 py-3 text-sm text-amber-100/85">
-                Cloud auth is disabled until `NEXT_PUBLIC_SUPABASE_URL` and
-                `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set.
-              </div>
-            )}
-
+          <DialogTitle className="sr-only">Account</DialogTitle>
+          <div className="min-w-0 space-y-5 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
             {auth.user ? (
-              <div className="space-y-4">
-                <div className="native-surface rounded-[1.5rem] border border-border/65 p-4">
+              <div className="min-w-0 space-y-4">
+                <div className="border border-border bg-background p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-foreground">
@@ -180,35 +213,17 @@ export function AuthEntryPoint({ className }: Props) {
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">{auth.user.email}</p>
                     </div>
-                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/90">
+                    <span className="border border-border bg-background px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Sync on
                     </span>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 flex-1 rounded-xl border-border/70 bg-transparent"
-                    disabled={isPending}
-                    onClick={() =>
-                      void runIntent("privacy", async () => {
-                        await setPrivacyMode();
-                      })
-                    }
-                  >
-                    {pendingIntent === "privacy" ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Shield className="h-4 w-4" />
-                    )}
-                    Use privacy mode
-                  </Button>
+                <div className="flex min-w-0 flex-col gap-2">
                   <Button
                     type="button"
                     variant="default"
-                    className="h-11 flex-1 rounded-xl"
+                    className="h-11 w-full"
                     disabled={isPending}
                     onClick={() =>
                       void runIntent("sign-out", async () => {
@@ -223,11 +238,68 @@ export function AuthEntryPoint({ className }: Props) {
                     )}
                     Sign out
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full border-border bg-transparent"
+                    disabled={isPending}
+                    onClick={() =>
+                      void runIntent("privacy", async () => {
+                        await setPrivacyMode();
+                      })
+                    }
+                  >
+                    {pendingIntent === "privacy" ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserRound className="h-4 w-4" />
+                    )}
+                    Use privacy mode
+                  </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
+              <div className="min-w-0 space-y-4">
+                <div className="grid gap-2">
+                  <Button
+                    type="button"
+                    variant={auth.mode === "account" ? "default" : "outline"}
+                    className="h-11 w-full"
+                    disabled={isPending || !auth.isSupabaseConfigured}
+                    onClick={() =>
+                      void runIntent("account", async () => {
+                        await enableAccountMode();
+                      })
+                    }
+                  >
+                    {pendingIntent === "account" ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Cloud className="h-4 w-4" />
+                    )}
+                    Account mode
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={auth.mode === "privacy" ? "default" : "outline"}
+                    className="h-11 w-full border-border bg-transparent"
+                    disabled={isPending}
+                    onClick={() =>
+                      void runIntent("privacy", async () => {
+                        await setPrivacyMode();
+                      })
+                    }
+                  >
+                    {pendingIntent === "privacy" ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserRound className="h-4 w-4" />
+                    )}
+                    Privacy mode
+                  </Button>
+                </div>
+
+                <div className="grid gap-3">
                   <label className="space-y-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Email
@@ -237,7 +309,7 @@ export function AuthEntryPoint({ className }: Props) {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@example.com"
-                      className="native-surface h-11 w-full rounded-xl border border-border/70 px-3 text-sm text-foreground outline-hidden placeholder:text-muted-foreground/70 focus:border-border"
+                      className="h-11 w-full border border-border bg-background px-3 text-sm text-foreground outline-hidden placeholder:text-muted-foreground/70 focus:border-border"
                     />
                   </label>
                   <label className="space-y-2">
@@ -249,25 +321,25 @@ export function AuthEntryPoint({ className }: Props) {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
-                      className="native-surface h-11 w-full rounded-xl border border-border/70 px-3 text-sm text-foreground outline-hidden placeholder:text-muted-foreground/70 focus:border-border"
+                      className="h-11 w-full border border-border bg-background px-3 text-sm text-foreground outline-hidden placeholder:text-muted-foreground/70 focus:border-border"
                     />
                   </label>
                 </div>
 
-                <label className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5 text-sm text-muted-foreground">
+                <label className="flex items-center gap-3 border border-border px-3 py-2.5 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-4 w-4 rounded border-border bg-transparent"
+                    className="h-4 w-4 border-border bg-transparent"
                   />
                   Remember me on this browser
                 </label>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
                   <Button
                     type="button"
-                    className="h-11 rounded-xl"
+                    className="h-11 w-full"
                     disabled={isPending || !auth.isSupabaseConfigured || !email || !password}
                     onClick={() =>
                       void runIntent("sign-in", async () => {
@@ -285,7 +357,7 @@ export function AuthEntryPoint({ className }: Props) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 rounded-xl border-border/70 bg-transparent"
+                    className="h-11 w-full border-border bg-transparent"
                     disabled={isPending || !auth.isSupabaseConfigured || !email || !password}
                     onClick={() =>
                       void runIntent("sign-up", async () => {
@@ -302,79 +374,46 @@ export function AuthEntryPoint({ className }: Props) {
                   </Button>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 rounded-xl border-border/70 bg-transparent"
+                <div className="grid gap-2">
+                  <OAuthButton
+                    label="Continue with Google"
+                    icon={<Cloud className="h-4 w-4" />}
+                    loading={pendingIntent === "google"}
                     disabled={isPending || !auth.isSupabaseConfigured}
                     onClick={() =>
                       void runIntent("google", async () => {
                         await signInWithOAuth("google", { rememberMe });
                       })
                     }
-                  >
-                    {pendingIntent === "google" ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Cloud className="h-4 w-4" />
-                    )}
-                    Continue with Google
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 rounded-xl border-border/70 bg-transparent"
+                  />
+                  <OAuthButton
+                    label="Continue with GitHub"
+                    icon={<Github className="h-4 w-4" />}
+                    loading={pendingIntent === "github"}
                     disabled={isPending || !auth.isSupabaseConfigured}
                     onClick={() =>
                       void runIntent("github", async () => {
                         await signInWithOAuth("github", { rememberMe });
                       })
                     }
-                  >
-                    {pendingIntent === "github" ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Github className="h-4 w-4" />
-                    )}
-                    Continue with GitHub
-                  </Button>
+                  />
                 </div>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-11 w-full rounded-xl text-muted-foreground hover:text-foreground"
-                  disabled={isPending}
-                  onClick={() =>
-                    void runIntent("privacy", async () => {
-                      await setPrivacyMode();
-                    })
-                  }
-                >
-                  {pendingIntent === "privacy" ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Shield className="h-4 w-4" />
-                  )}
-                  Continue in privacy mode
-                </Button>
-
                 <p className="text-xs text-muted-foreground">
-                  This build skips email verification. If sign-up returns no session, disable email
-                  confirmation in Supabase Auth settings.
+                  Privacy mode never touches Supabase. If account sign-up returns no session,
+                  disable email confirmation in Supabase Auth settings.
                 </p>
               </div>
             )}
 
             {message && (
-              <div className="rounded-[1.25rem] border border-border/65 bg-accent/35 px-4 py-3 text-sm text-foreground/88">
+              <div className="border border-border bg-accent/35 px-4 py-3 text-sm text-foreground/88">
                 {message}
               </div>
             )}
           </div>
 
-          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full border border-border/65 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+          <DialogPrimitive.Close className="absolute right-4 top-4 border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
             Close
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>

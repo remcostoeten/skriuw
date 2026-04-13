@@ -6,180 +6,43 @@ import {
 } from "@/core/persistence/repositories";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
-import { usePreferencesStore, type TemplateStyle } from "@/store/preferences-store";
+import { usePreferencesStore } from "@/features/settings/store";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { getAuthActorId } from "@/platform/auth";
 
-function generateNoteContent(name: string, template: TemplateStyle): string {
+function generateNoteContent(name: string): string {
   const title = name.replace(".md", "");
-  const date = new Date().toISOString().split("T")[0];
-
-  switch (template) {
-    case "notion":
-      return `# ${title}
-created: ${date}
-updated: ${date}
-
-Start writing here...`;
-
-    case "journal": {
-      const dateStr = new Date().toLocaleDateString("nl-NL", {
-        weekday: "long",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const timeStr = new Date().toLocaleTimeString("nl-NL", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-      return `# ${dateStr}
-
-mood: neutral
-tags: 
-
----
-
-*${timeStr}*
+  return `# ${title}
 
 `;
-    }
-
-    case "simple":
-    default:
-      return `# ${title}
-
-`;
-  }
 }
 
-const initialFolders: NoteFolder[] = [
-  { id: "folder-1", name: "Untitled 1", parentId: null, isOpen: true },
-  { id: "folder-2", name: "Untitled 2", parentId: "folder-1", isOpen: true },
-  { id: "folder-3", name: "Untitled", parentId: "folder-2", isOpen: false },
-  { id: "folder-4", name: "Untitled 3", parentId: null, isOpen: false },
-];
+function buildStarterNote(): NoteFile {
+  const content = `# Welcome
 
-function withCanonicalDocumentState(file: Omit<NoteFile, "richContent" | "preferredEditorMode">): NoteFile {
+This workspace starts with one note instead of an empty state.
+
+## Try rich text
+
+- Turn this into a heading
+- Add a checklist
+- Paste a link
+- Write a few lines and switch editor modes
+
+> The first note should feel usable immediately.
+`;
+
   return {
-    ...file,
-    richContent: markdownToRichDocument(file.content),
+    id: crypto.randomUUID(),
+    name: "Welcome.md",
+    content,
+    richContent: markdownToRichDocument(content),
     preferredEditorMode: "block",
+    createdAt: new Date(),
+    modifiedAt: new Date(),
+    parentId: null,
   };
 }
-
-const initialFiles: NoteFile[] = [
-  {
-    id: "nested-untitled",
-    name: "Untitled.md",
-    content: `# Untitled\n`,
-    createdAt: new Date(Date.now() - 38000),
-    modifiedAt: new Date(Date.now() - 4000),
-    parentId: "folder-1",
-  },
-  {
-    id: "readme",
-    name: "README.md",
-    content: `# README
-
-Haptic is a new local-first & privacy-focused, open-source home for your markdown notes. It's minimal, lightweight, efficient, and aims to have *all you need and nothing you don't*.
-
----
-
-If you'd like to learn more about Haptic, why it's being built, what its goals are, and how it differs from all the other markdown editors out there, click around the other files in this collection.
-
-## Tech Stack
-
-- **Tauri** – Desktop App
-- **PGlite** – Local Database
-- **Svelte** – Framework
-- **Tailwind** – CSS
-- **Shadcn/ui** – Component Library
-- **Vercel** – Hosting
-
-## Deploy Your Own
-
-If you're interested in self-hosting your own web instance of Haptic, please check GitHub for instructions.
-
-## Roadmap
-
-Haptic is currently still in active development. Here are some of the features planned for the future:
-
-- [ ] Haptic Sync
-- [ ] Mobile support for the web app (Currently dependent on PGlite support for mobile)
-- [ ] Native mobile apps for iOS & Android
-- [ ] Windows & Linux support for the desktop app
-
-and much, much more, so stay tuned!
-
-## Contributing
-
-We would love to have your help in making Haptic better!
-Here's how you can contribute:
-
-- **Report a bug** you found while using Haptic
-- **Request a feature** that you think will be useful
-- **Submit a pull request** if you want to contribute with new features or bug fixes
-
-## License
-
-Haptic is licensed under the GNU Affero General Public License Version 3 (AGPLv3).`,
-    createdAt: new Date("2024-01-15"),
-    modifiedAt: new Date("2024-03-01"),
-    parentId: null,
-  },
-  {
-    id: "supported-devices",
-    name: "Supported Devices.md",
-    content: `# Supported Devices
-
-Haptic is currently available on the following platforms:
-
-## Desktop
-- **macOS** – Full support (Apple Silicon & Intel)
-
-## Web
-- **Chrome** – Full support
-- **Firefox** – Full support
-- **Safari** – Full support
-- **Edge** – Full support
-
-## Coming Soon
-- Windows desktop app
-- Linux desktop app
-- iOS native app
-- Android native app`,
-    createdAt: new Date("2024-01-20"),
-    modifiedAt: new Date("2024-02-15"),
-    parentId: null,
-  },
-  {
-    id: "why-haptic",
-    name: "Why Haptic.md",
-    content: `# Why Haptic?
-
-In a world full of note-taking apps, why build another one?
-
-## The Problem
-
-Most note-taking apps today are either:
-1. **Too complex** – They try to do everything and end up doing nothing well
-2. **Not private** – Your notes are stored on someone else's servers
-3. **Subscription-heavy** – You pay monthly for basic functionality
-
-## Our Solution
-
-Haptic takes a different approach:
-
-- **Local-first**: Your data stays on your device
-- **Privacy-focused**: No tracking, no analytics, no data collection
-- **Minimal**: Only the features you need, nothing more
-- **Open-source**: Transparent and community-driven
-- **Free**: Core functionality will always be free`,
-    createdAt: new Date("2024-01-22"),
-    modifiedAt: new Date("2024-02-20"),
-    parentId: null,
-  },
-].map(withCanonicalDocumentState);
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -214,42 +77,12 @@ function applyFolderUiState(nextFolders: NoteFolder[], currentFolders: NoteFolde
   }));
 }
 
-async function seedInitialNotesData() {
-  for (const folder of initialFolders) {
-    await foldersRepository.create({
-      id: folder.id as FolderId,
-      name: folder.name,
-      parentId: folder.parentId as FolderId | null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  }
-
-  for (const file of initialFiles) {
-    await notesRepository.create({
-      id: file.id as NoteId,
-      name: file.name,
-      content: file.content as MarkdownContent,
-      richContent: markdownToRichDocument(file.content),
-      preferredEditorMode: "block",
-      parentId: file.parentId as FolderId | null,
-      createdAt: file.createdAt,
-      updatedAt: file.modifiedAt,
-    });
-  }
-
-  return {
-    files: initialFiles,
-    folders: initialFolders,
-    activeFileId: "readme",
-  };
-}
-
 type NotesState = {
   files: NoteFile[];
   folders: NoteFolder[];
   activeFileId: string;
   isHydrated: boolean;
+  hydratedForActorId: string | null;
   saveStates: Record<string, SaveStatus>;
   initialize: () => Promise<void>;
   getFileSaveState: (id: string | null | undefined) => SaveStatus;
@@ -278,38 +111,36 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   folders: [],
   activeFileId: "",
   isHydrated: false,
+  hydratedForActorId: null,
   saveStates: {},
 
   initialize: async () => {
-    if (get().isHydrated) return;
+    const actorId = getAuthActorId();
+    if (get().isHydrated && get().hydratedForActorId === actorId) return;
 
     const [persistedFiles, persistedFolders] = await Promise.all([
       notesRepository.list(),
       foldersRepository.list(),
     ]);
 
-    if (persistedFiles.length === 0 && persistedFolders.length === 0) {
-      const seeded = await seedInitialNotesData();
-      set({
-        files: seeded.files,
-        folders: seeded.folders,
-        activeFileId: seeded.activeFileId,
-        isHydrated: true,
-      });
-      return;
-    }
+    const files =
+      persistedFiles.length > 0
+        ? persistedFiles
+        : [await notesRepository.create(buildStarterNote())];
 
     const nextFolders = applyFolderUiState(persistedFolders, get().folders);
     const activeFileId =
-      persistedFiles.find((file) => file.id === get().activeFileId)?.id ??
-      persistedFiles[0]?.id ??
+      files.find((file) => file.id === get().activeFileId)?.id ??
+      files[0]?.id ??
       "";
 
     set({
-      files: persistedFiles,
+      files,
       folders: nextFolders,
       activeFileId,
       isHydrated: true,
+      hydratedForActorId: actorId,
+      saveStates: {},
     });
   },
 
@@ -323,9 +154,8 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   createFile: (name, parentId = null) => {
-    const template = usePreferencesStore.getState().templateStyle;
     const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
-    const generatedContent = generateNoteContent(name, template);
+    const generatedContent = generateNoteContent(name);
     const richContent = markdownToRichDocument(generatedContent);
     const preferredEditorMode = defaultModeRaw ? "raw" : "block";
     const newFile: NoteFile = {
@@ -371,7 +201,6 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         }));
       });
 
-    usePreferencesStore.getState().recordTemplateUsage(template);
     usePreferencesStore.getState().incrementNoteCount();
 
     return newFile;

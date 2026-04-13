@@ -1,20 +1,19 @@
 # Haptic - Notes
 
-A minimal, keyboard-first note-taking application built with Next.js, React, and TypeScript.
+A keyboard-first note-taking application built with Next.js, React, and TypeScript.
 
 ## Features
 
 - **Markdown and Rich Text Editing**: Switch between markdown and rich text modes
 - **File Management**: Create, organize, and manage notes with folders
 - **Keyboard-First**: Optimized for keyboard navigation and shortcuts
-- **Dark/Light Theme**: Built-in theme support
-- **Responsive Design**: Works seamlessly on desktop and mobile
-- **Local-First Storage**: All notes save locally first, with optional Supabase backup/sync
-- **Privacy Mode**: Continue without an account when you want local-only notes
+- **Responsive Design**: Works on desktop and mobile
+- **Cloud Workspace**: Notes, folders, journal entries, and tags are loaded from Supabase
+- **Privacy Mode**: Open an on-device workspace without signing in, with a seeded demo dataset for first-run testing
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 with App Router
+- **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **UI Components**: Custom components with Radix UI primitives
@@ -34,7 +33,7 @@ A minimal, keyboard-first note-taking application built with Next.js, React, and
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd skriuwv2
+cd theme-ui-clone
 
 # Install dependencies
 npm install
@@ -53,9 +52,14 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Optional Supabase Auth + Sync
+### Supabase Setup
 
-Cloud backup/sync is optional. Privacy mode still works without any auth setup.
+This build supports both:
+
+- `Account mode`: Supabase-backed auth and synced records
+- `Privacy mode`: local on-device storage with no sign-in required
+
+If you want account mode, copy the env template first:
 
 ```bash
 cp .env.example .env.local
@@ -73,6 +77,7 @@ Supabase project notes:
 - Enable Email/Password, Google, and GitHub providers if you want all auth options in the drawer.
 - Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
 - Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
+- The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, and `tags`, each scoped by `user_id` with RLS enabled.
 
 ### Build
 
@@ -85,16 +90,13 @@ npm run start
 
 ```
 src/
-├── app/                    # Next.js app router pages
-├── components/
-│   ├── haptic/            # Core application components
-│   └── ui/                # Reusable UI components
-├── hooks/                 # Custom React hooks
-├── lib/                   # Utility functions
-├── modules/               # Feature modules (settings, auth)
-├── providers/             # React context providers
-├── store/                 # Zustand stores
-└── types/                 # TypeScript type definitions
+├── app/          # Route entry points and top-level composition
+├── features/     # Product features: notes, journal, settings, layout, tags
+├── platform/     # Auth and platform/runtime integrations
+├── shared/       # Reusable UI primitives and generic helpers
+├── core/         # Persistence adapters and repository layer
+├── providers/    # App-level providers and bootstrapping
+└── types/        # Shared TypeScript types still used across older layers
 ```
 
 ## Usage
@@ -122,16 +124,19 @@ src/
 
 ### Adding New Components
 
-1. Create component in `src/components/haptic/` for app-specific components
-2. Create component in `src/components/ui/` for reusable UI components
-3. Follow existing naming conventions and TypeScript patterns
+1. Put feature-specific UI and state under `src/features/<feature>/`
+2. Put shared UI primitives in `src/shared/ui/`
+3. Keep route files in `src/app/` thin and focused on composition
+4. Put auth and runtime integrations in `src/platform/`
 
 ### State Management
 
-The app uses Zustand for state management:
+The app uses colocated Zustand stores inside the owning feature where possible:
 
-- `notesStore`: File and folder management
-- `settingsStore`: User preferences and settings
+- `features/notes/store.ts`: note and folder state
+- `features/settings/store.ts`: local UI/preferences state
+- `features/layout/store.ts`: shell UI state
+- `features/tags/store.ts`: tag data
 
 ### Styling
 

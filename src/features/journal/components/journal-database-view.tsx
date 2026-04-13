@@ -134,7 +134,7 @@ export function JournalDatabaseView({ onSelectEntry, onNewEntry }: JournalDataba
 
       {/* Filter tabs + actions */}
       <div className="mx-auto w-full max-w-[900px] px-8 md:px-16">
-        <div className="mt-6 flex items-center gap-2 border-b border-border/40 pb-0">
+        <div className="mt-6 flex items-center gap-2 border-b border-border pb-0">
           {/* Tabs */}
           <div className="flex items-center gap-0.5">
             {tabs.map((tab) => (

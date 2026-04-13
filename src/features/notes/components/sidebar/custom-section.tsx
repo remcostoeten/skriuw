@@ -4,7 +4,7 @@ import { memo, useMemo } from "react";
 import { Folder, FileText, X } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { SidebarSection as SidebarSectionType } from "@/modules/sidebar";
+import type { SidebarSection as SidebarSectionType } from "./types";
 import { SidebarSection } from "./sidebar-section";
 
 type Props = {
@@ -13,6 +13,8 @@ type Props = {
   foldersById: Map<string, NoteFolder>;
   activeFileId: string;
   isCollapsed: boolean;
+  showHeader?: boolean;
+  compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
   onRename: (name: string) => void;
@@ -27,6 +29,8 @@ export const CustomSection = memo(function CustomSection({
   foldersById,
   activeFileId,
   isCollapsed,
+  showHeader = true,
+  compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
   onRename,
@@ -51,6 +55,8 @@ export const CustomSection = memo(function CustomSection({
       id={section.id}
       title={section.name}
       isCollapsed={isCollapsed}
+      showHeader={showHeader}
+      compactMode={compactMode}
       isCustom
       itemCount={totalItems}
       onToggleCollapse={onToggleCollapse}
@@ -59,15 +65,18 @@ export const CustomSection = memo(function CustomSection({
       onDelete={onDelete}
     >
       {totalItems === 0 ? (
-        <div className="px-2 py-1">
+        <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>
           <p className="text-[11px] text-muted-foreground/50">Right-click files to add</p>
         </div>
       ) : (
-        <div className="space-y-px px-1">
+        <div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
           {sectionFolders.map((folder) => (
             <div
               key={folder.id}
-              className="group flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs text-foreground/60 transition-colors hover:bg-white/[0.045] hover:text-foreground"
+              className={cn(
+                "group flex w-full items-center gap-2 rounded-md px-2 text-xs text-foreground/60 transition-colors hover:bg-white/[0.045] hover:text-foreground",
+                compactMode ? "h-6" : "h-7",
+              )}
             >
               <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
               <span className="flex-1 truncate">{folder.name}</span>
@@ -84,7 +93,8 @@ export const CustomSection = memo(function CustomSection({
             <div
               key={file.id}
               className={cn(
-                "group flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors",
+                "group flex w-full items-center gap-2 rounded-md px-2 text-xs transition-colors",
+                compactMode ? "h-6" : "h-7",
                 file.id === activeFileId
                   ? "bg-white/[0.07] text-foreground"
                   : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground",

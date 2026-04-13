@@ -8,6 +8,8 @@ type Props = {
   id: string;
   title: string;
   isCollapsed: boolean;
+  showHeader?: boolean;
+  compactMode?: boolean;
   isCustom?: boolean;
   itemCount?: number;
   onToggleCollapse: () => void;
@@ -22,6 +24,8 @@ export function SidebarSection({
   id: _id,
   title,
   isCollapsed,
+  showHeader = true,
+  compactMode = false,
   isCustom = false,
   itemCount,
   onToggleCollapse,
@@ -64,111 +68,131 @@ export function SidebarSection({
   }, [showMenu]);
 
   return (
-    <section className="mx-2 mb-0.5 last:mb-0">
-      <div className="group relative flex min-h-8 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/[0.025] md:h-7 md:min-h-0">
-        <button
-          onClick={onToggleCollapse}
-          className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground"
+    <section className={cn("mx-2 last:mb-0", compactMode ? "mb-0.25" : "mb-0.5")}>
+      {showHeader && (
+        <div
+          className={cn(
+            "group relative flex items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/[0.025]",
+            compactMode ? "min-h-7" : "min-h-8 md:h-7 md:min-h-0",
+          )}
         >
-          <ChevronRight
-            className={cn("h-3 w-3 transition-transform", !isCollapsed && "rotate-90")}
-            strokeWidth={1.5}
-          />
-        </button>
+          <button
+            onClick={onToggleCollapse}
+            className={cn(
+              "flex items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground",
+              compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
+            )}
+          >
+            <ChevronRight
+              className={cn("transition-transform", compactMode ? "h-2.5 w-2.5" : "h-3 w-3", !isCollapsed && "rotate-90")}
+              strokeWidth={1.5}
+            />
+          </button>
 
-        {isEditing ? (
-          <input
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleRename();
-              if (e.key === "Escape") {
-                setEditValue(title);
-                setIsEditing(false);
-              }
-            }}
-            className="flex-1 bg-transparent text-[11px] font-medium uppercase tracking-wide text-muted-foreground outline-none border-b border-foreground/30"
-            autoFocus
-          />
-        ) : (
-          <span className="flex-1 truncate pr-8 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
-            {title}
-          </span>
-        )}
-
-        <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center justify-end">
-          {itemCount !== undefined && (
-            <span className="w-4 shrink-0 text-right text-[10px] text-muted-foreground/40 tabular-nums transition-opacity md:group-hover:opacity-0">
-              {itemCount}
+          {isEditing ? (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRename();
+                if (e.key === "Escape") {
+                  setEditValue(title);
+                  setIsEditing(false);
+                }
+              }}
+              className={cn(
+                "flex-1 bg-transparent font-medium uppercase tracking-wide text-muted-foreground outline-none border-b border-foreground/30",
+                compactMode ? "text-[10px]" : "text-[11px]",
+              )}
+              autoFocus
+            />
+          ) : (
+            <span
+              className={cn(
+                "flex-1 truncate pr-8 font-medium uppercase tracking-wide text-muted-foreground/60",
+                compactMode ? "text-[10px]" : "text-[11px]",
+              )}
+            >
+              {title}
             </span>
           )}
-        </div>
 
-        <div className="absolute inset-y-0 right-1.5 flex items-center justify-end gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-          {actions}
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center justify-end">
+            {itemCount !== undefined && (
+              <span className="w-4 shrink-0 text-right text-[10px] text-muted-foreground/40 tabular-nums transition-opacity md:group-hover:opacity-0">
+                {itemCount}
+              </span>
+            )}
+          </div>
 
-          {(isCustom || onToggleVisibility) && (
-            <div className="relative">
-              <button
-                ref={buttonRef}
-                onClick={() => setShowMenu(!showMenu)}
-                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-white/[0.04] hover:text-foreground md:h-4 md:w-4"
-              >
-                <MoreHorizontal className="w-3 h-3" strokeWidth={1.5} />
-              </button>
+          <div className="absolute inset-y-0 right-1.5 flex items-center justify-end gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+            {actions}
 
-              {showMenu && (
-                <div
-                  ref={menuRef}
-                  className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden rounded-xl border border-white/8 bg-popover/96 p-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 backdrop-blur-xl"
+            {(isCustom || onToggleVisibility) && (
+              <div className="relative">
+                <button
+                  ref={buttonRef}
+                  onClick={() => setShowMenu(!showMenu)}
+                  className={cn(
+                    "flex items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-white/[0.04] hover:text-foreground",
+                    compactMode ? "h-4 w-4" : "h-5 w-5 md:h-4 md:w-4",
+                  )}
                 >
-                  {onRename && (
-                    <button
-                      onClick={() => {
-                        setIsEditing(true);
-                        setShowMenu(false);
-                      }}
-                      className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Rename
-                    </button>
-                  )}
-                  {onToggleVisibility && (
-                    <button
-                      onClick={() => {
-                        onToggleVisibility();
-                        setShowMenu(false);
-                      }}
-                      className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <EyeOff className="w-3.5 h-3.5" />
-                      Hide section
-                    </button>
-                  )}
-                  {isCustom && onDelete && (
-                    <button
-                      onClick={() => {
-                        onDelete();
-                        setShowMenu(false);
-                      }}
-                      className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-red-400 outline-none hover:bg-accent"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+                  <MoreHorizontal className="h-3 w-3" strokeWidth={1.5} />
+                </button>
 
-      {/* Section content */}
-      {!isCollapsed && <div className="pb-2 pt-0.5">{children}</div>}
+                {showMenu && (
+                  <div
+                    ref={menuRef}
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden rounded-xl border border-white/8 bg-popover/96 p-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 backdrop-blur-xl"
+                  >
+                    {onRename && (
+                      <button
+                        onClick={() => {
+                          setIsEditing(true);
+                          setShowMenu(false);
+                        }}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Rename
+                      </button>
+                    )}
+                    {onToggleVisibility && (
+                      <button
+                        onClick={() => {
+                          onToggleVisibility();
+                          setShowMenu(false);
+                        }}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                        Hide section
+                      </button>
+                    )}
+                    {isCustom && onDelete && (
+                      <button
+                        onClick={() => {
+                          onDelete();
+                          setShowMenu(false);
+                        }}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-red-400 outline-none hover:bg-accent"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isCollapsed && <div className={cn(showHeader ? "pb-2 pt-0.5" : "pb-1 pt-0")}>{children}</div>}
     </section>
   );
 }

@@ -278,10 +278,10 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         }
         .blocknote-wrapper .bn-editor {
           box-sizing: border-box;
-          padding-left: 2rem;
-          padding-right: 2rem;
-          padding-top: 2rem;
-          padding-bottom: 2rem;
+          padding-left: 0;
+          padding-right: 0;
+          padding-top: 0;
+          padding-bottom: 0;
           width: 100%;
           max-width: 42rem;
           margin: 0 auto;
@@ -293,8 +293,12 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           line-height: 1.7;
         }
         .blocknote-wrapper [data-content-type="heading"] {
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
+          margin-top: 0.5rem;
+          margin-bottom: 0.35rem;
+        }
+        .blocknote-wrapper .bn-block-group:first-child [data-content-type="heading"],
+        .blocknote-wrapper .bn-block-group:first-child .bn-block-content[data-content-type="heading"] {
+          margin-top: 0;
         }
         .blocknote-wrapper .bn-inline-content code {
           background: hsl(220 12% 14%);
@@ -317,7 +321,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         /* Override any mantine styles */
         .blocknote-wrapper .mantine-Paper-root,
         .blocknote-wrapper [class*="mantine-"] {
-          --mantine-color-body: #1e1e1e;
+          --mantine-color-body: hsl(var(--background));
         }
       `}</style>
     </div>

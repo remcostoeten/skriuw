@@ -1,17 +1,16 @@
-import { createNote, destroyNote, readNotes, updateNote } from "@/core/notes";
 import type { CreateNoteInput, UpdateNoteInput } from "@/core/notes";
 import { fromPersistedNote, toPersistedNote } from "@/core/notes";
 import { PERSISTED_STORE_NAMES, type NoteId } from "@/core/shared/persistence-types";
-import {
-  destroyPGliteRecord,
-  getPGliteRecord,
-  listPGliteRecords,
-  putPGliteRecord,
-} from "@/core/persistence/pglite";
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
-import { pushRecordToRemote, deleteRecordFromRemote } from "@/core/persistence/supabase";
-import { resolveLocalPersistenceBackend } from "./local-backend";
+import {
+  canUseRemotePersistence,
+  getRemoteRecord,
+  listRemoteRecords,
+  putRemoteRecord,
+  softDeleteRemoteRecord,
+} from "@/core/persistence/supabase";
+import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
 
 export interface NotesRepository {
   list(): Promise<NoteFile[]>;
@@ -20,16 +19,11 @@ export interface NotesRepository {
   destroy(id: NoteId): Promise<void>;
 }
 
-export const indexedDbNotesRepository: NotesRepository = {
-  list: () => readNotes(),
-  create: (input) => createNote(input),
-  update: (input) => updateNote(input),
-  destroy: (id) => destroyNote(id),
-};
-
-export const pGliteNotesRepository: NotesRepository = {
+export const notesRepository: NotesRepository = {
   list: async () => {
-    const records = await listPGliteRecords(PERSISTED_STORE_NAMES.notes);
+    const records = canUseRemotePersistence()
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes)
+      : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
     return records.map(fromPersistedNote);
   },
   create: async (input) => {
@@ -44,16 +38,20 @@ export const pGliteNotesRepository: NotesRepository = {
       createdAt: timestamp,
       modifiedAt: input.updatedAt ?? timestamp,
     };
-
     const persistedNote = toPersistedNote(note);
-    await putPGliteRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.notes, persistedNote as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
+    }
 
     return fromPersistedNote(persistedNote);
   },
   update: async (input) => {
-    const existing = await getPGliteRecord(PERSISTED_STORE_NAMES.notes, input.id);
+    const existing = canUseRemotePersistence()
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id)
+      : await getLocalRecord(PERSISTED_STORE_NAMES.notes, input.id);
+
     if (!existing) {
       return undefined;
     }
@@ -76,39 +74,16 @@ export const pGliteNotesRepository: NotesRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    await putPGliteRecord(PERSISTED_STORE_NAMES.notes, updated);
-
-    void pushRecordToRemote(PERSISTED_STORE_NAMES.notes, updated as unknown as Record<string, unknown>);
+    if (canUseRemotePersistence()) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated);
+    } else {
+      await putLocalRecord(PERSISTED_STORE_NAMES.notes, updated);
+    }
 
     return fromPersistedNote(updated);
   },
-  destroy: async (id) => {
-    await destroyPGliteRecord(PERSISTED_STORE_NAMES.notes, id);
-    void deleteRecordFromRemote(PERSISTED_STORE_NAMES.notes, id);
-  },
-};
-
-export const notesRepository: NotesRepository = {
-  list: async () => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite" ? pGliteNotesRepository.list() : indexedDbNotesRepository.list();
-  },
-  create: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteNotesRepository.create(input)
-      : indexedDbNotesRepository.create(input);
-  },
-  update: async (input) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteNotesRepository.update(input)
-      : indexedDbNotesRepository.update(input);
-  },
-  destroy: async (id) => {
-    const backend = await resolveLocalPersistenceBackend();
-    return backend === "pglite"
-      ? pGliteNotesRepository.destroy(id)
-      : indexedDbNotesRepository.destroy(id);
-  },
+  destroy: (id) =>
+    canUseRemotePersistence()
+      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id)
+      : destroyLocalRecord(PERSISTED_STORE_NAMES.notes, id),
 };

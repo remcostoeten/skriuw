@@ -1,10 +1,8 @@
 "use client";
 
-import { Code, Settings2, Sun, Moon, Type } from "lucide-react";
+import { Code, Settings2, Type } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 
 type EditorMode = "raw" | "block";
 
@@ -24,52 +22,18 @@ export function BottomBar({
   isMobile = false,
   onOpenSettings,
 }: Props) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    triggerNativeFeedback("selection");
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   if (isMobile) {
     return (
-      <div className="native-panel relative border-t border-border/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-2.5">
-        <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-foreground/12 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-14 bg-gradient-to-b from-white/[0.035] to-transparent" />
-        <div className="mx-auto grid max-w-xl grid-cols-[0.95fr_1.3fr_0.95fr] gap-2">
-          <button
-            onClick={toggleTheme}
-            className="pressable native-surface group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
-            title="Toggle theme"
-          >
-            <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/70 transition-colors group-hover:text-foreground/65">
-              Theme
-            </span>
-            <span className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-medium tracking-[0.04em]">
-                {mounted && theme === "light" ? "Night" : "Light"}
-              </span>
-              {mounted && theme === "light" ? (
-                <Moon className="h-4 w-4" strokeWidth={1.7} />
-              ) : (
-                <Sun className="h-4 w-4" strokeWidth={1.7} />
-              )}
-            </span>
-          </button>
+      <div className="relative border-t border-border/60 bg-background px-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-2.5">
+        <div className="mx-auto grid max-w-xl grid-cols-2 gap-2">
           <button
             onClick={() => {
               triggerNativeFeedback("impact");
               onToggleEditorMode();
             }}
-            className="pressable relative flex min-h-[58px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background shadow-[0_14px_30px_rgba(0,0,0,0.28)] transition-all hover:opacity-95"
+            className="pressable flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background transition-all hover:opacity-95"
             title={editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX"}
           >
-            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
             <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-background/55">
               Editor
             </span>
@@ -90,7 +54,7 @@ export function BottomBar({
               triggerNativeFeedback("selection");
               onOpenSettings?.();
             }}
-            className="pressable native-surface group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
+            className="pressable group flex min-h-[58px] min-w-0 flex-col justify-between rounded-xl border border-border/65 bg-card px-3 py-2.5 text-left text-muted-foreground transition-all hover:border-border hover:text-foreground"
             title="Open settings"
           >
             <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/70 transition-colors group-hover:text-foreground/65">
@@ -107,16 +71,8 @@ export function BottomBar({
   }
 
   return (
-    <div className="native-panel flex h-8 items-center justify-between border-t border-border px-3">
-      <div className="flex items-center gap-1">
-        <button className={desktopIconButtonClass} onClick={toggleTheme} title="Toggle theme">
-          {mounted && theme === "light" ? (
-            <Moon className="w-3.5 h-3.5" strokeWidth={1.5} />
-          ) : (
-            <Sun className="w-3.5 h-3.5" strokeWidth={1.5} />
-          )}
-        </button>
-      </div>
+    <div className="flex h-8 items-center justify-between border-t border-border bg-background px-3">
+      <div className="min-w-[28px]" />
       <button
         onClick={onToggleEditorMode}
         className={cn(

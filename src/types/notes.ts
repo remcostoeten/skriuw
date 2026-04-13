@@ -1,9 +1,5 @@
 import type { PartialBlock } from "@blocknote/core";
-import type { MoodLevel } from "@/features/journal/types";
-
-// Re-export journal mood types from their canonical location
-export type { MoodLevel, Mood } from "@/features/journal/types";
-export { MOOD_OPTIONS } from "@/features/journal/types";
+import type { MoodLevel } from "@/types/journal";
 
 export type NoteEditorMode = "raw" | "block";
 export type RichTextDocument = PartialBlock[];
