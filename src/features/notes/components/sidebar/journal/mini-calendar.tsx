@@ -50,7 +50,7 @@ export function MiniCalendar({
       <div className="mb-1.5 flex items-center justify-between">
         <button
           onClick={() => onChangeMonth(subMonths(currentMonth, 1))}
-          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
         >
           <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
@@ -59,7 +59,7 @@ export function MiniCalendar({
         </span>
         <button
           onClick={() => onChangeMonth(addMonths(currentMonth, 1))}
-          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
         >
           <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
@@ -91,11 +91,11 @@ export function MiniCalendar({
               key={dateKey}
               onClick={() => onSelectDate(day)}
               className={cn(
-                'relative flex h-7 w-full items-center justify-center rounded-md text-[11px] transition-colors',
+                'relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors',
                 !inCurrentMonth && 'text-muted-foreground/30',
-                inCurrentMonth && !isSelected && 'text-foreground/70 hover:bg-accent/60',
-                isSelected && 'bg-foreground text-background font-medium',
-                dayIsToday && !isSelected && 'font-semibold text-foreground',
+                inCurrentMonth && !isSelected && 'text-foreground/70 hover:border-border hover:bg-muted',
+                isSelected && 'border-border bg-muted text-foreground font-medium',
+                dayIsToday && !isSelected && 'border-border font-semibold text-foreground',
               )}
             >
               {format(day, 'd')}

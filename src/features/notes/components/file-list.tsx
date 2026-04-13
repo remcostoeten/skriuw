@@ -642,13 +642,13 @@ export const FileList = memo(function FileList({
               aria-selected={isSelected}
               tabIndex={focusedItemKey === getItemKey(folderItem) ? 0 : -1}
               className={cn(
-                "group flex w-full items-center justify-between rounded-md text-xs font-medium transition-colors",
+                "group flex w-full items-center justify-between border border-transparent text-xs font-medium transition-colors",
                 compactMode ? "h-6" : "h-7",
                 isSelected
-                  ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-                  : "text-foreground/70 hover:bg-white/[0.045] hover:text-foreground/88",
+                  ? "border-border bg-muted text-foreground"
+                  : "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
                 isDragging && "opacity-50",
-                isDropTarget && "bg-primary/12 ring-1 ring-white/10",
+                isDropTarget && "border-border bg-muted",
               )}
               style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}
             >
@@ -810,11 +810,11 @@ export const FileList = memo(function FileList({
             aria-selected={isSelected || activeFileId === file.id}
             tabIndex={focusedItemKey === getItemKey(fileItem) ? 0 : -1}
               className={cn(
-              "flex w-full items-center rounded-md text-left text-xs font-medium transition-colors",
+              "flex w-full items-center border border-transparent text-left text-xs font-medium transition-colors",
               compactMode ? "h-6" : "h-7",
               isSelected || activeFileId === file.id
-                ? "bg-white/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-                : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground/85",
+                ? "border-border bg-muted text-foreground"
+                : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
             style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}

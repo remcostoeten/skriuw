@@ -18,7 +18,7 @@ import {
 } from "@/core/shared/persistence-types";
 import type { JournalEntry, JournalTag } from "@/types/journal";
 import {
-  canUseRemotePersistence,
+  getRemotePersistenceUserId,
   getRemoteRecord,
   listRemoteRecords,
   putRemoteRecord,
@@ -38,13 +38,15 @@ export interface JournalRepository {
 
 export const journalRepository: JournalRepository = {
   listEntries: async () => {
-    const entries = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries)
+    const remoteUserId = getRemotePersistenceUserId();
+    const entries = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
 
     return entries.map(fromPersistedJournalEntry);
   },
   createEntry: async (input) => {
+    const remoteUserId = getRemotePersistenceUserId();
     const now = input.createdAt ?? new Date();
     const entry: PersistedJournalEntry = {
       id: (input.id ?? crypto.randomUUID()) as JournalEntryId,
@@ -56,8 +58,8 @@ export const journalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? now).toISOString() as IsoTime,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
     }
@@ -65,8 +67,9 @@ export const journalRepository: JournalRepository = {
     return fromPersistedJournalEntry(entry);
   },
   updateEntry: async (input) => {
-    const existing = canUseRemotePersistence()
-      ? await getRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, input.id)
+    const remoteUserId = getRemotePersistenceUserId();
+    const existing = remoteUserId
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, input.id, remoteUserId)
       : await getLocalRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
 
     if (!existing) {
@@ -81,26 +84,30 @@ export const journalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as IsoTime,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, updated, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
     }
 
     return fromPersistedJournalEntry(updated);
   },
-  destroyEntry: (id) =>
-    canUseRemotePersistence()
-      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, id)
-      : destroyLocalRecord(PERSISTED_STORE_NAMES.journalEntries, id),
+  destroyEntry: (id) => {
+    const remoteUserId = getRemotePersistenceUserId();
+    return remoteUserId
+      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, id, remoteUserId)
+      : destroyLocalRecord(PERSISTED_STORE_NAMES.journalEntries, id);
+  },
   listTags: async () => {
-    const tags = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags)
+    const remoteUserId = getRemotePersistenceUserId();
+    const tags = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
 
     return tags.map(fromPersistedJournalTag);
   },
   createTag: async (input) => {
+    const remoteUserId = getRemotePersistenceUserId();
     const now = new Date();
     const tag: PersistedTag = {
       id: (input.id ?? crypto.randomUUID()) as TagId,
@@ -112,8 +119,8 @@ export const journalRepository: JournalRepository = {
       updatedAt: (input.updatedAt ?? now).toISOString() as IsoTime,
     };
 
-    if (canUseRemotePersistence()) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag);
+    if (remoteUserId) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag, remoteUserId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.tags, tag);
     }
@@ -121,8 +128,9 @@ export const journalRepository: JournalRepository = {
     return fromPersistedJournalTag(tag);
   },
   destroyTag: async (id) => {
-    const tags = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags)
+    const remoteUserId = getRemotePersistenceUserId();
+    const tags = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
 
     const tag = tags.find((item) => item.id === id);
@@ -130,8 +138,8 @@ export const journalRepository: JournalRepository = {
       return;
     }
 
-    const entries = canUseRemotePersistence()
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries)
+    const entries = remoteUserId
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries, remoteUserId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
 
     const updatedAt = new Date().toISOString() as IsoTime;
@@ -140,12 +148,12 @@ export const journalRepository: JournalRepository = {
       entries
         .filter((entry) => entry.tags.includes(tag.name))
         .map((entry) =>
-          canUseRemotePersistence()
+          remoteUserId
             ? putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, {
                 ...entry,
                 tags: entry.tags.filter((tagName) => tagName !== tag.name),
                 updatedAt,
-              })
+              }, remoteUserId)
             : putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, {
                 ...entry,
                 tags: entry.tags.filter((tagName) => tagName !== tag.name),
@@ -154,8 +162,8 @@ export const journalRepository: JournalRepository = {
         ),
     );
 
-    if (canUseRemotePersistence()) {
-      await softDeleteRemoteRecord(PERSISTED_STORE_NAMES.tags, id);
+    if (remoteUserId) {
+      await softDeleteRemoteRecord(PERSISTED_STORE_NAMES.tags, id, remoteUserId);
     } else {
       await destroyLocalRecord(PERSISTED_STORE_NAMES.tags, id);
     }

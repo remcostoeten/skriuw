@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn, coerceDate } from "@/shared/lib/utils";
-import { useTagStore } from "@/features/tags/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useJournalStore } from "@/features/journal/store";
 import { MOOD_OPTIONS } from "@/features/journal/types";
 import type { MoodLevel } from "@/types/journal";
 import {
@@ -62,7 +62,7 @@ function PropertyRow({
 
   return (
     <div
-      className="group flex items-start gap-2 py-1.5 px-2 -mx-2 rounded-md hover:bg-accent/50 transition-colors"
+      className="group -mx-2 flex items-start gap-2 border border-transparent px-2 py-1.5 transition-colors hover:border-border hover:bg-muted"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -97,7 +97,7 @@ function PropertyRow({
       {onRemove && isHovered && (
         <button
           onClick={onRemove}
-          className="w-5 h-5 flex items-center justify-center text-muted-foreground/60 hover:text-foreground rounded"
+          className="flex h-5 w-5 items-center justify-center border border-transparent text-muted-foreground/60 hover:border-border hover:bg-muted hover:text-foreground"
         >
           <X className="w-3 h-3" />
         </button>
@@ -167,11 +167,12 @@ function TagsPropertyValue({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const tags = useTagStore((s) => s.tags);
-  const createTag = useTagStore((s) => s.create);
-  const incrementUsage = useTagStore((s) => s.incrementUsage);
-  const getByName = useTagStore((s) => s.getByName);
+  const tags = useJournalStore((s) => s.config.tags);
+  const createTag = useJournalStore((s) => s.createTag);
+  const initializeJournal = useJournalStore((s) => s.initialize);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const getByName = (name: string) => tags.find((tag) => tag.name === name.toLowerCase());
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -186,6 +187,10 @@ function TagsPropertyValue({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
+  useEffect(() => {
+    void initializeJournal();
+  }, [initializeJournal]);
+
   const filteredTags = tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleToggleTag = (tagName: string) => {
@@ -193,15 +198,12 @@ function TagsPropertyValue({
       onChange(value.filter((t) => t !== tagName));
     } else {
       onChange([...value, tagName]);
-      const tag = getByName(tagName);
-      if (tag) incrementUsage(tag.id);
     }
   };
 
   const handleCreateTag = () => {
     if (search.trim() && !getByName(search.toLowerCase())) {
-      const newTag = createTag(search.trim().toLowerCase());
-      incrementUsage(newTag.id);
+      createTag(search.trim().toLowerCase());
       onChange([...value, search.trim().toLowerCase()]);
       setSearch("");
     }
@@ -219,10 +221,16 @@ function TagsPropertyValue({
             return (
               <span
                 key={tagName}
-                className={cn(
-                  "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border",
-                  tag?.color || "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-                )}
+                className="inline-flex items-center border px-1.5 py-0.5 text-[11px] font-medium"
+                style={
+                  tag
+                    ? {
+                        borderColor: `${tag.color}55`,
+                        backgroundColor: `${tag.color}1f`,
+                        color: tag.color,
+                      }
+                    : undefined
+                }
               >
                 {tagName}
               </span>
@@ -234,7 +242,7 @@ function TagsPropertyValue({
       </div>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 z-50 mt-1 w-56 overflow-hidden border border-border bg-card">
           <div className="p-2 border-b border-border">
             <input
               type="text"
@@ -255,17 +263,24 @@ function TagsPropertyValue({
               <button
                 key={tag.id}
                 onClick={() => handleToggleTag(tag.name)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors"
+                className="flex w-full items-center gap-2 border border-transparent px-2 py-1.5 transition-colors hover:border-border hover:bg-muted"
               >
                 <span
                   className={cn(
-                    "w-4 h-4 rounded border flex items-center justify-center",
+                    "flex h-4 w-4 items-center justify-center border",
                     value.includes(tag.name) ? "bg-foreground border-foreground" : "border-border",
                   )}
                 >
                   {value.includes(tag.name) && <Check className="w-3 h-3 text-background" />}
                 </span>
-                <span className={cn("px-1.5 py-0.5 rounded text-[11px] border", tag.color)}>
+                <span
+                  className="border px-1.5 py-0.5 text-[11px]"
+                  style={{
+                    borderColor: `${tag.color}55`,
+                    backgroundColor: `${tag.color}1f`,
+                    color: tag.color,
+                  }}
+                >
                   {tag.name}
                 </span>
                 <span className="ml-auto text-[10px] text-muted-foreground/50">
@@ -276,7 +291,7 @@ function TagsPropertyValue({
             {search.trim() && !getByName(search.toLowerCase()) && (
               <button
                 onClick={handleCreateTag}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
+                className="flex w-full items-center gap-2 border border-transparent px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create &quot;{search}&quot;</span>
@@ -329,7 +344,7 @@ function MoodPropertyValue({
         {value ? (
           <span
             className={cn(
-              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border border-border",
+              "inline-flex items-center gap-1 border border-border px-1.5 py-0.5 text-[11px] font-medium",
               MOOD_OPTIONS[value].color,
             )}
           >
@@ -342,15 +357,15 @@ function MoodPropertyValue({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 z-50 mt-1 overflow-hidden border border-border bg-card">
           <div className="p-1">
             {Object.entries(MOOD_OPTIONS).map(([level, mood]) => (
               <button
                 key={level}
                 onClick={() => handleSelect(level as MoodLevel)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-1.5 rounded hover:bg-accent/50 transition-colors",
-                  value === level && "bg-accent",
+                  "flex w-full items-center gap-2 border border-transparent px-3 py-1.5 transition-colors hover:border-border hover:bg-muted",
+                  value === level && "border-border bg-muted",
                 )}
               >
                 <span className={cn("font-mono text-xs", mood.color)}>{mood.icon}</span>
@@ -366,7 +381,7 @@ function MoodPropertyValue({
                     onChange(undefined);
                     setIsOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded hover:bg-accent/50 transition-colors text-xs text-muted-foreground"
+                  className="flex w-full items-center gap-2 border border-transparent px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted"
                 >
                   <X className="w-3 h-3" />
                   Clear
@@ -479,14 +494,14 @@ function AddPropertyButton({ onAdd }: { onAdd: (type: PropertyType, name: string
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2 py-1.5 -mx-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+        className="flex items-center gap-1.5 -mx-2 border border-transparent px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
       >
         <Plus className="w-3.5 h-3.5" />
         Add a property
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 z-50 mt-1 w-48 overflow-hidden border border-border bg-card">
           <div className="p-1">
             {propertyTypes.map(({ type, name, icon: Icon }) => (
               <button
@@ -495,7 +510,7 @@ function AddPropertyButton({ onAdd }: { onAdd: (type: PropertyType, name: string
                   onAdd(type, name);
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded hover:bg-accent/50 transition-colors"
+                className="flex w-full items-center gap-2 border border-transparent px-3 py-1.5 transition-colors hover:border-border hover:bg-muted"
               >
                 <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-xs">{name}</span>
@@ -538,7 +553,7 @@ export function DocumentProperties({
 
       {/* Timestamps - subtle footer */}
       {(normalizedCreatedAt || normalizedUpdatedAt) && (
-        <div className="pt-3 mt-3 border-t border-border/50 space-y-0.5">
+        <div className="mt-3 space-y-0.5 border-t border-border pt-3">
           {normalizedCreatedAt && (
             <p className="text-[10px] text-muted-foreground/50">
               Created {formatDistanceToNow(normalizedCreatedAt, { addSuffix: true })}

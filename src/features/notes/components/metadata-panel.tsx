@@ -8,7 +8,6 @@ interface MetadataPanelProps {
   file: NoteFile | null;
   className?: string;
   isMobile?: boolean;
-  onDragHandlePointerDown?: React.PointerEventHandler<HTMLDivElement>;
   onRequestClose?: () => void;
 }
 
@@ -16,7 +15,6 @@ export function MetadataPanel({
   file,
   className,
   isMobile = false,
-  onDragHandlePointerDown,
   onRequestClose,
 }: MetadataPanelProps) {
   const [activeTab, setActiveTab] = useState<"info" | "outline-solid">("info");
@@ -81,17 +79,16 @@ export function MetadataPanel({
     >
       <div
         className={cn(
-          "shrink-0 border-b border-border/70",
-          isMobile ? "bg-background/75 px-4 pb-3 pt-3 backdrop-blur-xl" : "px-2 h-[40px]",
+          "shrink-0 border-b border-border",
+          isMobile ? "bg-background px-4 pb-3 pt-3" : "h-[40px] px-2",
         )}
       >
         {isMobile ? (
           <>
             <div
               className="cursor-grab touch-none active:cursor-grabbing"
-              onPointerDown={onDragHandlePointerDown}
             >
-              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/90" />
+              <div className="mx-auto mb-3 h-1.5 w-12 bg-border" />
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground/70">
@@ -106,7 +103,8 @@ export function MetadataPanel({
                     onClick={onRequestClose}
                     onPointerDown={(event) => event.stopPropagation()}
                     aria-label="Close details"
-                    className="pressable flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    data-sheet-no-drag
+                    className="pressable flex h-10 w-10 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
                     title="Close details"
                   >
                     <X className="h-4 w-4" strokeWidth={1.6} />
@@ -121,9 +119,10 @@ export function MetadataPanel({
           role="tablist"
           aria-label="Metadata sections"
           onKeyDown={handleTabKeyDown}
+          data-sheet-no-drag
           className={cn(
             "flex items-center gap-1",
-            isMobile ? "mt-3 rounded-2xl bg-background/80 p-1.5" : "h-full justify-end gap-0.5",
+            isMobile ? "mt-3 border border-border bg-background p-1.5" : "h-full justify-end gap-0.5",
           )}
         >
           <button
@@ -134,13 +133,14 @@ export function MetadataPanel({
             aria-controls={infoPanelId}
             tabIndex={activeTab === "info" ? 0 : -1}
             aria-label="Show file information"
+            data-sheet-no-drag
             className={cn(
-              "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              "flex items-center justify-center gap-2 border border-transparent transition-colors",
               "pressable",
               isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
               activeTab === "info"
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                ? "border-border bg-muted text-foreground"
+                : "text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
             )}
           >
             <Info className="h-[15px] w-[15px]" strokeWidth={1.5} />
@@ -154,13 +154,14 @@ export function MetadataPanel({
             aria-controls={outlinePanelId}
             tabIndex={activeTab === "outline-solid" ? 0 : -1}
             aria-label="Show document outline"
+            data-sheet-no-drag
             className={cn(
-              "flex items-center justify-center gap-2 rounded-xl transition-colors",
+              "flex items-center justify-center gap-2 border border-transparent transition-colors",
               "pressable",
               isMobile ? "h-11 flex-1 px-4 text-sm font-medium" : "h-7 w-7",
               activeTab === "outline-solid"
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                ? "border-border bg-muted text-foreground"
+                : "text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
             )}
           >
             <Layers className="h-[15px] w-[15px]" strokeWidth={1.5} />
@@ -184,7 +185,7 @@ export function MetadataPanel({
               key={stat.label}
               className={cn(
                 "flex items-baseline justify-between gap-4",
-                isMobile && "rounded-2xl border border-border/60 bg-background/60 px-4 py-3",
+                isMobile && "border border-border bg-background px-4 py-3",
               )}
             >
               <span className="text-[13px] text-muted-foreground">{stat.label}</span>
@@ -216,7 +217,7 @@ export function MetadataPanel({
                     key={i}
                     className={cn(
                       "truncate text-[13px] text-foreground/50",
-                      isMobile && "min-h-11 rounded-2xl bg-background/45 px-4 py-3",
+                      isMobile && "min-h-11 border border-border bg-background px-4 py-3",
                     )}
                     style={{
                       paddingLeft: isMobile

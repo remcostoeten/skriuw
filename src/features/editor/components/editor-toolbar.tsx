@@ -2,7 +2,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
-  FileText,
   PanelRight,
   Settings2,
   Sidebar,
@@ -40,17 +39,20 @@ export function EditorToolbar({
   canNavigateNext = false,
 }: Props) {
   const sidebarIconButtonClass =
-    "pressable flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200";
+    "pressable flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200";
   const editorModeTitle = editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX";
 
   if (isMobile) {
+    const mobileControlClass =
+      "flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:scale-[0.97]";
+
     return (
-      <div className="border-b border-border bg-card/88 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] backdrop-blur-xl">
-        <div className="flex items-start gap-3">
-          <div className="flex items-center gap-1 rounded-[1.35rem] border border-border bg-background/70 p-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+      <div className="border-b border-border bg-card px-3 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] sm:px-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex h-11 items-center gap-1 border border-border bg-background px-1">
             <button
               onClick={onToggleSidebar}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              className={mobileControlClass}
               title="Open notes"
             >
               <Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -59,10 +61,8 @@ export function EditorToolbar({
               onClick={onNavigatePrev}
               disabled={!canNavigatePrev}
               className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-[0.97]",
-                canNavigatePrev
-                  ? "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  : "cursor-not-allowed text-muted-foreground/30",
+                mobileControlClass,
+                !canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
               )}
               title="Previous file"
             >
@@ -72,10 +72,8 @@ export function EditorToolbar({
               onClick={onNavigateNext}
               disabled={!canNavigateNext}
               className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-[0.97]",
-                canNavigateNext
-                  ? "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  : "cursor-not-allowed text-muted-foreground/30",
+                mobileControlClass,
+                !canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
               )}
               title="Next file"
             >
@@ -83,25 +81,23 @@ export function EditorToolbar({
             </button>
           </div>
 
-          <div className="min-w-0 flex-1 rounded-[1.6rem] border border-border/60 bg-background/55 px-4 py-3 shadow-[0_12px_34px_rgba(0,0,0,0.16)]">
-            <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.26em] text-muted-foreground/70">
-              <FileText className="h-3.5 w-3.5" strokeWidth={1.6} />
-              <span>Current Note</span>
-            </div>
-            <div className="mt-1.5 truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-              {fileName}
-            </div>
-            {breadcrumb && breadcrumb.length > 0 && (
-              <div className="mt-1 truncate text-[12px] text-muted-foreground/75">
-                {breadcrumb.join(" / ")}
+          <div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
+            <div className="min-w-0">
+              {breadcrumb && breadcrumb.length > 0 && (
+                <div className="truncate text-[10px] text-muted-foreground/70">
+                  {breadcrumb.join(" / ")}
+                </div>
+              )}
+              <div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
+                {fileName}
               </div>
-            )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex h-11 items-center gap-1.5 sm:gap-2">
             <button
               onClick={onToggleEditorMode}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/70 text-muted-foreground shadow-[0_10px_30px_rgba(0,0,0,0.16)] transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
               title={editorModeTitle}
             >
               {editorMode === "raw" ? (
@@ -112,14 +108,14 @@ export function EditorToolbar({
             </button>
             <button
               onClick={onToggleMetadata}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/70 text-muted-foreground shadow-[0_10px_30px_rgba(0,0,0,0.16)] transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
               title="Open note details"
             >
               <PanelRight className="h-[18px] w-[18px]" strokeWidth={1.7} />
             </button>
             <button
               onClick={onOpenSettings}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/70 text-muted-foreground shadow-[0_10px_30px_rgba(0,0,0,0.16)] transition-all hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
               title="Open settings"
             >
               <Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -142,7 +138,7 @@ export function EditorToolbar({
           onClick={onToggleSidebar}
           className={cn(
             sidebarIconButtonClass,
-            "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+            "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
           )}
           title="Toggle sidebar"
         >
@@ -154,7 +150,7 @@ export function EditorToolbar({
           className={cn(
             sidebarIconButtonClass,
             canNavigatePrev
-              ? "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+              ? "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
               : "cursor-not-allowed text-sidebar-foreground/25",
           )}
           title="Previous file"
@@ -167,7 +163,7 @@ export function EditorToolbar({
           className={cn(
             sidebarIconButtonClass,
             canNavigateNext
-              ? "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+              ? "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
               : "cursor-not-allowed text-sidebar-foreground/25",
           )}
           title="Next file"
@@ -205,7 +201,7 @@ export function EditorToolbar({
           className={cn(
             sidebarIconButtonClass,
             "w-auto gap-1 px-2.5 text-[11px]",
-            "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+            "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
           )}
           title={editorModeTitle}
         >
@@ -225,7 +221,7 @@ export function EditorToolbar({
           onClick={onToggleMetadata}
           className={cn(
             sidebarIconButtonClass,
-            "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+            "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
           )}
           title="Toggle metadata"
         >
@@ -236,7 +232,7 @@ export function EditorToolbar({
             onClick={onOpenSettings}
             className={cn(
               sidebarIconButtonClass,
-              "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+              "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
             )}
             title="Open settings"
           >

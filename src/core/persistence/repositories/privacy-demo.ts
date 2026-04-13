@@ -152,12 +152,11 @@ Feeling better about first-run UX now that the shell can open without an account
   ];
 }
 
-export async function ensurePrivacyDemoSeeded(): Promise<void> {
+export async function ensurePrivacyDemoSeeded(actorId = getAuthActorId()): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
 
-  const actorId = getAuthActorId();
   const markerKey = getSeedMarkerKey(actorId);
 
   if (window.localStorage.getItem(markerKey) === "1") {

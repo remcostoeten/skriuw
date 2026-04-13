@@ -73,11 +73,11 @@ export const FavoritesSection = memo(function FavoritesSection({
               key={fav.id}
               onClick={() => fav.itemType === "file" && onFileSelect(fav.itemId)}
               className={cn(
-                "group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
+                "group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
                 compactMode ? "h-6" : "h-7",
                 fav.itemType === "file" && fav.itemId === activeFileId
-                  ? "bg-white/[0.07] text-foreground"
-                  : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground",
+                  ? "border-border bg-muted text-foreground"
+                  : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
               )}
             >
               {fav.itemType === "file" ? (
@@ -98,7 +98,7 @@ export const FavoritesSection = memo(function FavoritesSection({
                   onRemoveFromFavorites(fav.itemId);
                 }}
                 className={cn(
-                  "flex items-center justify-center rounded text-muted-foreground/50 transition-all hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
+                  "flex items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
                   compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
                 )}
               >

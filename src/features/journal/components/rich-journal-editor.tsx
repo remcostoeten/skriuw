@@ -119,10 +119,10 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
                   key={key}
                   onClick={() => handleMoodSelect(key)}
                   className={cn(
-                    'flex h-8 items-center gap-1 rounded-lg px-2.5 text-[12px] transition-all',
+                    'flex h-8 items-center gap-1 border border-transparent px-2.5 text-[12px] transition-colors',
                     entryMood === key
-                      ? 'bg-accent font-medium text-foreground ring-1 ring-border'
-                      : 'text-muted-foreground/50 hover:bg-accent/40 hover:text-muted-foreground',
+                      ? 'border-border bg-muted font-medium text-foreground'
+                      : 'text-muted-foreground/50 hover:border-border hover:bg-muted hover:text-muted-foreground',
                   )}
                   title={mood.label}
                 >
@@ -145,10 +145,11 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
             {[...new Set([...entryTags, ...extractedTags])].map((tagName) => (
               <span
                 key={tagName}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
+                className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
                 style={{
                   backgroundColor: `${getTagColor(tagName)}15`,
                   color: getTagColor(tagName),
+                  borderColor: `${getTagColor(tagName)}35`,
                 }}
               >
                 @{tagName}
@@ -175,7 +176,7 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 flex items-center justify-between border-t border-border/30 pt-4">
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-4">
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground/40">
               {wordCount} {wordCount === 1 ? 'word' : 'words'}
@@ -191,13 +192,13 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
                   <span className="text-[11px] text-red-400/70">Delete this entry?</span>
                   <button
                     onClick={handleDeleteEntry}
-                    className="rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
+                    className="border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
                   >
                     Delete
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent"
+                    className="border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
                   >
                     Cancel
                   </button>
@@ -205,7 +206,7 @@ export function RichJournalEditor({ selectedDate }: RichJournalEditorProps) {
               ) : (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:bg-accent hover:text-red-400"
+                  className="flex items-center gap-1 border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-red-400"
                 >
                   <Trash2 className="h-3 w-3" strokeWidth={1.5} />
                   Delete

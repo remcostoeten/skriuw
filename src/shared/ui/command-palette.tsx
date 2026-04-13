@@ -81,9 +81,8 @@ export function CommandPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="native-panel max-h-[80vh] overflow-hidden border-border/70 p-0 shadow-[0_24px_80px_rgba(0,0,0,0.42)] sm:max-w-2xl">
-        <div className="pointer-events-none absolute inset-x-6 top-0 h-16 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_70%)]" />
-        <DialogHeader className="border-b border-border/60 px-5 pb-4 pt-5">
+      <DialogContent className="max-h-[80vh] overflow-hidden border-border bg-card p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b border-border px-5 pb-4 pt-5">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Command className="h-4 w-4 text-muted-foreground" strokeWidth={1.7} />
             {title}
@@ -91,10 +90,10 @@ export function CommandPalette({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="border-b border-border/50 px-4 py-3">
+        <div className="border-b border-border px-4 py-3">
           <label
             htmlFor={inputId}
-            className="native-surface flex items-center gap-3 rounded-[1.15rem] border border-border/70 px-3 py-3"
+            className="flex items-center gap-3 border border-border bg-background px-3 py-3"
           >
             <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.6} />
             <input
@@ -143,7 +142,7 @@ export function CommandPalette({
                 aria-selected={index === selectedIndex}
                 id={`${listboxId}-item-${item.id}`}
                 ref={index === selectedIndex ? selectedItemRef : null}
-                className="pressable native-surface flex w-full items-center gap-3 rounded-[1.15rem] border border-transparent px-3 py-3 text-left transition-colors hover:border-border/60 hover:bg-accent/55"
+                className="flex w-full items-center gap-3 border border-transparent px-3 py-3 text-left transition-colors hover:border-border hover:bg-muted"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
@@ -159,7 +158,7 @@ export function CommandPalette({
                 {item.shortcut ? (
                   <span
                     className={cn(
-                      "shrink-0 rounded-md border border-border/60 bg-background/80 px-2 py-1",
+                      "shrink-0 border border-border bg-background px-2 py-1",
                       "font-mono text-[11px] text-muted-foreground",
                     )}
                   >

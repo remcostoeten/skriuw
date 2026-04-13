@@ -306,6 +306,38 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
+        .blocknote-wrapper .bn-toolbar {
+          min-height: 2rem;
+          padding: 1px;
+          gap: 1px;
+          border-radius: 0.5rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Button-root,
+        .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root {
+          min-height: 1.75rem;
+          height: 1.75rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Button-root {
+          padding-left: 0.45rem;
+          padding-right: 0.45rem;
+          font-size: 0.6875rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Button-section {
+          margin-inline: 0.2rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root {
+          width: 1.75rem;
+          min-width: 1.75rem;
+        }
+        .blocknote-wrapper .bn-toolbar svg {
+          width: 0.82rem;
+          height: 0.82rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Menu-item {
+          min-height: 1.75rem;
+          height: 1.75rem;
+          font-size: 0.75rem;
+        }
         .blocknote-wrapper pre,
         .blocknote-wrapper pre code,
         .blocknote-wrapper [data-content-type="codeBlock"],

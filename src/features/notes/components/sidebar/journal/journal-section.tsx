@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { CalendarDays, ChevronRight } from "lucide-react";
@@ -27,6 +27,7 @@ export function JournalSection({
 }: JournalSectionProps) {
   const router = useRouter();
   const store = useJournalStore();
+  const initializeJournal = useJournalStore((state) => state.initialize);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [view, setView] = useState<"calendar" | "entries">("calendar");
@@ -35,6 +36,10 @@ export function JournalSection({
   const entryCount = store.config.entries.length;
   const selectedEntry = store.getEntryByDateKey(format(selectedDate, "yyyy-MM-dd"));
   const selectedDateKey = format(selectedDate, "yyyy-MM-dd");
+
+  useEffect(() => {
+    void initializeJournal();
+  }, [initializeJournal]);
 
   const openJournalDate = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");

@@ -25,10 +25,12 @@ export async function pushAllToRemote(): Promise<void> {
   ]);
 
   await Promise.all([
-    ...notes.map((note) => putRemoteRecord(PERSISTED_STORE_NAMES.notes, note)),
-    ...folders.map((folder) => putRemoteRecord(PERSISTED_STORE_NAMES.folders, folder)),
-    ...journalEntries.map((entry) => putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry)),
-    ...tags.map((tag) => putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag)),
+    ...notes.map((note) => putRemoteRecord(PERSISTED_STORE_NAMES.notes, note, userId)),
+    ...folders.map((folder) => putRemoteRecord(PERSISTED_STORE_NAMES.folders, folder, userId)),
+    ...journalEntries.map((entry) =>
+      putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry, userId)
+    ),
+    ...tags.map((tag) => putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag, userId)),
   ]);
 
   if (typeof window !== "undefined") {
@@ -46,12 +48,13 @@ export async function pushRecordToRemote(
   storeName: RemoteStoreName,
   record: Record<string, unknown>,
 ): Promise<void> {
-  if (!getRemotePersistenceUserId()) {
+  const userId = getRemotePersistenceUserId();
+  if (!userId) {
     return;
   }
 
   try {
-    await putRemoteRecord(storeName, record as never);
+    await putRemoteRecord(storeName, record as never, userId);
   } catch {
     // Sync failures are non-blocking; data is safe locally
   }
@@ -61,12 +64,13 @@ export async function deleteRecordFromRemote(
   storeName: RemoteStoreName,
   recordId: string,
 ): Promise<void> {
-  if (!getRemotePersistenceUserId()) {
+  const userId = getRemotePersistenceUserId();
+  if (!userId) {
     return;
   }
 
   try {
-    await softDeleteRemoteRecord(storeName, recordId);
+    await softDeleteRemoteRecord(storeName, recordId, userId);
   } catch {
     // Sync failures are non-blocking
   }

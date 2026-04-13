@@ -1,30 +1,45 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let canUseRemote = false;
+let remoteUserId: string | null = null;
 let listRemoteRecordsImpl = async (_storeName: string) => [] as unknown[];
 let getRemoteRecordImpl = async (_storeName: string, _id: string) => undefined as unknown;
-let putRemoteRecordCalls: Array<{ storeName: string; record: unknown }> = [];
-let softDeleteRemoteRecordCalls: Array<{ storeName: string; id: string }> = [];
-let softDeleteRemoteRecordsCalls: Array<{ storeName: string; ids: string[] }> = [];
+let putRemoteRecordCalls: Array<{ storeName: string; record: unknown; userId?: string }> = [];
+let softDeleteRemoteRecordCalls: Array<{ storeName: string; id: string; userId?: string }> = [];
+let softDeleteRemoteRecordsCalls: Array<{ storeName: string; ids: string[]; userId?: string }> = [];
 let resolveLocalPersistenceBackendCalls = 0;
 
-mock.module("@/core/persistence/supabase", () => ({
+const supabaseModuleMock = {
   canUseRemotePersistence: () => canUseRemote,
-  listRemoteRecords: (storeName: string) => listRemoteRecordsImpl(storeName),
-  getRemoteRecord: (storeName: string, id: string) => getRemoteRecordImpl(storeName, id),
-  putRemoteRecord: async (storeName: string, record: unknown) => {
-    putRemoteRecordCalls.push({ storeName, record });
-  },
-  softDeleteRemoteRecord: async (storeName: string, id: string) => {
-    softDeleteRemoteRecordCalls.push({ storeName, id });
-  },
-  softDeleteRemoteRecords: async (storeName: string, ids: string[]) => {
-    softDeleteRemoteRecordsCalls.push({ storeName, ids });
-  },
-  pushRecordToRemote: async () => {},
   deleteRecordFromRemote: async () => {},
-}));
+  getLastSyncTime: () => null,
+  getRemotePersistenceUserId: () => remoteUserId,
+  getRemoteRecord: (storeName: string, id: string, _userId?: string) =>
+    getRemoteRecordImpl(storeName, id),
+  getStoredRememberMePreference: () => false,
+  getSupabaseClient: () => undefined,
+  isSupabaseConfigured: () => true,
+  listRemoteRecords: (storeName: string) => listRemoteRecordsImpl(storeName),
+  pullAllFromRemote: async () => {},
+  putRemoteRecord: async (storeName: string, record: unknown, userId?: string) => {
+    putRemoteRecordCalls.push({ storeName, record, userId });
+  },
+  pushAllToRemote: async () => {},
+  pushRecordToRemote: async () => {},
+  softDeleteRemoteRecord: async (storeName: string, id: string, userId?: string) => {
+    softDeleteRemoteRecordCalls.push({ storeName, id, userId });
+  },
+  softDeleteRemoteRecords: async (storeName: string, ids: string[], userId?: string) => {
+    softDeleteRemoteRecordsCalls.push({ storeName, ids, userId });
+  },
+  setSupabaseSessionPersistence: async () => {},
+  SUPABASE_AUTH_STORAGE_KEY: "supabase.auth.token",
+};
+
+mock.restore();
+mock.module("@/core/persistence/supabase", () => supabaseModuleMock);
+mock.module("@/core/persistence/supabase/index", () => supabaseModuleMock);
 
 mock.module("@/core/persistence/pglite/records", () => ({
   destroyPGliteRecord: async () => {},
@@ -46,6 +61,7 @@ const journalRepositoryPromise = import("../journal-repository");
 
 beforeEach(() => {
   canUseRemote = false;
+  remoteUserId = null;
   listRemoteRecordsImpl = async () => [];
   getRemoteRecordImpl = async () => undefined;
   putRemoteRecordCalls = [];
@@ -54,11 +70,16 @@ beforeEach(() => {
   resolveLocalPersistenceBackendCalls = 0;
 });
 
+afterEach(() => {
+  mock.restore();
+});
+
 describe("repository remote routing", () => {
   test("notesRepository.list prefers Supabase when remote persistence is available", async () => {
     const { notesRepository } = await notesRepositoryPromise;
 
     canUseRemote = true;
+    remoteUserId = "user-123";
     listRemoteRecordsImpl = async (storeName: string) => {
       expect(storeName).toBe(PERSISTED_STORE_NAMES.notes);
       return [
@@ -86,6 +107,7 @@ describe("repository remote routing", () => {
     const { foldersRepository } = await foldersRepositoryPromise;
 
     canUseRemote = true;
+    remoteUserId = "user-123";
     listRemoteRecordsImpl = async (storeName: string) => {
       if (storeName === PERSISTED_STORE_NAMES.folders) {
         return [
@@ -130,10 +152,12 @@ describe("repository remote routing", () => {
       {
         storeName: PERSISTED_STORE_NAMES.folders,
         ids: ["folder-root", "folder-child"],
+        userId: "user-123",
       },
       {
         storeName: PERSISTED_STORE_NAMES.notes,
         ids: ["note-1"],
+        userId: "user-123",
       },
     ]);
     expect(resolveLocalPersistenceBackendCalls).toBe(0);
@@ -143,6 +167,7 @@ describe("repository remote routing", () => {
     const { journalRepository } = await journalRepositoryPromise;
 
     canUseRemote = true;
+    remoteUserId = "user-123";
     listRemoteRecordsImpl = async (storeName: string) => {
       if (storeName === PERSISTED_STORE_NAMES.tags) {
         return [
@@ -185,8 +210,9 @@ describe("repository remote routing", () => {
         tags: ["work"],
       }),
     );
+    expect(putRemoteRecordCalls[0]?.userId).toBe("user-123");
     expect(softDeleteRemoteRecordCalls).toEqual([
-      { storeName: PERSISTED_STORE_NAMES.tags, id: "tag-1" },
+      { storeName: PERSISTED_STORE_NAMES.tags, id: "tag-1", userId: "user-123" },
     ]);
     expect(resolveLocalPersistenceBackendCalls).toBe(0);
   });

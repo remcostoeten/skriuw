@@ -252,11 +252,11 @@ export function JournalStats({ className }: JournalStatsProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-accent/20 p-2">
+          <div className="border border-border bg-background p-2">
             <p className="text-[18px] font-bold text-foreground">{stats.totalEntries}</p>
             <p className="text-[9px] text-muted-foreground/60">Total</p>
           </div>
-          <div className="rounded-lg bg-accent/20 p-2">
+          <div className="border border-border bg-background p-2">
             <p className="text-[18px] font-bold text-foreground">{stats.todayEntries}</p>
             <p className="text-[9px] text-muted-foreground/60">Today</p>
           </div>
@@ -313,7 +313,7 @@ export function JournalStats({ className }: JournalStatsProps) {
         </div>
 
         {stats.mostCommonMood && (
-          <div className="rounded-lg bg-accent/20 p-2">
+          <div className="border border-border bg-background p-2">
             <p className="text-[10px] text-muted-foreground/60">Most common</p>
             <p className="text-[12px] font-bold text-foreground mt-0.5">
               {stats.mostCommonMood.icon} {stats.mostCommonMood.label}
@@ -373,10 +373,8 @@ export function JournalStats({ className }: JournalStatsProps) {
             <div
               key={day.dateKey}
               className={cn(
-                'aspect-square rounded-sm',
-                day.hasEntry
-                  ? 'bg-indigo-400'
-                  : 'bg-border/30'
+                'aspect-square border',
+                day.hasEntry ? 'border-indigo-400 bg-indigo-400' : 'border-border bg-background'
               )}
               title={`${format(day.date, 'MMM d')}${day.hasEntry ? ' - Entry' : ' - No entry'}`}
             />
@@ -401,7 +399,7 @@ export function JournalStats({ className }: JournalStatsProps) {
         <div className="space-y-1.5">
           <button
             onClick={exportAsMarkdown}
-            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+            className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
           >
             <FileText className="h-3 w-3" strokeWidth={1.5} />
             Markdown
@@ -409,7 +407,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 
           <button
             onClick={exportAsJSON}
-            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+            className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
           >
             <Download className="h-3 w-3" strokeWidth={1.5} />
             JSON
@@ -417,7 +415,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 
           <button
             onClick={exportAsPDF}
-            className="flex w-full items-center gap-1.5 rounded-lg bg-accent/20 px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-accent/30"
+            className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
           >
             <FileText className="h-3 w-3" strokeWidth={1.5} />
             Print / PDF

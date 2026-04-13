@@ -44,7 +44,7 @@ const TagManager = dynamic(
   () => import("./tag-manager").then((mod) => ({ default: mod.TagManager })),
   {
     ssr: false,
-    loading: () => <div className="py-6 text-sm text-muted-foreground">Loading tags…</div>,
+    loading: () => null,
   },
 );
 
@@ -143,7 +143,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               </SidebarContent>
             </Sidebar>
             <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
-              <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-border/40">
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
                 <div className="flex items-center gap-2 px-4">
                   <Breadcrumb>
                     <BreadcrumbList>
@@ -216,7 +216,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                       </p>
                     </SettingsSection>
 
-                    <div className="rounded-lg bg-accent/50 border border-border p-4 mt-8">
+                    <div className="mt-8 border border-border bg-card p-4">
                       <div className="flex gap-3">
                         <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.5} />
                         <div className="space-y-2">

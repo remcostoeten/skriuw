@@ -56,7 +56,7 @@ export const RecentsSection = memo(function RecentsSection({
     resolvedRecents.length > 0 ? (
       <button
         onClick={onClearRecents}
-        className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-white/[0.04] hover:text-foreground"
+        className="flex h-5 w-5 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
         title="Clear recents"
       >
         <X className="w-3 h-3" strokeWidth={1.5} />
@@ -86,11 +86,11 @@ export const RecentsSection = memo(function RecentsSection({
               key={recent.id}
               onClick={() => recent.itemType === "file" && onFileSelect(recent.itemId)}
               className={cn(
-                "group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
+                "group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
                 compactMode ? "h-6" : "h-7",
                 recent.itemType === "file" && recent.itemId === activeFileId
-                  ? "bg-white/[0.07] text-foreground"
-                  : "text-foreground/60 hover:bg-white/[0.045] hover:text-foreground",
+                  ? "border-border bg-muted text-foreground"
+                  : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
               )}
             >
               {recent.itemType === "file" ? (

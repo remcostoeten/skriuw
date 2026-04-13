@@ -88,7 +88,11 @@ const TABLE_MAP: Record<RemoteStoreName, string> = {
   [PERSISTED_STORE_NAMES.tags]: "tags",
 };
 
-function requireUserId(): string {
+function requireUserId(userId?: string): string {
+  if (userId) {
+    return userId;
+  }
+
   const { user, canSync } = getAuthStateSnapshot();
   if (!user || !canSync) {
     throw new Error("Authentication required for cloud storage.");
@@ -263,13 +267,14 @@ function fromRemoteRow<TStoreName extends RemoteStoreName>(
 
 export async function listRemoteRecords<TStoreName extends RemoteStoreName>(
   storeName: TStoreName,
+  userId?: string,
 ): Promise<PersistedRecordForStore<TStoreName>[]> {
-  const userId = requireUserId();
+  const scopedUserId = requireUserId(userId);
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(TABLE_MAP[storeName])
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", scopedUserId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
@@ -283,13 +288,14 @@ export async function listRemoteRecords<TStoreName extends RemoteStoreName>(
 export async function getRemoteRecord<TStoreName extends RemoteStoreName>(
   storeName: TStoreName,
   id: string,
+  userId?: string,
 ): Promise<PersistedRecordForStore<TStoreName> | undefined> {
-  const userId = requireUserId();
+  const scopedUserId = requireUserId(userId);
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(TABLE_MAP[storeName])
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", scopedUserId)
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -308,10 +314,11 @@ export async function getRemoteRecord<TStoreName extends RemoteStoreName>(
 export async function putRemoteRecord<TStoreName extends RemoteStoreName>(
   storeName: TStoreName,
   record: PersistedRecordForStore<TStoreName>,
+  userId?: string,
 ): Promise<void> {
-  const userId = requireUserId();
+  const scopedUserId = requireUserId(userId);
   const supabase = getSupabaseClient();
-  const row = toRemoteRow(userId, storeName, record);
+  const row = toRemoteRow(scopedUserId, storeName, record);
   const { error } = await supabase
     .from(TABLE_MAP[storeName])
     .upsert([row], { onConflict: "user_id,id" });
@@ -324,13 +331,14 @@ export async function putRemoteRecord<TStoreName extends RemoteStoreName>(
 export async function softDeleteRemoteRecord<TStoreName extends RemoteStoreName>(
   storeName: TStoreName,
   id: string,
+  userId?: string,
 ): Promise<void> {
-  const userId = requireUserId();
+  const scopedUserId = requireUserId(userId);
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE_MAP[storeName])
     .update({ deleted_at: new Date().toISOString() })
-    .eq("user_id", userId)
+    .eq("user_id", scopedUserId)
     .eq("id", id);
 
   if (error) {
@@ -341,17 +349,18 @@ export async function softDeleteRemoteRecord<TStoreName extends RemoteStoreName>
 export async function softDeleteRemoteRecords<TStoreName extends RemoteStoreName>(
   storeName: TStoreName,
   ids: string[],
+  userId?: string,
 ): Promise<void> {
   if (ids.length === 0) {
     return;
   }
 
-  const userId = requireUserId();
+  const scopedUserId = requireUserId(userId);
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE_MAP[storeName])
     .update({ deleted_at: new Date().toISOString() })
-    .eq("user_id", userId)
+    .eq("user_id", scopedUserId)
     .in("id", ids);
 
   if (error) {
