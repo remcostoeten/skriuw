@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-let authActorId = "privacy-local";
+let authWorkspaceId = "guest-local";
 
 class MemoryStorage implements Storage {
   #entries = new Map<string, string>();
@@ -41,29 +41,29 @@ async function flushMicrotasks() {
 
 function buildAuthSnapshot() {
   return {
-    mode: authActorId === "privacy-local" ? "privacy" : "account",
-    status: authActorId === "privacy-local" ? "privacy" : "authenticated",
+    mode: authWorkspaceId === "guest-local" ? "guest" : "cloud",
+    status: authWorkspaceId === "guest-local" ? "guest" : "authenticated",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: false,
     user:
-      authActorId === "privacy-local"
+      authWorkspaceId === "guest-local"
         ? null
         : {
-            id: authActorId,
-            email: `${authActorId}@example.com`,
-            name: authActorId,
+            id: authWorkspaceId,
+            email: `${authWorkspaceId}@example.com`,
+            name: authWorkspaceId,
           },
     session: null,
     error: null,
-    actorId: authActorId,
+    workspaceId: authWorkspaceId,
     canSync: false,
   };
 }
 
 async function loadStoreModule() {
   mock.module("@/platform/auth", () => ({
-    getAuthActorId: () => authActorId,
+    getWorkspaceId: () => authWorkspaceId,
     getAuthStateSnapshot: () => buildAuthSnapshot(),
     subscribeAuthState: () => () => undefined,
   }));
@@ -72,12 +72,12 @@ async function loadStoreModule() {
 }
 
 function readPersistedSidebarState() {
-  const raw = storage.getItem("haptic-sidebar");
+  const raw = storage.getItem("skriuw-sidebar");
   return raw ? JSON.parse(raw) : null;
 }
 
 beforeEach(() => {
-  authActorId = "privacy-local";
+  authWorkspaceId = "guest-local";
   storage = new MemoryStorage();
 
   Object.defineProperty(globalThis, "localStorage", {
@@ -104,9 +104,9 @@ afterEach(() => {
   });
 });
 
-describe("sidebar store actor scoping", () => {
-  test("keeps favorites, recents, custom sections, projects, and visibility prefs isolated per actor", async () => {
-    authActorId = "user-a";
+describe("sidebar store workspace scoping", () => {
+  test("keeps favorites, recents, custom sections, projects, and visibility prefs isolated per workspace", async () => {
+    authWorkspaceId = "user-a";
     const { useSidebarStore } = await loadStoreModule();
 
     await flushMicrotasks();
@@ -116,19 +116,19 @@ describe("sidebar store actor scoping", () => {
     useSidebarStore.getState().addCustomSection("A Custom");
     useSidebarStore.getState().addToFavorites("file-a", "file");
     useSidebarStore.getState().addToRecents("file-a", "file");
-    const actorASection = useSidebarStore
+    const workspaceASection = useSidebarStore
       .getState()
       .config.sections.find((section) => section.type === "custom");
-    if (!actorASection) {
-      throw new Error("Expected actor A custom section.");
+    if (!workspaceASection) {
+      throw new Error("Expected workspace A custom section.");
     }
-    const actorAProject = useSidebarStore.getState().createProject("Actor A Project", "bg-blue-500");
-    useSidebarStore.getState().addToProject(actorAProject.id, "file-a", "file");
-    useSidebarStore.getState().addToCustomSection(actorASection.id, "file-a", "file");
+    const workspaceAProject = useSidebarStore.getState().createProject("Workspace A Project", "bg-blue-500");
+    useSidebarStore.getState().addToProject(workspaceAProject.id, "file-a", "file");
+    useSidebarStore.getState().addToCustomSection(workspaceASection.id, "file-a", "file");
     await flushMicrotasks();
 
-    authActorId = "user-b";
-    await useSidebarStore.getState().syncActor("user-b");
+    authWorkspaceId = "user-b";
+    await useSidebarStore.getState().syncWorkspace("user-b");
     await flushMicrotasks();
 
     expect(useSidebarStore.getState().config.favorites).toHaveLength(0);
@@ -147,15 +147,15 @@ describe("sidebar store actor scoping", () => {
     useSidebarStore.getState().addCustomSection("B Custom");
     useSidebarStore.getState().addToFavorites("file-b", "file");
     useSidebarStore.getState().addToRecents("file-b", "file");
-    const actorBSection = useSidebarStore
+    const workspaceBSection = useSidebarStore
       .getState()
       .config.sections.find((section) => section.type === "custom");
-    if (!actorBSection) {
-      throw new Error("Expected actor B custom section.");
+    if (!workspaceBSection) {
+      throw new Error("Expected workspace B custom section.");
     }
-    const actorBProject = useSidebarStore.getState().createProject("Actor B Project", "bg-emerald-500");
-    useSidebarStore.getState().addToProject(actorBProject.id, "file-b", "file");
-    useSidebarStore.getState().addToCustomSection(actorBSection.id, "file-b", "file");
+    const workspaceBProject = useSidebarStore.getState().createProject("Workspace B Project", "bg-emerald-500");
+    useSidebarStore.getState().addToProject(workspaceBProject.id, "file-b", "file");
+    useSidebarStore.getState().addToCustomSection(workspaceBSection.id, "file-b", "file");
     await flushMicrotasks();
 
     const persistedState = readPersistedSidebarState();
@@ -170,14 +170,14 @@ describe("sidebar store actor scoping", () => {
       persistedState.state.profiles["user-b"].favorites.map((item: { itemId: string }) => item.itemId),
     ).toEqual(["file-b"]);
 
-    authActorId = "user-a";
-    await useSidebarStore.getState().syncActor("user-a");
+    authWorkspaceId = "user-a";
+    await useSidebarStore.getState().syncWorkspace("user-a");
     await flushMicrotasks();
 
     expect(useSidebarStore.getState().config.favorites.map((item) => item.itemId)).toEqual(["file-a"]);
     expect(useSidebarStore.getState().config.recents.map((item) => item.itemId)).toEqual(["file-a"]);
     expect(useSidebarStore.getState().config.projects.map((project) => project.name)).toEqual([
-      "Actor A Project",
+      "Workspace A Project",
     ]);
     expect(
       useSidebarStore.getState().config.sections.find((section) => section.type === "custom")?.name,
@@ -187,14 +187,14 @@ describe("sidebar store actor scoping", () => {
     ).toBe(false);
     expect(useSidebarStore.getState().config.compactMode).toBe(true);
 
-    authActorId = "user-b";
-    await useSidebarStore.getState().syncActor("user-b");
+    authWorkspaceId = "user-b";
+    await useSidebarStore.getState().syncWorkspace("user-b");
     await flushMicrotasks();
 
     expect(useSidebarStore.getState().config.favorites.map((item) => item.itemId)).toEqual(["file-b"]);
     expect(useSidebarStore.getState().config.recents.map((item) => item.itemId)).toEqual(["file-b"]);
     expect(useSidebarStore.getState().config.projects.map((project) => project.name)).toEqual([
-      "Actor B Project",
+      "Workspace B Project",
     ]);
     expect(
       useSidebarStore.getState().config.sections.find((section) => section.type === "custom")?.name,

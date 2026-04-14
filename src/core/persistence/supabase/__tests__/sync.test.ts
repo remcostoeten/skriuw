@@ -3,19 +3,19 @@ import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
-  mode: "privacy",
-  status: "privacy",
+  mode: "guest",
+  status: "guest",
   rememberMe: true,
   isReady: true,
   isSupabaseConfigured: true,
   user: null,
   session: null,
   error: null,
-  actorId: "privacy-local",
+  workspaceId: "guest-local",
   canSync: false,
 };
 
-let listPGliteRecordsCalls = 0;
+let listLocalRecordsCalls = 0;
 let upsertCalls: Array<{ table: string; rows: Record<string, unknown>[]; onConflict?: string }> = [];
 let updateCalls: Array<{
   table: string;
@@ -32,9 +32,9 @@ async function loadSyncModule() {
 
   mock.module("@/platform/auth", () => authModuleMock);
   mock.module("@/platform/auth/index", () => authModuleMock);
-  mock.module("@/core/persistence/pglite/records", () => ({
-    listPGliteRecords: async () => {
-      listPGliteRecordsCalls += 1;
+  mock.module("@/core/persistence/repositories/local-records", () => ({
+    listLocalRecords: async () => {
+      listLocalRecordsCalls += 1;
       return [];
     },
   }));
@@ -69,18 +69,18 @@ async function loadSyncModule() {
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "privacy",
-    status: "privacy",
+    mode: "guest",
+    status: "guest",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: true,
     user: null,
     session: null,
     error: null,
-    actorId: "privacy-local",
+    workspaceId: "guest-local",
     canSync: false,
   };
-  listPGliteRecordsCalls = 0;
+  listLocalRecordsCalls = 0;
   upsertCalls = [];
   updateCalls = [];
 });
@@ -90,12 +90,12 @@ afterEach(() => {
 });
 
 describe("supabase sync gating", () => {
-  test("skips full sync when privacy mode is active", async () => {
+  test("skips full sync when guest mode is active", async () => {
     const syncModule = await loadSyncModule();
 
     await syncModule.pushAllToRemote();
 
-    expect(listPGliteRecordsCalls).toBe(0);
+    expect(listLocalRecordsCalls).toBe(0);
     expect(upsertCalls).toHaveLength(0);
   });
 
@@ -104,14 +104,14 @@ describe("supabase sync gating", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "authenticated",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
-      actorId: "user-123",
+      workspaceId: "user-123",
       canSync: true,
     };
 
@@ -153,14 +153,14 @@ describe("supabase sync gating", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "authenticated",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
-      actorId: "user-123",
+      workspaceId: "user-123",
       canSync: true,
     };
 

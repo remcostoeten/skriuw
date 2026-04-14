@@ -1,15 +1,16 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import Link from "next/link";
 import { Cloud, Github, LoaderCircle, LogIn, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button-component";
 import { DialogTitle } from "@/shared/ui/dialog";
 import { cn } from "@/shared/lib/utils";
 import {
-  enableAccountMode,
   initializeAuth,
-  setPrivacyMode,
+  setCloudMode,
+  setGuestMode,
   signInWithOAuth,
   signInWithPassword,
   signOut,
@@ -22,7 +23,7 @@ type Props = {
   triggerVariant?: "default" | "rail-avatar";
 };
 
-type AuthIntent = "sign-in" | "sign-up" | "google" | "github" | "sign-out" | "privacy" | "account";
+type AuthIntent = "sign-in" | "sign-up" | "google" | "github" | "sign-out" | "guest" | "cloud";
 
 type OAuthButtonProps = {
   label: string;
@@ -54,15 +55,15 @@ function resolveButtonCopy(auth: ReturnType<typeof useAuthSnapshot>) {
   if (auth.status === "authenticated") {
     return {
       icon: Cloud,
-      label: "Synced",
-      detail: auth.user?.name ?? "Account",
+      label: "Workspace",
+      detail: auth.user?.name ?? "Signed in",
     };
   }
 
-  if (auth.mode === "privacy") {
+  if (auth.mode === "guest") {
     return {
       icon: UserRound,
-      label: "Private",
+      label: "Guest",
       detail: "On-device workspace",
     };
   }
@@ -152,7 +153,7 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
               className,
             )}
             aria-label={buttonCopy.label}
-            title={auth.user ? `Account: ${buttonCopy.detail}` : buttonCopy.label}
+            title={auth.user ? `Workspace: ${buttonCopy.detail}` : buttonCopy.label}
           >
             {auth.user ? (
               <span className="text-[11px] font-medium tracking-[0.08em]">{avatarLabel}</span>
@@ -201,7 +202,7 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 motion-reduce:duration-150",
           )}
         >
-          <DialogTitle className="sr-only">Account</DialogTitle>
+          <DialogTitle className="sr-only">Workspace</DialogTitle>
           <div className="min-w-0 space-y-5 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
             {auth.user ? (
               <div className="min-w-0 space-y-4">
@@ -214,12 +215,20 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                       <p className="mt-1 text-sm text-muted-foreground">{auth.user.email}</p>
                     </div>
                     <span className="border border-border bg-background px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Sync on
+                      Cloud
                     </span>
                   </div>
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-2">
+                  <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full border-border bg-transparent"
+                  >
+                    <Link href="/profile">View profile</Link>
+                  </Button>
                   <Button
                     type="button"
                     variant="default"
@@ -244,17 +253,17 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                     className="h-11 w-full border-border bg-transparent"
                     disabled={isPending}
                     onClick={() =>
-                      void runIntent("privacy", async () => {
-                        await setPrivacyMode();
+                      void runIntent("guest", async () => {
+                        await setGuestMode();
                       })
                     }
                   >
-                    {pendingIntent === "privacy" ? (
+                    {pendingIntent === "guest" ? (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
                     ) : (
                       <UserRound className="h-4 w-4" />
                     )}
-                    Use privacy mode
+                    Use guest workspace
                   </Button>
                 </div>
               </div>
@@ -263,39 +272,39 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                 <div className="grid gap-2">
                   <Button
                     type="button"
-                    variant={auth.mode === "account" ? "default" : "outline"}
+                    variant={auth.mode === "cloud" ? "default" : "outline"}
                     className="h-11 w-full"
                     disabled={isPending || !auth.isSupabaseConfigured}
                     onClick={() =>
-                      void runIntent("account", async () => {
-                        await enableAccountMode();
+                      void runIntent("cloud", async () => {
+                        await setCloudMode();
                       })
                     }
                   >
-                    {pendingIntent === "account" ? (
+                    {pendingIntent === "cloud" ? (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
                     ) : (
                       <Cloud className="h-4 w-4" />
                     )}
-                    Account mode
+                    Cloud workspace
                   </Button>
                   <Button
                     type="button"
-                    variant={auth.mode === "privacy" ? "default" : "outline"}
+                    variant={auth.mode === "guest" ? "default" : "outline"}
                     className="h-11 w-full border-border bg-transparent"
                     disabled={isPending}
                     onClick={() =>
-                      void runIntent("privacy", async () => {
-                        await setPrivacyMode();
+                      void runIntent("guest", async () => {
+                        await setGuestMode();
                       })
                     }
                   >
-                    {pendingIntent === "privacy" ? (
+                    {pendingIntent === "guest" ? (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
                     ) : (
                       <UserRound className="h-4 w-4" />
                     )}
-                    Privacy mode
+                    Guest workspace
                   </Button>
                 </div>
 
@@ -400,8 +409,8 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Privacy mode never touches Supabase. If account sign-up returns no session,
-                  disable email confirmation in Supabase Auth settings.
+                  Guest workspace never touches Supabase. If sign-up returns no session, disable
+                  email confirmation in Supabase Auth settings.
                 </p>
               </div>
             )}

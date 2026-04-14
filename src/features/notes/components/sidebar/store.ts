@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 import {
   DEFAULT_SIDEBAR_CONFIG,
   PROJECT_COLORS,
@@ -12,13 +12,13 @@ import {
 } from "./types";
 
 type SidebarState = {
-  currentActorId: string;
+  currentWorkspaceId: string;
   config: SidebarConfig;
   isLoading: boolean;
   isHydrated: boolean;
   profiles: Record<string, SidebarConfig>;
 
-  syncActor: (actorId: string) => void;
+  syncWorkspace: (workspaceId: string) => void;
   getSections: () => SidebarSection[];
   toggleSectionCollapse: (sectionId: string) => void;
   toggleSectionVisibility: (sectionId: string) => void;
@@ -52,7 +52,7 @@ type SidebarState = {
 };
 
 type PersistedSidebarState = {
-  currentActorId?: string;
+  currentWorkspaceId?: string;
   profiles?: Record<string, SidebarConfig>;
   config?: SidebarConfig;
 };
@@ -82,49 +82,49 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
   };
 }
 
-function readActorConfig(profiles: Record<string, SidebarConfig>, actorId: string): SidebarConfig {
-  return cloneSidebarConfig(profiles[actorId] ?? DEFAULT_SIDEBAR_CONFIG);
+function readWorkspaceConfig(profiles: Record<string, SidebarConfig>, workspaceId: string): SidebarConfig {
+  return cloneSidebarConfig(profiles[workspaceId] ?? DEFAULT_SIDEBAR_CONFIG);
 }
 
-function resolveActorId(actorId?: string) {
-  return actorId ?? getAuthActorId();
+function resolveWorkspaceId(workspaceId?: string) {
+  return workspaceId ?? getWorkspaceId();
 }
 
 export const useSidebarStore = create<SidebarState>()(
   persist(
     (set, get) => {
-      const applyActorUpdate = (
+      const applyWorkspaceUpdate = (
         updater: (config: SidebarConfig, state: SidebarState) => SidebarConfig,
       ) => {
         set((state) => {
-          const actorId = resolveActorId(state.currentActorId);
+          const workspaceId = resolveWorkspaceId(state.currentWorkspaceId);
           const nextConfig = updater(cloneSidebarConfig(state.config), state);
 
           return {
-            currentActorId: actorId,
+            currentWorkspaceId: workspaceId,
             config: nextConfig,
             profiles: {
               ...state.profiles,
-              [actorId]: nextConfig,
+              [workspaceId]: nextConfig,
             },
           };
         });
       };
 
       return {
-        currentActorId: getAuthActorId(),
+        currentWorkspaceId: getWorkspaceId(),
         config: cloneSidebarConfig(),
         isLoading: false,
         isHydrated: false,
         profiles: {},
 
-        syncActor: (actorId: string) => {
-          const nextActorId = resolveActorId(actorId);
+        syncWorkspace: (workspaceId: string) => {
+          const nextWorkspaceId = resolveWorkspaceId(workspaceId);
           const profiles = get().profiles;
-          const nextConfig = readActorConfig(profiles, nextActorId);
+          const nextConfig = readWorkspaceConfig(profiles, nextWorkspaceId);
 
           set({
-            currentActorId: nextActorId,
+            currentWorkspaceId: nextWorkspaceId,
             config: nextConfig,
             profiles,
             isLoading: false,
@@ -143,7 +143,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         toggleSectionCollapse: (sectionId: string) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) =>
               section.id === sectionId ? { ...section, isCollapsed: !section.isCollapsed } : section,
@@ -152,7 +152,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         toggleSectionVisibility: (sectionId: string) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) =>
               section.id === sectionId ? { ...section, isVisible: !section.isVisible } : section,
@@ -161,7 +161,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         reorderSections: (sectionIds: string[]) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) => ({
               ...section,
@@ -171,7 +171,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         addCustomSection: (name: string) => {
-          applyActorUpdate((config) => {
+          applyWorkspaceUpdate((config) => {
             const newSection: SidebarSection = {
               id: `custom-${crypto.randomUUID()}`,
               type: "custom",
@@ -193,7 +193,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         removeSection: (sectionId: string) => {
-          applyActorUpdate((config) => {
+          applyWorkspaceUpdate((config) => {
             const section = config.sections.find((item) => item.id === sectionId);
             if (section?.type !== "custom") return config;
 
@@ -205,7 +205,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         renameSection: (sectionId: string, name: string) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) =>
               section.id === sectionId ? { ...section, name } : section,
@@ -214,7 +214,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         addToCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) => {
               if (section.id !== sectionId || section.type !== "custom") return section;
@@ -245,7 +245,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         removeFromCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             sections: config.sections.map((section) => {
               if (section.id !== sectionId || section.type !== "custom") return section;
@@ -271,7 +271,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         addToFavorites: (itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => {
+          applyWorkspaceUpdate((config) => {
             const existing = config.favorites.find((favorite) => favorite.itemId === itemId);
             if (existing) return config;
 
@@ -290,7 +290,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         removeFromFavorites: (itemId: string) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             favorites: config.favorites.filter((favorite) => favorite.itemId !== itemId),
           }));
@@ -301,7 +301,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         addToRecents: (itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => {
+          applyWorkspaceUpdate((config) => {
             const filtered = config.recents.filter((recent) => recent.itemId !== itemId);
 
             const newRecent: RecentItem = {
@@ -319,7 +319,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         clearRecents: () => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             recents: [],
           }));
@@ -340,7 +340,7 @@ export const useSidebarStore = create<SidebarState>()(
             updatedAt: new Date(),
           };
 
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             projects: [...config.projects, newProject],
           }));
@@ -349,7 +349,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         updateProject: (projectId: string, updates: Partial<Project>) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             projects: config.projects.map((project) =>
               project.id === projectId ? { ...project, ...updates, updatedAt: new Date() } : project,
@@ -358,14 +358,14 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         deleteProject: (projectId: string) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             projects: config.projects.filter((project) => project.id !== projectId),
           }));
         },
 
         addToProject: (projectId: string, itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             projects: config.projects.map((project) => {
               if (project.id !== projectId) return project;
@@ -381,7 +381,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         removeFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             projects: config.projects.map((project) => {
               if (project.id !== projectId) return project;
@@ -411,7 +411,7 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         setMaxRecents: (max: number) => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             maxRecents: max,
             recents: config.recents.slice(0, max),
@@ -419,48 +419,48 @@ export const useSidebarStore = create<SidebarState>()(
         },
 
         toggleShowSectionHeaders: () => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             showSectionHeaders: !config.showSectionHeaders,
           }));
         },
 
         toggleCompactMode: () => {
-          applyActorUpdate((config) => ({
+          applyWorkspaceUpdate((config) => ({
             ...config,
             compactMode: !config.compactMode,
           }));
         },
 
         resetToDefaults: () => {
-          applyActorUpdate(() => cloneSidebarConfig());
+          applyWorkspaceUpdate(() => cloneSidebarConfig());
         },
       };
     },
     {
-      name: "haptic-sidebar",
+      name: "skriuw-sidebar",
       partialize: (state) => ({ profiles: state.profiles }),
       merge: (persistedState, currentState) => {
         const state = persistedState as PersistedSidebarState | undefined;
-        const actorId = getAuthActorId();
+        const workspaceId = getWorkspaceId();
         const profiles = {
           ...state?.profiles,
         };
 
-        if (!profiles[actorId]) {
+        if (!profiles[workspaceId]) {
           if (state?.config) {
-            profiles[actorId] = cloneSidebarConfig(state.config);
+            profiles[workspaceId] = cloneSidebarConfig(state.config);
           } else {
-            profiles[actorId] = cloneSidebarConfig();
+            profiles[workspaceId] = cloneSidebarConfig();
           }
         }
 
-        const nextConfig = readActorConfig(profiles, actorId);
+        const nextConfig = readWorkspaceConfig(profiles, workspaceId);
 
         return {
           ...currentState,
           profiles,
-          currentActorId: actorId,
+          currentWorkspaceId: workspaceId,
           config: nextConfig,
           isLoading: false,
           isHydrated: true,

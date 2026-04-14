@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import {
   useDragControls,
   useReducedMotion,
@@ -80,7 +81,6 @@ export function useNotesLayout() {
   const folders = useNotesStore((state) => state.folders);
   const activeFileId = useNotesStore((state) => state.activeFileId);
   const isNotesHydrated = useNotesStore((state) => state.isHydrated);
-  const hydratedForActorId = useNotesStore((state) => state.hydratedForActorId);
   const activeFileSaveState = useNotesStore((state) =>
     state.getFileSaveState(state.activeFileId),
   );
@@ -95,14 +95,18 @@ export function useNotesLayout() {
   const moveFile = useNotesStore((state) => state.moveFile);
   const moveFolder = useNotesStore((state) => state.moveFolder);
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
+  const collapseAllFolders = useNotesStore((state) => state.collapseAllFolders);
+  const expandAllFolders = useNotesStore((state) => state.expandAllFolders);
 
   const ui = useDocumentStore((state) => state.ui);
   const setUIState = useDocumentStore((state) => state.setUIState);
   const setSidebarWidth = useDocumentStore((state) => state.setSidebarWidth);
-  const syncLayoutActor = useDocumentStore((state) => state.syncActor);
+  const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
   const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
 
   const initializePreferences = usePreferencesStore((state) => state.initialize);
+  const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
+  const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -142,8 +146,8 @@ export function useNotesLayout() {
   }, [initializePreferences]);
 
   useEffect(() => {
-    void syncLayoutActor(auth.actorId);
-  }, [auth.actorId, syncLayoutActor]);
+    void syncLayoutWorkspace(auth.workspaceId);
+  }, [auth.workspaceId, syncLayoutWorkspace]);
 
   useEffect(() => {
     if (!activeFile) {
@@ -151,8 +155,8 @@ export function useNotesLayout() {
       return;
     }
 
-    setEditorMode(activeFile.preferredEditorMode ?? "block");
-  }, [activeFile]);
+    setEditorMode(activeFile.preferredEditorMode ?? (defaultModeRaw ? "raw" : "block"));
+  }, [activeFile, defaultModeRaw]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -227,12 +231,24 @@ export function useNotesLayout() {
   }, [isMobile, showMetadata, setUIState]);
 
   const handleCreateFile = useCallback(() => {
+    if (diaryModeEnabled) {
+      triggerNativeFeedback("success");
+      const today = format(new Date(), "yyyy-MM-dd");
+      router.push(`/journal?date=${today}`);
+      if (isMobile) {
+        setUIState({ showSidebar: false });
+      }
+      return;
+    }
+
     triggerNativeFeedback("success");
-    createFile("Untitled");
+    const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+    createFile("Untitled", null, preferredEditorMode);
+    setEditorMode(preferredEditorMode);
     if (isMobile) {
       setUIState({ showSidebar: false });
     }
-  }, [createFile, isMobile, setUIState]);
+  }, [createFile, defaultModeRaw, diaryModeEnabled, isMobile, router, setUIState]);
 
   const handleCreateFolder = useCallback(() => {
     triggerNativeFeedback("impact");
@@ -418,10 +434,14 @@ export function useNotesLayout() {
     () => [
       {
         id: "new-note",
-        label: "Create note",
+        label: diaryModeEnabled ? "Open today's journal" : "Create note",
         shortcut: "mod+n",
-        keywords: ["new", "file", "note", "create"],
-        description: "Create a fresh note and focus it immediately.",
+        keywords: diaryModeEnabled
+          ? ["journal", "today", "entry", "create", "new"]
+          : ["new", "file", "note", "create"],
+        description: diaryModeEnabled
+          ? "Open today in the journal workspace."
+          : "Create a fresh note and focus it immediately.",
         action: handleCreateFile,
       },
       {
@@ -475,6 +495,7 @@ export function useNotesLayout() {
     [
       handleCreateFile,
       handleCreateFolder,
+      diaryModeEnabled,
       handleOpenSettings,
       handleToggleEditorMode,
       handleToggleMetadata,
@@ -483,7 +504,7 @@ export function useNotesLayout() {
     ],
   );
 
-  const isEditorReady = isNotesHydrated && hydratedForActorId === auth.actorId;
+  const isEditorReady = isNotesHydrated;
   const sidebarPanelProps = {
     files,
     folders,
@@ -492,6 +513,8 @@ export function useNotesLayout() {
     activeFileId,
     onFileSelect: handleFileSelect,
     onToggleFolder: toggleFolder,
+    onCollapseAllFolders: collapseAllFolders,
+    onExpandAllFolders: expandAllFolders,
     onCreateFile: handleCreateFile,
     onCreateFolder: handleCreateFolder,
     onRenameFile: renameFile,
@@ -513,11 +536,13 @@ export function useNotesLayout() {
     canNavigatePrev,
     closeMetadata,
     closeSidebar,
+    collapseAllFolders,
     commandItems,
     countDescendants,
     createFile: handleCreateFile,
     createFolder: handleCreateFolder,
     editorMode,
+    expandAllFolders,
     getFilesInFolder,
     getFoldersInFolder,
     handleDesktopSidebarResizeStart,

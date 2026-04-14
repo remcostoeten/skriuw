@@ -8,13 +8,13 @@ import {
 } from "@/core/shared/persistence-types";
 import type { NoteFolder } from "@/types/notes";
 import {
-  getRemotePersistenceUserId,
   getRemoteRecord,
   listRemoteRecords,
   putRemoteRecord,
   softDeleteRemoteRecords,
 } from "@/core/persistence/supabase";
 import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
+import { getWorkspaceTarget, isCloudWorkspaceTarget } from "./workspace-target";
 
 export interface FoldersRepository {
   list(): Promise<NoteFolder[]>;
@@ -49,15 +49,15 @@ function collectDescendantFolderIds(
 
 export const foldersRepository: FoldersRepository = {
   list: async () => {
-    const remoteUserId = getRemotePersistenceUserId();
-    const records = remoteUserId
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, remoteUserId)
+    const target = getWorkspaceTarget();
+    const records = isCloudWorkspaceTarget(target)
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, target.userId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
 
     return records.map((folder) => fromPersistedFolder(folder));
   },
   create: async (input) => {
-    const remoteUserId = getRemotePersistenceUserId();
+    const target = getWorkspaceTarget();
     const timestamp = input.createdAt ?? new Date();
     const persistedFolder: PersistedFolder = {
       id: (input.id ?? crypto.randomUUID()) as FolderId,
@@ -67,8 +67,8 @@ export const foldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? timestamp).toISOString() as IsoTime,
     };
 
-    if (remoteUserId) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder, remoteUserId);
+    if (isCloudWorkspaceTarget(target)) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder, target.userId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
     }
@@ -76,9 +76,9 @@ export const foldersRepository: FoldersRepository = {
     return fromPersistedFolder(persistedFolder);
   },
   update: async (input) => {
-    const remoteUserId = getRemotePersistenceUserId();
-    const existing = remoteUserId
-      ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id, remoteUserId)
+    const target = getWorkspaceTarget();
+    const existing = isCloudWorkspaceTarget(target)
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id, target.userId)
       : await getLocalRecord(PERSISTED_STORE_NAMES.folders, input.id);
 
     if (!existing) {
@@ -92,8 +92,8 @@ export const foldersRepository: FoldersRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    if (remoteUserId) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated, remoteUserId);
+    if (isCloudWorkspaceTarget(target)) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated, target.userId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.folders, updated);
     }
@@ -101,25 +101,25 @@ export const foldersRepository: FoldersRepository = {
     return fromPersistedFolder(updated);
   },
   destroy: async (id) => {
-    const remoteUserId = getRemotePersistenceUserId();
-    const folders = remoteUserId
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, remoteUserId)
+    const target = getWorkspaceTarget();
+    const folders = isCloudWorkspaceTarget(target)
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, target.userId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
 
     const descendantIds = collectDescendantFolderIds(folders, id);
 
-    const notes = remoteUserId
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, remoteUserId)
+    const notes = isCloudWorkspaceTarget(target)
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, target.userId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
 
     const noteIdsToDelete = notes
       .filter((note) => note.parentId && descendantIds.has(note.parentId))
       .map((note) => note.id);
 
-    if (remoteUserId) {
+    if (isCloudWorkspaceTarget(target)) {
       await Promise.all([
-        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.folders, Array.from(descendantIds), remoteUserId),
-        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.notes, noteIdsToDelete, remoteUserId),
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.folders, Array.from(descendantIds), target.userId),
+        softDeleteRemoteRecords(PERSISTED_STORE_NAMES.notes, noteIdsToDelete, target.userId),
       ]);
       return;
     }

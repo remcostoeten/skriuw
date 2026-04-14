@@ -13,7 +13,7 @@ describe("storage schema", () => {
   });
 
   test("defines the expected object stores", () => {
-    expect(PERSISTENCE_DB_NAME).toBe("haptic-persistence");
+    expect(PERSISTENCE_DB_NAME).toBe("skriuw-persistence");
     expect(getPersistenceStoreNames()).toEqual([
       PERSISTED_STORE_NAMES.notes,
       PERSISTED_STORE_NAMES.folders,

@@ -1,5 +1,5 @@
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
-import { listPGliteRecords } from "@/core/persistence/pglite/records";
+import { listLocalRecords } from "@/core/persistence/repositories/local-records";
 import {
   getRemotePersistenceUserId,
   putRemoteRecord,
@@ -7,7 +7,7 @@ import {
   type RemoteStoreName,
 } from "./records";
 
-const LAST_SYNC_KEY = "haptic:last-remote-sync";
+const LAST_SYNC_KEY = "skriuw:last-remote-sync";
 
 // ── Full push sync (local → remote) ─────────────────────────────────
 
@@ -18,10 +18,10 @@ export async function pushAllToRemote(): Promise<void> {
   }
 
   const [notes, folders, journalEntries, tags] = await Promise.all([
-    listPGliteRecords(PERSISTED_STORE_NAMES.notes),
-    listPGliteRecords(PERSISTED_STORE_NAMES.folders),
-    listPGliteRecords(PERSISTED_STORE_NAMES.journalEntries),
-    listPGliteRecords(PERSISTED_STORE_NAMES.tags),
+    listLocalRecords(PERSISTED_STORE_NAMES.notes),
+    listLocalRecords(PERSISTED_STORE_NAMES.folders),
+    listLocalRecords(PERSISTED_STORE_NAMES.journalEntries),
+    listLocalRecords(PERSISTED_STORE_NAMES.tags),
   ]);
 
   await Promise.all([

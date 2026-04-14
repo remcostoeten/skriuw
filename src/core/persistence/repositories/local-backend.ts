@@ -1,26 +1,6 @@
-import { openPGliteDb } from "@/core/persistence/pglite";
-
-export type LocalPersistenceBackend = "pglite" | "indexeddb";
 export type LocalPersistenceDurability = "durable" | "ephemeral" | "unknown";
 
 const EPHEMERAL_STORAGE_QUOTA_BYTES = 128 * 1024 * 1024;
-
-let backendPromise: Promise<LocalPersistenceBackend> | null = null;
-
-export async function resolveLocalPersistenceBackend(): Promise<LocalPersistenceBackend> {
-  if (backendPromise) {
-    return backendPromise;
-  }
-
-  backendPromise = openPGliteDb()
-    .then(() => "pglite" as const)
-    .catch((error) => {
-      console.warn("Falling back to IndexedDB persistence because PGlite failed to initialize.", error);
-      return "indexeddb" as const;
-    });
-
-  return backendPromise;
-}
 
 export async function detectLocalPersistenceDurability(): Promise<LocalPersistenceDurability> {
   if (typeof navigator === "undefined" || !navigator.storage) {
@@ -48,8 +28,4 @@ export async function detectLocalPersistenceDurability(): Promise<LocalPersisten
   }
 
   return "unknown";
-}
-
-export function resetLocalPersistenceBackendForTests(): void {
-  backendPromise = null;
 }

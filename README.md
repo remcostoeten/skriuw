@@ -1,4 +1,4 @@
-# Haptic - Notes
+# Skriuw - Notes
 
 A keyboard-first note-taking application built with Next.js, React, and TypeScript.
 
@@ -9,7 +9,7 @@ A keyboard-first note-taking application built with Next.js, React, and TypeScri
 - **Keyboard-First**: Optimized for keyboard navigation and shortcuts
 - **Responsive Design**: Works on desktop and mobile
 - **Cloud Workspace**: Notes, folders, journal entries, and tags are loaded from Supabase
-- **Privacy Mode**: Open an on-device workspace without signing in, with a seeded demo dataset for first-run testing
+- **Guest Workspace**: Open an on-device workspace without signing in, with a seeded demo dataset for first-run testing
 
 ## Tech Stack
 
@@ -33,7 +33,7 @@ A keyboard-first note-taking application built with Next.js, React, and TypeScri
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd haptic-ui-clone
+cd skriuw
 
 # Install dependencies
 npm install
@@ -56,10 +56,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 This build supports both:
 
-- `Account mode`: Supabase-backed auth and synced records
-- `Privacy mode`: local on-device storage with no sign-in required
+- `Cloud workspace`: Supabase-backed auth and synced records
+- `Guest workspace`: local on-device storage with no sign-in required
 
-If you want account mode, copy the env template first:
+If you want cloud auth, copy the env template first:
 
 ```bash
 cp .env.example .env.local

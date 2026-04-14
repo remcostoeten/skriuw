@@ -1,5 +1,5 @@
 {
-  "name": "haptic-ui-clone",
+  "name": "skriuw",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,6 @@
     "@blocknote/core": "^0.46.2",
     "@blocknote/mantine": "^0.46.2",
     "@blocknote/react": "^0.46.2",
-    "@electric-sql/pglite": "^0.3.16",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-context-menu": "^2.2.15",
     "@radix-ui/react-dialog": "^1.1.15",

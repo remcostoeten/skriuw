@@ -17,15 +17,14 @@ import {
   type JournalEntry,
   type JournalTag,
 } from "./types";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 
 type JournalState = {
   config: JournalConfig;
   isHydrated: boolean;
-  hydratedForActorId: string | null;
   saveStates: Record<string, SaveStatus>;
-  beginActorTransition: (actorId?: string) => void;
-  initialize: (actorId?: string) => Promise<void>;
+  resetWorkspace: () => void;
+  initialize: (workspaceId?: string) => Promise<void>;
   getEntrySaveState: (id: string | null | undefined) => SaveStatus;
   getEntryByDate: (date: Date) => JournalEntry | undefined;
   getEntryByDateKey: (dateKey: DateKey | string) => JournalEntry | undefined;
@@ -59,7 +58,6 @@ function normalizeTagName(tagName: string): string {
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
-let journalStoreSessionVersion = 0;
 
 function clearTimeoutMap(timeoutMap: Map<string, ReturnType<typeof setTimeout>>) {
   for (const timeoutId of timeoutMap.values()) {
@@ -74,8 +72,8 @@ function resetPendingJournalSideEffects() {
   clearTimeoutMap(saveStatusResetTimeouts);
 }
 
-function isStaleJournalSession(actorId: string, sessionVersion: number) {
-  return getAuthActorId() !== actorId || journalStoreSessionVersion !== sessionVersion;
+function isStaleJournalWorkspace(workspaceId: string) {
+  return getWorkspaceId() !== workspaceId;
 }
 
 function scheduleSaveStatusReset(id: string, onReset: () => void) {
@@ -95,31 +93,26 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
 export const useJournalStore = create<JournalState>()((set, get) => ({
   config: DEFAULT_JOURNAL_CONFIG,
   isHydrated: false,
-  hydratedForActorId: null,
   saveStates: {},
 
-  beginActorTransition: () => {
-    journalStoreSessionVersion += 1;
+  resetWorkspace: () => {
     resetPendingJournalSideEffects();
     set({
       config: DEFAULT_JOURNAL_CONFIG,
       isHydrated: false,
-      hydratedForActorId: null,
       saveStates: {},
     });
   },
 
-  initialize: async (actorId = getAuthActorId()) => {
-    const sessionVersion = journalStoreSessionVersion;
-
-    if (get().isHydrated && get().hydratedForActorId === actorId) return;
+  initialize: async (workspaceId = getWorkspaceId()) => {
+    if (get().isHydrated) return;
 
     const [entries, tags] = await Promise.all([
       journalRepository.listEntries(),
       journalRepository.listTags(),
     ]);
 
-    if (isStaleJournalSession(actorId, sessionVersion)) {
+    if (isStaleJournalWorkspace(workspaceId)) {
       return;
     }
 
@@ -129,7 +122,6 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         tags,
       },
       isHydrated: true,
-      hydratedForActorId: actorId,
       saveStates: {},
     });
   },
@@ -154,8 +146,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   createOrUpdateEntry: (date: Date, content: string, tags?: string[], mood?: MoodLevel) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = journalStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     const key = toDateKey(date);
     const existing = get().config.entries.find((entry) => entry.dateKey === key);
     const normalizedTags = tags?.map(normalizeTagName) ?? existing?.tags ?? [];
@@ -188,7 +179,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -196,7 +187,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
             saveStates: { ...state.saveStates, [existing.id]: "saved" as const },
           }));
           scheduleSaveStatusReset(existing.id, () => {
-            if (isStaleJournalSession(actorId, sessionVersion)) {
+            if (isStaleJournalWorkspace(workspaceId)) {
               return;
             }
 
@@ -206,7 +197,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           });
         })
         .catch(() => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -246,7 +237,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       updatedAt: newEntry.updatedAt,
     })
       .then(() => {
-        if (isStaleJournalSession(actorId, sessionVersion)) {
+        if (isStaleJournalWorkspace(workspaceId)) {
           return;
         }
 
@@ -254,7 +245,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           saveStates: { ...state.saveStates, [newEntry.id]: "saved" as const },
         }));
         scheduleSaveStatusReset(newEntry.id, () => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -264,7 +255,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         });
       })
       .catch(() => {
-        if (isStaleJournalSession(actorId, sessionVersion)) {
+        if (isStaleJournalWorkspace(workspaceId)) {
           return;
         }
 
@@ -277,8 +268,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   deleteEntry: (id: string) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = journalStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     set((state) => ({
       config: {
         ...state.config,
@@ -296,7 +286,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     }
 
     void journalRepository.destroyEntry(id as JournalEntryId).catch(() => {
-      if (isStaleJournalSession(actorId, sessionVersion)) {
+      if (isStaleJournalWorkspace(workspaceId)) {
         return;
       }
 
@@ -307,8 +297,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   updateEntryContent: (id: string, content: string) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = journalStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     const updatedAt = new Date();
 
     set((state) => ({
@@ -329,7 +318,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
 
-      if (isStaleJournalSession(actorId, sessionVersion)) {
+      if (isStaleJournalWorkspace(workspaceId)) {
         return;
       }
 
@@ -339,7 +328,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -347,7 +336,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
             saveStates: { ...state.saveStates, [id]: "saved" as const },
           }));
           scheduleSaveStatusReset(id, () => {
-            if (isStaleJournalSession(actorId, sessionVersion)) {
+            if (isStaleJournalWorkspace(workspaceId)) {
               return;
             }
 
@@ -357,7 +346,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           });
         })
         .catch(() => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -371,8 +360,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   updateEntryMood: (id: string, mood: MoodLevel | undefined) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = journalStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     const updatedAt = new Date();
 
     set((state) => ({
@@ -391,7 +379,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       updatedAt,
     })
       .then(() => {
-        if (isStaleJournalSession(actorId, sessionVersion)) {
+        if (isStaleJournalWorkspace(workspaceId)) {
           return;
         }
 
@@ -399,7 +387,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
           saveStates: { ...state.saveStates, [id]: "saved" as const },
         }));
         scheduleSaveStatusReset(id, () => {
-          if (isStaleJournalSession(actorId, sessionVersion)) {
+          if (isStaleJournalWorkspace(workspaceId)) {
             return;
           }
 
@@ -409,7 +397,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         });
       })
       .catch(() => {
-        if (isStaleJournalSession(actorId, sessionVersion)) {
+        if (isStaleJournalWorkspace(workspaceId)) {
           return;
         }
 

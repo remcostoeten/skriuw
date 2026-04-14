@@ -12,8 +12,8 @@ export type User = {
   name: string;
 };
 
-export type AuthMode = "privacy" | "account";
-export type AuthStatus = "initializing" | "privacy" | "signed_out" | "authenticated";
+export type AuthMode = "guest" | "cloud";
+export type AuthStatus = "initializing" | "guest" | "signed_out" | "authenticated";
 export type OAuthProvider = "google" | "github";
 
 export type AuthSnapshot = {
@@ -25,7 +25,7 @@ export type AuthSnapshot = {
   user: User | null;
   session: Session | null;
   error: string | null;
-  actorId: string;
+  workspaceId: string;
   canSync: boolean;
 };
 
@@ -36,12 +36,12 @@ type AuthPreferences = {
 
 type AuthListener = () => void;
 
-const AUTH_PREFERENCES_KEY = "haptic:auth:preferences:v1";
-const PRIVACY_ACTOR_ID = "privacy-local";
-const ACCOUNT_LOCAL_ACTOR_ID = "account-local";
+const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
+const GUEST_WORKSPACE_ID = "guest-local";
+const CLOUD_WORKSPACE_ID = "cloud-local";
 
 let snapshot: AuthSnapshot = {
-  mode: "privacy",
+  mode: "guest",
   status: "initializing",
   rememberMe: true,
   isReady: typeof window === "undefined",
@@ -49,7 +49,7 @@ let snapshot: AuthSnapshot = {
   user: null,
   session: null,
   error: null,
-  actorId: PRIVACY_ACTOR_ID,
+  workspaceId: GUEST_WORKSPACE_ID,
   canSync: false,
 };
 
@@ -83,21 +83,25 @@ function toUser(session: Session | null): User | null {
 
 function readPreferences(): AuthPreferences {
   if (typeof window === "undefined") {
-    return { mode: "privacy", rememberMe: true };
+    return { mode: "guest", rememberMe: true };
   }
 
   try {
     const raw = window.localStorage.getItem(AUTH_PREFERENCES_KEY);
     if (!raw) {
       return {
-        mode: "privacy",
+        mode: "guest",
         rememberMe: getStoredRememberMePreference(),
       };
     }
 
-    const parsed = JSON.parse(raw) as Partial<AuthPreferences>;
+    const parsed = JSON.parse(raw) as {
+      mode?: string;
+      rememberMe?: boolean;
+    };
+    const mode = parsed.mode;
     return {
-      mode: parsed.mode === "account" ? "account" : "privacy",
+      mode: mode === "cloud" || mode === "account" ? "cloud" : "guest",
       rememberMe:
         typeof parsed.rememberMe === "boolean"
           ? parsed.rememberMe
@@ -105,7 +109,7 @@ function readPreferences(): AuthPreferences {
     };
   } catch {
     return {
-      mode: "privacy",
+      mode: "guest",
       rememberMe: getStoredRememberMePreference(),
     };
   }
@@ -140,28 +144,28 @@ function clearError(): void {
   }
 }
 
-function getLocalActorId(mode: AuthMode): string {
-  return mode === "account" ? ACCOUNT_LOCAL_ACTOR_ID : PRIVACY_ACTOR_ID;
+function getLocalWorkspaceId(mode: AuthMode): string {
+  return mode === "cloud" ? CLOUD_WORKSPACE_ID : GUEST_WORKSPACE_ID;
 }
 
 function applySession(session: Session | null, modeOverride?: AuthMode): AuthSnapshot {
   const user = toUser(session);
   const preferredMode = modeOverride ?? snapshot.mode;
-  const nextMode = user ? "account" : preferredMode;
-  const nextSnapshot: AuthSnapshot = {
+  const nextMode = user ? "cloud" : preferredMode;
+  const workspaceId = user?.id ?? getLocalWorkspaceId(nextMode);
+
+  return setSnapshot({
     ...snapshot,
     mode: nextMode,
-    status: user ? "authenticated" : nextMode === "privacy" ? "privacy" : "signed_out",
+    status: user ? "authenticated" : nextMode === "guest" ? "guest" : "signed_out",
     isReady: true,
     isSupabaseConfigured: isSupabaseConfigured(),
     user,
     session,
     error: null,
-    actorId: user?.id ?? getLocalActorId(nextMode),
+    workspaceId,
     canSync: Boolean(user) && isSupabaseConfigured(),
-  };
-
-  return setSnapshot(nextSnapshot);
+  });
 }
 
 function updatePreferences(nextPreferences: Partial<AuthPreferences>): AuthPreferences {
@@ -242,8 +246,8 @@ export async function setRememberMe(rememberMe: boolean): Promise<AuthSnapshot> 
   }));
 }
 
-export async function setPrivacyMode(): Promise<AuthSnapshot> {
-  updatePreferences({ mode: "privacy" });
+export async function setGuestMode(): Promise<AuthSnapshot> {
+  updatePreferences({ mode: "guest" });
   clearError();
 
   if (isSupabaseConfigured() && snapshot.session) {
@@ -254,19 +258,23 @@ export async function setPrivacyMode(): Promise<AuthSnapshot> {
     }
   }
 
-  return applySession(null, "privacy");
+  return applySession(null, "guest");
 }
 
-export async function enableAccountMode(): Promise<AuthSnapshot> {
-  updatePreferences({ mode: "account" });
+export async function setCloudMode(): Promise<AuthSnapshot> {
+  updatePreferences({ mode: "cloud" });
   clearError();
 
-  return setSnapshot((current) => ({
-    ...current,
-    mode: "account",
-    status: current.user ? "authenticated" : "signed_out",
-    actorId: current.user?.id ?? getLocalActorId("account"),
-  }));
+  return setSnapshot((current) => {
+    const workspaceId = current.user?.id ?? getLocalWorkspaceId("cloud");
+
+    return {
+      ...current,
+      mode: "cloud",
+      status: current.user ? "authenticated" : "signed_out",
+      workspaceId,
+    };
+  });
 }
 
 type EmailAuthInput = {
@@ -285,7 +293,7 @@ export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSna
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(input.rememberMe);
-  updatePreferences({ mode: "account" });
+  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -299,14 +307,14 @@ export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSna
     throw error;
   }
 
-  return applySession(data.session, "account");
+  return applySession(data.session, "cloud");
 }
 
 export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(input.rememberMe);
-  updatePreferences({ mode: "account" });
+  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -326,7 +334,7 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
     );
   }
 
-  return applySession(data.session, "account");
+  return applySession(data.session, "cloud");
 }
 
 export async function signInWithOAuth(
@@ -336,7 +344,7 @@ export async function signInWithOAuth(
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(options.rememberMe);
-  updatePreferences({ mode: "account" });
+  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -358,7 +366,7 @@ export async function signOut(): Promise<AuthSnapshot> {
   clearError();
 
   if (!isSupabaseConfigured()) {
-    return applySession(null, "account");
+    return applySession(null, "cloud");
   }
 
   const supabase = getSupabaseClient();
@@ -368,7 +376,7 @@ export async function signOut(): Promise<AuthSnapshot> {
     throw error;
   }
 
-  return applySession(null, "account");
+  return applySession(null, "cloud");
 }
 
 export function getAuth(): User | null {
@@ -391,8 +399,8 @@ export function canSyncToRemote(): boolean {
   return snapshot.canSync;
 }
 
-export function getAuthActorId(): string {
-  return snapshot.actorId;
+export function getWorkspaceId(): string {
+  return snapshot.workspaceId;
 }
 
 export function resetAuthForTests(): void {
@@ -400,7 +408,7 @@ export function resetAuthForTests(): void {
   authSubscriptionBound = false;
   listeners.clear();
   snapshot = {
-    mode: "privacy",
+    mode: "guest",
     status: "initializing",
     rememberMe: true,
     isReady: true,
@@ -408,7 +416,7 @@ export function resetAuthForTests(): void {
     user: null,
     session: null,
     error: null,
-    actorId: PRIVACY_ACTOR_ID,
+    workspaceId: GUEST_WORKSPACE_ID,
     canSync: false,
   };
 }

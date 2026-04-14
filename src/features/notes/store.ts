@@ -7,7 +7,7 @@ import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore } from "@/features/settings/store";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 
 function generateNoteContent(name: string): string {
   const title = name.replace(".md", "");
@@ -45,8 +45,6 @@ This workspace starts with one note instead of an empty state.
 
 const contentSaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStatusResetTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
-let notesStoreSessionVersion = 0;
-
 function clearTimeoutMap(timeoutMap: Map<string, ReturnType<typeof setTimeout>>) {
   for (const timeoutId of timeoutMap.values()) {
     clearTimeout(timeoutId);
@@ -60,8 +58,8 @@ function resetPendingNoteSideEffects() {
   clearTimeoutMap(saveStatusResetTimeouts);
 }
 
-function isStaleNotesSession(actorId: string, sessionVersion: number) {
-  return getAuthActorId() !== actorId || notesStoreSessionVersion !== sessionVersion;
+function isStaleNotesWorkspace(workspaceId: string) {
+  return getWorkspaceId() !== workspaceId;
 }
 
 function scheduleSaveStatusReset(id: string, onReset: () => void) {
@@ -99,13 +97,16 @@ type NotesState = {
   folders: NoteFolder[];
   activeFileId: string;
   isHydrated: boolean;
-  hydratedForActorId: string | null;
   saveStates: Record<string, SaveStatus>;
-  beginActorTransition: (actorId?: string) => void;
-  initialize: (actorId?: string) => Promise<void>;
+  resetWorkspace: () => void;
+  initialize: (workspaceId?: string) => Promise<void>;
   getFileSaveState: (id: string | null | undefined) => SaveStatus;
   setActiveFileId: (id: string) => void;
-  createFile: (name: string, parentId?: string | null) => NoteFile;
+  createFile: (
+    name: string,
+    parentId?: string | null,
+    preferredEditorMode?: NoteEditorMode,
+  ) => NoteFile;
   createFolder: (name: string, parentId?: string | null) => NoteFolder;
   updateFileContent: (
     id: string,
@@ -122,6 +123,8 @@ type NotesState = {
   moveFile: (fileId: string, newParentId: string | null) => void;
   moveFolder: (folderId: string, newParentId: string | null) => void;
   toggleFolder: (id: string) => void;
+  collapseAllFolders: () => void;
+  expandAllFolders: () => void;
 };
 
 export const useNotesStore = create<NotesState>()((set, get) => ({
@@ -129,33 +132,28 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   folders: [],
   activeFileId: "",
   isHydrated: false,
-  hydratedForActorId: null,
   saveStates: {},
 
-  beginActorTransition: () => {
-    notesStoreSessionVersion += 1;
+  resetWorkspace: () => {
     resetPendingNoteSideEffects();
     set({
       files: [],
       folders: [],
       activeFileId: "",
       isHydrated: false,
-      hydratedForActorId: null,
       saveStates: {},
     });
   },
 
-  initialize: async (actorId = getAuthActorId()) => {
-    const sessionVersion = notesStoreSessionVersion;
-
-    if (get().isHydrated && get().hydratedForActorId === actorId) return;
+  initialize: async (workspaceId = getWorkspaceId()) => {
+    if (get().isHydrated) return;
 
     const [persistedFiles, persistedFolders] = await Promise.all([
       notesRepository.list(),
       foldersRepository.list(),
     ]);
 
-    if (isStaleNotesSession(actorId, sessionVersion)) {
+    if (isStaleNotesWorkspace(workspaceId)) {
       return;
     }
 
@@ -164,11 +162,11 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         ? persistedFiles
         : [await notesRepository.create(buildStarterNote())];
 
-    if (isStaleNotesSession(actorId, sessionVersion)) {
+    if (isStaleNotesWorkspace(workspaceId)) {
       return;
     }
 
-    const nextFolders = applyFolderUiState(persistedFolders, get().folders);
+    const nextFolders = applyFolderUiState(persistedFolders, []);
     const activeFileId =
       files.find((file) => file.id === get().activeFileId)?.id ??
       files[0]?.id ??
@@ -179,7 +177,6 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       folders: nextFolders,
       activeFileId,
       isHydrated: true,
-      hydratedForActorId: actorId,
       saveStates: {},
     });
   },
@@ -193,13 +190,13 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     set({ activeFileId: id });
   },
 
-  createFile: (name, parentId = null) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = notesStoreSessionVersion;
+  createFile: (name, parentId = null, preferredEditorModeOverride) => {
+    const workspaceId = getWorkspaceId();
     const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
     const generatedContent = generateNoteContent(name);
     const richContent = markdownToRichDocument(generatedContent);
-    const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+    const preferredEditorMode =
+      preferredEditorModeOverride ?? (defaultModeRaw ? "raw" : "block");
     const newFile: NoteFile = {
       id: crypto.randomUUID(),
       name: name.endsWith(".md") ? name : `${name}.md`,
@@ -228,7 +225,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt: newFile.modifiedAt,
     })
       .then(() => {
-        if (isStaleNotesSession(actorId, sessionVersion)) {
+        if (isStaleNotesWorkspace(workspaceId)) {
           return;
         }
 
@@ -236,7 +233,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
           saveStates: { ...state.saveStates, [newFile.id]: "saved" },
         }));
         scheduleSaveStatusReset(newFile.id, () => {
-          if (isStaleNotesSession(actorId, sessionVersion)) {
+          if (isStaleNotesWorkspace(workspaceId)) {
             return;
           }
 
@@ -246,7 +243,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         });
       })
       .catch(() => {
-        if (isStaleNotesSession(actorId, sessionVersion)) {
+        if (isStaleNotesWorkspace(workspaceId)) {
           return;
         }
 
@@ -284,8 +281,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   updateFileContent: (id, content, options) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = notesStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     const updatedAt = new Date();
     const richContent = options?.richContent ?? markdownToRichDocument(content);
     const preferredEditorMode = options?.preferredEditorMode;
@@ -313,7 +309,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
 
-      if (isStaleNotesSession(actorId, sessionVersion)) {
+      if (isStaleNotesWorkspace(workspaceId)) {
         return;
       }
 
@@ -325,7 +321,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleNotesSession(actorId, sessionVersion)) {
+          if (isStaleNotesWorkspace(workspaceId)) {
             return;
           }
 
@@ -333,7 +329,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
             saveStates: { ...state.saveStates, [id]: "saved" },
           }));
           scheduleSaveStatusReset(id, () => {
-            if (isStaleNotesSession(actorId, sessionVersion)) {
+            if (isStaleNotesWorkspace(workspaceId)) {
               return;
             }
 
@@ -343,7 +339,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
           });
         })
         .catch(() => {
-          if (isStaleNotesSession(actorId, sessionVersion)) {
+          if (isStaleNotesWorkspace(workspaceId)) {
             return;
           }
 
@@ -357,8 +353,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   renameFile: (id, name) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = notesStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     const updatedAt = new Date();
     const normalizedName = name.endsWith(".md") ? name : `${name}.md`;
 
@@ -375,7 +370,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt,
     })
       .then(() => {
-        if (isStaleNotesSession(actorId, sessionVersion)) {
+        if (isStaleNotesWorkspace(workspaceId)) {
           return;
         }
 
@@ -383,7 +378,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
           saveStates: { ...state.saveStates, [id]: "saved" },
         }));
         scheduleSaveStatusReset(id, () => {
-          if (isStaleNotesSession(actorId, sessionVersion)) {
+          if (isStaleNotesWorkspace(workspaceId)) {
             return;
           }
 
@@ -393,7 +388,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         });
       })
       .catch(() => {
-        if (isStaleNotesSession(actorId, sessionVersion)) {
+        if (isStaleNotesWorkspace(workspaceId)) {
           return;
         }
 
@@ -418,8 +413,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   deleteFile: (id) => {
-    const actorId = getAuthActorId();
-    const sessionVersion = notesStoreSessionVersion;
+    const workspaceId = getWorkspaceId();
     set((state) => {
       const nextFiles = state.files.filter((file) => file.id !== id);
       return {
@@ -438,7 +432,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     }
 
     void notesRepository.destroy(id as NoteId).catch(() => {
-      if (isStaleNotesSession(actorId, sessionVersion)) {
+      if (isStaleNotesWorkspace(workspaceId)) {
         return;
       }
 
@@ -510,6 +504,18 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       folders: state.folders.map((folder) =>
         folder.id === id ? { ...folder, isOpen: !folder.isOpen } : folder,
       ),
+    }));
+  },
+
+  collapseAllFolders: () => {
+    set((state) => ({
+      folders: state.folders.map((folder) => ({ ...folder, isOpen: false })),
+    }));
+  },
+
+  expandAllFolders: () => {
+    set((state) => ({
+      folders: state.folders.map((folder) => ({ ...folder, isOpen: true })),
     }));
   },
 }));

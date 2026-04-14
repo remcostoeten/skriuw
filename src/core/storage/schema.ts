@@ -4,7 +4,7 @@ import {
   type PersistedStoreName,
 } from "@/core/shared/persistence-types";
 
-export const PERSISTENCE_DB_NAME = "haptic-persistence" as const;
+export const PERSISTENCE_DB_NAME = "skriuw-persistence" as const;
 export const PERSISTENCE_DB_VERSION = PERSISTENCE_SCHEMA_VERSION;
 
 export type PersistenceStoreDefinition = {

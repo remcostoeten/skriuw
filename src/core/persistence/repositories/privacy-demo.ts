@@ -17,14 +17,16 @@ import {
   type TagId,
   type TagName,
 } from "@/core/shared/persistence-types";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 import { listLocalRecords, putLocalRecord } from "./local-records";
+import { listRemoteRecords, putRemoteRecord } from "@/core/persistence/supabase";
 
 const PRIVACY_DEMO_SEED_VERSION = 1;
-const PRIVACY_DEMO_SEED_KEY = `haptic:privacy-demo-seed:v${PRIVACY_DEMO_SEED_VERSION}`;
+const PRIVACY_DEMO_SEED_KEY = `skriuw:privacy-demo-seed:v${PRIVACY_DEMO_SEED_VERSION}`;
+const CLOUD_STARTER_MARKER_NOTE_ID = "privacy-note-welcome" as NoteId;
 
-function getSeedMarkerKey(actorId: string) {
-  return `${PRIVACY_DEMO_SEED_KEY}:${actorId}`;
+function getSeedMarkerKey(workspaceId: string) {
+  return `${PRIVACY_DEMO_SEED_KEY}:${workspaceId}`;
 }
 
 function getSeededAt(day: string): IsoTime {
@@ -51,19 +53,19 @@ function buildSeedFolders(): PersistedFolder[] {
 }
 
 function buildSeedNotes(): PersistedNote[] {
-  const welcomeContent = `# Welcome to privacy mode
+  const welcomeContent = `# Welcome to guest mode
 
 This workspace stays on this device.
 
 - Create notes instantly without signing in.
-- Switch to account mode any time from the profile control.
+- Switch to a cloud workspace any time from the profile control.
 - Your local edits use the same note and journal UI as the cloud workspace.
 `;
 
   const sprintContent = `# Launch checklist
 
 - Tighten the auth gate copy
-- Verify privacy mode routing
+- Verify guest workspace routing
 - Seed a demo workspace for first-run testing
 `;
 
@@ -74,7 +76,7 @@ Try drag and drop, metadata edits, journal links, and tag creation here.
 
   return [
     {
-      id: "privacy-note-welcome" as NoteId,
+      id: CLOUD_STARTER_MARKER_NOTE_ID,
       name: "Welcome.md",
       content: welcomeContent as MarkdownContent,
       richContent: markdownToRichDocument(welcomeContent),
@@ -135,7 +137,7 @@ function buildSeedTags(): PersistedTag[] {
 }
 
 function buildSeedJournalEntries(): PersistedJournalEntry[] {
-  const content = `Wrapped the privacy-mode pass.
+  const content = `Wrapped the guest-workspace pass.
 
 Feeling better about first-run UX now that the shell can open without an account.`;
 
@@ -152,12 +154,12 @@ Feeling better about first-run UX now that the shell can open without an account
   ];
 }
 
-export async function ensurePrivacyDemoSeeded(actorId = getAuthActorId()): Promise<void> {
+export async function ensurePrivacyDemoSeeded(workspaceId = getWorkspaceId()): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
 
-  const markerKey = getSeedMarkerKey(actorId);
+  const markerKey = getSeedMarkerKey(workspaceId);
 
   if (window.localStorage.getItem(markerKey) === "1") {
     return;
@@ -185,4 +187,58 @@ export async function ensurePrivacyDemoSeeded(actorId = getAuthActorId()): Promi
   ]);
 
   window.localStorage.setItem(markerKey, "1");
+}
+
+export async function ensureCloudStarterContentSeeded(userId: string): Promise<void> {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const [folders, notes, tags, entries] = await Promise.all([
+    listRemoteRecords(PERSISTED_STORE_NAMES.folders, userId),
+    listRemoteRecords(PERSISTED_STORE_NAMES.notes, userId),
+    listRemoteRecords(PERSISTED_STORE_NAMES.tags, userId),
+    listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries, userId),
+  ]);
+
+  const seedFolders = buildSeedFolders();
+  const seedNotes = buildSeedNotes();
+  const seedTags = buildSeedTags();
+  const seedEntries = buildSeedJournalEntries();
+  const folderIds = new Set(seedFolders.map((folder) => folder.id));
+  const noteIds = new Set(seedNotes.map((note) => note.id));
+  const tagIds = new Set(seedTags.map((tag) => tag.id));
+  const entryIds = new Set(seedEntries.map((entry) => entry.id));
+  const hasExistingStarterData =
+    folders.some((folder) => folderIds.has(folder.id)) ||
+    notes.some((note) => noteIds.has(note.id)) ||
+    tags.some((tag) => tagIds.has(tag.id)) ||
+    entries.some((entry) => entryIds.has(entry.id));
+
+  const hasForeignData =
+    folders.some((folder) => !folderIds.has(folder.id)) ||
+    notes.some((note) => !noteIds.has(note.id)) ||
+    tags.some((tag) => !tagIds.has(tag.id)) ||
+    entries.some((entry) => !entryIds.has(entry.id));
+
+  if (hasForeignData || hasExistingStarterData) {
+    return;
+  }
+
+  await Promise.all([
+    ...seedFolders.map((folder) => putRemoteRecord(PERSISTED_STORE_NAMES.folders, folder, userId)),
+    ...seedNotes
+      .filter((note) => note.id !== CLOUD_STARTER_MARKER_NOTE_ID)
+      .map((note) => putRemoteRecord(PERSISTED_STORE_NAMES.notes, note, userId)),
+    ...seedTags.map((tag) => putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag, userId)),
+    ...seedEntries.map((entry) =>
+      putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry, userId),
+    ),
+  ]);
+
+  await putRemoteRecord(
+    PERSISTED_STORE_NAMES.notes,
+    seedNotes.find((note) => note.id === CLOUD_STARTER_MARKER_NOTE_ID) ?? seedNotes[0],
+    userId,
+  );
 }
