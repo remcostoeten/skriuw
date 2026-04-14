@@ -6,15 +6,19 @@ type EffectRecord = {
   cleanup?: void | (() => void);
 };
 
+type MockFn = (...args: any[]) => any;
+const createMock = mock as unknown as (implementation: MockFn) => MockFn;
+
 let authSnapshot: AuthSnapshot;
-let beginNotesActorTransition: ReturnType<typeof mock>;
-let initializeNotes: ReturnType<typeof mock>;
-let beginJournalActorTransition: ReturnType<typeof mock>;
-let initializeJournal: ReturnType<typeof mock>;
-let syncPreferencesActor: ReturnType<typeof mock>;
-let syncLayoutActor: ReturnType<typeof mock>;
-let syncSidebarActor: ReturnType<typeof mock>;
-let ensurePrivacyDemoSeeded: ReturnType<typeof mock>;
+let resetNotesWorkspace: MockFn;
+let initializeNotes: MockFn;
+let resetJournalWorkspace: MockFn;
+let initializeJournal: MockFn;
+let syncPreferencesActor: MockFn;
+let syncLayoutActor: MockFn;
+let syncSidebarActor: MockFn;
+let ensurePrivacyDemoSeeded: MockFn;
+let ensureCloudStarterContentSeeded: MockFn;
 let renderedEffects: EffectRecord[][] = [];
 let currentRenderEffects: EffectRecord[] = [];
 let effectCursor = 0;
@@ -67,7 +71,7 @@ function registerModuleMocks() {
   }));
 
   mock.module("@/platform/auth", () => ({
-    getAuthActorId: () => authSnapshot.actorId,
+    getWorkspaceId: () => authSnapshot.workspaceId,
     getAuthStateSnapshot: () => authSnapshot,
     subscribeAuthState: () => () => undefined,
   }));
@@ -75,12 +79,12 @@ function registerModuleMocks() {
   mock.module("@/features/notes/store", () => ({
     useNotesStore: (
       selector: (state: {
-        beginActorTransition: typeof beginNotesActorTransition;
+        resetWorkspace: typeof resetNotesWorkspace;
         initialize: typeof initializeNotes;
       }) => unknown,
     ) =>
       selector({
-        beginActorTransition: beginNotesActorTransition,
+        resetWorkspace: resetNotesWorkspace,
         initialize: initializeNotes,
       }),
   }));
@@ -88,42 +92,44 @@ function registerModuleMocks() {
   mock.module("@/features/journal/store", () => ({
     useJournalStore: (
       selector: (state: {
-        beginActorTransition: typeof beginJournalActorTransition;
+        resetWorkspace: typeof resetJournalWorkspace;
         initialize: typeof initializeJournal;
       }) => unknown,
     ) =>
       selector({
-        beginActorTransition: beginJournalActorTransition,
+        resetWorkspace: resetJournalWorkspace,
         initialize: initializeJournal,
       }),
   }));
 
   mock.module("@/features/settings/store", () => ({
     usePreferencesStore: (
-      selector: (state: { syncActor: typeof syncPreferencesActor }) => unknown,
-    ) => selector({ syncActor: syncPreferencesActor }),
+      selector: (state: { syncWorkspace: typeof syncPreferencesActor }) => unknown,
+    ) => selector({ syncWorkspace: syncPreferencesActor }),
   }));
 
   mock.module("@/features/layout/store", () => ({
     useDocumentStore: (
-      selector: (state: { syncActor: typeof syncLayoutActor }) => unknown,
-    ) => selector({ syncActor: syncLayoutActor }),
+      selector: (state: { syncWorkspace: typeof syncLayoutActor }) => unknown,
+    ) => selector({ syncWorkspace: syncLayoutActor }),
   }));
 
   mock.module("@/features/notes/components/sidebar/store", () => ({
     useSidebarStore: (
-      selector: (state: { syncActor: typeof syncSidebarActor }) => unknown,
-    ) => selector({ syncActor: syncSidebarActor }),
+      selector: (state: { syncWorkspace: typeof syncSidebarActor }) => unknown,
+    ) => selector({ syncWorkspace: syncSidebarActor }),
   }));
 
   mock.module("@/core/persistence/repositories/privacy-demo", () => ({
-    ensurePrivacyDemoSeeded: (actorId: string) => ensurePrivacyDemoSeeded(actorId),
+    ensurePrivacyDemoSeeded: (workspaceId: string) => ensurePrivacyDemoSeeded(workspaceId),
+    ensureCloudStarterContentSeeded: (userId: string) =>
+      ensureCloudStarterContentSeeded(userId),
   }));
 }
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "account",
+    mode: "cloud",
     status: "authenticated",
     rememberMe: true,
     isReady: true,
@@ -135,18 +141,19 @@ beforeEach(() => {
     },
     session: null,
     error: null,
-    actorId: "user-a",
+    workspaceId: "user-a",
     canSync: true,
   };
 
-  beginNotesActorTransition = mock(() => undefined);
-  initializeNotes = mock(async () => undefined);
-  beginJournalActorTransition = mock(() => undefined);
-  initializeJournal = mock(async () => undefined);
-  syncPreferencesActor = mock(() => undefined);
-  syncLayoutActor = mock(async () => undefined);
-  syncSidebarActor = mock(async () => undefined);
-  ensurePrivacyDemoSeeded = mock(async () => undefined);
+  resetNotesWorkspace = createMock(() => undefined);
+  initializeNotes = createMock(async () => undefined);
+  resetJournalWorkspace = createMock(() => undefined);
+  initializeJournal = createMock(async () => undefined);
+  syncPreferencesActor = createMock(() => undefined);
+  syncLayoutActor = createMock(async () => undefined);
+  syncSidebarActor = createMock(async () => undefined);
+  ensurePrivacyDemoSeeded = createMock(async () => undefined);
+  ensureCloudStarterContentSeeded = createMock(async () => undefined);
   renderedEffects = [];
   currentRenderEffects = [];
   effectCursor = 0;
@@ -157,26 +164,29 @@ afterEach(() => {
 });
 
 describe("PersistenceBootstrap", () => {
-  test("re-initializes persisted state when the authenticated actor changes", async () => {
+  test("re-initializes persisted state when the authenticated workspace changes", async () => {
     registerModuleMocks();
 
     const { PersistenceBootstrap } = await import(
-      `../persistence-bootstrap?actor-switch=${Math.random().toString(36).slice(2)}`
+      `../persistence-bootstrap?workspace-switch=${Math.random().toString(36).slice(2)}`
     );
 
     renderComponent(PersistenceBootstrap);
+    await flushMicrotasks();
 
-    expect(beginNotesActorTransition).toHaveBeenCalledTimes(1);
-    expect(beginJournalActorTransition).toHaveBeenCalledTimes(1);
+    expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
+    expect(resetJournalWorkspace).toHaveBeenCalledTimes(1);
     expect(initializeNotes).toHaveBeenCalledTimes(1);
     expect(initializeJournal).toHaveBeenCalledTimes(1);
-    expect(beginNotesActorTransition).toHaveBeenCalledWith("user-a");
-    expect(beginJournalActorTransition).toHaveBeenCalledWith("user-a");
+    expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
+    expect(resetJournalWorkspace).toHaveBeenCalledTimes(1);
     expect(initializeNotes).toHaveBeenCalledWith("user-a");
     expect(initializeJournal).toHaveBeenCalledWith("user-a");
     expect(syncPreferencesActor).toHaveBeenCalledWith("user-a");
     expect(syncLayoutActor).toHaveBeenCalledWith("user-a");
     expect(syncSidebarActor).toHaveBeenCalledWith("user-a");
+    expect(ensureCloudStarterContentSeeded).toHaveBeenCalledWith("user-a");
+    expect(ensurePrivacyDemoSeeded).not.toHaveBeenCalled();
 
     authSnapshot = {
       ...authSnapshot,
@@ -185,77 +195,80 @@ describe("PersistenceBootstrap", () => {
         email: "user-b@example.com",
         name: "User B",
       },
-      actorId: "user-b",
+      workspaceId: "user-b",
     };
 
     renderComponent(PersistenceBootstrap);
+    await flushMicrotasks();
 
     expect(renderedEffects).toHaveLength(2);
-    expect(beginNotesActorTransition).toHaveBeenCalledTimes(2);
-    expect(beginJournalActorTransition).toHaveBeenCalledTimes(2);
+    expect(resetNotesWorkspace).toHaveBeenCalledTimes(2);
+    expect(resetJournalWorkspace).toHaveBeenCalledTimes(2);
     expect(initializeNotes).toHaveBeenCalledTimes(2);
     expect(initializeJournal).toHaveBeenCalledTimes(2);
-    expect(beginNotesActorTransition).toHaveBeenLastCalledWith("user-b");
-    expect(beginJournalActorTransition).toHaveBeenLastCalledWith("user-b");
+    expect(resetNotesWorkspace).toHaveBeenLastCalledWith();
+    expect(resetJournalWorkspace).toHaveBeenLastCalledWith();
     expect(initializeNotes).toHaveBeenLastCalledWith("user-b");
     expect(initializeJournal).toHaveBeenLastCalledWith("user-b");
     expect(syncPreferencesActor).toHaveBeenLastCalledWith("user-b");
     expect(syncLayoutActor).toHaveBeenLastCalledWith("user-b");
     expect(syncSidebarActor).toHaveBeenLastCalledWith("user-b");
     expect(ensurePrivacyDemoSeeded).not.toHaveBeenCalled();
+    expect(ensureCloudStarterContentSeeded).toHaveBeenLastCalledWith("user-b");
   });
 
-  test("cancels stale privacy-mode initialization when the actor changes mid-transition", async () => {
-    const privacySeedResolvers = new Map<string, () => void>();
+  test("cancels stale guest-mode initialization when the workspace changes mid-transition", async () => {
+    const guestSeedResolvers = new Map<string, () => void>();
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "privacy",
-      actorId: "user-a",
+      mode: "guest",
+      status: "guest",
+      workspaceId: "user-a",
       user: null,
       canSync: false,
     };
-    ensurePrivacyDemoSeeded = mock(
-      (actorId: string) =>
+    ensurePrivacyDemoSeeded = createMock(
+      (workspaceId: string) =>
         new Promise<void>((resolve) => {
-          privacySeedResolvers.set(actorId, resolve);
+          guestSeedResolvers.set(workspaceId, resolve);
         }),
     );
 
     registerModuleMocks();
 
     const { PersistenceBootstrap } = await import(
-      `../persistence-bootstrap?privacy-transition=${Math.random().toString(36).slice(2)}`
+      `../persistence-bootstrap?guest-transition=${Math.random().toString(36).slice(2)}`
     );
 
     renderComponent(PersistenceBootstrap);
 
-    expect(beginNotesActorTransition).toHaveBeenCalledWith("user-a");
-    expect(beginJournalActorTransition).toHaveBeenCalledWith("user-a");
+    expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
+    expect(resetJournalWorkspace).toHaveBeenCalledTimes(1);
     expect(ensurePrivacyDemoSeeded).toHaveBeenCalledWith("user-a");
     expect(initializeNotes).not.toHaveBeenCalled();
     expect(initializeJournal).not.toHaveBeenCalled();
 
     authSnapshot = {
       ...authSnapshot,
-      actorId: "user-b",
+      workspaceId: "user-b",
     };
 
     renderComponent(PersistenceBootstrap);
 
-    expect(beginNotesActorTransition).toHaveBeenLastCalledWith("user-b");
-    expect(beginJournalActorTransition).toHaveBeenLastCalledWith("user-b");
+    expect(resetNotesWorkspace).toHaveBeenCalledTimes(2);
+    expect(resetJournalWorkspace).toHaveBeenCalledTimes(2);
     expect(ensurePrivacyDemoSeeded).toHaveBeenLastCalledWith("user-b");
     expect(initializeNotes).not.toHaveBeenCalled();
     expect(initializeJournal).not.toHaveBeenCalled();
 
-    privacySeedResolvers.get("user-a")?.();
+    guestSeedResolvers.get("user-a")?.();
     await flushMicrotasks();
 
     expect(initializeNotes).not.toHaveBeenCalled();
     expect(initializeJournal).not.toHaveBeenCalled();
 
-    privacySeedResolvers.get("user-b")?.();
+    guestSeedResolvers.get("user-b")?.();
     await flushMicrotasks();
 
     expect(initializeNotes).toHaveBeenCalledTimes(1);
@@ -264,31 +277,33 @@ describe("PersistenceBootstrap", () => {
     expect(initializeJournal).toHaveBeenCalledWith("user-b");
   });
 
-  test("does not hydrate local state while account mode is signed out", async () => {
+  test("hydrates signed-out cloud mode as a local workspace", async () => {
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "signed_out",
       user: null,
-      actorId: "account-local",
+      workspaceId: "cloud-local",
       canSync: false,
     };
 
     registerModuleMocks();
 
     const { PersistenceBootstrap } = await import(
-      `../persistence-bootstrap?signed-out=${Math.random().toString(36).slice(2)}`
+      `../persistence-bootstrap?signed-out-cloud=${Math.random().toString(36).slice(2)}`
     );
 
     renderComponent(PersistenceBootstrap);
+    await flushMicrotasks();
 
-    expect(beginNotesActorTransition).toHaveBeenCalledWith("account-local");
-    expect(beginJournalActorTransition).toHaveBeenCalledWith("account-local");
-    expect(initializeNotes).not.toHaveBeenCalled();
-    expect(initializeJournal).not.toHaveBeenCalled();
-    expect(syncPreferencesActor).not.toHaveBeenCalled();
-    expect(syncLayoutActor).toHaveBeenCalledWith("account-local");
-    expect(syncSidebarActor).toHaveBeenCalledWith("account-local");
-    expect(ensurePrivacyDemoSeeded).not.toHaveBeenCalled();
+    expect(resetNotesWorkspace).toHaveBeenCalledWith();
+    expect(resetJournalWorkspace).toHaveBeenCalledWith();
+    expect(ensurePrivacyDemoSeeded).toHaveBeenCalledWith("cloud-local");
+    expect(ensureCloudStarterContentSeeded).not.toHaveBeenCalled();
+    expect(initializeNotes).toHaveBeenCalledWith("cloud-local");
+    expect(initializeJournal).toHaveBeenCalledWith("cloud-local");
+    expect(syncPreferencesActor).toHaveBeenCalledWith("cloud-local");
+    expect(syncLayoutActor).toHaveBeenCalledWith("cloud-local");
+    expect(syncSidebarActor).toHaveBeenCalledWith("cloud-local");
   });
 });

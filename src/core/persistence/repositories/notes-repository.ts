@@ -4,13 +4,13 @@ import { PERSISTED_STORE_NAMES, type NoteId } from "@/core/shared/persistence-ty
 import type { NoteFile } from "@/types/notes";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import {
-  getRemotePersistenceUserId,
   getRemoteRecord,
   listRemoteRecords,
   putRemoteRecord,
   softDeleteRemoteRecord,
 } from "@/core/persistence/supabase";
 import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
+import { getWorkspaceTarget, isCloudWorkspaceTarget } from "./workspace-target";
 
 export interface NotesRepository {
   list(): Promise<NoteFile[]>;
@@ -21,14 +21,14 @@ export interface NotesRepository {
 
 export const notesRepository: NotesRepository = {
   list: async () => {
-    const remoteUserId = getRemotePersistenceUserId();
-    const records = remoteUserId
-      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, remoteUserId)
+    const target = getWorkspaceTarget();
+    const records = isCloudWorkspaceTarget(target)
+      ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, target.userId)
       : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
     return records.map(fromPersistedNote);
   },
   create: async (input) => {
-    const remoteUserId = getRemotePersistenceUserId();
+    const target = getWorkspaceTarget();
     const timestamp = input.createdAt ?? new Date();
     const note: NoteFile = {
       id: (input.id ?? crypto.randomUUID()) as NoteId,
@@ -41,8 +41,8 @@ export const notesRepository: NotesRepository = {
       modifiedAt: input.updatedAt ?? timestamp,
     };
     const persistedNote = toPersistedNote(note);
-    if (remoteUserId) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote, remoteUserId);
+    if (isCloudWorkspaceTarget(target)) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote, target.userId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
     }
@@ -50,9 +50,9 @@ export const notesRepository: NotesRepository = {
     return fromPersistedNote(persistedNote);
   },
   update: async (input) => {
-    const remoteUserId = getRemotePersistenceUserId();
-    const existing = remoteUserId
-      ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id, remoteUserId)
+    const target = getWorkspaceTarget();
+    const existing = isCloudWorkspaceTarget(target)
+      ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id, target.userId)
       : await getLocalRecord(PERSISTED_STORE_NAMES.notes, input.id);
 
     if (!existing) {
@@ -77,8 +77,8 @@ export const notesRepository: NotesRepository = {
       updatedAt: (input.updatedAt ?? new Date()).toISOString() as typeof existing.updatedAt,
     };
 
-    if (remoteUserId) {
-      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated, remoteUserId);
+    if (isCloudWorkspaceTarget(target)) {
+      await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated, target.userId);
     } else {
       await putLocalRecord(PERSISTED_STORE_NAMES.notes, updated);
     }
@@ -86,9 +86,9 @@ export const notesRepository: NotesRepository = {
     return fromPersistedNote(updated);
   },
   destroy: (id) => {
-    const remoteUserId = getRemotePersistenceUserId();
-    return remoteUserId
-      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id, remoteUserId)
+    const target = getWorkspaceTarget();
+    return isCloudWorkspaceTarget(target)
+      ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id, target.userId)
       : destroyLocalRecord(PERSISTED_STORE_NAMES.notes, id);
   },
 };

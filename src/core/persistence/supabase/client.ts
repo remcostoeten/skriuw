@@ -3,8 +3,8 @@ import { createClient, type SupportedStorage, type SupabaseClient } from "@supab
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const REMEMBER_ME_KEY = "haptic:auth:remember-me:v1";
-export const SUPABASE_AUTH_STORAGE_KEY = "haptic:supabase-auth";
+const REMEMBER_ME_KEY = "skriuw:auth:remember-me:v1";
+export const SUPABASE_AUTH_STORAGE_KEY = "skriuw:supabase-auth";
 
 let client: SupabaseClient | null = null;
 
@@ -28,7 +28,7 @@ function writeStorage(storage: Storage | undefined, key: string, value: string):
   try {
     storage.setItem(key, value);
   } catch {
-    // Ignore browser storage write errors so privacy mode keeps working.
+    // Ignore browser storage write errors so guest mode keeps working.
   }
 }
 

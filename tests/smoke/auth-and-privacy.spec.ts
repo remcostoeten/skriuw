@@ -1,71 +1,68 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const AUTH_PREFERENCES_KEY = "haptic:auth:preferences:v1";
+const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
 
-async function seedPrivacyMode(page: Page) {
+async function seedGuestMode(page: Page) {
   await page.addInitScript(([storageKey, value]) => {
     window.localStorage.setItem(storageKey, JSON.stringify(value));
-  }, [AUTH_PREFERENCES_KEY, { mode: "privacy", rememberMe: true }] as const);
+  }, [AUTH_PREFERENCES_KEY, { mode: "guest", rememberMe: true }] as const);
 }
 
-async function seedAccountMode(page: Page) {
+async function seedCloudMode(page: Page) {
   await page.addInitScript(([storageKey, value]) => {
     window.localStorage.setItem(storageKey, JSON.stringify(value));
-  }, [AUTH_PREFERENCES_KEY, { mode: "account", rememberMe: true }] as const);
+  }, [AUTH_PREFERENCES_KEY, { mode: "cloud", rememberMe: true }] as const);
 }
 
-test("opens in privacy mode on a fresh visit", async ({ page }) => {
+test("opens in guest mode on a fresh visit", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveURL("/");
-  await expect(page.getByLabel("Notes")).toBeVisible();
-  await expect(page.getByLabel("Journal")).toBeVisible();
-  await expect(page.getByLabel("Settings")).toBeVisible();
-  await expect(page.getByLabel("Private")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Notes" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Journal" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open settings" })).toBeVisible();
+  await expect(page.getByLabel("Guest")).toBeVisible();
 });
 
-test("shows the account sign-in gate when account mode is preferred", async ({ page }) => {
-  await seedAccountMode(page);
+test("still opens the app when cloud mode is preferred", async ({ page }) => {
+  await seedCloudMode(page);
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue in privacy mode" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Notes" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Journal" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open settings" })).toBeVisible();
+  await expect(page.getByLabel("Sign in")).toBeVisible();
+});
+
+test("can open the auth modal from the app chrome", async ({ page }) => {
+  await seedCloudMode(page);
+  await page.goto("/");
+
+  await page.getByLabel("Sign in").click();
+
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cloud workspace" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Guest workspace" })).toBeVisible();
 });
 
-test("can leave the account gate and enter privacy mode", async ({ page }) => {
-  await seedAccountMode(page);
-  await page.goto("/");
-
-  await page.getByRole("button", { name: "Continue in privacy mode" }).click();
-
-  await expect(page).toHaveURL("/");
-  await expect(page.getByLabel("Notes")).toBeVisible();
-  await expect(page.getByLabel("Journal")).toBeVisible();
-  await expect(page.getByLabel("Settings")).toBeVisible();
-  await expect(page.getByLabel("Private")).toBeVisible();
-  await expect(page.getByLabel("Resize sidebar")).toBeVisible();
-});
-
-test("loads the journal workspace in privacy mode", async ({ page }) => {
-  await seedPrivacyMode(page);
+test("loads the journal workspace in guest mode", async ({ page }) => {
+  await seedGuestMode(page);
 
   await page.goto("/journal");
 
   await expect(page).toHaveURL("/journal");
-  await expect(page.locator("h1").filter({ hasText: "Journal" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
-  await expect(page.getByLabel("Private")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Go to today" })).toBeVisible();
+  await expect(page.getByLabel("Guest")).toBeVisible();
 });
 
-test("can switch from privacy mode back to the signed-out account gate", async ({ page }) => {
-  await seedPrivacyMode(page);
+test("can still switch the app into guest mode from the modal", async ({ page }) => {
+  await seedGuestMode(page);
 
   await page.goto("/");
-  await page.getByLabel("Private").click();
-  await page.getByRole("button", { name: "Account mode" }).click();
+  await page.getByLabel("Guest").click();
 
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue in privacy mode" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cloud workspace" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Guest workspace" })).toBeVisible();
 });

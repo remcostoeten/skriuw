@@ -7,16 +7,19 @@ import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useDocumentStore } from "@/features/layout/store";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
-import { ensurePrivacyDemoSeeded } from "@/core/persistence/repositories/privacy-demo";
+import {
+  ensureCloudStarterContentSeeded,
+  ensurePrivacyDemoSeeded,
+} from "@/core/persistence/repositories/privacy-demo";
 
 export function PersistenceBootstrap() {
-  const beginNotesActorTransition = useNotesStore((state) => state.beginActorTransition);
+  const resetNotesWorkspace = useNotesStore((state) => state.resetWorkspace);
   const initializeNotes = useNotesStore((state) => state.initialize);
-  const beginJournalActorTransition = useJournalStore((state) => state.beginActorTransition);
+  const resetJournalWorkspace = useJournalStore((state) => state.resetWorkspace);
   const initializeJournal = useJournalStore((state) => state.initialize);
-  const syncPreferencesActor = usePreferencesStore((state) => state.syncActor);
-  const syncLayoutActor = useDocumentStore((state) => state.syncActor);
-  const syncSidebarActor = useSidebarStore((state) => state.syncActor);
+  const syncPreferencesWorkspace = usePreferencesStore((state) => state.syncWorkspace);
+  const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
+  const syncSidebarWorkspace = useSidebarStore((state) => state.syncWorkspace);
   const auth = useAuthSnapshot();
 
   useEffect(() => {
@@ -24,39 +27,37 @@ export function PersistenceBootstrap() {
       return;
     }
 
-    const actorId = auth.actorId;
+    const workspaceId = auth.workspaceId;
     let isCancelled = false;
-    beginNotesActorTransition(actorId);
-    beginJournalActorTransition(actorId);
+    resetNotesWorkspace();
+    resetJournalWorkspace();
 
     void (async () => {
-      if (auth.status === "signed_out") {
-        return;
-      }
-
-      if (auth.mode === "privacy") {
-        await ensurePrivacyDemoSeeded(actorId);
+      if (auth.user && auth.canSync) {
+        await ensureCloudStarterContentSeeded(auth.user.id);
+      } else {
+        await ensurePrivacyDemoSeeded(workspaceId);
       }
 
       if (isCancelled) {
         return;
       }
 
-      await Promise.all([initializeNotes(actorId), initializeJournal(actorId)]);
+      await Promise.all([initializeNotes(workspaceId), initializeJournal(workspaceId)]);
     })();
 
     return () => {
       isCancelled = true;
     };
   }, [
-    auth.actorId,
+    auth.workspaceId,
+    auth.canSync,
     auth.isReady,
-    auth.mode,
-    auth.status,
-    beginJournalActorTransition,
-    beginNotesActorTransition,
+    auth.user,
     initializeJournal,
     initializeNotes,
+    resetJournalWorkspace,
+    resetNotesWorkspace,
   ]);
 
   useEffect(() => {
@@ -64,16 +65,19 @@ export function PersistenceBootstrap() {
       return;
     }
 
-    void Promise.all([syncLayoutActor(auth.actorId), syncSidebarActor(auth.actorId)]);
-  }, [auth.actorId, auth.isReady, syncLayoutActor, syncSidebarActor]);
+    void Promise.all([
+      syncLayoutWorkspace(auth.workspaceId),
+      syncSidebarWorkspace(auth.workspaceId),
+    ]);
+  }, [auth.isReady, auth.workspaceId, syncLayoutWorkspace, syncSidebarWorkspace]);
 
   useEffect(() => {
-    if (auth.status === "signed_out") {
+    if (!auth.isReady) {
       return;
     }
 
-    syncPreferencesActor(auth.actorId);
-  }, [auth.actorId, auth.status, syncPreferencesActor]);
+    syncPreferencesWorkspace(auth.workspaceId);
+  }, [auth.isReady, auth.workspaceId, syncPreferencesWorkspace]);
 
   return null;
 }

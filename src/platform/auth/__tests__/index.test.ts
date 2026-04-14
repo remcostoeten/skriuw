@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-const AUTH_PREFERENCES_KEY = "haptic:auth:preferences:v1";
+const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
 
 type StorageMock = {
   getItem: (key: string) => string | null;
@@ -78,7 +78,7 @@ function registerSupabaseMocks() {
   mock.module("@/core/persistence/supabase/index", () => supabaseModuleMock);
 }
 
-describe("auth actor isolation", () => {
+describe("auth workspace isolation", () => {
   beforeEach(() => {
     rememberMePreference = true;
     setSessionPersistenceCalls = [];
@@ -91,58 +91,58 @@ describe("auth actor isolation", () => {
     Reflect.deleteProperty(globalThis, "window");
   });
 
-  test("initializes signed-out account mode with a distinct local actor id", async () => {
+  test("initializes signed-out cloud mode with a distinct local workspace id", async () => {
     const { localStorage } = installWindow();
     localStorage.setItem(
       AUTH_PREFERENCES_KEY,
-      JSON.stringify({ mode: "account", rememberMe: false }),
+      JSON.stringify({ mode: "cloud", rememberMe: false }),
     );
 
-    const authModule = await import(`../index?initialize-account=${Math.random().toString(36).slice(2)}`);
+    const authModule = await import(`../index?initialize-cloud=${Math.random().toString(36).slice(2)}`);
 
     const snapshot = await authModule.initializeAuth();
 
     expect(snapshot).toEqual(
       expect.objectContaining({
-        mode: "account",
+        mode: "cloud",
         status: "signed_out",
-        actorId: "account-local",
+        workspaceId: "cloud-local",
         isReady: true,
         canSync: false,
         user: null,
       }),
     );
-    expect(authModule.getAuthActorId()).toBe("account-local");
+    expect(authModule.getWorkspaceId()).toBe("cloud-local");
     expect(setSessionPersistenceCalls).toEqual([false]);
   });
 
-  test("uses a distinct local actor for signed-out account mode", async () => {
-    const authModule = await import(`../index?account-actor=${Math.random().toString(36).slice(2)}`);
+  test("uses a distinct local workspace for signed-out cloud mode", async () => {
+    const authModule = await import(`../index?cloud-workspace=${Math.random().toString(36).slice(2)}`);
 
     authModule.resetAuthForTests();
-    await authModule.enableAccountMode();
+    await authModule.setCloudMode();
 
     expect(authModule.getAuthStateSnapshot()).toEqual(
       expect.objectContaining({
-        mode: "account",
+        mode: "cloud",
         status: "signed_out",
-        actorId: "account-local",
+        workspaceId: "cloud-local",
       }),
     );
   });
 
-  test("switches back to the privacy actor when privacy mode is enabled", async () => {
-    const authModule = await import(`../index?privacy-actor=${Math.random().toString(36).slice(2)}`);
+  test("switches back to the guest workspace when guest mode is enabled", async () => {
+    const authModule = await import(`../index?guest-workspace=${Math.random().toString(36).slice(2)}`);
 
     authModule.resetAuthForTests();
-    await authModule.enableAccountMode();
-    await authModule.setPrivacyMode();
+    await authModule.setCloudMode();
+    await authModule.setGuestMode();
 
     expect(authModule.getAuthStateSnapshot()).toEqual(
       expect.objectContaining({
-        mode: "privacy",
-        status: "privacy",
-        actorId: "privacy-local",
+        mode: "guest",
+        status: "guest",
+        workspaceId: "guest-local",
       }),
     );
   });

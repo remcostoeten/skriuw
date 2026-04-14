@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 
 export type ActivityAction =
   | "settings_opened"
@@ -39,7 +39,7 @@ type PersistedPreferencesProfile = {
 };
 
 interface PreferencesState {
-  userId: string | null;
+  workspaceId: string | null;
   isLoading: boolean;
   isHydrated: boolean;
   profiles: Record<string, PreferencesProfile>;
@@ -56,7 +56,7 @@ interface PreferencesState {
   recordMood: (mood: string) => void;
   incrementNoteCount: () => void;
   logActivity: (action: ActivityAction) => void;
-  syncActor: (actorId: string) => void;
+  syncWorkspace: (workspaceId: string) => void;
 }
 
 type PersistedPreferencesState = {
@@ -155,9 +155,9 @@ function createActivityItem(action: ActivityAction): ActivityItem {
   };
 }
 
-function applyProfile(actorId: string, profile: PreferencesProfile) {
+function applyProfile(workspaceId: string, profile: PreferencesProfile) {
   return {
-    userId: actorId,
+    workspaceId,
     isLoading: false,
     editor: profile.editor,
     journal: profile.journal,
@@ -166,28 +166,28 @@ function applyProfile(actorId: string, profile: PreferencesProfile) {
   } satisfies Partial<PreferencesState>;
 }
 
-function resolveActorId(userId: string | null | undefined): string {
-  return userId ?? getAuthActorId();
+function resolveWorkspaceId(workspaceId: string | null | undefined): string {
+  return workspaceId ?? getWorkspaceId();
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set, get) => ({
-      userId: null,
+      workspaceId: null,
       isLoading: true,
       isHydrated: false,
       profiles: {},
       ...createDefaultProfile(),
 
       initialize: () => {
-        const actorId = getAuthActorId();
-        get().syncActor(actorId);
+        const workspaceId = getWorkspaceId();
+        get().syncWorkspace(workspaceId);
       },
 
       updateEditorPreference: (key, value) => {
         set((state) => {
-          const actorId = resolveActorId(state.userId);
-          const currentProfile = normalizeProfile(state.profiles[actorId]);
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             editor: {
@@ -199,17 +199,17 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             profiles: {
               ...state.profiles,
-              [actorId]: nextProfile,
+              [workspaceId]: nextProfile,
             },
-            ...applyProfile(actorId, nextProfile),
+            ...applyProfile(workspaceId, nextProfile),
           };
         });
       },
 
       toggleDiaryMode: () => {
         set((state) => {
-          const actorId = resolveActorId(state.userId);
-          const currentProfile = normalizeProfile(state.profiles[actorId]);
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             journal: {
@@ -225,17 +225,17 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             profiles: {
               ...state.profiles,
-              [actorId]: nextProfile,
+              [workspaceId]: nextProfile,
             },
-            ...applyProfile(actorId, nextProfile),
+            ...applyProfile(workspaceId, nextProfile),
           };
         });
       },
 
       recordMood: (mood) => {
         set((state) => {
-          const actorId = resolveActorId(state.userId);
-          const currentProfile = normalizeProfile(state.profiles[actorId]);
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             journal: {
@@ -250,17 +250,17 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             profiles: {
               ...state.profiles,
-              [actorId]: nextProfile,
+              [workspaceId]: nextProfile,
             },
-            ...applyProfile(actorId, nextProfile),
+            ...applyProfile(workspaceId, nextProfile),
           };
         });
       },
 
       incrementNoteCount: () => {
         set((state) => {
-          const actorId = resolveActorId(state.userId);
-          const currentProfile = normalizeProfile(state.profiles[actorId]);
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             amountOfNotes: currentProfile.amountOfNotes + 1,
@@ -273,17 +273,17 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             profiles: {
               ...state.profiles,
-              [actorId]: nextProfile,
+              [workspaceId]: nextProfile,
             },
-            ...applyProfile(actorId, nextProfile),
+            ...applyProfile(workspaceId, nextProfile),
           };
         });
       },
 
       logActivity: (action) => {
         set((state) => {
-          const actorId = resolveActorId(state.userId);
-          const currentProfile = normalizeProfile(state.profiles[actorId]);
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             activity: [
@@ -295,25 +295,25 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             profiles: {
               ...state.profiles,
-              [actorId]: nextProfile,
+              [workspaceId]: nextProfile,
             },
-            ...applyProfile(actorId, nextProfile),
+            ...applyProfile(workspaceId, nextProfile),
           };
         });
       },
 
-      syncActor: (actorId) => {
+      syncWorkspace: (workspaceId) => {
         set((state) => {
-          const profile = normalizeProfile(state.profiles[actorId]);
+          const profile = normalizeProfile(state.profiles[workspaceId]);
 
           return {
-            profiles: state.profiles[actorId]
+            profiles: state.profiles[workspaceId]
               ? state.profiles
               : {
                   ...state.profiles,
-                  [actorId]: profile,
+                  [workspaceId]: profile,
                 },
-            ...applyProfile(actorId, profile),
+            ...applyProfile(workspaceId, profile),
           };
         });
       },
@@ -331,8 +331,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           return {
             ...currentState,
             profiles: Object.fromEntries(
-              Object.entries(typedPersisted.profiles).map(([actorId, profile]) => [
-                actorId,
+              Object.entries(typedPersisted.profiles).map(([workspaceId, profile]) => [
+                workspaceId,
                 normalizeProfile(profile),
               ]),
             ),
@@ -369,7 +369,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.isHydrated = true;
-          state.isLoading = state.userId === null;
+          state.isLoading = state.workspaceId === null;
         }
       },
     },

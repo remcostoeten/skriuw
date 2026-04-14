@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getAuthActorId } from "@/platform/auth";
+import { getWorkspaceId } from "@/platform/auth";
 import { NoteFile, NoteFolder } from "@/types/notes";
 
 export interface DocumentMetadata {
@@ -32,7 +32,7 @@ const DEFAULT_UI_STATE: UIState = {
 };
 
 interface DocumentState {
-  currentActorId: string;
+  currentWorkspaceId: string;
   // Core document data
   documents: Map<string, NoteFile>;
   folders: Map<string, NoteFolder>;
@@ -44,7 +44,7 @@ interface DocumentState {
   // UI state
   ui: UIState;
 
-  syncActor: (actorId: string) => Promise<void>;
+  syncWorkspace: (workspaceId: string) => Promise<void>;
   
   // Actions - Documents
   setDocuments: (documents: NoteFile[]) => void;
@@ -79,8 +79,8 @@ interface DocumentState {
 
 const DOCUMENT_STORE_KEY_PREFIX = "document-store";
 
-function getDocumentStoreKey(actorId: string) {
-  return `${DOCUMENT_STORE_KEY_PREFIX}:${actorId}`;
+function getWorkspaceStoreKey(workspaceId: string) {
+  return `${DOCUMENT_STORE_KEY_PREFIX}:${workspaceId}`;
 }
 
 const calculateMetadata = (content: string): Omit<DocumentMetadata, 'id' | 'createdAt' | 'updatedAt' | 'lastAccessedAt'> => {
@@ -99,7 +99,7 @@ const calculateMetadata = (content: string): Omit<DocumentMetadata, 'id' | 'crea
 export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => ({
-      currentActorId: getAuthActorId(),
+      currentWorkspaceId: getWorkspaceId(),
       // Initial state
       documents: new Map(),
       folders: new Map(),
@@ -107,13 +107,13 @@ export const useDocumentStore = create<DocumentState>()(
       metadata: new Map(),
       ui: { ...DEFAULT_UI_STATE },
 
-      syncActor: async (actorId) => {
-        if (actorId === get().currentActorId) {
+      syncWorkspace: async (workspaceId) => {
+        if (workspaceId === get().currentWorkspaceId) {
           return;
         }
 
         set({
-          currentActorId: actorId,
+          currentWorkspaceId: workspaceId,
           documents: new Map(),
           folders: new Map(),
           activeDocumentId: null,
@@ -121,10 +121,10 @@ export const useDocumentStore = create<DocumentState>()(
           ui: { ...DEFAULT_UI_STATE },
         });
 
-        useDocumentStore.persist.setOptions({ name: getDocumentStoreKey(actorId) });
+        useDocumentStore.persist.setOptions({ name: getWorkspaceStoreKey(workspaceId) });
         await useDocumentStore.persist.rehydrate();
       },
-      
+
       // Document actions
       setDocuments: (documents) => {
         set({ documents: new Map(documents.map(d => [d.id, d])) });
@@ -292,7 +292,7 @@ export const useDocumentStore = create<DocumentState>()(
       },
     }),
     {
-      name: getDocumentStoreKey(getAuthActorId()),
+      name: getWorkspaceStoreKey(getWorkspaceId()),
       partialize: (state) => ({
         ui: state.ui,
       }),

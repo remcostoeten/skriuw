@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-let authActorId = "privacy-local";
+let authWorkspaceId = "guest-local";
 
 class MemoryStorage implements Storage {
   #entries = new Map<string, string>();
@@ -41,29 +41,29 @@ async function flushMicrotasks() {
 
 function buildAuthSnapshot() {
   return {
-    mode: authActorId === "privacy-local" ? "privacy" : "account",
-    status: authActorId === "privacy-local" ? "privacy" : "authenticated",
+    mode: authWorkspaceId === "guest-local" ? "guest" : "cloud",
+    status: authWorkspaceId === "guest-local" ? "guest" : "authenticated",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: false,
     user:
-      authActorId === "privacy-local"
+      authWorkspaceId === "guest-local"
         ? null
         : {
-            id: authActorId,
-            email: `${authActorId}@example.com`,
-            name: authActorId,
+            id: authWorkspaceId,
+            email: `${authWorkspaceId}@example.com`,
+            name: authWorkspaceId,
           },
     session: null,
     error: null,
-    actorId: authActorId,
+    workspaceId: authWorkspaceId,
     canSync: false,
   };
 }
 
 async function loadStoreModule() {
   mock.module("@/platform/auth", () => ({
-    getAuthActorId: () => authActorId,
+    getWorkspaceId: () => authWorkspaceId,
     getAuthStateSnapshot: () => buildAuthSnapshot(),
     subscribeAuthState: () => () => undefined,
   }));
@@ -71,8 +71,8 @@ async function loadStoreModule() {
   return import(`../store?test=${Math.random().toString(36).slice(2)}`);
 }
 
-function readPersistedSidebarWidth(actorId: string) {
-  const raw = storage.getItem(`document-store:${actorId}`);
+function readPersistedSidebarWidth(workspaceId: string) {
+  const raw = storage.getItem(`document-store:${workspaceId}`);
   if (!raw) {
     return null;
   }
@@ -89,7 +89,7 @@ function readPersistedSidebarWidth(actorId: string) {
 }
 
 beforeEach(() => {
-  authActorId = "privacy-local";
+  authWorkspaceId = "guest-local";
   storage = new MemoryStorage();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
@@ -114,9 +114,9 @@ afterEach(() => {
   });
 });
 
-describe("layout store actor scoping", () => {
-  test("keeps sidebar width isolated per actor across reloads", async () => {
-    authActorId = "user-a";
+describe("layout store workspace scoping", () => {
+  test("keeps sidebar width isolated per workspace across reloads", async () => {
+    authWorkspaceId = "user-a";
     const { useDocumentStore } = await loadStoreModule();
 
     await flushMicrotasks();
@@ -126,7 +126,7 @@ describe("layout store actor scoping", () => {
 
     expect(readPersistedSidebarWidth("user-a")).toBe(360);
 
-    authActorId = "user-b";
+    authWorkspaceId = "user-b";
     const { useDocumentStore: userBStore } = await loadStoreModule();
     await flushMicrotasks();
 
@@ -137,13 +137,13 @@ describe("layout store actor scoping", () => {
 
     expect(readPersistedSidebarWidth("user-b")).toBe(312);
 
-    authActorId = "user-a";
+    authWorkspaceId = "user-a";
     const { useDocumentStore: reloadedUserAStore } = await loadStoreModule();
     await flushMicrotasks();
 
     expect(reloadedUserAStore.getState().ui.sidebarWidth).toBe(360);
 
-    authActorId = "user-b";
+    authWorkspaceId = "user-b";
     const { useDocumentStore: reloadedUserBStore } = await loadStoreModule();
     await flushMicrotasks();
 

@@ -1,6 +1,6 @@
 # Architecture Notes
 
-This repo now runs as a Supabase-backed app with a privacy-mode fallback and a feature-based structure:
+This repo now runs as a Supabase-backed app with a guest-workspace fallback and a feature-based structure:
 
 1. `src/app/` owns routing and page composition.
 2. `src/features/` owns domain code such as notes, journal, settings, and layout.
@@ -11,11 +11,12 @@ This repo now runs as a Supabase-backed app with a privacy-mode fallback and a f
 
 Runtime rules now:
 
-- Account mode is auth-gated before feature UI mounts.
-- Privacy mode mounts the same shell against local persistence and seeds a small demo workspace on first run.
-- Notes, folders, journal entries, and tags are read from Supabase only when account mode is authenticated.
+- Guests can open the app immediately without an auth gate.
+- Guest mode mounts the same shell against local persistence and seeds a small demo workspace on first run.
+- Authenticated users read and write notes, folders, journal entries, and tags in their own cloud workspace.
 - Preferences are still local browser state.
-- Local persistence still uses PGlite first with IndexedDB fallback.
+- Guest/local persistence uses IndexedDB.
+- Authenticated data is stored in the user-scoped cloud database.
 
 ## Rules Of Thumb
 
@@ -30,6 +31,7 @@ Runtime rules now:
 
 ## Cleanup Focus
 
-- Decide whether privacy-mode data should remain seeded-only or gain an explicit reset/import flow.
+- Decide whether guest-workspace data should remain seeded-only or gain an explicit reset/import flow.
 - Move synced preferences into the repository layer if cross-device settings are required.
 - Keep documentation aligned with the actual runtime, not outdated cloud-only assumptions.
+- Keep web persistence simple; do not reintroduce a second local database engine unless there is a concrete product need.

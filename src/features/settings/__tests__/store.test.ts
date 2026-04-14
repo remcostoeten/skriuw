@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-let authActorId = "privacy-local";
+let authWorkspaceId = "guest-local";
 
 class MemoryStorage implements Storage {
   #entries = new Map<string, string>();
@@ -41,24 +41,24 @@ async function flushMicrotasks() {
 
 async function loadStoreModule() {
   mock.module("@/platform/auth", () => ({
-    getAuthActorId: () => authActorId,
+    getWorkspaceId: () => authWorkspaceId,
     getAuthStateSnapshot: () => ({
-      mode: authActorId === "privacy-local" ? "privacy" : "account",
-      status: authActorId === "privacy-local" ? "privacy" : "authenticated",
+      mode: authWorkspaceId === "guest-local" ? "guest" : "cloud",
+      status: authWorkspaceId === "guest-local" ? "guest" : "authenticated",
       rememberMe: true,
       isReady: true,
       isSupabaseConfigured: false,
       user:
-        authActorId === "privacy-local"
+        authWorkspaceId === "guest-local"
           ? null
           : {
-              id: authActorId,
-              email: `${authActorId}@example.com`,
-              name: authActorId,
+              id: authWorkspaceId,
+              email: `${authWorkspaceId}@example.com`,
+              name: authWorkspaceId,
             },
       session: null,
       error: null,
-      actorId: authActorId,
+      workspaceId: authWorkspaceId,
       canSync: false,
     }),
     subscribeAuthState: () => () => undefined,
@@ -73,7 +73,7 @@ function readPersistedPreferences() {
 }
 
 beforeEach(() => {
-  authActorId = "privacy-local";
+  authWorkspaceId = "guest-local";
   storage = new MemoryStorage();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
@@ -98,26 +98,26 @@ afterEach(() => {
   });
 });
 
-describe("preferences store actor scoping", () => {
-  test("keeps preferences, note counts, and activity isolated per actor across reloads", async () => {
-    authActorId = "user-a";
+describe("preferences store workspace scoping", () => {
+  test("keeps preferences, note counts, and activity isolated per workspace across reloads", async () => {
+    authWorkspaceId = "user-a";
     const { usePreferencesStore } = await loadStoreModule();
 
     await flushMicrotasks();
 
-    expect(usePreferencesStore.getState().userId).toBeNull();
+    expect(usePreferencesStore.getState().workspaceId).toBeNull();
     expect(usePreferencesStore.getState().editor.defaultModeRaw).toBe(false);
     expect(usePreferencesStore.getState().amountOfNotes).toBe(0);
     expect(usePreferencesStore.getState().activity).toHaveLength(0);
 
-    usePreferencesStore.getState().syncActor("user-a");
+    usePreferencesStore.getState().syncWorkspace("user-a");
     usePreferencesStore.getState().updateEditorPreference("defaultModeRaw", true);
     usePreferencesStore.getState().recordMood("calm");
     usePreferencesStore.getState().incrementNoteCount();
     usePreferencesStore.getState().logActivity("settings_opened");
     await flushMicrotasks();
 
-    usePreferencesStore.getState().syncActor("user-b");
+    usePreferencesStore.getState().syncWorkspace("user-b");
 
     expect(usePreferencesStore.getState().editor.defaultModeRaw).toBe(false);
     expect(usePreferencesStore.getState().journal.diaryModeEnabled).toBe(false);
@@ -135,12 +135,12 @@ describe("preferences store actor scoping", () => {
       expect.arrayContaining(["user-a", "user-b"]),
     );
 
-    authActorId = "user-a";
+    authWorkspaceId = "user-a";
     const { usePreferencesStore: reloadedStore } = await loadStoreModule();
 
     await flushMicrotasks();
 
-    expect(reloadedStore.getState().userId).toBeNull();
+    expect(reloadedStore.getState().workspaceId).toBeNull();
     expect(reloadedStore.getState().editor.defaultModeRaw).toBe(false);
     expect(reloadedStore.getState().journal.diaryModeEnabled).toBe(false);
     expect(reloadedStore.getState().amountOfNotes).toBe(0);
@@ -148,7 +148,7 @@ describe("preferences store actor scoping", () => {
 
     reloadedStore.getState().initialize();
 
-    expect(reloadedStore.getState().userId).toBe("user-a");
+    expect(reloadedStore.getState().workspaceId).toBe("user-a");
     expect(reloadedStore.getState().editor.defaultModeRaw).toBe(true);
     expect(reloadedStore.getState().editor.defaultPlaceholder).toBe("Start writing...");
     expect(reloadedStore.getState().journal.recentMoods.map((item) => item.mood)).toEqual(["calm"]);
@@ -158,9 +158,9 @@ describe("preferences store actor scoping", () => {
       "note_created",
     ]);
 
-    reloadedStore.getState().syncActor("user-b");
+    reloadedStore.getState().syncWorkspace("user-b");
 
-    expect(reloadedStore.getState().userId).toBe("user-b");
+    expect(reloadedStore.getState().workspaceId).toBe("user-b");
     expect(reloadedStore.getState().editor.defaultModeRaw).toBe(false);
     expect(reloadedStore.getState().editor.defaultPlaceholder).toBe("Actor B");
     expect(reloadedStore.getState().journal.diaryModeEnabled).toBe(true);
@@ -169,7 +169,7 @@ describe("preferences store actor scoping", () => {
     expect(reloadedStore.getState().activity.map((item) => item.action)).toEqual(["diary_toggled"]);
   });
 
-  test("migrates the legacy global preferences blob into the owning actor profile only", async () => {
+  test("migrates the legacy global preferences blob into the owning workspace profile only", async () => {
     const legacyTimestamp = "2026-04-13T10:00:00.000Z";
 
     storage.setItem(
@@ -191,15 +191,15 @@ describe("preferences store actor scoping", () => {
       }),
     );
 
-    authActorId = "legacy-user";
+    authWorkspaceId = "legacy-user";
     const { usePreferencesStore } = await loadStoreModule();
 
     await flushMicrotasks();
 
-    expect(usePreferencesStore.getState().userId).toBeNull();
+    expect(usePreferencesStore.getState().workspaceId).toBeNull();
     usePreferencesStore.getState().initialize();
 
-    expect(usePreferencesStore.getState().userId).toBe("legacy-user");
+    expect(usePreferencesStore.getState().workspaceId).toBe("legacy-user");
     expect(usePreferencesStore.getState().editor.defaultModeRaw).toBe(true);
     expect(usePreferencesStore.getState().editor.defaultPlaceholder).toBe("Legacy placeholder");
     expect(usePreferencesStore.getState().journal.diaryModeEnabled).toBe(true);
@@ -211,9 +211,9 @@ describe("preferences store actor scoping", () => {
       "settings_opened",
     ]);
 
-    usePreferencesStore.getState().syncActor("other-user");
+    usePreferencesStore.getState().syncWorkspace("other-user");
 
-    expect(usePreferencesStore.getState().userId).toBe("other-user");
+    expect(usePreferencesStore.getState().workspaceId).toBe("other-user");
     expect(usePreferencesStore.getState().editor.defaultModeRaw).toBe(false);
     expect(usePreferencesStore.getState().editor.defaultPlaceholder).toBe("Start writing...");
     expect(usePreferencesStore.getState().journal.diaryModeEnabled).toBe(false);
@@ -240,7 +240,7 @@ describe("preferences store actor scoping", () => {
     expect(migratedState).not.toHaveProperty("activity");
   });
 
-  test("does not auto-assign an unclaimed legacy preferences blob to the active actor", async () => {
+  test("does not auto-assign an unclaimed legacy preferences blob to the active workspace", async () => {
     storage.setItem(
       "preferences-store",
       JSON.stringify({
@@ -254,14 +254,14 @@ describe("preferences store actor scoping", () => {
       }),
     );
 
-    authActorId = "user-a";
+    authWorkspaceId = "user-a";
     const { usePreferencesStore } = await loadStoreModule();
 
     await flushMicrotasks();
 
     usePreferencesStore.getState().initialize();
 
-    expect(usePreferencesStore.getState().userId).toBe("user-a");
+    expect(usePreferencesStore.getState().workspaceId).toBe("user-a");
     expect(usePreferencesStore.getState().editor.defaultModeRaw).toBe(false);
     expect(usePreferencesStore.getState().editor.defaultPlaceholder).toBe("Start writing...");
     expect(usePreferencesStore.getState().amountOfNotes).toBe(0);

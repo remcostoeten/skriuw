@@ -8,7 +8,6 @@ let getRemoteRecordImpl = async (_storeName: string, _id: string) => undefined a
 let putRemoteRecordCalls: Array<{ storeName: string; record: unknown; userId?: string }> = [];
 let softDeleteRemoteRecordCalls: Array<{ storeName: string; id: string; userId?: string }> = [];
 let softDeleteRemoteRecordsCalls: Array<{ storeName: string; ids: string[]; userId?: string }> = [];
-let resolveLocalPersistenceBackendCalls = 0;
 
 const supabaseModuleMock = {
   canUseRemotePersistence: () => canUseRemote,
@@ -40,19 +39,21 @@ const supabaseModuleMock = {
 mock.restore();
 mock.module("@/core/persistence/supabase", () => supabaseModuleMock);
 mock.module("@/core/persistence/supabase/index", () => supabaseModuleMock);
-
-mock.module("@/core/persistence/pglite/records", () => ({
-  destroyPGliteRecord: async () => {},
-  getPGliteRecord: async () => undefined,
-  listPGliteRecords: async () => [],
-  putPGliteRecord: async () => {},
-}));
-
-mock.module("../local-backend", () => ({
-  resolveLocalPersistenceBackend: async () => {
-    resolveLocalPersistenceBackendCalls += 1;
-    return "pglite";
-  },
+mock.module("../workspace-target", () => ({
+  getWorkspaceTarget: () =>
+    canUseRemote && remoteUserId
+      ? {
+          kind: "cloud" as const,
+          workspaceId: remoteUserId,
+          userId: remoteUserId,
+        }
+      : {
+          kind: "local" as const,
+          workspaceId: "guest-local",
+        },
+  isCloudWorkspaceTarget: (
+    target: { kind: "local" | "cloud" },
+  ): target is { kind: "cloud"; workspaceId: string; userId: string } => target.kind === "cloud",
 }));
 
 const notesRepositoryPromise = import("../notes-repository");
@@ -67,7 +68,6 @@ beforeEach(() => {
   putRemoteRecordCalls = [];
   softDeleteRemoteRecordCalls = [];
   softDeleteRemoteRecordsCalls = [];
-  resolveLocalPersistenceBackendCalls = 0;
 });
 
 afterEach(() => {
@@ -100,7 +100,6 @@ describe("repository remote routing", () => {
 
     expect(notes).toHaveLength(1);
     expect(notes[0]?.name).toBe("Inbox.md");
-    expect(resolveLocalPersistenceBackendCalls).toBe(0);
   });
 
   test("foldersRepository.destroy soft-deletes descendant folders and notes in Supabase mode", async () => {
@@ -160,7 +159,6 @@ describe("repository remote routing", () => {
         userId: "user-123",
       },
     ]);
-    expect(resolveLocalPersistenceBackendCalls).toBe(0);
   });
 
   test("journalRepository.destroyTag removes tag references before soft-deleting the tag in Supabase mode", async () => {
@@ -214,6 +212,5 @@ describe("repository remote routing", () => {
     expect(softDeleteRemoteRecordCalls).toEqual([
       { storeName: PERSISTED_STORE_NAMES.tags, id: "tag-1", userId: "user-123" },
     ]);
-    expect(resolveLocalPersistenceBackendCalls).toBe(0);
   });
 });

@@ -3,15 +3,15 @@ import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
-  mode: "privacy",
-  status: "privacy",
+  mode: "guest",
+  status: "guest",
   rememberMe: true,
   isReady: true,
   isSupabaseConfigured: true,
   user: null,
   session: null,
   error: null,
-  actorId: "privacy-local",
+  workspaceId: "guest-local",
   canSync: false,
 };
 
@@ -79,15 +79,15 @@ async function loadRecordsModule() {
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "privacy",
-    status: "privacy",
+    mode: "guest",
+    status: "guest",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: true,
     user: null,
     session: null,
     error: null,
-    actorId: "privacy-local",
+    workspaceId: "guest-local",
     canSync: false,
   };
   selectRows = {};
@@ -105,14 +105,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "authenticated",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
-      actorId: "user-123",
+      workspaceId: "user-123",
       canSync: true,
     };
 
@@ -161,14 +161,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "authenticated",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
-      actorId: "user-123",
+      workspaceId: "user-123",
       canSync: true,
     };
 
@@ -208,14 +208,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "account",
+      mode: "cloud",
       status: "authenticated",
       user: {
         id: "user-live",
         email: "live@example.com",
         name: "Live User",
       },
-      actorId: "user-live",
+      workspaceId: "user-live",
       canSync: true,
     };
 

@@ -119,7 +119,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {auth.mode === "privacy" ? "Privacy mode on this device" : "Account mode"}
+                      {auth.mode === "guest" ? "Guest workspace on this device" : "Cloud workspace"}
                     </p>
                   )}
                 </div>
@@ -212,7 +212,8 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground/70 italic">
-                        This feature is coming soon. When it ships, it will become the default layout for new notes when enabled.
+                        When enabled, new-note actions in Notes open today's journal entry instead
+                        of creating a markdown note.
                       </p>
                     </SettingsSection>
 
