@@ -26,5 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 .next/
+.expo/
 .fix-filenames-manifest.json
 .vercel
+test-results/
+*.tsbuildinfo

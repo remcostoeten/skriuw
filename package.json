@@ -3,10 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/mobile"
+  ],
   "scripts": {
     "dev": "bun --bun next dev --turbopack",
+    "dev:web": "bun --bun next dev --turbopack",
     "build": "bun --bun next build",
+    "build:web": "bun --bun next build",
     "start": "bun --bun next start",
+    "start:web": "bun --bun next start",
+    "dev:mobile": "bun --filter @skriuw/mobile start",
+    "mobile:ios": "bun --filter @skriuw/mobile ios",
+    "mobile:android": "bun --filter @skriuw/mobile android",
     "test": "bun test",
     "test:smoke": "bun run build && playwright test",
     "lint": "oxlint",
