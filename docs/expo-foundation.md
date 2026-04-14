@@ -1,28 +1,34 @@
 # Expo Foundation
 
-This branch starts the Expo app as a sibling workspace to the existing web app.
+The Expo app now exists as a sibling workspace to the web app and is usable in guest mode.
 
 ## Current shape
 
 - The web app remains at the repository root.
 - The Expo app lives in `apps/mobile`.
-- Root TypeScript no longer attempts to type-check the mobile workspace.
-- Root scripts now expose separate web and mobile entry points.
+- Root TypeScript excludes the mobile workspace.
+- Root scripts expose separate web and mobile entry points.
 
-## Intent
+## What ships on mobile now
 
-This is a foundation branch, not a mobile feature port.
+- bottom-tab app structure for `Notes`, `Journal`, and `Profile`
+- local guest workspace persisted with AsyncStorage
+- seeded starter notes, folders, and journal entries
+- note create, edit, and delete flow
+- journal create, edit, mood/tag update, and delete flow
+- profile summary with workspace metrics and reset action
+- cloud-readiness surface that detects whether Expo public Supabase env vars are present
 
-The immediate goals are:
+## What is still intentionally missing
 
-- establish a real Expo workspace next to the web app
-- keep the existing web app stable
-- avoid moving Next-specific assumptions into the mobile shell
-- create a clean place to extract shared domain and data modules next
+- authenticated mobile sign-in
+- cloud repository wiring
+- shared extracted core package used by both web and mobile
+- account/profile actions beyond guest metrics and reset
 
 ## Next extraction targets
 
-The next useful refactor is to move shared, platform-neutral logic behind a package boundary:
+The next useful refactor is to move platform-neutral logic behind a shared package boundary:
 
 - note, folder, journal, and profile types
 - repository contracts
@@ -34,4 +40,4 @@ The next useful refactor is to move shared, platform-neutral logic behind a pack
 
 - guest users use local-only storage on device
 - authenticated users use private cloud data scoped to their account
-- guest and authenticated flows should stay conceptually the same across web and mobile
+- guest and authenticated flows stay conceptually aligned across web and mobile
