@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Haptic - Notes",
+  title: "Skriuw - Notes",
   description: "A minimal, keyboard-first note-taking application",
 };
 

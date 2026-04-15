@@ -211,5 +211,5 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({ content }: Mark
     return elements;
   }, [content]);
 
-  return <div className="prose-haptic">{rendered}</div>;
+  return <div className="prose-skriuw">{rendered}</div>;
 });
