@@ -7,12 +7,17 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#bc5b2c",
         tabBarInactiveTintColor: "#8a7a6d",
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "700",
+        },
         tabBarStyle: {
-          backgroundColor: "#fbf7f1",
+          backgroundColor: "#fffaf4",
           borderTopColor: "#eadfce",
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
+          borderTopWidth: 1,
+          height: 72,
+          paddingBottom: 10,
+          paddingTop: 10,
         },
       }}
     >
