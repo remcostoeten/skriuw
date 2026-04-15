@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useWorkspace, getMoodOptions } from "@/src/features/workspace/workspace-context";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
+import { formatDateKey } from "@/src/lib/workspace-format";
 import { commonStyles } from "@/src/ui/styles";
 
 export function JournalDetailScreen() {
@@ -27,8 +28,17 @@ export function JournalDetailScreen() {
 
   return (
     <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.scrollContent}>
+      <View style={commonStyles.heroCard}>
+        <View style={commonStyles.heroGlow} />
+        <Text style={commonStyles.eyebrow}>Journal entry</Text>
+        <Text style={commonStyles.title}>{formatDateKey(entry.dateKey)}</Text>
+        <Text style={commonStyles.subtitle}>
+          Keep date, tags, and mood lightweight so daily writing stays fast on mobile.
+        </Text>
+      </View>
+
       <View style={commonStyles.card}>
-        <Text style={commonStyles.eyebrow}>Edit entry</Text>
+        <Text style={commonStyles.sectionTitle}>Entry details</Text>
         <TextInput
           value={entry.dateKey}
           onChangeText={(value) => updateJournalEntry(entry.id, { dateKey: value })}
@@ -60,11 +70,17 @@ export function JournalDetailScreen() {
           {getMoodOptions().map((mood) => (
             <Pressable
               key={mood}
-              style={mood === entry.mood ? commonStyles.button : commonStyles.buttonSecondary}
+              style={[
+                commonStyles.moodPill,
+                mood === entry.mood ? commonStyles.moodPillActive : null,
+              ]}
               onPress={() => updateJournalEntry(entry.id, { mood })}
             >
               <Text
-                style={mood === entry.mood ? commonStyles.buttonLabel : commonStyles.buttonLabelSecondary}
+                style={[
+                  commonStyles.moodPillLabel,
+                  mood === entry.mood ? commonStyles.moodPillLabelActive : null,
+                ]}
               >
                 {mood}
               </Text>

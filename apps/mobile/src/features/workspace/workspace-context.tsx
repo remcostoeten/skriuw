@@ -1,7 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { buildStarterWorkspace } from "@/src/core/starter-data";
-import type { MobileJournalEntry, MobileNote, MobileWorkspace, MoodLevel } from "@/src/core/workspace-types";
+import type {
+  MobileFolder,
+  MobileJournalEntry,
+  MobileNote,
+  MobileWorkspace,
+  MoodLevel,
+} from "@/src/core/workspace-types";
 import { createId, toDateKey } from "@/src/lib/workspace-format";
 
 const STORAGE_KEY = "skriuw:mobile:guest-workspace:v1";
@@ -10,6 +16,9 @@ type WorkspaceContextValue = {
   isHydrated: boolean;
   workspace: MobileWorkspace;
   cloudConfigured: boolean;
+  createFolder: (parentId?: string | null) => Promise<MobileFolder>;
+  renameFolder: (id: string, name: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
   createNote: (parentId?: string | null) => Promise<MobileNote>;
   updateNote: (id: string, patch: Partial<Pick<MobileNote, "name" | "content" | "parentId">>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
@@ -67,6 +76,45 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   async function saveWorkspace(next: MobileWorkspace) {
     setWorkspace(next);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
+  async function createFolder(parentId: string | null = null) {
+    const now = new Date().toISOString();
+    const folderNumber = workspaceRef.current.folders.length + 1;
+    const folder: MobileFolder = {
+      id: createId("folder"),
+      name: `Folder ${folderNumber}`,
+      parentId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await saveWorkspace({
+      ...workspaceRef.current,
+      folders: [folder, ...workspaceRef.current.folders],
+    });
+
+    return folder;
+  }
+
+  async function renameFolder(id: string, name: string) {
+    const now = new Date().toISOString();
+    await saveWorkspace({
+      ...workspaceRef.current,
+      folders: workspaceRef.current.folders.map((folder) =>
+        folder.id === id ? { ...folder, name: name || "Untitled folder", updatedAt: now } : folder,
+      ),
+    });
+  }
+
+  async function deleteFolder(id: string) {
+    await saveWorkspace({
+      ...workspaceRef.current,
+      folders: workspaceRef.current.folders.filter((folder) => folder.id !== id),
+      notes: workspaceRef.current.notes.map((note) =>
+        note.parentId === id ? { ...note, parentId: null } : note,
+      ),
+    });
   }
 
   async function createNote(parentId: string | null = null) {
@@ -150,6 +198,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       isHydrated,
       workspace,
       cloudConfigured: isCloudConfigured(),
+      createFolder,
+      renameFolder,
+      deleteFolder,
       createNote,
       updateNote,
       deleteNote,

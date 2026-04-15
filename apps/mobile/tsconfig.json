@@ -4,6 +4,12 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
+      "@/core/*": [
+        "../../src/core/*"
+      ],
+      "@/types/*": [
+        "../../src/types/*"
+      ],
       "@/*": [
         "./*"
       ]

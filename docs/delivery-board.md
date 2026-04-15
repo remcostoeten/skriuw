@@ -170,9 +170,9 @@ Make the web app feel finished without expanding product scope.
 
 ### WS-F: Mobile App Upgrade to Production-Quality Foundation
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P1`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 6`
 
 **Goal**
 
@@ -271,10 +271,10 @@ Put regression protection around the core before polish outruns reliability.
 | E2 | WS-E | Finish journal shell/editor UX | Unassigned | `todo` | - | Includes navigation consistency |
 | E3 | WS-E | Stabilize responsive web behavior | Unassigned | `todo` | E1, E2 | Preserve keyboard-first behavior |
 | E4 | WS-E | Normalize web shell controls and visual language | Unassigned | `todo` | E1, E2 | Coordinate with WS-G |
-| F1 | WS-F | Validate mobile notes flows | Unassigned | `todo` | - | Guest flow first |
-| F2 | WS-F | Validate mobile journal flows | Unassigned | `todo` | - | Guest flow first |
-| F3 | WS-F | Improve mobile touch and state UX | Unassigned | `todo` | F1, F2 | Loading, empty, error states |
-| F4 | WS-F | Align mobile with shared domain and repositories | Unassigned | `todo` | B1, C1 | No cloud auth yet |
+| F1 | WS-F | Validate mobile notes flows | Agent 6 | `in_progress` | - | Notes home now exposes folders, search, and stronger guest workspace organization |
+| F2 | WS-F | Validate mobile journal flows | Agent 6 | `in_progress` | - | Journal home/detail now have stronger overview, filtering, and mood controls |
+| F3 | WS-F | Improve mobile touch and state UX | Agent 6 | `in_progress` | F1, F2 | Shared mobile visual system expanded across tabs, cards, metrics, and editor controls |
+| F4 | WS-F | Align mobile with shared domain and repositories | Agent 6 | `in_progress` | B1, C1 | Mobile tsconfig now resolves shared core and shared types imports for typecheck |
 | G1 | WS-G | Finalize Skriuw branding rollout | Unassigned | `todo` | - | Remove naming drift |
 | G2 | WS-G | Finalize PWA/app metadata and assets | Unassigned | `todo` | G1 | Web + mobile metadata |
 | G3 | WS-G | Write lightweight design guidance | Unassigned | `todo` | G1 | Color, type, spacing, icon rules |
@@ -366,6 +366,15 @@ Put regression protection around the core before polish outruns reliability.
 - [src/core/shared/workspace-guard.ts](/home/remco/dev/haptic-ui-clone/src/core/shared/workspace-guard.ts) now centralizes captured workspace guards for async store work
 - notes and journal save-state transitions now reuse that guard instead of repeating inline stale-workspace checks
 - notes and journal stores now have direct regression tests covering stale hydration and stale async create completion after workspace reset
+
+### WS-F Findings
+
+- mobile now has a stronger shared visual language in [apps/mobile/src/ui/styles.ts](/home/remco/dev/haptic-ui-clone/apps/mobile/src/ui/styles.ts) instead of a flat scaffold-only card system
+- [apps/mobile/src/features/workspace/workspace-context.tsx](/home/remco/dev/haptic-ui-clone/apps/mobile/src/features/workspace/workspace-context.tsx) now exposes local folder create, rename, and delete flows
+- notes mobile surfaces guest-workspace organization more clearly with search, folder sections, and folder-targeted note creation
+- journal mobile now has search plus clearer entry mood and tag editing states
+- profile mobile now exposes recent activity and guarded reset behavior instead of a single destructive action
+- [apps/mobile/tsconfig.json](/home/remco/dev/haptic-ui-clone/apps/mobile/tsconfig.json) now resolves shared `src/core` and `src/types` aliases so `bun --filter @skriuw/mobile typecheck` works against the current shared-core setup
 
 ## Immediate Next Implementation Order
 
