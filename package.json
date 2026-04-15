@@ -16,7 +16,8 @@
     "dev:mobile": "bun --filter @skriuw/mobile start",
     "mobile:ios": "bun --filter @skriuw/mobile ios",
     "mobile:android": "bun --filter @skriuw/mobile android",
-    "test": "bun test",
+    "test": "bun run test:unit",
+    "test:unit": "bun test src",
     "test:smoke": "bun run build && playwright test",
     "lint": "oxlint",
     "format": "oxfmt"

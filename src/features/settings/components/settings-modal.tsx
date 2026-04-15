@@ -119,7 +119,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {auth.mode === "guest" ? "Guest workspace on this device" : "Cloud workspace"}
+                      {auth.workspaceMode === "guest" ? "Guest workspace on this device" : "Cloud workspace"}
                     </p>
                   )}
                 </div>

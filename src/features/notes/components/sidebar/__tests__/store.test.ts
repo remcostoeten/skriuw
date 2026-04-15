@@ -41,8 +41,8 @@ async function flushMicrotasks() {
 
 function buildAuthSnapshot() {
   return {
-    mode: authWorkspaceId === "guest-local" ? "guest" : "cloud",
-    status: authWorkspaceId === "guest-local" ? "guest" : "authenticated",
+    phase: authWorkspaceId === "guest-local" ? "guest" : "authenticated",
+    workspaceMode: authWorkspaceId === "guest-local" ? "guest" : "cloud",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: false,
@@ -57,7 +57,6 @@ function buildAuthSnapshot() {
     session: null,
     error: null,
     workspaceId: authWorkspaceId,
-    canSync: false,
   };
 }
 

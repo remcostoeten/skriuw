@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 let authSnapshot = {
-  mode: "guest" as const,
-  status: "guest" as const,
+  phase: "guest" as const,
+  workspaceMode: "guest" as const,
   rememberMe: true,
   isReady: true,
   isSupabaseConfigured: false,
@@ -14,7 +14,6 @@ let authSnapshot = {
   session: null,
   error: null,
   workspaceId: "guest-local",
-  canSync: false,
 };
 
 async function loadModule() {
@@ -27,16 +26,15 @@ async function loadModule() {
 
 beforeEach(() => {
     authSnapshot = {
-      mode: "guest",
-      status: "guest",
-    rememberMe: true,
+      phase: "guest",
+      workspaceMode: "guest",
+      rememberMe: true,
     isReady: true,
     isSupabaseConfigured: false,
       user: null,
       session: null,
       error: null,
       workspaceId: "guest-local",
-      canSync: false,
     };
 });
 
@@ -57,11 +55,10 @@ describe("workspace target resolution", () => {
   test("resolves to the cloud workspace when the authenticated session can sync", async () => {
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       isSupabaseConfigured: true,
       workspaceId: "user-123",
-      canSync: true,
       user: {
         id: "user-123",
         email: "user-123@example.com",

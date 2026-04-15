@@ -104,11 +104,10 @@ describe("auth workspace isolation", () => {
 
     expect(snapshot).toEqual(
       expect.objectContaining({
-        mode: "cloud",
-        status: "signed_out",
+        phase: "guest",
+        workspaceMode: "cloud",
         workspaceId: "cloud-local",
         isReady: true,
-        canSync: false,
         user: null,
       }),
     );
@@ -124,8 +123,8 @@ describe("auth workspace isolation", () => {
 
     expect(authModule.getAuthStateSnapshot()).toEqual(
       expect.objectContaining({
-        mode: "cloud",
-        status: "signed_out",
+        phase: "guest",
+        workspaceMode: "cloud",
         workspaceId: "cloud-local",
       }),
     );
@@ -140,8 +139,8 @@ describe("auth workspace isolation", () => {
 
     expect(authModule.getAuthStateSnapshot()).toEqual(
       expect.objectContaining({
-        mode: "guest",
-        status: "guest",
+        phase: "guest",
+        workspaceMode: "guest",
         workspaceId: "guest-local",
       }),
     );

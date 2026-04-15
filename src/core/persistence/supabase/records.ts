@@ -88,22 +88,17 @@ const TABLE_MAP: Record<RemoteStoreName, string> = {
   [PERSISTED_STORE_NAMES.tags]: "tags",
 };
 
-function requireUserId(userId?: string): string {
-  if (userId) {
-    return userId;
+function requireUserId(userId: string | undefined): string {
+  if (!userId) {
+    throw new Error("Explicit user id required for cloud storage.");
   }
 
-  const { user, canSync } = getAuthStateSnapshot();
-  if (!user || !canSync) {
-    throw new Error("Authentication required for cloud storage.");
-  }
-
-  return user.id;
+  return userId;
 }
 
 export function getRemotePersistenceUserId(): string | null {
-  const { user, canSync } = getAuthStateSnapshot();
-  if (!user || !canSync) {
+  const { user, phase } = getAuthStateSnapshot();
+  if (!user || phase !== "authenticated") {
     return null;
   }
 

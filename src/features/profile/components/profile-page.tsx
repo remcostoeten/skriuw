@@ -5,7 +5,6 @@ import { useState } from "react";
 import { BookOpen, Cloud, LoaderCircle, LogOut, NotebookPen, UserRound } from "lucide-react";
 import { Button } from "@/shared/ui/button-component";
 import { Separator } from "@/shared/ui/separator";
-import { cn } from "@/shared/lib/utils";
 import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 import { setGuestMode, signOut } from "@/platform/auth";
 import { useProfileSummary } from "../hooks/use-profile-summary";

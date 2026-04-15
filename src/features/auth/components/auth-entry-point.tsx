@@ -52,7 +52,7 @@ function OAuthButton({ label, icon, loading, disabled, onClick }: OAuthButtonPro
 }
 
 function resolveButtonCopy(auth: ReturnType<typeof useAuthSnapshot>) {
-  if (auth.status === "authenticated") {
+  if (auth.phase === "authenticated") {
     return {
       icon: Cloud,
       label: "Workspace",
@@ -60,7 +60,7 @@ function resolveButtonCopy(auth: ReturnType<typeof useAuthSnapshot>) {
     };
   }
 
-  if (auth.mode === "guest") {
+  if (auth.workspaceMode === "guest") {
     return {
       icon: UserRound,
       label: "Guest",
@@ -272,7 +272,7 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                 <div className="grid gap-2">
                   <Button
                     type="button"
-                    variant={auth.mode === "cloud" ? "default" : "outline"}
+                    variant={auth.workspaceMode === "cloud" ? "default" : "outline"}
                     className="h-11 w-full"
                     disabled={isPending || !auth.isSupabaseConfigured}
                     onClick={() =>
@@ -290,7 +290,7 @@ export function AuthEntryPoint({ className, triggerVariant = "default" }: Props)
                   </Button>
                   <Button
                     type="button"
-                    variant={auth.mode === "guest" ? "default" : "outline"}
+                    variant={auth.workspaceMode === "guest" ? "default" : "outline"}
                     className="h-11 w-full border-border bg-transparent"
                     disabled={isPending}
                     onClick={() =>

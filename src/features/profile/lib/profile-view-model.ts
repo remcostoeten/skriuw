@@ -26,11 +26,11 @@ function formatCount(count: number, singular: string, plural: string) {
 }
 
 function resolveStatusLabel(auth: AuthSnapshot) {
-  if (auth.status === "authenticated") {
+  if (auth.phase === "authenticated") {
     return "Authenticated";
   }
 
-  if (auth.mode === "cloud") {
+  if (auth.workspaceMode === "cloud") {
     return "Signed out";
   }
 
@@ -38,15 +38,15 @@ function resolveStatusLabel(auth: AuthSnapshot) {
 }
 
 function resolveWorkspaceLabel(auth: AuthSnapshot) {
-  if (auth.status === "authenticated") {
+  if (auth.phase === "authenticated") {
     return "Cloud workspace";
   }
 
-  return auth.mode === "cloud" ? "Cloud workspace on this device" : "Guest workspace";
+  return auth.workspaceMode === "cloud" ? "Cloud workspace on this device" : "Guest workspace";
 }
 
 export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, journalEntryCount: number): ProfileViewModel {
-  const isAuthenticated = auth.status === "authenticated" && auth.user !== null;
+  const isAuthenticated = auth.phase === "authenticated" && auth.user !== null;
 
   return {
     title: isAuthenticated ? auth.user?.name ?? "Account" : "Workspace",

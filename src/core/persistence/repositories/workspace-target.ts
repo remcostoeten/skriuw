@@ -1,30 +1,21 @@
 import { getAuthStateSnapshot } from "@/platform/auth";
-
-export type WorkspaceTarget =
-  | {
-      kind: "local";
-      workspaceId: string;
-    }
-  | {
-      kind: "cloud";
-      workspaceId: string;
-      userId: string;
-    };
+import type { WorkspaceTarget } from "./contracts";
 
 export function getWorkspaceTarget(): WorkspaceTarget {
   const auth = getAuthStateSnapshot();
+  const workspaceId = auth.user?.id ?? auth.workspaceId;
 
-  if (auth.user && auth.canSync) {
+  if (auth.phase === "authenticated" && auth.user) {
     return {
       kind: "cloud",
-      workspaceId: auth.workspaceId,
+      workspaceId,
       userId: auth.user.id,
     };
   }
 
   return {
     kind: "local",
-    workspaceId: auth.workspaceId,
+    workspaceId,
   };
 }
 

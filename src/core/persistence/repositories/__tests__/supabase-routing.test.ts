@@ -56,9 +56,7 @@ mock.module("../workspace-target", () => ({
   ): target is { kind: "cloud"; workspaceId: string; userId: string } => target.kind === "cloud",
 }));
 
-const notesRepositoryPromise = import("../notes-repository");
-const foldersRepositoryPromise = import("../folders-repository");
-const journalRepositoryPromise = import("../journal-repository");
+const repositoriesPromise = import("../index");
 
 beforeEach(() => {
   canUseRemote = false;
@@ -76,7 +74,7 @@ afterEach(() => {
 
 describe("repository remote routing", () => {
   test("notesRepository.list prefers Supabase when remote persistence is available", async () => {
-    const { notesRepository } = await notesRepositoryPromise;
+    const { notesRepository } = await repositoriesPromise;
 
     canUseRemote = true;
     remoteUserId = "user-123";
@@ -103,7 +101,7 @@ describe("repository remote routing", () => {
   });
 
   test("foldersRepository.destroy soft-deletes descendant folders and notes in Supabase mode", async () => {
-    const { foldersRepository } = await foldersRepositoryPromise;
+    const { foldersRepository } = await repositoriesPromise;
 
     canUseRemote = true;
     remoteUserId = "user-123";
@@ -162,7 +160,7 @@ describe("repository remote routing", () => {
   });
 
   test("journalRepository.destroyTag removes tag references before soft-deleting the tag in Supabase mode", async () => {
-    const { journalRepository } = await journalRepositoryPromise;
+    const { journalRepository } = await repositoriesPromise;
 
     canUseRemote = true;
     remoteUserId = "user-123";
