@@ -1,4 +1,4 @@
-# Skriuw - Notes
+# Skriuw
 
 A keyboard-first note-taking application built with Next.js, React, and TypeScript.
 

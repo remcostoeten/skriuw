@@ -197,9 +197,9 @@ Turn the Expo app from a usable scaffold into a solid app foundation.
 
 ### WS-G: Brand and Design System Unification
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P2`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 7`
 
 **Goal**
 
@@ -275,9 +275,9 @@ Put regression protection around the core before polish outruns reliability.
 | F2 | WS-F | Validate mobile journal flows | Agent 6 | `in_progress` | - | Journal home/detail now have stronger overview, filtering, and mood controls |
 | F3 | WS-F | Improve mobile touch and state UX | Agent 6 | `in_progress` | F1, F2 | Shared mobile visual system expanded across tabs, cards, metrics, and editor controls |
 | F4 | WS-F | Align mobile with shared domain and repositories | Agent 6 | `in_progress` | B1, C1 | Mobile tsconfig now resolves shared core and shared types imports for typecheck |
-| G1 | WS-G | Finalize Skriuw branding rollout | Unassigned | `todo` | - | Remove naming drift |
-| G2 | WS-G | Finalize PWA/app metadata and assets | Unassigned | `todo` | G1 | Web + mobile metadata |
-| G3 | WS-G | Write lightweight design guidance | Unassigned | `todo` | G1 | Color, type, spacing, icon rules |
+| G1 | WS-G | Finalize Skriuw branding rollout | Agent 7 | `in_progress` | - | Runtime product copy and metadata are being aligned around Skriuw |
+| G2 | WS-G | Finalize PWA/app metadata and assets | Agent 7 | `in_progress` | G1 | Web metadata, manifest, and Expo app metadata are now aligned to the current product identity |
+| G3 | WS-G | Write lightweight design guidance | Agent 7 | `todo` | G1 | Color, type, spacing, icon rules |
 | H1 | WS-H | Build quality checklist | Agent 8 | `done` | - | Commands plus manual checks |
 | H2 | WS-H | Add tests for session and repository invariants | Agent 8 | `in_progress` | A1, B1 | Notes and journal store stale-workspace guard tests are now landed |
 | H3 | WS-H | Expand smoke coverage for critical flows | Unassigned | `todo` | E1, E2 | Notes and journal |
@@ -383,6 +383,13 @@ Put regression protection around the core before polish outruns reliability.
 - [src/features/notes/components/sidebar-panel.tsx](/home/remco/dev/haptic-ui-clone/src/features/notes/components/sidebar-panel.tsx) search results now read as a proper quick-jump surface instead of a raw list
 - [src/features/layout/components/icon-rail.tsx](/home/remco/dev/haptic-ui-clone/src/features/layout/components/icon-rail.tsx) now reads as part of the product shell rather than a thin utility strip
 - [src/shared/ui/sheet.tsx](/home/remco/dev/haptic-ui-clone/src/shared/ui/sheet.tsx) now has stronger overlay, panel, and close-control styling for cross-app consistency
+
+### WS-G Findings
+
+- [src/app/layout.tsx](/home/remco/dev/haptic-ui-clone/src/app/layout.tsx) now carries fuller product metadata for Skriuw instead of a placeholder notes-only identity
+- [public/manifest.json](/home/remco/dev/haptic-ui-clone/public/manifest.json) now uses the current warm product surface colors and guest-workspace framing
+- [apps/mobile/app.json](/home/remco/dev/haptic-ui-clone/apps/mobile/app.json) now aligns Expo metadata and launch colors with the current product direction
+- the remaining brand cleanup is mostly asset-level polish and lightweight design guidance rather than product naming confusion
 
 ## Immediate Next Implementation Order
 

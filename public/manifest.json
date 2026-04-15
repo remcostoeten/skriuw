@@ -1,11 +1,11 @@
 {
 	"name": "Skriuw",
 	"short_name": "Skriuw",
-	"description": "A modern note-taking application",
+	"description": "A calm notes and journal workspace with private guest mode.",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#ffffff",
-	"theme_color": "#000000",
+	"background_color": "#f5efe7",
+	"theme_color": "#f5efe7",
 	"orientation": "portrait-primary",
 	"icons": [
 		{

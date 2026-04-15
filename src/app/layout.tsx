@@ -14,12 +14,32 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Skriuw - Notes",
-  description: "A minimal, keyboard-first note-taking application",
+  metadataBase: new URL("https://skriuw.app"),
+  title: {
+    default: "Skriuw",
+    template: "%s | Skriuw",
+  },
+  description:
+    "A calm, keyboard-first notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+  applicationName: "Skriuw",
+  keywords: ["Skriuw", "notes", "journal", "guest workspace", "writing", "knowledge base"],
+  openGraph: {
+    title: "Skriuw",
+    description:
+      "A calm notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+    siteName: "Skriuw",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Skriuw",
+    description:
+      "A calm notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f1115",
+  themeColor: "#f5efe7",
   width: "device-width",
   initialScale: 1,
 };

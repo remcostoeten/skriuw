@@ -5,10 +5,15 @@
     "scheme": "skriuw",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
+    "description": "A calm notes and journal workspace with a private guest mode.",
+    "backgroundColor": "#f6f2ea",
     "plugins": [
       "expo-router"
     ],
+    "splash": {
+      "backgroundColor": "#f6f2ea"
+    },
     "experiments": {
       "typedRoutes": true
     }
