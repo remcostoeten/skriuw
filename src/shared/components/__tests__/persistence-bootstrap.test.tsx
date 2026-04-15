@@ -19,6 +19,7 @@ let syncLayoutActor: MockFn;
 let syncSidebarActor: MockFn;
 let ensurePrivacyDemoSeeded: MockFn;
 let ensureCloudStarterContentSeeded: MockFn;
+let initializeAuth: MockFn;
 let renderedEffects: EffectRecord[][] = [];
 let currentRenderEffects: EffectRecord[] = [];
 let effectCursor = 0;
@@ -74,6 +75,7 @@ function registerModuleMocks() {
     getWorkspaceId: () => authSnapshot.workspaceId,
     getAuthStateSnapshot: () => authSnapshot,
     subscribeAuthState: () => () => undefined,
+    initializeAuth: () => initializeAuth(),
   }));
 
   mock.module("@/features/notes/store", () => ({
@@ -153,6 +155,7 @@ beforeEach(() => {
   syncSidebarActor = createMock(async () => undefined);
   ensurePrivacyDemoSeeded = createMock(async () => undefined);
   ensureCloudStarterContentSeeded = createMock(async () => undefined);
+  initializeAuth = createMock(async () => authSnapshot);
   renderedEffects = [];
   currentRenderEffects = [];
   effectCursor = 0;

@@ -115,7 +115,7 @@ Centralize portable domain logic before web and mobile diverge further.
 
 ### WS-D: Bootstrap and Store Hydration Simplification
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P1`  
 **Owner:** `Unassigned`
 
@@ -264,8 +264,8 @@ Put regression protection around the core before polish outruns reliability.
 | C1 | WS-C | Define shared domain module boundaries | Agent 3 | `in_progress` | A1, B1 | Shared starter-content extraction is now landed |
 | C2 | WS-C | Move shared types/contracts/builders | Agent 3 | `in_progress` | C1 | Starter-content and repository contracts are now landed |
 | C3 | WS-C | Centralize neutral validators/helpers | Agent 3 | `in_progress` | C1 | Shared `createId` and `toDateKey` are now landed |
-| D1 | WS-D | Simplify bootstrap path | Unassigned | `todo` | A1, B1 | Reduce top-level coordination |
-| D2 | WS-D | Simplify store hydration flow | Unassigned | `todo` | D1 | Keep stores feature-focused |
+| D1 | WS-D | Simplify bootstrap path | Agent 4 | `done` | A1, B1 | Auth initialization now lives in persistence bootstrap and app providers no longer wrap children in the auth gate |
+| D2 | WS-D | Simplify store hydration flow | Agent 4 | `in_progress` | D1 | Focus next on stale-workspace guards and hydration invariants |
 | D3 | WS-D | Reduce stale-session and actor leftovers | Unassigned | `todo` | D1 | Remove dead complexity carefully |
 | E1 | WS-E | Finish note/file tree UX | Unassigned | `todo` | - | Current largest active WIP area |
 | E2 | WS-E | Finish journal shell/editor UX | Unassigned | `todo` | - | Includes navigation consistency |
@@ -348,16 +348,25 @@ Put regression protection around the core before polish outruns reliability.
   - `bun test src/platform/auth/__tests__/index.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/features/profile/lib/__tests__/profile-view-model.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/supabase/__tests__/records.test.ts` passes
 - current deterministic foundation verification:
   - `bun test src/core/persistence/repositories/__tests__/privacy-demo.test.ts src/core/persistence/supabase/__tests__/sync.test.ts src/core/persistence/supabase/__tests__/records.test.ts src/platform/auth/__tests__/index.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/features/profile/lib/__tests__/profile-view-model.test.ts` passes
+- current bootstrap checkpoint verification:
+  - `bun test src/shared/components/__tests__/persistence-bootstrap.test.tsx src/platform/auth/__tests__/index.test.ts src/core/persistence/repositories/__tests__/workspace-target.test.ts` passes
 - raw `bun test` still discovers the Playwright smoke spec and should not be treated as the repo gate
 - coverage is strongest in persistence/session/store invariants
 - current gaps are browser flow depth and mobile automated coverage
+
+### WS-D Findings
+
+- auth initialization no longer needs to be coordinated by a separate app-level auth gate
+- [src/shared/components/persistence-bootstrap.tsx](/home/remco/dev/haptic-ui-clone/src/shared/components/persistence-bootstrap.tsx) now owns auth initialization plus workspace hydration sequencing
+- [src/providers/app-providers.tsx](/home/remco/dev/haptic-ui-clone/src/providers/app-providers.tsx) is thinner and only composes runtime providers plus bootstrap
+- next cleanup target is reducing duplicated stale-workspace guard logic in the notes and journal stores without weakening workspace isolation
 
 ## Immediate Next Implementation Order
 
 1. Continue `B2` by removing remaining implicit cloud/local routing assumptions from downstream consumers and tests.
 2. Continue `C2`/`C3` with additional neutral shared helpers and portable contracts where they reduce real duplication.
 3. Start `H2` immediately on top of the new auth and repository boundaries.
-4. Begin `D1` once the current foundation diff is stabilized.
+4. Continue `D2` by tightening store hydration and stale-workspace handling under test.
 5. Keep `H1` as the documented command baseline until the smoke-test discovery issue is fully isolated from raw `bun test`.
 
 ## Ownership Matrix
