@@ -121,7 +121,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
     const note: MobileNote = {
       id: createId("note"),
-      name: "Untitled note",
+      name: "",
       content: "",
       parentId,
       createdAt: now,

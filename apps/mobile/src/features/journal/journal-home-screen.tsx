@@ -58,7 +58,7 @@ export function JournalHomeScreen() {
           style={commonStyles.button}
           onPress={async () => {
             const entry = await createJournalEntry();
-            router.push(`/(tabs)/journal/${entry.id}`);
+            router.push(`/journal/${entry.id}`);
           }}
         >
           <Text style={commonStyles.buttonLabel}>New entry</Text>
@@ -74,6 +74,7 @@ export function JournalHomeScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search date, mood, tag, or content"
+          placeholderTextColor={palette.textSoft}
           style={commonStyles.inputCompact}
         />
       </View>
@@ -85,7 +86,7 @@ export function JournalHomeScreen() {
             commonStyles.listCard,
             pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
           ]}
-          onPress={() => router.push(`/(tabs)/journal/${entry.id}`)}
+          onPress={() => router.push(`/journal/${entry.id}`)}
         >
           <View style={commonStyles.rowWrap}>
             <View style={commonStyles.chip}>

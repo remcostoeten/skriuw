@@ -1,15 +1,20 @@
 import { Stack } from "expo-router";
+import { palette } from "@/src/ui/styles";
 
 export default function JournalLayout() {
   return (
     <Stack
       screenOptions={{
         headerShadowVisible: false,
+        headerTintColor: palette.text,
+        headerTitleStyle: {
+          color: palette.text,
+        },
         headerStyle: {
-          backgroundColor: "#f6f2ea",
+          backgroundColor: palette.canvas,
         },
         contentStyle: {
-          backgroundColor: "#f6f2ea",
+          backgroundColor: palette.canvas,
         },
       }}
     >
@@ -22,7 +27,7 @@ export default function JournalLayout() {
       <Stack.Screen
         name="[entryId]"
         options={{
-          title: "Edit entry",
+          title: "Entry",
         }}
       />
     </Stack>
