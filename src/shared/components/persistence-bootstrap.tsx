@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useJournalStore } from "@/features/journal/store";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { initializeAuth } from "@/platform/auth";
 import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useDocumentStore } from "@/features/layout/store";
@@ -21,6 +22,10 @@ export function PersistenceBootstrap() {
   const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
   const syncSidebarWorkspace = useSidebarStore((state) => state.syncWorkspace);
   const auth = useAuthSnapshot();
+
+  useEffect(() => {
+    void initializeAuth();
+  }, []);
 
   useEffect(() => {
     if (!auth.isReady) {
