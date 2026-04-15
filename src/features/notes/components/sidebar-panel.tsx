@@ -3,7 +3,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
-import { FileText, Folder, PanelTopClose, Search, X } from "lucide-react";
+import { FileText, Folder, PanelTopClose, Search, UnfoldVertical, X } from "lucide-react";
 import { useSidebarStore } from "./sidebar/store";
 import type { SidebarSection as SidebarSectionType } from "./sidebar/types";
 import {
@@ -24,6 +24,8 @@ interface SidebarPanelProps {
   activeFileId: string;
   onFileSelect: (id: string) => void;
   onToggleFolder: (id: string) => void;
+  onCollapseAllFolders?: () => void;
+  onExpandAllFolders?: () => void;
   onCreateFile: () => void;
   onCreateFolder: () => void;
   onRenameFile: (id: string, name: string) => void;
@@ -83,6 +85,8 @@ export function SidebarPanel({
   activeFileId,
   onFileSelect,
   onToggleFolder,
+  onCollapseAllFolders,
+  onExpandAllFolders,
   onCreateFile,
   onCreateFolder,
   onRenameFile,
@@ -318,39 +322,63 @@ export function SidebarPanel({
       )}
     >
       <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
-        <div className="relative min-h-11 overflow-hidden px-3 py-2.5 md:h-11 md:min-h-0 md:py-0">
+        <div className="relative min-h-12 overflow-hidden px-3 py-2.5 md:h-12 md:min-h-0 md:px-4 md:py-0">
           <div
             className={cn(
-              "flex h-full w-full items-center gap-2 transition-transform duration-200",
+              "flex h-full w-full items-center gap-3 transition-transform duration-200",
               isSearchOpen && "-translate-y-12",
             )}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 md:gap-2.5">
               <button
                 onClick={onCreateFile}
-                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
                 title="New Note"
               >
                 <NewNoteIcon />
               </button>
               <button
                 onClick={onCreateFolder}
-                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
                 title="New Folder"
               >
                 <NewFolderNoteIcon />
               </button>
               <button
                 onClick={openConfigPanel}
-                className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
                 title="Manage sections"
               >
                 <PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
               </button>
+              {(onCollapseAllFolders || onExpandAllFolders) && (
+                <div className="relative flex">
+                  <button
+                    onClick={() => {
+                      if (onCollapseAllFolders && onExpandAllFolders) {
+                        const anyExpanded = folders.some((f) => f.isOpen);
+                        if (anyExpanded) {
+                          onCollapseAllFolders();
+                        } else {
+                          onExpandAllFolders();
+                        }
+                      } else if (onCollapseAllFolders) {
+                        onCollapseAllFolders();
+                      } else if (onExpandAllFolders) {
+                        onExpandAllFolders();
+                      }
+                    }}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
+                    title="Toggle all folders"
+                  >
+                    <UnfoldVertical className="h-4 w-4" strokeWidth={1.5} />
+                  </button>
+                </div>
+              )}
               {hasSearchSection && (
                 <button
                   onClick={openSearch}
-                  className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-7 md:w-7"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
                   title="Search notes"
                 >
                   <Search className="h-4 w-4" strokeWidth={1.5} />
@@ -388,7 +416,7 @@ export function SidebarPanel({
           {hasSearchSection && (
             <div
               className={cn(
-                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200 md:h-11 md:py-2",
+                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200 md:h-12 md:px-4 md:py-2",
                 isSearchOpen ? "translate-y-0" : "translate-y-12",
               )}
             >

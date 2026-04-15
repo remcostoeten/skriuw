@@ -266,16 +266,6 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         .blocknote-wrapper [class*="bn-"] {
           background: transparent !important;
         }
-        .blocknote-wrapper > div,
-        .blocknote-wrapper .bn-container > div {
-          height: 100%;
-          min-height: 100%;
-          background: #1e1e1e !important;
-        }
-        .blocknote-wrapper .bn-container {
-          height: 100%;
-          min-height: 100%;
-        }
         .blocknote-wrapper .bn-editor {
           box-sizing: border-box;
           padding-left: 0;

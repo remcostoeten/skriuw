@@ -3,8 +3,12 @@
 import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
 import {
   Briefcase,
+  Check,
   ChevronRight,
   Folder,
   FolderInput,
@@ -60,8 +64,15 @@ type VisibleItem =
   | (SelectedItem & { depth: number; folder: NoteFolder; file?: never })
   | (SelectedItem & { depth: number; file: NoteFile; folder?: never });
 
+type MobileActionTarget = {
+  item: SelectedItem;
+  label: string;
+  selection: SelectedItem[];
+};
+
 const FILE_TREE_ROW_HEIGHT = 32;
 const FILE_TREE_OVERSCAN = 10;
+const LONG_PRESS_DURATION_MS = 380;
 
 export const FileList = memo(function FileList({
   folders,
@@ -92,8 +103,11 @@ export const FileList = memo(function FileList({
   } = useSidebarStore();
   const projects = getProjects();
   const customSections = config.sections.filter((section) => section.type === "custom");
+  const isMobile = useIsMobile();
   const listRef = useRef<HTMLDivElement>(null);
   const itemButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClickRef = useRef(false);
   const [scrollTop, setScrollTop] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
@@ -207,6 +221,7 @@ export const FileList = memo(function FileList({
     id: string | null;
     type: "folder" | "root";
   } | null>(null);
+  const [mobileActionTarget, setMobileActionTarget] = useState<MobileActionTarget | null>(null);
 
   // Focus and select text when editing starts
   useEffect(() => {
@@ -215,6 +230,15 @@ export const FileList = memo(function FileList({
       inputRef.current.select();
     }
   }, [editingId]);
+
+  useEffect(
+    () => () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const startRename = useCallback((id: string, currentName: string, type: "file" | "folder") => {
     setEditingId(id);
@@ -314,6 +338,19 @@ export const FileList = memo(function FileList({
     [onDeleteFile, onDeleteFolder, setSelectedItems],
   );
 
+  const closeMobileActionSheet = useCallback(() => {
+    setMobileActionTarget(null);
+  }, []);
+
+  const runMobileAction = useCallback(
+    (action: () => void, feedback: Parameters<typeof triggerNativeFeedback>[0] = "selection") => {
+      action();
+      triggerNativeFeedback(feedback);
+      closeMobileActionSheet();
+    },
+    [closeMobileActionSheet],
+  );
+
   const moveSelected = useCallback(
     (items: SelectedItem[], targetParentId: string | null) => {
       items.forEach((item) => {
@@ -376,6 +413,9 @@ export const FileList = memo(function FileList({
 
   const handleContextMenu = useCallback(
     (event: React.MouseEvent, item: SelectedItem) => {
+      if (isMobile) {
+        event.preventDefault();
+      }
       if (!isItemSelected(item)) {
         setSelectedItems([item]);
         setFocusedItemKey(getItemKey(item));
@@ -385,7 +425,45 @@ export const FileList = memo(function FileList({
         lastSelectedIndexRef.current = index !== -1 ? index : null;
       }
     },
-    [flattenedVisibleItems, getItemKey, isItemSelected, setSelectedItems],
+    [flattenedVisibleItems, getItemKey, isItemSelected, isMobile, setSelectedItems],
+  );
+
+  const openMobileActionSheet = useCallback(
+    (item: SelectedItem, label: string) => {
+      const selection = getSelectionForAction(item);
+      setSelectedItems(selection);
+      setFocusedItemKey(getItemKey(item));
+      const index = flattenedVisibleItems.findIndex(
+        (entry) => entry.id === item.id && entry.type === item.type,
+      );
+      lastSelectedIndexRef.current = index !== -1 ? index : null;
+      suppressClickRef.current = true;
+      triggerNativeFeedback("impact");
+      setMobileActionTarget({ item, label, selection });
+    },
+    [flattenedVisibleItems, getItemKey, getSelectionForAction, setSelectedItems],
+  );
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleLongPress = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>, item: SelectedItem, label: string) => {
+      if (!isMobile || event.pointerType !== "touch" || editingId) {
+        return;
+      }
+
+      cancelLongPress();
+      longPressTimerRef.current = setTimeout(() => {
+        openMobileActionSheet(item, label);
+        longPressTimerRef.current = null;
+      }, LONG_PRESS_DURATION_MS);
+    },
+    [cancelLongPress, editingId, isMobile, openMobileActionSheet],
   );
 
   const handleTreeItemKeyDown = useCallback(
@@ -588,6 +666,186 @@ export const FileList = memo(function FileList({
     [folders, getDescendantIds, moveSelected],
   );
 
+  const renderMobileSheetSections = useCallback(
+    (target: MobileActionTarget) => {
+      const { item, selection, label } = target;
+      const selectionHasMultiple = selection.length > 1;
+      const targetIsFavorite = isFavorite(item.id);
+      const selectionFolders = selection.filter((selectionItem) => selectionItem.type === "folder");
+      const invalidFolderIds = new Set<string>();
+
+      selectionFolders.forEach((folderItem) => {
+        getDescendantIds(folderItem.id).forEach((descendantId) => invalidFolderIds.add(descendantId));
+      });
+
+      const availableFolders = folders.filter((folder) => !invalidFolderIds.has(folder.id));
+      const hasSelectionAtNonRoot = selection.some((selectionItem) => selectionItem.parentId !== null);
+
+      return (
+        <>
+          <div className="px-5 pb-3 pt-2">
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-white/12" />
+            <SheetTitle className="mt-4 text-center text-[15px] font-medium text-foreground">
+              {label}
+            </SheetTitle>
+            <SheetDescription className="mt-1 text-center text-[12px] text-foreground/48">
+              {selectionHasMultiple ? `${selection.length} items selected` : "Choose an action"}
+            </SheetDescription>
+          </div>
+
+          <div className="space-y-3 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+            <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+              <button
+                type="button"
+                onClick={() =>
+                  runMobileAction(() => {
+                    if (!selectionHasMultiple) {
+                      startRename(item.id, label, item.type);
+                    }
+                  })
+                }
+                disabled={selectionHasMultiple}
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors disabled:opacity-40"
+              >
+                <Pencil className="h-5 w-5 shrink-0 text-foreground/72" />
+                Rename
+              </button>
+
+              <div className="mx-4 h-px bg-white/8" />
+
+              <button
+                type="button"
+                onClick={() =>
+                  runMobileAction(() => {
+                    if (targetIsFavorite) {
+                      removeFromFavorites(item.id);
+                    } else {
+                      addToFavorites(item.id, item.type);
+                    }
+                  })
+                }
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
+              >
+                <Star
+                  className={cn(
+                    "h-5 w-5 shrink-0",
+                    targetIsFavorite ? "fill-amber-400 text-amber-400" : "text-foreground/72",
+                  )}
+                />
+                {targetIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
+              </button>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+              <div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
+                Move To
+              </div>
+              {hasSelectionAtNonRoot && (
+                <button
+                  type="button"
+                  onClick={() => runMobileAction(() => moveSelected(selection, null))}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
+                >
+                  <FolderInput className="h-5 w-5 shrink-0 text-foreground/72" />
+                  Root
+                </button>
+              )}
+              {availableFolders.length > 0 ? (
+                availableFolders.map((folder, index) => (
+                  <div key={folder.id}>
+                    {(index > 0 || hasSelectionAtNonRoot) && <div className="mx-4 h-px bg-white/8" />}
+                    <button
+                      type="button"
+                      onClick={() => runMobileAction(() => moveSelected(selection, folder.id))}
+                      className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
+                    >
+                      <Folder className="h-5 w-5 shrink-0 text-foreground/72" />
+                      <span className="truncate">{folder.name}</span>
+                    </button>
+                  </div>
+                ))
+              ) : !hasSelectionAtNonRoot ? (
+                <div className="px-4 pb-4 pt-1 text-[13px] text-foreground/42">No folders available</div>
+              ) : null}
+            </div>
+
+            {projects.length > 0 && (
+              <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+                <div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
+                  Add To Project
+                </div>
+                {projects.map((project, index) => (
+                  <div key={project.id}>
+                    {index > 0 && <div className="mx-4 h-px bg-white/8" />}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        runMobileAction(() => addToProject(project.id, item.id, item.type))
+                      }
+                      className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
+                    >
+                      <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", project.color)} />
+                      <span className="truncate">{project.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {customSections.length > 0 && (
+              <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+                <div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
+                  Add To Section
+                </div>
+                {customSections.map((section, index) => (
+                  <div key={section.id}>
+                    {index > 0 && <div className="mx-4 h-px bg-white/8" />}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        runMobileAction(() => addToCustomSection(section.id, item.id, item.type))
+                      }
+                      className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
+                    >
+                      <Check className="h-5 w-5 shrink-0 text-foreground/54" />
+                      <span className="truncate">{section.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-2xl border border-red-500/18 bg-red-500/[0.04]">
+              <button
+                type="button"
+                onClick={() => runMobileAction(() => deleteSelection(selection), "dismiss")}
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-red-300 transition-colors"
+              >
+                <Trash2 className="h-5 w-5 shrink-0 text-red-300" />
+                {selectionHasMultiple ? "Delete selected" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </>
+      );
+    },
+    [
+      addToCustomSection,
+      addToFavorites,
+      addToProject,
+      customSections,
+      deleteSelection,
+      folders,
+      getDescendantIds,
+      isFavorite,
+      moveSelected,
+      projects,
+      removeFromFavorites,
+      runMobileAction,
+      startRename,
+    ],
+  );
+
   const renderFolderRow = (folder: NoteFolder, depth: number) => {
     const totalCount = countDescendants(folder.id);
     const isEditing = editingId === folder.id;
@@ -613,6 +871,10 @@ export const FileList = memo(function FileList({
               }}
               onClick={(event) =>
                 handleItemClick(event, folderItem, () => {
+                  if (suppressClickRef.current) {
+                    suppressClickRef.current = false;
+                    return;
+                  }
                   if (!isEditing) {
                     onToggleFolder(folder.id);
                   }
@@ -620,6 +882,11 @@ export const FileList = memo(function FileList({
               }
               onDoubleClick={(e) => handleDoubleClick(e, folder.id, folder.name, "folder")}
               onContextMenu={(event) => handleContextMenu(event, folderItem)}
+              onPointerDown={(event) => scheduleLongPress(event, folderItem, folder.name)}
+              onPointerUp={cancelLongPress}
+              onPointerMove={cancelLongPress}
+              onPointerCancel={cancelLongPress}
+              onPointerLeave={cancelLongPress}
               draggable={!isEditing}
               onDragStart={(e) =>
                 handleDragStart(e, { type: "folder", id: folder.id, parentId: folder.parentId })
@@ -791,12 +1058,21 @@ export const FileList = memo(function FileList({
             }}
             onClick={(event) =>
               handleItemClick(event, fileItem, () => {
+                if (suppressClickRef.current) {
+                  suppressClickRef.current = false;
+                  return;
+                }
                 if (!isEditing) {
                   onFileSelect(file.id);
                 }
               })
             }
             onContextMenu={(event) => handleContextMenu(event, fileItem)}
+            onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
+            onPointerUp={cancelLongPress}
+            onPointerMove={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+            onPointerLeave={cancelLongPress}
             onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
             draggable={!isEditing}
             onDragStart={(e) =>
@@ -959,37 +1235,49 @@ export const FileList = memo(function FileList({
   }
 
   return (
-    <div
-      ref={listRef}
-      className={cn("flex-1 overflow-y-auto px-1.5 pb-4 pt-1", isRootDropTarget && "bg-primary/6")}
-      role="tree"
-      aria-label="Notes file tree"
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      onDragOver={(e) => handleDragOver(e, null, "root")}
-      onDragLeave={handleDragLeave}
-      onDrop={(e) => handleDrop(e, null)}
-    >
-      <div className="relative space-y-px" style={{ height: totalHeight }}>
-        {windowedItems.map((item, visibleIndex) => {
-          const rowIndex = startIndex + visibleIndex;
-          const rowContent =
-            item.type === "folder" && item.folder
-              ? renderFolderRow(item.folder, item.depth)
-              : item.file
-                ? renderFileRow(item.file, item.depth)
-                : null;
+    <>
+      <div
+        ref={listRef}
+        className={cn("flex-1 overflow-y-auto px-1.5 pb-4 pt-1", isRootDropTarget && "bg-primary/6")}
+        role="tree"
+        aria-label="Notes file tree"
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onDragOver={(e) => handleDragOver(e, null, "root")}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, null)}
+      >
+        <div className="relative space-y-px" style={{ height: totalHeight }}>
+          {windowedItems.map((item, visibleIndex) => {
+            const rowIndex = startIndex + visibleIndex;
+            const rowContent =
+              item.type === "folder" && item.folder
+                ? renderFolderRow(item.folder, item.depth)
+                : item.file
+                  ? renderFileRow(item.file, item.depth)
+                  : null;
 
-          return (
-            <div
-              key={`${item.type}:${item.id}`}
-              className="absolute left-0 right-0"
-              style={{ top: rowIndex * rowHeight, height: rowHeight }}
-            >
-              {rowContent}
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={`${item.type}:${item.id}`}
+                className="absolute left-0 right-0"
+                style={{ top: rowIndex * rowHeight, height: rowHeight }}
+              >
+                {rowContent}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      <Sheet open={!!mobileActionTarget} onOpenChange={(open) => !open && closeMobileActionSheet()}>
+        <SheetContent
+          side="bottom"
+          hideClose
+          className="rounded-t-[28px] border-x-0 border-b-0 border-t border-white/10 bg-[#101010] p-0 shadow-[0_-18px_44px_rgba(0,0,0,0.42)]"
+        >
+          {mobileActionTarget ? renderMobileSheetSections(mobileActionTarget) : null}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 });
