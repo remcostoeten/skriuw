@@ -6,6 +6,7 @@ import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore } from "@/features/settings/store";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { captureWorkspaceGuard, type WorkspaceGuard } from "@/core/shared/workspace-guard";
 import { getWorkspaceId } from "@/platform/auth";
 
 function generateNoteContent(name: string): string {
@@ -57,10 +58,6 @@ function resetPendingNoteSideEffects() {
   clearTimeoutMap(saveStatusResetTimeouts);
 }
 
-function isStaleNotesWorkspace(workspaceId: string) {
-  return getWorkspaceId() !== workspaceId;
-}
-
 function scheduleSaveStatusReset(id: string, onReset: () => void) {
   const existingTimeout = saveStatusResetTimeouts.get(id);
   if (existingTimeout) {
@@ -73,6 +70,28 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
   }, 1800);
 
   saveStatusResetTimeouts.set(id, timeoutId);
+}
+
+function setFileSaveState(
+  set: Parameters<typeof create<NotesState>>[0],
+  id: string,
+  status: SaveStatus,
+) {
+  set((state) => ({
+    saveStates: { ...state.saveStates, [id]: status },
+  }));
+}
+
+function scheduleWorkspaceSaveStateReset(
+  workspaceGuard: WorkspaceGuard,
+  id: string,
+  set: Parameters<typeof create<NotesState>>[0],
+) {
+  scheduleSaveStatusReset(id, () => {
+    workspaceGuard.runIfCurrent(() => {
+      setFileSaveState(set, id, "idle");
+    });
+  });
 }
 
 function collectDescendantFolderIds(folders: NoteFolder[], folderId: string): string[] {
@@ -145,6 +164,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   initialize: async (workspaceId = getWorkspaceId()) => {
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId, workspaceId);
     if (get().isHydrated) return;
 
     const [persistedFiles, persistedFolders] = await Promise.all([
@@ -152,7 +172,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       foldersRepository.list(),
     ]);
 
-    if (isStaleNotesWorkspace(workspaceId)) {
+    if (!workspaceGuard.isCurrent()) {
       return;
     }
 
@@ -161,7 +181,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         ? persistedFiles
         : [await notesRepository.create(buildStarterNote())];
 
-    if (isStaleNotesWorkspace(workspaceId)) {
+    if (!workspaceGuard.isCurrent()) {
       return;
     }
 
@@ -190,7 +210,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   createFile: (name, parentId = null, preferredEditorModeOverride) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const defaultModeRaw = usePreferencesStore.getState().editor.defaultModeRaw;
     const generatedContent = generateNoteContent(name);
     const richContent = markdownToRichDocument(generatedContent);
@@ -224,31 +244,16 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt: newFile.modifiedAt,
     })
       .then(() => {
-        if (isStaleNotesWorkspace(workspaceId)) {
+        if (!workspaceGuard.runIfCurrent(() => setFileSaveState(set, newFile.id, "saved"))) {
           return;
         }
 
-        set((state) => ({
-          saveStates: { ...state.saveStates, [newFile.id]: "saved" },
-        }));
-        scheduleSaveStatusReset(newFile.id, () => {
-          if (isStaleNotesWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [newFile.id]: "idle" },
-          }));
-        });
+        scheduleWorkspaceSaveStateReset(workspaceGuard, newFile.id, set);
       })
       .catch(() => {
-        if (isStaleNotesWorkspace(workspaceId)) {
-          return;
-        }
-
-        set((state) => ({
-          saveStates: { ...state.saveStates, [newFile.id]: "error" },
-        }));
+        workspaceGuard.runIfCurrent(() => {
+          setFileSaveState(set, newFile.id, "error");
+        });
       });
 
     usePreferencesStore.getState().incrementNoteCount();
@@ -280,7 +285,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   updateFileContent: (id, content, options) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const updatedAt = new Date();
     const richContent = options?.richContent ?? markdownToRichDocument(content);
     const preferredEditorMode = options?.preferredEditorMode;
@@ -308,7 +313,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
 
-      if (isStaleNotesWorkspace(workspaceId)) {
+      if (!workspaceGuard.isCurrent()) {
         return;
       }
 
@@ -320,31 +325,16 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleNotesWorkspace(workspaceId)) {
+          if (!workspaceGuard.runIfCurrent(() => setFileSaveState(set, id, "saved"))) {
             return;
           }
 
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "saved" },
-          }));
-          scheduleSaveStatusReset(id, () => {
-            if (isStaleNotesWorkspace(workspaceId)) {
-              return;
-            }
-
-            set((state) => ({
-              saveStates: { ...state.saveStates, [id]: "idle" },
-            }));
-          });
+          scheduleWorkspaceSaveStateReset(workspaceGuard, id, set);
         })
         .catch(() => {
-          if (isStaleNotesWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "error" },
-          }));
+          workspaceGuard.runIfCurrent(() => {
+            setFileSaveState(set, id, "error");
+          });
         });
     }, 220);
 
@@ -352,7 +342,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   renameFile: (id, name) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const updatedAt = new Date();
     const normalizedName = name.endsWith(".md") ? name : `${name}.md`;
 
@@ -369,31 +359,16 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
       updatedAt,
     })
       .then(() => {
-        if (isStaleNotesWorkspace(workspaceId)) {
+        if (!workspaceGuard.runIfCurrent(() => setFileSaveState(set, id, "saved"))) {
           return;
         }
 
-        set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "saved" },
-        }));
-        scheduleSaveStatusReset(id, () => {
-          if (isStaleNotesWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "idle" },
-          }));
-        });
+        scheduleWorkspaceSaveStateReset(workspaceGuard, id, set);
       })
       .catch(() => {
-        if (isStaleNotesWorkspace(workspaceId)) {
-          return;
-        }
-
-        set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "error" },
-        }));
+        workspaceGuard.runIfCurrent(() => {
+          setFileSaveState(set, id, "error");
+        });
       });
   },
 
@@ -412,7 +387,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   },
 
   deleteFile: (id) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     set((state) => {
       const nextFiles = state.files.filter((file) => file.id !== id);
       return {
@@ -431,13 +406,9 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     }
 
     void notesRepository.destroy(id as NoteId).catch(() => {
-      if (isStaleNotesWorkspace(workspaceId)) {
-        return;
-      }
-
-      set((state) => ({
-        saveStates: { ...state.saveStates, [id]: "error" },
-      }));
+      workspaceGuard.runIfCurrent(() => {
+        setFileSaveState(set, id, "error");
+      });
     });
   },
 
