@@ -3,8 +3,8 @@ import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
-  mode: "guest",
-  status: "guest",
+  phase: "guest",
+  workspaceMode: "guest",
   rememberMe: true,
   isReady: true,
   isSupabaseConfigured: true,
@@ -12,7 +12,6 @@ let authSnapshot: AuthSnapshot = {
   session: null,
   error: null,
   workspaceId: "guest-local",
-  canSync: false,
 };
 
 let selectRows: Record<string, unknown[] | null> = {};
@@ -79,8 +78,8 @@ async function loadRecordsModule() {
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "guest",
-    status: "guest",
+    phase: "guest",
+    workspaceMode: "guest",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: true,
@@ -88,7 +87,6 @@ beforeEach(() => {
     session: null,
     error: null,
     workspaceId: "guest-local",
-    canSync: false,
   };
   selectRows = {};
   selectCalls = [];
@@ -105,15 +103,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
       workspaceId: "user-123",
-      canSync: true,
     };
 
     selectRows.notes = [
@@ -132,7 +129,7 @@ describe("supabase record helpers", () => {
       },
     ];
 
-    const notes = await recordsModule.listRemoteRecords(PERSISTED_STORE_NAMES.notes);
+    const notes = await recordsModule.listRemoteRecords(PERSISTED_STORE_NAMES.notes, "user-123");
 
     expect(notes).toEqual([
       {
@@ -161,15 +158,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
       workspaceId: "user-123",
-      canSync: true,
     };
 
     await recordsModule.putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, {
@@ -180,7 +176,7 @@ describe("supabase record helpers", () => {
       mood: "good",
       createdAt: "2026-04-12T10:00:00.000Z",
       updatedAt: "2026-04-12T10:00:00.000Z",
-    } as never);
+    } as never, "user-123");
 
     expect(upsertCalls).toEqual([
       {
@@ -208,15 +204,14 @@ describe("supabase record helpers", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       user: {
         id: "user-live",
         email: "live@example.com",
         name: "Live User",
       },
       workspaceId: "user-live",
-      canSync: true,
     };
 
     await recordsModule.putRemoteRecord(

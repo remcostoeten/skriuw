@@ -3,8 +3,8 @@ import type { AuthSnapshot } from "@/platform/auth";
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
-  mode: "guest",
-  status: "guest",
+  phase: "guest",
+  workspaceMode: "guest",
   rememberMe: true,
   isReady: true,
   isSupabaseConfigured: true,
@@ -12,7 +12,6 @@ let authSnapshot: AuthSnapshot = {
   session: null,
   error: null,
   workspaceId: "guest-local",
-  canSync: false,
 };
 
 let listLocalRecordsCalls = 0;
@@ -69,8 +68,8 @@ async function loadSyncModule() {
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "guest",
-    status: "guest",
+    phase: "guest",
+    workspaceMode: "guest",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: true,
@@ -78,7 +77,6 @@ beforeEach(() => {
     session: null,
     error: null,
     workspaceId: "guest-local",
-    canSync: false,
   };
   listLocalRecordsCalls = 0;
   upsertCalls = [];
@@ -104,15 +102,14 @@ describe("supabase sync gating", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
       workspaceId: "user-123",
-      canSync: true,
     };
 
     await syncModule.pushRecordToRemote(PERSISTED_STORE_NAMES.notes, {
@@ -153,15 +150,14 @@ describe("supabase sync gating", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "authenticated",
+      phase: "authenticated",
+      workspaceMode: "cloud",
       user: {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
       },
       workspaceId: "user-123",
-      canSync: true,
     };
 
     await syncModule.deleteRecordFromRemote(PERSISTED_STORE_NAMES.notes, "note-1");

@@ -65,7 +65,7 @@ export function useProfileSummary() {
     return () => {
       cancelled = true;
     };
-  }, [auth.mode, auth.status, auth.workspaceId]);
+  }, [auth.workspaceMode, auth.phase, auth.workspaceId]);
 
   return {
     auth,

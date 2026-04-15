@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import type { CreateNoteInput } from "@/core/notes";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
-import { foldersRepository } from "@/core/persistence/repositories/folders-repository";
-import { notesRepository } from "@/core/persistence/repositories/notes-repository";
+import { foldersRepository, notesRepository } from "@/core/persistence/repositories";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/types/notes";
 import { usePreferencesStore } from "@/features/settings/store";

@@ -48,9 +48,9 @@ Use only these statuses:
 
 ### WS-A: Session and Auth Simplification
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P0`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 1`
 
 **Goal**
 
@@ -72,9 +72,9 @@ Make session behavior explicit and simple: `guest` or `authenticated`.
 
 ### WS-B: Repository Boundary and Persistence Selection
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P0`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 2`
 
 **Goal**
 
@@ -98,9 +98,9 @@ Make persistence selection explicit and portable.
 
 ### WS-C: Shared Domain Extraction
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P0`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 3`
 
 **Goal**
 
@@ -221,9 +221,9 @@ Unify product identity and prevent visual drift.
 
 ### WS-H: Testing and Release Hardening
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P0`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 8`
 
 **Goal**
 
@@ -245,8 +245,8 @@ Put regression protection around the core before polish outruns reliability.
 
 | Phase | Name | Status | Included |
 |---|---|---|---|
-| 0 | Baseline and Guardrails | `todo` | tracking doc, commands, owners, acceptance criteria |
-| 1 | Core Foundation | `todo` | WS-A, WS-B, WS-C, WS-H |
+| 0 | Baseline and Guardrails | `done` | tracking doc, commands, owners, acceptance criteria |
+| 1 | Core Foundation | `in_progress` | WS-A, WS-B, WS-C, WS-H |
 | 2 | App Runtime Simplification | `todo` | WS-D, WS-H |
 | 3 | Product Experience | `todo` | WS-E, WS-F, WS-G, WS-H |
 | 4 | Release Readiness | `todo` | regression sweep, QA, cut list |
@@ -255,15 +255,15 @@ Put regression protection around the core before polish outruns reliability.
 
 | ID | Workstream | Task | Owner | Status | Depends On | Notes |
 |---|---|---|---|---|---|---|
-| A1 | WS-A | Define canonical session model | Unassigned | `todo` | - | Make `guest` and `authenticated` the only primary modes |
+| A1 | WS-A | Define canonical session model | Agent 1 | `done` | - | Auth snapshot now centers on `phase` and `workspaceMode` |
 | A2 | WS-A | Remove or isolate actor-style auth complexity | Unassigned | `todo` | A1 | Keep external behavior stable |
 | A3 | WS-A | Document session states and transitions | Unassigned | `todo` | A1 | Short ADR-style note is enough |
-| B1 | WS-B | Define repository factory/provider | Unassigned | `todo` | A1 | Must align with session model |
-| B2 | WS-B | Enforce guest-local and auth-cloud rules | Unassigned | `todo` | B1 | Add tests as part of implementation |
+| B1 | WS-B | Define repository factory/provider | Agent 2 | `done` | A1 | Composition root now lives in repository index |
+| B2 | WS-B | Enforce guest-local and auth-cloud rules | Agent 2 | `in_progress` | B1 | Explicit userId is now required for remote CRUD; broader consumer cleanup remains |
 | B3 | WS-B | Reduce implicit repository selection paths | Unassigned | `todo` | B1 | Remove ad hoc routing where possible |
-| C1 | WS-C | Define shared domain module boundaries | Unassigned | `todo` | A1, B1 | Keep scope narrow |
-| C2 | WS-C | Move shared types/contracts/builders | Unassigned | `todo` | C1 | Prioritize notes, folders, journal |
-| C3 | WS-C | Centralize neutral validators/helpers | Unassigned | `todo` | C1 | Avoid UI sharing |
+| C1 | WS-C | Define shared domain module boundaries | Agent 3 | `in_progress` | A1, B1 | Shared starter-content extraction is now landed |
+| C2 | WS-C | Move shared types/contracts/builders | Agent 3 | `in_progress` | C1 | Starter-content and repository contracts are now landed |
+| C3 | WS-C | Centralize neutral validators/helpers | Agent 3 | `in_progress` | C1 | Shared `createId` and `toDateKey` are now landed |
 | D1 | WS-D | Simplify bootstrap path | Unassigned | `todo` | A1, B1 | Reduce top-level coordination |
 | D2 | WS-D | Simplify store hydration flow | Unassigned | `todo` | D1 | Keep stores feature-focused |
 | D3 | WS-D | Reduce stale-session and actor leftovers | Unassigned | `todo` | D1 | Remove dead complexity carefully |
@@ -278,7 +278,7 @@ Put regression protection around the core before polish outruns reliability.
 | G1 | WS-G | Finalize Skriuw branding rollout | Unassigned | `todo` | - | Remove naming drift |
 | G2 | WS-G | Finalize PWA/app metadata and assets | Unassigned | `todo` | G1 | Web + mobile metadata |
 | G3 | WS-G | Write lightweight design guidance | Unassigned | `todo` | G1 | Color, type, spacing, icon rules |
-| H1 | WS-H | Build quality checklist | Unassigned | `todo` | - | Commands plus manual checks |
+| H1 | WS-H | Build quality checklist | Agent 8 | `done` | - | Commands plus manual checks |
 | H2 | WS-H | Add tests for session and repository invariants | Unassigned | `todo` | A1, B1 | Highest-value test additions |
 | H3 | WS-H | Expand smoke coverage for critical flows | Unassigned | `todo` | E1, E2 | Notes and journal |
 | H4 | WS-H | Add mobile validation checklist and typecheck gate | Unassigned | `todo` | F1, F2 | Manual plus scripted |
@@ -296,6 +296,69 @@ Put regression protection around the core before polish outruns reliability.
 - WS-E should coordinate with WS-G for naming and tokens
 - WS-F should coordinate with WS-G for metadata and visual consistency
 - WS-H should shadow every phase, not wait until the end
+
+## Current Findings
+
+### WS-A Findings
+
+- auth no longer needs `mode`, `status`, or `canSync` on the real snapshot type
+- `signed_out` is now treated as `phase: guest` plus `workspaceMode: cloud`, which is simpler and matches product behavior better
+- migrated consumers now include auth entry point, profile view model, profile summary, settings modal, persistence bootstrap, and workspace target resolution
+- there are currently no remaining `auth.mode`, `auth.status`, or `auth.canSync` reads under `src/`
+- recommended target shape:
+  - `phase`: `initializing | guest | authenticated`
+  - `workspaceMode`: `guest | cloud`
+  - `rememberMe`, `isSupabaseConfigured`, `user`, `session`, `error`
+
+### WS-B Findings
+
+- repository selection is currently implicit inside each repository method
+- `workspace-target.ts` is the main selector today, but lower layers still re-read auth state
+- recommended direction is one composition root in [src/core/persistence/repositories/index.ts](/home/remco/dev/haptic-ui-clone/src/core/persistence/repositories/index.ts)
+- remote record helpers should require explicit `userId` instead of falling back to live auth state
+- first transition slice is now in code:
+  - [src/core/persistence/repositories/index.ts](/home/remco/dev/haptic-ui-clone/src/core/persistence/repositories/index.ts) now owns the repository composition root
+  - notes, folders, and journal repositories now expose target-specific builders instead of making selection decisions in their singleton methods
+  - [src/core/persistence/supabase/records.ts](/home/remco/dev/haptic-ui-clone/src/core/persistence/supabase/records.ts) now requires explicit `userId` for remote CRUD helpers
+
+### WS-C Findings
+
+- best low-risk first extraction is shared starter/demo content
+- next lowest-risk extraction is repository contract types
+- `createId` and `toDateKey` are good early shared helpers
+- rich document types should stay web-specific for now
+- first concrete extraction is now in code:
+  - [src/core/shared/starter-content.ts](/home/remco/dev/haptic-ui-clone/src/core/shared/starter-content.ts) owns the shared starter/demo content source
+  - [src/core/persistence/repositories/privacy-demo.ts](/home/remco/dev/haptic-ui-clone/src/core/persistence/repositories/privacy-demo.ts) now maps web persistence records from that shared source
+  - [apps/mobile/src/core/starter-data.ts](/home/remco/dev/haptic-ui-clone/apps/mobile/src/core/starter-data.ts) now reads from the same shared source
+  - [src/core/persistence/repositories/contracts.ts](/home/remco/dev/haptic-ui-clone/src/core/persistence/repositories/contracts.ts) now holds shared repository contracts and workspace-target types
+  - [src/core/shared/time.ts](/home/remco/dev/haptic-ui-clone/src/core/shared/time.ts) now holds shared `createId` and `toDateKey`, with mobile consuming that helper
+
+### WS-H Findings
+
+- verified checks:
+  - `bun run test` passes
+  - `bun run lint` passes with one warning
+  - `bun --filter @skriuw/mobile typecheck` passes
+- current targeted verification after the auth slice:
+  - `bun test src/platform/auth/__tests__/index.test.ts src/features/profile/lib/__tests__/profile-view-model.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx` passes
+- current targeted verification after the auth consumer migration:
+  - `bun test src/core/persistence/repositories/__tests__/workspace-target.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/platform/auth/__tests__/index.test.ts` passes
+- current targeted verification after the repository slice:
+  - `bun test src/platform/auth/__tests__/index.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/features/profile/lib/__tests__/profile-view-model.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/supabase/__tests__/records.test.ts` passes
+- current deterministic foundation verification:
+  - `bun test src/core/persistence/repositories/__tests__/privacy-demo.test.ts src/core/persistence/supabase/__tests__/sync.test.ts src/core/persistence/supabase/__tests__/records.test.ts src/platform/auth/__tests__/index.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/features/profile/lib/__tests__/profile-view-model.test.ts` passes
+- raw `bun test` still discovers the Playwright smoke spec and should not be treated as the repo gate
+- coverage is strongest in persistence/session/store invariants
+- current gaps are browser flow depth and mobile automated coverage
+
+## Immediate Next Implementation Order
+
+1. Continue `B2` by removing remaining implicit cloud/local routing assumptions from downstream consumers and tests.
+2. Continue `C2`/`C3` with additional neutral shared helpers and portable contracts where they reduce real duplication.
+3. Start `H2` immediately on top of the new auth and repository boundaries.
+4. Begin `D1` once the current foundation diff is stabilized.
+5. Keep `H1` as the documented command baseline until the smoke-test discovery issue is fully isolated from raw `bun test`.
 
 ## Ownership Matrix
 
@@ -362,9 +425,14 @@ Put regression protection around the core before polish outruns reliability.
 ### Commands
 
 - `bun run lint`
-- `bun test`
+- `bun run test`
 - `bun run test:smoke`
 - `bun --filter @skriuw/mobile typecheck`
+
+### Known Caveats
+
+- raw `bun test` is not the intended repo gate because Bun discovers the Playwright smoke spec in `tests/smoke/`
+- current lint state includes one unused-import warning in [src/features/profile/components/profile-page.tsx](/home/remco/dev/haptic-ui-clone/src/features/profile/components/profile-page.tsx:8)
 
 ### Manual Web QA
 

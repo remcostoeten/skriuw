@@ -28,12 +28,13 @@ export function PersistenceBootstrap() {
     }
 
     const workspaceId = auth.workspaceId;
+    const isAuthenticated = auth.phase === "authenticated" && auth.user !== null;
     let isCancelled = false;
     resetNotesWorkspace();
     resetJournalWorkspace();
 
     void (async () => {
-      if (auth.user && auth.canSync) {
+      if (isAuthenticated) {
         await ensureCloudStarterContentSeeded(auth.user.id);
       } else {
         await ensurePrivacyDemoSeeded(workspaceId);
@@ -50,8 +51,8 @@ export function PersistenceBootstrap() {
       isCancelled = true;
     };
   }, [
+    auth.phase,
     auth.workspaceId,
-    auth.canSync,
     auth.isReady,
     auth.user,
     initializeJournal,

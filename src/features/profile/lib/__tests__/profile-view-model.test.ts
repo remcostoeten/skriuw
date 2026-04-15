@@ -4,8 +4,8 @@ import { createProfileViewModel } from "../profile-view-model";
 
 function buildAuthSnapshot(overrides: Partial<AuthSnapshot> = {}): AuthSnapshot {
   return {
-    mode: "guest",
-    status: "guest",
+    phase: "guest",
+    workspaceMode: "guest",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: false,
@@ -13,7 +13,6 @@ function buildAuthSnapshot(overrides: Partial<AuthSnapshot> = {}): AuthSnapshot 
     session: null,
     error: null,
     workspaceId: "guest-local",
-    canSync: false,
     ...overrides,
   };
 }
@@ -43,10 +42,9 @@ describe("createProfileViewModel", () => {
   test("describes an authenticated cloud workspace", () => {
     const viewModel = createProfileViewModel(
       buildAuthSnapshot({
-        mode: "cloud",
-        status: "authenticated",
+        phase: "authenticated",
+        workspaceMode: "cloud",
         isSupabaseConfigured: true,
-        canSync: true,
         workspaceId: "user-123",
         user: {
           id: "user-123",

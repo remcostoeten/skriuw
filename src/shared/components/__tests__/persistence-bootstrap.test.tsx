@@ -129,8 +129,8 @@ function registerModuleMocks() {
 
 beforeEach(() => {
   authSnapshot = {
-    mode: "cloud",
-    status: "authenticated",
+    phase: "authenticated",
+    workspaceMode: "cloud",
     rememberMe: true,
     isReady: true,
     isSupabaseConfigured: true,
@@ -142,7 +142,6 @@ beforeEach(() => {
     session: null,
     error: null,
     workspaceId: "user-a",
-    canSync: true,
   };
 
   resetNotesWorkspace = createMock(() => undefined);
@@ -222,11 +221,10 @@ describe("PersistenceBootstrap", () => {
 
     authSnapshot = {
       ...authSnapshot,
-      mode: "guest",
-      status: "guest",
+      phase: "guest",
+      workspaceMode: "guest",
       workspaceId: "user-a",
       user: null,
-      canSync: false,
     };
     ensurePrivacyDemoSeeded = createMock(
       (workspaceId: string) =>
@@ -251,6 +249,8 @@ describe("PersistenceBootstrap", () => {
 
     authSnapshot = {
       ...authSnapshot,
+      phase: "guest",
+      workspaceMode: "guest",
       workspaceId: "user-b",
     };
 
@@ -280,11 +280,10 @@ describe("PersistenceBootstrap", () => {
   test("hydrates signed-out cloud mode as a local workspace", async () => {
     authSnapshot = {
       ...authSnapshot,
-      mode: "cloud",
-      status: "signed_out",
+      phase: "guest",
+      workspaceMode: "cloud",
       user: null,
       workspaceId: "cloud-local",
-      canSync: false,
     };
 
     registerModuleMocks();
