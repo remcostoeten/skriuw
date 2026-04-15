@@ -269,7 +269,7 @@ export function JournalPageLayout() {
   } = useJournalLayout();
 
   return (
-    <LayoutContainer className="bg-background">
+    <LayoutContainer className="bg-[radial-gradient(circle_at_top,rgba(245,238,228,0.7),transparent_42%),linear-gradient(180deg,#f8f4ed_0%,#f6f1e9_48%,#f5efe7_100%)]">
       <div className="relative flex min-h-0 flex-1">
         {/* Icon rail (desktop) */}
         {!isMobile && (
@@ -284,7 +284,7 @@ export function JournalPageLayout() {
 
         {/* Main content area */}
         {isHydrated ? (
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent">
             {view === "list" ? (
               <JournalDatabaseView
                 onSelectEntry={handleSelectEntry}

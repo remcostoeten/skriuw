@@ -29,15 +29,15 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
   ];
 
   const iconButtonClass =
-    "pressable flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200";
+    "pressable flex h-8 w-8 items-center justify-center rounded-2xl border transition-all duration-200";
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-12 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex">
         <div className="flex flex-col items-center gap-4">
           <Tooltip>
             <TooltipTrigger asChild>
-              <RawLogo variant="sidebar" size={22} className="-mt-0.5 mb-1 rounded-md hover:bg-sidebar-accent/70 transition-colors cursor-pointer" />
+              <RawLogo variant="sidebar" size={22} className="-mt-0.5 mb-1 rounded-2xl border border-transparent p-1.5 transition-colors cursor-pointer hover:border-sidebar-border hover:bg-sidebar-accent/70" />
             </TooltipTrigger>
             <TooltipContent side="right">Skriuw</TooltipContent>
           </Tooltip>
@@ -49,8 +49,8 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                   className={cn(
                     iconButtonClass,
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                      : "text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+                      ? "border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                      : "border-transparent text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
                   )}
                   aria-label={label}
                   aria-current={isActive ? "page" : undefined}
@@ -71,7 +71,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                 onClick={onOpenSettings}
                 className={cn(
                   iconButtonClass,
-                  "group text-sidebar-foreground/58 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+                  "group border-transparent text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
                 )}
                 aria-label="Settings"
               >
@@ -85,7 +85,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
           </Tooltip>
         </div>
       </aside>
-      <div aria-hidden className="hidden w-12 shrink-0 md:block" />
+      <div aria-hidden className="hidden w-14 shrink-0 md:block" />
     </>
   );
 }

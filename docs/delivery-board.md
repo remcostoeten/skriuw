@@ -142,9 +142,9 @@ Reduce startup complexity and keep stores focused on feature state.
 
 ### WS-E: Web App Stabilization
 
-**Status:** `todo`  
+**Status:** `in_progress`  
 **Priority:** `P1`  
-**Owner:** `Unassigned`
+**Owner:** `Agent 5`
 
 **Goal**
 
@@ -267,10 +267,10 @@ Put regression protection around the core before polish outruns reliability.
 | D1 | WS-D | Simplify bootstrap path | Agent 4 | `done` | A1, B1 | Auth initialization now lives in persistence bootstrap and app providers no longer wrap children in the auth gate |
 | D2 | WS-D | Simplify store hydration flow | Agent 4 | `in_progress` | D1 | Shared workspace guard landed for notes and journal; next reduce remaining duplicated async save patterns |
 | D3 | WS-D | Reduce stale-session and actor leftovers | Unassigned | `todo` | D1 | Remove dead complexity carefully |
-| E1 | WS-E | Finish note/file tree UX | Unassigned | `todo` | - | Current largest active WIP area |
-| E2 | WS-E | Finish journal shell/editor UX | Unassigned | `todo` | - | Includes navigation consistency |
-| E3 | WS-E | Stabilize responsive web behavior | Unassigned | `todo` | E1, E2 | Preserve keyboard-first behavior |
-| E4 | WS-E | Normalize web shell controls and visual language | Unassigned | `todo` | E1, E2 | Coordinate with WS-G |
+| E1 | WS-E | Finish note/file tree UX | Agent 5 | `in_progress` | - | Sidebar search and note-discovery presentation are now stronger |
+| E2 | WS-E | Finish journal shell/editor UX | Agent 5 | `in_progress` | - | Journal database view now has a stronger archive shell and clearer controls |
+| E3 | WS-E | Stabilize responsive web behavior | Agent 5 | `in_progress` | E1, E2 | Shared sheet and journal shell polish improved mobile/desktop overlay consistency |
+| E4 | WS-E | Normalize web shell controls and visual language | Agent 5 | `in_progress` | E1, E2 | Icon rail, search states, and panel styling are now closer to a unified product shell |
 | F1 | WS-F | Validate mobile notes flows | Agent 6 | `in_progress` | - | Notes home now exposes folders, search, and stronger guest workspace organization |
 | F2 | WS-F | Validate mobile journal flows | Agent 6 | `in_progress` | - | Journal home/detail now have stronger overview, filtering, and mood controls |
 | F3 | WS-F | Improve mobile touch and state UX | Agent 6 | `in_progress` | F1, F2 | Shared mobile visual system expanded across tabs, cards, metrics, and editor controls |
@@ -375,6 +375,14 @@ Put regression protection around the core before polish outruns reliability.
 - journal mobile now has search plus clearer entry mood and tag editing states
 - profile mobile now exposes recent activity and guarded reset behavior instead of a single destructive action
 - [apps/mobile/tsconfig.json](/home/remco/dev/haptic-ui-clone/apps/mobile/tsconfig.json) now resolves shared `src/core` and `src/types` aliases so `bun --filter @skriuw/mobile typecheck` works against the current shared-core setup
+
+### WS-E Findings
+
+- [src/features/journal/components/journal-database-view.tsx](/home/remco/dev/haptic-ui-clone/src/features/journal/components/journal-database-view.tsx) now presents the journal list as an archive surface with metrics, clearer search, and a more intentional new-entry affordance
+- [src/features/journal/components/journal-page-layout.tsx](/home/remco/dev/haptic-ui-clone/src/features/journal/components/journal-page-layout.tsx) now uses a lighter, more deliberate journal canvas instead of a flat background
+- [src/features/notes/components/sidebar-panel.tsx](/home/remco/dev/haptic-ui-clone/src/features/notes/components/sidebar-panel.tsx) search results now read as a proper quick-jump surface instead of a raw list
+- [src/features/layout/components/icon-rail.tsx](/home/remco/dev/haptic-ui-clone/src/features/layout/components/icon-rail.tsx) now reads as part of the product shell rather than a thin utility strip
+- [src/shared/ui/sheet.tsx](/home/remco/dev/haptic-ui-clone/src/shared/ui/sheet.tsx) now has stronger overlay, panel, and close-control styling for cross-app consistency
 
 ## Immediate Next Implementation Order
 
