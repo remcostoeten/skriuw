@@ -265,7 +265,7 @@ Put regression protection around the core before polish outruns reliability.
 | C2 | WS-C | Move shared types/contracts/builders | Agent 3 | `in_progress` | C1 | Starter-content and repository contracts are now landed |
 | C3 | WS-C | Centralize neutral validators/helpers | Agent 3 | `in_progress` | C1 | Shared `createId` and `toDateKey` are now landed |
 | D1 | WS-D | Simplify bootstrap path | Agent 4 | `done` | A1, B1 | Auth initialization now lives in persistence bootstrap and app providers no longer wrap children in the auth gate |
-| D2 | WS-D | Simplify store hydration flow | Agent 4 | `in_progress` | D1 | Focus next on stale-workspace guards and hydration invariants |
+| D2 | WS-D | Simplify store hydration flow | Agent 4 | `in_progress` | D1 | Shared workspace guard landed for notes and journal; next reduce remaining duplicated async save patterns |
 | D3 | WS-D | Reduce stale-session and actor leftovers | Unassigned | `todo` | D1 | Remove dead complexity carefully |
 | E1 | WS-E | Finish note/file tree UX | Unassigned | `todo` | - | Current largest active WIP area |
 | E2 | WS-E | Finish journal shell/editor UX | Unassigned | `todo` | - | Includes navigation consistency |
@@ -363,7 +363,8 @@ Put regression protection around the core before polish outruns reliability.
 - auth initialization no longer needs to be coordinated by a separate app-level auth gate
 - [src/shared/components/persistence-bootstrap.tsx](/home/remco/dev/haptic-ui-clone/src/shared/components/persistence-bootstrap.tsx) now owns auth initialization plus workspace hydration sequencing
 - [src/providers/app-providers.tsx](/home/remco/dev/haptic-ui-clone/src/providers/app-providers.tsx) is thinner and only composes runtime providers plus bootstrap
-- next cleanup target is reducing duplicated stale-workspace guard logic in the notes and journal stores without weakening workspace isolation
+- [src/core/shared/workspace-guard.ts](/home/remco/dev/haptic-ui-clone/src/core/shared/workspace-guard.ts) now centralizes captured workspace guards for async store work
+- notes and journal save-state transitions now reuse that guard instead of repeating inline stale-workspace checks
 - notes and journal stores now have direct regression tests covering stale hydration and stale async create completion after workspace reset
 
 ## Immediate Next Implementation Order

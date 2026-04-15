@@ -17,6 +17,7 @@ import {
   type JournalEntry,
   type JournalTag,
 } from "./types";
+import { captureWorkspaceGuard, type WorkspaceGuard } from "@/core/shared/workspace-guard";
 import { getWorkspaceId } from "@/platform/auth";
 
 type JournalState = {
@@ -72,10 +73,6 @@ function resetPendingJournalSideEffects() {
   clearTimeoutMap(saveStatusResetTimeouts);
 }
 
-function isStaleJournalWorkspace(workspaceId: string) {
-  return getWorkspaceId() !== workspaceId;
-}
-
 function scheduleSaveStatusReset(id: string, onReset: () => void) {
   const existingTimeout = saveStatusResetTimeouts.get(id);
   if (existingTimeout) {
@@ -88,6 +85,28 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
   }, 1800);
 
   saveStatusResetTimeouts.set(id, timeoutId);
+}
+
+function setEntrySaveState(
+  set: Parameters<typeof create<JournalState>>[0],
+  id: string,
+  status: SaveStatus,
+) {
+  set((state) => ({
+    saveStates: { ...state.saveStates, [id]: status },
+  }));
+}
+
+function scheduleWorkspaceSaveStateReset(
+  workspaceGuard: WorkspaceGuard,
+  id: string,
+  set: Parameters<typeof create<JournalState>>[0],
+) {
+  scheduleSaveStatusReset(id, () => {
+    workspaceGuard.runIfCurrent(() => {
+      setEntrySaveState(set, id, "idle");
+    });
+  });
 }
 
 export const useJournalStore = create<JournalState>()((set, get) => ({
@@ -105,6 +124,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   initialize: async (workspaceId = getWorkspaceId()) => {
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId, workspaceId);
     if (get().isHydrated) return;
 
     const [entries, tags] = await Promise.all([
@@ -112,7 +132,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       journalRepository.listTags(),
     ]);
 
-    if (isStaleJournalWorkspace(workspaceId)) {
+    if (!workspaceGuard.isCurrent()) {
       return;
     }
 
@@ -146,7 +166,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   createOrUpdateEntry: (date: Date, content: string, tags?: string[], mood?: MoodLevel) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const key = toDateKey(date);
     const existing = get().config.entries.find((entry) => entry.dateKey === key);
     const normalizedTags = tags?.map(normalizeTagName) ?? existing?.tags ?? [];
@@ -179,31 +199,16 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleJournalWorkspace(workspaceId)) {
+          if (!workspaceGuard.runIfCurrent(() => setEntrySaveState(set, existing.id, "saved"))) {
             return;
           }
 
-          set((state) => ({
-            saveStates: { ...state.saveStates, [existing.id]: "saved" as const },
-          }));
-          scheduleSaveStatusReset(existing.id, () => {
-            if (isStaleJournalWorkspace(workspaceId)) {
-              return;
-            }
-
-            set((state) => ({
-              saveStates: { ...state.saveStates, [existing.id]: "idle" as const },
-            }));
-          });
+          scheduleWorkspaceSaveStateReset(workspaceGuard, existing.id, set);
         })
         .catch(() => {
-          if (isStaleJournalWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [existing.id]: "error" as const },
-          }));
+          workspaceGuard.runIfCurrent(() => {
+            setEntrySaveState(set, existing.id, "error");
+          });
         });
 
       return nextEntry;
@@ -237,38 +242,23 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       updatedAt: newEntry.updatedAt,
     })
       .then(() => {
-        if (isStaleJournalWorkspace(workspaceId)) {
+        if (!workspaceGuard.runIfCurrent(() => setEntrySaveState(set, newEntry.id, "saved"))) {
           return;
         }
 
-        set((state) => ({
-          saveStates: { ...state.saveStates, [newEntry.id]: "saved" as const },
-        }));
-        scheduleSaveStatusReset(newEntry.id, () => {
-          if (isStaleJournalWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [newEntry.id]: "idle" as const },
-          }));
-        });
+        scheduleWorkspaceSaveStateReset(workspaceGuard, newEntry.id, set);
       })
       .catch(() => {
-        if (isStaleJournalWorkspace(workspaceId)) {
-          return;
-        }
-
-        set((state) => ({
-          saveStates: { ...state.saveStates, [newEntry.id]: "error" as const },
-        }));
+        workspaceGuard.runIfCurrent(() => {
+          setEntrySaveState(set, newEntry.id, "error");
+        });
       });
 
     return newEntry;
   },
 
   deleteEntry: (id: string) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     set((state) => ({
       config: {
         ...state.config,
@@ -286,18 +276,14 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     }
 
     void journalRepository.destroyEntry(id as JournalEntryId).catch(() => {
-      if (isStaleJournalWorkspace(workspaceId)) {
-        return;
-      }
-
-      set((state) => ({
-        saveStates: { ...state.saveStates, [id]: "error" as const },
-      }));
+      workspaceGuard.runIfCurrent(() => {
+        setEntrySaveState(set, id, "error");
+      });
     });
   },
 
   updateEntryContent: (id: string, content: string) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const updatedAt = new Date();
 
     set((state) => ({
@@ -318,7 +304,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
     const timeoutId = setTimeout(() => {
       contentSaveTimeouts.delete(id);
 
-      if (isStaleJournalWorkspace(workspaceId)) {
+      if (!workspaceGuard.isCurrent()) {
         return;
       }
 
@@ -328,31 +314,16 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
         updatedAt,
       })
         .then(() => {
-          if (isStaleJournalWorkspace(workspaceId)) {
+          if (!workspaceGuard.runIfCurrent(() => setEntrySaveState(set, id, "saved"))) {
             return;
           }
 
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "saved" as const },
-          }));
-          scheduleSaveStatusReset(id, () => {
-            if (isStaleJournalWorkspace(workspaceId)) {
-              return;
-            }
-
-            set((state) => ({
-              saveStates: { ...state.saveStates, [id]: "idle" as const },
-            }));
-          });
+          scheduleWorkspaceSaveStateReset(workspaceGuard, id, set);
         })
         .catch(() => {
-          if (isStaleJournalWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "error" as const },
-          }));
+          workspaceGuard.runIfCurrent(() => {
+            setEntrySaveState(set, id, "error");
+          });
         });
     }, 220);
 
@@ -360,7 +331,7 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
   },
 
   updateEntryMood: (id: string, mood: MoodLevel | undefined) => {
-    const workspaceId = getWorkspaceId();
+    const workspaceGuard = captureWorkspaceGuard(getWorkspaceId);
     const updatedAt = new Date();
 
     set((state) => ({
@@ -379,31 +350,16 @@ export const useJournalStore = create<JournalState>()((set, get) => ({
       updatedAt,
     })
       .then(() => {
-        if (isStaleJournalWorkspace(workspaceId)) {
+        if (!workspaceGuard.runIfCurrent(() => setEntrySaveState(set, id, "saved"))) {
           return;
         }
 
-        set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "saved" as const },
-        }));
-        scheduleSaveStatusReset(id, () => {
-          if (isStaleJournalWorkspace(workspaceId)) {
-            return;
-          }
-
-          set((state) => ({
-            saveStates: { ...state.saveStates, [id]: "idle" as const },
-          }));
-        });
+        scheduleWorkspaceSaveStateReset(workspaceGuard, id, set);
       })
       .catch(() => {
-        if (isStaleJournalWorkspace(workspaceId)) {
-          return;
-        }
-
-        set((state) => ({
-          saveStates: { ...state.saveStates, [id]: "error" as const },
-        }));
+        workspaceGuard.runIfCurrent(() => {
+          setEntrySaveState(set, id, "error");
+        });
       });
   },
 
