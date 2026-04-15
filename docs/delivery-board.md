@@ -279,7 +279,7 @@ Put regression protection around the core before polish outruns reliability.
 | G2 | WS-G | Finalize PWA/app metadata and assets | Unassigned | `todo` | G1 | Web + mobile metadata |
 | G3 | WS-G | Write lightweight design guidance | Unassigned | `todo` | G1 | Color, type, spacing, icon rules |
 | H1 | WS-H | Build quality checklist | Agent 8 | `done` | - | Commands plus manual checks |
-| H2 | WS-H | Add tests for session and repository invariants | Unassigned | `todo` | A1, B1 | Highest-value test additions |
+| H2 | WS-H | Add tests for session and repository invariants | Agent 8 | `in_progress` | A1, B1 | Notes and journal store stale-workspace guard tests are now landed |
 | H3 | WS-H | Expand smoke coverage for critical flows | Unassigned | `todo` | E1, E2 | Notes and journal |
 | H4 | WS-H | Add mobile validation checklist and typecheck gate | Unassigned | `todo` | F1, F2 | Manual plus scripted |
 
@@ -350,6 +350,10 @@ Put regression protection around the core before polish outruns reliability.
   - `bun test src/core/persistence/repositories/__tests__/privacy-demo.test.ts src/core/persistence/supabase/__tests__/sync.test.ts src/core/persistence/supabase/__tests__/records.test.ts src/platform/auth/__tests__/index.test.ts src/shared/components/__tests__/persistence-bootstrap.test.tsx src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/features/profile/lib/__tests__/profile-view-model.test.ts` passes
 - current bootstrap checkpoint verification:
   - `bun test src/shared/components/__tests__/persistence-bootstrap.test.tsx src/platform/auth/__tests__/index.test.ts src/core/persistence/repositories/__tests__/workspace-target.test.ts` passes
+- current store guard verification:
+  - `bun test src/features/notes/__tests__/store.test.ts` passes
+  - `bun test src/features/journal/__tests__/store.test.ts` passes
+  - `bun test src/features/settings/__tests__/store.test.ts src/features/layout/__tests__/store.test.ts src/features/notes/components/sidebar/__tests__/store.test.ts` passes
 - raw `bun test` still discovers the Playwright smoke spec and should not be treated as the repo gate
 - coverage is strongest in persistence/session/store invariants
 - current gaps are browser flow depth and mobile automated coverage
@@ -360,6 +364,7 @@ Put regression protection around the core before polish outruns reliability.
 - [src/shared/components/persistence-bootstrap.tsx](/home/remco/dev/haptic-ui-clone/src/shared/components/persistence-bootstrap.tsx) now owns auth initialization plus workspace hydration sequencing
 - [src/providers/app-providers.tsx](/home/remco/dev/haptic-ui-clone/src/providers/app-providers.tsx) is thinner and only composes runtime providers plus bootstrap
 - next cleanup target is reducing duplicated stale-workspace guard logic in the notes and journal stores without weakening workspace isolation
+- notes and journal stores now have direct regression tests covering stale hydration and stale async create completion after workspace reset
 
 ## Immediate Next Implementation Order
 
