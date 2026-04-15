@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-nativ
 import { useWorkspace, getMoodOptions } from "@/src/features/workspace/workspace-context";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import { formatDateKey } from "@/src/lib/workspace-format";
-import { commonStyles } from "@/src/ui/styles";
+import { commonStyles, palette } from "@/src/ui/styles";
 
 export function JournalDetailScreen() {
   const { entryId } = useLocalSearchParams<{ entryId: string }>();
@@ -19,7 +19,7 @@ export function JournalDetailScreen() {
     return (
       <View style={[commonStyles.screen, { padding: 20, justifyContent: "center", gap: 16 }]}>
         <Text style={commonStyles.title}>Entry not found</Text>
-        <Pressable style={commonStyles.buttonSecondary} onPress={() => router.replace("/(tabs)/journal")}>
+        <Pressable style={commonStyles.buttonSecondary} onPress={() => router.replace("/journal")}>
           <Text style={commonStyles.buttonLabelSecondary}>Back to journal</Text>
         </Pressable>
       </View>
@@ -43,6 +43,7 @@ export function JournalDetailScreen() {
           value={entry.dateKey}
           onChangeText={(value) => updateJournalEntry(entry.id, { dateKey: value })}
           placeholder="YYYY-MM-DD"
+          placeholderTextColor={palette.textSoft}
           autoCapitalize="none"
           style={commonStyles.input}
         />
@@ -50,6 +51,7 @@ export function JournalDetailScreen() {
           value={entry.content}
           onChangeText={(value) => updateJournalEntry(entry.id, { content: value })}
           placeholder="What happened today?"
+          placeholderTextColor={palette.textSoft}
           multiline
           style={[commonStyles.input, commonStyles.textArea]}
         />
@@ -64,6 +66,7 @@ export function JournalDetailScreen() {
             })
           }
           placeholder="tag1, tag2"
+          placeholderTextColor={palette.textSoft}
           style={commonStyles.input}
         />
         <View style={commonStyles.rowWrap}>
@@ -88,7 +91,7 @@ export function JournalDetailScreen() {
           ))}
         </View>
         <View style={commonStyles.rowWrap}>
-          <Pressable style={commonStyles.buttonSecondary} onPress={() => router.replace("/(tabs)/journal")}>
+          <Pressable style={commonStyles.buttonSecondary} onPress={() => router.replace("/journal")}>
             <Text style={commonStyles.buttonLabelSecondary}>Done</Text>
           </Pressable>
           <Pressable
@@ -101,7 +104,7 @@ export function JournalDetailScreen() {
                   style: "destructive",
                   onPress: async () => {
                     await deleteJournalEntry(entry.id);
-                    router.replace("/(tabs)/journal");
+                    router.replace("/journal");
                   },
                 },
               ])
