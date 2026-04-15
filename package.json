@@ -17,7 +17,11 @@
     "mobile:ios": "bun --filter @skriuw/mobile ios",
     "mobile:android": "bun --filter @skriuw/mobile android",
     "test": "bun run test:unit",
-    "test:unit": "bun test src",
+    "test:unit": "bun run test:unit:core && bun run test:unit:web-state && bun run test:unit:bootstrap && bun run test:unit:stores",
+    "test:unit:core": "bun test src/core/folders/__tests__/destroy-folder.test.ts src/core/journal/__tests__/mappers.test.ts src/core/notes/__tests__/actions.test.ts src/core/notes/__tests__/mappers.test.ts src/core/storage/__tests__/errors.test.ts src/core/storage/__tests__/schema.test.ts src/core/storage/__tests__/test-connection.test.ts src/core/persistence/repositories/__tests__/local-backend.test.ts src/core/persistence/repositories/__tests__/privacy-demo.test.ts src/core/persistence/repositories/__tests__/supabase-routing.test.ts src/core/persistence/repositories/__tests__/workspace-target.test.ts src/core/persistence/supabase/__tests__/records.test.ts src/core/persistence/supabase/__tests__/sync.test.ts src/platform/auth/__tests__/index.test.ts src/features/profile/lib/__tests__/profile-view-model.test.ts",
+    "test:unit:web-state": "bun test src/features/settings/__tests__/store.test.ts src/features/layout/__tests__/store.test.ts src/features/notes/components/sidebar/__tests__/store.test.ts",
+    "test:unit:bootstrap": "bun test src/shared/components/__tests__/persistence-bootstrap.test.tsx",
+    "test:unit:stores": "bun test src/features/notes/__tests__/store.test.ts && bun test src/features/journal/__tests__/store.test.ts",
     "test:smoke": "bun run build && playwright test",
     "lint": "oxlint",
     "format": "oxfmt"

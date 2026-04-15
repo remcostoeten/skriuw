@@ -354,7 +354,9 @@ Put regression protection around the core before polish outruns reliability.
   - `bun test src/features/notes/__tests__/store.test.ts` passes
   - `bun test src/features/journal/__tests__/store.test.ts` passes
   - `bun test src/features/settings/__tests__/store.test.ts src/features/layout/__tests__/store.test.ts src/features/notes/components/sidebar/__tests__/store.test.ts` passes
-- raw `bun test` still discovers the Playwright smoke spec and should not be treated as the repo gate
+- repo unit gate now runs split Bun processes through `bun run test` to avoid known module-mock collisions between store/bootstrap suites
+- `package.json` now defines explicit Bun unit-test groups for core, web-state, bootstrap, and store suites so the repo gate stays deterministic
+- raw `bun test src` still should not be treated as the repo gate
 - coverage is strongest in persistence/session/store invariants
 - current gaps are browser flow depth and mobile automated coverage
 
