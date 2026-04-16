@@ -5,37 +5,45 @@ import { format } from "date-fns";
 import { CalendarDays, ChevronLeft, Code, Settings2, Sidebar, Type } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
+import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
-import { RichJournalEditor } from "./rich-journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
 import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 import { useJournalLayout } from "../hooks/use-journal-layout";
+import { useJournalEntry } from "../hooks/use-journal-entry";
 
 const SettingsModal = dynamic(
   () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
   { ssr: false },
 );
 
-function JournalSidebarSkeleton({ isMobile }: { isMobile: boolean }) {
+function JournalSidebarSkeleton({
+  isMobile,
+  sidebarWidth,
+}: {
+  isMobile: boolean;
+  sidebarWidth: number;
+}) {
   if (isMobile) return null;
 
   return (
-    <div className="w-[260px] shrink-0 border-r border-border bg-card/45 p-3">
+    <div className="shrink-0 border-r border-border bg-background p-3" style={{ width: sidebarWidth }}>
       <div className="space-y-3">
-        <div className="h-8 w-full animate-pulse rounded-xl bg-white/6" />
+        <div className="h-8 w-full animate-pulse bg-muted" />
         <div className="grid grid-cols-5 gap-1">
           {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-7 animate-pulse rounded-md bg-white/6" />
+            <div key={index} className="h-7 animate-pulse bg-muted" />
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1 pt-2">
           {Array.from({ length: 35 }).map((_, index) => (
-            <div key={index} className="h-7 animate-pulse rounded-md bg-white/6" />
+            <div key={index} className="h-7 animate-pulse bg-muted" />
           ))}
         </div>
       </div>
@@ -47,16 +55,16 @@ function JournalContentSkeleton() {
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-2">
-        <div className="h-7 w-24 animate-pulse rounded-xl bg-white/6" />
-        <div className="h-4 w-32 animate-pulse rounded-full bg-white/6" />
+        <div className="h-7 w-24 animate-pulse bg-muted" />
+        <div className="h-4 w-32 animate-pulse bg-muted" />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-5 py-6 md:px-8">
-        <div className="h-8 w-48 animate-pulse rounded-2xl bg-white/7" />
+        <div className="h-8 w-48 animate-pulse bg-muted" />
         <div className="space-y-3">
-          <div className="h-4 w-full animate-pulse rounded-full bg-white/6" />
-          <div className="h-4 w-[94%] animate-pulse rounded-full bg-white/6" />
-          <div className="h-4 w-[88%] animate-pulse rounded-full bg-white/6" />
-          <div className="h-4 w-[76%] animate-pulse rounded-full bg-white/6" />
+          <div className="h-4 w-full animate-pulse bg-muted" />
+          <div className="h-4 w-[94%] animate-pulse bg-muted" />
+          <div className="h-4 w-[88%] animate-pulse bg-muted" />
+          <div className="h-4 w-[76%] animate-pulse bg-muted" />
         </div>
       </div>
     </div>
@@ -237,9 +245,10 @@ function JournalEditorToolbar({
 }
 
 export function JournalPageLayout() {
+  const auth = useAuthSnapshot();
   const {
     selectedDate,
-    selectedEntrySaveState,
+    sidebarWidth,
     showSettings,
     setShowSettings,
     showSidebar,
@@ -267,9 +276,19 @@ export function JournalPageLayout() {
     handleGoToToday,
     closeSidebar,
   } = useJournalLayout();
+  const journalEntry = useJournalEntry(selectedDate);
+
+  if (auth.isReady && auth.phase !== "authenticated") {
+    return (
+      <AuthRequiredState
+        title="Sign in to access your journal"
+        description="Journal entries are now tied to your account so the same data is available across devices."
+      />
+    );
+  }
 
   return (
-    <LayoutContainer className="bg-[radial-gradient(circle_at_top,rgba(245,238,228,0.7),transparent_42%),linear-gradient(180deg,#f8f4ed_0%,#f6f1e9_48%,#f5efe7_100%)]">
+    <LayoutContainer className="bg-background">
       <div className="relative flex min-h-0 flex-1">
         {/* Icon rail (desktop) */}
         {!isMobile && (
@@ -278,13 +297,15 @@ export function JournalPageLayout() {
 
         {/* Sidebar (desktop) */}
         {isHydrated && !isMobile && showSidebar && (
-          <JournalSidebar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+          <div className="relative shrink-0" style={{ width: sidebarWidth }}>
+            <JournalSidebar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+          </div>
         )}
-        {!isHydrated && <JournalSidebarSkeleton isMobile={isMobile} />}
+        {!isHydrated && <JournalSidebarSkeleton isMobile={isMobile} sidebarWidth={sidebarWidth} />}
 
         {/* Main content area */}
         {isHydrated ? (
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent">
+          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]">
             {view === "list" ? (
               <JournalDatabaseView
                 onSelectEntry={handleSelectEntry}
@@ -299,7 +320,7 @@ export function JournalPageLayout() {
               <>
                 <JournalEditorToolbar
                   selectedDate={selectedDate}
-                  selectedEntrySaveState={selectedEntrySaveState}
+                  selectedEntrySaveState={journalEntry.saveState}
                   editorMode={editorMode}
                   isMobile={isMobile}
                   onToggleSidebar={handleToggleSidebar}
@@ -309,11 +330,11 @@ export function JournalPageLayout() {
                   onOpenSettings={handleOpenSettings}
                 />
 
-                {editorMode === "plain" ? (
-                  <JournalEditor selectedDate={selectedDate} />
-                ) : (
-                  <RichJournalEditor selectedDate={selectedDate} />
-                )}
+                <JournalEditor
+                  selectedDate={selectedDate}
+                  editorMode={editorMode}
+                  entryState={journalEntry}
+                />
               </>
             )}
           </div>

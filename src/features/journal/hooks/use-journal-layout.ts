@@ -5,19 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { parseISO, isValid } from "date-fns";
 import { useReducedMotion, type Transition } from "framer-motion";
 import { useShortcut } from "@remcostoeten/use-shortcut";
-import { useJournalStore } from "@/features/journal/store";
 import { useDocumentStore } from "@/features/layout/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
+import { useJournalEntries, useJournalTags } from "./use-journal-queries";
 
 export type JournalView = "list" | "editor";
 export type JournalEditorMode = "plain" | "rich";
 
 type UseJournalLayoutResult = {
   selectedDate: Date;
-  selectedEntrySaveState: SaveStatus;
+  sidebarWidth: number;
   showSettings: boolean;
   setShowSettings: Dispatch<SetStateAction<boolean>>;
   showSidebar: boolean;
@@ -60,9 +59,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const router = useRouter();
   const searchParams = useSearchParams();
   const $ = useShortcut({ ignoreInputs: true });
-  const isJournalHydrated = useJournalStore((state) => state.isHydrated);
-  const getEntryByDate = useJournalStore((state) => state.getEntryByDate);
-  const getEntrySaveState = useJournalStore((state) => state.getEntrySaveState);
+  const entriesQuery = useJournalEntries();
+  const tagsQuery = useJournalTags();
   const ui = useDocumentStore((state) => state.ui);
   const setUIState = useDocumentStore((state) => state.setUIState);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -73,10 +71,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const [editorMode, setEditorMode] = useState<JournalEditorMode>("plain");
   const [view, setView] = useState<JournalView>("list");
   const prefersReducedMotion = Boolean(useReducedMotion());
-  const { isMobile } = ui;
-  const isHydrated = isJournalHydrated;
-  const selectedEntryId = getEntryByDate(selectedDate)?.id;
-  const selectedEntrySaveState = getEntrySaveState(selectedEntryId);
+  const { isMobile, sidebarWidth } = ui;
+  const isHydrated = entriesQuery.isSuccess && tagsQuery.isSuccess;
 
   useEffect(() => {
     const requestedDate = parseDateParam(searchParams.get("date"));
@@ -330,7 +326,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 
   return {
     selectedDate,
-    selectedEntrySaveState,
+    sidebarWidth,
     showSettings,
     setShowSettings,
     showSidebar,

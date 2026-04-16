@@ -4,8 +4,8 @@ import { useMemo, useCallback } from 'react';
 import { format, subDays, isAfter, startOfDay } from 'date-fns';
 import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { useJournalStore } from '@/features/journal/store';
 import { type MoodLevel, type Mood, MOOD_OPTIONS } from '@/features/journal/types';
+import { useJournalEntries, useJournalTags } from '../hooks/use-journal-queries';
 
 type JournalStatsProps = {
   className?: string;
@@ -20,9 +20,8 @@ function getStreakColor(streak: number) {
 }
 
 export function JournalStats({ className }: JournalStatsProps) {
-  const store = useJournalStore();
-  const entries = store.config.entries;
-  const tags = store.getAllTags();
+  const { data: entries = [] } = useJournalEntries();
+  const { data: tags = [] } = useJournalTags();
 
   const stats = useMemo(() => {
     const now = new Date();

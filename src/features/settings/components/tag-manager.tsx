@@ -2,16 +2,24 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
-import { useJournalStore } from "@/features/journal/store";
 import { TAG_COLORS } from "@/features/journal/types";
 import type { JournalTag as Tag } from "@/types/journal";
 import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
+import type {
+  CssColorValue,
+  TagId,
+  TagName,
+} from "@/core/shared/persistence-types";
+import {
+  useCreateJournalTag,
+  useDeleteJournalTag,
+  useJournalTags,
+} from "@/features/journal/hooks/use-journal-queries";
 
 export function TagManager() {
-  const tags = useJournalStore((s) => s.config.tags);
-  const createTag = useJournalStore((s) => s.createTag);
-  const removeTag = useJournalStore((s) => s.deleteTag);
-  const initializeJournal = useJournalStore((s) => s.initialize);
+  const { data: tags = [] } = useJournalTags();
+  const createTag = useCreateJournalTag();
+  const removeTag = useDeleteJournalTag();
 
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -24,14 +32,13 @@ export function TagManager() {
     }
   }, [isAddingTag]);
 
-  useEffect(() => {
-    void initializeJournal();
-  }, [initializeJournal]);
-
   const handleAddTag = () => {
     const trimmed = newTagName.trim().toLowerCase();
     if (trimmed && !tags.find((t) => t.name === trimmed)) {
-      createTag(trimmed, selectedColor);
+      void createTag.mutateAsync({
+        name: trimmed as TagName,
+        color: selectedColor as CssColorValue,
+      });
     }
     setNewTagName("");
     setSelectedColor(TAG_COLORS[0]);
@@ -153,7 +160,11 @@ export function TagManager() {
       {/* Tags list */}
       <div className="space-y-1">
         {sortedTags.map((tag) => (
-          <TagRow key={tag.id} tag={tag} onDelete={() => removeTag(tag.id)} />
+          <TagRow
+            key={tag.id}
+            tag={tag}
+            onDelete={() => void removeTag.mutateAsync(tag.id as TagId)}
+          />
         ))}
 
         {tags.length === 0 && !isAddingTag && (

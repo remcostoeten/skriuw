@@ -1,23 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { useJournalStore } from "@/features/journal/store";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { initializeAuth } from "@/platform/auth";
 import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useDocumentStore } from "@/features/layout/store";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
-import {
-  ensureCloudStarterContentSeeded,
-  ensurePrivacyDemoSeeded,
-} from "@/core/persistence/repositories/privacy-demo";
+import { ensureCloudStarterContentSeeded } from "@/core/persistence/starter-content";
 
 export function PersistenceBootstrap() {
   const resetNotesWorkspace = useNotesStore((state) => state.resetWorkspace);
   const initializeNotes = useNotesStore((state) => state.initialize);
-  const resetJournalWorkspace = useJournalStore((state) => state.resetWorkspace);
-  const initializeJournal = useJournalStore((state) => state.initialize);
   const syncPreferencesWorkspace = usePreferencesStore((state) => state.syncWorkspace);
   const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
   const syncSidebarWorkspace = useSidebarStore((state) => state.syncWorkspace);
@@ -37,20 +31,19 @@ export function PersistenceBootstrap() {
     const authenticatedUserId = auth.user?.id ?? null;
     let isCancelled = false;
     resetNotesWorkspace();
-    resetJournalWorkspace();
 
     void (async () => {
-      if (isAuthenticated && authenticatedUserId) {
-        await ensureCloudStarterContentSeeded(authenticatedUserId);
-      } else {
-        await ensurePrivacyDemoSeeded(workspaceId);
+      if (!isAuthenticated || !authenticatedUserId) {
+        return;
       }
+
+      await ensureCloudStarterContentSeeded(authenticatedUserId);
 
       if (isCancelled) {
         return;
       }
 
-      await Promise.all([initializeNotes(workspaceId), initializeJournal(workspaceId)]);
+      await Promise.all([initializeNotes(workspaceId)]);
     })();
 
     return () => {
@@ -61,14 +54,12 @@ export function PersistenceBootstrap() {
     auth.workspaceId,
     auth.isReady,
     auth.user,
-    initializeJournal,
     initializeNotes,
-    resetJournalWorkspace,
     resetNotesWorkspace,
   ]);
 
   useEffect(() => {
-    if (!auth.isReady) {
+    if (!auth.isReady || auth.phase !== "authenticated") {
       return;
     }
 
@@ -76,15 +67,15 @@ export function PersistenceBootstrap() {
       syncLayoutWorkspace(auth.workspaceId),
       syncSidebarWorkspace(auth.workspaceId),
     ]);
-  }, [auth.isReady, auth.workspaceId, syncLayoutWorkspace, syncSidebarWorkspace]);
+  }, [auth.isReady, auth.phase, auth.workspaceId, syncLayoutWorkspace, syncSidebarWorkspace]);
 
   useEffect(() => {
-    if (!auth.isReady) {
+    if (!auth.isReady || auth.phase !== "authenticated") {
       return;
     }
 
     syncPreferencesWorkspace(auth.workspaceId);
-  }, [auth.isReady, auth.workspaceId, syncPreferencesWorkspace]);
+  }, [auth.isReady, auth.phase, auth.workspaceId, syncPreferencesWorkspace]);
 
   return null;
 }

@@ -4,6 +4,7 @@ import * as React from "react"
 import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import {
+  Palette,
   Code,
   FlaskConical,
   Hash,
@@ -60,11 +61,23 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 
 const data = {
   nav: [
+    { id: "profile", name: "Profile", icon: Palette },
     { id: "editor", name: "Editor", icon: Code },
     { id: "tags", name: "Tags", icon: Hash },
     { id: "experimental", name: "Experimental", icon: FlaskConical },
   ],
 }
+
+const AVATAR_COLORS = [
+  { label: "Auto", value: null },
+  { label: "Rose", value: "#ec4899" },
+  { label: "Amber", value: "#f59e0b" },
+  { label: "Blue", value: "#3b82f6" },
+  { label: "Orange", value: "#f97316" },
+  { label: "Emerald", value: "#10b981" },
+  { label: "Slate", value: "#64748b" },
+  { label: "Violet", value: "#8b5cf6" },
+] as const;
 
 type Props = {
   open: boolean;
@@ -77,9 +90,11 @@ export function SettingsModal({ open, onOpenChange }: Props) {
   const {
     isLoading,
     editor,
+    profile,
     journal,
     initialize: initializePreferences,
     updateEditorPreference,
+    updateProfilePreference,
     toggleDiaryMode,
     logActivity,
   } = usePreferencesStore();
@@ -119,7 +134,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {auth.workspaceMode === "guest" ? "Guest workspace on this device" : "Cloud workspace"}
+                      Account required
                     </p>
                   )}
                 </div>
@@ -160,6 +175,46 @@ export function SettingsModal({ open, onOpenChange }: Props) {
               </header>
               <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-4 md:p-6 pb-12">
                 
+                {activeTab === "profile" && (
+                  <SettingsSection title="Profile">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Avatar color</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Choose a fixed accent color for your avatar, or keep it on automatic.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {AVATAR_COLORS.map((option) => {
+                          const isActive = profile.avatarColor === option.value;
+
+                          return (
+                            <button
+                              key={option.label}
+                              type="button"
+                              onClick={() => updateProfilePreference("avatarColor", option.value)}
+                              className="flex items-center gap-2 border border-border bg-background px-2.5 py-2 text-xs transition-colors hover:bg-muted"
+                            >
+                              <span
+                                className="h-4 w-4 rounded-full border border-border"
+                                style={{
+                                  backgroundColor: option.value ?? "transparent",
+                                  backgroundImage: option.value
+                                    ? undefined
+                                    : "linear-gradient(135deg, #ec4899, #3b82f6 55%, #10b981)",
+                                }}
+                              />
+                              <span className={isActive ? "text-foreground" : "text-muted-foreground"}>
+                                {option.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </SettingsSection>
+                )}
+
                 {activeTab === "editor" && (
                   <SettingsSection title="Editor Settings">
                     <div className="flex items-center justify-between py-2">

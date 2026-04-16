@@ -3,18 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import {
-  useDragControls,
-  useReducedMotion,
-  type PanInfo,
-  type Transition,
-} from "framer-motion";
+import { useDragControls, useReducedMotion, type PanInfo, type Transition } from "framer-motion";
 import { useShortcut } from "@remcostoeten/use-shortcut";
-import { useNotesStore } from "@/features/notes/store";
+import { applyFolderUiState, useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useDocumentStore } from "@/features/layout/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { useFileNavigation, useUrlSync } from "./use-notes-navigation";
+import {
+  useCreateFolderMutation,
+  useCreateNoteMutation,
+  useDebouncedUpdateNoteContent,
+  useDeleteFolderMutation,
+  useDeleteNoteMutation,
+  useNoteFoldersQuery,
+  useNotesQuery,
+  useUpdateFolderMutation,
+  useUpdateNoteMutation,
+} from "./use-notes-queries";
+import type { CreateFolderInput } from "@/core/folders";
+import type { CreateNoteInput } from "@/core/notes";
+import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -28,6 +37,12 @@ const SHEET_DRAG_BLOCKLIST =
   "button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
 const DESKTOP_SIDEBAR_MIN_WIDTH = 248;
 const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
+const SAVED_BADGE_DURATION_MS = 1800;
+
+function generateNoteContent(name: string): string {
+  const title = name.replace(/\.md$/, "");
+  return `# ${title}\n\n`;
+}
 
 const NOTES_SHORTCUT_GROUPS: ShortcutHelpGroup[] = [
   {
@@ -77,26 +92,86 @@ export function useNotesLayout() {
   const router = useRouter();
   const $ = useShortcut({ ignoreInputs: true });
   const auth = useAuthSnapshot();
-  const files = useNotesStore((state) => state.files);
-  const folders = useNotesStore((state) => state.folders);
+  const notesQuery = useNotesQuery();
+  const foldersQuery = useNoteFoldersQuery();
   const activeFileId = useNotesStore((state) => state.activeFileId);
-  const isNotesHydrated = useNotesStore((state) => state.isHydrated);
-  const activeFileSaveState = useNotesStore((state) =>
-    state.getFileSaveState(state.activeFileId),
-  );
+  const ensureActiveFileId = useNotesStore((state) => state.ensureActiveFileId);
+  const folderOpenState = useNotesStore((state) => state.folderOpenState);
+  const activeFileSaveState = useNotesStore((state) => state.getFileSaveState(state.activeFileId));
   const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
-  const createFile = useNotesStore((state) => state.createFile);
-  const createFolder = useNotesStore((state) => state.createFolder);
-  const updateFileContent = useNotesStore((state) => state.updateFileContent);
-  const renameFile = useNotesStore((state) => state.renameFile);
-  const renameFolder = useNotesStore((state) => state.renameFolder);
-  const deleteFile = useNotesStore((state) => state.deleteFile);
-  const deleteFolder = useNotesStore((state) => state.deleteFolder);
-  const moveFile = useNotesStore((state) => state.moveFile);
-  const moveFolder = useNotesStore((state) => state.moveFolder);
-  const toggleFolder = useNotesStore((state) => state.toggleFolder);
+  const setFileSaveState = useNotesStore((state) => state.setFileSaveState);
+  const clearFileSaveState = useNotesStore((state) => state.clearFileSaveState);
+  const setFolderOpen = useNotesStore((state) => state.setFolderOpen);
   const collapseAllFolders = useNotesStore((state) => state.collapseAllFolders);
   const expandAllFolders = useNotesStore((state) => state.expandAllFolders);
+  const createNoteMutation = useCreateNoteMutation();
+  const createFolderMutation = useCreateFolderMutation();
+  const updateNoteMutation = useUpdateNoteMutation();
+  const updateFolderMutation = useUpdateFolderMutation();
+  const deleteNoteMutation = useDeleteNoteMutation();
+  const deleteFolderMutation = useDeleteFolderMutation();
+  const saveResetTimeoutsRef = useRef(new Map<string, number>());
+  const clearPendingSaveReset = useCallback((id: string) => {
+    const timeoutId = saveResetTimeoutsRef.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      saveResetTimeoutsRef.current.delete(id);
+    }
+  }, []);
+  const markFileSaving = useCallback(
+    (id: string) => {
+      clearPendingSaveReset(id);
+      setFileSaveState(id, "saving");
+    },
+    [clearPendingSaveReset, setFileSaveState],
+  );
+  const markFileSaved = useCallback(
+    (id: string) => {
+      clearPendingSaveReset(id);
+      setFileSaveState(id, "saved");
+      const timeoutId = window.setTimeout(() => {
+        clearFileSaveState(id);
+        saveResetTimeoutsRef.current.delete(id);
+      }, SAVED_BADGE_DURATION_MS);
+      saveResetTimeoutsRef.current.set(id, timeoutId);
+    },
+    [clearFileSaveState, clearPendingSaveReset, setFileSaveState],
+  );
+  const markFileError = useCallback(
+    (id: string) => {
+      clearPendingSaveReset(id);
+      setFileSaveState(id, "error");
+    },
+    [clearPendingSaveReset, setFileSaveState],
+  );
+  const updateFileContent = useDebouncedUpdateNoteContent({
+    onSaving: markFileSaving,
+    onSaved: markFileSaved,
+    onError: markFileError,
+  });
+  const handleUpdateFileContent = useCallback(
+    (
+      id: string,
+      content: string,
+      options?: {
+        richContent?: ReturnType<typeof markdownToRichDocument>;
+        preferredEditorMode?: "raw" | "block";
+      },
+    ) => {
+      updateFileContent({
+        id,
+        content,
+        richContent: options?.richContent,
+        preferredEditorMode: options?.preferredEditorMode,
+      });
+    },
+    [updateFileContent],
+  );
+  const files = notesQuery.data ?? [];
+  const folders = useMemo(
+    () => applyFolderUiState(foldersQuery.data ?? [], folderOpenState),
+    [folderOpenState, foldersQuery.data],
+  );
 
   const ui = useDocumentStore((state) => state.ui);
   const setUIState = useDocumentStore((state) => state.setUIState);
@@ -115,8 +190,14 @@ export function useNotesLayout() {
   const metadataDragControls = useDragControls();
   const sidebarResizeActiveRef = useRef(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const { activeFile, filesById, foldersById, filesByParentId, foldersByParentId, descendantCountByFolderId } =
-    useMemo(() => buildNoteIndexes(files, folders, activeFileId), [files, folders, activeFileId]);
+  const {
+    activeFile,
+    filesById,
+    foldersById,
+    filesByParentId,
+    foldersByParentId,
+    descendantCountByFolderId,
+  } = useMemo(() => buildNoteIndexes(files, folders, activeFileId), [files, folders, activeFileId]);
 
   const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
   const { canNavigatePrev, canNavigateNext, navigatePrev, navigateNext } = useFileNavigation(
@@ -148,6 +229,20 @@ export function useNotesLayout() {
   useEffect(() => {
     void syncLayoutWorkspace(auth.workspaceId);
   }, [auth.workspaceId, syncLayoutWorkspace]);
+
+  useEffect(
+    () => () => {
+      for (const timeoutId of saveResetTimeoutsRef.current.values()) {
+        window.clearTimeout(timeoutId);
+      }
+      saveResetTimeoutsRef.current.clear();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    ensureActiveFileId(files);
+  }, [ensureActiveFileId, files]);
 
   useEffect(() => {
     if (!activeFile) {
@@ -243,17 +338,58 @@ export function useNotesLayout() {
 
     triggerNativeFeedback("success");
     const preferredEditorMode = defaultModeRaw ? "raw" : "block";
-    createFile("Untitled", null, preferredEditorMode);
+    const createdAt = new Date();
+    const newFile: CreateNoteInput = {
+      id: crypto.randomUUID() as NoteId,
+      name: "Untitled.md",
+      content: generateNoteContent("Untitled") as MarkdownContent,
+      richContent: markdownToRichDocument(generateNoteContent("Untitled")),
+      preferredEditorMode,
+      createdAt,
+      updatedAt: createdAt,
+      parentId: null as FolderId | null,
+    };
+
+    createNoteMutation.mutate(newFile, {
+      onSuccess: () => {
+        markFileSaved(newFile.id as string);
+      },
+      onError: () => {
+        markFileError(newFile.id as string);
+      },
+    });
+    setActiveFileId(newFile.id as string);
+    markFileSaving(newFile.id as string);
     setEditorMode(preferredEditorMode);
     if (isMobile) {
       setUIState({ showSidebar: false });
     }
-  }, [createFile, defaultModeRaw, diaryModeEnabled, isMobile, router, setUIState]);
+  }, [
+    createNoteMutation,
+    defaultModeRaw,
+    diaryModeEnabled,
+    isMobile,
+    router,
+    markFileError,
+    markFileSaved,
+    markFileSaving,
+    setActiveFileId,
+    setUIState,
+  ]);
 
   const handleCreateFolder = useCallback(() => {
     triggerNativeFeedback("impact");
-    createFolder("Untitled");
-  }, [createFolder]);
+    const newFolder: CreateFolderInput = {
+      id: crypto.randomUUID() as FolderId,
+      name: "Untitled",
+      parentId: null as FolderId | null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setFolderOpen(newFolder.id as string, true);
+    createFolderMutation.mutate(newFolder);
+  }, [createFolderMutation, setFolderOpen]);
 
   const handleOpenSettings = useCallback(() => {
     triggerNativeFeedback("selection");
@@ -265,20 +401,31 @@ export function useNotesLayout() {
 
     triggerNativeFeedback("impact");
     const nextMode = editorMode === "raw" ? "block" : "raw";
-
-    if (nextMode === "block") {
-      updateFileContent(activeFile.id, activeFile.content, {
-        richContent: markdownToRichDocument(activeFile.content),
+    const updatedAt = new Date();
+    updateNoteMutation.mutate(
+      {
+        id: activeFile.id as NoteId,
+        content: activeFile.content as MarkdownContent,
+        richContent:
+          nextMode === "block"
+            ? markdownToRichDocument(activeFile.content)
+            : activeFile.richContent,
         preferredEditorMode: nextMode,
-      });
-    } else {
-      updateFileContent(activeFile.id, activeFile.content, {
-        preferredEditorMode: nextMode,
-      });
-    }
+        updatedAt,
+      },
+      {
+        onSuccess: () => {
+          markFileSaved(activeFile.id);
+        },
+        onError: () => {
+          markFileError(activeFile.id);
+        },
+      },
+    );
+    markFileSaving(activeFile.id);
 
     setEditorMode(nextMode);
-  }, [activeFile, editorMode, updateFileContent]);
+  }, [activeFile, editorMode, markFileError, markFileSaved, markFileSaving, updateNoteMutation]);
 
   const handleOpenCommandPalette = useCallback(() => {
     triggerNativeFeedback("selection");
@@ -340,6 +487,103 @@ export function useNotesLayout() {
       metadataDragControls.start(event);
     },
     [metadataDragControls],
+  );
+
+  const renameFile = useCallback(
+    (id: string, name: string) => {
+      const updatedAt = new Date();
+      markFileSaving(id);
+      updateNoteMutation.mutate(
+        {
+          id: id as NoteId,
+          name,
+          updatedAt,
+        },
+        {
+          onSuccess: () => {
+            markFileSaved(id);
+          },
+          onError: () => {
+            markFileError(id);
+          },
+        },
+      );
+    },
+    [markFileError, markFileSaved, markFileSaving, updateNoteMutation],
+  );
+
+  const renameFolder = useCallback(
+    (id: string, name: string) => {
+      updateFolderMutation.mutate({
+        id: id as FolderId,
+        name,
+        updatedAt: new Date(),
+      });
+    },
+    [updateFolderMutation],
+  );
+
+  const deleteFile = useCallback(
+    (id: string) => {
+      clearFileSaveState(id);
+      deleteNoteMutation.mutate(id as NoteId);
+    },
+    [clearFileSaveState, deleteNoteMutation],
+  );
+
+  const deleteFolder = useCallback(
+    (id: string) => {
+      deleteFolderMutation.mutate(id as FolderId);
+    },
+    [deleteFolderMutation],
+  );
+
+  const moveFile = useCallback(
+    (fileId: string, newParentId: string | null) => {
+      updateNoteMutation.mutate({
+        id: fileId as NoteId,
+        parentId: newParentId as FolderId | null,
+        updatedAt: new Date(),
+      });
+    },
+    [updateNoteMutation],
+  );
+
+  const moveFolder = useCallback(
+    (folderId: string, newParentId: string | null) => {
+      const descendantIds = new Set<string>();
+      const stack = [folderId];
+
+      while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current) continue;
+        descendantIds.add(current);
+        for (const folder of folders) {
+          if (folder.parentId === current && !descendantIds.has(folder.id)) {
+            stack.push(folder.id);
+          }
+        }
+      }
+
+      if (newParentId && descendantIds.has(newParentId)) {
+        return;
+      }
+
+      updateFolderMutation.mutate({
+        id: folderId as FolderId,
+        parentId: newParentId as FolderId | null,
+        updatedAt: new Date(),
+      });
+    },
+    [folders, updateFolderMutation],
+  );
+
+  const handleToggleFolder = useCallback(
+    (id: string) => {
+      const currentFolder = folders.find((folder) => folder.id === id);
+      setFolderOpen(id, !(currentFolder?.isOpen ?? false));
+    },
+    [folders, setFolderOpen],
   );
 
   const getFilesInFolder = useCallback(
@@ -504,7 +748,11 @@ export function useNotesLayout() {
     ],
   );
 
-  const isEditorReady = isNotesHydrated;
+  const isEditorReady =
+    auth.isReady &&
+    auth.phase === "authenticated" &&
+    !notesQuery.isPending &&
+    !foldersQuery.isPending;
   const sidebarPanelProps = {
     files,
     folders,
@@ -512,9 +760,9 @@ export function useNotesLayout() {
     foldersById,
     activeFileId,
     onFileSelect: handleFileSelect,
-    onToggleFolder: toggleFolder,
-    onCollapseAllFolders: collapseAllFolders,
-    onExpandAllFolders: expandAllFolders,
+    onToggleFolder: handleToggleFolder,
+    onCollapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
+    onExpandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
     onCreateFile: handleCreateFile,
     onCreateFolder: handleCreateFolder,
     onRenameFile: renameFile,
@@ -536,13 +784,13 @@ export function useNotesLayout() {
     canNavigatePrev,
     closeMetadata,
     closeSidebar,
-    collapseAllFolders,
+    collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
     commandItems,
     countDescendants,
     createFile: handleCreateFile,
     createFolder: handleCreateFolder,
     editorMode,
-    expandAllFolders,
+    expandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
     getFilesInFolder,
     getFoldersInFolder,
     handleDesktopSidebarResizeStart,
@@ -558,6 +806,7 @@ export function useNotesLayout() {
     handleToggleEditorMode,
     handleToggleMetadata,
     handleToggleSidebar,
+    handleToggleFolder,
     isEditorReady,
     isMobile,
     metadataDragControls,
@@ -581,6 +830,6 @@ export function useNotesLayout() {
     showShortcutHelp,
     showSidebar,
     shortcutGroups: NOTES_SHORTCUT_GROUPS,
-    updateFileContent,
+    updateFileContent: handleUpdateFileContent,
   };
 }

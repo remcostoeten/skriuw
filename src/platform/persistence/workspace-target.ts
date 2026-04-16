@@ -1,4 +1,4 @@
-import type { WorkspaceTarget } from "@/core/persistence/repositories/contracts";
+import type { WorkspaceTarget } from "@/core/persistence/types";
 import { getAuthStateSnapshot } from "@/platform/auth";
 
 export function getWorkspaceTarget(): WorkspaceTarget {

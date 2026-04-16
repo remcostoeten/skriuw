@@ -18,9 +18,20 @@ type Props = {
   compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onManageSections: () => void;
   onFileSelect: (id: string) => void;
   onClearRecents: () => void;
+  isDraggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
 };
 
 export const RecentsSection = memo(function RecentsSection({
@@ -33,8 +44,19 @@ export const RecentsSection = memo(function RecentsSection({
   compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onFileSelect,
   onClearRecents,
+  isDraggable,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: Props) {
   const resolvedRecents = useMemo(
     () =>
@@ -73,7 +95,18 @@ export const RecentsSection = memo(function RecentsSection({
       itemCount={resolvedRecents.length}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
       actions={clearButton}
+      isDraggable={isDraggable}
+      isDragging={isDragging}
+      isDropTarget={isDropTarget}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
     >
       {resolvedRecents.length === 0 ? (
         <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>

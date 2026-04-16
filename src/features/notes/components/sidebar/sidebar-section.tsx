@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, MoreHorizontal, EyeOff, Trash2, Pencil } from "lucide-react";
+import { ChevronRight, MoreHorizontal, EyeOff, Trash2, Pencil, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -12,10 +12,21 @@ type Props = {
   compactMode?: boolean;
   isCustom?: boolean;
   itemCount?: number;
+  isDraggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onRename?: (name: string) => void;
   onDelete?: () => void;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
   children: React.ReactNode;
   actions?: React.ReactNode;
 };
@@ -28,10 +39,21 @@ export function SidebarSection({
   compactMode = false,
   isCustom = false,
   itemCount,
+  isDraggable = false,
+  isDragging = false,
+  isDropTarget = false,
   onToggleCollapse,
   onToggleVisibility,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   onRename,
   onDelete,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   children,
   actions,
 }: Props) {
@@ -71,9 +93,13 @@ export function SidebarSection({
     <section className={cn("mx-2 last:mb-0", compactMode ? "mb-0.25" : "mb-0.5")}>
       {showHeader && (
         <div
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           className={cn(
             "group relative flex items-center gap-1.5 px-2 transition-colors hover:bg-muted",
             compactMode ? "min-h-7" : "min-h-8 md:h-7 md:min-h-0",
+            isDropTarget && "bg-muted/80 ring-1 ring-border",
+            isDragging && "opacity-55",
           )}
         >
           <button
@@ -110,9 +136,13 @@ export function SidebarSection({
             />
           ) : (
             <span
+              draggable={isDraggable}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
               className={cn(
                 "flex-1 truncate pr-8 font-medium uppercase tracking-wide text-muted-foreground/60",
                 compactMode ? "text-[10px]" : "text-[11px]",
+                isDraggable && "cursor-grab active:cursor-grabbing",
               )}
             >
               {title}
@@ -166,10 +196,36 @@ export function SidebarSection({
                           onToggleVisibility();
                           setShowMenu(false);
                         }}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
+                        className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
-                        Hide section
+                        Hide
+                      </button>
+                    )}
+                    {onMoveUp && (
+                      <button
+                        onClick={() => {
+                          onMoveUp();
+                          setShowMenu(false);
+                        }}
+                        disabled={!canMoveUp}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                        Move up
+                      </button>
+                    )}
+                    {onMoveDown && (
+                      <button
+                        onClick={() => {
+                          onMoveDown();
+                          setShowMenu(false);
+                        }}
+                        disabled={!canMoveDown}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                        Move down
                       </button>
                     )}
                     {isCustom && onDelete && (
