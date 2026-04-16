@@ -20,13 +20,13 @@ export const metadata: Metadata = {
     template: "%s | Skriuw",
   },
   description:
-    "A calm, keyboard-first notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+    "A calm, keyboard-first notes and journal workspace with account-backed sync across web and mobile.",
   applicationName: "Skriuw",
-  keywords: ["Skriuw", "notes", "journal", "guest workspace", "writing", "knowledge base"],
+  keywords: ["Skriuw", "notes", "journal", "writing", "knowledge base", "cloud sync"],
   openGraph: {
     title: "Skriuw",
     description:
-      "A calm notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+      "A calm notes and journal workspace with account-backed sync across web and mobile.",
     siteName: "Skriuw",
     type: "website",
   },
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Skriuw",
     description:
-      "A calm notes and journal workspace with private guest mode and a scalable path to personal cloud sync.",
+      "A calm notes and journal workspace with account-backed sync across web and mobile.",
   },
 };
 

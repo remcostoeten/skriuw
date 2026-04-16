@@ -14,16 +14,15 @@ import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import {
   signInWithOAuth,
   signInWithPassword,
-  signUpWithPassword,
   type MobileAuthSnapshot,
   type OAuthProvider,
 } from "@/src/platform/auth";
 import { useAuthSnapshot } from "@/src/platform/auth/use-auth";
 import { commonStyles, palette } from "@/src/ui/styles";
 
-type AuthIntent = "sign-up" | OAuthProvider;
+type AuthIntent = "sign-in" | OAuthProvider;
 
-export default function SignInRoute() {
+export default function LoginRoute() {
   const auth = useAuthSnapshot() as MobileAuthSnapshot;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,8 +39,8 @@ export default function SignInRoute() {
         return;
       }
 
-      if (intent === "sign-up") {
-        await signUpWithPassword({ email: email.trim(), password });
+      if (intent === "sign-in") {
+        await signInWithPassword({ email: email.trim(), password });
         return;
       }
     } catch (error) {
@@ -53,7 +52,7 @@ export default function SignInRoute() {
 
   function handleEmailSignIn() {
     if (!email.trim() || !password) return;
-    runAuth("sign-up");
+    runAuth("sign-in");
   }
 
   if (!auth.isReady) {
@@ -76,11 +75,11 @@ export default function SignInRoute() {
         >
           <View style={commonStyles.heroCard}>
             <View style={commonStyles.heroGlow} />
-            <Text style={commonStyles.eyebrow}>Get started</Text>
-            <Text style={commonStyles.headline}>Create your account.</Text>
+            <Text style={commonStyles.eyebrow}>Welcome back</Text>
+            <Text style={commonStyles.headline}>Sign in to continue.</Text>
             <Text style={commonStyles.subtitle}>
-              Sign up to start syncing your notes and journal across all your
-              devices.
+              Use the same account you use on web to access your notes and
+              journal on mobile.
             </Text>
           </View>
 
@@ -98,7 +97,7 @@ export default function SignInRoute() {
               <Text style={commonStyles.buttonLabelSecondary}>
                 {pendingIntent === "google"
                   ? "Connecting Google..."
-                  : "Sign up with Google"}
+                  : "Sign in with Google"}
               </Text>
             </Pressable>
 
@@ -115,7 +114,7 @@ export default function SignInRoute() {
               <Text style={commonStyles.buttonLabelSecondary}>
                 {pendingIntent === "github"
                   ? "Connecting GitHub..."
-                  : "Sign up with GitHub"}
+                  : "Sign in with GitHub"}
               </Text>
             </Pressable>
 
@@ -156,7 +155,7 @@ export default function SignInRoute() {
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
-              textContentType="newPassword"
+              textContentType="password"
               placeholder="••••••••"
               placeholderTextColor={palette.textSoft}
               style={commonStyles.input}
@@ -173,19 +172,17 @@ export default function SignInRoute() {
               onPress={handleEmailSignIn}
             >
               <Text style={commonStyles.buttonLabel}>
-                {pendingIntent === "sign-up"
-                  ? "Creating account..."
-                  : "Create account"}
+                {pendingIntent === "sign-in" ? "Signing in..." : "Sign in"}
               </Text>
             </Pressable>
 
             <Pressable
               style={{ paddingVertical: 12, alignItems: "center" }}
-              onPress={() => router.push("/login")}
+              onPress={() => router.push("/sign-in")}
             >
               <Text style={commonStyles.caption}>
-                Already have an account?{" "}
-                <Text style={{ color: palette.text }}>Sign in</Text>
+                Don't have an account?{" "}
+                <Text style={{ color: palette.text }}>Sign up</Text>
               </Text>
             </Pressable>
 
