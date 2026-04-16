@@ -22,7 +22,7 @@ export type UpdateJournalEntryInput = {
   id: JournalEntryId;
   content?: string;
   tags?: TagName[];
-  mood?: MoodLevel;
+  mood?: MoodLevel | null;
   updatedAt?: Date;
 };
 

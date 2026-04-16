@@ -2,13 +2,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getWorkspaceId } from "@/platform/auth";
 
-export type ActivityAction =
+type ActivityAction =
   | "settings_opened"
   | "note_created"
   | "mode_changed"
   | "diary_toggled";
 
-export type ActivityItem = {
+type ActivityItem = {
   id: string;
   action: ActivityAction;
   createdAt: Date;
@@ -19,6 +19,10 @@ interface EditorPreferences {
   defaultPlaceholder: string;
 }
 
+interface ProfilePreferences {
+  avatarColor: string | null;
+}
+
 interface JournalPreferences {
   diaryModeEnabled: boolean;
   recentMoods: Array<{ mood: string; date: Date }>;
@@ -26,6 +30,7 @@ interface JournalPreferences {
 
 type PreferencesProfile = {
   editor: EditorPreferences;
+  profile: ProfilePreferences;
   journal: JournalPreferences;
   amountOfNotes: number;
   activity: ActivityItem[];
@@ -33,6 +38,7 @@ type PreferencesProfile = {
 
 type PersistedPreferencesProfile = {
   editor?: Partial<EditorPreferences>;
+  profile?: Partial<ProfilePreferences>;
   journal?: Partial<JournalPreferences>;
   amountOfNotes?: number;
   activity?: Array<Partial<ActivityItem>>;
@@ -44,6 +50,7 @@ interface PreferencesState {
   isHydrated: boolean;
   profiles: Record<string, PreferencesProfile>;
   editor: EditorPreferences;
+  profile: ProfilePreferences;
   journal: JournalPreferences;
   amountOfNotes: number;
   activity: ActivityItem[];
@@ -51,6 +58,10 @@ interface PreferencesState {
   updateEditorPreference: <K extends keyof EditorPreferences>(
     key: K,
     value: EditorPreferences[K],
+  ) => void;
+  updateProfilePreference: <K extends keyof ProfilePreferences>(
+    key: K,
+    value: ProfilePreferences[K],
   ) => void;
   toggleDiaryMode: () => void;
   recordMood: (mood: string) => void;
@@ -63,6 +74,7 @@ type PersistedPreferencesState = {
   userId?: string | null;
   profiles?: Record<string, PersistedPreferencesProfile>;
   editor?: Partial<EditorPreferences>;
+  profile?: Partial<ProfilePreferences>;
   journal?: Partial<JournalPreferences>;
   amountOfNotes?: number;
   activity?: Array<Partial<ActivityItem>>;
@@ -73,6 +85,10 @@ const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   defaultPlaceholder: "Start writing...",
 };
 
+const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
+  avatarColor: null,
+};
+
 const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
   diaryModeEnabled: false,
   recentMoods: [],
@@ -81,6 +97,7 @@ const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
 function createDefaultProfile(): PreferencesProfile {
   return {
     editor: { ...DEFAULT_EDITOR_PREFERENCES },
+    profile: { ...DEFAULT_PROFILE_PREFERENCES },
     journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
     amountOfNotes: 0,
     activity: [],
@@ -115,6 +132,12 @@ function normalizeProfile(profile: PersistedPreferencesProfile | undefined): Pre
         typeof profile?.editor?.defaultPlaceholder === "string"
           ? profile.editor.defaultPlaceholder
           : fallback.editor.defaultPlaceholder,
+    },
+    profile: {
+      avatarColor:
+        typeof profile?.profile?.avatarColor === "string" || profile?.profile?.avatarColor === null
+          ? (profile?.profile?.avatarColor ?? fallback.profile.avatarColor)
+          : fallback.profile.avatarColor,
     },
     journal: {
       diaryModeEnabled:
@@ -160,6 +183,7 @@ function applyProfile(workspaceId: string, profile: PreferencesProfile) {
     workspaceId,
     isLoading: false,
     editor: profile.editor,
+    profile: profile.profile,
     journal: profile.journal,
     amountOfNotes: profile.amountOfNotes,
     activity: profile.activity,
@@ -192,6 +216,28 @@ export const usePreferencesStore = create<PreferencesState>()(
             ...currentProfile,
             editor: {
               ...currentProfile.editor,
+              [key]: value,
+            },
+          };
+
+          return {
+            profiles: {
+              ...state.profiles,
+              [workspaceId]: nextProfile,
+            },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      updateProfilePreference: (key, value) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            profile: {
+              ...currentProfile.profile,
               [key]: value,
             },
           };

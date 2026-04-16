@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BookOpen, Cloud, LoaderCircle, LogOut, NotebookPen, UserRound } from "lucide-react";
+import { BookOpen, Cloud, LoaderCircle, LogOut, NotebookPen } from "lucide-react";
 import { Button } from "@/shared/ui/button-component";
 import { Separator } from "@/shared/ui/separator";
-import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
-import { setGuestMode, signOut } from "@/platform/auth";
+import { signOut } from "@/platform/auth";
 import { useProfileSummary } from "../hooks/use-profile-summary";
 import { createProfileViewModel } from "../lib/profile-view-model";
 
-type PendingAction = "sign-out" | "guest" | null;
+type PendingAction = "sign-out" | null;
 
 function ProfileField({
   label,
@@ -171,24 +170,6 @@ export function ProfilePage() {
                   )}
                   Sign out
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full justify-start border-border bg-transparent"
-                  disabled={pendingAction !== null}
-                  onClick={() =>
-                    void runAction("guest", async () => {
-                      await setGuestMode();
-                    })
-                  }
-                >
-                  {pendingAction === "guest" ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UserRound className="h-4 w-4" />
-                  )}
-                  Use guest workspace
-                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -198,7 +179,9 @@ export function ProfilePage() {
                     Sign in to store notes and journal entries in your own cloud workspace.
                   </p>
                 </div>
-                <AuthEntryPoint triggerVariant="default" className="w-full" />
+                <Button asChild className="w-full">
+                  <Link href="/register">Sign up</Link>
+                </Button>
               </div>
             )}
           </div>

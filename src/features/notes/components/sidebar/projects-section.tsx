@@ -28,12 +28,23 @@ type Props = {
   compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onManageSections: () => void;
   onFileSelect: (id: string) => void;
   onCreateProject: (name: string, color?: string) => void;
   onUpdateProject: (projectId: string, updates: Partial<Project>) => void;
   onDeleteProject: (projectId: string) => void;
   onRemoveFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
+  isDraggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
 };
 
 export function ProjectsSection({
@@ -46,11 +57,22 @@ export function ProjectsSection({
   compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onFileSelect,
   onCreateProject,
   onUpdateProject,
   onDeleteProject,
   onRemoveFromProject,
+  isDraggable,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: Props) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
@@ -112,7 +134,18 @@ export function ProjectsSection({
       itemCount={projects.length}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
       actions={addButton}
+      isDraggable={isDraggable}
+      isDragging={isDragging}
+      isDropTarget={isDropTarget}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
     >
       {/* Create new project input */}
       {isCreating && (

@@ -6,19 +6,17 @@ import {
   setSupabaseSessionPersistence,
 } from "@/core/persistence/supabase";
 
-export type User = {
+type User = {
   id: string;
   email: string;
   name: string;
 };
 
-export type AuthMode = "guest" | "cloud";
-export type AuthPhase = "initializing" | "guest" | "authenticated";
-export type OAuthProvider = "google" | "github";
+type AuthPhase = "initializing" | "signed_out" | "authenticated";
+type OAuthProvider = "google" | "github";
 
 export type AuthSnapshot = {
   phase: AuthPhase;
-  workspaceMode: AuthMode;
   rememberMe: boolean;
   isReady: boolean;
   isSupabaseConfigured: boolean;
@@ -29,27 +27,24 @@ export type AuthSnapshot = {
 };
 
 type AuthPreferences = {
-  mode: AuthMode;
   rememberMe: boolean;
 };
 
 type AuthListener = () => void;
 
 const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
-const GUEST_WORKSPACE_ID = "guest-local";
-const CLOUD_WORKSPACE_ID = "cloud-local";
-const INITIAL_PHASE: AuthPhase = typeof window === "undefined" ? "guest" : "initializing";
+const SIGNED_OUT_WORKSPACE_ID = "signed-out-local";
+const INITIAL_PHASE: AuthPhase = typeof window === "undefined" ? "signed_out" : "initializing";
 
 let snapshot: AuthSnapshot = {
   phase: INITIAL_PHASE,
-  workspaceMode: "guest",
   rememberMe: true,
   isReady: typeof window === "undefined",
   isSupabaseConfigured: isSupabaseConfigured(),
   user: null,
   session: null,
   error: null,
-  workspaceId: GUEST_WORKSPACE_ID,
+  workspaceId: SIGNED_OUT_WORKSPACE_ID,
 };
 
 let initializePromise: Promise<AuthSnapshot> | null = null;
@@ -82,25 +77,21 @@ function toUser(session: Session | null): User | null {
 
 function readPreferences(): AuthPreferences {
   if (typeof window === "undefined") {
-    return { mode: "guest", rememberMe: true };
+    return { rememberMe: true };
   }
 
   try {
     const raw = window.localStorage.getItem(AUTH_PREFERENCES_KEY);
     if (!raw) {
       return {
-        mode: "guest",
         rememberMe: getStoredRememberMePreference(),
       };
     }
 
     const parsed = JSON.parse(raw) as {
-      mode?: string;
       rememberMe?: boolean;
     };
-    const mode = parsed.mode;
     return {
-      mode: mode === "cloud" || mode === "account" ? "cloud" : "guest",
       rememberMe:
         typeof parsed.rememberMe === "boolean"
           ? parsed.rememberMe
@@ -108,7 +99,6 @@ function readPreferences(): AuthPreferences {
     };
   } catch {
     return {
-      mode: "guest",
       rememberMe: getStoredRememberMePreference(),
     };
   }
@@ -122,19 +112,15 @@ function persistPreferences(preferences: AuthPreferences): void {
   window.localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify(preferences));
 }
 
-function getDerivedWorkspaceId(user: User | null, workspaceMode: AuthMode): string {
-  return user?.id ?? getLocalWorkspaceId(workspaceMode);
-}
-
-function getDerivedCanSync(user: User | null, isConfigured: boolean, phase: AuthPhase): boolean {
-  return phase === "authenticated" && user !== null && isConfigured;
+function getDerivedWorkspaceId(user: User | null): string {
+  return user?.id ?? SIGNED_OUT_WORKSPACE_ID;
 }
 
 function normalizeSnapshot(next: AuthSnapshot): AuthSnapshot {
   return {
     ...next,
     isReady: next.phase !== "initializing",
-    workspaceId: getDerivedWorkspaceId(next.user, next.workspaceMode),
+    workspaceId: getDerivedWorkspaceId(next.user),
   };
 }
 
@@ -160,19 +146,12 @@ function clearError(): void {
   }
 }
 
-function getLocalWorkspaceId(mode: AuthMode): string {
-  return mode === "cloud" ? CLOUD_WORKSPACE_ID : GUEST_WORKSPACE_ID;
-}
-
-function applySession(session: Session | null, modeOverride?: AuthMode): AuthSnapshot {
+function applySession(session: Session | null): AuthSnapshot {
   const user = toUser(session);
-  const preferredMode = modeOverride ?? snapshot.workspaceMode;
-  const workspaceMode = user ? "cloud" : preferredMode;
-  const phase = user ? "authenticated" : "guest";
+  const phase = user ? "authenticated" : "signed_out";
 
   return setSnapshot({
     ...snapshot,
-    workspaceMode,
     phase,
     isSupabaseConfigured: isSupabaseConfigured(),
     user,
@@ -183,7 +162,6 @@ function applySession(session: Session | null, modeOverride?: AuthMode): AuthSna
 
 function updatePreferences(nextPreferences: Partial<AuthPreferences>): AuthPreferences {
   const merged = {
-    mode: nextPreferences.mode ?? snapshot.workspaceMode,
     rememberMe: nextPreferences.rememberMe ?? snapshot.rememberMe,
   } satisfies AuthPreferences;
 
@@ -225,13 +203,12 @@ export async function initializeAuth(): Promise<AuthSnapshot> {
       setSupabaseSessionPersistence(preferences.rememberMe);
       setSnapshot((current) => ({
         ...current,
-        workspaceMode: preferences.mode,
         rememberMe: preferences.rememberMe,
         isSupabaseConfigured: isSupabaseConfigured(),
       }));
 
       if (!isSupabaseConfigured()) {
-        return applySession(null, preferences.mode);
+        return applySession(null);
       }
 
       await ensureAuthSubscription();
@@ -242,7 +219,7 @@ export async function initializeAuth(): Promise<AuthSnapshot> {
         setError(error);
       }
 
-      return applySession(data.session, preferences.mode);
+      return applySession(data.session);
     })();
   }
 
@@ -257,34 +234,6 @@ export async function setRememberMe(rememberMe: boolean): Promise<AuthSnapshot> 
     ...current,
     rememberMe: preferences.rememberMe,
   }));
-}
-
-export async function setGuestMode(): Promise<AuthSnapshot> {
-  updatePreferences({ mode: "guest" });
-  clearError();
-
-  if (isSupabaseConfigured() && snapshot.session) {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      setError(error);
-    }
-  }
-
-  return applySession(null, "guest");
-}
-
-export async function setCloudMode(): Promise<AuthSnapshot> {
-  updatePreferences({ mode: "cloud" });
-  clearError();
-
-  return setSnapshot((current) => {
-    return {
-      ...current,
-      workspaceMode: "cloud",
-      phase: current.user ? "authenticated" : "guest",
-    };
-  });
 }
 
 type EmailAuthInput = {
@@ -303,7 +252,6 @@ export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSna
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(input.rememberMe);
-  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -317,14 +265,13 @@ export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSna
     throw error;
   }
 
-  return applySession(data.session, "cloud");
+  return applySession(data.session);
 }
 
 export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(input.rememberMe);
-  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -344,7 +291,7 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
     );
   }
 
-  return applySession(data.session, "cloud");
+  return applySession(data.session);
 }
 
 export async function signInWithOAuth(
@@ -354,7 +301,6 @@ export async function signInWithOAuth(
   await initializeAuth();
   requireConfiguredSupabase();
   await setRememberMe(options.rememberMe);
-  updatePreferences({ mode: "cloud" });
   clearError();
 
   const supabase = getSupabaseClient();
@@ -376,7 +322,7 @@ export async function signOut(): Promise<AuthSnapshot> {
   clearError();
 
   if (!isSupabaseConfigured()) {
-    return applySession(null, "cloud");
+    return applySession(null);
   }
 
   const supabase = getSupabaseClient();
@@ -386,31 +332,11 @@ export async function signOut(): Promise<AuthSnapshot> {
     throw error;
   }
 
-  return applySession(null, "cloud");
-}
-
-export function getAuth(): User | null {
-  return snapshot.user;
-}
-
-export function requireUser(): User {
-  const user = getAuth();
-  if (!user) {
-    throw new Error("Authentication required");
-  }
-  return user;
-}
-
-export function isAuthenticated(): boolean {
-  return snapshot.phase === "authenticated" && snapshot.user !== null;
-}
-
-export function canSyncToRemote(): boolean {
-  return getDerivedCanSync(snapshot.user, snapshot.isSupabaseConfigured, snapshot.phase);
+  return applySession(null);
 }
 
 export function getWorkspaceId(): string {
-  return getDerivedWorkspaceId(snapshot.user, snapshot.workspaceMode);
+  return getDerivedWorkspaceId(snapshot.user);
 }
 
 export function resetAuthForTests(): void {
@@ -419,13 +345,12 @@ export function resetAuthForTests(): void {
   listeners.clear();
   snapshot = normalizeSnapshot({
     phase: "initializing",
-    workspaceMode: "guest",
     rememberMe: true,
     isReady: false,
     isSupabaseConfigured: isSupabaseConfigured(),
     user: null,
     session: null,
     error: null,
-    workspaceId: GUEST_WORKSPACE_ID,
+    workspaceId: SIGNED_OUT_WORKSPACE_ID,
   });
 }

@@ -11,6 +11,12 @@ import {
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
+import {
   FileText,
   Folder,
   PanelTopClose,
@@ -103,6 +109,23 @@ function NewFolderNoteIcon({ className }: { className?: string }) {
   );
 }
 
+function HeaderActionTooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom" className="px-2 py-1 text-xs">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function SidebarPanel({
   files,
   folders,
@@ -135,6 +158,10 @@ export function SidebarPanel({
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(
+    null,
+  );
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hasSearchSection = sections.some(
@@ -223,6 +250,109 @@ export function SidebarPanel({
     (section) => section.type !== "file-tree",
   );
 
+  const handleSectionReorder = useCallback(
+    (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+
+      const orderedSections = [...sidebarStore.config.sections].toSorted(
+        (left, right) => {
+          if (left.type === "file-tree" && right.type !== "file-tree") return -1;
+          if (right.type === "file-tree" && left.type !== "file-tree") return 1;
+          return left.order - right.order;
+        },
+      );
+      const movableIds = orderedSections
+        .filter((section) => section.type !== "file-tree")
+        .map((section) => section.id);
+      const draggedIndex = movableIds.indexOf(draggedId);
+      const targetIndex = movableIds.indexOf(targetId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      const nextMovableIds = [...movableIds];
+      nextMovableIds.splice(draggedIndex, 1);
+      nextMovableIds.splice(targetIndex, 0, draggedId);
+
+      const pinnedIds = orderedSections
+        .filter((section) => section.type === "file-tree")
+        .map((section) => section.id);
+
+      sidebarStore.reorderSections([...pinnedIds, ...nextMovableIds]);
+    },
+    [sidebarStore],
+  );
+
+  const getSectionDragProps = useCallback(
+    (sectionId: string) => ({
+      isDraggable: true,
+      isDragging: draggedSectionId === sectionId,
+      isDropTarget: dropTargetSectionId === sectionId,
+      onDragStart: (event: React.DragEvent) => {
+        setDraggedSectionId(sectionId);
+        setDropTargetSectionId(null);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", sectionId);
+      },
+      onDragOver: (event: React.DragEvent) => {
+        event.preventDefault();
+        if (draggedSectionId && draggedSectionId !== sectionId) {
+          setDropTargetSectionId(sectionId);
+        }
+        event.dataTransfer.dropEffect = "move";
+      },
+      onDrop: (event: React.DragEvent) => {
+        event.preventDefault();
+        const sourceSectionId =
+          draggedSectionId || event.dataTransfer.getData("text/plain");
+        if (sourceSectionId) {
+          handleSectionReorder(sourceSectionId, sectionId);
+        }
+        setDraggedSectionId(null);
+        setDropTargetSectionId(null);
+      },
+      onDragEnd: () => {
+        setDraggedSectionId(null);
+        setDropTargetSectionId(null);
+      },
+    }),
+    [draggedSectionId, dropTargetSectionId, handleSectionReorder],
+  );
+
+  const getSectionMoveProps = useCallback(
+    (sectionId: string) => {
+      const orderedSections = [...sidebarStore.config.sections].toSorted((left, right) => {
+        if (left.type === "file-tree" && right.type !== "file-tree") return -1;
+        if (right.type === "file-tree" && left.type !== "file-tree") return 1;
+        return left.order - right.order;
+      });
+      const movableIds = orderedSections
+        .filter((section) => section.type !== "file-tree")
+        .map((section) => section.id);
+      const currentIndex = movableIds.indexOf(sectionId);
+
+      const move = (direction: "up" | "down") => {
+        if (currentIndex === -1) return;
+        const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= movableIds.length) return;
+        const nextMovableIds = [...movableIds];
+        const [movedId] = nextMovableIds.splice(currentIndex, 1);
+        nextMovableIds.splice(targetIndex, 0, movedId);
+        const pinnedIds = orderedSections
+          .filter((section) => section.type === "file-tree")
+          .map((section) => section.id);
+        sidebarStore.reorderSections([...pinnedIds, ...nextMovableIds]);
+      };
+
+      return {
+        onMoveUp: () => move("up"),
+        onMoveDown: () => move("down"),
+        canMoveUp: currentIndex > 0,
+        canMoveDown: currentIndex !== -1 && currentIndex < movableIds.length - 1,
+      };
+    },
+    [sidebarStore],
+  );
+
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
       case "search":
@@ -250,6 +380,8 @@ export function SidebarPanel({
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onRemoveFromFavorites={sidebarStore.removeFromFavorites}
+            {...getSectionMoveProps(section.id)}
+            {...getSectionDragProps(section.id)}
           />
         );
 
@@ -273,6 +405,8 @@ export function SidebarPanel({
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onClearRecents={sidebarStore.clearRecents}
+            {...getSectionMoveProps(section.id)}
+            {...getSectionDragProps(section.id)}
           />
         );
 
@@ -299,6 +433,8 @@ export function SidebarPanel({
             onUpdateProject={sidebarStore.updateProject}
             onDeleteProject={sidebarStore.deleteProject}
             onRemoveFromProject={sidebarStore.removeFromProject}
+            {...getSectionMoveProps(section.id)}
+            {...getSectionDragProps(section.id)}
           />
         );
 
@@ -315,6 +451,8 @@ export function SidebarPanel({
             onToggleVisibility={() =>
               sidebarStore.toggleSectionVisibility(section.id)
             }
+            {...getSectionMoveProps(section.id)}
+            {...getSectionDragProps(section.id)}
           />
         );
 
@@ -368,6 +506,8 @@ export function SidebarPanel({
             onDelete={() => sidebarStore.removeSection(section.id)}
             onFileSelect={handleFileSelect}
             onRemoveFromSection={sidebarStore.removeFromCustomSection}
+            {...getSectionMoveProps(section.id)}
+            {...getSectionDragProps(section.id)}
           />
         );
     }
@@ -381,92 +521,104 @@ export function SidebarPanel({
       )}
     >
       <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
-        <div className="relative min-h-12 overflow-hidden flex justify-between items-center px-3 py-2.5 md:h-12 md:min-h-0 md:px-4 md:py-0">
+        <div className="relative flex h-11 items-center justify-between overflow-hidden px-3">
           <div
             className={cn(
               "flex h-full w-full justify-between  items-center gap-3 transition-transform duration-200",
-              isSearchOpen && "-translate-y-12",
+              isSearchOpen && "-translate-y-11",
             )}
           >
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <button
-                onClick={onCreateFile}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
-                title="New Note"
-              >
-                <NewNoteIcon />
-              </button>
-              <button
-                onClick={onCreateFolder}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
-                title="New Folder"
-              >
-                <NewFolderNoteIcon />
-              </button>
-              <button
-                onClick={openConfigPanel}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
-                title="Manage sections"
-              >
-                <PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
-              </button>
-              {(onCollapseAllFolders || onExpandAllFolders) && (
-                <div className="relative flex">
+            <TooltipProvider delayDuration={120}>
+              <div className="flex items-center gap-2 md:gap-2.5">
+                <HeaderActionTooltip label="New note">
                   <button
-                    onClick={() => {
-                      if (onCollapseAllFolders && onExpandAllFolders) {
-                        const anyExpanded = folders.some((f) => f.isOpen);
-                        if (anyExpanded) {
-                          onCollapseAllFolders();
-                        } else {
-                          onExpandAllFolders();
-                        }
-                      } else if (onCollapseAllFolders) {
-                        onCollapseAllFolders();
-                      } else if (onExpandAllFolders) {
-                        onExpandAllFolders();
-                      }
-                    }}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
-                    title="Toggle all folders"
+                    onClick={onCreateFile}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
+                    aria-label="New note"
                   >
-                    <UnfoldVertical className="h-4 w-4" strokeWidth={1.5} />
+                    <NewNoteIcon />
                   </button>
-                </div>
-              )}
-              {hasSearchSection && (
-                <button
-                  onClick={openSearch}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95 md:h-8 md:w-8"
-                  title="Search notes"
-                >
-                  <Search className="h-4 w-4" strokeWidth={1.5} />
-                </button>
-              )}
-              <SidebarConfigManager
-                open={isConfigOpen}
-                onOpenChange={setIsConfigOpen}
-                hideTrigger
-                sections={sidebarStore.config.sections}
-                showSectionHeaders={sidebarStore.config.showSectionHeaders}
-                compactMode={sidebarStore.config.compactMode}
-                onReorderSections={sidebarStore.reorderSections}
-                onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
-                onAddCustomSection={sidebarStore.addCustomSection}
-                onRemoveSection={sidebarStore.removeSection}
-                onRenameSection={sidebarStore.renameSection}
-                onToggleShowSectionHeaders={
-                  sidebarStore.toggleShowSectionHeaders
-                }
-                onToggleCompactMode={sidebarStore.toggleCompactMode}
-                onResetToDefaults={sidebarStore.resetToDefaults}
-              />
-            </div>
+                </HeaderActionTooltip>
+                <HeaderActionTooltip label="New folder">
+                  <button
+                    onClick={onCreateFolder}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
+                    aria-label="New folder"
+                  >
+                    <NewFolderNoteIcon />
+                  </button>
+                </HeaderActionTooltip>
+                <HeaderActionTooltip label="Manage sections">
+                  <button
+                    onClick={openConfigPanel}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
+                    aria-label="Manage sections"
+                  >
+                    <PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
+                  </button>
+                </HeaderActionTooltip>
+                {(onCollapseAllFolders || onExpandAllFolders) && (
+                  <div className="relative flex">
+                    <HeaderActionTooltip label="Toggle all folders">
+                      <button
+                        onClick={() => {
+                          if (onCollapseAllFolders && onExpandAllFolders) {
+                            const anyExpanded = folders.some((f) => f.isOpen);
+                            if (anyExpanded) {
+                              onCollapseAllFolders();
+                            } else {
+                              onExpandAllFolders();
+                            }
+                          } else if (onCollapseAllFolders) {
+                            onCollapseAllFolders();
+                          } else if (onExpandAllFolders) {
+                            onExpandAllFolders();
+                          }
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
+                        aria-label="Toggle all folders"
+                      >
+                        <UnfoldVertical className="h-4 w-4" strokeWidth={1.5} />
+                      </button>
+                    </HeaderActionTooltip>
+                  </div>
+                )}
+                {hasSearchSection && (
+                  <HeaderActionTooltip label="Search notes">
+                    <button
+                      onClick={openSearch}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
+                      aria-label="Search notes"
+                    >
+                      <Search className="h-4 w-4" strokeWidth={1.5} />
+                    </button>
+                  </HeaderActionTooltip>
+                )}
+                <SidebarConfigManager
+                  open={isConfigOpen}
+                  onOpenChange={setIsConfigOpen}
+                  hideTrigger
+                  sections={sidebarStore.config.sections}
+                  showSectionHeaders={sidebarStore.config.showSectionHeaders}
+                  compactMode={sidebarStore.config.compactMode}
+                  onReorderSections={sidebarStore.reorderSections}
+                  onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
+                  onAddCustomSection={sidebarStore.addCustomSection}
+                  onRemoveSection={sidebarStore.removeSection}
+                  onRenameSection={sidebarStore.renameSection}
+                  onToggleShowSectionHeaders={
+                    sidebarStore.toggleShowSectionHeaders
+                  }
+                  onToggleCompactMode={sidebarStore.toggleCompactMode}
+                  onResetToDefaults={sidebarStore.resetToDefaults}
+                />
+              </div>
+            </TooltipProvider>
 
             {showCloseButton && (
               <button
                 onClick={onRequestClose}
-                className="ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground md:hidden"
+                className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground md:hidden"
                 title="Close sidebar"
               >
                 <X className="h-4 w-4" strokeWidth={1.5} />
@@ -477,11 +629,11 @@ export function SidebarPanel({
           {hasSearchSection && (
             <div
               className={cn(
-                "absolute inset-x-0 top-0 px-3 py-2.5 transition-transform duration-200 md:h-12 md:px-4 md:py-2",
-                isSearchOpen ? "translate-y-0" : "translate-y-12",
+                "absolute inset-x-0 top-0 h-11 px-3 transition-transform duration-200",
+                isSearchOpen ? "translate-y-0" : "translate-y-11",
               )}
             >
-              <div className="flex items-center gap-2 rounded-2xl border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
+              <div className="flex h-full items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
                 <Search
                   className="h-4 w-4 shrink-0 text-muted-foreground"
                   strokeWidth={1.5}
@@ -497,11 +649,11 @@ export function SidebarPanel({
                     }
                   }}
                   placeholder="Search"
-                  className="h-9 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
+                  className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
                 />
                 <button
                   onClick={closeSearch}
-                  className="inline-flex h-7 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                   title="Close search"
                 >
                   <X className="h-4 w-4" strokeWidth={1.5} />

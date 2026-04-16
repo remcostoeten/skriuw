@@ -17,10 +17,21 @@ type Props = {
   compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onRename: (name: string) => void;
   onDelete: () => void;
   onFileSelect: (id: string) => void;
   onRemoveFromSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
+  isDraggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
 };
 
 export const CustomSection = memo(function CustomSection({
@@ -33,10 +44,21 @@ export const CustomSection = memo(function CustomSection({
   compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onRename,
   onDelete,
   onFileSelect,
   onRemoveFromSection,
+  isDraggable,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: Props) {
   const fileIds = section.customConfig?.fileIds ?? [];
   const folderIds = section.customConfig?.folderIds ?? [];
@@ -61,8 +83,19 @@ export const CustomSection = memo(function CustomSection({
       itemCount={totalItems}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
       onRename={onRename}
       onDelete={onDelete}
+      isDraggable={isDraggable}
+      isDragging={isDragging}
+      isDropTarget={isDropTarget}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
     >
       {totalItems === 0 ? (
         <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>

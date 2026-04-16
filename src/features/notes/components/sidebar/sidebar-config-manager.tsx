@@ -1,7 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, GripVertical, Eye, EyeOff, Plus, RotateCcw, Sliders, X } from 'lucide-react';
+import {
+  Settings,
+  GripVertical,
+  Eye,
+  EyeOff,
+  Plus,
+  RotateCcw,
+  Sliders,
+  X,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { SidebarSection as SidebarSectionType } from './types';
 import {
@@ -109,6 +120,26 @@ export function SidebarConfigManager({
     setDraggedSectionId(null);
   };
 
+  const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+    const movableSections = sortedSections.filter((section) => section.type !== 'file-tree');
+    const currentIndex = movableSections.findIndex((section) => section.id === sectionId);
+
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= movableSections.length) return;
+
+    const nextMovableSections = [...movableSections];
+    const [movedSection] = nextMovableSections.splice(currentIndex, 1);
+    nextMovableSections.splice(targetIndex, 0, movedSection);
+
+    const pinnedSections = sortedSections
+      .filter((section) => section.type === 'file-tree')
+      .map((section) => section.id);
+
+    onReorderSections([...pinnedSections, ...nextMovableSections.map((section) => section.id)]);
+  };
+
   const getSectionIcon = (type: string) => {
     switch (type) {
       case 'search': return 'Search';
@@ -154,6 +185,9 @@ export function SidebarConfigManager({
                 Add section
               </button>
             </div>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Drag sections or use the arrows to change their order.
+            </p>
 
             {/* Add new section input */}
             {isAddingSection && (
@@ -193,61 +227,92 @@ export function SidebarConfigManager({
 
             {/* Section list */}
             <div className="space-y-1">
-              {sortedSections.map((section) => (
-                <div
-                  key={section.id}
-                  draggable={section.type !== 'file-tree'}
-                  onDragStart={(e) => handleDragStart(e, section.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, section.id)}
-                  onDragEnd={handleDragEnd}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border border-transparent p-2 transition-all",
-                    section.type !== 'file-tree' && "cursor-move",
-                    draggedSectionId === section.id 
-                      ? "opacity-50 border-primary/50" 
-                      : "hover:bg-accent/30",
-                    !section.isVisible && "opacity-60"
-                  )}
-                >
-                  <GripVertical
+              {sortedSections.map((section, index) => {
+                const movableSections = sortedSections.filter((item) => item.type !== 'file-tree');
+                const movableIndex = movableSections.findIndex((item) => item.id === section.id);
+                const canMoveUp = movableIndex > 0;
+                const canMoveDown = movableIndex !== -1 && movableIndex < movableSections.length - 1;
+
+                return (
+                  <div
+                    key={section.id}
+                    draggable={section.type !== 'file-tree'}
+                    onDragStart={(e) => handleDragStart(e, section.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, section.id)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
-                      "h-3.5 w-3.5 shrink-0 text-muted-foreground",
-                      section.type === 'file-tree' && "opacity-30",
+                      "flex items-center gap-2 rounded-lg border p-2 transition-all",
+                      section.type !== 'file-tree' && "cursor-move",
+                      draggedSectionId === section.id
+                        ? "border-primary/50 bg-accent/40 opacity-50"
+                        : "border-border/60 hover:bg-accent/30",
+                      !section.isVisible && "opacity-60"
                     )}
-                  />
-                  <span className="flex-1 text-sm truncate">{section.name}</span>
-                  {section.type === 'file-tree' ? (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
-                      Pinned
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">
-                      {getSectionIcon(section.type)}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => onToggleSectionVisibility(section.id)}
-                    className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                    title={section.isVisible ? 'Hide section' : 'Show section'}
                   >
-                    {section.isVisible ? (
-                      <Eye className="w-3.5 h-3.5" />
-                    ) : (
-                      <EyeOff className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                  {section.type === 'custom' && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <GripVertical
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 text-muted-foreground",
+                          section.type === 'file-tree' && "opacity-30",
+                        )}
+                      />
+                      <div className="flex flex-col">
+                        <button
+                          onClick={() => moveSection(section.id, 'up')}
+                          disabled={!canMoveUp}
+                          className="flex h-3.5 w-3.5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+                          title="Move up"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => moveSection(section.id, 'down')}
+                          disabled={!canMoveDown}
+                          className="flex h-3.5 w-3.5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+                          title="Move down"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">{section.name}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                        <span>{getSectionIcon(section.type)}</span>
+                        {section.type === 'file-tree' && (
+                          <span className="rounded-full border border-border px-1.5 py-0.5 tracking-[0.16em]">
+                            Pinned
+                          </span>
+                        )}
+                        {index < sortedSections.length - 1 && (
+                          <span className="text-muted-foreground/35">#{index + 1}</span>
+                        )}
+                      </div>
+                    </div>
                     <button
-                      onClick={() => onRemoveSection(section.id)}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Remove section"
+                      onClick={() => onToggleSectionVisibility(section.id)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                      title={section.isVisible ? 'Hide' : 'Show'}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      {section.isVisible ? (
+                        <Eye className="w-3.5 h-3.5" />
+                      ) : (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      )}
                     </button>
-                  )}
-                </div>
-              ))}
+                    {section.type === 'custom' && (
+                      <button
+                        onClick={() => onRemoveSection(section.id)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
+                        title="Remove"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

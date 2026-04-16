@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { journalRepository, notesRepository } from "@/core/persistence/repositories";
+import { listJournalEntries } from "@/core/persistence/journal";
+import { listNotes } from "@/core/persistence/notes";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 
-export type ProfileSummary = {
+type ProfileSummary = {
   noteCount: number;
   journalEntryCount: number;
   isLoading: boolean;
@@ -34,8 +35,8 @@ export function useProfileSummary() {
     void (async () => {
       try {
         const [notes, journalEntries] = await Promise.all([
-          notesRepository.list(),
-          journalRepository.listEntries(),
+          listNotes(),
+          listJournalEntries(),
         ]);
 
         if (cancelled) {
@@ -65,7 +66,7 @@ export function useProfileSummary() {
     return () => {
       cancelled = true;
     };
-  }, [auth.workspaceMode, auth.phase, auth.workspaceId]);
+  }, [auth.phase, auth.workspaceId]);
 
   return {
     auth,

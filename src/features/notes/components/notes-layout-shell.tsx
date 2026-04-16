@@ -1,10 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { EditorContainer } from "@/features/editor/components/editor-container";
+import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
@@ -25,6 +28,8 @@ function NotesEditorSkeleton() {
 }
 
 export function NotesLayoutShell() {
+  const auth = useAuthSnapshot();
+  const router = useRouter();
   const layout = useNotesLayout();
   const {
     activeFile,
@@ -65,6 +70,16 @@ export function NotesLayoutShell() {
     shortcutGroups,
     updateFileContent,
   } = layout;
+
+  useEffect(() => {
+    if (auth.isReady && auth.phase !== "authenticated") {
+      router.push("/register");
+    }
+  }, [auth.isReady, auth.phase, router]);
+
+  if (auth.isReady && auth.phase !== "authenticated") {
+    return null;
+  }
 
   return (
     <LayoutContainer className="bg-background">

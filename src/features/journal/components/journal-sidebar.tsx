@@ -28,8 +28,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useJournalStore } from "@/features/journal/store";
 import { type MoodLevel, type DateKey, MOOD_OPTIONS } from "@/features/journal/types";
+import { useJournalEntries, useJournalTags } from "../hooks/use-journal-queries";
 
 const JournalStats = dynamic(
   () => import("./journal-stats").then((mod) => ({ default: mod.JournalStats })),
@@ -48,14 +48,16 @@ type JournalSidebarProps = {
 };
 
 export function JournalSidebar({ selectedDate, onSelectDate, className }: JournalSidebarProps) {
-  const store = useJournalStore();
+  const { data: entries = [] } = useJournalEntries();
+  const { data: allTags = [] } = useJournalTags();
+  
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
   const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMood, setSelectedMood] = useState<MoodLevel | "all">("all");
   const [selectedTag, setSelectedTag] = useState<string | "all">("all");
 
-  const datesWithEntries = store.getDatesWithEntries();
+  const datesWithEntries = useMemo(() => entries.map(e => e.dateKey), [entries]);
   const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);
 
   const calendarDays = useMemo(() => {
@@ -66,12 +68,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
-  const allEntries = useMemo(() => {
-    return [...store.config.entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-  }, [store.config.entries]);
+  const allEntriesSorted = useMemo(() => {
+    return [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  }, [entries]);
 
   const filteredEntries = useMemo(() => {
-    let filtered = [...store.config.entries];
+    let filtered = [...entries];
 
     // Search filter
     if (searchQuery.trim()) {
@@ -94,14 +96,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
     }
 
     return filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-  }, [store.config.entries, searchQuery, selectedMood, selectedTag]);
+  }, [entries, searchQuery, selectedMood, selectedTag]);
 
   const entriesForMonth = useMemo(() => {
     const prefix = format(currentMonth, "yyyy-MM");
-    return allEntries.filter((e) => e.dateKey.startsWith(prefix));
-  }, [allEntries, currentMonth]);
-
-  const allTags = store.getAllTags();
+    return allEntriesSorted.filter((e) => e.dateKey.startsWith(prefix));
+  }, [allEntriesSorted, currentMonth]);
 
   const goToToday = () => {
     const today = new Date();
@@ -120,15 +120,15 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
   return (
     <div
       className={cn(
-        "flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-card/50",
+        "flex h-full w-full shrink-0 flex-col bg-background",
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex h-11 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
         <h2 className="text-sm font-semibold text-foreground">Journal</h2>
         <button
           onClick={goToToday}
-          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
           title="Go to today"
         >
           <CalendarDays className="h-3 w-3" strokeWidth={1.5} />
@@ -140,27 +140,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
       <div
         role="tablist"
         aria-label="Journal sidebar views"
-        onKeyDown={(event) => {
-          const currentIndex = journalTabs.findIndex((tab) => tab.id === view);
-          if (currentIndex === -1) {
-            return;
-          }
-
-          if (event.key === "ArrowRight") {
-            event.preventDefault();
-            setView(journalTabs[(currentIndex + 1) % journalTabs.length].id);
-          } else if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            setView(journalTabs[(currentIndex - 1 + journalTabs.length) % journalTabs.length].id);
-          } else if (event.key === "Home") {
-            event.preventDefault();
-            setView(journalTabs[0].id);
-          } else if (event.key === "End") {
-            event.preventDefault();
-            setView(journalTabs[journalTabs.length - 1].id);
-          }
-        }}
-        className="flex items-center border-b border-border px-2 py-1"
+        className="flex h-11 items-center border-b border-border px-2"
       >
         {journalTabs.map((tab) => (
           <button
@@ -169,8 +149,6 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
             role="tab"
             aria-selected={view === tab.id}
             aria-label={tab.label}
-            tabIndex={view === tab.id ? 0 : -1}
-            title={tab.label}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
               view === tab.id
@@ -316,165 +294,13 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
               )}
             </div>
 
-            {/* Filters */}
-            <div className="space-y-2">
-              {/* Mood filter */}
-              <div>
-                <div className="flex items-center gap-1 mb-1.5">
-                  <Filter className="h-2.5 w-2.5 text-muted-foreground/50" strokeWidth={1.5} />
-                  <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-                    Mood
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-0.5">
-                  <button
-                    onClick={() => setSelectedMood("all")}
-                    className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
-                      selectedMood === "all"
-                        ? "border border-border bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    All
-                  </button>
-                  {(
-                    Object.entries(MOOD_OPTIONS) as [MoodLevel, (typeof MOOD_OPTIONS)[MoodLevel]][]
-                  ).map(([key, mood]) => (
-                    <button
-                      key={key}
-                      onClick={() => setSelectedMood(key)}
-                      className={cn(
-                        "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
-                        selectedMood === key
-                          ? cn("border border-border bg-muted text-foreground", mood.color)
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      {mood.icon}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tag filter */}
-              {allTags.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1 mb-1.5">
-                    <Filter className="h-2.5 w-2.5 text-muted-foreground/50" strokeWidth={1.5} />
-                    <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-                      Tag
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-0.5">
-                    <button
-                      onClick={() => setSelectedTag("all")}
-                      className={cn(
-                        "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
-                        selectedTag === "all"
-                          ? "border border-border bg-muted text-foreground"
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      All
-                    </button>
-                    {allTags.slice(0, 6).map((tag) => (
-                      <button
-                        key={tag.id}
-                        onClick={() => setSelectedTag(tag.name)}
-                        className={cn(
-                          "rounded-md px-1.5 py-0.5 text-[9px] transition-colors",
-                          selectedTag === tag.name
-                            ? "border border-border bg-muted text-foreground"
-                            : "text-muted-foreground hover:bg-muted",
-                        )}
-                      >
-                        @{tag.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Results */}
             <div className="mt-3">
               <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40 mb-1.5">
                 {filteredEntries.length} {filteredEntries.length === 1 ? "result" : "results"}
               </p>
-              {filteredEntries.length === 0 ? (
-                <div className="border border-dashed border-border bg-background px-3 py-4 text-center">
-                  <p className="text-[11px] text-muted-foreground/60">No entries found.</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground/40">
-                    Try adjusting your search or filters.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {filteredEntries.map((entry) => {
-                    const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
-                    const isActive = entry.dateKey === format(selectedDate, "yyyy-MM-dd");
-                    return (
-                      <button
-                        key={entry.id}
-                        onClick={() => {
-                          const [y, m, d] = entry.dateKey.split("-").map(Number);
-                          const date = new Date(y, m - 1, d);
-                          setCurrentMonth(date);
-                          onSelectDate(date);
-                          setView("calendar");
-                        }}
-                        className={cn(
-                          "flex w-full items-start gap-2 border border-transparent px-2 py-2 text-left transition-colors",
-                          isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium text-foreground/80">
-                              {format(new Date(entry.dateKey + "T00:00:00"), "EEE, dd MM yyyy")}
-                            </span>
-                            {mood && (
-                              <span className={cn("text-[10px]", mood.color)}>{mood.icon}</span>
-                            )}
-                          </div>
-                          <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground/60">
-                            {entry.content.slice(0, 80) || "Empty entry"}
-                          </p>
-                          {entry.tags.length > 0 && (
-                            <div className="mt-0.5 flex flex-wrap gap-0.5">
-                              {entry.tags.slice(0, 2).map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="border border-border bg-background px-1 py-px text-[8px] text-muted-foreground"
-                                >
-                                  @{tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {view === "all" && (
-          <div className="p-3">
-            {allEntries.length === 0 ? (
-              <div className="border border-dashed border-border bg-background px-4 py-6 text-center">
-                <p className="text-[12px] text-muted-foreground/60">No entries yet.</p>
-                <p className="mt-1 text-[11px] text-muted-foreground/40">
-                  Select a date to start writing.
-                </p>
-              </div>
-            ) : (
               <div className="space-y-0.5">
-                {allEntries.map((entry) => {
+                {filteredEntries.map((entry) => {
                   const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
                   const isActive = entry.dateKey === format(selectedDate, "yyyy-MM-dd");
                   return (
@@ -485,105 +311,121 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                         const date = new Date(y, m - 1, d);
                         setCurrentMonth(date);
                         onSelectDate(date);
+                        setView("calendar");
                       }}
                       className={cn(
-                        "flex w-full items-start gap-2.5 border border-transparent px-2.5 py-2.5 text-left transition-colors",
+                        "flex w-full items-start gap-2 border border-transparent px-2 py-2 text-left transition-colors",
                         isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-medium text-foreground/80">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-medium text-foreground/80">
                             {format(new Date(entry.dateKey + "T00:00:00"), "EEE, dd MM yyyy")}
                           </span>
                           {mood && (
-                            <span className={cn("text-[11px]", mood.color)}>{mood.icon}</span>
+                            <span className={cn("text-[10px]", mood.color)}>{mood.icon}</span>
                           )}
                         </div>
-                        <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/60">
-                          {entry.content.slice(0, 120) || "Empty entry"}
+                        <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground/60">
+                          {entry.content.slice(0, 80) || "Empty entry"}
                         </p>
-                        {entry.tags.length > 0 && (
-                          <div className="mt-0.5 flex flex-wrap gap-1">
-                            {entry.tags.slice(0, 4).map((tag) => (
-                              <span
-                                key={tag}
-                                className="border border-border bg-background px-1.5 py-px text-[9px] text-muted-foreground"
-                              >
-                                @{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </button>
                   );
                 })}
               </div>
-            )}
+            </div>
+          </div>
+        )}
+
+        {view === "all" && (
+          <div className="p-3">
+            <div className="space-y-0.5">
+              {allEntriesSorted.map((entry) => {
+                const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
+                const isActive = entry.dateKey === format(selectedDate, "yyyy-MM-dd");
+                return (
+                  <button
+                    key={entry.id}
+                    onClick={() => {
+                      const [y, m, d] = entry.dateKey.split("-").map(Number);
+                      const date = new Date(y, m - 1, d);
+                      setCurrentMonth(date);
+                      onSelectDate(date);
+                    }}
+                    className={cn(
+                      "flex w-full items-start gap-2.5 border border-transparent px-2.5 py-2.5 text-left transition-colors",
+                      isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-medium text-foreground/80">
+                          {format(new Date(entry.dateKey + "T00:00:00"), "EEE, dd MM yyyy")}
+                        </span>
+                        {mood && (
+                          <span className={cn("text-[11px]", mood.color)}>{mood.icon}</span>
+                        )}
+                      </div>
+                      <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/60">
+                        {entry.content.slice(0, 120) || "Empty entry"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {view === "tags" && (
           <div className="p-3">
-            {allTags.length === 0 ? (
-              <div className="border border-dashed border-border bg-background px-4 py-6 text-center">
-                <p className="text-[12px] text-muted-foreground/60">No tags yet.</p>
-                <p className="mt-1 text-[11px] text-muted-foreground/40">
-                  Use @tag in your entries to create tags.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {allTags.map((tag) => {
-                  const tagEntries = store.getEntriesByTag(tag.name);
-                  return (
-                    <div
-                      key={tag.id}
-                      className="border border-transparent px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span className="text-[12px] font-medium text-foreground/80">
-                          @{tag.name}
-                        </span>
-                        <span className="ml-auto text-[10px] text-muted-foreground/50">
-                          {tag.usageCount} {tag.usageCount === 1 ? "entry" : "entries"}
-                        </span>
-                      </div>
-                      {tagEntries.length > 0 && (
-                        <div className="mt-1.5 space-y-0.5 pl-[18px]">
-                          {tagEntries.slice(0, 3).map((entry) => (
-                            <button
-                              key={entry.id}
-                              onClick={() => {
-                                const [y, m, d] = entry.dateKey.split("-").map(Number);
-                                const date = new Date(y, m - 1, d);
-                                setCurrentMonth(date);
-                                onSelectDate(date);
-                                setView("calendar");
-                              }}
-                              className="flex w-full items-center gap-1.5 border border-transparent px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-muted-foreground"
-                            >
-                              <span>{format(new Date(entry.dateKey + "T00:00:00"), "dd MM yyyy")}</span>
-                              <span className="truncate">{entry.content.slice(0, 30)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+            <div className="space-y-1">
+              {allTags.map((tag) => {
+                const tagEntries = entries.filter(e => e.tags.includes(tag.name));
+                return (
+                  <div
+                    key={tag.id}
+                    className="border border-transparent px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="text-[12px] font-medium text-foreground/80">
+                        @{tag.name}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    {tagEntries.length > 0 && (
+                      <div className="mt-1.5 space-y-0.5 pl-[18px]">
+                        {tagEntries.slice(0, 3).map((entry) => (
+                          <button
+                            key={entry.id}
+                            onClick={() => {
+                              const [y, m, d] = entry.dateKey.split("-").map(Number);
+                              const date = new Date(y, m - 1, d);
+                              setCurrentMonth(date);
+                              onSelectDate(date);
+                              setView("calendar");
+                            }}
+                            className="flex w-full items-center gap-1.5 border border-transparent px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-muted-foreground"
+                          >
+                            <span>{format(new Date(entry.dateKey + "T00:00:00"), "dd MM yyyy")}</span>
+                            <span className="truncate">{entry.content.slice(0, 30)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
 
-      {/* New entry button */}
       <div className="border-t border-border p-2">
         <button
           onClick={goToToday}

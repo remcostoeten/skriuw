@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { CalendarDays, ChevronRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { useJournalStore } from "@/features/journal/store";
 import { MOOD_OPTIONS } from "@/features/journal/types";
+import { useJournalEntries } from "@/features/journal/hooks/use-journal-queries";
 import { SidebarSection } from "../sidebar-section";
 import { MiniCalendar } from "./mini-calendar";
 
@@ -16,6 +16,17 @@ type JournalSectionProps = {
   compactMode?: boolean;
   onToggleCollapse: () => void;
   onToggleVisibility?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  isDraggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
 };
 
 export function JournalSection({
@@ -24,22 +35,31 @@ export function JournalSection({
   compactMode = false,
   onToggleCollapse,
   onToggleVisibility,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+  isDraggable,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: JournalSectionProps) {
   const router = useRouter();
-  const store = useJournalStore();
-  const initializeJournal = useJournalStore((state) => state.initialize);
+  const { data: entries = [] } = useJournalEntries();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [view, setView] = useState<"calendar" | "entries">("calendar");
 
-  const datesWithEntries = store.getDatesWithEntries();
-  const entryCount = store.config.entries.length;
-  const selectedEntry = store.getEntryByDateKey(format(selectedDate, "yyyy-MM-dd"));
+  const datesWithEntries = useMemo(() => entries.map((entry) => entry.dateKey), [entries]);
+  const entryCount = entries.length;
+  const selectedEntry = useMemo(
+    () => entries.find((entry) => entry.dateKey === format(selectedDate, "yyyy-MM-dd")),
+    [entries, selectedDate],
+  );
   const selectedDateKey = format(selectedDate, "yyyy-MM-dd");
-
-  useEffect(() => {
-    void initializeJournal();
-  }, [initializeJournal]);
 
   const openJournalDate = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
@@ -48,10 +68,10 @@ export function JournalSection({
 
   // Recent entries for the "entries" view
   const recentEntries = useMemo(() => {
-    return [...store.config.entries]
+    return [...entries]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5);
-  }, [store.config.entries]);
+  }, [entries]);
 
   const todayButton = (
     <button
@@ -78,7 +98,18 @@ export function JournalSection({
       itemCount={entryCount}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
       actions={todayButton}
+      isDraggable={isDraggable}
+      isDragging={isDragging}
+      isDropTarget={isDropTarget}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
     >
       <div className={cn("space-y-2", compactMode && "space-y-1")}>
         <div className={cn("flex items-center gap-1")}>

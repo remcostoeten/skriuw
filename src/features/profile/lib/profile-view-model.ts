@@ -1,17 +1,17 @@
 import type { AuthSnapshot } from "@/platform/auth";
 
-export type ProfileIdentityRow = {
+type ProfileIdentityRow = {
   label: string;
   value: string;
 };
 
-export type ProfileMetric = {
+type ProfileMetric = {
   label: string;
   value: string;
   hint: string;
 };
 
-export type ProfileViewModel = {
+type ProfileViewModel = {
   title: string;
   subtitle: string;
   statusLabel: string;
@@ -29,12 +29,7 @@ function resolveStatusLabel(auth: AuthSnapshot) {
   if (auth.phase === "authenticated") {
     return "Authenticated";
   }
-
-  if (auth.workspaceMode === "cloud") {
-    return "Signed out";
-  }
-
-  return "Guest";
+  return "Signed out";
 }
 
 function resolveWorkspaceLabel(auth: AuthSnapshot) {
@@ -42,7 +37,7 @@ function resolveWorkspaceLabel(auth: AuthSnapshot) {
     return "Cloud workspace";
   }
 
-  return auth.workspaceMode === "cloud" ? "Cloud workspace on this device" : "Guest workspace";
+  return "Account required";
 }
 
 export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, journalEntryCount: number): ProfileViewModel {
@@ -52,7 +47,7 @@ export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, jo
     title: isAuthenticated ? auth.user?.name ?? "Account" : "Workspace",
     subtitle: isAuthenticated
       ? "Your cloud workspace profile and summary."
-      : "Sign in to keep notes and journal entries in your own cloud account.",
+      : "Sign in to access your account-backed notes and journal workspace.",
     statusLabel: resolveStatusLabel(auth),
     workspaceLabel: resolveWorkspaceLabel(auth),
     isAuthenticated,
@@ -80,14 +75,14 @@ export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, jo
         value: formatCount(noteCount, "note", "notes"),
         hint: isAuthenticated
           ? "Private to this account."
-          : "Stored locally on this device.",
+          : "Available after sign-in.",
       },
       {
         label: "Journal entries",
         value: formatCount(journalEntryCount, "entry", "entries"),
         hint: isAuthenticated
           ? "Private to this account."
-          : "Stored locally on this device.",
+          : "Available after sign-in.",
       },
     ],
   };
