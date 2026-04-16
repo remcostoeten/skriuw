@@ -14,7 +14,7 @@ import { palette } from "@/src/ui/styles";
 
 SplashScreen.preventAutoHideAsync();
 
-const PUBLIC_PATHS = new Set(["/sign-in", "/splash", "/auth/callback"]);
+const PUBLIC_PATHS = new Set(["/sign-in", "/login", "/splash", "/auth/callback"]);
 const SIGN_IN_ROUTE = "/sign-in" as Href;
 const AUTHENTICATED_HOME = "/notes" as Href;
 
