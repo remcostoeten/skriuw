@@ -34,13 +34,14 @@ export function PersistenceBootstrap() {
 
     const workspaceId = auth.workspaceId;
     const isAuthenticated = auth.phase === "authenticated" && auth.user !== null;
+    const authenticatedUserId = auth.user?.id ?? null;
     let isCancelled = false;
     resetNotesWorkspace();
     resetJournalWorkspace();
 
     void (async () => {
-      if (isAuthenticated) {
-        await ensureCloudStarterContentSeeded(auth.user.id);
+      if (isAuthenticated && authenticatedUserId) {
+        await ensureCloudStarterContentSeeded(authenticatedUserId);
       } else {
         await ensurePrivacyDemoSeeded(workspaceId);
       }

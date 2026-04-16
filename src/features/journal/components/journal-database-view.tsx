@@ -405,7 +405,7 @@ export function JournalDatabaseView({
       </div>
 
       <div className="mx-auto w-full max-w-[980px] px-8 md:px-16">
-        <div className="mt-6 overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(245,240,232,0.96),rgba(255,252,247,0.92))] shadow-[0_24px_70px_rgba(53,33,17,0.08)]">
+        <div className="mt-6 overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-lg">
           <div className="flex flex-col gap-5 border-b border-border/70 px-6 py-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-[36rem] space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/70">
@@ -504,7 +504,7 @@ export function JournalDatabaseView({
                   triggerNativeFeedback("success");
                   onNewEntry();
                 }}
-                className="pressable ml-1 flex h-8 items-center gap-1.5 rounded-full bg-[#bc5b2c] px-3.5 text-[12px] font-medium text-[#fff7ef] transition-colors hover:bg-[#a94f23]"
+                className="pressable ml-1 flex h-8 items-center gap-1.5 rounded-full bg-primary px-3.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <Plus className="h-3 w-3" strokeWidth={2.5} />
                 New Entry
@@ -548,7 +548,7 @@ export function JournalDatabaseView({
       >
         <div className="mt-5">
           {filteredEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border/70 bg-background/78 py-20 text-center shadow-[0_18px_44px_rgba(53,33,17,0.05)]">
+            <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border/70 bg-background/78 py-20 text-center shadow-md">
               <div className="mb-4 rounded-full border border-border/70 bg-accent/30 px-4 py-2 text-[22px]">
                 📝
               </div>
@@ -562,7 +562,7 @@ export function JournalDatabaseView({
           ) : (
             <div>
               <div
-                className="relative overflow-hidden rounded-[24px] border border-border/70 bg-background/84 shadow-[0_22px_50px_rgba(53,33,17,0.06)]"
+                className="relative overflow-hidden rounded-[24px] border border-border/70 bg-background/84 shadow-lg"
                 style={{ height: totalHeight }}
               >
                 {visibleEntries.map((entry, visibleIndex) => {

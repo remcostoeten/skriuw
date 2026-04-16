@@ -7,10 +7,10 @@ let remoteStores: RemoteStoreState;
 let putCalls: Array<{ storeName: string; id: string }> = [];
 
 function registerModuleMocks() {
-  mock.module("../local-records", () => ({
-    listLocalRecords: async () => [],
-    putLocalRecord: async <TRecord>(storeName: string, record: TRecord) => record,
-    destroyLocalRecord: async () => undefined,
+  mock.module("@/core/storage", () => ({
+    listRecords: async () => [],
+    putRecord: async <TRecord>(_storeName: string, record: TRecord) => record,
+    destroyRecord: async () => undefined,
   }));
 
   mock.module("@/core/persistence/supabase", () => ({

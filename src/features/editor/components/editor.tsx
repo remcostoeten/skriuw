@@ -64,21 +64,21 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
 
   if (!file) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center bg-[#1e1e1e] px-6 py-8">
-        <div className="w-full max-w-md border border-white bg-white/[0.03] px-6 py-7 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center border border-white bg-white/[0.05] text-white/80">
+      <div className="flex min-h-full flex-1 items-center justify-center bg-haptic-editor px-6 py-8">
+        <div className="w-full max-w-md border border-border bg-accent/30 px-6 py-7 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center border border-border bg-accent/50 text-muted-foreground">
             <PenSquare className="h-6 w-6" strokeWidth={1.6} />
           </div>
-          <h2 className="mt-4 text-lg font-semibold text-white/90">Pick a note to start writing</h2>
-          <p className="mt-2 text-sm leading-6 text-white/50">
+          <h2 className="mt-4 text-lg font-semibold text-foreground">Pick a note to start writing</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Choose a note from the sidebar, or create a fresh one with the actions at the top left.
           </p>
-          <div className="mt-5 grid gap-2 text-left text-xs text-white/55">
-            <div className="flex items-center gap-2 border border-white bg-white/[0.025] px-3 py-2.5">
+          <div className="mt-5 grid gap-2 text-left text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 border border-border bg-accent/20 px-3 py-2.5">
               <FolderOpen className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
               <span>Browse folders and notes from the sidebar tree.</span>
             </div>
-            <div className="flex items-center gap-2 border border-white bg-white/[0.025] px-3 py-2.5">
+            <div className="flex items-center gap-2 border border-border bg-accent/20 px-3 py-2.5">
               <Command className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
               <span>Use the command palette for quick actions and navigation.</span>
             </div>
@@ -88,7 +88,7 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
     );
   }
 
-  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-[#1e1e1e]";
+  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-haptic-editor";
   const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
 
   if (editorMode === "block") {

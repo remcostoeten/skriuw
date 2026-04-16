@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create, type StateCreator } from "zustand";
 import type { CreateNoteInput } from "@/core/notes";
 import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
 import { foldersRepository, notesRepository } from "@/core/persistence/repositories";
@@ -73,7 +73,7 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
 }
 
 function setFileSaveState(
-  set: Parameters<typeof create<NotesState>>[0],
+  set: Parameters<StateCreator<NotesState>>[0],
   id: string,
   status: SaveStatus,
 ) {
@@ -85,7 +85,7 @@ function setFileSaveState(
 function scheduleWorkspaceSaveStateReset(
   workspaceGuard: WorkspaceGuard,
   id: string,
-  set: Parameters<typeof create<NotesState>>[0],
+  set: Parameters<StateCreator<NotesState>>[0],
 ) {
   scheduleSaveStatusReset(id, () => {
     workspaceGuard.runIfCurrent(() => {

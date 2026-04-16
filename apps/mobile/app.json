@@ -5,14 +5,17 @@
     "scheme": "skriuw",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "description": "A calm notes and journal workspace with a private guest mode.",
-    "backgroundColor": "#f6f2ea",
+    "userInterfaceStyle": "dark",
+    "description": "A calm notes and journal workspace connected to your account.",
+    "backgroundColor": "#121212",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-web-browser"
     ],
     "splash": {
-      "backgroundColor": "#f6f2ea"
+      "backgroundColor": "#121212",
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
     },
     "experiments": {
       "typedRoutes": true

@@ -1,5 +1,48 @@
 # Skriuw
 
+## Mobile
+
+Run the Expo app from the repo root:
+
+```bash
+bun run dev:mobile
+```
+
+Useful mobile commands:
+
+```bash
+bun run dev:mobile:tunnel
+bun run dev:mobile:lan
+bun run dev:mobile:web
+bun run dev:mobile:ios
+bun run dev:mobile:android
+bun run mobile:ios
+bun run mobile:android
+bun run mobile:typecheck
+bun run mobile:doctor
+```
+
+`dev:mobile:*` starts Expo with the relevant target or connection mode.
+`mobile:ios` and `mobile:android` run the native Expo build commands.
+
+Set up local Expo env vars if you want cloud-ready mobile config:
+
+```bash
+bun run mobile:env:setup
+```
+
+That copies the root `.env.local` into `apps/mobile/.env.local`.
+
+Mobile auth code accepts either:
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+So copying the root env file is enough for local setup if web is already configured.
+
 A keyboard-first note-taking application built with Next.js, React, and TypeScript.
 
 ## Features
@@ -77,7 +120,9 @@ Supabase project notes:
 - Enable Email/Password, Google, and GitHub providers if you want all auth options in the drawer.
 - Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
 - Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
+- For Expo mobile OAuth, also allow `skriuw://auth/callback` as a redirect URL in Supabase Auth.
 - The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, and `tags`, each scoped by `user_id` with RLS enabled.
+- Mobile now supports email/password plus Google and GitHub OAuth via Expo deep links.
 
 ### Build
 

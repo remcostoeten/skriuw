@@ -1,4 +1,5 @@
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { MobileNote } from "@/src/core/workspace-types";
 import { useWorkspace } from "@/src/features/workspace/workspace-context";
 import { formatDate, getNoteTitle } from "@/src/lib/workspace-format";
@@ -6,118 +7,83 @@ import { commonStyles, palette } from "@/src/ui/styles";
 
 export function NoteEditorPane({
   note,
-  onDeleted,
+  onBack,
+  onOpenMove,
+  onOpenActions,
 }: {
   note: MobileNote;
-  onDeleted: () => void;
+  onBack: () => void;
+  onOpenMove: () => void;
+  onOpenActions: () => void;
 }) {
-  const { workspace, createFolder, updateNote, deleteNote, deleteFolder } = useWorkspace();
+  const { workspace, updateNote } = useWorkspace();
   const selectedFolder = workspace.folders.find((folder) => folder.id === note.parentId) ?? null;
   const isEmptyNote = note.name.trim().length === 0 && note.content.trim().length === 0;
+  const locationLabel = selectedFolder?.name ?? "Inbox";
+  const updatedLabel = formatDate(note.updatedAt);
 
   return (
-    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.scrollContent}>
-      <View style={commonStyles.card}>
-        <TextInput
-          value={note.name}
-          onChangeText={(value) => void updateNote(note.id, { name: value })}
-          placeholder="Title"
-          placeholderTextColor={palette.textSoft}
-          autoFocus={isEmptyNote}
-          style={commonStyles.titleInput}
-        />
-        <Text style={commonStyles.caption}>
-          {selectedFolder?.name ?? "Inbox"} · Updated {formatDate(note.updatedAt)}
-        </Text>
-        <TextInput
-          value={note.content}
-          onChangeText={(value) => void updateNote(note.id, { content: value })}
-          placeholder="Start writing"
-          placeholderTextColor={palette.textSoft}
-          multiline
-          style={commonStyles.noteBodyInput}
-        />
-      </View>
+    <SafeAreaView style={commonStyles.screen} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={commonStyles.screen}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={commonStyles.editorTopBar}>
+          <Pressable style={commonStyles.editorTopBarButton} onPress={onBack}>
+            <Text style={commonStyles.editorTopBarButtonLabel}>Back</Text>
+          </Pressable>
+          <Text style={commonStyles.editorTopBarMeta}>Edited {updatedLabel}</Text>
+        </View>
 
-      <View style={commonStyles.card}>
-        <View style={commonStyles.sectionHeader}>
-          <Text style={commonStyles.sectionTitle}>Folder</Text>
-          <Pressable
-            style={commonStyles.buttonSecondarySmall}
-            onPress={async () => {
-              const folder = await createFolder();
-              await updateNote(note.id, { parentId: folder.id });
-            }}
-          >
-            <Text style={commonStyles.buttonLabelSecondarySmall}>New folder</Text>
-          </Pressable>
-        </View>
-        <Text style={commonStyles.subtitle}>
-          Keep the note in your inbox or file it into a folder.
-        </Text>
-        <View style={commonStyles.rowWrap}>
-          <Pressable
-            style={note.parentId === null ? commonStyles.button : commonStyles.buttonSecondary}
-            onPress={() => void updateNote(note.id, { parentId: null })}
-          >
-            <Text style={note.parentId === null ? commonStyles.buttonLabel : commonStyles.buttonLabelSecondary}>
-              Inbox
-            </Text>
-          </Pressable>
-          {workspace.folders.map((folder) => (
-            <Pressable
-              key={folder.id}
-              style={folder.id === note.parentId ? commonStyles.button : commonStyles.buttonSecondary}
-              onPress={() => void updateNote(note.id, { parentId: folder.id })}
-              onLongPress={
-                folder.id === note.parentId
-                  ? () =>
-                      Alert.alert(
-                        folder.name,
-                        "Delete this folder and move its notes back to Inbox?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => {
-                              void deleteFolder(folder.id);
-                              if (note.parentId === folder.id) {
-                                void updateNote(note.id, { parentId: null });
-                              }
-                            },
-                          },
-                        ],
-                      )
-                  : undefined
-              }
-            >
-              <Text style={folder.id === note.parentId ? commonStyles.buttonLabel : commonStyles.buttonLabelSecondary}>
-                {folder.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable
-          style={commonStyles.buttonDanger}
-          onPress={() =>
-            Alert.alert("Delete note?", "This removes the note from your mobile workspace.", [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: async () => {
-                  await deleteNote(note.id);
-                  onDeleted();
-                },
-              },
-            ])
-          }
+        <ScrollView
+          style={commonStyles.screen}
+          contentContainerStyle={commonStyles.editorScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-          <Text style={commonStyles.buttonLabelDanger}>Delete note</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+          <View style={commonStyles.editorHeaderBlock}>
+            <Text style={commonStyles.editorEyebrow}>{locationLabel}</Text>
+            <TextInput
+              value={note.name}
+              onChangeText={(value) => void updateNote(note.id, { name: value })}
+              placeholder="Title"
+              placeholderTextColor={palette.textSoft}
+              autoFocus={isEmptyNote}
+              style={[commonStyles.titleInput, commonStyles.editorTitleInput]}
+            />
+            <Text style={commonStyles.editorMetaText}>Updated {updatedLabel}</Text>
+          </View>
+
+          <View style={commonStyles.divider} />
+
+          <TextInput
+            value={note.content}
+            onChangeText={(value) => void updateNote(note.id, { content: value })}
+            placeholder="Start writing"
+            placeholderTextColor={palette.textSoft}
+            multiline
+            style={[commonStyles.noteBodyInput, commonStyles.editorBodyInput]}
+          />
+        </ScrollView>
+
+        <View style={commonStyles.editorBottomBar}>
+          <View style={commonStyles.editorBottomBarSummary}>
+            <Text style={commonStyles.editorBottomBarLabel}>Location</Text>
+            <Text numberOfLines={1} style={commonStyles.editorBottomBarValue}>
+              {locationLabel}
+            </Text>
+          </View>
+          <View style={commonStyles.editorBottomBarActions}>
+            <Pressable style={commonStyles.editorBottomBarButton} onPress={onOpenMove}>
+              <Text style={commonStyles.editorBottomBarButtonLabel}>Move</Text>
+            </Pressable>
+            <Pressable style={commonStyles.editorBottomBarButton} onPress={onOpenActions}>
+              <Text style={commonStyles.editorBottomBarButtonLabel}>More</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

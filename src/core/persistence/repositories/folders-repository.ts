@@ -1,4 +1,3 @@
-import type { CreateFolderInput, UpdateFolderInput } from "@/core/folders";
 import { fromPersistedFolder } from "@/core/folders";
 import {
   PERSISTED_STORE_NAMES,
@@ -12,10 +11,9 @@ import {
   putRemoteRecord,
   softDeleteRemoteRecords,
 } from "@/core/persistence/supabase";
-import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
-import { isCloudWorkspaceTarget, type WorkspaceTarget } from "./workspace-target";
-import type { FoldersRepository } from "./contracts";
-import type { NoteFolder } from "@/types/notes";
+import { destroyRecord, getRecord, listRecords, putRecord } from "@/core/storage";
+import { isCloudWorkspaceTarget } from "./workspace-target";
+import type { FoldersRepository, WorkspaceTarget } from "./contracts";
 
 function collectDescendantFolderIds(
   folders: Array<{ id: FolderId; parentId: FolderId | null }>,
@@ -46,7 +44,7 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
     list: async () => {
       const records = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
+        : await listRecords(PERSISTED_STORE_NAMES.folders);
 
       return records.map((folder) => fromPersistedFolder(folder));
     },
@@ -63,7 +61,7 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.folders, persistedFolder, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
+        await putRecord(PERSISTED_STORE_NAMES.folders, persistedFolder);
       }
 
       return fromPersistedFolder(persistedFolder);
@@ -71,7 +69,7 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
     update: async (input) => {
       const existing = isCloudWorkspaceTarget(target)
         ? await getRemoteRecord(PERSISTED_STORE_NAMES.folders, input.id, target.userId)
-        : await getLocalRecord(PERSISTED_STORE_NAMES.folders, input.id);
+        : await getRecord(PERSISTED_STORE_NAMES.folders, input.id);
 
       if (!existing) {
         return undefined;
@@ -87,7 +85,7 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.folders, updated, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.folders, updated);
+        await putRecord(PERSISTED_STORE_NAMES.folders, updated);
       }
 
       return fromPersistedFolder(updated);
@@ -95,13 +93,13 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
     destroy: async (id) => {
       const folders = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.folders, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.folders);
+        : await listRecords(PERSISTED_STORE_NAMES.folders);
 
       const descendantIds = collectDescendantFolderIds(folders, id);
 
       const notes = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
+        : await listRecords(PERSISTED_STORE_NAMES.notes);
 
       const noteIdsToDelete = notes
         .filter((note) => note.parentId && descendantIds.has(note.parentId))
@@ -121,9 +119,9 @@ export function createFoldersRepository(target: WorkspaceTarget): FoldersReposit
 
       await Promise.all([
         ...Array.from(descendantIds).map((folderId) =>
-          destroyLocalRecord(PERSISTED_STORE_NAMES.folders, folderId),
+          destroyRecord(PERSISTED_STORE_NAMES.folders, folderId),
         ),
-        ...noteIdsToDelete.map((noteId) => destroyLocalRecord(PERSISTED_STORE_NAMES.notes, noteId)),
+        ...noteIdsToDelete.map((noteId) => destroyRecord(PERSISTED_STORE_NAMES.notes, noteId)),
       ]);
     },
   };

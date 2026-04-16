@@ -18,7 +18,7 @@ import {
   type TagId,
 } from "@/core/shared/persistence-types";
 import { buildWebStarterContent } from "@/core/shared/starter-content";
-import { listLocalRecords, putLocalRecord } from "./local-records";
+import { listRecords, putRecord } from "@/core/storage";
 import { listRemoteRecords, putRemoteRecord } from "@/core/persistence/supabase";
 
 const PRIVACY_DEMO_SEED_VERSION = 1;
@@ -93,10 +93,10 @@ export async function ensurePrivacyDemoSeeded(workspaceId: string): Promise<void
   }
 
   const [notes, folders, entries, tags] = await Promise.all([
-    listLocalRecords(PERSISTED_STORE_NAMES.notes),
-    listLocalRecords(PERSISTED_STORE_NAMES.folders),
-    listLocalRecords(PERSISTED_STORE_NAMES.journalEntries),
-    listLocalRecords(PERSISTED_STORE_NAMES.tags),
+    listRecords(PERSISTED_STORE_NAMES.notes),
+    listRecords(PERSISTED_STORE_NAMES.folders),
+    listRecords(PERSISTED_STORE_NAMES.journalEntries),
+    listRecords(PERSISTED_STORE_NAMES.tags),
   ]);
 
   if (notes.length > 0 || folders.length > 0 || entries.length > 0 || tags.length > 0) {
@@ -105,11 +105,11 @@ export async function ensurePrivacyDemoSeeded(workspaceId: string): Promise<void
   }
 
   await Promise.all([
-    ...buildSeedFolders().map((folder) => putLocalRecord(PERSISTED_STORE_NAMES.folders, folder)),
-    ...buildSeedNotes().map((note) => putLocalRecord(PERSISTED_STORE_NAMES.notes, note)),
-    ...buildSeedTags().map((tag) => putLocalRecord(PERSISTED_STORE_NAMES.tags, tag)),
+    ...buildSeedFolders().map((folder) => putRecord(PERSISTED_STORE_NAMES.folders, folder)),
+    ...buildSeedNotes().map((note) => putRecord(PERSISTED_STORE_NAMES.notes, note)),
+    ...buildSeedTags().map((tag) => putRecord(PERSISTED_STORE_NAMES.tags, tag)),
     ...buildSeedJournalEntries().map((entry) =>
-      putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, entry),
+      putRecord(PERSISTED_STORE_NAMES.journalEntries, entry),
     ),
   ]);
 

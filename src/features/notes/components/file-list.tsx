@@ -1273,7 +1273,7 @@ export const FileList = memo(function FileList({
         <SheetContent
           side="bottom"
           hideClose
-          className="rounded-t-[28px] border-x-0 border-b-0 border-t border-white/10 bg-[#101010] p-0 shadow-[0_-18px_44px_rgba(0,0,0,0.42)]"
+          className="rounded-t-[28px] border-x-0 border-b-0 border-t border-border bg-haptic-deep p-0 shadow-xl"
         >
           {mobileActionTarget ? renderMobileSheetSections(mobileActionTarget) : null}
         </SheetContent>

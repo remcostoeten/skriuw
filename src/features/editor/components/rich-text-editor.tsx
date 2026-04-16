@@ -105,7 +105,7 @@ function KeyboardAccessibleSlashMenu({
 
   if (loadingState === "loading-initial" || loadingState === "loading") {
     return (
-      <div id="bn-suggestion-menu" className="bn-suggestion-menu rounded-xl border border-white/8 bg-[#101010] p-2 text-sm text-white/70 shadow-2xl">
+      <div id="bn-suggestion-menu" className="bn-suggestion-menu z-[100] rounded-xl border border-border bg-card p-2 text-sm text-muted-foreground shadow-xl">
         Loading...
       </div>
     );
@@ -115,7 +115,7 @@ function KeyboardAccessibleSlashMenu({
     <div
       id="bn-suggestion-menu"
       role="listbox"
-      className="bn-suggestion-menu max-h-[min(24rem,50vh)] overflow-y-auto rounded-xl border border-white/8 bg-[#101010] p-1 shadow-2xl"
+      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl"
     >
       {items.map((item, index) => (
         <button
@@ -130,19 +130,19 @@ function KeyboardAccessibleSlashMenu({
           className={cn(
             "flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
             index === activeIndex
-              ? "bg-white/[0.08] text-white"
-              : "text-white/75 hover:bg-white/[0.05] hover:text-white",
+              ? "bg-accent text-accent-foreground"
+              : "text-foreground hover:bg-accent hover:text-accent-foreground",
           )}
         >
-          {item.icon ? <span className="mt-0.5 shrink-0 text-white/70">{item.icon}</span> : null}
+          {item.icon ? <span className="mt-0.5 shrink-0 text-muted-foreground">{item.icon}</span> : null}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{item.title}</span>
             {item.subtext ? (
-              <span className="mt-0.5 block truncate text-xs text-white/45">{item.subtext}</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.subtext}</span>
             ) : null}
           </span>
           {item.badge ? (
-            <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] text-white/45">
+            <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {item.badge}
             </span>
           ) : null}

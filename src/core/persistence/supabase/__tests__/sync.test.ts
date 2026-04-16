@@ -31,8 +31,8 @@ async function loadSyncModule() {
 
   mock.module("@/platform/auth", () => authModuleMock);
   mock.module("@/platform/auth/index", () => authModuleMock);
-  mock.module("@/core/persistence/repositories/local-records", () => ({
-    listLocalRecords: async () => {
+  mock.module("@/core/storage", () => ({
+    listRecords: async () => {
       listLocalRecordsCalls += 1;
       return [];
     },
