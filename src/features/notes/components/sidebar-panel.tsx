@@ -1,9 +1,23 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
-import { FileText, Folder, PanelTopClose, Search, UnfoldVertical, X } from "lucide-react";
+import {
+  FileText,
+  Folder,
+  PanelTopClose,
+  Search,
+  UnfoldVertical,
+  X,
+} from "lucide-react";
 import { useSidebarStore } from "./sidebar/store";
 import type { SidebarSection as SidebarSectionType } from "./sidebar/types";
 import {
@@ -45,7 +59,13 @@ interface SidebarPanelProps {
 // Custom SVG icons matching Haptic's design
 function NewNoteIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -62,7 +82,13 @@ function NewNoteIcon({ className }: { className?: string }) {
 
 function NewFolderNoteIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -111,7 +137,9 @@ export function SidebarPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const hasSearchSection = sections.some((section) => section.type === "search");
+  const hasSearchSection = sections.some(
+    (section) => section.type === "search",
+  );
   const visibleSections = useMemo(
     () => sections.filter((section) => section.type !== "search"),
     [sections],
@@ -130,7 +158,9 @@ export function SidebarPanel({
           file.name.toLowerCase().includes(lowerQuery) ||
           file.content.toLowerCase().includes(lowerQuery),
       ),
-      folders: folders.filter((folder) => folder.name.toLowerCase().includes(lowerQuery)),
+      folders: folders.filter((folder) =>
+        folder.name.toLowerCase().includes(lowerQuery),
+      ),
     };
   }, [deferredSearchQuery, files, folders]);
 
@@ -184,9 +214,14 @@ export function SidebarPanel({
     }
   }, [isSearchOpen]);
 
-  const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
-  const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
-  const navigationSections = visibleSections.filter((section) => section.type !== "file-tree");
+  const hasSearchResults =
+    searchResults.files.length > 0 || searchResults.folders.length > 0;
+  const fileTreeSection = visibleSections.find(
+    (section) => section.type === "file-tree",
+  );
+  const navigationSections = visibleSections.filter(
+    (section) => section.type !== "file-tree",
+  );
 
   const renderSection = (section: SidebarSectionType) => {
     switch (section.type) {
@@ -206,8 +241,12 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             showHeader={showSectionHeaders}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onRemoveFromFavorites={sidebarStore.removeFromFavorites}
@@ -225,8 +264,12 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             showHeader={showSectionHeaders}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onClearRecents={sidebarStore.clearRecents}
@@ -244,8 +287,12 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             showHeader={showSectionHeaders}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
             onCreateProject={sidebarStore.createProject}
@@ -262,8 +309,12 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             showHeader={showSectionHeaders}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
           />
         );
 
@@ -276,8 +327,12 @@ export function SidebarPanel({
             activeFileId={activeFileId}
             isCollapsed={section.isCollapsed}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
             onFileSelect={handleFileSelect}
             onToggleFolder={onToggleFolder}
             onRenameFile={onRenameFile}
@@ -303,8 +358,12 @@ export function SidebarPanel({
             isCollapsed={section.isCollapsed}
             showHeader={showSectionHeaders}
             compactMode={compactMode}
-            onToggleCollapse={() => sidebarStore.toggleSectionCollapse(section.id)}
-            onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
+            onToggleCollapse={() =>
+              sidebarStore.toggleSectionCollapse(section.id)
+            }
+            onToggleVisibility={() =>
+              sidebarStore.toggleSectionVisibility(section.id)
+            }
             onRename={(name) => sidebarStore.renameSection(section.id, name)}
             onDelete={() => sidebarStore.removeSection(section.id)}
             onFileSelect={handleFileSelect}
@@ -322,10 +381,10 @@ export function SidebarPanel({
       )}
     >
       <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
-        <div className="relative min-h-12 overflow-hidden px-3 py-2.5 md:h-12 md:min-h-0 md:px-4 md:py-0">
+        <div className="relative min-h-12 overflow-hidden flex justify-between items-center px-3 py-2.5 md:h-12 md:min-h-0 md:px-4 md:py-0">
           <div
             className={cn(
-              "flex h-full w-full items-center gap-3 transition-transform duration-200",
+              "flex h-full w-full justify-between  items-center gap-3 transition-transform duration-200",
               isSearchOpen && "-translate-y-12",
             )}
           >
@@ -396,7 +455,9 @@ export function SidebarPanel({
                 onAddCustomSection={sidebarStore.addCustomSection}
                 onRemoveSection={sidebarStore.removeSection}
                 onRenameSection={sidebarStore.renameSection}
-                onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
+                onToggleShowSectionHeaders={
+                  sidebarStore.toggleShowSectionHeaders
+                }
                 onToggleCompactMode={sidebarStore.toggleCompactMode}
                 onResetToDefaults={sidebarStore.resetToDefaults}
               />
@@ -420,8 +481,11 @@ export function SidebarPanel({
                 isSearchOpen ? "translate-y-0" : "translate-y-12",
               )}
             >
-              <div className="flex items-center gap-2 rounded-2xl border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+              <div className="flex items-center gap-2 rounded-2xl border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
+                <Search
+                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                  strokeWidth={1.5}
+                />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -457,14 +521,16 @@ export function SidebarPanel({
         {searchQuery.trim() ? (
           <div className="px-3 py-3">
             {hasSearchResults ? (
-              <div className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar-accent/40 shadow-[0_12px_34px_rgba(0,0,0,0.16)]">
+              <div className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar-accent/40 shadow-lg">
                 <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/52">
                       Quick Jump
                     </p>
                     <p className="text-[12px] text-sidebar-foreground/72">
-                      {searchResults.files.length + searchResults.folders.length} results for "{searchQuery.trim()}"
+                      {searchResults.files.length +
+                        searchResults.folders.length}{" "}
+                      results for "{searchQuery.trim()}"
                     </p>
                   </div>
                   <span className="rounded-full border border-sidebar-border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/48">
@@ -486,7 +552,9 @@ export function SidebarPanel({
                           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                           strokeWidth={1.5}
                         />
-                        <span className="truncate text-[13px]">{folder.name}</span>
+                        <span className="truncate text-[13px]">
+                          {folder.name}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -511,7 +579,9 @@ export function SidebarPanel({
                           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                           strokeWidth={1.5}
                         />
-                        <span className="truncate text-[13px]">{file.name}</span>
+                        <span className="truncate text-[13px]">
+                          {file.name}
+                        </span>
                       </button>
                     ))}
                     {searchResults.files.length > 10 && (
@@ -524,9 +594,12 @@ export function SidebarPanel({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-sidebar-border bg-sidebar-accent/25 px-4 py-6 text-center">
-                <p className="text-xs font-medium text-sidebar-foreground/74">No results found</p>
+                <p className="text-xs font-medium text-sidebar-foreground/74">
+                  No results found
+                </p>
                 <p className="mt-1 text-[11px] text-sidebar-foreground/46">
-                  Try a note title, folder name, or a phrase from the editor content.
+                  Try a note title, folder name, or a phrase from the editor
+                  content.
                 </p>
               </div>
             )}

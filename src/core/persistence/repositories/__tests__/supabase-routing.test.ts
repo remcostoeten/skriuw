@@ -39,7 +39,7 @@ const supabaseModuleMock = {
 mock.restore();
 mock.module("@/core/persistence/supabase", () => supabaseModuleMock);
 mock.module("@/core/persistence/supabase/index", () => supabaseModuleMock);
-mock.module("../workspace-target", () => ({
+mock.module("@/platform/persistence/workspace-target", () => ({
   getWorkspaceTarget: () =>
     canUseRemote && remoteUserId
       ? {

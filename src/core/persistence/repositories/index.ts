@@ -7,11 +7,12 @@ import {
 import {
   createNotesRepository,
 } from "./notes-repository";
-import { getWorkspaceTarget, type WorkspaceTarget } from "./workspace-target";
+import { getWorkspaceTarget } from "@/platform/persistence/workspace-target";
 import type {
   FoldersRepository,
   JournalRepository,
   NotesRepository,
+  WorkspaceTarget,
 } from "./contracts";
 
 export type { FoldersRepository, JournalRepository, NotesRepository };

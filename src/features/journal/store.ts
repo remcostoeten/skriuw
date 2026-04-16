@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create, type StateCreator } from "zustand";
 import { format } from "date-fns";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
 import type {
@@ -88,7 +88,7 @@ function scheduleSaveStatusReset(id: string, onReset: () => void) {
 }
 
 function setEntrySaveState(
-  set: Parameters<typeof create<JournalState>>[0],
+  set: Parameters<StateCreator<JournalState>>[0],
   id: string,
   status: SaveStatus,
 ) {
@@ -100,7 +100,7 @@ function setEntrySaveState(
 function scheduleWorkspaceSaveStateReset(
   workspaceGuard: WorkspaceGuard,
   id: string,
-  set: Parameters<typeof create<JournalState>>[0],
+  set: Parameters<StateCreator<JournalState>>[0],
 ) {
   scheduleSaveStatusReset(id, () => {
     workspaceGuard.runIfCurrent(() => {

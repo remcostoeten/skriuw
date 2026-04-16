@@ -1,24 +1,41 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Stack, useRouter } from "expo-router";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  ListRenderItemInfo,
+  Modal,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { MobileNote } from "@/src/core/workspace-types";
+import { NoteActionsSheet } from "@/src/features/notes/note-actions-sheet";
+import { NoteListItem } from "@/src/features/notes/note-list-item";
 import { useWorkspace } from "@/src/features/workspace/workspace-context";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
-import { formatDate, getNotePreview, getNoteTitle } from "@/src/lib/workspace-format";
-import { commonStyles, palette } from "@/src/ui/styles";
+import { getNoteTitle } from "@/src/lib/workspace-format";
+import { BottomToolbar } from "@/src/ui/bottom-toolbar";
+import { commonStyles } from "@/src/ui/styles";
 
 export function NotesHomeScreen() {
   const router = useRouter();
-  const { isHydrated, workspace, createFolder, createNote, updateNote, deleteNote } = useWorkspace();
+  const { isHydrated, workspace, createFolder, createNote, updateNote, deleteNote, deleteFolder } = useWorkspace();
   const [query, setQuery] = useState("");
   const [activeFolderId, setActiveFolderId] = useState<string | "all" | "inbox">("all");
+  const [selectedNote, setSelectedNote] = useState<MobileNote | null>(null);
+  const [sheetMode, setSheetMode] = useState<"main" | "move">("main");
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const menuProgress = useRef(new Animated.Value(0)).current;
 
   async function openNewNote() {
     const note = await createNote(activeFolderId === "all" || activeFolderId === "inbox" ? null : activeFolderId);
     router.push(`/notes/${note.id}`);
-  }
-
-  if (!isHydrated) {
-    return <LoadingScreen />;
   }
 
   const notes = [...workspace.notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -56,72 +73,241 @@ export function NotesHomeScreen() {
       : activeFolderId === "inbox"
         ? "Inbox"
         : workspace.folders.find((folder) => folder.id === activeFolderId)?.name ?? "Folder";
+  const isSearching = searchFocused || normalizedQuery.length > 0;
+
+  function openNoteSheet(note: MobileNote, mode: "main" | "move" = "main") {
+    void Haptics.selectionAsync();
+    setSelectedNote(note);
+    setSheetMode(mode);
+  }
+
+  function openMenu() {
+    void Haptics.selectionAsync();
+    setMenuVisible(true);
+  }
+
+  function enterSearch() {
+    setSearchFocused(true);
+  }
+
+  function cancelSearch() {
+    setQuery("");
+    setSearchFocused(false);
+  }
+
+  function closeMenu() {
+    Animated.timing(menuProgress, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setMenuVisible(false);
+      }
+    });
+  }
+
+  async function createFolderAndMove(note: MobileNote) {
+    const folder = await createFolder();
+    await updateNote(note.id, { parentId: folder.id });
+  }
+
+  useEffect(() => {
+    if (!menuVisible) {
+      menuProgress.setValue(0);
+      return;
+    }
+
+    Animated.timing(menuProgress, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [menuProgress, menuVisible]);
+
+  function renderHeader() {
+    return (
+      <View style={commonStyles.homeHeader}>
+        {!isSearching ? (
+          <View style={commonStyles.brandRow}>
+            <Image source={require("../../../assets/splash-icon.png")} style={commonStyles.brandLogo} />
+            <View style={commonStyles.homeBrandCopy}>
+              <Text style={commonStyles.brandTitle}>Skriuw</Text>
+              <Text style={commonStyles.brandSubtitle}>Fast capture. Clean browse. No clutter.</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={commonStyles.searchModeHeader}>
+            <Text style={commonStyles.searchModeTitle}>Search</Text>
+            <Text style={commonStyles.searchModeMeta}>Across note titles, content, and folders</Text>
+          </View>
+        )}
+
+        <View style={commonStyles.homeSectionRow}>
+          <Text style={commonStyles.homeSectionTitle}>{isSearching ? "Results" : activeLabel}</Text>
+          <Text style={commonStyles.homeSectionMeta}>
+            {filteredNotes.length} note{filteredNotes.length === 1 ? "" : "s"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  function renderNoteItem({ item, index }: ListRenderItemInfo<MobileNote>) {
+    const folderName = workspace.folders.find((folder) => folder.id === item.parentId)?.name ?? "Inbox";
+
+    return (
+      <NoteListItem
+        note={item}
+        folderName={folderName}
+        bordered={index > 0}
+        index={index}
+        onOpen={() => router.push(`/notes/${item.id}`)}
+        onMove={() => openNoteSheet(item, "move")}
+        onDelete={() => {
+          void deleteNote(item.id);
+        }}
+        onShowActions={() => openNoteSheet(item, "main")}
+      />
+    );
+  }
+
+  if (!isHydrated) {
+    return <LoadingScreen />;
+  }
 
   return (
-    <View style={commonStyles.screen}>
+    <SafeAreaView style={commonStyles.screen} edges={["top", "bottom"]}>
       <Stack.Screen
         options={{
-          title: "Notes",
-          headerRight: () => (
-            <Pressable onPress={() => void openNewNote()}>
-              <Text style={{ color: palette.text, fontSize: 16, fontWeight: "700" }}>New</Text>
-            </Pressable>
-          ),
+          headerShown: false,
         }}
       />
 
-      <ScrollView style={commonStyles.screen} contentContainerStyle={[commonStyles.scrollContent, { paddingBottom: 120 }]}>
-        <View style={commonStyles.splitLayout}>
-          <View style={commonStyles.splitSidebar}>
-            <View style={[commonStyles.card, { gap: 14 }]}>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search notes"
-                placeholderTextColor={palette.textSoft}
-                style={commonStyles.inputCompact}
-              />
-              <Pressable style={commonStyles.button} onPress={() => void openNewNote()}>
-                <Text style={commonStyles.buttonLabel}>New note</Text>
-              </Pressable>
-              <Pressable
-                style={commonStyles.buttonSecondary}
-                onPress={async () => {
-                  const folder = await createFolder();
-                  setActiveFolderId(folder.id);
-                }}
-              >
-                <Text style={commonStyles.buttonLabelSecondary}>New folder</Text>
+      <FlatList
+        style={commonStyles.screen}
+        contentContainerStyle={[commonStyles.scrollContent, { paddingBottom: 120 }]}
+        data={filteredNotes}
+        keyExtractor={(item) => item.id}
+        renderItem={renderNoteItem}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          <View style={[commonStyles.card, commonStyles.emptyStateCard]}>
+            <Text style={commonStyles.emptyStateTitle}>
+              {normalizedQuery.length > 0 ? "No matching notes" : "No notes yet"}
+            </Text>
+            <Text style={commonStyles.emptyStateBody}>
+              {normalizedQuery.length > 0
+                ? "Try a different search or switch folders."
+                : `Create a note in ${activeLabel} and it will appear here.`}
+            </Text>
+            <Pressable style={commonStyles.button} onPress={() => void openNewNote()}>
+              <Text style={commonStyles.buttonLabel}>New note</Text>
+            </Pressable>
+          </View>
+        }
+      />
+
+      <BottomToolbar
+        actions={[
+          { label: "Browse", onPress: openMenu },
+          { label: "New note", onPress: () => void openNewNote(), variant: "primary" },
+        ]}
+        searchPlaceholder={`Search in ${activeLabel}`}
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchActive={isSearching}
+        onSearchOpen={enterSearch}
+        onSearchCancel={cancelSearch}
+      />
+
+      <Modal visible={menuVisible} transparent animationType="none" onRequestClose={closeMenu}>
+        <View style={commonStyles.drawerOverlay}>
+          <Animated.View
+            style={[
+              commonStyles.drawerBackdrop,
+              {
+                opacity: menuProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                }),
+              },
+            ]}
+          >
+            <Pressable style={{ flex: 1 }} onPress={closeMenu} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              commonStyles.drawerPanel,
+              {
+                transform: [
+                  {
+                    translateX: menuProgress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-320, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={commonStyles.drawerHeader}>
+              <View style={commonStyles.brandRow}>
+                <Image source={require("../../../assets/splash-icon.png")} style={commonStyles.brandLogo} />
+                <View style={commonStyles.homeBrandCopy}>
+                  <Text style={commonStyles.brandTitle}>Skriuw</Text>
+                  <Text style={commonStyles.brandSubtitle}>Browse notes and folders</Text>
+                </View>
+              </View>
+              <Pressable style={commonStyles.iconButton} onPress={closeMenu}>
+                <Text style={commonStyles.iconButtonLabel}>×</Text>
               </Pressable>
             </View>
 
-            <View style={commonStyles.card}>
-              <Text style={commonStyles.sectionTitle}>Browse</Text>
-              <View style={{ gap: 10 }}>
+            <View style={commonStyles.sidebarGroup}>
+              <Text style={commonStyles.sidebarGroupLabel}>Browse</Text>
+              <View style={commonStyles.sidebarList}>
                 <SidebarItem
                   active={activeFolderId === "all"}
                   label="All Notes"
                   count={workspace.notes.length}
-                  onPress={() => setActiveFolderId("all")}
+                  onPress={() => {
+                    setActiveFolderId("all");
+                    closeMenu();
+                  }}
                 />
                 <SidebarItem
                   active={activeFolderId === "inbox"}
                   label="Inbox"
                   count={inboxCount}
-                  onPress={() => setActiveFolderId("inbox")}
+                  onPress={() => {
+                    setActiveFolderId("inbox");
+                    closeMenu();
+                  }}
                 />
               </View>
             </View>
 
-            <View style={commonStyles.card}>
+            <View style={commonStyles.sidebarGroup}>
               <View style={commonStyles.sectionHeader}>
-                <Text style={commonStyles.sectionTitle}>Folders</Text>
-                <Text style={commonStyles.caption}>{workspace.folders.length}</Text>
+                <Text style={commonStyles.sidebarGroupLabel}>Folders</Text>
+                <Pressable
+                  style={commonStyles.inlineAction}
+                  onPress={async () => {
+                    const folder = await createFolder();
+                    setActiveFolderId(folder.id);
+                    closeMenu();
+                  }}
+                >
+                  <Text style={commonStyles.inlineActionLabel}>New</Text>
+                </Pressable>
               </View>
               {workspace.folders.length === 0 ? (
                 <Text style={commonStyles.subtitle}>Create a folder to file notes out of Inbox.</Text>
               ) : (
-                <View style={{ gap: 10 }}>
+                <View style={commonStyles.sidebarList}>
                   {workspace.folders.map((folder) => {
                     const folderCount = workspace.notes.filter((note) => note.parentId === folder.id).length;
 
@@ -131,100 +317,59 @@ export function NotesHomeScreen() {
                         active={activeFolderId === folder.id}
                         label={folder.name}
                         count={folderCount}
-                        onPress={() => setActiveFolderId(folder.id)}
+                        onPress={() => {
+                          setActiveFolderId(folder.id);
+                          closeMenu();
+                        }}
                       />
                     );
                   })}
                 </View>
               )}
             </View>
-          </View>
-
-          <View style={commonStyles.splitMain}>
-            {filteredNotes.length === 0 ? (
-              <View style={[commonStyles.card, commonStyles.emptyStateCard]}>
-                <Text style={commonStyles.emptyStateTitle}>
-                  {normalizedQuery.length > 0 ? "No matching notes" : "No notes yet"}
-                </Text>
-                <Text style={commonStyles.emptyStateBody}>
-                  {normalizedQuery.length > 0
-                    ? "Try a different search or switch folders."
-                    : `Create a note in ${activeLabel} and it will appear here.`}
-                </Text>
-                <Pressable style={commonStyles.button} onPress={() => void openNewNote()}>
-                  <Text style={commonStyles.buttonLabel}>Create note</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={[commonStyles.card, { paddingVertical: 0, gap: 0 }]}>
-                <View style={[commonStyles.sectionHeader, { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 }]}>
-                  <Text style={commonStyles.listHeaderTitle}>{activeLabel}</Text>
-                  <Text style={commonStyles.listHeaderMeta}>
-                    {filteredNotes.length} note{filteredNotes.length === 1 ? "" : "s"}
-                  </Text>
-                </View>
-
-                {filteredNotes.map((note, index) => {
-                  const folderName = workspace.folders.find((folder) => folder.id === note.parentId)?.name ?? "Inbox";
-                  const noteActions = [
-                    {
-                      text: "Open",
-                      onPress: () => router.push(`/notes/${note.id}`),
-                    },
-                    ...(note.parentId !== null
-                      ? [
-                          {
-                            text: "Move to Inbox",
-                            onPress: () => {
-                              void updateNote(note.id, { parentId: null });
-                            },
-                          },
-                        ]
-                      : []),
-                    {
-                      text: "Delete",
-                      style: "destructive" as const,
-                      onPress: () => {
-                        void deleteNote(note.id);
-                      },
-                    },
-                    { text: "Cancel", style: "cancel" as const },
-                  ];
-
-                  return (
-                    <Pressable
-                      key={note.id}
-                      style={({ pressed }) => [
-                        commonStyles.noteRow,
-                        index > 0 && commonStyles.noteRowBorder,
-                        pressed && { backgroundColor: palette.surfaceRaised },
-                      ]}
-                      onPress={() => router.push(`/notes/${note.id}`)}
-                      onLongPress={() => Alert.alert(getNoteTitle(note.name, note.content), undefined, noteActions)}
-                    >
-                      <Text style={commonStyles.noteMeta}>{folderName}</Text>
-                      <View style={commonStyles.noteTitleRow}>
-                        <Text numberOfLines={1} style={commonStyles.noteTitleCompact}>
-                          {getNoteTitle(note.name, note.content)}
-                        </Text>
-                        <Text style={commonStyles.noteDateCompact}>{formatDate(note.updatedAt)}</Text>
-                      </View>
-                      <Text numberOfLines={2} style={commonStyles.notePreviewCompact}>
-                        {getNotePreview(note.content)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+          </Animated.View>
         </View>
-      </ScrollView>
+      </Modal>
 
-      <Pressable style={commonStyles.fab} onPress={() => void openNewNote()}>
-        <Text style={commonStyles.fabLabel}>New note</Text>
-      </Pressable>
-    </View>
+      <NoteActionsSheet
+        visible={selectedNote !== null}
+        note={selectedNote}
+        folders={workspace.folders}
+        initialMode={sheetMode}
+        onClose={() => setSelectedNote(null)}
+        onOpen={
+          selectedNote
+            ? () => {
+                router.push(`/notes/${selectedNote.id}`);
+              }
+            : undefined
+        }
+        onMove={(parentId) => {
+          if (!selectedNote) {
+            return;
+          }
+
+          void updateNote(selectedNote.id, { parentId });
+        }}
+        onCreateFolder={() => {
+          if (!selectedNote) {
+            return;
+          }
+
+          void createFolderAndMove(selectedNote);
+        }}
+        onDelete={() => {
+          if (!selectedNote) {
+            return;
+          }
+
+          void deleteNote(selectedNote.id);
+        }}
+        onDeleteCurrentFolder={(folderId) => {
+          void deleteFolder(folderId);
+        }}
+      />
+    </SafeAreaView>
   );
 }
 

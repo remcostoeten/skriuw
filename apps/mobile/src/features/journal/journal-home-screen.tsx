@@ -1,15 +1,64 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  FadeInDown,
+  Easing,
+} from "react-native-reanimated";
 import { useWorkspace } from "@/src/features/workspace/workspace-context";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import { formatDateKey } from "@/src/lib/workspace-format";
+import { BottomToolbar } from "@/src/ui/bottom-toolbar";
 import { commonStyles, palette } from "@/src/ui/styles";
+
+function AnimatedCard({
+  children,
+  index,
+  onPress,
+}: {
+  children: React.ReactNode;
+  index: number;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const staggerDelay = Math.min(index * 80, 500);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(staggerDelay).duration(400).easing(Easing.out(Easing.cubic))}
+      style={animStyle}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          commonStyles.listCard,
+          pressed && { opacity: 0.92 },
+        ]}
+        onPress={onPress}
+        onPressIn={() => {
+          scale.value = withSpring(0.975, { damping: 15, stiffness: 200 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 12, stiffness: 180 });
+        }}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export function JournalHomeScreen() {
   const router = useRouter();
   const { isHydrated, workspace, createJournalEntry } = useWorkspace();
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   if (!isHydrated) {
     return <LoadingScreen />;
@@ -17,6 +66,7 @@ export function JournalHomeScreen() {
 
   const entries = [...workspace.journalEntries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
   const normalizedQuery = query.trim().toLowerCase();
+  const isSearching = searchFocused || normalizedQuery.length > 0;
   const filteredEntries = useMemo(
     () =>
       normalizedQuery.length === 0
@@ -32,13 +82,14 @@ export function JournalHomeScreen() {
   const brightDays = entries.filter((entry) => entry.mood === "great" || entry.mood === "good").length;
 
   return (
-    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.scrollContent}>
+    <View style={commonStyles.screen}>
+      <ScrollView style={commonStyles.screen} contentContainerStyle={[commonStyles.scrollContent, { paddingBottom: 132 }]}>
       <View style={commonStyles.heroCard}>
         <View style={commonStyles.heroGlow} />
         <Text style={commonStyles.eyebrow}>Daily capture</Text>
         <Text style={commonStyles.headline}>A simple reflection log with mood and tag context.</Text>
         <Text style={commonStyles.subtitle}>
-          Entries stay local for now, but the data shape already matches the scalable web boundary: personal workspace first, cloud later.
+          Entries are tied to your account workspace so mobile and web can stay in sync around the same journal structure.
         </Text>
         <View style={commonStyles.metricsGrid}>
           <View style={commonStyles.metricTile}>
@@ -67,25 +118,20 @@ export function JournalHomeScreen() {
 
       <View style={commonStyles.card}>
         <View style={commonStyles.sectionHeader}>
-          <Text style={commonStyles.sectionTitle}>Search journal</Text>
+          <Text style={commonStyles.sectionTitle}>{isSearching ? "Results" : "Journal entries"}</Text>
           <Text style={commonStyles.caption}>{filteredEntries.length} visible</Text>
         </View>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search date, mood, tag, or content"
-          placeholderTextColor={palette.textSoft}
-          style={commonStyles.inputCompact}
-        />
+        <Text style={commonStyles.subtitle}>
+          {isSearching
+            ? "Matching entries across date, mood, tags, and content."
+            : "Browse recent reflections and drop into an entry when you need context."}
+        </Text>
       </View>
 
-      {filteredEntries.map((entry) => (
-        <Pressable
+      {filteredEntries.map((entry, index) => (
+        <AnimatedCard
           key={entry.id}
-          style={({ pressed }) => [
-            commonStyles.listCard,
-            pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
-          ]}
+          index={index}
           onPress={() => router.push(`/journal/${entry.id}`)}
         >
           <View style={commonStyles.rowWrap}>
@@ -107,8 +153,33 @@ export function JournalHomeScreen() {
               ))}
             </View>
           ) : null}
-        </Pressable>
+        </AnimatedCard>
       ))}
-    </ScrollView>
+      </ScrollView>
+
+      <BottomToolbar
+        actions={[
+          {
+            label: "New entry",
+            onPress: () => {
+              void (async () => {
+                const entry = await createJournalEntry();
+                router.push(`/journal/${entry.id}`);
+              })();
+            },
+            variant: "primary",
+          },
+        ]}
+        searchPlaceholder="Search date, mood, tag, or content"
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchActive={isSearching}
+        onSearchOpen={() => setSearchFocused(true)}
+        onSearchCancel={() => {
+          setQuery("");
+          setSearchFocused(false);
+        }}
+      />
+    </View>
   );
 }

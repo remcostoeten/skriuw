@@ -130,7 +130,7 @@ export function EditorToolbar({
     <div
       className={cn(
         "border-b border-sidebar-border border-l bg-sidebar text-sidebar-foreground",
-        "flex h-11 items-center px-3",
+        "flex h-11 items-center justify-between px-3",
       )}
     >
       <div className="flex items-center gap-1">

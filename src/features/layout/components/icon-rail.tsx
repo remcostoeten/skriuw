@@ -49,7 +49,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                   className={cn(
                     iconButtonClass,
                     isActive
-                      ? "border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                      ? "border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-inner"
                       : "border-transparent text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
                   )}
                   aria-label={label}

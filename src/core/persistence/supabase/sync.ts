@@ -1,5 +1,5 @@
 import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
-import { listLocalRecords } from "@/core/persistence/repositories/local-records";
+import { listRecords } from "@/core/storage";
 import {
   getRemotePersistenceUserId,
   putRemoteRecord,
@@ -18,10 +18,10 @@ export async function pushAllToRemote(): Promise<void> {
   }
 
   const [notes, folders, journalEntries, tags] = await Promise.all([
-    listLocalRecords(PERSISTED_STORE_NAMES.notes),
-    listLocalRecords(PERSISTED_STORE_NAMES.folders),
-    listLocalRecords(PERSISTED_STORE_NAMES.journalEntries),
-    listLocalRecords(PERSISTED_STORE_NAMES.tags),
+    listRecords(PERSISTED_STORE_NAMES.notes),
+    listRecords(PERSISTED_STORE_NAMES.folders),
+    listRecords(PERSISTED_STORE_NAMES.journalEntries),
+    listRecords(PERSISTED_STORE_NAMES.tags),
   ]);
 
   await Promise.all([

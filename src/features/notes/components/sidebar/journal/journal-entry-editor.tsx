@@ -296,7 +296,7 @@ export function JournalEntryEditor({ selectedDate }: JournalEntryEditorProps) {
           aria-controls={showTagPopup ? popupId : undefined}
           aria-expanded={showTagPopup}
           aria-activedescendant={activeOptionId}
-          className="min-h-[148px] w-full resize-none rounded-xl border border-border/55 bg-background/75 px-3 py-3 text-[13px] leading-relaxed text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-background"
+          className="min-h-[148px] w-full resize-none rounded-xl border border-border/55 bg-background/75 px-3 py-3 text-[13px] leading-relaxed text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-background"
           spellCheck
         />
 

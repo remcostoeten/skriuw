@@ -21,7 +21,7 @@ async function loadModule() {
     getAuthStateSnapshot: () => authSnapshot,
   }));
 
-  return import(`../workspace-target?test=${Math.random().toString(36).slice(2)}`);
+  return import(`@/platform/persistence/workspace-target?test=${Math.random().toString(36).slice(2)}`);
 }
 
 beforeEach(() => {

@@ -1,8 +1,3 @@
-import type {
-  CreateJournalEntryInput,
-  CreateJournalTagInput,
-  UpdateJournalEntryInput,
-} from "@/core/journal";
 import {
   fromPersistedJournalEntry,
   fromPersistedJournalTag,
@@ -22,16 +17,16 @@ import {
   putRemoteRecord,
   softDeleteRemoteRecord,
 } from "@/core/persistence/supabase";
-import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
-import { isCloudWorkspaceTarget, type WorkspaceTarget } from "./workspace-target";
-import type { JournalRepository } from "./contracts";
+import { destroyRecord, getRecord, listRecords, putRecord } from "@/core/storage";
+import { isCloudWorkspaceTarget } from "./workspace-target";
+import type { JournalRepository, WorkspaceTarget } from "./contracts";
 
 export function createJournalRepository(target: WorkspaceTarget): JournalRepository {
   return {
     listEntries: async () => {
       const entries = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
+        : await listRecords(PERSISTED_STORE_NAMES.journalEntries);
 
       return entries.map(fromPersistedJournalEntry);
     },
@@ -50,7 +45,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, entry, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
+        await putRecord(PERSISTED_STORE_NAMES.journalEntries, entry);
       }
 
       return fromPersistedJournalEntry(entry);
@@ -58,7 +53,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
     updateEntry: async (input) => {
       const existing = isCloudWorkspaceTarget(target)
         ? await getRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, input.id, target.userId)
-        : await getLocalRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
+        : await getRecord(PERSISTED_STORE_NAMES.journalEntries, input.id);
 
       if (!existing) {
         return undefined;
@@ -75,7 +70,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, updated, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
+        await putRecord(PERSISTED_STORE_NAMES.journalEntries, updated);
       }
 
       return fromPersistedJournalEntry(updated);
@@ -83,11 +78,11 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
     destroyEntry: (id) =>
       isCloudWorkspaceTarget(target)
         ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.journalEntries, id, target.userId)
-        : destroyLocalRecord(PERSISTED_STORE_NAMES.journalEntries, id),
+        : destroyRecord(PERSISTED_STORE_NAMES.journalEntries, id),
     listTags: async () => {
       const tags = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
+        : await listRecords(PERSISTED_STORE_NAMES.tags);
 
       return tags.map(fromPersistedJournalTag);
     },
@@ -106,7 +101,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.tags, tag, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.tags, tag);
+        await putRecord(PERSISTED_STORE_NAMES.tags, tag);
       }
 
       return fromPersistedJournalTag(tag);
@@ -114,7 +109,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
     destroyTag: async (id) => {
       const tags = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.tags, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.tags);
+        : await listRecords(PERSISTED_STORE_NAMES.tags);
 
       const tag = tags.find((item) => item.id === id);
       if (!tag) {
@@ -123,7 +118,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
 
       const entries = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.journalEntries, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.journalEntries);
+        : await listRecords(PERSISTED_STORE_NAMES.journalEntries);
 
       const updatedAt = new Date().toISOString() as IsoTime;
 
@@ -141,7 +136,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
                   },
                   target.userId,
                 )
-              : putLocalRecord(PERSISTED_STORE_NAMES.journalEntries, {
+              : putRecord(PERSISTED_STORE_NAMES.journalEntries, {
                   ...entry,
                   tags: entry.tags.filter((tagName) => tagName !== tag.name),
                   updatedAt,
@@ -152,7 +147,7 @@ export function createJournalRepository(target: WorkspaceTarget): JournalReposit
       if (isCloudWorkspaceTarget(target)) {
         await softDeleteRemoteRecord(PERSISTED_STORE_NAMES.tags, id, target.userId);
       } else {
-        await destroyLocalRecord(PERSISTED_STORE_NAMES.tags, id);
+        await destroyRecord(PERSISTED_STORE_NAMES.tags, id);
       }
     },
   };

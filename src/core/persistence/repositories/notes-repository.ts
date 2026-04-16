@@ -1,4 +1,3 @@
-import type { CreateNoteInput, UpdateNoteInput } from "@/core/notes";
 import { fromPersistedNote, toPersistedNote } from "@/core/notes";
 import { PERSISTED_STORE_NAMES, type NoteId } from "@/core/shared/persistence-types";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
@@ -8,9 +7,9 @@ import {
   putRemoteRecord,
   softDeleteRemoteRecord,
 } from "@/core/persistence/supabase";
-import { destroyLocalRecord, getLocalRecord, listLocalRecords, putLocalRecord } from "./local-records";
-import { isCloudWorkspaceTarget, type WorkspaceTarget } from "./workspace-target";
-import type { NotesRepository } from "./contracts";
+import { destroyRecord, getRecord, listRecords, putRecord } from "@/core/storage";
+import { isCloudWorkspaceTarget } from "./workspace-target";
+import type { NotesRepository, WorkspaceTarget } from "./contracts";
 import type { NoteFile } from "@/types/notes";
 
 export function createNotesRepository(target: WorkspaceTarget): NotesRepository {
@@ -18,7 +17,7 @@ export function createNotesRepository(target: WorkspaceTarget): NotesRepository 
     list: async () => {
       const records = isCloudWorkspaceTarget(target)
         ? await listRemoteRecords(PERSISTED_STORE_NAMES.notes, target.userId)
-        : await listLocalRecords(PERSISTED_STORE_NAMES.notes);
+        : await listRecords(PERSISTED_STORE_NAMES.notes);
       return records.map(fromPersistedNote);
     },
     create: async (input) => {
@@ -37,7 +36,7 @@ export function createNotesRepository(target: WorkspaceTarget): NotesRepository 
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.notes, persistedNote, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
+        await putRecord(PERSISTED_STORE_NAMES.notes, persistedNote);
       }
 
       return fromPersistedNote(persistedNote);
@@ -45,7 +44,7 @@ export function createNotesRepository(target: WorkspaceTarget): NotesRepository 
     update: async (input) => {
       const existing = isCloudWorkspaceTarget(target)
         ? await getRemoteRecord(PERSISTED_STORE_NAMES.notes, input.id, target.userId)
-        : await getLocalRecord(PERSISTED_STORE_NAMES.notes, input.id);
+        : await getRecord(PERSISTED_STORE_NAMES.notes, input.id);
 
       if (!existing) {
         return undefined;
@@ -72,7 +71,7 @@ export function createNotesRepository(target: WorkspaceTarget): NotesRepository 
       if (isCloudWorkspaceTarget(target)) {
         await putRemoteRecord(PERSISTED_STORE_NAMES.notes, updated, target.userId);
       } else {
-        await putLocalRecord(PERSISTED_STORE_NAMES.notes, updated);
+        await putRecord(PERSISTED_STORE_NAMES.notes, updated);
       }
 
       return fromPersistedNote(updated);
@@ -80,6 +79,6 @@ export function createNotesRepository(target: WorkspaceTarget): NotesRepository 
     destroy: (id) =>
       isCloudWorkspaceTarget(target)
         ? softDeleteRemoteRecord(PERSISTED_STORE_NAMES.notes, id, target.userId)
-        : destroyLocalRecord(PERSISTED_STORE_NAMES.notes, id),
+        : destroyRecord(PERSISTED_STORE_NAMES.notes, id),
   };
 }

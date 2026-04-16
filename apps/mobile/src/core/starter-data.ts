@@ -1,4 +1,4 @@
-import { buildMobileStarterWorkspace } from "@/core/shared/starter-content";
+import { buildMobileStarterWorkspace } from "../../../../src/core/shared/starter-content";
 import type {
   MobileFolder,
   MobileJournalEntry,

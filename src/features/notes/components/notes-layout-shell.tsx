@@ -85,9 +85,11 @@ export function NotesLayoutShell() {
                 aria-orientation="vertical"
                 aria-label="Resize sidebar"
                 onPointerDown={handleDesktopSidebarResizeStart}
-                className="absolute inset-y-0 right-0 z-20 hidden w-3 -translate-x-1/2 cursor-col-resize md:flex md:items-center md:justify-center"
+                className="absolute inset-y-0 right-0 z-20 hidden w-3 cursor-col-resize items-center justify-end pr-0 md:flex"
               >
-                <div className="h-16 w-px rounded-full bg-white/10 transition-colors hover:bg-white/20" />
+                <div className="group flex h-20 w-1 flex-col items-center justify-center gap-2 rounded-sm bg-gradient-to-r from-transparent via-white/10 to-transparent transition-colors hover:bg-gradient-to-r hover:from-transparent hover:via-white/25 hover:to-transparent">
+                  <div className="h-6 w-1 rounded-full bg-white/30 group-hover:bg-white/60" />
+                </div>
               </div>
             </div>
           )
@@ -169,8 +171,10 @@ export function NotesLayoutShell() {
                 style={{ willChange: "transform, opacity" }}
                 className="native-panel pointer-events-auto relative h-full w-[min(92vw,24rem)] max-w-full overflow-hidden border border-l-0 border-border touch-pan-y"
               >
-                <div className="pointer-events-none absolute inset-y-0 right-2 z-10 flex items-center">
-                  <div className="h-14 w-1.5 rounded-full bg-border/70" />
+<div className="pointer-events-none absolute inset-y-0 right-1 z-10 flex items-center">
+                  <div className="flex h-16 w-1 flex-col items-center justify-center gap-2 rounded-sm bg-white/20">
+                    <div className="h-5 w-1 rounded-full bg-white/50" />
+                  </div>
                 </div>
                 <SidebarPanel
                   {...sidebarPanelProps}
