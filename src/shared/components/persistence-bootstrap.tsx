@@ -5,15 +5,13 @@ import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { initializeAuth } from "@/platform/auth";
 import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { useDocumentStore } from "@/features/layout/store";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
-import { ensureCloudStarterContentSeeded } from "@/core/persistence/starter-content";
+import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 
 export function PersistenceBootstrap() {
   const resetNotesWorkspace = useNotesStore((state) => state.resetWorkspace);
   const initializeNotes = useNotesStore((state) => state.initialize);
   const syncPreferencesWorkspace = usePreferencesStore((state) => state.syncWorkspace);
-  const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
   const syncSidebarWorkspace = useSidebarStore((state) => state.syncWorkspace);
   const auth = useAuthSnapshot();
 
@@ -64,10 +62,9 @@ export function PersistenceBootstrap() {
     }
 
     void Promise.all([
-      syncLayoutWorkspace(auth.workspaceId),
       syncSidebarWorkspace(auth.workspaceId),
     ]);
-  }, [auth.isReady, auth.phase, auth.workspaceId, syncLayoutWorkspace, syncSidebarWorkspace]);
+  }, [auth.isReady, auth.phase, auth.workspaceId, syncSidebarWorkspace]);
 
   useEffect(() => {
     if (!auth.isReady || auth.phase !== "authenticated") {

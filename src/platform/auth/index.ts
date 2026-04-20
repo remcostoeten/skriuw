@@ -34,12 +34,12 @@ type AuthListener = () => void;
 
 const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
 const SIGNED_OUT_WORKSPACE_ID = "signed-out-local";
-const INITIAL_PHASE: AuthPhase = typeof window === "undefined" ? "signed_out" : "initializing";
+const INITIAL_PHASE: AuthPhase = "signed_out";
 
 let snapshot: AuthSnapshot = {
   phase: INITIAL_PHASE,
   rememberMe: true,
-  isReady: typeof window === "undefined",
+  isReady: true,
   isSupabaseConfigured: isSupabaseConfigured(),
   user: null,
   session: null,

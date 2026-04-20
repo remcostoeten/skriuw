@@ -7,23 +7,19 @@ import { useDragControls, useReducedMotion, type PanInfo, type Transition } from
 import { useShortcut } from "@remcostoeten/use-shortcut";
 import { applyFolderUiState, useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { useDocumentStore } from "@/features/layout/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { useFileNavigation, useUrlSync } from "./use-notes-navigation";
-import {
-  useCreateFolderMutation,
-  useCreateNoteMutation,
-  useDebouncedUpdateNoteContent,
-  useDeleteFolderMutation,
-  useDeleteNoteMutation,
-  useNoteFoldersQuery,
-  useNotesQuery,
-  useUpdateFolderMutation,
-  useUpdateNoteMutation,
-} from "./use-notes-queries";
-import type { CreateFolderInput } from "@/core/folders";
-import type { CreateNoteInput } from "@/core/notes";
-import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
+import { useNotes } from "./use-notes";
+import { useFolders } from "./use-folders";
+import { useCreateNote } from "./use-create-note";
+import { useUpdateNote } from "./use-update-note";
+import { useDeleteNote } from "./use-delete-note";
+import { useCreateFolder } from "./use-create-folder";
+import { useUpdateFolder } from "./use-update-folder";
+import { useDeleteFolder } from "./use-delete-folder";
+import { useDebouncedSave } from "./use-debounced-save";
+import type { CreateNoteInput } from "@/domain/notes/api";
+import type { CreateFolderInput } from "@/domain/folders/api";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -92,8 +88,8 @@ export function useNotesLayout() {
   const router = useRouter();
   const $ = useShortcut({ ignoreInputs: true });
   const auth = useAuthSnapshot();
-  const notesQuery = useNotesQuery();
-  const foldersQuery = useNoteFoldersQuery();
+  const notesQuery = useNotes();
+  const foldersQuery = useFolders();
   const activeFileId = useNotesStore((state) => state.activeFileId);
   const ensureActiveFileId = useNotesStore((state) => state.ensureActiveFileId);
   const folderOpenState = useNotesStore((state) => state.folderOpenState);
@@ -104,12 +100,12 @@ export function useNotesLayout() {
   const setFolderOpen = useNotesStore((state) => state.setFolderOpen);
   const collapseAllFolders = useNotesStore((state) => state.collapseAllFolders);
   const expandAllFolders = useNotesStore((state) => state.expandAllFolders);
-  const createNoteMutation = useCreateNoteMutation();
-  const createFolderMutation = useCreateFolderMutation();
-  const updateNoteMutation = useUpdateNoteMutation();
-  const updateFolderMutation = useUpdateFolderMutation();
-  const deleteNoteMutation = useDeleteNoteMutation();
-  const deleteFolderMutation = useDeleteFolderMutation();
+  const createNoteMutation = useCreateNote();
+  const createFolderMutation = useCreateFolder();
+  const updateNoteMutation = useUpdateNote();
+  const updateFolderMutation = useUpdateFolder();
+  const deleteNoteMutation = useDeleteNote();
+  const deleteFolderMutation = useDeleteFolder();
   const saveResetTimeoutsRef = useRef(new Map<string, number>());
   const clearPendingSaveReset = useCallback((id: string) => {
     const timeoutId = saveResetTimeoutsRef.current.get(id);
@@ -144,7 +140,7 @@ export function useNotesLayout() {
     },
     [clearPendingSaveReset, setFileSaveState],
   );
-  const updateFileContent = useDebouncedUpdateNoteContent({
+  const updateFileContent = useDebouncedSave({
     onSaving: markFileSaving,
     onSaved: markFileSaved,
     onError: markFileError,
@@ -173,10 +169,9 @@ export function useNotesLayout() {
     [folderOpenState, foldersQuery.data],
   );
 
-  const ui = useDocumentStore((state) => state.ui);
-  const setUIState = useDocumentStore((state) => state.setUIState);
-  const setSidebarWidth = useDocumentStore((state) => state.setSidebarWidth);
-  const syncLayoutWorkspace = useDocumentStore((state) => state.syncWorkspace);
+  const ui = useNotesStore((state) => state.ui);
+  const setUIState = useNotesStore((state) => state.setUIState);
+  const setSidebarWidth = useNotesStore((state) => state.setSidebarWidth);
   const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
 
   const initializePreferences = usePreferencesStore((state) => state.initialize);
@@ -226,9 +221,7 @@ export function useNotesLayout() {
     initializePreferences();
   }, [initializePreferences]);
 
-  useEffect(() => {
-    void syncLayoutWorkspace(auth.workspaceId);
-  }, [auth.workspaceId, syncLayoutWorkspace]);
+
 
   useEffect(
     () => () => {
@@ -340,14 +333,12 @@ export function useNotesLayout() {
     const preferredEditorMode = defaultModeRaw ? "raw" : "block";
     const createdAt = new Date();
     const newFile: CreateNoteInput = {
-      id: crypto.randomUUID() as NoteId,
+      id: crypto.randomUUID(),
       name: "Untitled.md",
-      content: generateNoteContent("Untitled") as MarkdownContent,
+      content: generateNoteContent("Untitled"),
       richContent: markdownToRichDocument(generateNoteContent("Untitled")),
       preferredEditorMode,
-      createdAt,
-      updatedAt: createdAt,
-      parentId: null as FolderId | null,
+      parentId: null,
     };
 
     createNoteMutation.mutate(newFile, {
@@ -380,11 +371,9 @@ export function useNotesLayout() {
   const handleCreateFolder = useCallback(() => {
     triggerNativeFeedback("impact");
     const newFolder: CreateFolderInput = {
-      id: crypto.randomUUID() as FolderId,
+      id: crypto.randomUUID(),
       name: "Untitled",
-      parentId: null as FolderId | null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      parentId: null,
     };
 
     setFolderOpen(newFolder.id as string, true);
@@ -404,14 +393,13 @@ export function useNotesLayout() {
     const updatedAt = new Date();
     updateNoteMutation.mutate(
       {
-        id: activeFile.id as NoteId,
-        content: activeFile.content as MarkdownContent,
+        id: activeFile.id,
+        content: activeFile.content,
         richContent:
           nextMode === "block"
             ? markdownToRichDocument(activeFile.content)
             : activeFile.richContent,
         preferredEditorMode: nextMode,
-        updatedAt,
       },
       {
         onSuccess: () => {
@@ -495,9 +483,8 @@ export function useNotesLayout() {
       markFileSaving(id);
       updateNoteMutation.mutate(
         {
-          id: id as NoteId,
+          id: id,
           name,
-          updatedAt,
         },
         {
           onSuccess: () => {
@@ -515,9 +502,8 @@ export function useNotesLayout() {
   const renameFolder = useCallback(
     (id: string, name: string) => {
       updateFolderMutation.mutate({
-        id: id as FolderId,
+        id: id,
         name,
-        updatedAt: new Date(),
       });
     },
     [updateFolderMutation],
@@ -526,14 +512,14 @@ export function useNotesLayout() {
   const deleteFile = useCallback(
     (id: string) => {
       clearFileSaveState(id);
-      deleteNoteMutation.mutate(id as NoteId);
+      deleteNoteMutation.mutate(id);
     },
     [clearFileSaveState, deleteNoteMutation],
   );
 
   const deleteFolder = useCallback(
     (id: string) => {
-      deleteFolderMutation.mutate(id as FolderId);
+      deleteFolderMutation.mutate(id);
     },
     [deleteFolderMutation],
   );
@@ -541,9 +527,8 @@ export function useNotesLayout() {
   const moveFile = useCallback(
     (fileId: string, newParentId: string | null) => {
       updateNoteMutation.mutate({
-        id: fileId as NoteId,
-        parentId: newParentId as FolderId | null,
-        updatedAt: new Date(),
+        id: fileId,
+        parentId: newParentId,
       });
     },
     [updateNoteMutation],
@@ -570,9 +555,8 @@ export function useNotesLayout() {
       }
 
       updateFolderMutation.mutate({
-        id: folderId as FolderId,
-        parentId: newParentId as FolderId | null,
-        updatedAt: new Date(),
+        id: folderId,
+        parentId: newParentId,
       });
     },
     [folders, updateFolderMutation],

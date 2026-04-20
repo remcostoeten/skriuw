@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import type { SaveStatus } from "@/shared/components/save-status-badge";
-import { getWorkspaceId } from "@/platform/auth";
 import {
   useCreateJournalEntry,
   useCreateJournalTag,
@@ -11,23 +10,17 @@ import {
   useJournalEntries,
   useJournalTags,
   useUpdateJournalEntry,
-} from "./use-journal-queries";
+} from "./use-journal-hooks";
 import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
-import type {
-  CssColorValue,
-  DateKey,
-  JournalEntryId,
-  TagName,
-} from "@/core/shared/persistence-types";
 
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
 const SAVED_BADGE_DURATION_MS = 1600;
 
-function normalizeTagName(tagName: string): TagName {
-  return tagName.trim().toLowerCase() as TagName;
+function normalizeTagName(tagName: string): string {
+  return tagName.trim().toLowerCase();
 }
 
-function uniqueTags(tagNames: string[]): TagName[] {
+function uniqueTags(tagNames: string[]): string[] {
   return [...new Set(tagNames.map(normalizeTagName))];
 }
 
@@ -39,14 +32,13 @@ export type JournalEntryController = {
   wordCount: number;
   saveState: SaveStatus;
   handleMoodSelect: (mood: MoodLevel) => void;
-  handleAddTag: (tagName: string, color?: CssColorValue) => void;
+  handleAddTag: (tagName: string, color?: string) => void;
   handleRemoveTag: (tagName: string) => void;
   handleDeleteEntry: () => void;
 };
 
 export function useJournalEntry(selectedDate: Date): JournalEntryController {
-  const workspaceId = getWorkspaceId();
-  const dateKey = format(selectedDate, "yyyy-MM-dd") as DateKey;
+  const dateKey = format(selectedDate, "yyyy-MM-dd");
   const { data: entries = [] } = useJournalEntries();
   const tagsQuery = useJournalTags();
   const createEntryMutation = useCreateJournalEntry();
@@ -63,7 +55,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
   const [saveState, setSaveState] = useState<SaveStatus>("idle");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingEntryIdRef = useRef<JournalEntryId | null>(null);
+  const pendingEntryIdRef = useRef<string | null>(null);
 
   const clearPendingSave = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -99,12 +91,12 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
   }, [clearSaveStatusReset]);
 
   useEffect(() => {
-    pendingEntryIdRef.current = entry?.id as JournalEntryId | null;
+    pendingEntryIdRef.current = entry?.id ?? null;
     setContent(entry?.content ?? "");
     clearPendingSave();
     clearSaveStatusReset();
     setSaveState("idle");
-  }, [clearPendingSave, clearSaveStatusReset, dateKey, entry?.content, entry?.id, workspaceId]);
+  }, [clearPendingSave, clearSaveStatusReset, dateKey, entry?.content, entry?.id]);
 
   useEffect(() => () => {
     clearPendingSave();
@@ -112,7 +104,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
   }, [clearPendingSave, clearSaveStatusReset]);
 
   const ensureTag = useCallback(
-    async (tagName: string, color?: CssColorValue) => {
+    async (tagName: string, color?: string) => {
       const normalizedTag = normalizeTagName(tagName);
       const existingTag = (tagsQuery.data ?? []).find((tag) => tag.name === normalizedTag);
 
@@ -149,15 +141,14 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
       try {
         if (entry?.id) {
           await updateEntryMutation.mutateAsync({
-            id: entry.id as JournalEntryId,
+            id: entry.id,
             content: draft.content,
             tags: nextTags,
             mood: nextMood,
-            updatedAt: new Date(),
           });
         } else {
           const optimisticId =
-            pendingEntryIdRef.current ?? (crypto.randomUUID() as JournalEntryId);
+            pendingEntryIdRef.current ?? (crypto.randomUUID());
           pendingEntryIdRef.current = optimisticId;
 
           await createEntryMutation.mutateAsync({
@@ -166,8 +157,6 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
             content: draft.content,
             tags: nextTags,
             mood: nextMood ?? undefined,
-            createdAt: new Date(),
-            updatedAt: new Date(),
           });
         }
 
@@ -207,7 +196,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
   );
 
   const handleAddTag = useCallback(
-    (tagName: string, color?: CssColorValue) => {
+    (tagName: string, color?: string) => {
       clearPendingSave();
 
       void (async () => {
@@ -241,7 +230,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 
     setSaveState("saving");
     void deleteEntryMutation
-      .mutateAsync(entry.id as JournalEntryId)
+      .mutateAsync(entry.id)
       .then(() => {
         setContent("");
         pendingEntryIdRef.current = null;

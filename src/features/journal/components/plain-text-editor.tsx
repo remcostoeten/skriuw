@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useMemo, useId, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import { findActiveTagMention, replaceActiveTagMention } from "./tag-mention-utils";
-import { useJournalTags } from "../hooks/use-journal-queries";
+import { useJournalTags } from "../hooks/use-journal-hooks";
 
 type PlainTextEditorProps = {
   content: string;
