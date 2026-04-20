@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { parseISO, isValid } from "date-fns";
 import { useReducedMotion, type Transition } from "framer-motion";
 import { useShortcut } from "@remcostoeten/use-shortcut";
-import { useDocumentStore } from "@/features/layout/store";
+import { useNotesStore } from "@/features/notes/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
-import { useJournalEntries, useJournalTags } from "./use-journal-queries";
+import { useJournalEntries, useJournalTags } from "./use-journal-hooks";
 
 export type JournalView = "list" | "editor";
 export type JournalEditorMode = "plain" | "rich";
@@ -61,8 +61,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const $ = useShortcut({ ignoreInputs: true });
   const entriesQuery = useJournalEntries();
   const tagsQuery = useJournalTags();
-  const ui = useDocumentStore((state) => state.ui);
-  const setUIState = useDocumentStore((state) => state.setUIState);
+  const ui = useNotesStore((state) => state.ui);
+  const setUIState = useNotesStore((state) => state.setUIState);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);

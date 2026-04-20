@@ -1,7 +1,7 @@
 {
 	"name": "Skriuw",
 	"short_name": "Skriuw",
-	"description": "A calm notes and journal workspace with private guest mode.",
+	"description": "A calm notes and journal workspace with seamless cloud sync.",
 	"start_url": "/",
 	"display": "standalone",
 	"background_color": "#f5efe7",

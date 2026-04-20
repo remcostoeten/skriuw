@@ -52,7 +52,6 @@ A keyboard-first note-taking application built with Next.js, React, and TypeScri
 - **Keyboard-First**: Optimized for keyboard navigation and shortcuts
 - **Responsive Design**: Works on desktop and mobile
 - **Cloud Workspace**: Notes, folders, journal entries, and tags are loaded from Supabase
-- **Guest Workspace**: Open an on-device workspace without signing in, with a seeded demo dataset for first-run testing
 
 ## Tech Stack
 
@@ -97,12 +96,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Supabase Setup
 
-This build supports both:
+This app uses Supabase for all persistent backend storage.
 
-- `Cloud workspace`: Supabase-backed auth and synced records
-- `Guest workspace`: local on-device storage with no sign-in required
-
-If you want cloud auth, copy the env template first:
+Copy the env template first:
 
 ```bash
 cp .env.example .env.local

@@ -89,13 +89,13 @@ export function buildWebStarterContent(): StarterContent {
       {
         id: markerNoteId,
         name: "Welcome.md",
-        content: `# Welcome to guest mode
+        content: `# Welcome to Skriuw
 
-This workspace stays on this device.
+Your workspace is in sync across all your devices.
 
-- Create notes instantly without signing in.
-- Switch to a cloud workspace any time from the profile control.
-- Your local edits use the same note and journal UI as the cloud workspace.
+- Capture your thoughts instantly with rich formatting.
+- Review your journal over time to reflect on your progress.
+- Everything is safely backed up to the cloud.
 `,
         parentId: null,
         preferredEditorMode: "block",
@@ -108,8 +108,8 @@ This workspace stays on this device.
         content: `# Launch checklist
 
 - Tighten the auth gate copy
-- Verify guest workspace routing
-- Seed a demo workspace for first-run testing
+- Configure your cloud profile
+- Link mobile and web devices
 `,
         parentId: "privacy-folder-daily",
         preferredEditorMode: "block",
@@ -158,9 +158,9 @@ Try drag and drop, metadata edits, journal links, and tag creation here.
       {
         id: "privacy-entry-2026-04-12",
         dateKey: "2026-04-12",
-        content: `Wrapped the guest-workspace pass.
+        content: `Wrapped up integrating the new cloud sync features.
 
-Feeling better about first-run UX now that the shell can open without an account.`,
+Feeling great about being able to capture ideas and resume on any device.`,
         mood: "great",
         tags: ["focus", "review"],
         createdAt: iso("2026-04-12"),
@@ -194,11 +194,11 @@ export function buildMobileStarterWorkspace(): MobileStarterWorkspace {
         name: "Welcome.md",
         content: `# Welcome to Skriuw mobile
 
-This is your local guest workspace on this device.
+Your workspace is synced from the cloud.
 
-- Capture notes without signing in.
-- Browse and edit your journal on the go.
-- When cloud auth is wired, this profile tab becomes the bridge to your private workspace.`,
+- Capture notes while on the go.
+- Browse and edit your journal from anywhere.
+- Your data stays secure in your private cloud account.`,
         parentId: null,
         createdAt: iso("2026-04-07"),
         updatedAt: iso("2026-04-07"),
@@ -209,7 +209,7 @@ This is your local guest workspace on this device.
         content: `# Sprint Review
 
 - Mobile scaffold now lives beside the web app
-- Guest workspace is persisted locally
+- Seamless persistence to the cloud
 - Notes and journal use the same product model as the web app`,
         parentId: "mobile-folder-daily",
         createdAt: iso("2026-04-10"),
@@ -230,11 +230,11 @@ Use this note to test quick edits, meeting notes, and rough ideas.`,
       {
         id: "mobile-entry-2026-04-12",
         dateKey: "2026-04-12",
-        content: `Wrapped the first mobile guest pass.
+        content: `Signed in on mobile for the first time!
 
-The app feels much more real once notes, journal, and profile all exist in one flow.`,
+The app feels much more real once notes, journal, and profile are all in sync.`,
         mood: "great",
-        tags: ["mobile", "guest"],
+        tags: ["mobile", "launch"],
         createdAt: iso("2026-04-12"),
         updatedAt: iso("2026-04-12"),
       },
