@@ -64,7 +64,6 @@ export default function RootLayout() {
   const isPublicPath = PUBLIC_PATHS.has(pathname);
   const shouldBlockRender =
     !auth.isReady ||
-    (auth.phase === "authenticated" && (pathname === "/" || isPublicPath)) ||
     (auth.phase !== "authenticated" && !isPublicPath);
 
   return (
