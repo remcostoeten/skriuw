@@ -58,7 +58,7 @@ export const FACE_SHAPES: Record<FaceType, FaceShape> = {
   },
 };
 
-export function getAvatarSeed(input?: string | null, fallback = "guest-user") {
+export function getAvatarSeed(input?: string | null, fallback = "user") {
   const value = input?.trim();
   return value && value.length > 0 ? value : fallback;
 }

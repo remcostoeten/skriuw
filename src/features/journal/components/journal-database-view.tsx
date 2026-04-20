@@ -15,7 +15,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { MOOD_OPTIONS } from "@/features/journal/types";
-import { useJournalEntries, useJournalTags } from "../hooks/use-journal-queries";
+import { useJournalEntries, useJournalTags } from "../hooks/use-journal-hooks";
 
 const JOURNAL_ROW_HEIGHT = 54;
 const JOURNAL_OVERSCAN = 8;

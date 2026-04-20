@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { listJournalEntries } from "@/core/persistence/journal";
-import { listNotes } from "@/core/persistence/notes";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useApiQuery } from "@/core/api";
+import { listNotes } from "@/domain/notes/api";
+import { listJournalEntries } from "@/domain/journal/api";
 
 type ProfileSummary = {
   noteCount: number;
@@ -12,61 +12,28 @@ type ProfileSummary = {
   error: string | null;
 };
 
-const initialSummary: ProfileSummary = {
-  noteCount: 0,
-  journalEntryCount: 0,
-  isLoading: true,
-  error: null,
-};
-
 export function useProfileSummary() {
   const auth = useAuthSnapshot();
-  const [summary, setSummary] = useState<ProfileSummary>(initialSummary);
+  const isAuthenticated = auth.isReady && auth.phase === "authenticated";
 
-  useEffect(() => {
-    let cancelled = false;
+  const notesQuery = useApiQuery(
+    ["profile", "notes"],
+    () => listNotes(),
+    { enabled: isAuthenticated },
+  );
 
-    setSummary((current) => ({
-      ...current,
-      isLoading: true,
-      error: null,
-    }));
+  const journalQuery = useApiQuery(
+    ["profile", "journal"],
+    () => listJournalEntries(),
+    { enabled: isAuthenticated },
+  );
 
-    void (async () => {
-      try {
-        const [notes, journalEntries] = await Promise.all([
-          listNotes(),
-          listJournalEntries(),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        setSummary({
-          noteCount: notes.length,
-          journalEntryCount: journalEntries.length,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        setSummary({
-          noteCount: 0,
-          journalEntryCount: 0,
-          isLoading: false,
-          error: error instanceof Error ? error.message : "Unable to load profile data.",
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [auth.phase, auth.workspaceId]);
+  const summary: ProfileSummary = {
+    noteCount: notesQuery.data?.length ?? 0,
+    journalEntryCount: journalQuery.data?.length ?? 0,
+    isLoading: notesQuery.isLoading || journalQuery.isLoading,
+    error: notesQuery.error?.message ?? journalQuery.error?.message ?? null,
+  };
 
   return {
     auth,

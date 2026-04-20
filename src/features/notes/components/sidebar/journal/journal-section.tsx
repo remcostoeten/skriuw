@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { CalendarDays, ChevronRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { MOOD_OPTIONS } from "@/features/journal/types";
-import { useJournalEntries } from "@/features/journal/hooks/use-journal-queries";
+import { useJournalEntries } from "@/features/journal/hooks/use-journal-hooks";
 import { SidebarSection } from "../sidebar-section";
 import { MiniCalendar } from "./mini-calendar";
 

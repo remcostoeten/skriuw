@@ -4,6 +4,13 @@ import type { NoteFile, NoteFolder } from "@/types/notes";
 
 type FolderOpenState = Record<string, boolean>;
 
+type LayoutUiState = {
+  isMobile: boolean;
+  showSidebar: boolean;
+  showMetadata: boolean;
+  sidebarWidth: number;
+};
+
 type NotesUiState = {
   activeFileId: string;
   isHydrated: boolean;
@@ -20,6 +27,9 @@ type NotesUiState = {
   setFolderOpen: (id: string, isOpen: boolean) => void;
   collapseAllFolders: (folderIds: string[]) => void;
   expandAllFolders: (folderIds: string[]) => void;
+  ui: LayoutUiState;
+  setUIState: (updates: Partial<LayoutUiState>) => void;
+  setSidebarWidth: (width: number) => void;
 };
 
 export function applyFolderUiState(
@@ -37,6 +47,12 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
   isHydrated: false,
   folderOpenState: {},
   saveStates: {},
+  ui: {
+    isMobile: false,
+    showSidebar: true,
+    showMetadata: false,
+    sidebarWidth: 280,
+  },
 
   resetWorkspace: () => {
     set({
@@ -44,6 +60,12 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
       isHydrated: false,
       folderOpenState: {},
       saveStates: {},
+      ui: {
+        isMobile: false,
+        showSidebar: true,
+        showMetadata: false,
+        sidebarWidth: 280,
+      },
     });
   },
 
@@ -122,6 +144,18 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
         ...state.folderOpenState,
         ...Object.fromEntries(folderIds.map((folderId) => [folderId, true])),
       },
+    }));
+  },
+
+  setUIState: (updates) => {
+    set((state) => ({
+      ui: { ...state.ui, ...updates },
+    }));
+  },
+
+  setSidebarWidth: (width) => {
+    set((state) => ({
+      ui: { ...state.ui, sidebarWidth: width },
     }));
   },
 }));

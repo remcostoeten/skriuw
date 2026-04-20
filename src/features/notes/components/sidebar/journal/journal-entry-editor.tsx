@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { cn } from "@/shared/lib/utils";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import { useJournalEntry } from "@/features/journal/hooks/use-journal-entry";
-import { useJournalTags } from "@/features/journal/hooks/use-journal-queries";
+import { useJournalTags } from "@/features/journal/hooks/use-journal-hooks";
 
 type JournalEntryEditorProps = {
   selectedDate: Date;

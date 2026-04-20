@@ -14,7 +14,7 @@ import {
   useCreateJournalTag,
   useDeleteJournalTag,
   useJournalTags,
-} from "@/features/journal/hooks/use-journal-queries";
+} from "@/features/journal/hooks/use-journal-hooks";
 
 export function TagManager() {
   const { data: tags = [] } = useJournalTags();

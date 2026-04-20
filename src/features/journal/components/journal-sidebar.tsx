@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { type MoodLevel, type DateKey, MOOD_OPTIONS } from "@/features/journal/types";
-import { useJournalEntries, useJournalTags } from "../hooks/use-journal-queries";
+import { useJournalEntries, useJournalTags } from "../hooks/use-journal-hooks";
 
 const JournalStats = dynamic(
   () => import("./journal-stats").then((mod) => ({ default: mod.JournalStats })),

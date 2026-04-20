@@ -125,7 +125,7 @@ function renderSvg(name: string, size: number) {
 
 export function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const name = searchParams.get("name")?.trim() || "guest-user";
+  const name = searchParams.get("name")?.trim() || "user";
   const size = parseSize(searchParams.get("size"));
   const svg = renderSvg(name, size);
 

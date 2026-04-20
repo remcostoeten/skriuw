@@ -8,7 +8,7 @@ import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
 import { PlainTextEditor } from "./plain-text-editor";
 import { RichTextEditor } from "@/features/editor/components/rich-text-editor";
-import { useJournalTags } from "../hooks/use-journal-queries";
+import { useJournalTags } from "../hooks/use-journal-hooks";
 
 type JournalEditorProps = {
   selectedDate: Date;

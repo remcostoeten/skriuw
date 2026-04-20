@@ -1,6 +1,6 @@
 # Architecture Notes
 
-This repo now runs as a Supabase-backed app with a guest-workspace fallback and a feature-based structure:
+This repo now runs as a Supabase-backed SaaS app with a feature-based structure:
 
 1. `src/app/` owns routing and page composition.
 2. `src/features/` owns domain code such as notes, journal, settings, and layout.
@@ -11,11 +11,9 @@ This repo now runs as a Supabase-backed app with a guest-workspace fallback and 
 
 Runtime rules now:
 
-- Guests can open the app immediately without an auth gate.
-- Guest mode mounts the same shell against local persistence and seeds a small demo workspace on first run.
+- Signed out users are redirected to the login flow.
 - Authenticated users read and write notes, folders, journal entries, and tags in their own cloud workspace.
-- Preferences are still local browser state.
-- Guest/local persistence uses IndexedDB.
+- Preferences are strictly tracked locally for frontend theme logic but can be extended to backend in the future.
 - Authenticated data is stored in the user-scoped cloud database.
 
 ## Rules Of Thumb
@@ -31,7 +29,5 @@ Runtime rules now:
 
 ## Cleanup Focus
 
-- Decide whether guest-workspace data should remain seeded-only or gain an explicit reset/import flow.
 - Move synced preferences into the repository layer if cross-device settings are required.
-- Keep documentation aligned with the actual runtime, not outdated cloud-only assumptions.
-- Keep web persistence simple; do not reintroduce a second local database engine unless there is a concrete product need.
+- Keep web persistence simple; avoid any local database engines for core application records as this is a cloud-native workspace.
