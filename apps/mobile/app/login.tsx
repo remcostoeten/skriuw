@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import {
   signInWithOAuth,
@@ -57,6 +57,10 @@ export default function LoginRoute() {
 
   if (!auth.isReady) {
     return <LoadingScreen />;
+  }
+
+  if (auth.phase === "authenticated") {
+    return <Redirect href="/notes" />;
   }
 
   return (

@@ -23,7 +23,7 @@ export function AuthRequiredState({ title, description }: Props) {
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
         <div className="mt-6">
-          <Button className="w-full" onClick={() => router.push("/register")}>
+          <Button className="w-full" onClick={() => router.push("/sign-up")}>
             Sign up
           </Button>
         </div>

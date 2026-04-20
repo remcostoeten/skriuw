@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { type Href, Redirect, router } from "expo-router";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import {
   signInWithOAuth,
@@ -58,6 +58,10 @@ export default function SignInRoute() {
 
   if (!auth.isReady) {
     return <LoadingScreen />;
+  }
+
+  if (auth.phase === "authenticated") {
+    return <Redirect href="/notes" />;
   }
 
   return (
@@ -181,7 +185,7 @@ export default function SignInRoute() {
 
             <Pressable
               style={{ paddingVertical: 12, alignItems: "center" }}
-              onPress={() => router.push("/login")}
+              onPress={() => router.push("/login" as Href)}
             >
               <Text style={commonStyles.caption}>
                 Already have an account?{" "}

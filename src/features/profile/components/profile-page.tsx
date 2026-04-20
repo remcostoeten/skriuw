@@ -180,7 +180,7 @@ export function ProfilePage() {
                   </p>
                 </div>
                 <Button asChild className="w-full">
-                  <Link href="/register">Sign up</Link>
+                  <Link href="/sign-up">Sign up</Link>
                 </Button>
               </div>
             )}
@@ -196,13 +196,13 @@ export function ProfilePage() {
 
             <div className="space-y-3">
               <Button asChild variant="outline" className="h-11 w-full justify-start border-border bg-transparent">
-                <Link href="/">
+                <Link href="/app">
                   <NotebookPen className="h-4 w-4" />
                   Open notes
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-11 w-full justify-start border-border bg-transparent">
-                <Link href="/journal">
+                <Link href="/app/journal">
                   <BookOpen className="h-4 w-4" />
                   Open journal
                 </Link>
