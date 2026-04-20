@@ -15,37 +15,19 @@ import {
   signInWithOAuth,
   signInWithPassword,
 } from "@/platform/auth";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
 
 type AuthIntent = "sign-in" | "google" | "github";
 
-export default function LoginPage() {
+export default function SignInPage() {
   const router = useRouter();
-  const auth = useAuthSnapshot();
-  const [isMounted, setIsMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingIntent, setPendingIntent] = useState<AuthIntent | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
     void initializeAuth();
   }, []);
-
-  useEffect(() => {
-    if (auth.phase === "authenticated") {
-      router.push("/journal");
-    }
-  }, [auth.phase, router]);
-
-  useEffect(() => {
-    if (pendingIntent === "google" || pendingIntent === "github") {
-      setIsAuthenticating(true);
-    }
-  }, [pendingIntent]);
 
   const isPending = pendingIntent !== null;
 
@@ -54,37 +36,15 @@ export default function LoginPage() {
       setPendingIntent(intent);
       setMessage(null);
       await action();
+      if (intent === "sign-in") {
+        router.replace("/app");
+        router.refresh();
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Something went wrong.");
-      setIsAuthenticating(false);
-    } finally {
       setPendingIntent(null);
     }
   };
-
-  if (!isMounted) {
-    return (
-      <div className="flex h-40 items-center justify-center">
-        <LoaderCircle className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (isAuthenticating && pendingIntent === null) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-6">
-        <div className="relative">
-          <LoaderCircle className="size-12 animate-spin text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-medium text-foreground">Signing you in...</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Almost there! Taking you to your workspace.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -104,7 +64,7 @@ export default function LoginPage() {
               disabled={isPending}
               onClick={() =>
                 void runIntent("google", async () => {
-                  await signInWithOAuth("google", { rememberMe });
+                  await signInWithOAuth("google", { rememberMe: true });
                 })
               }
             >
@@ -122,7 +82,7 @@ export default function LoginPage() {
               disabled={isPending}
               onClick={() =>
                 void runIntent("github", async () => {
-                  await signInWithOAuth("github", { rememberMe });
+                  await signInWithOAuth("github", { rememberMe: true });
                 })
               }
             >
@@ -145,10 +105,7 @@ export default function LoginPage() {
 
           <form className="space-y-5">
             <div className="space-y-3">
-              <label
-                className="font-medium text-foreground"
-                htmlFor="email"
-              >
+              <label className="font-medium text-foreground" htmlFor="email">
                 Email<span className="text-primary">*</span>
               </label>
               <input
@@ -167,10 +124,7 @@ export default function LoginPage() {
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label
-                  className="font-medium text-foreground"
-                  htmlFor="password"
-                >
+                <label className="font-medium text-foreground" htmlFor="password">
                   Password<span className="text-primary">*</span>
                 </label>
               </div>
@@ -196,7 +150,7 @@ export default function LoginPage() {
               onClick={(e) => {
                 e.preventDefault();
                 void runIntent("sign-in", async () => {
-                  await signInWithPassword({ email, password, rememberMe });
+                  await signInWithPassword({ email, password, rememberMe: true });
                 });
               }}
             >
@@ -217,7 +171,7 @@ export default function LoginPage() {
           <button
             type="button"
             className="font-medium text-foreground duration-200 hover:text-foreground/80"
-            onClick={() => router.push("/register")}
+            onClick={() => router.push("/sign-up")}
           >
             Sign up
           </button>

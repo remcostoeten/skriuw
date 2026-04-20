@@ -45,19 +45,22 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
     }
   };
 
-  const avatarSeed = getAvatarSeed(auth.user?.email || auth.user?.name || auth.user?.id, "workspace-user");
+  const avatarSeed = getAvatarSeed(
+    auth.user?.email || auth.user?.name || auth.user?.id,
+    "workspace-user",
+  );
 
   const navItems = [
     {
-      href: "/",
+      href: "/app",
       label: "Notes",
-      isActive: pathname === "/",
+      isActive: pathname === "/app",
       icon: FolderOpen,
     },
     {
-      href: "/journal",
+      href: "/app/journal",
       label: "Journal",
-      isActive: pathname === "/journal",
+      isActive: pathname === "/app/journal",
       icon: BookOpen,
     },
   ];
@@ -152,7 +155,8 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <AuthEntryPoint triggerVariant="rail-avatar" />
+            <>hi</>
+            //<AuthEntryPoint triggerVariant="rail-avatar" />
           )}
         </div>
       </aside>

@@ -717,7 +717,7 @@ export function useNotesLayout() {
         label: "Go to journal",
         keywords: ["journal", "route", "navigate"],
         description: "Jump from notes into the journal view.",
-        action: () => router.push("/journal"),
+        action: () => router.push("/app/journal"),
       },
     ],
     [

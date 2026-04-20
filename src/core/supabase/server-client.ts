@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -26,24 +26,25 @@ export async function createServerSupabaseClient() {
             cookieStore.set(name, value, options);
           }
         } catch {
-          // `setAll` can fail in Server Components where cookies are read-only.
-          // This is safe to ignore when the middleware refreshes the session.
+          // Read-only cookie store in server components; proxy handles refresh.
         }
       },
     },
   });
 }
 
-export async function getAuthenticatedUser() {
+export async function getServerUser() {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser();
+  return { supabase, user };
+}
 
-  if (error || !user) {
+export async function getAuthenticatedUser() {
+  const { supabase, user } = await getServerUser();
+  if (!user) {
     throw new Error("Not authenticated");
   }
-
   return { supabase, user };
 }

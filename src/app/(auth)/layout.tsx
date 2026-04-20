@@ -1,14 +1,19 @@
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Iridescence } from "@/shared/ui/iridescence";
 import { RawLogo } from "@/shared/ui/logo";
 import { Button } from "@/shared/ui/button-component";
+import { getServerUser } from "@/core/supabase/server-client";
 
-export default function AuthLayout({
+export default async function AuthLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	const { user } = await getServerUser();
+	if (user) {
+		redirect("/app");
+	}
 	return (
 		<div className="flex h-dvh">
 			<div className="relative hidden flex-col items-start justify-between overflow-hidden p-12 md:flex md:w-1/2">
@@ -21,15 +26,14 @@ export default function AuthLayout({
 						className="h-full w-full"
 					/>
 				</div>
-				<Link className="relative z-10" href="https://skriuw.app">
-					<Button
-						className="group px-0! text-white/50 hover:bg-transparent hover:text-white/80"
-						variant="ghost"
-					>
-						<ArrowLeft className="size-4 transition-transform duration-200 group-hover:translate-x-[-4px]" />
-						Back
-					</Button>
-				</Link>
+				<Button
+					link="/"
+					className="group cursor-pointer px-0! text-white/50 hover:bg-transparent hover:text-white/80"
+					variant="ghost"
+				>
+					<ArrowLeft className="size-4 transition-transform duration-200 group-hover:translate-x-[-4px]" />
+					Back
+				</Button>
 				<div className="relative z-10">
 					<h1 className="mb-2 w-full max-w-sm font-serif text-4xl font-medium leading-[46px] text-white/60">
 						Keep your <span className="text-white">notes and journal</span> in sync with <span className="font-serif">Skriuw</span>
