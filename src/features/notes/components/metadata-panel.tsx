@@ -80,7 +80,7 @@ export function MetadataPanel({
       <div
         className={cn(
           "shrink-0 border-b border-border",
-          isMobile ? "bg-background px-4 pb-3 pt-3" : "h-[40px] px-2",
+          isMobile ? "bg-background px-4 pb-3 pt-3" : "h-11 px-2",
         )}
       >
         {isMobile ? (

@@ -29,16 +29,22 @@ function createStorage(): StorageMock {
   };
 }
 
-function installWindow() {
+function installWindow(href = "http://localhost:3000/") {
   const localStorage = createStorage();
   const sessionStorage = createStorage();
+  const url = new URL(href);
 
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
       localStorage,
       sessionStorage,
-      location: { href: "http://localhost:3000/" },
+      location: {
+        href,
+        origin: url.origin,
+        pathname: url.pathname,
+        search: url.search,
+      },
     },
   });
 
@@ -130,6 +136,28 @@ describe("auth session state", () => {
         workspaceId: "signed-out-local",
         user: null,
       }),
+    );
+  });
+
+  test("builds a stable OAuth callback redirect", async () => {
+    installWindow("http://localhost:3000/sign-in?draft=1");
+    const authModule = await import(
+      `@/platform/auth/index?oauth-redirect-auth-page=${Math.random().toString(36).slice(2)}`
+    );
+
+    expect(authModule.getOAuthRedirectTo()).toBe(
+      "http://localhost:3000/auth/callback?next=%2Fapp",
+    );
+  });
+
+  test("preserves app paths as the OAuth callback next target", async () => {
+    installWindow("https://skriuw.example/app/journal?entry=42");
+    const authModule = await import(
+      `@/platform/auth/index?oauth-redirect-app-page=${Math.random().toString(36).slice(2)}`
+    );
+
+    expect(authModule.getOAuthRedirectTo()).toBe(
+      "https://skriuw.example/auth/callback?next=%2Fapp%2Fjournal%3Fentry%3D42",
     );
   });
 });

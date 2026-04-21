@@ -153,7 +153,7 @@ layer(base);
 @layer base {
   :root {
     /* Core colors - darker theme using only background/foreground/card */
-    --background: 0 0% 7%;
+    --background: 2 0% 7%;
     --foreground: 0 0% 91%;
 
     --card: 0 0% 9%;
@@ -244,6 +244,157 @@ layer(base);
     touch-action: manipulation;
   }
 
+  input.auth-input:-webkit-autofill,
+  input.auth-input:-webkit-autofill:hover,
+  input.auth-input:-webkit-autofill:focus,
+  input.auth-input:-webkit-autofill:active {
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+    box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+    transition: background-color 9999s ease-out;
+  }
+
+  .auth-action-button,
+  .auth-action-icon,
+  .auth-action-label,
+  .auth-check-control,
+  .auth-password-toggle-icon {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 160ms ease-out,
+      border-color 180ms ease-out,
+      background-color 180ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  .auth-action-button {
+    transform: translateY(0) scale(1);
+  }
+
+  .auth-action-button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  .auth-action-button[data-state="pending"] .auth-action-label {
+    opacity: 0.78;
+  }
+
+  .auth-action-button[data-state="success"] .auth-action-icon {
+    animation: auth-action-success-pop 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .auth-action-button[data-state="success"] .auth-action-label {
+    opacity: 1;
+  }
+
+  .auth-action-icon {
+    display: inline-flex;
+    transform: scale(1);
+  }
+
+  .auth-loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 1rem;
+    justify-content: center;
+  }
+
+  .auth-loading-dot {
+    width: 0.24rem;
+    height: 0.24rem;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.55;
+    animation: auth-loading-dot 900ms ease-in-out infinite;
+  }
+
+  .auth-loading-dot:nth-child(2) {
+    animation-delay: 120ms;
+  }
+
+  .auth-loading-dot:nth-child(3) {
+    animation-delay: 240ms;
+  }
+
+  .auth-action-label {
+    min-width: 0;
+    opacity: 1;
+  }
+
+  @keyframes auth-action-success-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes auth-loading-dot {
+    0%,
+    80%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.45;
+    }
+
+    40% {
+      transform: translateY(-2px);
+      opacity: 1;
+    }
+  }
+
+  .auth-check-control {
+    transform: scale(1);
+  }
+
+  .auth-check-input:active + .auth-check-control {
+    transform: scale(0.97);
+  }
+
+  .auth-check-input:checked + .auth-check-control {
+    border-color: hsl(var(--foreground));
+    background: hsl(var(--foreground));
+  }
+
+  .auth-check-input:focus-visible + .auth-check-control {
+    outline: 1px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .auth-check-mark {
+    color: hsl(var(--background));
+    opacity: 0;
+    transform: scale(0.72) translateY(1px);
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 120ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  .auth-check-input:checked + .auth-check-control .auth-check-mark {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  .auth-password-toggle:active .auth-password-toggle-icon {
+    transform: scale(0.97);
+  }
+
+  .auth-password-toggle-icon {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+
+  .auth-password-toggle:hover .auth-password-toggle-icon,
+  .auth-password-toggle[aria-pressed="true"] .auth-password-toggle-icon {
+    opacity: 1;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
   }
@@ -282,6 +433,22 @@ layer(base);
     .pressable-soft:active {
       transform: scale(0.965);
       filter: saturate(1.05) brightness(0.98);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-check-control,
+    .auth-check-mark,
+    .auth-action-button,
+    .auth-action-icon,
+    .auth-action-label,
+    .auth-loading-dot,
+    .auth-password-toggle-icon {
+      transition-duration: 80ms;
+    }
+
+    .auth-action-button[data-state="success"] .auth-action-icon {
+      animation: none;
     }
   }
 

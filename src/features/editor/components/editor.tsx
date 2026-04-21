@@ -87,8 +87,7 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
       </div>
     );
   }
-
-  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-haptic-editor";
+  const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-card";
   const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
 
   if (editorMode === "block") {

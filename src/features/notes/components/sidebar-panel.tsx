@@ -629,11 +629,11 @@ export function SidebarPanel({
           {hasSearchSection && (
             <div
               className={cn(
-                "absolute inset-x-0 top-0 h-11 px-3 transition-transform duration-200",
+                "absolute inset-x-0 flex items-center top-0 h-11 px-3 duration-200",
                 isSearchOpen ? "translate-y-0" : "translate-y-11",
               )}
             >
-              <div className="flex h-full items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
+              <div className="flex  items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
                 <Search
                   className="h-4 w-4 shrink-0 text-muted-foreground"
                   strokeWidth={1.5}

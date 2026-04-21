@@ -14,7 +14,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button-component";
 import { DialogTitle } from "@/shared/ui/dialog";
-import { Iridescence } from "@/shared/ui/iridescence";
 import { cn } from "@/shared/lib/utils";
 import { RawLogo } from "@/shared/ui/logo";
 import { getAvatarSeed } from "@/shared/lib/avatar";
@@ -201,14 +200,8 @@ export function AuthEntryPoint({
           <div className="flex h-full flex-col md:flex-row">
             <div className="relative hidden w-full overflow-hidden border-r border-border bg-black p-12 md:flex md:w-1/2 md:flex-col md:justify-between">
               <div className="absolute inset-0">
-                <Iridescence
-                  amplitude={0.1}
-                  color={[0.1, 0.1, 0.1]}
-                  mouseReact={false}
-                  speed={0.5}
-                  className="h-full w-full"
-                />
-              </div>
+              
+              compoment</div>
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.12)_0%,rgba(0,0,0,0.45)_100%)]" />
 
@@ -437,7 +430,7 @@ export function AuthEntryPoint({
                               type="submit"
                               className="h-12 w-full rounded-none"
                               disabled={isPending || !email || !password}
-                              onClick={(e) => {
+                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                                 e.preventDefault();
                                 void runIntent("sign-up", async () => {
                                   await signUpWithPassword({

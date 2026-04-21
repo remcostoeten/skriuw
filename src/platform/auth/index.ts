@@ -240,12 +240,40 @@ type EmailAuthInput = {
   email: string;
   password: string;
   rememberMe: boolean;
+  name?: string;
 };
 
 function requireConfiguredSupabase(): void {
   if (!isSupabaseConfigured()) {
     throw new Error("Cloud auth is not configured. Add the Supabase env vars to enable sign-in.");
   }
+}
+
+function getPostOAuthPath(): string {
+  if (typeof window === "undefined") {
+    return "/app";
+  }
+
+  const nextPath = `${window.location.pathname}${window.location.search}`;
+  if (
+    nextPath === "/" ||
+    nextPath.startsWith("/sign-in") ||
+    nextPath.startsWith("/sign-up")
+  ) {
+    return "/app";
+  }
+
+  return nextPath;
+}
+
+export function getOAuthRedirectTo(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const callbackUrl = new URL("/auth/callback", window.location.origin);
+  callbackUrl.searchParams.set("next", getPostOAuthPath());
+  return callbackUrl.toString();
 }
 
 export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
@@ -278,6 +306,14 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
+    options: input.name
+      ? {
+          data: {
+            full_name: input.name,
+            name: input.name,
+          },
+        }
+      : undefined,
   });
 
   if (error) {
@@ -307,7 +343,7 @@ export async function signInWithOAuth(
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: typeof window === "undefined" ? undefined : window.location.href,
+      redirectTo: getOAuthRedirectTo(),
     },
   });
 
