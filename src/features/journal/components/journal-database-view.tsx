@@ -314,7 +314,7 @@ export function JournalDatabaseView({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[#1e1e1e]">
+    <div className="flex flex-1 flex-col overflow-hidden bg-card">
       <div className="border-b border-sidebar-border border-l bg-sidebar text-sidebar-foreground">
         <div className="flex h-11 items-center px-3">
           <div className="flex items-center gap-1">
