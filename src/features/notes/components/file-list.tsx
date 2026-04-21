@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,9 +10,9 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/s
 import {
   Briefcase,
   Check,
-  ChevronRight,
   Folder,
   FolderInput,
+  FolderOpen,
   Pencil,
   Star,
   Trash2,
@@ -70,7 +71,7 @@ type MobileActionTarget = {
   selection: SelectedItem[];
 };
 
-const FILE_TREE_ROW_HEIGHT = 32;
+const FILE_TREE_ROW_HEIGHT = 36;
 const FILE_TREE_OVERSCAN = 10;
 const LONG_PRESS_DURATION_MS = 380;
 
@@ -860,7 +861,9 @@ export const FileList = memo(function FileList({
       <div key={folder.id}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <button
+            <motion.button
+              whileTap={!isEditing ? { scale: 0.97 } : undefined}
+              transition={{ duration: 0.12, ease: [0.32, 0.72, 0, 1] }}
               ref={(node) => {
                 const key = getItemKey(folderItem);
                 if (node) {
@@ -889,9 +892,9 @@ export const FileList = memo(function FileList({
               onPointerLeave={cancelLongPress}
               draggable={!isEditing}
               onDragStart={(e) =>
-                handleDragStart(e, { type: "folder", id: folder.id, parentId: folder.parentId })
+                handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, { type: "folder", id: folder.id, parentId: folder.parentId })
               }
-              onDragEnd={handleDragEnd}
+              onDragEnd={(e) => handleDragEnd(e as unknown as React.DragEvent<HTMLButtonElement>)}
               onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
@@ -909,28 +912,28 @@ export const FileList = memo(function FileList({
               aria-selected={isSelected}
               tabIndex={focusedItemKey === getItemKey(folderItem) ? 0 : -1}
               className={cn(
-                "group flex w-full items-center justify-between border border-transparent text-xs font-medium transition-colors",
-                compactMode ? "h-6" : "h-7",
+                "group flex w-full items-center justify-between border border-transparent text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+                compactMode ? "h-[28px]" : "h-[34px]",
                 isSelected
                   ? "border-border bg-muted text-foreground"
                   : "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
                 isDragging && "opacity-50",
                 isDropTarget && "border-border bg-muted",
               )}
-              style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}
+              style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
             >
               <div className="flex min-w-0 items-center gap-1.5">
-                <ChevronRight
-                  className={cn(
-                    "h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform",
-                    folder.isOpen && "rotate-90",
-                  )}
-                  strokeWidth={1.5}
-                />
-                <Folder
-                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-                  strokeWidth={1.5}
-                />
+                {folder.isOpen ? (
+                  <FolderOpen
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+                    strokeWidth={1.5}
+                  />
+                ) : (
+                  <Folder
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+                    strokeWidth={1.5}
+                  />
+                )}
                 <span className="flex h-[18px] min-w-0 flex-1 items-center">
                   {isEditing ? (
                     <input
@@ -952,7 +955,7 @@ export const FileList = memo(function FileList({
               <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
                 {totalCount}
               </span>
-            </button>
+            </motion.button>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-48">
             <ContextMenuItem
@@ -1036,7 +1039,8 @@ export const FileList = memo(function FileList({
     );
   };
 
-  const renderFileRow = (file: NoteFile, depth: number) => {
+
+  function renderFileRow(file: NoteFile, depth: number) {
     const isEditing = editingId === file.id;
     const isDragging = dragItem?.id === file.id;
     const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
@@ -1047,7 +1051,9 @@ export const FileList = memo(function FileList({
     return (
       <ContextMenu key={file.id}>
         <ContextMenuTrigger asChild>
-          <button
+          <motion.button
+            whileTap={!isEditing ? { scale: 0.97 } : undefined}
+            transition={{ duration: 0.12, ease: [0.32, 0.72, 0, 1] }}
             ref={(node) => {
               const key = getItemKey(fileItem);
               if (node) {
@@ -1076,9 +1082,9 @@ export const FileList = memo(function FileList({
             onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
             draggable={!isEditing}
             onDragStart={(e) =>
-              handleDragStart(e, { type: "file", id: file.id, parentId: file.parentId })
+              handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, { type: "file", id: file.id, parentId: file.parentId })
             }
-            onDragEnd={handleDragEnd}
+            onDragEnd={handleDragEnd as any}
             onFocus={() => setFocusedItemKey(getItemKey(fileItem))}
             onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
             role="treeitem"
@@ -1086,14 +1092,14 @@ export const FileList = memo(function FileList({
             aria-selected={isSelected || activeFileId === file.id}
             tabIndex={focusedItemKey === getItemKey(fileItem) ? 0 : -1}
               className={cn(
-              "flex w-full items-center border border-transparent text-left text-xs font-medium transition-colors",
-              compactMode ? "h-6" : "h-7",
+              "flex w-full items-center border border-transparent text-left text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+              compactMode ? "h-7" : "h-[34px]",
               isSelected || activeFileId === file.id
                 ? "border-border bg-muted text-foreground"
                 : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
               isDragging && "opacity-50",
             )}
-            style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: "8px" }}
+            style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
           >
             <span className="flex h-[18px] min-w-0 flex-1 items-center truncate">
               {isEditing ? (
@@ -1112,7 +1118,7 @@ export const FileList = memo(function FileList({
                 <span className="truncate select-none">{file.name}</span>
               )}
             </span>
-          </button>
+          </motion.button>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem
@@ -1212,7 +1218,7 @@ export const FileList = memo(function FileList({
 
     setFocusedItemKey(preferredItem ? getItemKey(preferredItem) : null);
   }, [activeFileId, flattenedVisibleItems, focusedItemKey, getItemKey]);
-  const rowHeight = compactMode ? 28 : FILE_TREE_ROW_HEIGHT;
+  const rowHeight = compactMode ? 30 : FILE_TREE_ROW_HEIGHT;
   const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
   const totalHeight = flattenedVisibleItems.length * rowHeight;
   const viewportHeight = listRef.current?.clientHeight ?? 0;

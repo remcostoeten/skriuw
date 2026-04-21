@@ -1,12 +1,12 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import { motion } from "framer-motion";
 import { FileText, Folder, X } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { RecentItem } from "./types";
 import { SidebarSection } from "./sidebar-section";
-import { formatDistanceToNow } from "date-fns";
 
 type Props = {
   recents: RecentItem[];
@@ -115,12 +115,14 @@ export const RecentsSection = memo(function RecentsSection({
       ) : (
         <div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
           {resolvedRecents.map((recent) => (
-            <button
+            <motion.button
               key={recent.id}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.12, ease: [0.32, 0.72, 0, 1] }}
               onClick={() => recent.itemType === "file" && onFileSelect(recent.itemId)}
               className={cn(
                 "group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
-                compactMode ? "h-6" : "h-7",
+                compactMode ? "h-[28px]" : "h-[34px]",
                 recent.itemType === "file" && recent.itemId === activeFileId
                   ? "border-border bg-muted text-foreground"
                   : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
@@ -138,10 +140,7 @@ export const RecentsSection = memo(function RecentsSection({
                 />
               )}
               <span className="flex-1 truncate">{recent.name}</span>
-              <span className="ml-3 shrink-0 text-right text-[10px] text-muted-foreground/40 tabular-nums">
-                {formatDistanceToNow(new Date(recent.accessedAt), { addSuffix: false })}
-              </span>
-            </button>
+            </motion.button>
           ))}
         </div>
       )}

@@ -4,8 +4,11 @@ import { AppState, type AppStateStatus, Platform } from "react-native";
 
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const SUPABASE_AUTH_STORAGE_KEY = "skriuw:mobile:supabase-auth";
 
@@ -40,18 +43,18 @@ function bindAppStateAutoRefresh(supabase: SupabaseClient) {
 }
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
 
 export function getSupabaseClient(): SupabaseClient {
   if (!client) {
     if (!isSupabaseConfigured()) {
       throw new Error(
-        "Supabase env vars are missing. Set EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY or reuse the NEXT_PUBLIC_* values.",
+        "Supabase env vars are missing. Set EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY or reuse the NEXT_PUBLIC_* values.",
       );
     }
 
-    client = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+    client = createClient(SUPABASE_URL!, SUPABASE_KEY!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,

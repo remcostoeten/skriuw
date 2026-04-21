@@ -36,6 +36,7 @@ type SidebarState = {
   addToRecents: (itemId: string, itemType: "file" | "folder") => void;
   clearRecents: () => void;
   getRecents: () => RecentItem[];
+  setMaxRecents: (max: number) => void;
 
   createProject: (name: string, color?: string) => Project;
   updateProject: (projectId: string, updates: Partial<Project>) => void;
@@ -45,7 +46,6 @@ type SidebarState = {
   getProjects: () => Project[];
   getProjectById: (projectId: string) => Project | undefined;
 
-  setMaxRecents: (max: number) => void;
   toggleShowSectionHeaders: () => void;
   toggleCompactMode: () => void;
   resetToDefaults: () => void;
@@ -59,7 +59,7 @@ type PersistedSidebarState = {
 
 function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): SidebarConfig {
   return {
-    sections: config.sections.map((section) => ({
+    sections: (config.sections ?? []).map((section) => ({
       ...section,
       customConfig: section.customConfig
         ? {
@@ -69,14 +69,14 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
           }
         : undefined,
     })),
-    favorites: config.favorites.map((favorite) => ({ ...favorite })),
-    recents: config.recents.map((recent) => ({ ...recent })),
-    projects: config.projects.map((project) => ({
+    favorites: (config.favorites ?? []).map((favorite) => ({ ...favorite })),
+    recents: (config.recents ?? []).map((recent) => ({ ...recent })),
+    projects: (config.projects ?? []).map((project) => ({
       ...project,
       fileIds: [...project.fileIds],
       folderIds: [...project.folderIds],
     })),
-    maxRecents: config.maxRecents,
+    maxRecents: config.maxRecents ?? 10,
     showSectionHeaders: config.showSectionHeaders,
     compactMode: config.compactMode,
   };

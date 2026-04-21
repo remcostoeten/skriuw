@@ -30,7 +30,7 @@ export type OAuthProvider = "google" | "github";
 type AuthListener = () => void;
 
 const MISSING_ENV_ERROR =
-  "Supabase env vars are missing. Set EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY or reuse the NEXT_PUBLIC_* values.";
+  "Supabase env vars are missing. Set EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY or reuse the NEXT_PUBLIC_* values.";
 
 WebBrowser.maybeCompleteAuthSession();
 

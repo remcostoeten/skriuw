@@ -229,7 +229,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
   }, []);
 
   return (
-    <div className="blocknote-wrapper h-full min-h-full">
+    <div className="blocknote-wrapper h-full min-h-full px-6 py-3">
       <BlockNoteView
         editor={editor}
         onChange={handleEditorChange}
@@ -244,7 +244,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
       </BlockNoteView>
       <style jsx global>{`
         .blocknote-wrapper {
-          --bn-colors-editor-background: #1e1e1e;
+          --bn-colors-editor-background: hsl(var(--card));
           --bn-colors-editor-text: hsl(220 10% 82%);
           --bn-colors-menu-background: hsl(220 16% 6%);
           --bn-colors-menu-text: hsl(220 10% 82%);
@@ -259,7 +259,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           --bn-font-family: "Inter", system-ui, -apple-system, sans-serif;
           height: 100%;
           min-height: 100%;
-          background: #1e1e1e !important;
+          background: hsl(var(--card));
         }
         .blocknote-wrapper .bn-container,
         .blocknote-wrapper .bn-container [data-theming-css-variables-demo],
@@ -276,7 +276,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           max-width: 42rem;
           margin: 0 auto;
           min-height: 100%;
-          background: #1e1e1e !important;
+          background: hsl(var(--card)) !important;
         }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;

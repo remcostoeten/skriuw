@@ -305,7 +305,7 @@ export function JournalPageLayout() {
 
         {/* Main content area */}
         {isHydrated ? (
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]">
+          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
             {view === "list" ? (
               <JournalDatabaseView
                 onSelectEntry={handleSelectEntry}
