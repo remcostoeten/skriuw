@@ -155,8 +155,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <>hi</>
-            //<AuthEntryPoint triggerVariant="rail-avatar" />
+            <AuthEntryPoint triggerVariant="rail-avatar" />
           )}
         </div>
       </aside>

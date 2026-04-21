@@ -36,14 +36,19 @@ That copies the root `.env.local` into `apps/mobile/.env.local`.
 Mobile auth code accepts either:
 
 - `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-So copying the root env file is enough for local setup if web is already configured.
+The legacy `EXPO_PUBLIC_SUPABASE_ANON_KEY` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` names are still supported as fallbacks.
 
-A keyboard-first note-taking application built with Next.js, React, and TypeScript.
+So copying the root env file is enough for local setup if web is already
+configured.
+
+A keyboard-first note-taking application built with Next.js, React, and
+TypeScript.
 
 ## Features
 
@@ -108,7 +113,7 @@ Set these client-safe env vars in `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
 Supabase project notes:
