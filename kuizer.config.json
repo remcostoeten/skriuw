@@ -1,0 +1,27 @@
+{
+  "dryRunByDefault": true,
+  "framework": "nextjs-app",
+  "entrypoints": [
+    "app/**/page.tsx",
+    "app/**/layout.tsx",
+    "app/**/loading.tsx",
+    "app/**/error.tsx",
+    "app/**/not-found.tsx",
+    "app/**/route.ts",
+    "app/**/template.tsx",
+    "app/**/default.tsx",
+    "middleware.ts",
+    "instrumentation.ts"
+  ],
+  "allowedExports": [
+    "generateMetadata",
+    "generateStaticParams",
+    "generateViewport",
+    "revalidate",
+    "dynamic",
+    "runtime",
+    "fetchCache",
+    "preferredRegion",
+    "maxDuration"
+  ]
+}
