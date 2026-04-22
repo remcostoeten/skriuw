@@ -1,0 +1,28 @@
+.pixel-blast-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-blast-auth-fade {
+  opacity: 0;
+  animation: pixel-blast-auth-fade 900ms ease-out 160ms forwards;
+}
+
+@keyframes pixel-blast-auth-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-blast-auth-fade {
+    opacity: 1;
+    animation: none;
+  }
+}

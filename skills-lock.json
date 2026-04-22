@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "mobile-touch": {
+      "source": "dylantarre/animation-principles",
+      "sourceType": "github",
+      "computedHash": "0675004b7f955c8cbcd8a8bb16aafa3fb56a05fd4a01f9895c1246f1e915970a"
+    }
+  }
+}

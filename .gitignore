@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -22,47 +25,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-.config/
-
-
-*.env.local
-*.env.production
-
-_test-app
-tmp/
-tmp/*
-docs/*
-!docs/SPEC.md
-!docs/AGENT_TASKS.md
-
-# Tauri
-src-tauri/target/
-
-
-# Next.js
-next-app/.tmp/*
-.next/*
-quantum-work-monorepo/apps/web/.next/*
-next-app/apps/web/.tmp/*
+.next/
+.expo/
+.fix-filenames-manifest.json
 .vercel
-.env*.local
-.turbo/
-.env
-.gitignore
-.env copy
-packages/db/.env
-.env
-.env.local
-.env.production
-packages/db/.env
+test-results/
+*.tsbuildinfo
 
-# PWA (Serwist)
-public/sw.js
-public/sw.js.map
-public/swe-worker-*.js
-public/workbox-*.js
-apps/desktop/.next/*
-apps/docs/.next/*
-secrets.weee
-a
+TODO.*
