@@ -1,317 +1,203 @@
-<p align="center">
-  <img src="public/icons/icon.png" alt="Skriuw" width="96" height="96">
-</p>
+# Skriuw
 
-<h1 align="center">Skriuw</h1>
+## Mobile
 
-<p align="center">
-<strong>Skriuw</strong> <em>(noun)</em><br>
-/skrɪu̯/ — <em>Frisian, "to write."</em>
-</p>
+Run the Expo app from the repo root:
 
-<p align="center">
-  <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/github/v/release/remcostoeten/skriuw?style=flat-square&color=0a0a0a&labelColor=0a0a0a" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0a0a0a?style=flat-square&labelColor=0a0a0a" alt="MIT License"></a>
-  <a href="https://skriuw.vercel.app"><img src="https://img.shields.io/badge/try-live%20demo-0a0a0a?style=flat-square&labelColor=0a0a0a" alt="Live Demo"></a>
-  <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-0a0a0a?style=flat-square&labelColor=0a0a0a" alt="Platforms"></a>
-</p>
-
----
-
-<p align="center">
-  <img src="public/screenshot.png" alt="Skriuw Interface" width="100%">
-</p>
-
----
-
-A note taking and productivity platform that adapts to how you want to work.
-
-Cloud hosted, self hosted on your infrastructure, or running fully offline on your machine. Your data lives where you decide. Every feature is opt in. Nothing is forced. AI, sync, telemetry: all disabled by default until you choose otherwise.
-
----
-
-## At a Glance
-
-Skriuw covers the full spectrum from a simple personal notes app to a team knowledge base.
-
-**Writing**  
-Block based rich editor with slash commands, formatting toolbar, and raw MDX mode. Wikilinks (`[[Note Name]]`) with automatic backlink tracking. Tag mentions with `#tag` syntax. Code blocks with syntax highlighting via Prism. Tables, callouts, quotes, and embeds.
-
-**Organization**  
-Nested folder hierarchy with drag and drop. Pin and favorite notes. Archive and trash with recovery. Full text search across all content with advanced query syntax. Global command palette (Cmd+K) for quick navigation.
-
-**Daily Workflow**  
-Daily notes with configurable templates. Quick capture from anywhere. Journal workflow with date based organization. Auto open today's note on startup.
-
-**Media & Assets**  
-Cover images and icons per note. Image uploads via UploadThing, S3, or local storage. Asset library for managing all uploaded files.
-
-**AI Integration**  
-Bring your own API keys: OpenAI, Anthropic, Groq. Run local models via Ollama. Or disable AI entirely. It's opt in.
-
-**Customization**  
-Over 30 configurable settings across 10 categories: editor behavior, appearance, typography, note experience, daily notes, tags, shortcuts, backup, AI, and advanced options.
-
----
-
-## Compared to Alternatives
-
-| Capability                      |             Skriuw              |   Notion   |  Obsidian   |    Apple Notes     |
-| ------------------------------- | :-----------------------------: | :--------: | :---------: | :----------------: |
-| **Fully opt in features**       |               Yes               |     No     |   Partial   |         No         |
-| **Cloud + self host + offline** |            All three            | Cloud only | Local only  |    iCloud only     |
-| **Native desktop apps**         |          Tauri (Rust)           |  Electron  |  Electron   |       Native       |
-| **BYOK database**               | PostgreSQL, SQLite, filesystem  |     No     | Filesystem  |         No         |
-| **BYOK AI provider**            | OpenAI, Anthropic, Ollama, none | GPT-4 only |   Plugins   | Apple Intelligence |
-| **Block based editor**          |               Yes               |    Yes     |     No      |         No         |
-| **Wikilinks + backlinks**       |               Yes               |  Partial   |     Yes     |         No         |
-| **Real time collaboration**     |             Planned             |    Yes     |     No      |        Yes         |
-| **Open source**                 |               MIT               |     No     |   Partial   |         No         |
-| **Offline PWA**                 |               Yes               |     No     |     N/A     |        N/A         |
-| **Custom keyboard shortcuts**   |        25+ configurable         |  Limited   | Via plugins |         No         |
-| **Daily notes / journaling**    |            Built in             |  Template  |   Plugin    |         No         |
-| **Multi tab editing**           |               Yes               |  Limited   |     Yes     |         No         |
-
----
-
-## Full Feature List
-
-### Editor
-
-Block based rich text editor (BlockNote), slash command menu with 15+ block types, floating formatting toolbar, wikilinks (`[[Note Name]]`) with backlink panel, tag mentions with `#tag` syntax, code blocks with 50+ language syntax highlighting, tables, callouts, quotes, dividers, cover images with positioning, note icons (emoji or custom), word wrap toggle, block indicator (drag handle), multi note tabs, raw MDX editing mode (Ctrl+M to toggle), centered layout with configurable max width.
-
-### Note Experience
-
-Six built in templates: empty, h1, h2, meeting, journal, project. Configurable title and body placeholders. Auto inherit folder icons. Default emoji assignment. Cover images (enable/disable).
-
-### Daily Notes
-
-Date based note generation. Four date format options. Dedicated journal folder. Auto open on startup option. Configurable daily note emoji.
-
-### Search & Navigation
-
-Full text search across content (opt in). Filename search (default). Advanced query syntax with operators. Global command palette (Cmd+K). Mobile search drawer. Unified search component.
-
-### Keyboard Shortcuts
-
-Over 25 customizable shortcuts. Platform aware (Cmd on Mac, Ctrl on Windows/Linux). Shortcut builder API for extensions. Visible in UI with Kbd component.
-
-### Tags System
-
-Inline `#tag` mentions. Tag management panel. Custom tag colors. Usage tracking across notes. Settings panel for tag customization.
-
-### Backup & Export
-
-Export to Markdown. Export to JSON. Import from Markdown files. Storage connectors for external sync. Trash with recovery.
-
-### AI Features (BYOK)
-
-Multiple provider support: OpenAI, Anthropic, Groq. Local models via Ollama. Provider abstraction layer. Fully opt in, disabled by default.
-
-### Media & Uploads
-
-Image uploads via UploadThing. S3 compatible storage support. Local filesystem storage (desktop). Upload adapter abstraction. Media picker component.
-
-### Settings
-
-Ten categories: Editor, Note Experience, Daily Notes, Appearance, Behavior, Tags, Shortcuts, Backup, AI, Advanced. Live preview for many settings. Validation with error messages. Conditional settings (show/hide based on other settings). Feature flags system.
-
-### Authentication
-
-Better Auth integration. OAuth providers. Session management. Account settings panel.
-
-### Activity Tracking
-
-Recent activity feed. Modification timestamps. Created/updated tracking.
-
----
-
-## Architecture
-
-```
-skriuw/
-├── apps/
-│   └── web/                    # Next.js 15 application
-│       ├── app/                # App Router pages and API routes
-│       ├── components/         # Layout, sidebar, command palette
-│       ├── features/           # Feature modules (15 total)
-│       │   ├── account/        # User account management
-│       │   ├── activity/       # Activity tracking
-│       │   ├── ai/             # AI provider abstraction
-│       │   ├── authentication/ # Auth flows
-│       │   ├── backup/         # Import/export, storage connectors
-│       │   ├── editor/         # BlockNote editor, MDX mode
-│       │   ├── media/          # Media picker, asset management
-│       │   ├── notes/          # Note CRUD, types, utilities
-│       │   ├── quick-note/     # Quick capture
-│       │   ├── search/         # Search components, query parser
-│       │   ├── settings/       # 30+ settings, preview renderers
-│       │   ├── shortcuts/      # Shortcut definitions, builder
-│       │   ├── tags/           # Tag management
-│       │   ├── tasks/          # Task management
-│       │   └── uploads/        # Upload adapters
-│       ├── lib/                # Search engine, utilities
-│       ├── modules/            # PWA install module
-│       └── src-tauri/          # Tauri desktop wrapper
-│
-├── packages/
-│   ├── config/                 # Shared ESLint, TypeScript config
-│   ├── crud/                   # Database CRUD operations
-│   ├── db/                     # Drizzle schema, migrations
-│   ├── env/                    # Environment variable validation
-│   ├── shared/                 # Utilities, hooks, types
-│   ├── style/                  # Base styles
-│   └── ui/                     # 50+ UI components
-│
-└── scripts/                    # Development CLI, analyzers
+```bash
+bun run dev:mobile
 ```
 
----
+Useful mobile commands:
 
-## Development
+```bash
+bun run dev:mobile:tunnel
+bun run dev:mobile:lan
+bun run dev:mobile:web
+bun run dev:mobile:ios
+bun run dev:mobile:android
+bun run mobile:ios
+bun run mobile:android
+bun run mobile:typecheck
+bun run mobile:doctor
+```
+
+`dev:mobile:*` starts Expo with the relevant target or connection mode.
+`mobile:ios` and `mobile:android` run the native Expo build commands.
+
+Set up local Expo env vars if you want cloud-ready mobile config:
+
+```bash
+bun run mobile:env:setup
+```
+
+That copies the root `.env.local` into `apps/mobile/.env.local`.
+
+Mobile auth code accepts either:
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+The legacy `EXPO_PUBLIC_SUPABASE_ANON_KEY` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` names are still supported as fallbacks.
+
+So copying the root env file is enough for local setup if web is already
+configured.
+
+A keyboard-first note-taking application built with Next.js, React, and
+TypeScript.
+
+## Features
+
+- **Markdown and Rich Text Editing**: Switch between markdown and rich text modes
+- **File Management**: Create, organize, and manage notes with folders
+- **Keyboard-First**: Optimized for keyboard navigation and shortcuts
+- **Responsive Design**: Works on desktop and mobile
+- **Cloud Workspace**: Notes, folders, journal entries, and tags are loaded from Supabase
+
+## Tech Stack
+
+- **Framework**: Next.js 16 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Custom components with Radix UI primitives
+- **State Management**: Zustand
+- **Editor**: Blocknote for rich text editing
+- **Icons**: Lucide React
+
+## Getting Started
 
 ### Prerequisites
 
-Node.js 18+ or Bun 1.0+, PostgreSQL (for cloud/self hosted mode), Rust toolchain (for desktop builds).
+- Node.js 18+
+- npm, yarn, or bun
 
-### Quick Start
+### Installation
 
 ```bash
-git clone https://github.com/remcostoeten/skriuw.git
+# Clone the repository
+git clone <your-repo-url>
 cd skriuw
+
+# Install dependencies
+npm install
+# or
+yarn install
+# or
 bun install
+
+# Start development server
+npm run dev
+# or
+yarn dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Supabase Setup
+
+This app uses Supabase for all persistent backend storage.
+
+Copy the env template first:
+
+```bash
 cp .env.example .env.local
-# Configure DATABASE_URL and other variables
-bun run dev
 ```
 
-### Scripts
+Set these client-safe env vars in `.env.local`:
 
 ```bash
-# Development
-bun run dev              # Start Next.js dev server
-bun run build            # Production build
-bun run lint             # ESLint
-bun run check-types      # TypeScript check
-bun run test             # Run tests
-
-# Desktop (Tauri)
-bun run tauri:dev        # Tauri dev mode
-bun run tauri:build      # Build for current platform
-bun run tauri:build:mac  # Universal macOS build
-bun run tauri:build:deb  # Debian package
-
-# Database
-bun run db:push          # Push schema to database
-bun run db:studio        # Open Drizzle Studio
-
-# Utilities
-bun run seed:identity-guide      # Seed example notes
-bun run scripts/dev-cli.ts       # Interactive dev CLI
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
-### Dev CLI
+Supabase project notes:
 
-The interactive dev CLI (`scripts/dev-cli.ts`) provides quick navigation to features, database utilities, code generation, dependency analysis, and unused file detection.
+- Enable Email/Password, Google, and GitHub providers if you want all auth options in the drawer.
+- Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
+- Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
+- For Expo mobile OAuth, also allow `skriuw://auth/callback` as a redirect URL in Supabase Auth.
+- The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, and `tags`, each scoped by `user_id` with RLS enabled.
+- Mobile now supports email/password plus Google and GitHub OAuth via Expo deep links.
 
-### Tooling
-
-| Tool              | Purpose                           |
-| ----------------- | --------------------------------- |
-| **Bun**           | Package manager, runtime, bundler |
-| **Turborepo**     | Monorepo build orchestration      |
-| **Next.js 16**    | React framework with App Router   |
-| **Tauri 2.0**     | Native desktop wrapper (Rust)     |
-| **Drizzle ORM**   | Type safe database layer          |
-| **BlockNote**     | Block based editor                |
-| **Better Auth**   | Authentication                    |
-| **React Query**   | Server state management           |
-| **Zustand**       | Client state                      |
-| **Framer Motion** | Animations                        |
-| **GSAP**          | Advanced animations               |
-| **UploadThing**   | File uploads                      |
-
----
-
-## Deployment Options
-
-### Cloud (Hosted)
-
-Sign up at [skriuw.vercel.app](https://skriuw.vercel.app) and start writing. Data stored on our infrastructure with PostgreSQL.
-
-### Self Hosted
-
-Deploy to your own infrastructure:
+### Build
 
 ```bash
-git clone https://github.com/remcostoeten/skriuw.git
-cd skriuw
-cp .env.example .env.local
-# Set DATABASE_URL to your PostgreSQL instance
-# Configure auth providers as needed
-bun install && bun run build && bun run start
+npm run build
+npm run start
 ```
 
-Deployment guides available for: Vercel, Railway, Fly.io, Docker, Coolify.
+## Project Structure
 
-### Desktop (Fully Offline)
-
-Native apps with local SQLite or filesystem storage. No server required.
-
-| Platform                  | Download                                                                      |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| **macOS** (Apple Silicon) | [skriuw-x.x.x-aarch64.dmg](https://github.com/remcostoeten/skriuw/releases)   |
-| **macOS** (Intel)         | [skriuw-x.x.x-x64.dmg](https://github.com/remcostoeten/skriuw/releases)       |
-| **Windows**               | [skriuw-x.x.x-x64-setup.exe](https://github.com/remcostoeten/skriuw/releases) |
-| **Linux** (AppImage)      | [skriuw-x.x.x.AppImage](https://github.com/remcostoeten/skriuw/releases)      |
-| **Linux** (deb)           | [skriuw_x.x.x_amd64.deb](https://github.com/remcostoeten/skriuw/releases)     |
-| **Linux** (rpm)           | [skriuw-x.x.x.rpm](https://github.com/remcostoeten/skriuw/releases)           |
-
-### Package Managers
-
-```bash
-# macOS
-brew tap remcostoeten/skriuw && brew install skriuw
-
-# Arch Linux (AUR)
-yay -S skriuw-bin
-
-# Ubuntu/Debian
-sudo add-apt-repository ppa:remcostoeten/skriuw
-sudo apt update && sudo apt install skriuw
-
-# Fedora
-sudo dnf copr enable remcostoeten/skriuw && sudo dnf install skriuw
-
-# Snap
-sudo snap install skriuw
-
-# Flatpak
-flatpak install flathub app.skriuw.Skriuw
-
-# Direct download
-wget https://github.com/remcostoeten/skriuw/releases/latest/download/skriuw.AppImage
-chmod +x skriuw.AppImage && ./skriuw.AppImage
+```
+src/
+├── app/          # Route entry points and top-level composition
+├── features/     # Product features: notes, journal, settings, layout, tags
+├── platform/     # Auth and platform/runtime integrations
+├── shared/       # Reusable UI primitives and generic helpers
+├── core/         # Persistence adapters and repository layer
+├── providers/    # App-level providers and bootstrapping
+└── types/        # Shared TypeScript types still used across older layers
 ```
 
----
+## Usage
 
-## BYOK (Bring Your Own Keys)
+### Creating Notes
 
-Configure your own providers:
+1. Click "New File" in the sidebar or press `Ctrl+N`
+2. Choose between Markdown or Rich Text mode
+3. Start typing
 
-| Service      | Options                                                    |
-| ------------ | ---------------------------------------------------------- |
-| **Database** | PostgreSQL (cloud), SQLite (desktop), filesystem (desktop) |
-| **AI**       | OpenAI, Anthropic, Groq, Ollama (local), or disabled       |
-| **Storage**  | Vercel Blob, S3 compatible, UploadThing, local disk        |
-| **Auth**     | GitHub OAuth, Google OAuth, email/password                 |
+### Organizing Notes
 
-Set your keys in `.env.local` or in the desktop app settings.
+- Create folders to organize your notes
+- Drag and drop files to move them between folders
+- Use the search feature to find notes quickly
 
----
+### Keyboard Shortcuts
 
-MIT
+- `Ctrl+N`: Create new note
+- `Ctrl+S`: Save note (auto-saves by default)
+- `Ctrl+/`: Toggle sidebar
+- `Ctrl+Shift+P`: Command palette
 
-xxx,  
-[Remco Stoeten](https://remcostoeten-nl.vercel.app)
+## Development
+
+### Adding New Components
+
+1. Put feature-specific UI and state under `src/features/<feature>/`
+2. Put shared UI primitives in `src/shared/ui/`
+3. Keep route files in `src/app/` thin and focused on composition
+4. Put auth and runtime integrations in `src/platform/`
+
+### State Management
+
+The app uses colocated Zustand stores inside the owning feature where possible:
+
+- `features/notes/store.ts`: note and folder state
+- `features/settings/store.ts`: local UI/preferences state
+- `features/layout/store.ts`: shell UI state
+- `features/tags/store.ts`: tag data
+
+### Styling
+
+- Uses Tailwind CSS for styling
+- Custom theme defined in `tailwind.config.ts`
+- Dark mode support via CSS variables
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details.

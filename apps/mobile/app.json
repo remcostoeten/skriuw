@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Skriuw",
+    "slug": "skriuw-mobile",
+    "scheme": "skriuw",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "description": "A calm notes and journal workspace connected to your account.",
+    "backgroundColor": "#121212",
+    "plugins": [
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "splash": {
+      "backgroundColor": "#121212",
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
