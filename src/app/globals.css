@@ -1,0 +1,509 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap")
+layer(base);
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: JetBrains Mono, monospace;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-haptic-deep: hsl(var(--haptic-bg-deep));
+  --color-haptic-sidebar: hsl(var(--haptic-bg-sidebar));
+  --color-haptic-editor: hsl(var(--haptic-bg-editor));
+  --color-haptic-hover: hsl(var(--haptic-bg-hover));
+  --color-haptic-active: hsl(var(--haptic-bg-active));
+  --color-haptic-dim: hsl(var(--haptic-text-dim));
+  --color-haptic-secondary: hsl(var(--haptic-text-secondary));
+  --color-haptic-blue: hsl(var(--haptic-accent-blue));
+  --color-haptic-rail: hsl(var(--haptic-icon-rail));
+  --color-haptic-toolbar: hsl(var(--haptic-toolbar-bg));
+  --color-haptic-divider: hsl(var(--haptic-divider));
+  --color-haptic-btn-outline: hsl(var(--haptic-btn-outline));
+  --color-haptic-btn-fill: hsl(var(--haptic-btn-fill));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility haptic-sidebar {
+  background: hsl(var(--haptic-bg-sidebar));
+}
+
+@utility haptic-icon-rail {
+  background: hsl(var(--haptic-icon-rail));
+}
+
+@utility haptic-editor {
+  background: hsl(var(--haptic-bg-editor));
+}
+
+@utility haptic-toolbar {
+  background: hsl(var(--haptic-toolbar-bg));
+}
+
+@utility haptic-hover {
+  background: hsl(var(--haptic-bg-hover));
+}
+
+@utility haptic-active {
+  background: hsl(var(--haptic-bg-active));
+}
+
+@utility haptic-divider {
+  border-color: hsl(var(--haptic-divider));
+}
+
+@utility haptic-text-dim {
+  color: hsl(var(--haptic-text-dim));
+}
+
+@utility haptic-text-secondary {
+  color: hsl(var(--haptic-text-secondary));
+}
+
+@layer base {
+  :root {
+    /* Core colors - darker theme using only background/foreground/card */
+    --background: 2 0% 7%;
+    --foreground: 0 0% 91%;
+
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 91%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 91%;
+
+    --primary: 0 0% 25%;
+    --primary-foreground: 0 0% 91%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 85%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 91%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 20%;
+
+    --radius: 0.375rem;
+
+    /* Simplified semantic tokens derived from core colors */
+    --haptic-bg-deep: 0 0% 5%;
+    --haptic-bg-sidebar: 0 0% 7%;
+    --haptic-bg-editor: 0 0% 7%;
+    --haptic-bg-hover: 0 0% 15%;
+    --haptic-bg-active: 0 0% 18%;
+    --haptic-text-dim: 0 0% 40%;
+    --haptic-text-secondary: 0 0% 55%;
+    --haptic-icon-rail: 0 0% 9%;
+    --haptic-toolbar-bg: 0 0% 9%;
+    --haptic-divider: 0 0% 15%;
+    --haptic-btn-outline: 0 0% 25%;
+    --haptic-btn-fill: 0 0% 20%;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 0% 25%;
+    --sidebar-primary-foreground: 0 0% 91%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 91%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 0% 30%;
+  }
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      sans-serif;
+    overscroll-behavior: none;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"],
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+  }
+
+  input.auth-input:-webkit-autofill,
+  input.auth-input:-webkit-autofill:hover,
+  input.auth-input:-webkit-autofill:focus,
+  input.auth-input:-webkit-autofill:active {
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+    box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+    transition: background-color 9999s ease-out;
+  }
+
+  .auth-action-button,
+  .auth-action-icon,
+  .auth-action-label,
+  .auth-check-control,
+  .auth-password-toggle-icon {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 160ms ease-out,
+      border-color 180ms ease-out,
+      background-color 180ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  .auth-action-button {
+    transform: translateY(0) scale(1);
+  }
+
+  .auth-action-button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  .auth-action-button[data-state="pending"] .auth-action-label {
+    opacity: 0.78;
+  }
+
+  .auth-action-button[data-state="success"] .auth-action-icon {
+    animation: auth-action-success-pop 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .auth-action-button[data-state="success"] .auth-action-label {
+    opacity: 1;
+  }
+
+  .auth-action-icon {
+    display: inline-flex;
+    transform: scale(1);
+  }
+
+  .auth-loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 1rem;
+    justify-content: center;
+  }
+
+  .auth-loading-dot {
+    width: 0.24rem;
+    height: 0.24rem;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.55;
+    animation: auth-loading-dot 900ms ease-in-out infinite;
+  }
+
+  .auth-loading-dot:nth-child(2) {
+    animation-delay: 120ms;
+  }
+
+  .auth-loading-dot:nth-child(3) {
+    animation-delay: 240ms;
+  }
+
+  .auth-action-label {
+    min-width: 0;
+    opacity: 1;
+  }
+
+  @keyframes auth-action-success-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes auth-loading-dot {
+    0%,
+    80%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.45;
+    }
+
+    40% {
+      transform: translateY(-2px);
+      opacity: 1;
+    }
+  }
+
+  .auth-check-control {
+    transform: scale(1);
+  }
+
+  .auth-check-input:active + .auth-check-control {
+    transform: scale(0.97);
+  }
+
+  .auth-check-input:checked + .auth-check-control {
+    border-color: hsl(var(--foreground));
+    background: hsl(var(--foreground));
+  }
+
+  .auth-check-input:focus-visible + .auth-check-control {
+    outline: 1px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .auth-check-mark {
+    color: hsl(var(--background));
+    opacity: 0;
+    transform: scale(0.72) translateY(1px);
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 120ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  .auth-check-input:checked + .auth-check-control .auth-check-mark {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  .auth-password-toggle:active .auth-password-toggle-icon {
+    transform: scale(0.97);
+  }
+
+  .auth-password-toggle-icon {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+
+  .auth-password-toggle:hover .auth-password-toggle-icon,
+  .auth-password-toggle[aria-pressed="true"] .auth-password-toggle-icon {
+    opacity: 1;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--haptic-bg-hover));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--haptic-btn-outline));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pressable,
+    .pressable-soft {
+      transition:
+        transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 180ms ease-out,
+        border-color 180ms ease-out,
+        color 180ms ease-out,
+        box-shadow 220ms ease-out,
+        opacity 180ms ease-out,
+        filter 180ms ease-out;
+      transform-origin: center;
+      will-change: transform;
+    }
+
+    .pressable:hover,
+    .pressable-soft:hover {
+      transform: translateY(-0.5px);
+    }
+
+    .pressable:active,
+    .pressable-soft:active {
+      transform: scale(0.965);
+      filter: saturate(1.05) brightness(0.98);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-check-control,
+    .auth-check-mark,
+    .auth-action-button,
+    .auth-action-icon,
+    .auth-action-label,
+    .auth-loading-dot,
+    .auth-password-toggle-icon {
+      transition-duration: 80ms;
+    }
+
+    .auth-action-button[data-state="success"] .auth-action-icon {
+      animation: none;
+    }
+  }
+
+  .pressable-soft:active {
+    transform: scale(0.982);
+  }
+
+  .native-surface {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .native-panel {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .drag-handle {
+    position: relative;
+  }
+
+  .drag-handle::before {
+    content: "";
+    display: block;
+    margin-inline: auto;
+    height: 0.35rem;
+    width: 3.2rem;
+    border-radius: 999px;
+    background: hsl(var(--border));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-out {
+    animation-duration: 140ms !important;
+  }
+
+  .animate-in {
+    --tw-enter-scale: 1 !important;
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+  }
+
+  .animate-out {
+    --tw-exit-scale: 1 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  @layer base {
+    body {
+      background-image: none;
+    }
+  }
+}

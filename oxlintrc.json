@@ -1,0 +1,49 @@
+{
+  "plugins": ["import", "typescript"],
+  "jsPlugins": [
+    {
+      "name": "custom",
+      "specifier": "./oxlint.custom.js"
+    }
+  ],
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "warn",
+    "import/order": ["error", {
+      "groups": [
+        "builtin",
+        "external",
+        "internal",
+        "parent",
+        "sibling",
+        "index"
+      ],
+      "order": {
+        "rankDirection": "asc",
+        "groupKind": "mixed"
+      },
+      "pathGroups": [
+        {
+          "pattern": "@/**",
+          "group": "internal"
+        },
+        {
+          "pattern": "~/**",
+          "group": "internal"
+        }
+      ]
+    }],
+    "import/first": "error",
+    "import/no-duplicates": "error",
+    "typescript/consistent-type-imports": ["error", {
+      "prefer": "type-imports",
+      "disallowTypeAnnotations": false
+    }],
+    "custom/no-arrow-functions": "error",
+    "custom/props-naming": "error",
+    "custom/eol": "error",
+    "custom/no-named-exports-page-view": "error",
+    "custom/no-named-view-function-exports": "error",
+    "custom/kebab-case-filename": "error"
+  }
+}

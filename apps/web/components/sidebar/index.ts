@@ -1,8 +1,0 @@
-export { Sidebar } from './sidebar-component'
-export { SidebarLayout } from './sidebar-layout'
-export { SidebarSkeleton } from './sidebar-skeleton'
-export { TableOfContents } from './table-of-contents'
-export { TasksSidebarContent } from './tasks-sidebar-content'
-export { SidebarEmptyState } from './sidebar-empty-state'
-export { useSidebarContentType } from './use-sidebar-content-type'
-export type { SidebarContentType } from './types'
