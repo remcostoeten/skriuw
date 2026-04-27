@@ -61,8 +61,7 @@ export function Header({
             <>
               <Button
                 href="https://github.com/remcostoeten/skriuw"
-                variant="static"
-                size="static"
+                variant="outline"
               >
                 Star on Github
               </Button>
