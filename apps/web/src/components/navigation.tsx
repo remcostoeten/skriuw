@@ -82,7 +82,8 @@ function InboxIcon({ className }: { className?: string }) {
 function CalendarIcon({ className }: { className?: string }) {
 	return (
 		<svg
-			width="18"18 18"
+			width="18"
+			height="18"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			className={`text-current ${className || ''}`}
