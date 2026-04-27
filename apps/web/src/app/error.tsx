@@ -1,9 +1,3 @@
-import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Error - Something went wrong',
-};
-
 export default function Error({
   error,
   reset,
