@@ -89,7 +89,32 @@ trackNoteCreated(noteId, { name: "My Note" });
 
 ## Dashboard Queries
 
-The analytics API exposes metrics at `/api/analytics?metric=EVENTS&projectId=skriuw`. For custom queries, connect directly to the database.
+The analytics dashboard exposes skriuw-specific metrics at `/api/analytics?metric=METRIC_NAME&projectId=skriuw`.
+
+### Available Dashboard Metrics
+
+| Metric | Description | Returns |
+|--------|-------------|---------|
+| `skriuw-events` | All event counts | `{ eventName: string, count: number }[]` |
+| `skriuw-trend` | Events over time | `{ date: string, eventName: string, count: number }[]` |
+| `skriuw-notes` | Notes activity | `{ eventName: string, count: number }[]` |
+| `skriuw-journal` | Journal activity | `{ eventName: string, count: number }[]` |
+| `skriuw-auth` | Auth method breakdown | `{ method: string, count: number }[]` |
+| `skriuw-recent` | Recent events | `{ ts, path, eventName, meta, visitorId, sessionId }[]` |
+| `skriuw-searches` | Top searches | `{ query: string, count: number }[]` |
+
+### Example API Calls
+
+```bash
+# Get all skriuw event counts
+curl "https://your-dashboard.com/api/analytics?metric=skriuw-events&projectId=skriuw"
+
+# Get journal activity over time
+curl "https://your-dashboard.com/api/analytics?metric=skriuw-journal&projectId=skriuw&timeRange=7d"
+
+# Get recent events
+curl "https://your-dashboard.com/api/analytics?metric=skriuw-recent&projectId=skriuw&limit=100"
+```
 
 ### Recommended Dashboard Queries
 
