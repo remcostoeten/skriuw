@@ -1,18 +1,21 @@
+import type { Metadata } from 'next';
+
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = {
+  title: '404 - Page Not Found',
+};
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-foreground mb-4">404</h1>
-        <p className="text-xl text-muted-foreground mb-8">Page not found</p>
-        <a
-          href="/"
-          className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-        >
-          Go back home
-        </a>
-      </div>
-    </div>
+    <main className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <h1 className="text-9xl font-bold text-foreground">404</h1>
+      <p className="mt-4 text-xl text-muted-foreground">Page not found</p>
+      <a
+        href="/"
+        className="mt-8 inline-flex items-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+      >
+        Go back home
+      </a>
+    </main>
   );
 }
