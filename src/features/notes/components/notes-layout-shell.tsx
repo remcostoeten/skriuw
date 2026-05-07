@@ -28,6 +28,7 @@ export function NotesLayoutShell() {
   const layout = useNotesLayout();
   const {
     activeFile,
+    files,
     canNavigateNext,
     canNavigatePrev,
     closeMetadata,
@@ -103,6 +104,7 @@ export function NotesLayoutShell() {
               <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
                 <EditorContainer
                   file={activeFile}
+                  files={files}
                   editorMode={editorMode ?? "raw"}
                   isMobile={isMobile}
                   onContentChange={updateFileContent}
@@ -119,7 +121,12 @@ export function NotesLayoutShell() {
               </div>
 
               {!isMobile && showMetadata && (
-                <MetadataPanel file={activeFile} className="w-56 shrink-0 xl:w-64" />
+                <MetadataPanel
+                  file={activeFile}
+                  files={files}
+                  onFileSelect={sidebarPanelProps.onFileSelect}
+                  className="shrink-0"
+                />
               )}
             </div>
           </div>
@@ -222,7 +229,9 @@ export function NotesLayoutShell() {
               >
                 <MetadataPanel
                   file={activeFile}
+                  files={files}
                   isMobile
+                  onFileSelect={sidebarPanelProps.onFileSelect}
                   onRequestClose={closeMetadata}
                   className="h-full w-full border-l-0"
                 />

@@ -54,6 +54,7 @@ export type PersistedNote = Entity<NoteId> & {
   richContent: RichTextDocument;
   preferredEditorMode: "raw" | "block";
   parentId: FolderId | null;
+  tags?: TagName[];
   journalMeta?: PersistedNoteJournalMetadata;
 };
 

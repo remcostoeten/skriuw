@@ -30,6 +30,7 @@ export interface NoteFile {
   createdAt: Date;
   modifiedAt: Date;
   parentId: string | null;
+  tags?: string[];
   // Optional journal metadata
   journalMeta?: JournalMetadata;
 }
