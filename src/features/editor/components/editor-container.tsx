@@ -6,6 +6,7 @@ import type { NoteFile, RichTextDocument } from "@/types/notes";
 
 interface EditorContainerProps {
   file: NoteFile | null;
+  files?: NoteFile[];
   editorMode: "raw" | "block";
   isMobile: boolean;
   onContentChange: (
@@ -29,6 +30,7 @@ interface EditorContainerProps {
 
 export function EditorContainer({
   file,
+  files = [],
   editorMode,
   isMobile,
   onContentChange,
@@ -60,6 +62,7 @@ export function EditorContainer({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <Editor
           file={file}
+          files={files}
           editorMode={editorMode}
           isMobile={isMobile}
           onContentChange={onContentChange}
