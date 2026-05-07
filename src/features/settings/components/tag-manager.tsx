@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
+import { EmptyState } from "@/shared/ui/empty-state";
 import { TAG_COLORS } from "@/features/journal/types";
 import type { JournalTag as Tag } from "@/types/journal";
 import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
@@ -168,13 +169,12 @@ export function TagManager() {
         ))}
 
         {tags.length === 0 && !isAddingTag && (
-          <div className="py-8 text-center">
-            <Hash className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No tags yet</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Create your first tag to organize your notes
-            </p>
-          </div>
+          <EmptyState
+            icon={Hash}
+            title="No tags yet."
+            description="Create your first tag to organize your notes."
+            className="py-8"
+          />
         )}
       </div>
     </div>
