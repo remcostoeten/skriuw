@@ -8,6 +8,10 @@ import { cn } from "@/shared/lib/utils";
 import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import {
+  WorkspaceContentSkeleton,
+  WorkspaceSidebarSkeleton,
+} from "@/features/layout/components/app-loading-shell";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
@@ -24,11 +28,11 @@ const SettingsModal = dynamic(
 );
 
 function JournalSidebarPlaceholder() {
-  return null;
+  return <WorkspaceSidebarSkeleton variant="journal" />;
 }
 
 function JournalContentPlaceholder() {
-  return null;
+  return <WorkspaceContentSkeleton variant="journal" />;
 }
 
 type JournalEditorToolbarProps = {
