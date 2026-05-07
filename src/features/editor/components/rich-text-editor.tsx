@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useCallback, useId, useRef, useState } from "react";
-import { BlockNoteEditor } from "@blocknote/core";
 import { filterSuggestionItems } from "@blocknote/core/extensions";
 import {
   getDefaultReactSlashMenuItems,
@@ -15,7 +14,17 @@ import "@blocknote/mantine/style.css";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/features/notes/lib/note-links";
-import { cloneRichDocument, markdownToRichDocument } from "@/shared/lib/rich-document";
+import {
+  cloneRichDocument,
+  flattenInlineChips,
+  markdownToRichDocument,
+  upgradeRichDocumentChips,
+} from "@/shared/lib/rich-document";
+import { editorSchema } from "./inline-specs/schema";
+import { NoteLinkProvider } from "./inline-specs/note-link-context";
+
+// biome-ignore lint/suspicious/noExplicitAny: editor type with custom schema requires deep inference
+type EditorInstance = any;
 
 interface RichTextEditorProps {
   content: string;
@@ -25,10 +34,11 @@ interface RichTextEditorProps {
   onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
 }
 
-// Convert BlockNote blocks to markdown
-async function blocksToMarkdown(editor: BlockNoteEditor): Promise<string> {
+async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
   try {
-    const markdown = await editor.blocksToMarkdownLossy(editor.document);
+    const flattened = flattenInlineChips(editor.document);
+    // biome-ignore lint/suspicious/noExplicitAny: blocksToMarkdownLossy accepts schema-shaped blocks
+    const markdown = await editor.blocksToMarkdownLossy(flattened as any);
     return markdown;
   } catch {
     return "";
@@ -156,14 +166,32 @@ function KeyboardAccessibleSlashMenu({
   );
 }
 
-function getTagMenuItems(editor: BlockNoteEditor, tags: string[], query: string): DefaultReactSuggestionItem[] {
+function insertTagChip(editor: EditorInstance, name: string) {
+  const trimmed = name.trim().replace(/^#/, "");
+  if (!trimmed) return;
+  // biome-ignore lint/suspicious/noExplicitAny: custom inline content type
+  editor.insertInlineContent([{ type: "tag", props: { name: trimmed } } as any, " "]);
+}
+
+function insertNoteLinkChip(editor: EditorInstance, title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  // biome-ignore lint/suspicious/noExplicitAny: custom inline content type
+  editor.insertInlineContent([{ type: "noteLink", props: { title: trimmed } } as any, " "]);
+}
+
+function getTagMenuItems(
+  editor: EditorInstance,
+  tags: string[],
+  query: string,
+): DefaultReactSuggestionItem[] {
   const normalizedQuery = query.trim().replace(/^#/, "").toLowerCase();
-  const existingItems = tags.map((tag) => ({
+  const existingItems: DefaultReactSuggestionItem[] = tags.map((tag) => ({
     title: tag,
     subtext: "Tag",
     group: "Tags",
     onItemClick: () => {
-      editor.insertInlineContent(`#${tag} `, { updateSelection: true });
+      insertTagChip(editor, tag);
     },
   }));
 
@@ -178,7 +206,7 @@ function getTagMenuItems(editor: BlockNoteEditor, tags: string[], query: string)
             subtext: "Create tag",
             group: "Tags",
             onItemClick: () => {
-              editor.insertInlineContent(`#${normalizedQuery} `, { updateSelection: true });
+              insertTagChip(editor, normalizedQuery);
             },
           },
         ]
@@ -188,7 +216,7 @@ function getTagMenuItems(editor: BlockNoteEditor, tags: string[], query: string)
 }
 
 function getNoteMentionMenuItems(
-  editor: BlockNoteEditor,
+  editor: EditorInstance,
   files: NoteFile[],
   activeFileId: string | undefined,
 ): DefaultReactSuggestionItem[] {
@@ -202,23 +230,25 @@ function getNoteMentionMenuItems(
         subtext: tags.length ? `#${tags.slice(0, 2).join(" #")}` : "Note",
         group: "Notes",
         onItemClick: () => {
-          editor.insertInlineContent(`[[${title}]] `, { updateSelection: true });
+          insertNoteLinkChip(editor, title);
         },
       };
     });
 }
 
 function getCustomSlashMenuItems(
-  editor: BlockNoteEditor,
+  editor: EditorInstance,
   files: NoteFile[],
   activeFileId: string | undefined,
 ): DefaultReactSuggestionItem[] {
-  const noteItems = getNoteMentionMenuItems(editor, files, activeFileId).slice(0, 8).map((item) => ({
-    ...item,
-    title: `Link ${item.title}`,
-    aliases: ["mention", "backlink", "link note", item.title],
-    group: "Connect",
-  }));
+  const noteItems = getNoteMentionMenuItems(editor, files, activeFileId)
+    .slice(0, 8)
+    .map((item) => ({
+      ...item,
+      title: `Link ${item.title}`,
+      aliases: ["mention", "backlink", "link note", item.title],
+      group: "Connect",
+    }));
 
   return [
     ...getDefaultReactSlashMenuItems(editor),
@@ -259,16 +289,20 @@ export function RichTextEditor({
   const serializeRunIdRef = useRef(0);
 
   const initialBlocks = useMemo(
-    () => (richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content)),
+    () => {
+      const base =
+        richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content);
+      return upgradeRichDocumentChips(base);
+    },
     [],
   );
 
   const editor = useCreateBlockNote({
+    schema: editorSchema,
     initialContent: initialBlocks,
   });
   const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
 
-  // Handle content changes from editor
   const handleEditorChange = useCallback(async () => {
     if (!editor) return;
 
@@ -278,7 +312,8 @@ export function RichTextEditor({
       return;
     }
 
-    const nextRichContent = cloneRichDocument(editor.document);
+    // biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
+    const nextRichContent = cloneRichDocument(editor.document as any);
     const nextRichContentKey = JSON.stringify(nextRichContent);
     pendingMarkdownRef.current = markdown;
 
@@ -305,14 +340,15 @@ export function RichTextEditor({
     }, 180);
   }, [editor, onChange]);
 
-  // Sync external content changes to editor
   useEffect(() => {
     if (!editor || isInternalChangeRef.current) return;
-    const nextRichContent =
+    const baseRichContent =
       richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content);
+    const nextRichContent = upgradeRichDocumentChips(baseRichContent);
     const nextRichContentKey = JSON.stringify(nextRichContent);
     if (content !== lastContentRef.current || nextRichContentKey !== lastRichContentRef.current) {
-      editor.replaceBlocks(editor.document, nextRichContent);
+      // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+      editor.replaceBlocks(editor.document, nextRichContent as any);
       lastContentRef.current = content;
       lastRichContentRef.current = nextRichContentKey;
       pendingMarkdownRef.current = content;
@@ -329,33 +365,35 @@ export function RichTextEditor({
 
   return (
     <div className="blocknote-wrapper h-full min-h-full px-6 py-3">
-      <BlockNoteView
-        editor={editor}
-        onChange={handleEditorChange}
-        theme="dark"
-        className="h-full"
-        slashMenu={false}
-      >
-        <SuggestionMenuController
-          triggerCharacter="/"
-          suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-          getItems={async (query) =>
-            filterSuggestionItems(getCustomSlashMenuItems(editor, files, activeFileId), query)
-          }
-        />
-        <SuggestionMenuController
-          triggerCharacter="@"
-          suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-          getItems={async (query) =>
-            filterSuggestionItems(getNoteMentionMenuItems(editor, files, activeFileId), query)
-          }
-        />
-        <SuggestionMenuController
-          triggerCharacter="#"
-          suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-          getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
-        />
-      </BlockNoteView>
+      <NoteLinkProvider files={files} activeFileId={activeFileId}>
+        <BlockNoteView
+          editor={editor}
+          onChange={handleEditorChange}
+          theme="dark"
+          className="h-full"
+          slashMenu={false}
+        >
+          <SuggestionMenuController
+            triggerCharacter="/"
+            suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+            getItems={async (query) =>
+              filterSuggestionItems(getCustomSlashMenuItems(editor, files, activeFileId), query)
+            }
+          />
+          <SuggestionMenuController
+            triggerCharacter="@"
+            suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+            getItems={async (query) =>
+              filterSuggestionItems(getNoteMentionMenuItems(editor, files, activeFileId), query)
+            }
+          />
+          <SuggestionMenuController
+            triggerCharacter="#"
+            suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+            getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
+          />
+        </BlockNoteView>
+      </NoteLinkProvider>
       <style jsx global>{`
         .blocknote-wrapper {
           --bn-colors-editor-background: hsl(var(--card));
@@ -410,6 +448,11 @@ export function RichTextEditor({
           padding: 0.125rem 0.375rem;
           border-radius: 0.25rem;
           font-size: 0.875em;
+        }
+        .blocknote-wrapper [data-note-link],
+        .blocknote-wrapper [data-note-tag] {
+          user-select: none;
+          white-space: nowrap;
         }
         .blocknote-wrapper .bn-toolbar {
           min-height: 2rem;
