@@ -4,6 +4,7 @@ import { RawLogo } from "@/shared/ui/logo";
 import { Button } from "@/shared/ui/button-component";
 import { getServerUser } from "@/core/supabase/server-client";
 import PixelBlast from "@/shared/PixelBlast";
+import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const { user } = await getServerUser();
@@ -40,14 +41,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           Back
         </Button>
         <div className="relative z-10">
-          <h1 className="mb-2 w-full max-w-sm font-serif text-4xl font-medium leading-[46px] text-white/60">
-            Keep your <span className="text-white">notes and journal</span> in sync with{" "}
-            <span className="font-serif">Skriuw</span>
-          </h1>
-          <p className="max-w-sm text-white/90">
-            Continue writing on web, review your journal over time, and carry the same workspace
-            across every device you use.
-          </p>
+          <AuthHeroCopy />
         </div>
       </div>
       <div className="flex w-full flex-col overflow-auto md:w-1/2">

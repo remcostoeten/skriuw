@@ -33,7 +33,7 @@ function searchableContent(content: string): string {
 }
 
 export function stripMarkdownExtension(name: string): string {
-  return name.endsWith(".md") ? name.slice(0, -3) : name;
+  return name.replace(/\.mdx?$/i, "");
 }
 
 export function normalizeNoteTitle(value: string): string {
@@ -43,8 +43,13 @@ export function normalizeNoteTitle(value: string): string {
     .toLowerCase();
 }
 
-export function getNoteTitle(note: Pick<NoteFile, "name">): string {
-  return stripMarkdownExtension(note.name);
+function extractHeadingTitle(content: string): string | null {
+  const headingMatch = searchableContent(content).match(/^#\s+(.+?)\s*#*\s*$/m);
+  return headingMatch?.[1]?.trim() || null;
+}
+
+export function getNoteTitle(note: Pick<NoteFile, "name" | "content">): string {
+  return extractHeadingTitle(note.content) ?? stripMarkdownExtension(note.name);
 }
 
 export function extractNoteTags(content: string): string[] {
@@ -115,10 +120,14 @@ function buildTitleIndex(files: NoteFile[]): Map<string, NoteFile[]> {
   const index = new Map<string, NoteFile[]>();
 
   for (const file of files) {
-    const key = normalizeNoteTitle(file.name);
-    const matches = index.get(key) ?? [];
-    matches.push(file);
-    index.set(key, matches);
+    const keys = new Set([normalizeNoteTitle(file.name), normalizeNoteTitle(getNoteTitle(file))]);
+
+    for (const key of keys) {
+      if (!key) continue;
+      const matches = index.get(key) ?? [];
+      matches.push(file);
+      index.set(key, matches);
+    }
   }
 
   return index;
