@@ -118,11 +118,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           Customize your settings here.
         </DialogDescription>
         
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12 h-[480px]">
-            <div className="text-muted-foreground text-sm">Loading settings...</div>
-          </div>
-        ) : (
+        {isLoading ? null : (
           <SidebarProvider className="items-start min-h-[480px]">
             <Sidebar collapsible="none" className="hidden md:flex">
               <SidebarContent>

@@ -23,52 +23,12 @@ const SettingsModal = dynamic(
   { ssr: false },
 );
 
-function JournalSidebarSkeleton({
-  isMobile,
-  sidebarWidth,
-}: {
-  isMobile: boolean;
-  sidebarWidth: number;
-}) {
-  if (isMobile) return null;
-
-  return (
-    <div className="shrink-0 border-r border-border bg-background p-3" style={{ width: sidebarWidth }}>
-      <div className="space-y-3">
-        <div className="h-8 w-full animate-pulse bg-muted" />
-        <div className="grid grid-cols-5 gap-1">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-7 animate-pulse bg-muted" />
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1 pt-2">
-          {Array.from({ length: 35 }).map((_, index) => (
-            <div key={index} className="h-7 animate-pulse bg-muted" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+function JournalSidebarPlaceholder() {
+  return null;
 }
 
-function JournalContentSkeleton() {
-  return (
-    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-2">
-        <div className="h-7 w-24 animate-pulse bg-muted" />
-        <div className="h-4 w-32 animate-pulse bg-muted" />
-      </div>
-      <div className="flex flex-1 flex-col gap-4 px-5 py-6 md:px-8">
-        <div className="h-8 w-48 animate-pulse bg-muted" />
-        <div className="space-y-3">
-          <div className="h-4 w-full animate-pulse bg-muted" />
-          <div className="h-4 w-[94%] animate-pulse bg-muted" />
-          <div className="h-4 w-[88%] animate-pulse bg-muted" />
-          <div className="h-4 w-[76%] animate-pulse bg-muted" />
-        </div>
-      </div>
-    </div>
-  );
+function JournalContentPlaceholder() {
+  return null;
 }
 
 type JournalEditorToolbarProps = {
@@ -301,7 +261,7 @@ export function JournalPageLayout() {
             <JournalSidebar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
           </div>
         )}
-        {!isHydrated && <JournalSidebarSkeleton isMobile={isMobile} sidebarWidth={sidebarWidth} />}
+        {!isHydrated && <JournalSidebarPlaceholder />}
 
         {/* Main content area */}
         {isHydrated ? (
@@ -339,7 +299,7 @@ export function JournalPageLayout() {
             )}
           </div>
         ) : (
-          <JournalContentSkeleton />
+          <JournalContentPlaceholder />
         )}
       </div>
 

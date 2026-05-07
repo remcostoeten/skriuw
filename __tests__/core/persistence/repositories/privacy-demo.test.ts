@@ -1,104 +1,71 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
+import { describe, expect, test } from "bun:test";
+import { buildMobileStarterWorkspace, buildWebStarterContent } from "@/core/shared/starter-content";
 
-type RemoteStoreState = Record<string, Record<string, unknown>>;
+describe("starter content", () => {
+  test("builds a filled nested web starter workspace", () => {
+    const starter = buildWebStarterContent();
 
-let remoteStores: RemoteStoreState;
-let putCalls: Array<{ storeName: string; id: string }> = [];
-
-function registerModuleMocks() {
-  mock.module("@/core/storage", () => ({
-    listRecords: async () => [],
-    putRecord: async <TRecord>(_storeName: string, record: TRecord) => record,
-    destroyRecord: async () => undefined,
-  }));
-
-  mock.module("@/core/persistence/supabase", () => ({
-    listRemoteRecords: async (storeName: string) =>
-      Object.values(remoteStores[storeName] ?? {}),
-    putRemoteRecord: async (storeName: string, record: { id: string }) => {
-      remoteStores[storeName] ??= {};
-      remoteStores[storeName][record.id] = record;
-      putCalls.push({ storeName, id: record.id });
-    },
-  }));
-}
-
-async function loadModule() {
-  registerModuleMocks();
-  return import(`@/core/persistence/starter-content?test=${Math.random().toString(36).slice(2)}`);
-}
-
-beforeEach(() => {
-  remoteStores = {};
-  putCalls = [];
-  Object.defineProperty(globalThis, "window", {
-    value: {},
-    configurable: true,
-  });
-});
-
-afterEach(() => {
-  mock.restore();
-  Object.defineProperty(globalThis, "window", {
-    value: undefined,
-    configurable: true,
-  });
-});
-
-describe("privacy demo seeding", () => {
-  test("seeds the authenticated starter workspace once and writes the marker note last", async () => {
-    const { ensureCloudStarterContentSeeded } = await loadModule();
-
-    await ensureCloudStarterContentSeeded("user-123");
-
-    expect(putCalls).toEqual([
-      { storeName: PERSISTED_STORE_NAMES.folders, id: "privacy-folder-daily" },
-      { storeName: PERSISTED_STORE_NAMES.folders, id: "privacy-folder-playground" },
-      { storeName: PERSISTED_STORE_NAMES.notes, id: "privacy-note-sprint" },
-      { storeName: PERSISTED_STORE_NAMES.notes, id: "privacy-note-scratchpad" },
-      { storeName: PERSISTED_STORE_NAMES.tags, id: "privacy-tag-focus" },
-      { storeName: PERSISTED_STORE_NAMES.tags, id: "privacy-tag-review" },
-      { storeName: PERSISTED_STORE_NAMES.journalEntries, id: "privacy-entry-2026-04-12" },
-      { storeName: PERSISTED_STORE_NAMES.notes, id: "privacy-note-welcome" },
+    expect(starter.markerNoteId).toBe("starter-note-field-guide");
+    expect(starter.folders.map((folder) => [folder.id, folder.parentId])).toEqual([
+      ["starter-folder-studio", null],
+      ["starter-folder-research", "starter-folder-studio"],
+      ["starter-folder-playground", null],
+      ["starter-folder-experiments", "starter-folder-playground"],
+      ["starter-folder-recipes", "starter-folder-playground"],
+      ["starter-folder-templates", null],
     ]);
-
-    await ensureCloudStarterContentSeeded("user-123");
-
-    expect(putCalls).toHaveLength(8);
+    expect(starter.notes.map((note) => [note.id, note.parentId, note.preferredEditorMode])).toEqual(
+      [
+        ["starter-note-field-guide", null, "block"],
+        ["starter-note-launch-review", "starter-folder-studio", "block"],
+        ["starter-note-research-local-first", "starter-folder-research", "block"],
+        ["starter-note-idea-board", "starter-folder-playground", "block"],
+        ["starter-note-prompt-snippets", "starter-folder-experiments", "block"],
+        ["starter-note-mdx-component-gallery", "starter-folder-experiments", "raw"],
+        ["starter-note-mdx-space-pancakes", "starter-folder-recipes", "raw"],
+        ["starter-note-daily-template", "starter-folder-templates", "block"],
+        ["starter-note-meeting-template", "starter-folder-templates", "block"],
+      ],
+    );
   });
 
-  test("does not reseed when starter records already exist but the welcome note was removed", async () => {
-    remoteStores = {
-      [PERSISTED_STORE_NAMES.notes]: {
-        "privacy-note-sprint": {
-          id: "privacy-note-sprint",
-          name: "Sprint Review.md",
-        },
-      },
-    };
+  test("includes rich markdown and raw MDX examples", () => {
+    const starter = buildWebStarterContent();
+    const mdxNote = starter.notes.find((note) => note.id === "starter-note-mdx-space-pancakes");
+    const galleryNote = starter.notes.find(
+      (note) => note.id === "starter-note-mdx-component-gallery",
+    );
+    const launchNote = starter.notes.find((note) => note.id === "starter-note-launch-review");
 
-    const { ensureCloudStarterContentSeeded } = await loadModule();
-
-    await ensureCloudStarterContentSeeded("user-123");
-
-    expect(putCalls).toEqual([]);
+    expect(mdxNote?.name).toBe("MDX: Space Pancakes.mdx");
+    expect(mdxNote?.content).toContain("import { Callout, Rating }");
+    expect(mdxNote?.content).toContain("<Rating value={4.8}");
+    expect(mdxNote?.content).toContain("[[Idea board]]");
+    expect(galleryNote?.content).toContain("import { Callout, Metric, Timeline }");
+    expect(galleryNote?.content).toContain("<Timeline");
+    expect(launchNote?.content).toContain("| Topic | Decision | Owner |");
+    expect(launchNote?.content).toContain("- [x] Replace empty-feeling demo files");
   });
 
-  test("does not seed when the cloud workspace already contains user data", async () => {
-    remoteStores = {
-      [PERSISTED_STORE_NAMES.notes]: {
-        "external-note": {
-          id: "external-note",
-          name: "External.md",
-        },
-      },
-    };
+  test("builds the same filled starter shape for mobile", () => {
+    const starter = buildMobileStarterWorkspace();
 
-    const { ensureCloudStarterContentSeeded } = await loadModule();
-
-    await ensureCloudStarterContentSeeded("user-123");
-
-    expect(putCalls).toEqual([]);
+    expect(starter.folders.map((folder) => [folder.id, folder.parentId])).toEqual([
+      ["mobile-folder-studio", null],
+      ["mobile-folder-research", "mobile-folder-studio"],
+      ["mobile-folder-playground", null],
+      ["mobile-folder-experiments", "mobile-folder-playground"],
+      ["mobile-folder-recipes", "mobile-folder-playground"],
+      ["mobile-folder-templates", null],
+    ]);
+    expect(starter.notes.map((note) => [note.id, note.parentId])).toEqual([
+      ["mobile-note-field-guide", null],
+      ["mobile-note-launch-review", "mobile-folder-studio"],
+      ["mobile-note-research-local-first", "mobile-folder-research"],
+      ["mobile-note-idea-board", "mobile-folder-playground"],
+      ["mobile-note-prompt-snippets", "mobile-folder-experiments"],
+      ["mobile-note-mdx-space-pancakes", "mobile-folder-recipes"],
+      ["mobile-note-daily-template", "mobile-folder-templates"],
+    ]);
   });
 });
