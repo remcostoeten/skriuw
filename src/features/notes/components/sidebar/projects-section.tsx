@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, FileText, Folder, Plus, Pencil, Trash2, Palette } from "lucide-react";
+import { Plus, Pencil, Trash2, Palette } from "lucide-react";
+import { ChevronRightIcon } from "@/shared/ui/chevron-right";
+import { FileTextIcon } from "@/shared/ui/file-text";
+import { FolderOpenIcon } from "@/shared/ui/folder-open";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { PROJECT_COLORS } from "./types";
@@ -200,12 +203,12 @@ export function ProjectsSection({
                         compactMode ? "h-6" : "h-7",
                       )}
                     >
-                      <ChevronRight
+                      <ChevronRightIcon
+                        size={12}
                         className={cn(
-                          "w-3 h-3 text-muted-foreground transition-transform shrink-0",
+                          "text-muted-foreground transition-transform shrink-0",
                           isExpanded && "rotate-90",
                         )}
-                        strokeWidth={1.5}
                       />
                       <span className={cn("w-2 h-2 rounded-full shrink-0", project.color)} />
                       {isEditing ? (
@@ -288,10 +291,7 @@ export function ProjectsSection({
                               compactMode ? "h-6" : "h-7",
                             )}
                           >
-                            <Folder
-                              className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0"
-                              strokeWidth={1.5}
-                            />
+                            <FolderOpenIcon size={14} className="shrink-0 text-muted-foreground/70" />
                             <span className="flex-1 truncate">{folder.name}</span>
                           </button>
                         </ContextMenuTrigger>
@@ -318,10 +318,7 @@ export function ProjectsSection({
                                 : "text-foreground/60 hover:bg-white/[0.045]",
                             )}
                           >
-                            <FileText
-                              className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0"
-                              strokeWidth={1.5}
-                            />
+                            <FileTextIcon size={14} className="shrink-0 text-muted-foreground/70" />
                             <span className="flex-1 truncate">{file.name}</span>
                           </button>
                         </ContextMenuTrigger>

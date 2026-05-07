@@ -26,6 +26,7 @@ export function useUpdateNote() {
                     : note.richContent),
                 preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
                 parentId: input.parentId === undefined ? note.parentId : input.parentId,
+                tags: input.tags === undefined ? note.tags : input.tags,
                 modifiedAt: new Date(),
               }
             : note,

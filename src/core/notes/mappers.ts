@@ -24,6 +24,7 @@ export function toPersistedNote(note: NoteFile): PersistedNote {
     richContent,
     preferredEditorMode,
     parentId: note.parentId as FolderId | null,
+    tags: note.tags?.map((tag) => tag as TagName),
     createdAt: toIsoTime(note.createdAt),
     updatedAt: toIsoTime(note.modifiedAt),
     journalMeta: note.journalMeta
@@ -46,6 +47,7 @@ export function fromPersistedNote(note: PersistedNote): NoteFile {
     richContent,
     preferredEditorMode,
     parentId: note.parentId,
+    tags: note.tags?.map((tag) => tag as string),
     createdAt: new Date(note.createdAt),
     modifiedAt: new Date(note.updatedAt),
     journalMeta: note.journalMeta

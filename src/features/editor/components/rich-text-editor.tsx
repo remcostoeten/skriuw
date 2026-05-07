@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useCallback, useRef, useState } from "react";
+import { useEffect, useMemo, useCallback, useId, useRef, useState } from "react";
 import { BlockNoteEditor } from "@blocknote/core";
+import { filterSuggestionItems } from "@blocknote/core/extensions";
 import {
+  getDefaultReactSlashMenuItems,
   SuggestionMenuController,
   type DefaultReactSuggestionItem,
   type SuggestionMenuProps,
@@ -11,12 +13,15 @@ import {
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { cn } from "@/shared/lib/utils";
-import type { RichTextDocument } from "@/types/notes";
+import type { NoteFile, RichTextDocument } from "@/types/notes";
+import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/features/notes/lib/note-links";
 import { cloneRichDocument, markdownToRichDocument } from "@/shared/lib/rich-document";
 
 interface RichTextEditorProps {
   content: string;
   richContent?: RichTextDocument;
+  files?: NoteFile[];
+  activeFileId?: string;
   onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
 }
 
@@ -36,6 +41,7 @@ function KeyboardAccessibleSlashMenu({
   selectedIndex,
   onItemClick,
 }: SuggestionMenuProps<DefaultReactSuggestionItem>) {
+  const menuId = useId();
   const [activeIndex, setActiveIndex] = useState(selectedIndex ?? 0);
 
   useEffect(() => {
@@ -44,7 +50,7 @@ function KeyboardAccessibleSlashMenu({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      const suggestionMenu = document.getElementById("bn-suggestion-menu");
+      const suggestionMenu = document.getElementById(menuId);
       if (!suggestionMenu || items.length === 0) {
         return;
       }
@@ -96,12 +102,12 @@ function KeyboardAccessibleSlashMenu({
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [activeIndex, items, onItemClick]);
+  }, [activeIndex, items, menuId, onItemClick]);
 
   useEffect(() => {
-    const activeItem = document.getElementById(`bn-suggestion-menu-item-${activeIndex}`);
+    const activeItem = document.getElementById(`${menuId}-item-${activeIndex}`);
     activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
+  }, [activeIndex, menuId]);
 
   if (loadingState === "loading-initial" || loadingState === "loading") {
     return null;
@@ -109,14 +115,16 @@ function KeyboardAccessibleSlashMenu({
 
   return (
     <div
-      id="bn-suggestion-menu"
+      id={menuId}
       role="listbox"
-      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl"
+      aria-label="Editor suggestions"
+      aria-activedescendant={`${menuId}-item-${activeIndex}`}
+      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-card p-1 shadow-xl"
     >
       {items.map((item, index) => (
         <button
           key={`${item.title}-${index}`}
-          id={`bn-suggestion-menu-item-${index}`}
+          id={`${menuId}-item-${index}`}
           type="button"
           role="option"
           aria-selected={index === activeIndex}
@@ -127,7 +135,7 @@ function KeyboardAccessibleSlashMenu({
             "flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
             index === activeIndex
               ? "bg-accent text-accent-foreground"
-              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+              : "text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none",
           )}
         >
           {item.icon ? <span className="mt-0.5 shrink-0 text-muted-foreground">{item.icon}</span> : null}
@@ -148,7 +156,101 @@ function KeyboardAccessibleSlashMenu({
   );
 }
 
-export function RichTextEditor({ content, richContent, onChange }: RichTextEditorProps) {
+function getTagMenuItems(editor: BlockNoteEditor, tags: string[], query: string): DefaultReactSuggestionItem[] {
+  const normalizedQuery = query.trim().replace(/^#/, "").toLowerCase();
+  const existingItems = tags.map((tag) => ({
+    title: tag,
+    subtext: "Tag",
+    group: "Tags",
+    onItemClick: () => {
+      editor.insertInlineContent(`#${tag} `, { updateSelection: true });
+    },
+  }));
+
+  const shouldOfferCreate =
+    normalizedQuery.length > 0 && !tags.some((tag) => tag.toLowerCase() === normalizedQuery);
+
+  return [
+    ...(shouldOfferCreate
+      ? [
+          {
+            title: normalizedQuery,
+            subtext: "Create tag",
+            group: "Tags",
+            onItemClick: () => {
+              editor.insertInlineContent(`#${normalizedQuery} `, { updateSelection: true });
+            },
+          },
+        ]
+      : []),
+    ...filterSuggestionItems(existingItems, normalizedQuery),
+  ];
+}
+
+function getNoteMentionMenuItems(
+  editor: BlockNoteEditor,
+  files: NoteFile[],
+  activeFileId: string | undefined,
+): DefaultReactSuggestionItem[] {
+  return files
+    .filter((file) => file.id !== activeFileId)
+    .map((file) => {
+      const title = getNoteTitle(file);
+      const tags = extractNoteTags(file.content);
+      return {
+        title,
+        subtext: tags.length ? `#${tags.slice(0, 2).join(" #")}` : "Note",
+        group: "Notes",
+        onItemClick: () => {
+          editor.insertInlineContent(`[[${title}]] `, { updateSelection: true });
+        },
+      };
+    });
+}
+
+function getCustomSlashMenuItems(
+  editor: BlockNoteEditor,
+  files: NoteFile[],
+  activeFileId: string | undefined,
+): DefaultReactSuggestionItem[] {
+  const noteItems = getNoteMentionMenuItems(editor, files, activeFileId).slice(0, 8).map((item) => ({
+    ...item,
+    title: `Link ${item.title}`,
+    aliases: ["mention", "backlink", "link note", item.title],
+    group: "Connect",
+  }));
+
+  return [
+    ...getDefaultReactSlashMenuItems(editor),
+    {
+      title: "Tag",
+      aliases: ["tag", "label", "hash"],
+      group: "Connect",
+      subtext: "Insert a tag marker",
+      onItemClick: () => {
+        editor.insertInlineContent("#", { updateSelection: true });
+      },
+    },
+    {
+      title: "Link note",
+      aliases: ["mention", "backlink", "wiki"],
+      group: "Connect",
+      subtext: "Insert a note link",
+      onItemClick: () => {
+        editor.insertInlineContent("[[", { updateSelection: true });
+      },
+    },
+    ...noteItems,
+  ];
+}
+
+export function RichTextEditor({
+  content,
+  richContent,
+  files = [],
+  activeFileId,
+  onChange,
+}: RichTextEditorProps) {
   const lastContentRef = useRef(content);
   const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
   const pendingMarkdownRef = useRef(content);
@@ -164,6 +266,7 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
   const editor = useCreateBlockNote({
     initialContent: initialBlocks,
   });
+  const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
 
   // Handle content changes from editor
   const handleEditorChange = useCallback(async () => {
@@ -236,6 +339,21 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         <SuggestionMenuController
           triggerCharacter="/"
           suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+          getItems={async (query) =>
+            filterSuggestionItems(getCustomSlashMenuItems(editor, files, activeFileId), query)
+          }
+        />
+        <SuggestionMenuController
+          triggerCharacter="@"
+          suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+          getItems={async (query) =>
+            filterSuggestionItems(getNoteMentionMenuItems(editor, files, activeFileId), query)
+          }
+        />
+        <SuggestionMenuController
+          triggerCharacter="#"
+          suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+          getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
         />
       </BlockNoteView>
       <style jsx global>{`

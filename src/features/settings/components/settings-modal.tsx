@@ -8,7 +8,7 @@ import {
   Code,
   FlaskConical,
   Hash,
-  Info,
+  Trash2,
 } from "lucide-react"
 
 import {
@@ -39,6 +39,7 @@ import { Switch } from "@/shared/ui/switch"
 import { Label } from "@/shared/ui/label"
 import { usePreferencesStore } from "@/features/settings/store"
 import { useAuthSnapshot } from "@/platform/auth/use-auth"
+import { signOut } from "@/platform/auth"
 
 
 const TagManager = dynamic(
@@ -86,6 +87,11 @@ type Props = {
 
 export function SettingsModal({ open, onOpenChange }: Props) {
   const [activeTab, setActiveTab] = useState("editor");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const deleteDescriptionId = React.useId();
+  const deleteErrorId = React.useId();
 
   const {
     isLoading,
@@ -100,13 +106,51 @@ export function SettingsModal({ open, onOpenChange }: Props) {
   } = usePreferencesStore();
 
   const auth = useAuthSnapshot();
+  const deleteVerifyString = auth.user
+    ? `DELETE ${auth.user.email?.trim() ?? auth.user.id}`
+    : "";
+  const canDeleteAccount =
+    Boolean(deleteVerifyString) &&
+    deleteConfirmation === deleteVerifyString &&
+    !isDeletingAccount;
 
   useEffect(() => {
     if (open) {
       initializePreferences();
       logActivity("settings_opened");
+    } else {
+      setDeleteConfirmation("");
+      setDeleteError(null);
     }
   }, [open, initializePreferences, logActivity]);
+
+  const handleDeleteAccount = async () => {
+    if (!canDeleteAccount) return;
+
+    setIsDeletingAccount(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Could not delete account.");
+      }
+
+      await signOut().catch(() => undefined);
+      window.location.assign("/sign-in");
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete account.");
+      setIsDeletingAccount(false);
+    }
+  };
 
   const activeNavItem = data.nav.find(item => item.id === activeTab) || data.nav[0];
 
@@ -208,6 +252,63 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                         })}
                       </div>
                     </div>
+
+                    <div className="mt-8 border-t border-border pt-6">
+                      <div className="space-y-4 border border-destructive/35 bg-destructive/[0.04] p-4">
+                        <div className="flex items-start gap-3">
+                          <Trash2
+                            className="mt-0.5 h-4 w-4 shrink-0 text-destructive"
+                            strokeWidth={1.5}
+                          />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <h4 className="text-sm font-medium text-foreground">Delete account</h4>
+                            <p
+                              id={deleteDescriptionId}
+                              className="text-xs leading-5 text-muted-foreground"
+                            >
+                              Permanently deletes your account and workspace data. Type{" "}
+                              <code className="font-mono text-foreground">
+                                {deleteVerifyString}
+                              </code>{" "}
+                              to confirm.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="delete-account-confirmation" className="sr-only">
+                            Delete account confirmation
+                          </Label>
+                          <input
+                            id="delete-account-confirmation"
+                            value={deleteConfirmation}
+                            onChange={(event) => setDeleteConfirmation(event.target.value)}
+                            placeholder={deleteVerifyString}
+                            autoComplete="off"
+                            aria-describedby={
+                              deleteError ? `${deleteDescriptionId} ${deleteErrorId}` : deleteDescriptionId
+                            }
+                            className="h-10 w-full border border-border bg-background px-3 font-mono text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring"
+                          />
+                          {deleteError && (
+                            <p id={deleteErrorId} role="alert" className="text-xs text-destructive">
+                              {deleteError}
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleDeleteAccount}
+                          disabled={!canDeleteAccount}
+                          aria-describedby={deleteDescriptionId}
+                          className="inline-flex h-9 w-fit items-center justify-center gap-2 border border-destructive/70 bg-destructive px-3 text-xs font-medium text-destructive-foreground outline-none transition-[background-color,border-color,transform,opacity] duration-150 ease-out hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+                          {isDeletingAccount ? "Deleting..." : "Delete account"}
+                        </button>
+                      </div>
+                    </div>
                   </SettingsSection>
                 )}
 
@@ -245,44 +346,27 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                 )}
 
                 {activeTab === "experimental" && (
-                  <>
-                    <SettingsSection title="Future Features">
-                      <div className="flex items-center justify-between py-2">
-                        <div className="space-y-1">
-                          <Label htmlFor="diary-mode" className="text-sm font-medium">
-                            Diary View
-                          </Label>
-                          <p className="text-xs text-muted-foreground pr-4">
-                            Enable a layout optimized for chronological journaling.
-                          </p>
-                        </div>
-                        <Switch
-                          id="diary-mode"
-                          checked={journal.diaryModeEnabled}
-                          onCheckedChange={toggleDiaryMode}
-                        />
+                  <SettingsSection title="Future Features">
+                    <div className="flex items-center justify-between py-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="diary-mode" className="text-sm font-medium">
+                          Diary View
+                        </Label>
+                        <p className="text-xs text-muted-foreground pr-4">
+                          Enable a layout optimized for chronological journaling.
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground/70 italic">
-                        When enabled, new-note actions in Notes open today's journal entry instead
-                        of creating a markdown note.
-                      </p>
-                    </SettingsSection>
-
-                    <div className="mt-8 border border-border bg-card p-4">
-                      <div className="flex gap-3">
-                        <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.5} />
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-foreground">Developer Note</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            &ldquo;Eventually I want the editor to support multiple workflows, from simple
-                            note taking to more structured journaling. The settings should allow switching
-                            between minimal notes, Notion like structured documents, and a journal
-                            format.&rdquo;
-                          </p>
-                        </div>
-                      </div>
+                      <Switch
+                        id="diary-mode"
+                        checked={journal.diaryModeEnabled}
+                        onCheckedChange={toggleDiaryMode}
+                      />
                     </div>
-                  </>
+                    <p className="text-xs text-muted-foreground/70 italic">
+                      When enabled, new-note actions in Notes open today's journal entry instead
+                      of creating a markdown note.
+                    </p>
+                  </SettingsSection>
                 )}
 
               </div>
