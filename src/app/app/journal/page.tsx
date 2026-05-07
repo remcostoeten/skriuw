@@ -1,13 +1,10 @@
 import { Suspense } from "react";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
-
-function JournalPageFallback() {
-  return null;
-}
+import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 
 export default function JournalPage() {
   return (
-    <Suspense fallback={<JournalPageFallback />}>
+    <Suspense fallback={<WorkspaceLoadingShell variant="journal" />}>
       <JournalPageLayout />
     </Suspense>
   );

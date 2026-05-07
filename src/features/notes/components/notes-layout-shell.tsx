@@ -4,6 +4,10 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import {
+  WorkspaceContentSkeleton,
+  WorkspaceSidebarSkeleton,
+} from "@/features/layout/components/app-loading-shell";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
@@ -17,11 +21,11 @@ const SettingsModal = dynamic(
 );
 
 function NotesSidebarPlaceholder() {
-  return null;
+  return <WorkspaceSidebarSkeleton variant="notes" />;
 }
 
 function NotesEditorPlaceholder() {
-  return null;
+  return <WorkspaceContentSkeleton variant="notes" />;
 }
 
 export function NotesLayoutShell() {
