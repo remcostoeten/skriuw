@@ -6,6 +6,9 @@
         "shadcn@latest",
         "mcp"
       ]
+    },
+    "lucide-animated": {
+      "url": "https://lucide-animated.com/mcp"
     }
   }
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, FileText, Folder, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { FileTextIcon } from "@/shared/ui/file-text";
+import { FolderOpenIcon } from "@/shared/ui/folder-open";
 import { cn } from '@/shared/lib/utils';
 import { NoteFile, NoteFolder } from '@/types/notes';
 
@@ -88,7 +90,7 @@ export function SearchSection({
                       }}
                       className="flex min-h-11 w-full items-center gap-2 border border-transparent px-3 py-2 text-left text-foreground/80 transition-colors hover:border-border hover:bg-muted"
                     >
-                      <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                      <FolderOpenIcon size={14} className="shrink-0 text-muted-foreground" />
                       <span className="truncate text-[13px]">{folder.name}</span>
                     </button>
                   ))}
@@ -113,7 +115,7 @@ export function SearchSection({
                           : "text-foreground/80 hover:border-border hover:bg-muted"
                       )}
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                      <FileTextIcon size={14} className="shrink-0 text-muted-foreground" />
                       <span className="truncate text-[13px]">{file.name}</span>
                     </button>
                   ))}

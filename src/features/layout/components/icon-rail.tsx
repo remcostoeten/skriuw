@@ -1,10 +1,10 @@
 import {
-  FolderOpen,
   BookOpen,
   Settings,
   LogOut,
   LoaderCircle,
 } from "lucide-react";
+import { FolderOpenIcon } from "@/shared/ui/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -55,13 +55,23 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
       href: "/app",
       label: "Notes",
       isActive: pathname === "/app",
-      icon: FolderOpen,
+      icon: (active: boolean) => (
+        <FolderOpenIcon
+          size={18}
+          className={active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"}
+        />
+      ),
     },
     {
       href: "/app/journal",
       label: "Journal",
       isActive: pathname === "/app/journal",
-      icon: BookOpen,
+      icon: (active: boolean) => (
+        <BookOpen
+          className="h-[18px] w-[18px]"
+          strokeWidth={1.6}
+        />
+      ),
     },
   ];
 
@@ -94,7 +104,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
             </Tooltip>
           </div>
           <div className="mt-4 flex w-full flex-col items-center gap-4">
-            {navItems.map(({ href, label, isActive, icon: Icon }) => (
+            {navItems.map(({ href, label, isActive, icon }) => (
               <Tooltip key={href}>
                 <TooltipTrigger asChild>
                   <Link
@@ -108,7 +118,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                     aria-label={label}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.6} />
+                    {icon(isActive)}
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right">{label}</TooltipContent>

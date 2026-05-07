@@ -20,6 +20,7 @@ export function useCreateNote() {
           createdAt: new Date(),
           modifiedAt: new Date(),
           parentId: input.parentId ?? null,
+          tags: input.tags ?? [],
         };
 
         return [...(current ?? []), optimisticNote];

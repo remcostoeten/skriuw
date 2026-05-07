@@ -20,6 +20,7 @@ type NoteRow = {
   rich_content: RichTextDocument | null;
   preferred_editor_mode: "raw" | "block" | null;
   parent_id: string | null;
+  tags?: string[] | null;
   journal_meta: {
     mood?: MoodLevel;
     tags: string[];
@@ -38,6 +39,7 @@ function rowToNoteFile(row: NoteRow): NoteFile {
     richContent: row.rich_content ?? markdownToRichDocument(row.content),
     preferredEditorMode: row.preferred_editor_mode ?? "block",
     parentId: row.parent_id as FolderId | null,
+    tags: row.tags?.map((tag) => tag as TagName),
     journalMeta: row.journal_meta
       ? {
           ...row.journal_meta,
@@ -71,6 +73,7 @@ export type CreateNoteInput = {
   richContent?: RichTextDocument;
   preferredEditorMode?: "raw" | "block";
   parentId?: string | null;
+  tags?: string[];
 };
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
@@ -86,6 +89,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
     rich_content: input.richContent ?? markdownToRichDocument(input.content),
     preferred_editor_mode: input.preferredEditorMode ?? "block",
     parent_id: input.parentId ?? null,
+    ...(input.tags ? { tags: input.tags } : {}),
     journal_meta: null,
     created_at: now,
     updated_at: now,
@@ -107,6 +111,7 @@ export type UpdateNoteInput = {
   richContent?: RichTextDocument;
   preferredEditorMode?: "raw" | "block";
   parentId?: string | null;
+  tags?: string[];
 };
 
 export async function updateNote(input: UpdateNoteInput): Promise<NoteFile | undefined> {
@@ -136,6 +141,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<NoteFile | und
         : existing.rich_content),
     preferred_editor_mode: input.preferredEditorMode ?? existing.preferred_editor_mode,
     parent_id: input.parentId === undefined ? existing.parent_id : input.parentId,
+    ...(input.tags ? { tags: input.tags } : {}),
     updated_at: new Date().toISOString(),
   };
 

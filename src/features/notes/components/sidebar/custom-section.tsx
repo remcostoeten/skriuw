@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { Folder, FileText, X } from "lucide-react";
+import { X } from "lucide-react";
+import { FileTextIcon } from "@/shared/ui/file-text";
+import { FolderOpenIcon } from "@/shared/ui/folder-open";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { SidebarSection as SidebarSectionType } from "./types";
@@ -111,7 +113,7 @@ export const CustomSection = memo(function CustomSection({
                 compactMode ? "h-6" : "h-7",
               )}
             >
-              <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+              <FolderOpenIcon size={14} className="shrink-0 text-muted-foreground/70" />
               <span className="flex-1 truncate">{folder.name}</span>
               <button
                 onClick={() => onRemoveFromSection(section.id, folder.id, "folder")}
@@ -137,10 +139,7 @@ export const CustomSection = memo(function CustomSection({
                 onClick={() => onFileSelect(file.id)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <FileText
-                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-                  strokeWidth={1.5}
-                />
+                <FileTextIcon size={14} className="shrink-0 text-muted-foreground/70" />
                 <span className="truncate">{file.name}</span>
               </button>
               <button

@@ -1,4 +1,4 @@
-import type { FolderId, MarkdownContent, NoteId } from "@/core/shared/persistence-types";
+import type { FolderId, MarkdownContent, NoteId, TagName } from "@/core/shared/persistence-types";
 import type { NoteEditorMode, RichTextDocument } from "@/types/notes";
 
 export type CreateNoteInput = {
@@ -8,6 +8,7 @@ export type CreateNoteInput = {
   richContent?: RichTextDocument;
   preferredEditorMode?: NoteEditorMode;
   parentId?: FolderId | null;
+  tags?: TagName[];
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -19,5 +20,6 @@ export type UpdateNoteInput = {
   richContent?: RichTextDocument;
   preferredEditorMode?: NoteEditorMode;
   parentId?: FolderId | null;
+  tags?: TagName[];
   updatedAt?: Date;
 };

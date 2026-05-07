@@ -18,6 +18,7 @@ const RichTextEditor = dynamic(
 
 interface EditorProps {
   file: NoteFile | null;
+  files?: NoteFile[];
   editorMode: EditorMode;
   isMobile?: boolean;
   onContentChange: (
@@ -30,7 +31,7 @@ interface EditorProps {
   ) => void;
 }
 
-export function Editor({ file, editorMode, onContentChange }: EditorProps) {
+export function Editor({ file, files = [], editorMode, onContentChange }: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -83,6 +84,8 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
         <RichTextEditor
           content={file.content}
           richContent={file.richContent}
+          files={files}
+          activeFileId={file.id}
           onChange={handleRichTextChange}
         />
       </div>

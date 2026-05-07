@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { FileText, Folder, X } from "lucide-react";
+import { X } from "lucide-react";
+import { FileTextIcon } from "@/shared/ui/file-text";
+import { FolderOpenIcon } from "@/shared/ui/folder-open";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { FavoriteItem } from "./types";
@@ -118,14 +120,14 @@ export const FavoritesSection = memo(function FavoritesSection({
               )}
             >
               {fav.itemType === "file" ? (
-                <FileText
-                  className={cn("shrink-0 text-muted-foreground/70", compactMode ? "h-3 w-3" : "h-3.5 w-3.5")}
-                  strokeWidth={1.5}
+                <FileTextIcon
+                  size={compactMode ? 12 : 14}
+                  className="shrink-0 text-muted-foreground/70"
                 />
               ) : (
-                <Folder
-                  className={cn("shrink-0 text-muted-foreground/70", compactMode ? "h-3 w-3" : "h-3.5 w-3.5")}
-                  strokeWidth={1.5}
+                <FolderOpenIcon
+                  size={compactMode ? 12 : 14}
+                  className="shrink-0 text-muted-foreground/70"
                 />
               )}
               <span className="flex-1 truncate">{fav.name}</span>

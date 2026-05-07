@@ -37,7 +37,14 @@ const SAVED_BADGE_DURATION_MS = 1800;
 
 function generateNoteContent(name: string): string {
   const title = name.replace(/\.md$/, "");
-  return `# ${title}\n\n`;
+  return `# ${title}
+
+#draft #idea
+
+Related: [[Start here: editor field guide]]
+
+Use # to add tags, @ to mention notes, or /tag and /link note from the block editor.
+`;
 }
 
 const NOTES_SHORTCUT_GROUPS: ShortcutHelpGroup[] = [
@@ -331,7 +338,6 @@ export function useNotesLayout() {
 
     triggerNativeFeedback("success");
     const preferredEditorMode = defaultModeRaw ? "raw" : "block";
-    const createdAt = new Date();
     const newFile: CreateNoteInput = {
       id: crypto.randomUUID(),
       name: "Untitled.md",
@@ -390,7 +396,6 @@ export function useNotesLayout() {
 
     triggerNativeFeedback("impact");
     const nextMode = editorMode === "raw" ? "block" : "raw";
-    const updatedAt = new Date();
     updateNoteMutation.mutate(
       {
         id: activeFile.id,
@@ -479,7 +484,6 @@ export function useNotesLayout() {
 
   const renameFile = useCallback(
     (id: string, name: string) => {
-      const updatedAt = new Date();
       markFileSaving(id);
       updateNoteMutation.mutate(
         {
@@ -775,6 +779,7 @@ export function useNotesLayout() {
     createFolder: handleCreateFolder,
     editorMode,
     expandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
+    files,
     getFilesInFolder,
     getFoldersInFolder,
     handleDesktopSidebarResizeStart,
