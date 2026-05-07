@@ -104,11 +104,7 @@ function KeyboardAccessibleSlashMenu({
   }, [activeIndex]);
 
   if (loadingState === "loading-initial" || loadingState === "loading") {
-    return (
-      <div id="bn-suggestion-menu" className="bn-suggestion-menu z-[100] rounded-xl border border-border bg-card p-2 text-sm text-muted-foreground shadow-xl">
-        Loading...
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -263,7 +259,8 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         }
         .blocknote-wrapper .bn-container,
         .blocknote-wrapper .bn-container [data-theming-css-variables-demo],
-        .blocknote-wrapper [class*="bn-"] {
+        .blocknote-wrapper .bn-scroller,
+        .blocknote-wrapper .bn-editor-container {
           background: transparent !important;
         }
         .blocknote-wrapper .bn-editor {
@@ -298,6 +295,11 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         }
         .blocknote-wrapper .bn-toolbar {
           min-height: 2rem;
+          background: hsl(220 18% 8%) !important;
+          border: 1px solid hsl(220 10% 18%) !important;
+          box-shadow:
+            0 10px 30px rgba(0, 0, 0, 0.35),
+            0 0 0 1px rgba(255, 255, 255, 0.03) inset;
           padding: 1px;
           gap: 1px;
           border-radius: 0.5rem;
@@ -306,6 +308,9 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
         .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root {
           min-height: 1.75rem;
           height: 1.75rem;
+          background: transparent !important;
+          color: hsl(220 10% 82%) !important;
+          border-radius: 0.4rem;
         }
         .blocknote-wrapper .bn-toolbar .mantine-Button-root {
           padding-left: 0.45rem;
@@ -319,6 +324,18 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           width: 1.75rem;
           min-width: 1.75rem;
         }
+        .blocknote-wrapper .bn-toolbar .mantine-Button-root:hover,
+        .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root:hover,
+        .blocknote-wrapper .bn-toolbar .mantine-UnstyledButton-root:hover {
+          background: hsl(220 12% 15%) !important;
+          color: hsl(220 14% 94%) !important;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Button-root[data-active="true"],
+        .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root[data-active="true"],
+        .blocknote-wrapper .bn-toolbar .mantine-UnstyledButton-root[data-active="true"] {
+          background: hsl(220 14% 18%) !important;
+          color: hsl(220 14% 96%) !important;
+        }
         .blocknote-wrapper .bn-toolbar svg {
           width: 0.82rem;
           height: 0.82rem;
@@ -327,6 +344,23 @@ export function RichTextEditor({ content, richContent, onChange }: RichTextEdito
           min-height: 1.75rem;
           height: 1.75rem;
           font-size: 0.75rem;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Menu-dropdown,
+        .blocknote-wrapper .bn-toolbar .mantine-Popover-dropdown,
+        .blocknote-wrapper .bn-toolbar .mantine-Tooltip-tooltip {
+          background: hsl(220 18% 8%) !important;
+          border: 1px solid hsl(220 10% 18%) !important;
+          color: hsl(220 10% 82%) !important;
+          box-shadow:
+            0 16px 36px rgba(0, 0, 0, 0.42),
+            0 0 0 1px rgba(255, 255, 255, 0.03) inset !important;
+          backdrop-filter: none !important;
+        }
+        .blocknote-wrapper .bn-toolbar .mantine-Menu-item:hover,
+        .blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-hovered],
+        .blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-selected] {
+          background: hsl(220 12% 15%) !important;
+          color: hsl(220 14% 94%) !important;
         }
         .blocknote-wrapper pre,
         .blocknote-wrapper pre code,
