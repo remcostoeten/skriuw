@@ -6,7 +6,6 @@ import { initializeAuth } from "@/platform/auth";
 import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
-import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 
 export function PersistenceBootstrap() {
   const resetNotesWorkspace = useNotesStore((state) => state.resetWorkspace);
@@ -26,22 +25,19 @@ export function PersistenceBootstrap() {
 
     const workspaceId = auth.workspaceId;
     const isAuthenticated = auth.phase === "authenticated" && auth.user !== null;
-    const authenticatedUserId = auth.user?.id ?? null;
     let isCancelled = false;
     resetNotesWorkspace();
 
     void (async () => {
-      if (!isAuthenticated || !authenticatedUserId) {
+      if (!isAuthenticated) {
         return;
       }
-
-      await ensureCloudStarterContentSeeded(authenticatedUserId);
 
       if (isCancelled) {
         return;
       }
 
-      await Promise.all([initializeNotes(workspaceId)]);
+      await initializeNotes(workspaceId);
     })();
 
     return () => {
@@ -61,9 +57,7 @@ export function PersistenceBootstrap() {
       return;
     }
 
-    void Promise.all([
-      syncSidebarWorkspace(auth.workspaceId),
-    ]);
+    void syncSidebarWorkspace(auth.workspaceId);
   }, [auth.isReady, auth.phase, auth.workspaceId, syncSidebarWorkspace]);
 
   useEffect(() => {
