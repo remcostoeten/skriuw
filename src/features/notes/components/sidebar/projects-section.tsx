@@ -7,6 +7,7 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import { PROJECT_COLORS } from "./types";
 import type { Project } from "./types";
 import { SidebarSection } from "./sidebar-section";
+import { EmptyState } from "@/shared/ui/empty-state";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -176,9 +177,10 @@ export function ProjectsSection({
       )}
 
       {projects.length === 0 && !isCreating ? (
-        <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>
-          <p className="text-[11px] text-muted-foreground/50">No projects yet</p>
-        </div>
+        <EmptyState
+          variant="projects"
+          className={cn("px-2", compactMode ? "py-1.5" : "py-2")}
+        />
       ) : (
         <div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
           {projects.map((project) => {

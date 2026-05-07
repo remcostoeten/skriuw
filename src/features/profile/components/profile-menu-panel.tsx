@@ -1,6 +1,6 @@
 "use client";
 
-import { Cloud, LoaderCircle } from "lucide-react";
+import { Cloud } from "lucide-react";
 import { useProfileSummary } from "../hooks/use-profile-summary";
 import { createProfileViewModel } from "../lib/profile-view-model";
 
@@ -37,14 +37,7 @@ export function ProfileMenuPanel() {
                 {metric.label}
               </div>
               <div className="pt-1 text-sm font-medium text-foreground">
-                {isLoading ? (
-                  <span className="inline-flex items-center gap-1">
-                    <LoaderCircle className="h-3 w-3 animate-spin" />
-                    Loading
-                  </span>
-                ) : (
-                  metric.value
-                )}
+                {isLoading ? "—" : metric.value}
               </div>
             </div>
           ))}

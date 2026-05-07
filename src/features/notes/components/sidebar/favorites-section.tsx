@@ -6,6 +6,7 @@ import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { FavoriteItem } from "./types";
 import { SidebarSection } from "./sidebar-section";
+import { EmptyState } from "@/shared/ui/empty-state";
 
 type Props = {
   favorites: FavoriteItem[];
@@ -96,9 +97,12 @@ export const FavoritesSection = memo(function FavoritesSection({
       onDragEnd={onDragEnd}
     >
       {resolvedFavorites.length === 0 ? (
-        <div className={cn("px-2", compactMode ? "py-0.5" : "py-1")}>
-          <p className="text-[11px] text-muted-foreground/50">No favorites yet</p>
-        </div>
+        <EmptyState
+          variant="files"
+          title="No favorites yet."
+          description="Favorite notes and folders for quick access."
+          className={cn("px-2", compactMode ? "py-1.5" : "py-2")}
+        />
       ) : (
         <div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
           {resolvedFavorites.map((fav) => (

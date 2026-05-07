@@ -121,7 +121,7 @@ export function ProfilePage() {
                 <ProfileMetricCard
                   key={metric.label}
                   label={metric.label}
-                  value={isLoading ? "Loading…" : metric.value}
+                  value={isLoading ? "—" : metric.value}
                   hint={metric.hint}
                 />
               ))}

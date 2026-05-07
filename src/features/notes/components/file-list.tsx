@@ -4,12 +4,14 @@ import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
+import { EmptyState } from "@/shared/ui/empty-state";
 import {
   Briefcase,
   Check,
+  FileText,
   Folder,
   FolderInput,
   FolderOpen,
@@ -59,6 +61,12 @@ type DragItem = {
   type: "file" | "folder";
   id: string;
   parentId: string | null;
+};
+
+type DragPreview = DragItem & {
+  name: string;
+  x: number;
+  y: number;
 };
 
 type VisibleItem =
@@ -218,6 +226,7 @@ export const FileList = memo(function FileList({
 
   // Drag and drop state
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     id: string | null;
     type: "folder" | "root";
@@ -289,19 +298,58 @@ export const FileList = memo(function FileList({
   );
 
   // Drag handlers
-  const handleDragStart = useCallback((e: React.DragEvent, item: DragItem) => {
-    setDragItem(item);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", JSON.stringify(item));
-    // Add a slight delay to allow the drag image to render
-    setTimeout(() => {
-      (e.target as HTMLElement).style.opacity = "0.5";
-    }, 0);
+  const getDragItemName = useCallback(
+    (item: DragItem) => {
+      if (item.type === "folder") {
+        return folders.find((folder) => folder.id === item.id)?.name ?? "Folder";
+      }
+
+      return files.find((file) => file.id === item.id)?.name ?? "Note";
+    },
+    [files, folders],
+  );
+
+  const updateDragPreviewPosition = useCallback((event: React.DragEvent) => {
+    if (event.clientX === 0 && event.clientY === 0) {
+      return;
+    }
+
+    setDragPreview((preview) =>
+      preview
+        ? {
+            ...preview,
+            x: event.clientX,
+            y: event.clientY,
+          }
+        : preview,
+    );
   }, []);
 
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    (e.target as HTMLElement).style.opacity = "1";
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, item: DragItem) => {
+      setDragItem(item);
+      setDragPreview({
+        ...item,
+        name: getDragItemName(item),
+        x: e.clientX,
+        y: e.clientY,
+      });
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", JSON.stringify(item));
+    },
+    [getDragItemName],
+  );
+
+  const handleDrag = useCallback(
+    (event: React.DragEvent) => {
+      updateDragPreviewPosition(event);
+    },
+    [updateDragPreviewPosition],
+  );
+
+  const handleDragEnd = useCallback(() => {
     setDragItem(null);
+    setDragPreview(null);
     setDropTarget(null);
   }, []);
 
@@ -561,6 +609,7 @@ export const FileList = memo(function FileList({
       e.stopPropagation();
 
       if (!dragItem) return;
+      updateDragPreviewPosition(e);
 
       // Prevent dropping a folder into itself or its descendants
       if (dragItem.type === "folder" && targetType === "folder") {
@@ -574,7 +623,7 @@ export const FileList = memo(function FileList({
       e.dataTransfer.dropEffect = "move";
       setDropTarget({ id: targetId, type: targetType });
     },
-    [dragItem, folders],
+    [dragItem, getDescendantIds, updateDragPreviewPosition],
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -602,6 +651,7 @@ export const FileList = memo(function FileList({
       // Don't drop on itself
       if (dragItem.id === targetId) {
         setDragItem(null);
+        setDragPreview(null);
         setDropTarget(null);
         return;
       }
@@ -610,6 +660,7 @@ export const FileList = memo(function FileList({
       if (dragItem.type === "folder" && targetId) {
         if (getDescendantIds(dragItem.id).includes(targetId)) {
           setDragItem(null);
+          setDragPreview(null);
           setDropTarget(null);
           return;
         }
@@ -622,9 +673,10 @@ export const FileList = memo(function FileList({
       }
 
       setDragItem(null);
+      setDragPreview(null);
       setDropTarget(null);
     },
-    [dragItem, folders, onMoveFile, onMoveFolder],
+    [dragItem, getDescendantIds, onMoveFile, onMoveFolder],
   );
 
   // Get all folders for "Move to" submenu
@@ -894,7 +946,8 @@ export const FileList = memo(function FileList({
               onDragStart={(e) =>
                 handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, { type: "folder", id: folder.id, parentId: folder.parentId })
               }
-              onDragEnd={(e) => handleDragEnd(e as unknown as React.DragEvent<HTMLButtonElement>)}
+              onDrag={handleDrag as any}
+              onDragEnd={handleDragEnd}
               onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, folder.id)}
@@ -917,7 +970,7 @@ export const FileList = memo(function FileList({
                 isSelected
                   ? "border-border bg-muted text-foreground"
                   : "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
-                isDragging && "opacity-50",
+                isDragging && "opacity-35",
                 isDropTarget && "border-border bg-muted",
               )}
               style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
@@ -1084,7 +1137,8 @@ export const FileList = memo(function FileList({
             onDragStart={(e) =>
               handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, { type: "file", id: file.id, parentId: file.parentId })
             }
-            onDragEnd={handleDragEnd as any}
+            onDrag={handleDrag as any}
+            onDragEnd={handleDragEnd}
             onFocus={() => setFocusedItemKey(getItemKey(fileItem))}
             onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
             role="treeitem"
@@ -1097,7 +1151,7 @@ export const FileList = memo(function FileList({
               isSelected || activeFileId === file.id
                 ? "border-border bg-muted text-foreground"
                 : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
-              isDragging && "opacity-50",
+              isDragging && "opacity-35",
             )}
             style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
           >
@@ -1230,12 +1284,7 @@ export const FileList = memo(function FileList({
   if (flattenedVisibleItems.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center px-4 pb-6 pt-4">
-        <div className="max-w-[14rem] text-center">
-          <p className="text-[12px] font-medium text-foreground/72">No notes yet</p>
-          <p className="mt-1 text-[11px] leading-5 text-muted-foreground/55">
-            Create your first note or folder from the action bar above to get started.
-          </p>
-        </div>
+        <EmptyState variant="files" />
       </div>
     );
   }
@@ -1274,6 +1323,24 @@ export const FileList = memo(function FileList({
           })}
         </div>
       </div>
+
+      {dragPreview && (
+        <div
+          className="pointer-events-none fixed z-[100] flex max-w-56 items-center gap-2 border border-border bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-lg"
+          style={{
+            left: dragPreview.x,
+            top: dragPreview.y,
+            transform: "translate(12px, 12px)",
+          }}
+        >
+          {dragPreview.type === "folder" ? (
+            <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+          ) : (
+            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+          )}
+          <span className="truncate">{dragPreview.name}</span>
+        </div>
+      )}
 
       <Sheet open={!!mobileActionTarget} onOpenChange={(open) => !open && closeMobileActionSheet()}>
         <SheetContent

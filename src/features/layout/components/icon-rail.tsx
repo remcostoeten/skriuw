@@ -66,7 +66,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
   ];
 
   const iconButtonClass =
-    "pressable relative flex h-9 w-9 items-center justify-center rounded-2xl border transition-all duration-200";
+    "pressable relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200";
 
   return (
     <>
@@ -79,7 +79,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
         <div className="flex w-full flex-col items-center">
           {" "}
           <div
-            className="flex h-12
+            className="flex h-11
       w-full items-center justify-center border-b border-sidebar-border"
           >
             <Tooltip>
@@ -102,7 +102,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                     className={cn(
                       iconButtonClass,
                       isActive
-                        ? "border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(0,0,0,0.28)]"
+                        ? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
                         : "border-transparent text-sidebar-foreground/52 hover:-translate-y-[1px] hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
                     )}
                     aria-label={label}
@@ -116,7 +116,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
             ))}
           </div>
         </div>
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 pb-4">
           {auth.phase === "authenticated" && auth.user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

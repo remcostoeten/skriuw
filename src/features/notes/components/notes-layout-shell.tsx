@@ -16,11 +16,11 @@ const SettingsModal = dynamic(
   { ssr: false },
 );
 
-function NotesSidebarSkeleton() {
+function NotesSidebarPlaceholder() {
   return null;
 }
 
-function NotesEditorSkeleton() {
+function NotesEditorPlaceholder() {
   return null;
 }
 
@@ -94,7 +94,7 @@ export function NotesLayoutShell() {
             </div>
           )
         ) : (
-          <NotesSidebarSkeleton />
+          <NotesSidebarPlaceholder />
         )}
 
         {isEditorReady ? (
@@ -124,7 +124,7 @@ export function NotesLayoutShell() {
             </div>
           </div>
         ) : (
-          <NotesEditorSkeleton />
+          <NotesEditorPlaceholder />
         )}
       </div>
 

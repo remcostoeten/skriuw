@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Command, FolderOpen, PenSquare } from "lucide-react";
 import { NoteFile, RichTextDocument } from "@/types/notes";
+import { EmptyState } from "@/shared/ui/empty-state";
 
 type EditorMode = "raw" | "block";
 
@@ -64,26 +64,13 @@ export function Editor({ file, editorMode, onContentChange }: EditorProps) {
 
   if (!file) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center bg-haptic-editor px-6 py-8">
-        <div className="w-full max-w-md border border-border bg-accent/30 px-6 py-7 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center border border-border bg-accent/50 text-muted-foreground">
-            <PenSquare className="h-6 w-6" strokeWidth={1.6} />
-          </div>
-          <h2 className="mt-4 text-lg font-semibold text-foreground">Pick a note to start writing</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Choose a note from the sidebar, or create a fresh one with the actions at the top left.
-          </p>
-          <div className="mt-5 grid gap-2 text-left text-xs text-muted-foreground">
-            <div className="flex items-center gap-2 border border-border bg-accent/20 px-3 py-2.5">
-              <FolderOpen className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-              <span>Browse folders and notes from the sidebar tree.</span>
-            </div>
-            <div className="flex items-center gap-2 border border-border bg-accent/20 px-3 py-2.5">
-              <Command className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-              <span>Use the command palette for quick actions and navigation.</span>
-            </div>
-          </div>
-        </div>
+      <div className="flex min-h-full flex-1 items-center justify-center bg-card px-6 py-12">
+        <EmptyState
+          variant="files"
+          title="No file selected"
+          description="Choose a note from the sidebar to start writing."
+          className="[&_svg]:mb-4 [&_svg]:h-8 [&_svg]:w-8 [&_h2]:text-[15px] [&_p]:mt-1.5 [&_p]:max-w-[240px] [&_p]:text-[13px]"
+        />
       </div>
     );
   }

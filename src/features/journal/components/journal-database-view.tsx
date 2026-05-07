@@ -13,9 +13,10 @@ import {
   SortDesc,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { EmptyState } from "@/shared/ui/empty-state";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { MOOD_OPTIONS } from "@/features/journal/types";
-import { useJournalEntries, useJournalTags } from "../hooks/use-journal-hooks";
+import { useJournalEntries } from "../hooks/use-journal-hooks";
 
 const JOURNAL_ROW_HEIGHT = 54;
 const JOURNAL_OVERSCAN = 8;
@@ -43,7 +44,6 @@ export function JournalDatabaseView({
   isMobile,
 }: JournalDatabaseViewProps) {
   const { data: entries = [] } = useJournalEntries();
-  const { data: allTags = [] } = useJournalTags();
 
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,8 +98,6 @@ export function JournalDatabaseView({
     }
     return "Untitled";
   };
-
-  const latestEntry = filteredEntries[0] ?? null;
 
   const tabs: { id: FilterTab; label: string }[] = [
     { id: "all", label: "All" },
@@ -259,13 +257,21 @@ export function JournalDatabaseView({
         >
           <div className="mt-2">
             {filteredEntries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-[13px] text-muted-foreground">
-                  {searchQuery
-                    ? "No entries match your search."
-                    : "No entries yet."}
-                </p>
-              </div>
+              <EmptyState
+                variant={searchQuery ? "search" : "files"}
+                title={searchQuery ? "No entries found." : "No entries yet."}
+                description={
+                  searchQuery
+                    ? "Try adjusting your search or filters."
+                    : "Create a journal entry to see it here."
+                }
+                action={
+                  searchQuery
+                    ? undefined
+                    : { label: "New entry", icon: Plus, onClick: onNewEntry }
+                }
+                className="py-16"
+              />
             ) : (
               <div>
                 <div className="relative" style={{ height: totalHeight }}>
@@ -415,12 +421,29 @@ export function JournalDatabaseView({
         className="flex-1 overflow-y-auto"
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       >
-        <div className="relative" style={{ height: totalHeight }}>
-          {visibleEntries.map((entry, visibleIndex) => {
-            const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
-            const entryDate = new Date(entry.dateKey + "T00:00:00");
-            const title = getEntryTitle(entry);
-            const rowIndex = startIndex + visibleIndex;
+        {filteredEntries.length === 0 ? (
+          <EmptyState
+            variant={searchQuery ? "search" : "files"}
+            title={searchQuery ? "No entries found." : "No entries yet."}
+            description={
+              searchQuery
+                ? "Try adjusting your search or filters."
+                : "Create a journal entry to see it here."
+            }
+            action={
+              searchQuery
+                ? undefined
+                : { label: "New entry", icon: Plus, onClick: onNewEntry }
+            }
+            className="py-20"
+          />
+        ) : (
+          <div className="relative" style={{ height: totalHeight }}>
+            {visibleEntries.map((entry, visibleIndex) => {
+              const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
+              const entryDate = new Date(entry.dateKey + "T00:00:00");
+              const title = getEntryTitle(entry);
+              const rowIndex = startIndex + visibleIndex;
 
             return (
               <button
@@ -450,8 +473,9 @@ export function JournalDatabaseView({
                 </span>
               </button>
             );
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
