@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ key }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not save AI key.";
-    const status = message.includes("AI_KEYS_ENCRYPTION_SECRET") ? 503 : 400;
-    return NextResponse.json({ error: message }, { status });
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("AI_KEYS_ENCRYPTION_SECRET")) {
+      console.error("[AI/keys] encryption is not configured", error);
+      return NextResponse.json({ error: "AI key storage is not configured." }, { status: 503 });
+    }
+    return NextResponse.json({ error: message || "Could not save AI key." }, { status: 400 });
   }
 }

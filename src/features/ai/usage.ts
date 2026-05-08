@@ -1,7 +1,11 @@
 import { createSupabaseAdminClient } from "@/core/supabase/server-client";
 import type { AiAction } from "@/features/ai/service";
 import type { AiKeySource, AiUsageLogRow, AiUsageStatus } from "@/features/ai/types";
-import { mapUsageRow, resolveAiHumanAction } from "@/features/ai/usage-utils";
+import {
+  mapUsageRow,
+  normalizeAiUsagePagination,
+  resolveAiHumanAction,
+} from "@/features/ai/usage-utils";
 
 export type AiUsageInput = {
   userId?: string | null;
@@ -61,8 +65,7 @@ export async function listAiUsageLogs({
   limit: number;
   offset: number;
 }): Promise<AiUsageLogRow[]> {
-  const safeLimit = Math.min(Math.max(limit, 1), 50);
-  const safeOffset = Math.max(offset, 0);
+  const { limit: safeLimit, offset: safeOffset } = normalizeAiUsagePagination({ limit, offset });
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("ai_usage_logs")

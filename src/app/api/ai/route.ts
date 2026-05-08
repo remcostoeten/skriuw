@@ -37,6 +37,10 @@ const VALID_ACTIONS = new Set(Object.keys(PROMPTS));
 
 type UserContext = Awaited<ReturnType<typeof getAuthenticatedUser>>["user"] | null;
 
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function classifyGeminiGenerationError(err: unknown): {
   code: string;
   source: AiErrorSource;
@@ -196,14 +200,15 @@ async function aiErrorResponse({
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const action = body?.action as string | undefined;
-  const content = body?.content as string | undefined;
-  const userApiKey = (body?.apiKey as string | undefined)?.trim();
-  const keyId = (body?.keyId as string | undefined)?.trim();
-  const requestedModel = (body?.model as string | undefined)?.trim();
-  const resourceType = (body?.resourceType as string | undefined)?.trim();
-  const resourceId = (body?.resourceId as string | undefined)?.trim();
-  const resourceUrl = (body?.resourceUrl as string | undefined)?.trim();
+  const action = readOptionalString(body?.action);
+  const content = readOptionalString(body?.content);
+  const userApiKey = readOptionalString(body?.apiKey)?.trim();
+  const keyId = readOptionalString(body?.keyId)?.trim();
+  const requestedModel = readOptionalString(body?.model)?.trim();
+  const resourceType = readOptionalString(body?.resourceType)?.trim();
+  const resourceId = readOptionalString(body?.resourceId)?.trim();
+  const resourceUrl = readOptionalString(body?.resourceUrl)?.trim();
+  const contentLength = typeof content === "string" ? content.length : 0;
 
   if (!action || !VALID_ACTIONS.has(action)) {
     return aiErrorResponse({
@@ -216,7 +221,7 @@ export async function POST(req: NextRequest) {
       message: "The AI action is not supported.",
       details: "Reload the app. If this persists, the client is sending a stale or invalid action.",
       status: 400,
-      contentLength: typeof content === "string" ? content.length : null,
+      contentLength,
     });
   }
   if (!content?.trim()) {
@@ -230,10 +235,10 @@ export async function POST(req: NextRequest) {
       message: "There is no note content to send to AI.",
       details: "Write some content first, then run the AI action again.",
       status: 400,
-      contentLength: typeof content === "string" ? content.length : null,
+      contentLength,
     });
   }
-  if (content.length > MAX_AI_CONTENT_CHARS) {
+  if (contentLength > MAX_AI_CONTENT_CHARS) {
     return aiErrorResponse({
       req,
       action,
@@ -244,7 +249,7 @@ export async function POST(req: NextRequest) {
       message: `The note is over the ${MAX_AI_CONTENT_CHARS.toLocaleString()} character AI limit.`,
       details: "Select a shorter note or split the content before retrying.",
       status: 413,
-      contentLength: content.length,
+      contentLength,
     });
   }
 
@@ -259,7 +264,7 @@ export async function POST(req: NextRequest) {
       message: "The selected AI model is not supported.",
       details: "Open Settings -> AI and choose one of the supported Gemini models.",
       status: 400,
-      contentLength: content.length,
+      contentLength,
     });
   }
 
@@ -281,7 +286,7 @@ export async function POST(req: NextRequest) {
       message: "Choose either a saved key or an inline key, not both.",
       details: "Reload the app and retry the AI action.",
       status: 400,
-      contentLength: content.length,
+      contentLength,
     });
   }
 
@@ -297,7 +302,7 @@ export async function POST(req: NextRequest) {
       message: "Sign in before using the shared AI key.",
       details: "Personal API keys can be tested in Settings -> AI after signing in.",
       status: 401,
-      contentLength: content.length,
+      contentLength,
     });
   }
 
@@ -317,7 +322,7 @@ export async function POST(req: NextRequest) {
         message: "Sign in before using a saved AI key.",
         details: "Saved AI keys are scoped to your account.",
         status: 401,
-        contentLength: content.length,
+        contentLength,
       });
     }
     const storedKey = await getDecryptedAiProviderKey({ userId: user.id, keyId });
@@ -333,7 +338,7 @@ export async function POST(req: NextRequest) {
         message: "Saved AI key was not found.",
         details: "Open Profile -> AI Keys and choose an existing key.",
         status: 404,
-        contentLength: content.length,
+        contentLength,
       });
     }
     apiKey = storedKey.apiKey;
@@ -353,7 +358,7 @@ export async function POST(req: NextRequest) {
       message: "Server AI is not configured.",
       details: "GEMINI_API_KEY is missing on the server. Add a personal key in Settings -> AI or configure the deployment.",
       status: 503,
-      contentLength: content.length,
+      contentLength,
     });
   }
 
@@ -409,7 +414,7 @@ export async function POST(req: NextRequest) {
       prompt,
       keySource,
       skipUsageLog: true,
-      contentLength: content.length,
+      contentLength,
       ...classified,
     });
   }
