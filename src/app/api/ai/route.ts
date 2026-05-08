@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ result: (response.text ?? "").trim() });
   } catch (err) {
     console.error(`[AI/${action}]`, err);
+    const msg = err instanceof Error ? err.message : String(err);
+    const status = (err as { status?: number }).status;
+    if (status === 429 || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
+      return NextResponse.json({ error: "rate_limited", code: "rate_limited" }, { status: 429 });
+    }
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });
   }
 }
