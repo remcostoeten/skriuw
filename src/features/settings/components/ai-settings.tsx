@@ -15,36 +15,61 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore, type AiKey } from "@/features/settings/store";
+import { AI_MODELS } from "@/features/ai/constants";
 
-const MODELS = [
-  { id: "gemini-2.5-flash-lite", label: "Flash Lite", desc: "Fastest · cheapest" },
-  { id: "gemini-2.5-flash", label: "Flash", desc: "Best balance", recommended: true },
-  { id: "gemini-2.5-pro", label: "Pro", desc: "Most capable" },
-] as const;
-
-type TestStatus = "idle" | "loading" | "ok" | "invalid_key" | "rate_limited" | "forbidden" | "model_not_found" | "error";
+type TestStatus =
+  | "idle"
+  | "loading"
+  | "ok"
+  | "no_key"
+  | "authentication_required"
+  | "invalid_key"
+  | "invalid_model"
+  | "rate_limited"
+  | "forbidden"
+  | "model_not_found"
+  | "provider_error"
+  | "error";
 
 const STATUS_COPY: Record<Exclude<TestStatus, "idle" | "loading">, string> = {
-  ok: "Connection successful — key is valid.",
-  invalid_key: "API key is invalid or not authorized.",
-  rate_limited: "Key is rate limited or quota exceeded. Try again later.",
-  forbidden: "Key lacks permission for this model. Check API key restrictions.",
+  ok: "Connection successful. Gemini accepted this key for the selected model.",
+  no_key: "Paste a Gemini API key before testing.",
+  authentication_required: "Sign in before testing keys so diagnostics can be linked to your account.",
+  invalid_key: "Gemini rejected this key. Check that it was copied correctly.",
+  invalid_model: "The selected model is no longer supported. Choose another model.",
+  rate_limited: "This key is valid but rate limited or out of quota.",
+  forbidden: "This key lacks permission for the selected model.",
   model_not_found: "Model not found. Try selecting a different model.",
-  error: "Could not reach Gemini API. Check your key and try again.",
+  provider_error: "Gemini returned an unexpected validation error.",
+  error: "Could not reach the validation endpoint. Try again.",
 };
 
-async function testKey(apiKey: string, model: string): Promise<TestStatus> {
+type TestResult = {
+  status: TestStatus;
+  details?: string;
+  eventId?: string;
+};
+
+async function testKey(apiKey: string, model: string): Promise<TestResult> {
   try {
     const res = await fetch("/api/ai/test-key", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey, model }),
     });
-    if (res.ok) return "ok";
-    const data = (await res.json().catch(() => ({}))) as { code?: string };
-    return (data.code as TestStatus) ?? "error";
+    if (res.ok) return { status: "ok" };
+    const data = (await res.json().catch(() => ({}))) as {
+      code?: string;
+      details?: string;
+      eventId?: string;
+    };
+    return {
+      status: (data.code as TestStatus) ?? "error",
+      details: data.details,
+      eventId: data.eventId,
+    };
   } catch {
-    return "error";
+    return { status: "error" };
   }
 }
 
@@ -123,15 +148,18 @@ export function AiSettings() {
   const [draftKey, setDraftKey] = useState("");
   const [showDraftKey, setShowDraftKey] = useState(false);
   const [draftTestStatus, setDraftTestStatus] = useState<TestStatus>("idle");
+  const [draftTestDetails, setDraftTestDetails] = useState<TestResult | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const [rowTestStatus, setRowTestStatus] = useState<Record<string, TestStatus>>({});
+  const [rowTestStatus, setRowTestStatus] = useState<Record<string, TestResult>>({});
 
   const handleTestDraft = async () => {
     if (!draftKey.trim()) return;
     setDraftTestStatus("loading");
-    const status = await testKey(draftKey.trim(), ai.model);
-    setDraftTestStatus(status);
+    setDraftTestDetails(null);
+    const result = await testKey(draftKey.trim(), ai.model);
+    setDraftTestStatus(result.status);
+    setDraftTestDetails(result);
   };
 
   const handleAddKey = () => {
@@ -150,10 +178,10 @@ export function AiSettings() {
   };
 
   const handleTestRow = async (k: AiKey) => {
-    setRowTestStatus((s) => ({ ...s, [k.id]: "loading" }));
-    const status = await testKey(k.apiKey, ai.model);
-    setRowTestStatus((s) => ({ ...s, [k.id]: status }));
-    if (status === "ok") markAiKeyTested(k.id);
+    setRowTestStatus((s) => ({ ...s, [k.id]: { status: "loading" } }));
+    const result = await testKey(k.apiKey, ai.model);
+    setRowTestStatus((s) => ({ ...s, [k.id]: result }));
+    if (result.status === "ok") markAiKeyTested(k.id);
   };
 
   const canAdd = draftTestStatus === "ok" && draftKey.trim() && draftName.trim();
@@ -169,7 +197,7 @@ export function AiSettings() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {MODELS.map((m) => (
+          {AI_MODELS.map((m) => (
             <button
               key={m.id}
               type="button"
@@ -228,27 +256,35 @@ export function AiSettings() {
                 onRemove={() => removeAiKey(k.id)}
                 onTest={() => handleTestRow(k)}
               />
-              {rowTestStatus[k.id] && rowTestStatus[k.id] !== "idle" && (
+              {rowTestStatus[k.id] && rowTestStatus[k.id].status !== "idle" && (
                 <div
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[10px]",
-                    rowTestStatus[k.id] === "loading" && "text-muted-foreground",
-                    rowTestStatus[k.id] === "ok" && "text-green-400",
-                    rowTestStatus[k.id] !== "loading" &&
-                      rowTestStatus[k.id] !== "ok" &&
+                    "space-y-1 px-3 py-1.5 text-[10px]",
+                    rowTestStatus[k.id].status === "loading" && "text-muted-foreground",
+                    rowTestStatus[k.id].status === "ok" && "text-green-400",
+                    rowTestStatus[k.id].status !== "loading" &&
+                      rowTestStatus[k.id].status !== "ok" &&
                       "text-destructive",
                   )}
                 >
-                  {rowTestStatus[k.id] === "loading" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
-                  ) : rowTestStatus[k.id] === "ok" ? (
-                    <CheckCircle className="h-3 w-3" strokeWidth={1.5} />
-                  ) : (
-                    <XCircle className="h-3 w-3" strokeWidth={1.5} />
+                  <div className="flex items-center gap-1.5">
+                    {rowTestStatus[k.id].status === "loading" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
+                    ) : rowTestStatus[k.id].status === "ok" ? (
+                      <CheckCircle className="h-3 w-3" strokeWidth={1.5} />
+                    ) : (
+                      <XCircle className="h-3 w-3" strokeWidth={1.5} />
+                    )}
+                    {rowTestStatus[k.id].status !== "loading" &&
+                      STATUS_COPY[rowTestStatus[k.id].status as Exclude<TestStatus, "idle" | "loading">]}
+                    {rowTestStatus[k.id].status === "loading" && "Testing…"}
+                  </div>
+                  {rowTestStatus[k.id].details && (
+                    <p className="pl-4 opacity-70">{rowTestStatus[k.id].details}</p>
                   )}
-                  {rowTestStatus[k.id] !== "loading" &&
-                    STATUS_COPY[rowTestStatus[k.id] as Exclude<TestStatus, "idle" | "loading">]}
-                  {rowTestStatus[k.id] === "loading" && "Testing…"}
+                  {rowTestStatus[k.id].eventId && (
+                    <p className="pl-4 font-mono opacity-50">Diagnostic event: {rowTestStatus[k.id].eventId}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -270,12 +306,13 @@ export function AiSettings() {
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
-                  type={showDraftKey ? "text" : "password"}
-                  value={draftKey}
-                  onChange={(e) => {
-                    setDraftKey(e.target.value);
-                    setDraftTestStatus("idle");
-                  }}
+	                  type={showDraftKey ? "text" : "password"}
+	                  value={draftKey}
+	                  onChange={(e) => {
+	                    setDraftKey(e.target.value);
+	                    setDraftTestStatus("idle");
+	                    setDraftTestDetails(null);
+	                  }}
                   placeholder="AIzaSy..."
                   autoComplete="off"
                   spellCheck={false}
@@ -318,8 +355,16 @@ export function AiSettings() {
                 ) : (
                   <XCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
                 )}
-                {STATUS_COPY[draftTestStatus]}
+                <span>{STATUS_COPY[draftTestStatus]}</span>
               </div>
+            )}
+            {draftTestStatus !== "idle" && draftTestStatus !== "loading" && draftTestDetails?.details && (
+              <p className="text-xs text-muted-foreground">{draftTestDetails.details}</p>
+            )}
+            {draftTestDetails?.eventId && (
+              <p className="font-mono text-[10px] text-muted-foreground/60">
+                Diagnostic event: {draftTestDetails.eventId}
+              </p>
             )}
 
             <div className="flex gap-2">
@@ -334,12 +379,13 @@ export function AiSettings() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setDraftName("");
-                  setDraftKey("");
-                  setDraftTestStatus("idle");
-                }}
+	                onClick={() => {
+	                  setShowAddForm(false);
+	                  setDraftName("");
+	                  setDraftKey("");
+	                  setDraftTestStatus("idle");
+	                  setDraftTestDetails(null);
+	                }}
                 className="h-9 border border-border bg-background px-3 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 Cancel
