@@ -10,7 +10,7 @@ import type {
   CssColorValue,
   TagId,
   TagName,
-} from "@/core/shared/persistence-types";
+} from "@/core/persistence-types";
 import {
   useCreateJournalTag,
   useDeleteJournalTag,

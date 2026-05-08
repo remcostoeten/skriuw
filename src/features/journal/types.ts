@@ -1,4 +1,4 @@
-import type { DateKey, CssColorValue } from "@/core/shared/persistence-types";
+import type { DateKey, CssColorValue } from "@/core/persistence-types";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/types/journal";
 
 export type { DateKey, CssColorValue };

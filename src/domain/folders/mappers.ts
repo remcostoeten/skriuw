@@ -1,5 +1,5 @@
 import type { NoteFolder } from "@/types/notes";
-import type { FolderId, IsoTime, PersistedFolder } from "@/core/shared/persistence-types";
+import type { FolderId, IsoTime, PersistedFolder } from "@/core/persistence-types";
 
 function toIsoTime(date: Date): IsoTime {
   return date.toISOString() as IsoTime;
