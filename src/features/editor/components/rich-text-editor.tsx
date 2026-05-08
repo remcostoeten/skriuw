@@ -21,7 +21,7 @@ import {
   markdownToRichDocument,
   upgradeRichDocumentChips,
 } from "@/shared/lib/rich-document";
-import { callAi, type AiCallOptions, type AiEditorHandle } from "@/features/ai/service";
+import type { AiEditorHandle } from "@/features/ai/service";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 
@@ -35,7 +35,8 @@ interface RichTextEditorProps {
   activeFileId?: string;
   onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
   onEditorReady?: (handle: AiEditorHandle) => void;
-  aiOptions?: AiCallOptions;
+  onAiSpellCheck?: () => void;
+  onAiContinueWriting?: () => void;
 }
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
@@ -244,8 +245,8 @@ function getCustomSlashMenuItems(
   editor: EditorInstance,
   files: NoteFile[],
   activeFileId: string | undefined,
-  onAiSpellCheck: () => void,
-  onAiContinueWriting: () => void,
+  onAiSpellCheck?: () => void,
+  onAiContinueWriting?: () => void,
 ): DefaultReactSuggestionItem[] {
   const noteItems = getNoteMentionMenuItems(editor, files, activeFileId)
     .slice(0, 8)
@@ -255,6 +256,28 @@ function getCustomSlashMenuItems(
       aliases: ["mention", "backlink", "link note", item.title],
       group: "Connect",
     }));
+
+  const aiItems: DefaultReactSuggestionItem[] =
+    onAiSpellCheck && onAiContinueWriting
+      ? [
+          {
+            title: "Spell Check",
+            aliases: ["ai", "spell", "fix", "grammar"],
+            group: "AI",
+            icon: <SpellCheck size={16} />,
+            subtext: "Fix spelling and grammar with AI",
+            onItemClick: onAiSpellCheck,
+          },
+          {
+            title: "Continue Writing",
+            aliases: ["ai", "continue", "expand", "write"],
+            group: "AI",
+            icon: <PenTool size={16} />,
+            subtext: "Expand content with AI",
+            onItemClick: onAiContinueWriting,
+          },
+        ]
+      : [];
 
   return [
     ...getDefaultReactSlashMenuItems(editor),
@@ -277,22 +300,7 @@ function getCustomSlashMenuItems(
       },
     },
     ...noteItems,
-    {
-      title: "Spell Check",
-      aliases: ["ai", "spell", "fix", "grammar"],
-      group: "AI",
-      icon: <SpellCheck size={16} />,
-      subtext: "Fix spelling and grammar with AI",
-      onItemClick: onAiSpellCheck,
-    },
-    {
-      title: "Continue Writing",
-      aliases: ["ai", "continue", "expand", "write"],
-      group: "AI",
-      icon: <PenTool size={16} />,
-      subtext: "Expand content with AI",
-      onItemClick: onAiContinueWriting,
-    },
+    ...aiItems,
   ];
 }
 
@@ -303,7 +311,8 @@ export function RichTextEditor({
   activeFileId,
   onChange,
   onEditorReady,
-  aiOptions,
+  onAiSpellCheck,
+  onAiContinueWriting,
 }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
   const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
@@ -326,54 +335,6 @@ export function RichTextEditor({
     initialContent: initialBlocks,
   });
   const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
-
-  const aiRunningRef = useRef(false);
-
-  const aiOptionsRef = useRef<AiCallOptions | undefined>(aiOptions);
-  aiOptionsRef.current = aiOptions;
-
-  const handleAiSpellCheck = useCallback(async () => {
-    if (aiRunningRef.current || !editor) return;
-    aiRunningRef.current = true;
-    try {
-      const markdown = await blocksToMarkdown(editor);
-      if (!markdown.trim()) {
-        aiRunningRef.current = false;
-        return;
-      }
-      const corrected = await callAi("spellCheck", markdown, aiOptionsRef.current);
-      if (corrected) {
-        // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
-        editor.replaceBlocks(editor.document, markdownToRichDocument(corrected) as any);
-      }
-    } catch (err) {
-      console.error("[AI/spellCheck]", err);
-    } finally {
-      aiRunningRef.current = false;
-    }
-  }, [editor]);
-
-  const handleAiContinueWriting = useCallback(async () => {
-    if (aiRunningRef.current || !editor) return;
-    aiRunningRef.current = true;
-    try {
-      const markdown = await blocksToMarkdown(editor);
-      if (!markdown.trim()) {
-        aiRunningRef.current = false;
-        return;
-      }
-      const continuation = await callAi("continueWriting", markdown, aiOptionsRef.current);
-      if (continuation) {
-        const blocks = markdownToRichDocument(continuation);
-        // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
-        editor.insertBlocks(blocks as any, editor.document[editor.document.length - 1], "after");
-      }
-    } catch (err) {
-      console.error("[AI/continueWriting]", err);
-    } finally {
-      aiRunningRef.current = false;
-    }
-  }, [editor]);
 
   useEffect(() => {
     if (!onEditorReady) return;
@@ -470,8 +431,8 @@ export function RichTextEditor({
                   editor,
                   files,
                   activeFileId,
-                  handleAiSpellCheck,
-                  handleAiContinueWriting,
+                  onAiSpellCheck,
+                  onAiContinueWriting,
                 ),
                 query,
               )

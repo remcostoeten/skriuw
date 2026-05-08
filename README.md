@@ -122,7 +122,7 @@ Supabase project notes:
 - Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
 - Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
 - For Expo mobile OAuth, also allow `skriuw://auth/callback` as a redirect URL in Supabase Auth.
-- The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, and `tags`, each scoped by `user_id` with RLS enabled.
+- The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, `tags`, and `ai_error_events`, each scoped by `user_id` with RLS enabled.
 - Mobile now supports email/password plus Google and GitHub OAuth via Expo deep links.
 
 ### Build
