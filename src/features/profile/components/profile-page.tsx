@@ -8,6 +8,7 @@ import { Separator } from "@/shared/ui/separator";
 import { signOut } from "@/platform/auth";
 import { useProfileSummary } from "../hooks/use-profile-summary";
 import { createProfileViewModel } from "../lib/profile-view-model";
+import { ProfileAiSections } from "./profile-ai-sections";
 
 type PendingAction = "sign-out" | null;
 
@@ -211,6 +212,8 @@ export function ProfilePage() {
           </div>
         </aside>
       </div>
+
+      <ProfileAiSections isSignedIn={Boolean(auth.user)} />
     </main>
   );
 }

@@ -3,7 +3,7 @@
 import { useApiMutation } from "@/shared/api";
 import { deleteFolder } from "@/domain/folders/api";
 import { notesKeys } from "./use-notes";
-import type { NoteFile, NoteFolder } from "@/types/notes";
+import type { NoteFolder } from "@/types/notes";
 
 export function useDeleteFolder() {
   return useApiMutation<string, void, NoteFolder[]>(deleteFolder, {
