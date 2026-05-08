@@ -5,7 +5,8 @@ import { format, subDays, isAfter, startOfDay } from 'date-fns';
 import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { type MoodLevel, type Mood, MOOD_OPTIONS } from '@/features/journal/types';
-import { useJournalEntries, useJournalTags } from '../hooks/use-journal-hooks';
+import { useJournalEntries } from '../hooks/use-journal-entries';
+import { useJournalTags } from '../hooks/use-journal-tags';
 
 type JournalStatsProps = {
   className?: string;
