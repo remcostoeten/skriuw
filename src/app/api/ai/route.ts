@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const action = body?.action as AiAction | undefined;
   const content = body?.content as string | undefined;
+  const userApiKey = body?.apiKey as string | undefined;
+  const userModel = body?.model as string | undefined;
 
   if (!action || !(action in PROMPTS)) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -33,9 +35,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No content" }, { status: 400 });
   }
 
+  const client = userApiKey?.trim()
+    ? new GoogleGenAI({ apiKey: userApiKey.trim() })
+    : genai;
+
+  const model = userModel?.trim() || MODELS[action];
+
   try {
-    const response = await genai.models.generateContent({
-      model: MODELS[action],
+    const response = await client.models.generateContent({
+      model,
       contents: PROMPTS[action](content),
     });
     return NextResponse.json({ result: (response.text ?? "").trim() });
