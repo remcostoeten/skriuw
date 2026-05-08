@@ -4,13 +4,13 @@ import {
   LogOut,
   LoaderCircle,
 } from "lucide-react";
-import { FolderOpenIcon } from "@/shared/ui/folder-open";
+import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
-import { RawLogo } from "@/shared/ui/logo";
+import { RawLogo } from "@/shared/icons/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { signOut } from "@/platform/auth";
 import { getAvatarSeed } from "@/shared/lib/avatar";
-import { AvatarFace } from "@/shared/ui/avatar-face";
+import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
 import { ProfileMenuPanel } from "@/features/profile";
 

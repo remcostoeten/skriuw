@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
-import { FileTextIcon } from "@/shared/ui/file-text";
-import { FolderOpenIcon } from "@/shared/ui/folder-open";
+import { FileTextIcon } from "@/shared/icons/file-text";
+import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from '@/shared/lib/utils';
 import { NoteFile, NoteFolder } from '@/types/notes';
 

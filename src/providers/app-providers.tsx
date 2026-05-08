@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
-import { PersistenceBootstrap } from "@/shared/components/persistence-bootstrap";
+import { PersistenceBootstrap } from "@/providers/persistence-bootstrap";
 
 type Props = {
   children: React.ReactNode;

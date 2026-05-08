@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { SaveStatus } from "@/shared/components/save-status-badge";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 import type { NoteFile, NoteFolder } from "@/types/notes";
 
 type FolderOpenState = Record<string, boolean>;

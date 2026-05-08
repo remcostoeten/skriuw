@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import type { SaveStatus } from "@/shared/components/save-status-badge";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
   useCreateJournalEntry,
-  useCreateJournalTag,
   useDeleteJournalEntry,
   useJournalEntries,
-  useJournalTags,
   useUpdateJournalEntry,
-} from "./use-journal-hooks";
+} from "./use-journal-entries";
+import {
+  useCreateJournalTag,
+  useJournalTags,
+} from "./use-journal-tags";
 import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
 
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
