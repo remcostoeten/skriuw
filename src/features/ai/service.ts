@@ -1,5 +1,21 @@
 export type AiAction = "generateTitle" | "spellCheck" | "continueWriting";
 
+export type AiErrorCode =
+  | "authentication_required"
+  | "invalid_action"
+  | "invalid_model"
+  | "no_key"
+  | "no_content"
+  | "content_too_large"
+  | "server_not_configured"
+  | "rate_limited"
+  | "invalid_key"
+  | "forbidden"
+  | "model_not_found"
+  | "provider_error"
+  | "network_error"
+  | "unknown";
+
 export interface AiEditorHandle {
   getMarkdown: () => Promise<string>;
   replaceContent: (markdown: string) => void;
@@ -13,9 +29,41 @@ export interface AiCallOptions {
 
 export class AiRateLimitError extends Error {
   readonly code = "rate_limited";
-  constructor() {
-    super("rate_limited");
+  readonly eventId?: string;
+  readonly details?: string;
+  constructor(message = "AI provider rate limit reached.", eventId?: string, details?: string) {
+    super(message);
     this.name = "AiRateLimitError";
+    this.eventId = eventId;
+    this.details = details;
+  }
+}
+
+export class AiRequestError extends Error {
+  readonly code: AiErrorCode;
+  readonly eventId?: string;
+  readonly details?: string;
+  readonly status: number;
+
+  constructor({
+    code,
+    message,
+    eventId,
+    details,
+    status,
+  }: {
+    code: AiErrorCode;
+    message: string;
+    eventId?: string;
+    details?: string;
+    status: number;
+  }) {
+    super(message);
+    this.name = "AiRequestError";
+    this.code = code;
+    this.eventId = eventId;
+    this.details = details;
+    this.status = status;
   }
 }
 
@@ -35,15 +83,28 @@ export async function callAi(
     }),
   });
 
-  if (res.status === 429) {
-    throw new AiRateLimitError();
-  }
-
   if (!res.ok) {
-    const { error } = (await res.json().catch(() => ({ error: "Unknown error" }))) as {
-      error: string;
+    const data = (await res.json().catch(() => ({}))) as {
+      code?: AiErrorCode;
+      error?: string;
+      message?: string;
+      details?: string;
+      eventId?: string;
     };
-    throw new Error(error);
+    const code = data.code ?? (res.status === 429 ? "rate_limited" : "unknown");
+    const message = data.message ?? data.error ?? "AI request failed";
+
+    if (res.status === 429 || code === "rate_limited") {
+      throw new AiRateLimitError(message, data.eventId, data.details);
+    }
+
+    throw new AiRequestError({
+      code,
+      message,
+      eventId: data.eventId,
+      details: data.details,
+      status: res.status,
+    });
   }
 
   const { result } = (await res.json()) as { result: string };
