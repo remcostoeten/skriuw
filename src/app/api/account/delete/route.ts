@@ -6,6 +6,8 @@ import {
 
 const DELETE_CONFIRM_PREFIX = "DELETE ";
 const USER_SCOPED_TABLES = [
+  "ai_provider_keys",
+  "ai_usage_logs",
   "ai_error_events",
   "user_recents",
   "journal_entries",

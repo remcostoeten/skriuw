@@ -13,9 +13,7 @@ let authSnapshot: AuthSnapshot;
 let resetNotesWorkspace: MockFn;
 let initializeNotes: MockFn;
 let syncPreferencesActor: MockFn;
-let syncLayoutActor: MockFn;
 let syncSidebarActor: MockFn;
-let ensureCloudStarterContentSeeded: MockFn;
 let initializeAuth: MockFn;
 let renderedEffects: EffectRecord[][] = [];
 let currentRenderEffects: EffectRecord[] = [];
@@ -76,39 +74,28 @@ function registerModuleMocks() {
   }));
 
   mock.module("@/features/notes/store", () => ({
-    useNotesStore: (
-      selector: (state: {
-        resetWorkspace: typeof resetNotesWorkspace;
-        initialize: typeof initializeNotes;
-      }) => unknown,
-    ) =>
-      selector({
+    useNotesStore: {
+      getState: () => ({
         resetWorkspace: resetNotesWorkspace,
         initialize: initializeNotes,
       }),
+    },
   }));
 
   mock.module("@/features/settings/store", () => ({
-    usePreferencesStore: (
-      selector: (state: { syncWorkspace: typeof syncPreferencesActor }) => unknown,
-    ) => selector({ syncWorkspace: syncPreferencesActor }),
-  }));
-
-  mock.module("@/features/layout/store", () => ({
-    useDocumentStore: (
-      selector: (state: { syncWorkspace: typeof syncLayoutActor }) => unknown,
-    ) => selector({ syncWorkspace: syncLayoutActor }),
+    usePreferencesStore: {
+      getState: () => ({
+        syncWorkspace: syncPreferencesActor,
+      }),
+    },
   }));
 
   mock.module("@/features/notes/components/sidebar/store", () => ({
-    useSidebarStore: (
-      selector: (state: { syncWorkspace: typeof syncSidebarActor }) => unknown,
-    ) => selector({ syncWorkspace: syncSidebarActor }),
-  }));
-
-  mock.module("@/core/persistence/starter-content", () => ({
-    ensureCloudStarterContentSeeded: (userId: string) =>
-      ensureCloudStarterContentSeeded(userId),
+    useSidebarStore: {
+      getState: () => ({
+        syncWorkspace: syncSidebarActor,
+      }),
+    },
   }));
 }
 
@@ -131,9 +118,7 @@ beforeEach(() => {
   resetNotesWorkspace = createMock(() => undefined);
   initializeNotes = createMock(async () => undefined);
   syncPreferencesActor = createMock(() => undefined);
-  syncLayoutActor = createMock(async () => undefined);
   syncSidebarActor = createMock(async () => undefined);
-  ensureCloudStarterContentSeeded = createMock(async () => undefined);
   initializeAuth = createMock(async () => authSnapshot);
   renderedEffects = [];
   currentRenderEffects = [];
@@ -149,7 +134,7 @@ describe("PersistenceBootstrap", () => {
     registerModuleMocks();
 
     const { PersistenceBootstrap } = await import(
-      `@/shared/components/persistence-bootstrap?workspace-switch=${Math.random().toString(36).slice(2)}`
+      `@/providers/persistence-bootstrap?workspace-switch=${Math.random().toString(36).slice(2)}`
     );
 
     renderComponent(PersistenceBootstrap);
@@ -160,9 +145,7 @@ describe("PersistenceBootstrap", () => {
     expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
     expect(initializeNotes).toHaveBeenCalledWith("user-a");
     expect(syncPreferencesActor).toHaveBeenCalledWith("user-a");
-    expect(syncLayoutActor).toHaveBeenCalledWith("user-a");
     expect(syncSidebarActor).toHaveBeenCalledWith("user-a");
-    expect(ensureCloudStarterContentSeeded).toHaveBeenCalledWith("user-a");
 
     authSnapshot = {
       ...authSnapshot,
@@ -183,9 +166,7 @@ describe("PersistenceBootstrap", () => {
     expect(resetNotesWorkspace).toHaveBeenLastCalledWith();
     expect(initializeNotes).toHaveBeenLastCalledWith("user-b");
     expect(syncPreferencesActor).toHaveBeenLastCalledWith("user-b");
-    expect(syncLayoutActor).toHaveBeenLastCalledWith("user-b");
     expect(syncSidebarActor).toHaveBeenLastCalledWith("user-b");
-    expect(ensureCloudStarterContentSeeded).toHaveBeenLastCalledWith("user-b");
   });
 
   test("does not initialize workspace data while signed out", async () => {
@@ -199,17 +180,15 @@ describe("PersistenceBootstrap", () => {
     registerModuleMocks();
 
     const { PersistenceBootstrap } = await import(
-      `@/shared/components/persistence-bootstrap?signed-out=${Math.random().toString(36).slice(2)}`
+      `@/providers/persistence-bootstrap?signed-out=${Math.random().toString(36).slice(2)}`
     );
 
     renderComponent(PersistenceBootstrap);
     await flushMicrotasks();
 
     expect(resetNotesWorkspace).toHaveBeenCalledWith();
-    expect(ensureCloudStarterContentSeeded).not.toHaveBeenCalled();
     expect(initializeNotes).not.toHaveBeenCalled();
     expect(syncPreferencesActor).not.toHaveBeenCalled();
-    expect(syncLayoutActor).not.toHaveBeenCalled();
     expect(syncSidebarActor).not.toHaveBeenCalled();
   });
 });
