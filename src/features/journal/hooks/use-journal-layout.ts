@@ -9,7 +9,8 @@ import { useNotesStore } from "@/features/notes/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
-import { useJournalEntries, useJournalTags } from "./use-journal-hooks";
+import { useJournalEntries } from "./use-journal-entries";
+import { useJournalTags } from "./use-journal-tags";
 
 export type JournalView = "list" | "editor";
 export type JournalEditorMode = "plain" | "rich";

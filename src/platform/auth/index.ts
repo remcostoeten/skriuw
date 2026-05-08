@@ -4,7 +4,7 @@ import {
   getSupabaseClient,
   isSupabaseConfigured,
   setSupabaseSessionPersistence,
-} from "@/core/persistence/supabase";
+} from "@/core/supabase/browser-client";
 
 type User = {
   id: string;
