@@ -11,12 +11,12 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/shared/ui/button-component";
+import { Button } from "@/shared/ui/button";
 import { DialogTitle } from "@/shared/ui/dialog";
 import { cn } from "@/shared/lib/utils";
-import { RawLogo } from "@/shared/ui/logo";
+import { RawLogo } from "@/shared/icons/logo";
 import { getAvatarSeed } from "@/shared/lib/avatar";
-import { AvatarFace } from "@/shared/ui/avatar-face";
+import { AvatarFace } from "@/shared/icons/avatar-face";
 import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
