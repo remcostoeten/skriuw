@@ -375,6 +375,10 @@ export function getWorkspaceId(): string {
   return getDerivedWorkspaceId(snapshot.user);
 }
 
+export function resolveWorkspaceId(workspaceId?: string | null): string {
+  return workspaceId ?? getWorkspaceId();
+}
+
 export function resetAuthForTests(): void {
   initializePromise = null;
   authSubscriptionBound = false;
