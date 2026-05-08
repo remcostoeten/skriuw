@@ -1,4 +1,4 @@
-import type { FolderId, MarkdownContent, NoteId, TagName } from "@/core/shared/persistence-types";
+import type { FolderId, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
 import type { NoteEditorMode, RichTextDocument } from "@/types/notes";
 
 export type CreateNoteInput = {

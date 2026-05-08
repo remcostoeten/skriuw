@@ -1,6 +1,6 @@
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { describe, expect, test } from "bun:test";
-import { fromPersistedNote, toPersistedNote } from "@/core/notes/mappers";
+import { fromPersistedNote, toPersistedNote } from "@/domain/notes/mappers";
 
 describe("note mappers", () => {
   test("maps note files to persisted notes", () => {

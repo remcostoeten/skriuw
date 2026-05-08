@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import type { FolderId, IsoTime } from "@/core/shared/persistence-types";
+import type { FolderId, IsoTime } from "@/core/persistence-types";
 import type { NoteFolder } from "@/types/notes";
 
 type FolderRow = {

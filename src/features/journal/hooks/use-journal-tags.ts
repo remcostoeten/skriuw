@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useApiQuery, useApiMutation } from "@/core/api";
+import { useApiQuery, useApiMutation } from "@/shared/api";
 import {
   listJournalTags,
   createJournalTag,

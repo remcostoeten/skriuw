@@ -6,7 +6,7 @@ import type {
   NoteId,
   PersistedNote,
   TagName,
-} from "@/core/shared/persistence-types";
+} from "@/core/persistence-types";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 
 function toIsoTime(date: Date): IsoTime {
