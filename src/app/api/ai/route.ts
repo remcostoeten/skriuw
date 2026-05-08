@@ -9,7 +9,11 @@ import {
   type AiModelId,
 } from "@/features/ai/constants";
 import type { AiAction } from "@/features/ai/service";
+import { getDecryptedAiProviderKey } from "@/features/ai/provider-keys";
 import { recordAiError, type AiErrorSource } from "@/features/ai/telemetry";
+import { recordAiUsage } from "@/features/ai/usage";
+import { readUsageMetadata } from "@/features/ai/usage-utils";
+import type { AiKeySource } from "@/features/ai/types";
 
 const SERVER_GEMINI_KEY = process.env.GEMINI_API_KEY;
 const serverGenai = SERVER_GEMINI_KEY ? new GoogleGenAI({ apiKey: SERVER_GEMINI_KEY }) : null;
@@ -111,6 +115,12 @@ async function aiErrorResponse({
   action,
   model,
   apiKey,
+  resourceType,
+  resourceId,
+  resourceUrl,
+  prompt,
+  keySource,
+  skipUsageLog,
   code,
   source,
   message,
@@ -125,6 +135,12 @@ async function aiErrorResponse({
   action?: AiAction | string;
   model?: string | null;
   apiKey?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  resourceUrl?: string | null;
+  prompt?: string | null;
+  keySource?: AiKeySource;
+  skipUsageLog?: boolean;
   code: string;
   source: AiErrorSource;
   message: string;
@@ -155,6 +171,26 @@ async function aiErrorResponse({
     },
   });
 
+  if (!skipUsageLog) {
+    await recordAiUsage({
+      userId: user?.id,
+      model,
+      action: action ?? "unknown",
+      resourceType,
+      resourceId,
+      resourceUrl,
+      prompt,
+      status: "error",
+      errorMessage: providerMessage ?? message,
+      keySource: keySource ?? (apiKey ? "user_key" : "unknown"),
+      metadata: {
+        providerStatus: providerStatus ?? null,
+        code,
+        source,
+      },
+    });
+  }
+
   return NextResponse.json({ code, error: code, message, details, eventId }, { status });
 }
 
@@ -163,7 +199,11 @@ export async function POST(req: NextRequest) {
   const action = body?.action as string | undefined;
   const content = body?.content as string | undefined;
   const userApiKey = (body?.apiKey as string | undefined)?.trim();
+  const keyId = (body?.keyId as string | undefined)?.trim();
   const requestedModel = (body?.model as string | undefined)?.trim();
+  const resourceType = (body?.resourceType as string | undefined)?.trim();
+  const resourceId = (body?.resourceId as string | undefined)?.trim();
+  const resourceUrl = (body?.resourceUrl as string | undefined)?.trim();
 
   if (!action || !VALID_ACTIONS.has(action)) {
     return aiErrorResponse({
@@ -229,6 +269,22 @@ export async function POST(req: NextRequest) {
   const authResult = await getAuthenticatedUser().catch(() => ({ user: null }));
   user = authResult.user;
 
+  if (userApiKey && keyId) {
+    return aiErrorResponse({
+      req,
+      user,
+      action,
+      model,
+      apiKey: userApiKey,
+      code: "invalid_key",
+      source: "validation",
+      message: "Choose either a saved key or an inline key, not both.",
+      details: "Reload the app and retry the AI action.",
+      status: 400,
+      contentLength: content.length,
+    });
+  }
+
   if (!user && !userApiKey) {
     return aiErrorResponse({
       req,
@@ -245,14 +301,53 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const client = userApiKey ? new GoogleGenAI({ apiKey: userApiKey }) : serverGenai;
+  let apiKey = userApiKey || null;
+  let keySource: AiKeySource = userApiKey ? "user_key" : "owner_key";
+
+  if (keyId) {
+    if (!user) {
+      return aiErrorResponse({
+        req,
+        user,
+        action,
+        model,
+        apiKey: null,
+        code: "authentication_required",
+        source: "auth",
+        message: "Sign in before using a saved AI key.",
+        details: "Saved AI keys are scoped to your account.",
+        status: 401,
+        contentLength: content.length,
+      });
+    }
+    const storedKey = await getDecryptedAiProviderKey({ userId: user.id, keyId });
+    if (!storedKey) {
+      return aiErrorResponse({
+        req,
+        user,
+        action,
+        model,
+        apiKey: null,
+        code: "invalid_key",
+        source: "validation",
+        message: "Saved AI key was not found.",
+        details: "Open Profile -> AI Keys and choose an existing key.",
+        status: 404,
+        contentLength: content.length,
+      });
+    }
+    apiKey = storedKey.apiKey;
+    keySource = "user_key";
+  }
+
+  const client = apiKey ? new GoogleGenAI({ apiKey }) : serverGenai;
   if (!client) {
     return aiErrorResponse({
       req,
       user,
       action,
       model,
-      apiKey: userApiKey,
+      apiKey,
       code: "server_not_configured",
       source: "config",
       message: "Server AI is not configured.",
@@ -262,22 +357,60 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const prompt = PROMPTS[action as AiAction](content);
+
   try {
     const response = await client.models.generateContent({
       model,
-      contents: PROMPTS[action as AiAction](content),
+      contents: prompt,
+    });
+    const usage = readUsageMetadata(response);
+    await recordAiUsage({
+      userId: user?.id,
+      model,
+      action,
+      resourceType: resourceType || null,
+      resourceId: resourceId || null,
+      resourceUrl: resourceUrl || null,
+      prompt,
+      status: "success",
+      keySource,
+      ...usage,
     });
     return NextResponse.json({ result: (response.text ?? "").trim() });
   } catch (err) {
     console.error(`[AI/${action}]`, err);
+    const classified = classifyGeminiGenerationError(err);
+    await recordAiUsage({
+      userId: user?.id,
+      model,
+      action,
+      resourceType: resourceType || null,
+      resourceId: resourceId || null,
+      resourceUrl: resourceUrl || null,
+      prompt,
+      status: "error",
+      errorMessage: classified.providerMessage ?? classified.message,
+      keySource,
+      metadata: {
+        providerStatus: classified.providerStatus ?? null,
+        code: classified.code,
+      },
+    });
     return aiErrorResponse({
       req,
       user,
       action,
       model,
-      apiKey: userApiKey,
+      apiKey,
+      resourceType: resourceType || null,
+      resourceId: resourceId || null,
+      resourceUrl: resourceUrl || null,
+      prompt,
+      keySource,
+      skipUsageLog: true,
       contentLength: content.length,
-      ...classifyGeminiGenerationError(err),
+      ...classified,
     });
   }
 }
