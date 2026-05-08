@@ -5,6 +5,7 @@ import { Editor } from "./editor";
 import { EditorToolbar } from "./editor-toolbar";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { callAi, type AiEditorHandle } from "@/features/ai/service";
+import { usePreferencesStore } from "@/features/settings/store";
 
 interface EditorContainerProps {
   file: NoteFile | null;
@@ -54,6 +55,8 @@ export function EditorContainer({
     spellCheck: false,
     continueWriting: false,
   });
+  const { ai: aiPrefs } = usePreferencesStore();
+  const aiOptions = { apiKey: aiPrefs.apiKey, model: aiPrefs.model };
 
   const handleEditorReady = useCallback((handle: AiEditorHandle) => {
     aiHandleRef.current = handle;
@@ -65,7 +68,7 @@ export function EditorContainer({
     try {
       const markdown = await aiHandleRef.current.getMarkdown();
       if (!markdown.trim()) return;
-      const title = await callAi("generateTitle", markdown);
+      const title = await callAi("generateTitle", markdown, aiOptions);
       if (title) onRenameFile(file.id, title);
     } catch (err) {
       console.error("[AI/generateTitle]", err);
@@ -80,7 +83,7 @@ export function EditorContainer({
     try {
       const markdown = await aiHandleRef.current.getMarkdown();
       if (!markdown.trim()) return;
-      const corrected = await callAi("spellCheck", markdown);
+      const corrected = await callAi("spellCheck", markdown, aiOptions);
       if (corrected) aiHandleRef.current.replaceContent(corrected);
     } catch (err) {
       console.error("[AI/spellCheck]", err);
@@ -95,7 +98,7 @@ export function EditorContainer({
     try {
       const markdown = await aiHandleRef.current.getMarkdown();
       if (!markdown.trim()) return;
-      const continuation = await callAi("continueWriting", markdown);
+      const continuation = await callAi("continueWriting", markdown, aiOptions);
       if (continuation) aiHandleRef.current.appendContent(continuation);
     } catch (err) {
       console.error("[AI/continueWriting]", err);

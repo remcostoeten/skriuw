@@ -8,6 +8,7 @@ import {
   Code,
   FlaskConical,
   Hash,
+  Sparkles,
   Trash2,
 } from "lucide-react"
 
@@ -42,6 +43,11 @@ import { useAuthSnapshot } from "@/platform/auth/use-auth"
 import { signOut } from "@/platform/auth"
 
 
+const AiSettings = dynamic(
+  () => import("./ai-settings").then((mod) => ({ default: mod.AiSettings })),
+  { ssr: false, loading: () => null },
+);
+
 const TagManager = dynamic(
   () => import("./tag-manager").then((mod) => ({ default: mod.TagManager })),
   {
@@ -64,6 +70,7 @@ const data = {
   nav: [
     { id: "profile", name: "Profile", icon: Palette },
     { id: "editor", name: "Editor", icon: Code },
+    { id: "ai", name: "AI", icon: Sparkles },
     { id: "tags", name: "Tags", icon: Hash },
     { id: "experimental", name: "Experimental", icon: FlaskConical },
   ],
@@ -338,6 +345,12 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                   </SettingsSection>
                 )}
 
+
+                {activeTab === "ai" && (
+                  <SettingsSection title="AI Settings">
+                    <AiSettings />
+                  </SettingsSection>
+                )}
 
                 {activeTab === "tags" && (
                   <SettingsSection title="Tag Management">
