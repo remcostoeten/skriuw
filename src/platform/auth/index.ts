@@ -4,7 +4,7 @@ import {
   getSupabaseClient,
   isSupabaseConfigured,
   setSupabaseSessionPersistence,
-} from "@/core/persistence/supabase";
+} from "@/core/supabase/browser-client";
 
 type User = {
   id: string;
@@ -373,6 +373,10 @@ export async function signOut(): Promise<AuthSnapshot> {
 
 export function getWorkspaceId(): string {
   return getDerivedWorkspaceId(snapshot.user);
+}
+
+export function resolveWorkspaceId(workspaceId?: string | null): string {
+  return workspaceId ?? getWorkspaceId();
 }
 
 export function resetAuthForTests(): void {

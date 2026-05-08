@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getWorkspaceId } from "@/platform/auth";
+import { getWorkspaceId, resolveWorkspaceId } from "@/platform/auth";
 
 type ActivityAction =
   | "settings_opened"
@@ -190,9 +190,6 @@ function applyProfile(workspaceId: string, profile: PreferencesProfile) {
   } satisfies Partial<PreferencesState>;
 }
 
-function resolveWorkspaceId(workspaceId: string | null | undefined): string {
-  return workspaceId ?? getWorkspaceId();
-}
 
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
