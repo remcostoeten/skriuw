@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BookOpen, Cloud, LoaderCircle, LogOut, NotebookPen } from "lucide-react";
-import { Button } from "@/shared/ui/button-component";
+import { Button } from "@/shared/ui/button";
 import { Separator } from "@/shared/ui/separator";
 import { signOut } from "@/platform/auth";
 import { useProfileSummary } from "../hooks/use-profile-summary";
