@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildMobileStarterWorkspace, buildWebStarterContent } from "@/core/shared/starter-content";
+import { buildMobileStarterWorkspace, buildWebStarterContent } from "@/shared/lib/starter-content";
 
 describe("starter content", () => {
   test("builds a filled nested web starter workspace", () => {
