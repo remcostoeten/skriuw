@@ -2,10 +2,14 @@ import { GoogleGenAI } from "@google/genai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import { ALLOWED_MODEL_IDS, DEFAULT_AI_MODEL, MAX_AI_CONTENT_CHARS } from "@/features/ai/constants";
+import { ALLOWED_MODEL_IDS, DEFAULT_AI_MODEL, MAX_AI_CONTENT_CHARS, type AiModelId } from "@/features/ai/constants";
 import type { AiAction } from "@/features/ai/service";
 
-const serverGenai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY environment variable is required");
+}
+
+const serverGenai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const ACTION_DEFAULTS: Record<AiAction, string> = {
   generateTitle: DEFAULT_AI_MODEL,
@@ -22,7 +26,7 @@ const PROMPTS: Record<AiAction, (content: string) => string> = {
     `Continue writing the following Markdown document. Preserve its tone, style, and formatting. Output ONLY the continuation text in Markdown, do NOT repeat the original text.\n\n${content}`,
 };
 
-const VALID_ACTIONS = new Set<string>(["generateTitle", "spellCheck", "continueWriting"]);
+const VALID_ACTIONS = new Set(Object.keys(PROMPTS));
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -44,10 +48,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const model =
-    requestedModel && ALLOWED_MODEL_IDS.has(requestedModel)
-      ? requestedModel
-      : ACTION_DEFAULTS[action as AiAction];
+  if (requestedModel && !ALLOWED_MODEL_IDS.has(requestedModel)) {
+    return NextResponse.json({ error: "Invalid model" }, { status: 400 });
+  }
+
+  const model = (requestedModel as AiModelId | undefined) || ACTION_DEFAULTS[action as AiAction];
 
   // Require authentication when falling back to server key
   if (!userApiKey) {

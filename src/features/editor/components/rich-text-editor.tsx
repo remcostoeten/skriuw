@@ -337,7 +337,10 @@ export function RichTextEditor({
     aiRunningRef.current = true;
     try {
       const markdown = await blocksToMarkdown(editor);
-      if (!markdown.trim()) return;
+      if (!markdown.trim()) {
+        aiRunningRef.current = false;
+        return;
+      }
       const corrected = await callAi("spellCheck", markdown, aiOptionsRef.current);
       if (corrected) {
         // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
@@ -355,7 +358,10 @@ export function RichTextEditor({
     aiRunningRef.current = true;
     try {
       const markdown = await blocksToMarkdown(editor);
-      if (!markdown.trim()) return;
+      if (!markdown.trim()) {
+        aiRunningRef.current = false;
+        return;
+      }
       const continuation = await callAi("continueWriting", markdown, aiOptionsRef.current);
       if (continuation) {
         const blocks = markdownToRichDocument(continuation);

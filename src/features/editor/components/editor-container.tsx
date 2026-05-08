@@ -179,7 +179,7 @@ export function EditorContainer({
 
       {aiError && (
         <div className="flex items-center gap-3 border-b border-destructive/20 bg-destructive/[0.06] px-4 py-2 text-xs">
-          <X className="h-3.5 w-3.5 shrink-0 text-destructive" strokeWidth={1.5} />
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" strokeWidth={1.5} />
           <span className="flex-1 text-destructive/90">{aiError}</span>
           <button
             type="button"
