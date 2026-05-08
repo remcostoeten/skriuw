@@ -42,6 +42,7 @@ async function flushMicrotasks() {
 async function loadStoreModule() {
   mock.module("@/platform/auth", () => ({
     getWorkspaceId: () => authWorkspaceId,
+    resolveWorkspaceId: (workspaceId?: string | null) => workspaceId ?? authWorkspaceId,
     getAuthStateSnapshot: () => ({
       phase: authWorkspaceId === "signed-out-local" ? "signed_out" : "authenticated",
       rememberMe: true,
