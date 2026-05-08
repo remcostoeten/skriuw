@@ -15,12 +15,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore, type AiKey } from "@/features/settings/store";
-
-const MODELS = [
-  { id: "gemini-2.5-flash-lite", label: "Flash Lite", desc: "Fastest · cheapest" },
-  { id: "gemini-2.5-flash", label: "Flash", desc: "Best balance", recommended: true },
-  { id: "gemini-2.5-pro", label: "Pro", desc: "Most capable" },
-] as const;
+import { AI_MODELS } from "@/features/ai/constants";
 
 type TestStatus = "idle" | "loading" | "ok" | "invalid_key" | "rate_limited" | "forbidden" | "model_not_found" | "error";
 
@@ -169,7 +164,7 @@ export function AiSettings() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {MODELS.map((m) => (
+          {AI_MODELS.map((m) => (
             <button
               key={m.id}
               type="button"
