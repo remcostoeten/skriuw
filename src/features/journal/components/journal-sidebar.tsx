@@ -24,7 +24,6 @@ import {
   Tag,
   Search,
   X,
-  Filter,
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -55,8 +54,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
   const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMood, setSelectedMood] = useState<MoodLevel | "all">("all");
-  const [selectedTag, setSelectedTag] = useState<string | "all">("all");
+  const selectedMood: MoodLevel | "all" = "all";
+  const selectedTag: string | "all" = "all";
 
   const datesWithEntries = useMemo(() => entries.map(e => e.dateKey), [entries]);
   const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);

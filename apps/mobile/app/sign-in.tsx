@@ -13,7 +13,6 @@ import { type Href, Redirect, router } from "expo-router";
 import { LoadingScreen } from "@/src/features/workspace/loading-screen";
 import {
   signInWithOAuth,
-  signInWithPassword,
   signUpWithPassword,
   type MobileAuthSnapshot,
   type OAuthProvider,
