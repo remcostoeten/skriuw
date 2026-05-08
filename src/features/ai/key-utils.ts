@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 
-const MAX_LABEL_LENGTH = 60;
-const MIN_KEY_LENGTH = 20;
+export const MAX_LABEL_LENGTH = 60;
+export const MIN_KEY_LENGTH = 20;
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.AI_KEYS_ENCRYPTION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = process.env.AI_KEYS_ENCRYPTION_SECRET;
   if (!secret) {
     throw new Error("AI_KEYS_ENCRYPTION_SECRET is required to store AI provider keys");
   }
