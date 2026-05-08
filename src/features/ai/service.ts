@@ -6,11 +6,25 @@ export interface AiEditorHandle {
   appendContent: (markdown: string) => void;
 }
 
-export async function callAi(action: AiAction, content: string): Promise<string> {
+export interface AiCallOptions {
+  apiKey?: string | null;
+  model?: string;
+}
+
+export async function callAi(
+  action: AiAction,
+  content: string,
+  options?: AiCallOptions,
+): Promise<string> {
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, content }),
+    body: JSON.stringify({
+      action,
+      content,
+      ...(options?.apiKey ? { apiKey: options.apiKey } : {}),
+      ...(options?.model ? { model: options.model } : {}),
+    }),
   });
   if (!res.ok) {
     const { error } = (await res.json().catch(() => ({ error: "Unknown error" }))) as {
