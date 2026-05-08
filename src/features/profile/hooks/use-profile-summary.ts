@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
-import { useApiQuery } from "@/core/api";
+import { useApiQuery } from "@/shared/api";
 import { listNotes } from "@/domain/notes/api";
 import { listJournalEntries } from "@/domain/journal/api";
 

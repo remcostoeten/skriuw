@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { AuthSnapshot } from "@/platform/auth";
-import { PERSISTED_STORE_NAMES } from "@/core/shared/persistence-types";
+import { PERSISTED_STORE_NAMES } from "@/core/persistence-types";
 
 let authSnapshot: AuthSnapshot = {
   phase: "signed_out",
