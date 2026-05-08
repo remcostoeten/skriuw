@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
 import { DEFAULT_AI_MODEL, isAiModelId, type AiModelId } from "@/features/ai/constants";
 import { recordAiError, type AiErrorSource } from "@/features/ai/telemetry";
+import { recordAiUsage } from "@/features/ai/usage";
 
 function classifyGeminiError(err: unknown): {
   code: string;
@@ -174,6 +175,13 @@ export async function POST(req: NextRequest) {
     );
 
     if (res.ok) {
+      await recordAiUsage({
+        userId: user.id,
+        model,
+        action: "testKey",
+        status: "success",
+        keySource: "user_key",
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -181,21 +189,47 @@ export async function POST(req: NextRequest) {
     const data = (await res.json().catch(() => ({}))) as { error?: { status?: string; message?: string } };
     const errMsg = data.error?.status ?? data.error?.message ?? res.statusText;
     const synthetic = Object.assign(new Error(errMsg), { status: res.status });
+    const classified = classifyGeminiError(synthetic);
+    await recordAiUsage({
+      userId: user.id,
+      model,
+      action: "testKey",
+      status: "error",
+      errorMessage: classified.providerMessage ?? classified.message,
+      keySource: "user_key",
+      metadata: {
+        providerStatus: classified.providerStatus ?? null,
+        code: classified.code,
+      },
+    });
     return testKeyErrorResponse({
       req,
       user,
       apiKey,
       model,
-      ...classifyGeminiError(synthetic),
+      ...classified,
     });
   } catch (err) {
     console.error("[AI/test-key]", err);
+    const classified = classifyGeminiError(err);
+    await recordAiUsage({
+      userId: user.id,
+      model,
+      action: "testKey",
+      status: "error",
+      errorMessage: classified.providerMessage ?? classified.message,
+      keySource: "user_key",
+      metadata: {
+        providerStatus: classified.providerStatus ?? null,
+        code: classified.code,
+      },
+    });
     return testKeyErrorResponse({
       req,
       user,
       apiKey,
       model,
-      ...classifyGeminiError(err),
+      ...classified,
     });
   }
 }

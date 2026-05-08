@@ -80,8 +80,7 @@ function registerSupabaseMocks() {
     SUPABASE_AUTH_STORAGE_KEY: "supabase.auth.token",
   };
 
-  mock.module("@/core/persistence/supabase", () => supabaseModuleMock);
-  mock.module("@/core/persistence/supabase/index", () => supabaseModuleMock);
+    mock.module("@/core/supabase/browser-client", () => supabaseModuleMock);
 }
 
 describe("auth session state", () => {
