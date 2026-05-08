@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import { fromPersistedNote } from "@/core/notes/mappers";
+import { fromPersistedNote } from "@/domain/notes/mappers";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import type {
   FolderId,
@@ -9,7 +9,7 @@ import type {
   MarkdownContent,
   NoteId,
   TagName,
-} from "@/core/shared/persistence-types";
+} from "@/core/persistence-types";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { MoodLevel } from "@/types/journal";
 

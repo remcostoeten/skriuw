@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from "@/core/supabase/server-client";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
-import { buildWebStarterContent } from "@/core/shared/starter-content";
+import { buildWebStarterContent } from "@/shared/lib/starter-content";
 
 export async function ensureCloudStarterContentSeeded(userId: string): Promise<void> {
   const supabase = await createServerSupabaseClient();

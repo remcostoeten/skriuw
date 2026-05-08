@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiMutation } from "@/core/api";
+import { useApiMutation } from "@/shared/api";
 import { createNote, type CreateNoteInput } from "@/domain/notes/api";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { notesKeys } from "./use-notes";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiQuery } from "@/core/api";
+import { useApiQuery } from "@/shared/api";
 import { listNotes } from "@/domain/notes/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { NoteFile } from "@/types/notes";

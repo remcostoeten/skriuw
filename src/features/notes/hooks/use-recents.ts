@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiQuery, useApiMutation } from "@/core/api";
+import { useApiQuery, useApiMutation } from "@/shared/api";
 import { listRecents, trackRecent, clearRecents } from "@/domain/recents/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { RecentItem } from "@/features/notes/components/sidebar/types";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiQuery, useApiMutation } from "@/core/api";
+import { useApiQuery, useApiMutation } from "@/shared/api";
 import {
   listJournalEntries,
   createJournalEntry,

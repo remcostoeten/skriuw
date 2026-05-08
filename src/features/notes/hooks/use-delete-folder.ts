@@ -1,6 +1,6 @@
 "use client";
 
-import { useApiMutation } from "@/core/api";
+import { useApiMutation } from "@/shared/api";
 import { deleteFolder } from "@/domain/folders/api";
 import { notesKeys } from "./use-notes";
 import type { NoteFile, NoteFolder } from "@/types/notes";

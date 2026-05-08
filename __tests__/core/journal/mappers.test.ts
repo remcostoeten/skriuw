@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { DateKey, CssColorValue } from "@/core/shared/persistence-types";
+import type { DateKey, CssColorValue } from "@/core/persistence-types";
 import {
   fromPersistedJournalTag,
   toPersistedJournalEntry,
   toPersistedJournalTag,
-} from "@/core/journal/mappers";
+} from "@/domain/journal/mappers";
 
 describe("journal mappers", () => {
   test("maps journal entries to persisted records", () => {
