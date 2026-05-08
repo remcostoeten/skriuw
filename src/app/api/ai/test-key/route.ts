@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { ALLOWED_MODEL_IDS, DEFAULT_AI_MODEL } from "@/features/ai/constants";
+import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { ALLOWED_MODEL_IDS, DEFAULT_AI_MODEL, type AiModelId } from "@/features/ai/constants";
 
 function classifyGeminiError(err: unknown): { code: string; message: string } {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
@@ -23,10 +24,15 @@ function classifyGeminiError(err: unknown): { code: string; message: string } {
 }
 
 export async function POST(req: NextRequest) {
+  const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const body = (await req.json().catch(() => ({}))) as { apiKey?: string; model?: string };
   const apiKey = body.apiKey?.trim();
-  const model =
-    body.model && ALLOWED_MODEL_IDS.has(body.model) ? body.model : DEFAULT_AI_MODEL;
+  const model: AiModelId =
+    body.model && ALLOWED_MODEL_IDS.has(body.model) ? (body.model as AiModelId) : DEFAULT_AI_MODEL;
 
   if (!apiKey) {
     return NextResponse.json({ code: "no_key", message: "No API key provided." }, { status: 400 });
@@ -52,12 +58,19 @@ export async function POST(req: NextRequest) {
       code === "invalid_key" ? 401
       : code === "rate_limited" ? 429
       : code === "forbidden" ? 403
+      : code === "model_not_found" ? 404
       : 500;
 
     return NextResponse.json({ code, message }, { status: httpStatus });
   } catch (err) {
     console.error("[AI/test-key]", err);
     const { code, message } = classifyGeminiError(err);
-    return NextResponse.json({ code, message }, { status: 500 });
+    const httpStatus =
+      code === "invalid_key" ? 401
+      : code === "rate_limited" ? 429
+      : code === "forbidden" ? 403
+      : code === "model_not_found" ? 404
+      : 500;
+    return NextResponse.json({ code, message }, { status: httpStatus });
   }
 }
