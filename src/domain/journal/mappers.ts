@@ -8,7 +8,7 @@ import type {
   PersistedTag,
   TagId,
   TagName,
-} from "@/core/shared/persistence-types";
+} from "@/core/persistence-types";
 import type { JournalEntry, JournalTag } from "@/types/journal";
 
 function toIsoTime(date: Date): IsoTime {
