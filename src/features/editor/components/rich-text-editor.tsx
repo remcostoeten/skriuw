@@ -21,7 +21,7 @@ import {
   markdownToRichDocument,
   upgradeRichDocumentChips,
 } from "@/shared/lib/rich-document";
-import { callAi, type AiEditorHandle } from "@/features/ai/service";
+import { callAi, type AiCallOptions, type AiEditorHandle } from "@/features/ai/service";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 
@@ -35,6 +35,7 @@ interface RichTextEditorProps {
   activeFileId?: string;
   onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
   onEditorReady?: (handle: AiEditorHandle) => void;
+  aiOptions?: AiCallOptions;
 }
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
@@ -302,6 +303,7 @@ export function RichTextEditor({
   activeFileId,
   onChange,
   onEditorReady,
+  aiOptions,
 }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
   const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
@@ -327,12 +329,16 @@ export function RichTextEditor({
 
   const aiRunningRef = useRef(false);
 
+  const aiOptionsRef = useRef<AiCallOptions | undefined>(aiOptions);
+  aiOptionsRef.current = aiOptions;
+
   const handleAiSpellCheck = useCallback(async () => {
     if (aiRunningRef.current || !editor) return;
     aiRunningRef.current = true;
     try {
       const markdown = await blocksToMarkdown(editor);
-      const corrected = await callAi("spellCheck", markdown);
+      if (!markdown.trim()) return;
+      const corrected = await callAi("spellCheck", markdown, aiOptionsRef.current);
       if (corrected) {
         // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
         editor.replaceBlocks(editor.document, markdownToRichDocument(corrected) as any);
@@ -349,7 +355,8 @@ export function RichTextEditor({
     aiRunningRef.current = true;
     try {
       const markdown = await blocksToMarkdown(editor);
-      const continuation = await callAi("continueWriting", markdown);
+      if (!markdown.trim()) return;
+      const continuation = await callAi("continueWriting", markdown, aiOptionsRef.current);
       if (continuation) {
         const blocks = markdownToRichDocument(continuation);
         // biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
