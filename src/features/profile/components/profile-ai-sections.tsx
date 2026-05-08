@@ -128,12 +128,16 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
 
   async function deleteKey(keyId: string) {
     setKeyError(null);
-    const res = await fetch(`/api/profile/ai/keys/${keyId}`, { method: "DELETE" });
-    if (!res.ok) {
-      setKeyError("Could not remove AI key.");
-      return;
+    try {
+      const res = await fetch(`/api/profile/ai/keys/${keyId}`, { method: "DELETE" });
+      if (!res.ok) {
+        setKeyError("Could not remove AI key.");
+        return;
+      }
+      setKeys((current) => current.filter((key) => key.id !== keyId));
+    } catch (error) {
+      setKeyError(error instanceof Error ? error.message : "Could not remove AI key.");
     }
-    setKeys((current) => current.filter((key) => key.id !== keyId));
   }
 
   async function renameKey(key: AiProviderKeySummary) {

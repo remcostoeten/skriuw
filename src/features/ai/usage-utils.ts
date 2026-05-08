@@ -7,6 +7,19 @@ const HUMAN_ACTIONS: Record<string, string> = {
   testKey: "Tested AI provider key",
 };
 
+export function normalizeAiUsagePagination({
+  limit,
+  offset,
+}: {
+  limit: number;
+  offset: number;
+}): { limit: number; offset: number } {
+  return {
+    limit: Math.min(Math.max(Number.isFinite(limit) ? limit : 20, 1), 50),
+    offset: Math.max(Number.isFinite(offset) ? offset : 0, 0),
+  };
+}
+
 export function resolveAiHumanAction(action: string): string {
   return HUMAN_ACTIONS[action] ?? action;
 }
