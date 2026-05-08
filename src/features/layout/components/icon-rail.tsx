@@ -4,13 +4,13 @@ import {
   LogOut,
   LoaderCircle,
 } from "lucide-react";
-import { FolderOpenIcon } from "@/shared/ui/folder-open";
+import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
-import { RawLogo } from "@/shared/ui/logo";
+import { RawLogo } from "@/shared/icons/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { signOut } from "@/platform/auth";
 import { getAvatarSeed } from "@/shared/lib/avatar";
-import { AvatarFace } from "@/shared/ui/avatar-face";
+import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
 import { ProfileMenuPanel } from "@/features/profile";
 
@@ -33,8 +33,13 @@ interface IconRailProps {
 export function IconRail({ onOpenSettings }: IconRailProps) {
   const pathname = usePathname();
   const auth = useAuthSnapshot();
+  const [isMounted, setIsMounted] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -66,7 +71,7 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
       href: "/app/journal",
       label: "Journal",
       isActive: pathname === "/app/journal",
-      icon: (active: boolean) => (
+      icon: () => (
         <BookOpen
           className="h-[18px] w-[18px]"
           strokeWidth={1.6}
@@ -127,7 +132,12 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
           </div>
         </div>
         <div className="flex flex-col items-center gap-2 pb-4">
-          {auth.phase === "authenticated" && auth.user ? (
+          {!isMounted ? (
+            <div
+              aria-hidden="true"
+              className="h-9 w-9 rounded-full border border-sidebar-border bg-sidebar"
+            />
+          ) : auth.phase === "authenticated" && auth.user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

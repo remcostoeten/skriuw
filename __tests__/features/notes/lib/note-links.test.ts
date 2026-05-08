@@ -3,6 +3,7 @@ import {
   buildNoteLinkIndex,
   extractNoteLinks,
   extractNoteTags,
+  getNoteTitle,
   getWorkspaceTags,
 } from "@/features/notes/lib/note-links";
 import type { NoteFile } from "@/types/notes";
@@ -67,6 +68,34 @@ describe("note link indexing", () => {
       targetNoteId: "target-id",
       status: "resolved",
     });
+  });
+
+  test("resolves links against markdown headings as note titles", () => {
+    const target = note({
+      id: "target-id",
+      name: "Start here - editor field guide.md",
+      content: "# Start here: editor field guide\n\nWelcome.",
+    });
+    const source = note({
+      id: "source-id",
+      name: "Source.md",
+      content: "Backlink to [[Start here: editor field guide]].",
+    });
+
+    const index = buildNoteLinkIndex(target, [target, source]);
+
+    expect(getNoteTitle(target)).toBe("Start here: editor field guide");
+    expect(index.backlinks[0]).toMatchObject({
+      sourceNoteId: "source-id",
+      targetNoteId: "target-id",
+      status: "resolved",
+    });
+  });
+
+  test("uses mdx filenames as fallback titles", () => {
+    expect(getNoteTitle(note({ id: "mdx", name: "Component gallery.mdx", content: "" }))).toBe(
+      "Component gallery",
+    );
   });
 
   test("collects workspace tags from explicit tags and content tags", () => {

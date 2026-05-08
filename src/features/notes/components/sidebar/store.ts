@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getWorkspaceId } from "@/platform/auth";
+import { getWorkspaceId, resolveWorkspaceId } from "@/platform/auth";
 import {
   DEFAULT_SIDEBAR_CONFIG,
   PROJECT_COLORS,
@@ -86,9 +86,6 @@ function readWorkspaceConfig(profiles: Record<string, SidebarConfig>, workspaceI
   return cloneSidebarConfig(profiles[workspaceId] ?? DEFAULT_SIDEBAR_CONFIG);
 }
 
-function resolveWorkspaceId(workspaceId?: string) {
-  return workspaceId ?? getWorkspaceId();
-}
 
 export const useSidebarStore = create<SidebarState>()(
   persist(

@@ -1,7 +1,6 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import Link from "next/link";
 import {
   ArrowLeft,
   Cloud,
@@ -12,12 +11,13 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/shared/ui/button-component";
+import { Button } from "@/shared/ui/button";
 import { DialogTitle } from "@/shared/ui/dialog";
 import { cn } from "@/shared/lib/utils";
-import { RawLogo } from "@/shared/ui/logo";
+import { RawLogo } from "@/shared/icons/logo";
 import { getAvatarSeed } from "@/shared/lib/avatar";
-import { AvatarFace } from "@/shared/ui/avatar-face";
+import { AvatarFace } from "@/shared/icons/avatar-face";
+import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
   initializeAuth,
@@ -220,15 +220,7 @@ export function AuthEntryPoint({
               )}
 
               <div className="relative z-10">
-                <h1 className="mb-2 w-full max-w-sm font-serif text-4xl font-medium leading-[46px] text-white/60">
-                  Keep your{" "}
-                  <span className="text-white">notes and journal</span> in sync
-                  with <span className="font-serif">Skriuw</span>
-                </h1>
-                <p className="max-w-sm text-white/90">
-                  Continue writing on web, review your journal over time, and
-                  carry the same workspace across every device you use.
-                </p>
+                <AuthHeroCopy />
               </div>
             </div>
 

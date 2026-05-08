@@ -8,13 +8,16 @@ import { cn } from "@/shared/lib/utils";
 import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import {
+  WorkspaceContentSkeleton,
+  WorkspaceSidebarSkeleton,
+} from "@/features/layout/components/app-loading-shell";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
 import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
-import { SaveStatusBadge } from "@/shared/components/save-status-badge";
 import { useJournalLayout } from "../hooks/use-journal-layout";
 import { useJournalEntry } from "../hooks/use-journal-entry";
 
@@ -24,16 +27,15 @@ const SettingsModal = dynamic(
 );
 
 function JournalSidebarPlaceholder() {
-  return null;
+  return <WorkspaceSidebarSkeleton variant="journal" />;
 }
 
 function JournalContentPlaceholder() {
-  return null;
+  return <WorkspaceContentSkeleton variant="journal" />;
 }
 
 type JournalEditorToolbarProps = {
   selectedDate: Date;
-  selectedEntrySaveState: React.ComponentProps<typeof SaveStatusBadge>["status"];
   editorMode: "plain" | "rich";
   isMobile: boolean;
   onToggleSidebar: () => void;
@@ -45,7 +47,6 @@ type JournalEditorToolbarProps = {
 
 function JournalEditorToolbar({
   selectedDate,
-  selectedEntrySaveState,
   editorMode,
   isMobile,
   onToggleSidebar,
@@ -86,9 +87,6 @@ function JournalEditorToolbar({
           </div>
 
           <div className="flex h-11 items-center gap-1.5 sm:gap-2">
-            <div className="hidden sm:flex sm:items-center">
-              <SaveStatusBadge status={selectedEntrySaveState} />
-            </div>
             <button
               onClick={onToggleEditorMode}
               className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
@@ -108,9 +106,6 @@ function JournalEditorToolbar({
               <Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
             </button>
           </div>
-        </div>
-        <div className="pt-2 sm:hidden">
-          <SaveStatusBadge status={selectedEntrySaveState} />
         </div>
       </div>
     );
@@ -167,7 +162,6 @@ function JournalEditorToolbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <SaveStatusBadge status={selectedEntrySaveState} />
         <button
           onClick={onToggleEditorMode}
           className={cn(
@@ -280,7 +274,6 @@ export function JournalPageLayout() {
               <>
                 <JournalEditorToolbar
                   selectedDate={selectedDate}
-                  selectedEntrySaveState={journalEntry.saveState}
                   editorMode={editorMode}
                   isMobile={isMobile}
                   onToggleSidebar={handleToggleSidebar}

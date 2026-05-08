@@ -3,7 +3,7 @@
 import { Check, Cloud, Eye, EyeOff, Github, UserRound } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/shared/ui/button-component";
+import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { EmailDomainAutocomplete } from "../email-domain-autocomplete";
 import {
