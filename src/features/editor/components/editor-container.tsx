@@ -104,8 +104,11 @@ export function EditorContainer({
         ? (aiPrefs.keys.find((k) => k.id === aiPrefs.activeKeyId)?.apiKey ?? null)
         : null,
       model: aiPrefs.model,
+      resourceType: file ? "note" : undefined,
+      resourceId: file?.id,
+      resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
     }),
-    [aiPrefs.activeKeyId, aiPrefs.keys, aiPrefs.model],
+    [aiPrefs.activeKeyId, aiPrefs.keys, aiPrefs.model, file],
   );
 
   // Clear transient state when switching files
@@ -133,7 +136,13 @@ export function EditorContainer({
         : getActiveKey(exhaustedIds);
 
       const callOptions = keyEntry
-        ? { apiKey: keyEntry.apiKey, model: aiPrefs.model }
+        ? {
+            apiKey: keyEntry.apiKey,
+            model: aiPrefs.model,
+            resourceType: file ? "note" : undefined,
+            resourceId: file?.id,
+            resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+          }
         : aiOptions;
 
       setAiLoading((s) => ({ ...s, [action]: true }));

@@ -1,3 +1,5 @@
+"use client";
+
 import { NoteFile } from "@/types/notes";
 import { formatDistanceToNow } from "date-fns";
 import {
