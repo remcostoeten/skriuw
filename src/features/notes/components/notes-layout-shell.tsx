@@ -121,6 +121,7 @@ export function NotesLayoutShell() {
                   canNavigatePrev={canNavigatePrev}
                   canNavigateNext={canNavigateNext}
                   fileName={activeFile?.name || "No file selected"}
+                  onRenameFile={layout.renameFile}
                 />
               </div>
 
