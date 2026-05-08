@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { NoteFile, RichTextDocument } from "@/types/notes";
 import { EmptyState } from "@/shared/ui/empty-state";
+import type { AiEditorHandle } from "@/features/ai/service";
 
 type EditorMode = "raw" | "block";
 
@@ -29,9 +30,10 @@ interface EditorProps {
       preferredEditorMode?: EditorMode;
     },
   ) => void;
+  onEditorReady?: (handle: AiEditorHandle) => void;
 }
 
-export function Editor({ file, files = [], editorMode, onContentChange }: EditorProps) {
+export function Editor({ file, files = [], editorMode, onContentChange, onEditorReady }: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -87,6 +89,7 @@ export function Editor({ file, files = [], editorMode, onContentChange }: Editor
           files={files}
           activeFileId={file.id}
           onChange={handleRichTextChange}
+          onEditorReady={onEditorReady}
         />
       </div>
     );

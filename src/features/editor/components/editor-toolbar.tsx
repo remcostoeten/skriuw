@@ -2,10 +2,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
+  Loader2,
   PanelRight,
+  PenTool,
   Settings2,
   Sidebar,
+  SpellCheck,
   Type,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -22,6 +26,10 @@ type Props = {
   onNavigateNext?: () => void;
   canNavigatePrev?: boolean;
   canNavigateNext?: boolean;
+  aiLoading?: { generateTitle: boolean; spellCheck: boolean; continueWriting: boolean };
+  onAiGenerateTitle?: () => void;
+  onAiSpellCheck?: () => void;
+  onAiContinueWriting?: () => void;
 };
 
 export function EditorToolbar({
@@ -37,7 +45,14 @@ export function EditorToolbar({
   onNavigateNext,
   canNavigatePrev = false,
   canNavigateNext = false,
+  aiLoading,
+  onAiGenerateTitle,
+  onAiSpellCheck,
+  onAiContinueWriting,
 }: Props) {
+  const anyAiLoading = aiLoading
+    ? aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting
+    : false;
   const sidebarIconButtonClass =
     "pressable flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200";
   const editorModeTitle = editorMode === "raw" ? "Switch to Block Note" : "Switch to Raw MDX";
@@ -196,6 +211,55 @@ export function EditorToolbar({
 
       {/* Right controls */}
       <div className="flex items-center gap-1">
+        {(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting) && (
+          <div className="flex items-center gap-0.5 mr-1 border-r border-sidebar-border pr-2">
+            {anyAiLoading && (
+              <Loader2 className="h-3 w-3 animate-spin text-sidebar-foreground/40 mr-0.5" strokeWidth={1.5} />
+            )}
+            {onAiGenerateTitle && (
+              <button
+                onClick={onAiGenerateTitle}
+                disabled={anyAiLoading}
+                className={cn(
+                  sidebarIconButtonClass,
+                  "text-blue-400/70 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-blue-400",
+                  anyAiLoading && "cursor-not-allowed opacity-40",
+                )}
+                title="Generate title with AI"
+              >
+                <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+            )}
+            {onAiSpellCheck && (
+              <button
+                onClick={onAiSpellCheck}
+                disabled={anyAiLoading}
+                className={cn(
+                  sidebarIconButtonClass,
+                  "text-green-400/70 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-green-400",
+                  anyAiLoading && "cursor-not-allowed opacity-40",
+                )}
+                title="Spell check with AI"
+              >
+                <SpellCheck className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+            )}
+            {onAiContinueWriting && (
+              <button
+                onClick={onAiContinueWriting}
+                disabled={anyAiLoading}
+                className={cn(
+                  sidebarIconButtonClass,
+                  "text-purple-400/70 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-purple-400",
+                  anyAiLoading && "cursor-not-allowed opacity-40",
+                )}
+                title="Continue writing with AI"
+              >
+                <PenTool className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+            )}
+          </div>
+        )}
         <button
           onClick={onToggleEditorMode}
           className={cn(
