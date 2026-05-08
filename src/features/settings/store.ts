@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getWorkspaceId, resolveWorkspaceId } from "@/platform/auth";
-import { DEFAULT_AI_MODEL } from "@/features/ai/constants";
+import { DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
 
 type ActivityAction =
   | "settings_opened"
@@ -189,7 +189,7 @@ function normalizeProfile(profile: PersistedPreferencesProfile | undefined): Pre
     ai: (() => {
       const rawAi = profile?.ai as Record<string, unknown> | undefined;
       const model =
-        typeof rawAi?.model === "string" && rawAi.model.length > 0
+        typeof rawAi?.model === "string" && isAiModelId(rawAi.model)
           ? rawAi.model
           : fallback.ai.model;
 
