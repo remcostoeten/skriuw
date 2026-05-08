@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Editor } from "./editor";
 import { EditorToolbar } from "./editor-toolbar";
@@ -62,8 +62,25 @@ export function EditorContainer({
     continueWriting: false,
   });
   const [rateLimitPrompt, setRateLimitPrompt] = useState<RateLimitPrompt | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const { ai: aiPrefs } = usePreferencesStore();
+
+  const aiOptions = useMemo(
+    () => ({
+      apiKey: aiPrefs.activeKeyId
+        ? (aiPrefs.keys.find((k) => k.id === aiPrefs.activeKeyId)?.apiKey ?? null)
+        : null,
+      model: aiPrefs.model,
+    }),
+    [aiPrefs.activeKeyId, aiPrefs.keys, aiPrefs.model],
+  );
+
+  // Clear transient state when switching files
+  useEffect(() => {
+    setRateLimitPrompt(null);
+    setAiError(null);
+  }, [file?.id]);
 
   const getActiveKey = useCallback(
     (excludeIds: string[] = []) => {
@@ -83,19 +100,19 @@ export function EditorContainer({
         ? aiPrefs.keys.find((k) => k.id === keyId)
         : getActiveKey(exhaustedIds);
 
-      const options = {
-        apiKey: keyEntry?.apiKey ?? null,
-        model: aiPrefs.model,
-      };
+      const callOptions = keyEntry
+        ? { apiKey: keyEntry.apiKey, model: aiPrefs.model }
+        : aiOptions;
 
       setAiLoading((s) => ({ ...s, [action]: true }));
       setRateLimitPrompt(null);
+      setAiError(null);
 
       try {
         const markdown = await aiHandleRef.current.getMarkdown();
         if (!markdown.trim()) return;
 
-        const result = await callAi(action, markdown, options);
+        const result = await callAi(action, markdown, callOptions);
         if (!result) return;
 
         if (action === "generateTitle") {
@@ -111,12 +128,13 @@ export function EditorContainer({
           setRateLimitPrompt({ action, exhaustedKeyIds: newExhausted });
         } else {
           console.error(`[AI/${action}]`, err);
+          setAiError(err instanceof Error ? err.message : "AI request failed");
         }
       } finally {
         setAiLoading((s) => ({ ...s, [action]: false }));
       }
     },
-    [aiPrefs.keys, aiPrefs.activeKeyId, aiPrefs.model, file, onRenameFile, getActiveKey],
+    [aiPrefs.keys, aiPrefs.model, file, onRenameFile, getActiveKey, aiOptions],
   );
 
   const handleEditorReady = useCallback((handle: AiEditorHandle) => {
@@ -158,6 +176,20 @@ export function EditorContainer({
             : undefined
         }
       />
+
+      {aiError && (
+        <div className="flex items-center gap-3 border-b border-destructive/20 bg-destructive/[0.06] px-4 py-2 text-xs">
+          <X className="h-3.5 w-3.5 shrink-0 text-destructive" strokeWidth={1.5} />
+          <span className="flex-1 text-destructive/90">{aiError}</span>
+          <button
+            type="button"
+            onClick={() => setAiError(null)}
+            className="shrink-0 text-destructive/50 transition-colors hover:text-destructive"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
 
       {rateLimitPrompt && (
         <div className="flex items-start gap-3 border-b border-amber-500/20 bg-amber-500/[0.06] px-4 py-2.5 text-xs">
@@ -214,6 +246,7 @@ export function EditorContainer({
           isMobile={isMobile}
           onContentChange={onContentChange}
           onEditorReady={handleEditorReady}
+          aiOptions={aiOptions}
         />
       </div>
     </div>
