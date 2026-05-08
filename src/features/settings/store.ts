@@ -28,9 +28,17 @@ interface JournalPreferences {
   recentMoods: Array<{ mood: string; date: Date }>;
 }
 
+export interface AiKey {
+  id: string;
+  name: string;
+  apiKey: string;
+  tested: boolean;
+}
+
 export interface AiPreferences {
   model: string;
-  apiKey: string | null;
+  keys: AiKey[];
+  activeKeyId: string | null;
 }
 
 type PreferencesProfile = {
@@ -75,6 +83,10 @@ interface PreferencesState {
     key: K,
     value: AiPreferences[K],
   ) => void;
+  addAiKey: (key: AiKey) => void;
+  removeAiKey: (id: string) => void;
+  setActiveAiKey: (id: string | null) => void;
+  markAiKeyTested: (id: string) => void;
   toggleDiaryMode: () => void;
   recordMood: (mood: string) => void;
   incrementNoteCount: () => void;
@@ -108,7 +120,8 @@ const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
 
 const DEFAULT_AI_PREFERENCES: AiPreferences = {
   model: "gemini-2.5-flash",
-  apiKey: null,
+  keys: [],
+  activeKeyId: null,
 };
 
 function createDefaultProfile(): PreferencesProfile {
@@ -172,16 +185,42 @@ function normalizeProfile(profile: PersistedPreferencesProfile | undefined): Pre
             .slice(0, 30)
         : fallback.journal.recentMoods,
     },
-    ai: {
-      model:
-        typeof profile?.ai?.model === "string" && profile.ai.model.length > 0
-          ? profile.ai.model
-          : fallback.ai.model,
-      apiKey:
-        typeof profile?.ai?.apiKey === "string" || profile?.ai?.apiKey === null
-          ? (profile?.ai?.apiKey ?? fallback.ai.apiKey)
-          : fallback.ai.apiKey,
-    },
+    ai: (() => {
+      const rawAi = profile?.ai as Record<string, unknown> | undefined;
+      const model =
+        typeof rawAi?.model === "string" && rawAi.model.length > 0
+          ? rawAi.model
+          : fallback.ai.model;
+
+      // Migrate legacy single apiKey → keys array
+      if (!Array.isArray(rawAi?.keys) && typeof rawAi?.apiKey === "string" && rawAi.apiKey) {
+        const migratedKey: AiKey = {
+          id: "migrated-key",
+          name: "Default",
+          apiKey: rawAi.apiKey as string,
+          tested: true,
+        };
+        return { model, keys: [migratedKey], activeKeyId: "migrated-key" };
+      }
+
+      const keys: AiKey[] = Array.isArray(rawAi?.keys)
+        ? (rawAi.keys as unknown[])
+            .filter(
+              (k): k is AiKey =>
+                typeof (k as AiKey)?.id === "string" &&
+                typeof (k as AiKey)?.apiKey === "string" &&
+                typeof (k as AiKey)?.name === "string",
+            )
+            .map((k) => ({ ...k, tested: Boolean(k.tested) }))
+        : [];
+
+      const activeKeyId =
+        typeof rawAi?.activeKeyId === "string" && keys.some((k) => k.id === rawAi.activeKeyId)
+          ? (rawAi.activeKeyId as string)
+          : (keys[0]?.id ?? null);
+
+      return { model, keys, activeKeyId };
+    })(),
     amountOfNotes:
       typeof profile?.amountOfNotes === "number" && Number.isFinite(profile.amountOfNotes)
         ? profile.amountOfNotes
@@ -235,17 +274,81 @@ export const usePreferencesStore = create<PreferencesState>()(
           const currentProfile = normalizeProfile(state.profiles[workspaceId]);
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
+            ai: { ...currentProfile.ai, [key]: value },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      addAiKey: (key) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const keys = [...currentProfile.ai.keys, key];
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
             ai: {
               ...currentProfile.ai,
-              [key]: value,
+              keys,
+              activeKeyId: currentProfile.ai.activeKeyId ?? key.id,
             },
           };
-
           return {
-            profiles: {
-              ...state.profiles,
-              [workspaceId]: nextProfile,
-            },
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      removeAiKey: (id) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const keys = currentProfile.ai.keys.filter((k) => k.id !== id);
+          const activeKeyId =
+            currentProfile.ai.activeKeyId === id ? (keys[0]?.id ?? null) : currentProfile.ai.activeKeyId;
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            ai: { ...currentProfile.ai, keys, activeKeyId },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      setActiveAiKey: (id) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            ai: { ...currentProfile.ai, activeKeyId: id },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      markAiKeyTested: (id) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const keys = currentProfile.ai.keys.map((k) =>
+            k.id === id ? { ...k, tested: true } : k,
+          );
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            ai: { ...currentProfile.ai, keys },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
             ...applyProfile(workspaceId, nextProfile),
           };
         });
