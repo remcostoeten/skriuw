@@ -28,10 +28,16 @@ interface JournalPreferences {
   recentMoods: Array<{ mood: string; date: Date }>;
 }
 
+export interface AiPreferences {
+  model: string;
+  apiKey: string | null;
+}
+
 type PreferencesProfile = {
   editor: EditorPreferences;
   profile: ProfilePreferences;
   journal: JournalPreferences;
+  ai: AiPreferences;
   amountOfNotes: number;
   activity: ActivityItem[];
 };
@@ -40,6 +46,7 @@ type PersistedPreferencesProfile = {
   editor?: Partial<EditorPreferences>;
   profile?: Partial<ProfilePreferences>;
   journal?: Partial<JournalPreferences>;
+  ai?: Partial<AiPreferences>;
   amountOfNotes?: number;
   activity?: Array<Partial<ActivityItem>>;
 };
@@ -52,6 +59,7 @@ interface PreferencesState {
   editor: EditorPreferences;
   profile: ProfilePreferences;
   journal: JournalPreferences;
+  ai: AiPreferences;
   amountOfNotes: number;
   activity: ActivityItem[];
   initialize: () => void;
@@ -62,6 +70,10 @@ interface PreferencesState {
   updateProfilePreference: <K extends keyof ProfilePreferences>(
     key: K,
     value: ProfilePreferences[K],
+  ) => void;
+  updateAiPreference: <K extends keyof AiPreferences>(
+    key: K,
+    value: AiPreferences[K],
   ) => void;
   toggleDiaryMode: () => void;
   recordMood: (mood: string) => void;
@@ -94,11 +106,17 @@ const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
   recentMoods: [],
 };
 
+const DEFAULT_AI_PREFERENCES: AiPreferences = {
+  model: "gemini-2.5-flash",
+  apiKey: null,
+};
+
 function createDefaultProfile(): PreferencesProfile {
   return {
     editor: { ...DEFAULT_EDITOR_PREFERENCES },
     profile: { ...DEFAULT_PROFILE_PREFERENCES },
     journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
+    ai: { ...DEFAULT_AI_PREFERENCES },
     amountOfNotes: 0,
     activity: [],
   };
@@ -154,6 +172,16 @@ function normalizeProfile(profile: PersistedPreferencesProfile | undefined): Pre
             .slice(0, 30)
         : fallback.journal.recentMoods,
     },
+    ai: {
+      model:
+        typeof profile?.ai?.model === "string" && profile.ai.model.length > 0
+          ? profile.ai.model
+          : fallback.ai.model,
+      apiKey:
+        typeof profile?.ai?.apiKey === "string" || profile?.ai?.apiKey === null
+          ? (profile?.ai?.apiKey ?? fallback.ai.apiKey)
+          : fallback.ai.apiKey,
+    },
     amountOfNotes:
       typeof profile?.amountOfNotes === "number" && Number.isFinite(profile.amountOfNotes)
         ? profile.amountOfNotes
@@ -185,6 +213,7 @@ function applyProfile(workspaceId: string, profile: PreferencesProfile) {
     editor: profile.editor,
     profile: profile.profile,
     journal: profile.journal,
+    ai: profile.ai,
     amountOfNotes: profile.amountOfNotes,
     activity: profile.activity,
   } satisfies Partial<PreferencesState>;
@@ -199,6 +228,28 @@ export const usePreferencesStore = create<PreferencesState>()(
       isHydrated: false,
       profiles: {},
       ...createDefaultProfile(),
+
+      updateAiPreference: (key, value) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            ai: {
+              ...currentProfile.ai,
+              [key]: value,
+            },
+          };
+
+          return {
+            profiles: {
+              ...state.profiles,
+              [workspaceId]: nextProfile,
+            },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
 
       initialize: () => {
         const workspaceId = getWorkspaceId();
