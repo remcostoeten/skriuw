@@ -24,7 +24,11 @@ export interface AiEditorHandle {
 
 export interface AiCallOptions {
   apiKey?: string | null;
+  keyId?: string | null;
   model?: string;
+  resourceType?: string;
+  resourceId?: string;
+  resourceUrl?: string;
 }
 
 export class AiRateLimitError extends Error {
@@ -79,7 +83,11 @@ export async function callAi(
       action,
       content,
       ...(options?.apiKey ? { apiKey: options.apiKey } : {}),
+      ...(options?.keyId ? { keyId: options.keyId } : {}),
       ...(options?.model ? { model: options.model } : {}),
+      ...(options?.resourceType ? { resourceType: options.resourceType } : {}),
+      ...(options?.resourceId ? { resourceId: options.resourceId } : {}),
+      ...(options?.resourceUrl ? { resourceUrl: options.resourceUrl } : {}),
     }),
   });
 
