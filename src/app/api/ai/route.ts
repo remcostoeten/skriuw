@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
         code: "invalid_key",
         source: "validation",
         message: "Saved AI key was not found.",
-        details: "Open Profile -> AI Keys and choose an existing key.",
+        details: "Open Settings -> AI and choose an existing key.",
         status: 404,
         contentLength,
       });
@@ -373,7 +373,7 @@ export async function POST(req: NextRequest) {
         code: "provider_mismatch",
         source: "validation",
         message: `The saved key is for ${storedKey.provider} but the selected model requires ${provider}.`,
-        details: "Choose a key that matches the selected model's provider in Settings → AI.",
+        details: "Choose a key that matches the selected model's provider in Settings -> AI.",
         status: 400,
         contentLength,
       });

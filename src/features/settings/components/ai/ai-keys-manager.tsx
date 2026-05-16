@@ -10,7 +10,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { DEFAULT_AI_MODEL } from "@/features/ai/constants";
 import type { AiProviderKeySummary, AiUsageLogRow } from "@/features/ai/types";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -48,7 +47,7 @@ function formatTokenCount(value: number | null) {
   return typeof value === "number" ? value.toLocaleString() : "—";
 }
 
-export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
+export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
   const [keys, setKeys] = useState<AiProviderKeySummary[]>([]);
   const [keyState, setKeyState] = useState<LoadState>("idle");
   const [keyError, setKeyError] = useState<string | null>(null);
@@ -67,7 +66,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
     setKeyState("loading");
     setKeyError(null);
     try {
-      const res = await fetch("/api/profile/ai/keys");
+      const res = await fetch("/api/ai/keys");
       if (!res.ok) throw new Error("Could not load AI keys.");
       const data = (await res.json()) as { keys: AiProviderKeySummary[] };
       setKeys(data.keys);
@@ -83,7 +82,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
     setUsageState("loading");
     setUsageError(null);
     try {
-      const res = await fetch(`/api/profile/ai/usage?limit=20&offset=${offset}`);
+      const res = await fetch(`/api/ai/usage?limit=20&offset=${offset}`);
       if (!res.ok) throw new Error("Could not load AI usage.");
       const data = (await res.json()) as { usage: AiUsageLogRow[]; nextOffset: number | null };
       setUsage((current) => (offset === 0 ? data.usage : [...current, ...data.usage]));
@@ -105,7 +104,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
     setSaving(true);
     setKeyError(null);
     try {
-      const res = await fetch("/api/profile/ai/keys", {
+      const res = await fetch("/api/ai/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, label, apiKey }),
@@ -128,7 +127,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
   async function deleteKey(keyId: string) {
     setKeyError(null);
     try {
-      const res = await fetch(`/api/profile/ai/keys/${keyId}`, { method: "DELETE" });
+      const res = await fetch(`/api/ai/keys/${keyId}`, { method: "DELETE" });
       if (!res.ok) {
         setKeyError("Could not remove AI key.");
         return;
@@ -142,7 +141,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
   async function renameKey(key: AiProviderKeySummary) {
     const nextLabel = window.prompt("Key label", key.label)?.trim();
     if (!nextLabel || nextLabel === key.label) return;
-    const res = await fetch(`/api/profile/ai/keys/${key.id}`, {
+    const res = await fetch(`/api/ai/keys/${key.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: nextLabel }),
@@ -162,10 +161,10 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
     setTestingId(keyId);
     setKeyError(null);
     try {
-      const res = await fetch(`/api/profile/ai/keys/${keyId}/test`, {
+      const res = await fetch(`/api/ai/keys/${keyId}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: DEFAULT_AI_MODEL }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { message?: string };
