@@ -363,6 +363,21 @@ export async function POST(req: NextRequest) {
         contentLength,
       });
     }
+    if (storedKey.provider !== provider) {
+      return aiErrorResponse({
+        req,
+        user,
+        action,
+        model,
+        apiKey: null,
+        code: "provider_mismatch",
+        source: "validation",
+        message: `The saved key is for ${storedKey.provider} but the selected model requires ${provider}.`,
+        details: "Choose a key that matches the selected model's provider in Settings → AI.",
+        status: 400,
+        contentLength,
+      });
+    }
     apiKey = storedKey.apiKey;
     keySource = "user_key";
   }
