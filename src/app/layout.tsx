@@ -1,17 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { AppProviders } from "@/providers/app-providers";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-});
+import { editorFontVariables } from "@/app/editor-fonts";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://skriuw.app"),
@@ -51,7 +41,7 @@ type Props = {
 export default function RootLayout({ children }: Props) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+      <body className={`${editorFontVariables} font-sans`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
