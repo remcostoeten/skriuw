@@ -10,6 +10,7 @@ export type AiErrorCode =
   | "server_not_configured"
   | "rate_limited"
   | "invalid_key"
+  | "provider_mismatch"
   | "forbidden"
   | "model_not_found"
   | "provider_error"
