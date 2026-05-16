@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { FileTextIcon } from "@/shared/icons/file-text";
@@ -61,6 +61,10 @@ export const RecentsSection = memo(function RecentsSection({
   onDrop,
   onDragEnd,
 }: Props) {
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
   const resolvedRecents = useMemo(
     () =>
       recents
@@ -78,7 +82,7 @@ export const RecentsSection = memo(function RecentsSection({
   );
 
   const clearButton =
-    resolvedRecents.length > 0 ? (
+    isHydrated && resolvedRecents.length > 0 ? (
       <button
         onClick={onClearRecents}
         className="flex h-5 w-5 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
@@ -95,7 +99,7 @@ export const RecentsSection = memo(function RecentsSection({
       isCollapsed={isCollapsed}
       showHeader={showHeader}
       compactMode={compactMode}
-      itemCount={resolvedRecents.length}
+      itemCount={isHydrated ? resolvedRecents.length : undefined}
       onToggleCollapse={onToggleCollapse}
       onToggleVisibility={onToggleVisibility}
       onMoveUp={onMoveUp}
@@ -111,7 +115,7 @@ export const RecentsSection = memo(function RecentsSection({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      {resolvedRecents.length === 0 ? (
+      {!isHydrated || resolvedRecents.length === 0 ? (
         <EmptyState
           variant="files"
           title="No recent files yet."

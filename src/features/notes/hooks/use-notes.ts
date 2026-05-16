@@ -4,12 +4,9 @@ import { useApiQuery } from "@/shared/api";
 import { listNotes } from "@/domain/notes/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { NoteFile } from "@/types/notes";
+import { notesKeys } from "./notes-keys";
 
-export const notesKeys = {
-  all: ["notes"] as const,
-  files: () => [...notesKeys.all, "files"] as const,
-  folders: () => [...notesKeys.all, "folders"] as const,
-};
+export { notesKeys };
 
 export function useNotes() {
   const auth = useAuthSnapshot();
