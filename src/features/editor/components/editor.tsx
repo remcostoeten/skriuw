@@ -5,6 +5,14 @@ import dynamic from "next/dynamic";
 import { EmptyState } from "@/shared/ui/empty-state";
 import type { AiEditorHandle } from "@/features/ai/service";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
+import {
+  getEditorFontFamily,
+  type EditorFontId,
+} from "@/shared/lib/editor-fonts";
+import {
+  getEditorLineHeightValue,
+  type EditorLineHeight,
+} from "@/features/editor/lib/editor-line-height";
 
 type EditorMode = "raw" | "block";
 
@@ -21,6 +29,8 @@ interface EditorProps {
   file: NoteFile | null;
   files?: NoteFile[];
   editorMode: EditorMode;
+  editorFontId: EditorFontId;
+  editorLineHeight: EditorLineHeight;
   isMobile?: boolean;
   onContentChange: (
     id: string,
@@ -39,6 +49,8 @@ export function Editor({
   file,
   files = [],
   editorMode,
+  editorFontId,
+  editorLineHeight,
   onContentChange,
   onEditorReady,
   onAiSpellCheck,
@@ -98,6 +110,8 @@ export function Editor({
           richContent={file.richContent}
           files={files}
           activeFileId={file.id}
+          editorFontId={editorFontId}
+          editorLineHeight={editorLineHeight}
           onChange={handleRichTextChange}
           onEditorReady={onEditorReady}
           onAiSpellCheck={onAiSpellCheck}
@@ -115,7 +129,11 @@ export function Editor({
           ref={textareaRef}
           value={file.content}
           onChange={(e) => handleMarkdownChange(e.target.value)}
-          className="w-full min-h-[80vh] bg-transparent text-foreground/90 font-mono text-sm resize-none outline-hidden leading-relaxed"
+          className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-sm resize-none outline-hidden"
+          style={{
+            fontFamily: getEditorFontFamily(editorFontId),
+            lineHeight: getEditorLineHeightValue(editorLineHeight),
+          }}
           spellCheck={false}
         />
       </div>
