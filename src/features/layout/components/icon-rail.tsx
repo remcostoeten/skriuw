@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen } from "lucide-react";
+import { BookOpen, Kanban, UserRound } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -8,7 +8,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
-import { AuthEntryPoint } from "@/features/auth/components/auth-entry-point";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { signOut } from "@/platform/auth";
 import { UserMenu } from "./user-menu";
@@ -50,6 +49,12 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
             icon: () => <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />,
         },
     ];
+    const planningItem = {
+        href: "/project-planning",
+        label: "Planning",
+        isActive: pathname === "/project-planning",
+        icon: () => <Kanban className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+    };
 
     const iconButtonClass =
         "pressable relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200";
@@ -104,7 +109,26 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                         ))}
                     </div>
                 </div>
-                <div className="flex flex-col items-center gap-2 pb-4">
+                <div className="flex w-full flex-col items-center gap-3 pb-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Link
+                                href={planningItem.href}
+                                className={cn(
+                                    iconButtonClass,
+                                    planningItem.isActive
+                                        ? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
+                                        : "border-transparent text-sidebar-foreground/52 hover:-translate-y-[1px] hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+                                )}
+                                aria-label={planningItem.label}
+                                aria-current={planningItem.isActive ? "page" : undefined}
+                            >
+                                {planningItem.icon()}
+                            </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{planningItem.label}</TooltipContent>
+                    </Tooltip>
+                    <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
                     {!isMounted ? (
                         <div
                             aria-hidden="true"
@@ -114,13 +138,23 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
                         <UserMenu
                             onSettings={onOpenSettings}
                             onSignOut={handleSignOut}
-                            onProfile={() => router.push("/app/profile")}
                             onNotes={() => router.push("/app")}
                             onJournal={() => router.push("/app/journal")}
                             onActivity={() => router.push("/app/activity")}
                         />
                     ) : (
-                        <AuthEntryPoint triggerVariant="rail-avatar" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Link
+                                    href="/sign-in"
+                                    aria-label="Sign in"
+                                    className="pressable group flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                                >
+                                    <UserRound className="h-4 w-4" strokeWidth={1.7} />
+                                </Link>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">Sign in</TooltipContent>
+                        </Tooltip>
                     )}
                 </div>
             </aside>

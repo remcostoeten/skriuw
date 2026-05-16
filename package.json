@@ -29,7 +29,7 @@
     "mobile:env:sync": "cp .env.local apps/mobile/.env.local",
     "test": "bun run test:unit",
     "test:unit": "bun run test:unit:core && bun run test:unit:web-state && bun run test:unit:bootstrap && bun run test:unit:stores",
-    "test:unit:core": "bun test __tests__/core/journal/mappers.test.ts __tests__/core/notes/mappers.test.ts __tests__/core/persistence/repositories/privacy-demo.test.ts __tests__/platform/auth/index.test.ts __tests__/features/profile/lib/profile-view-model.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
+    "test:unit:core": "bun test __tests__/core/journal/mappers.test.ts __tests__/core/notes/mappers.test.ts __tests__/core/persistence/repositories/privacy-demo.test.ts __tests__/platform/auth/index.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
     "test:unit:web-state": "bun test __tests__/features/settings/store.test.ts __tests__/features/notes/components/sidebar/store.test.ts",
     "test:unit:bootstrap": "bun test __tests__/shared/components/persistence-bootstrap.test.tsx",
     "test:unit:stores": "bun test __tests__/features/notes/store.test.ts && bun test __tests__/features/journal/store.test.ts",

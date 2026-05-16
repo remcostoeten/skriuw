@@ -41,9 +41,7 @@ function generateNoteContent(name: string): string {
 
 #draft #idea
 
-Related: [[Start here: editor field guide]]
-
-Use # to add tags, @ to mention notes, or /tag and /link note from the block editor.
+Start writing here. Use # for tags, @ to mention notes, or /tag and /link note from the block editor.
 `;
 }
 
@@ -336,11 +334,12 @@ export function useNotesLayout() {
 
     triggerNativeFeedback("success");
     const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+    const content = generateNoteContent("Untitled");
     const newFile: CreateNoteInput = {
       id: crypto.randomUUID(),
       name: "Untitled.md",
-      content: generateNoteContent("Untitled"),
-      richContent: markdownToRichDocument(generateNoteContent("Untitled")),
+      content,
+      richContent: markdownToRichDocument(content),
       preferredEditorMode,
       parentId: null,
     };
