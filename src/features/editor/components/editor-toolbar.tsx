@@ -321,12 +321,13 @@ export function EditorToolbar({
             <span>Block</span>
           </button>
           <button
-            onClick={editorMode === "block" ? onToggleEditorMode : undefined}
-            disabled={!canToggleEditorMode && editorMode !== "raw"}
+            onClick={canToggleEditorMode && editorMode === "block" ? onToggleEditorMode : undefined}
+            disabled={!canToggleEditorMode}
             aria-pressed={editorMode === "raw"}
             className={cn(
               segmentBase,
               editorMode === "raw" ? segmentActive : segmentInactive,
+              !canToggleEditorMode && "cursor-not-allowed",
             )}
             title={editorModeTitle}
           >
