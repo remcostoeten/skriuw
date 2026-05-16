@@ -68,6 +68,7 @@ interface RichTextEditorProps {
   onEditorReady?: (handle: AiEditorHandle) => void;
   onAiSpellCheck?: () => void;
   onAiContinueWriting?: () => void;
+  onTitleCommit?: (title: string) => void;
 }
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
@@ -80,6 +81,58 @@ async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
   } catch {
     return "";
   }
+}
+
+function inlineContentToPlainText(content: unknown): string {
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((node) => {
+      if (!node || typeof node !== "object") {
+        return "";
+      }
+
+      const inlineNode = node as {
+        text?: unknown;
+        content?: unknown;
+        props?: { title?: unknown; name?: unknown };
+      };
+
+      if (typeof inlineNode.text === "string") {
+        return inlineNode.text;
+      }
+
+      const nestedText = inlineContentToPlainText(inlineNode.content);
+      if (nestedText) {
+        return nestedText;
+      }
+
+      if (typeof inlineNode.props?.title === "string") {
+        return inlineNode.props.title;
+      }
+
+      if (typeof inlineNode.props?.name === "string") {
+        return inlineNode.props.name;
+      }
+
+      return "";
+    })
+    .join("");
+}
+
+function getFirstHeadingTitle(editor: EditorInstance): string {
+  const firstHeading = editor.document?.find(
+    (block: { type?: unknown }) => block?.type === "heading",
+  );
+  if (!firstHeading) {
+    return "";
+  }
+
+  return inlineContentToPlainText((firstHeading as { content?: unknown }).content)
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function KeyboardAccessibleSlashMenu({
@@ -166,7 +219,7 @@ function KeyboardAccessibleSlashMenu({
       role="listbox"
       aria-label="Editor suggestions"
       aria-activedescendant={`${menuId}-item-${activeIndex}`}
-      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl"
+      className="bn-suggestion-menu skriuw-editor-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl"
     >
       {items.map((item, index) => (
         <button
@@ -604,6 +657,7 @@ export function RichTextEditor({
   onEditorReady,
   onAiSpellCheck,
   onAiContinueWriting,
+  onTitleCommit,
 }: RichTextEditorProps) {
   const lastContentRef = useRef(content);
   const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
@@ -661,6 +715,50 @@ export function RichTextEditor({
     domElement.addEventListener("click", handleInternalLinkClick);
     return () => domElement.removeEventListener("click", handleInternalLinkClick);
   }, [editor.domElement, setActiveFileId]);
+
+  useEffect(() => {
+    if (!onTitleCommit) return;
+
+    const domElement = editor.domElement;
+    if (!domElement) return;
+
+    const isFirstHeadingElement = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      const heading = target.closest('[data-content-type="heading"]');
+      if (!heading || !domElement.contains(heading)) {
+        return false;
+      }
+
+      return heading === domElement.querySelector('[data-content-type="heading"]');
+    };
+
+    const handleTitleFocusOut = (event: FocusEvent) => {
+      if (!isFirstHeadingElement(event.target)) {
+        return;
+      }
+
+      const relatedTarget = event.relatedTarget;
+      if (relatedTarget instanceof Node && domElement.contains(relatedTarget)) {
+        const nextHeading = relatedTarget instanceof HTMLElement
+          ? relatedTarget.closest('[data-content-type="heading"]')
+          : null;
+        if (nextHeading && nextHeading === domElement.querySelector('[data-content-type="heading"]')) {
+          return;
+        }
+      }
+
+      const title = getFirstHeadingTitle(editor);
+      if (title) {
+        onTitleCommit(title);
+      }
+    };
+
+    domElement.addEventListener("focusout", handleTitleFocusOut);
+    return () => domElement.removeEventListener("focusout", handleTitleFocusOut);
+  }, [editor, editor.domElement, onTitleCommit]);
 
   useEffect(() => {
     if (!onEditorReady) return;
@@ -834,6 +932,13 @@ export function RichTextEditor({
           min-height: 100%;
           background: hsl(var(--card)) !important;
         }
+        .blocknote-wrapper .bn-editor:focus,
+        .blocknote-wrapper .bn-editor:focus-visible,
+        .blocknote-wrapper .bn-editor [contenteditable="true"]:focus,
+        .blocknote-wrapper .bn-editor [contenteditable="true"]:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
+        }
         .blocknote-wrapper .bn-editor,
         .blocknote-wrapper .bn-block-content,
         .blocknote-wrapper .bn-inline-content {
@@ -853,8 +958,10 @@ export function RichTextEditor({
           margin-top: 0;
         }
         .blocknote-wrapper .bn-inline-content code {
-          background: hsl(220 12% 14%);
-          padding: 0.125rem 0.375rem;
+          background: hsl(var(--popover));
+          border: 1px solid hsl(var(--border));
+          color: hsl(var(--popover-foreground));
+          padding: 0.1rem 0.375rem;
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
@@ -910,6 +1017,7 @@ export function RichTextEditor({
         }
         .blocknote-wrapper [data-note-link],
         .blocknote-wrapper [data-note-tag] {
+          cursor: pointer;
           user-select: none;
           white-space: nowrap;
         }
@@ -983,6 +1091,12 @@ export function RichTextEditor({
         .blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-selected] {
           background: hsl(var(--accent)) !important;
           color: hsl(var(--foreground)) !important;
+        }
+        .blocknote-wrapper .skriuw-editor-suggestion-menu {
+          background: hsl(var(--popover)) !important;
+          border: 1px solid hsl(var(--border)) !important;
+          color: hsl(var(--popover-foreground)) !important;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42) !important;
         }
         .blocknote-wrapper .skriuw-file-tree {
           --skriuw-file-tree-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
