@@ -21,17 +21,17 @@ import { useDebouncedSave } from "./use-debounced-save";
 import type { CreateNoteInput } from "@/domain/notes/api";
 import type { CreateFolderInput } from "@/domain/folders/api";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { DESKTOP_SIDEBAR_MIN_WIDTH } from "../constants";
 
 const SHEET_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
 const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
   "button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
-const DESKTOP_SIDEBAR_MIN_WIDTH = 248;
 const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
 const SAVED_BADGE_DURATION_MS = 1800;
 
@@ -94,7 +94,6 @@ const NOTES_SHORTCUT_GROUPS: ShortcutHelpGroup[] = [
 export function useNotesLayout() {
   const router = useRouter();
   const $ = useShortcut({ ignoreInputs: true });
-  const auth = useAuthSnapshot();
   const notesQuery = useNotes();
   const foldersQuery = useFolders();
   const activeFileId = useNotesStore((state) => state.activeFileId);
@@ -184,7 +183,6 @@ export function useNotesLayout() {
   const initializePreferences = usePreferencesStore((state) => state.initialize);
   const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
   const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
-  const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [editorMode, setEditorMode] = useState<"raw" | "block" | null>(null);
@@ -214,7 +212,7 @@ export function useNotesLayout() {
       setUIState({
         isMobile: mobile,
         showSidebar: !mobile,
-        showMetadata: false,
+        showMetadata: !mobile,
       });
     };
 
@@ -250,7 +248,7 @@ export function useNotesLayout() {
       return;
     }
 
-    setEditorMode(activeFile.preferredEditorMode ?? (defaultModeRaw ? "raw" : "block"));
+    setEditorMode(resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block"));
   }, [activeFile, defaultModeRaw]);
 
   useEffect(() => {
@@ -258,13 +256,13 @@ export function useNotesLayout() {
       return;
     }
 
-    const hasOverlayOpen = showSidebar || showSettings || showMetadata || showShortcutHelp;
+    const hasOverlayOpen = showSidebar || showMetadata || showShortcutHelp;
     document.body.style.overflow = hasOverlayOpen ? "hidden" : "";
 
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isMobile, showSidebar, showSettings, showMetadata, showShortcutHelp]);
+  }, [isMobile, showSidebar, showMetadata, showShortcutHelp]);
 
   useEffect(() => {
     const stopResizing = () => {
@@ -329,7 +327,7 @@ export function useNotesLayout() {
     if (diaryModeEnabled) {
       triggerNativeFeedback("success");
       const today = format(new Date(), "yyyy-MM-dd");
-      router.push(`/journal?date=${today}`);
+      router.push(`/app/journal?date=${today}`);
       if (isMobile) {
         setUIState({ showSidebar: false });
       }
@@ -388,11 +386,37 @@ export function useNotesLayout() {
 
   const handleOpenSettings = useCallback(() => {
     triggerNativeFeedback("selection");
-    setShowSettings(true);
-  }, []);
+    router.push("/app/settings");
+  }, [router]);
 
   const handleToggleEditorMode = useCallback(() => {
     if (!activeFile || !editorMode) return;
+
+    if (isMdxNote(activeFile)) {
+      if (editorMode !== "raw") {
+        setEditorMode("raw");
+      }
+      if (activeFile.preferredEditorMode !== "raw") {
+        markFileSaving(activeFile.id);
+        updateNoteMutation.mutate(
+          {
+            id: activeFile.id,
+            content: activeFile.content,
+            richContent: activeFile.richContent,
+            preferredEditorMode: "raw",
+          },
+          {
+            onSuccess: () => {
+              markFileSaved(activeFile.id);
+            },
+            onError: () => {
+              markFileError(activeFile.id);
+            },
+          },
+        );
+      }
+      return;
+    }
 
     triggerNativeFeedback("impact");
     const nextMode = editorMode === "raw" ? "block" : "raw";
@@ -737,8 +761,6 @@ export function useNotesLayout() {
   );
 
   const isEditorReady =
-    auth.isReady &&
-    auth.phase === "authenticated" &&
     !notesQuery.isPending &&
     !foldersQuery.isPending;
   const sidebarPanelProps = {
@@ -807,7 +829,6 @@ export function useNotesLayout() {
     renameFile,
     renameFolder,
     setShowCommandPalette,
-    setShowSettings,
     setShowShortcutHelp,
     sidebarPanelProps,
     sidebarRef,
@@ -815,7 +836,6 @@ export function useNotesLayout() {
     sidebarWidth,
     showCommandPalette,
     showMetadata,
-    showSettings,
     showShortcutHelp,
     showSidebar,
     shortcutGroups: NOTES_SHORTCUT_GROUPS,

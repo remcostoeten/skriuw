@@ -8,6 +8,7 @@ import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
 import { PlainTextEditor } from "./plain-text-editor";
 import { RichTextEditor } from "@/features/editor/components/rich-text-editor";
+import { usePreferencesStore } from "@/features/settings/store";
 import { useJournalTags } from "../hooks/use-journal-tags";
 
 type JournalEditorProps = {
@@ -28,6 +29,7 @@ export function JournalEditor({
   editorMode = "plain",
   entryState,
 }: JournalEditorProps) {
+  const editorPrefs = usePreferencesStore((s) => s.editor);
   const {
     content,
     setContent,
@@ -137,10 +139,14 @@ export function JournalEditor({
               content={content}
               onChange={setContent}
               onInsertTag={handleAddTag}
+              editorFontId={editorPrefs.defaultFont}
+              editorLineHeight={editorPrefs.lineHeight}
             />
           ) : (
             <RichTextEditor
               content={content}
+              editorFontId={editorPrefs.defaultFont}
+              editorLineHeight={editorPrefs.lineHeight}
               onChange={(next) => setContent(next.markdown)}
             />
           )}
