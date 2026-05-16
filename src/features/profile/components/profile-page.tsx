@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BookOpen, Cloud, LoaderCircle, LogOut, NotebookPen } from "lucide-react";
+import { BookOpen, LoaderCircle, LogOut, NotebookPen } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Separator } from "@/shared/ui/separator";
 import { signOut } from "@/platform/auth";
@@ -12,13 +12,7 @@ import { ProfileAiSections } from "./profile-ai-sections";
 
 type PendingAction = "sign-out" | null;
 
-function ProfileField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function ProfileField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
@@ -27,20 +21,11 @@ function ProfileField({
   );
 }
 
-function ProfileMetricCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
+function ProfileMetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-border bg-background p-4">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -67,20 +52,15 @@ export function ProfilePage() {
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
       <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 border border-border bg-card px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          <Cloud className="h-3.5 w-3.5" />
-          {viewModel.workspaceLabel}
-        </div>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{viewModel.title}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              {viewModel.title}
+            </h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
               {viewModel.subtitle}
             </p>
           </div>
-          <span className="border border-border bg-card px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {viewModel.statusLabel}
-          </span>
         </div>
       </header>
 
@@ -90,9 +70,6 @@ export function ProfilePage() {
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-lg font-medium text-foreground">Identity</h2>
-                <p className="text-sm text-muted-foreground">
-                  The current session, identity, and workspace identifiers.
-                </p>
               </div>
             </div>
 
@@ -109,9 +86,6 @@ export function ProfilePage() {
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-lg font-medium text-foreground">Metrics</h2>
-                <p className="text-sm text-muted-foreground">
-                  Lightweight workspace counts pulled from the current storage backend.
-                </p>
               </div>
             </div>
 
@@ -123,7 +97,6 @@ export function ProfilePage() {
                   key={metric.label}
                   label={metric.label}
                   value={isLoading ? "—" : metric.value}
-                  hint={metric.hint}
                 />
               ))}
             </div>
@@ -196,13 +169,21 @@ export function ProfilePage() {
             <Separator className="my-5" />
 
             <div className="space-y-3">
-              <Button asChild variant="outline" className="h-11 w-full justify-start border-border bg-transparent">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 w-full justify-start border-border bg-transparent"
+              >
                 <Link href="/app">
                   <NotebookPen className="h-4 w-4" />
                   Open notes
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 w-full justify-start border-border bg-transparent">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 w-full justify-start border-border bg-transparent"
+              >
                 <Link href="/app/journal">
                   <BookOpen className="h-4 w-4" />
                   Open journal
