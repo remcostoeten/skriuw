@@ -138,7 +138,7 @@ export async function GET() {
 
   const zip = zipSync(files);
 
-  return new Response(zip, {
+  return new Response(new Blob([zip.buffer as ArrayBuffer]), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="skriuw-export-${dateSlug}.zip"`,

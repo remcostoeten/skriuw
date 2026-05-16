@@ -7,10 +7,14 @@ const SUPABASE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
-const publicRoutes = new Set(["/sign-in", "/sign-up"]);
+const publicRoutes = new Set(["/sign-in", "/sign-up", "/project-planning"]);
 
 function isPublicRoute(path: string) {
-  return publicRoutes.has(path) || path.startsWith("/auth/callback");
+  return (
+    publicRoutes.has(path) ||
+    path.startsWith("/auth/callback") ||
+    path.startsWith("/project-planning/")
+  );
 }
 
 function redirectWithCookies(url: URL, response: NextResponse) {

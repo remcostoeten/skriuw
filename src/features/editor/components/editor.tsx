@@ -43,6 +43,7 @@ interface EditorProps {
   onEditorReady?: (handle: AiEditorHandle) => void;
   onAiSpellCheck?: () => void;
   onAiContinueWriting?: () => void;
+  onTitleCommit?: (title: string) => void;
 }
 
 export function Editor({
@@ -55,6 +56,7 @@ export function Editor({
   onEditorReady,
   onAiSpellCheck,
   onAiContinueWriting,
+  onTitleCommit,
 }: EditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -116,6 +118,7 @@ export function Editor({
           onEditorReady={onEditorReady}
           onAiSpellCheck={onAiSpellCheck}
           onAiContinueWriting={onAiContinueWriting}
+          onTitleCommit={onTitleCommit}
         />
       </div>
     );
@@ -129,6 +132,12 @@ export function Editor({
           ref={textareaRef}
           value={file.content}
           onChange={(e) => handleMarkdownChange(e.target.value)}
+          onBlur={(event) => {
+            const title = event.currentTarget.value.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1]?.trim();
+            if (title) {
+              onTitleCommit?.(title);
+            }
+          }}
           className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-sm resize-none outline-hidden"
           style={{
             fontFamily: getEditorFontFamily(editorFontId),
