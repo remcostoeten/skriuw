@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -14,11 +13,6 @@ import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useNotesLayout } from "../hooks/use-notes-layout";
-
-const SettingsModal = dynamic(
-  () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
-  { ssr: false },
-);
 
 function NotesSidebarPlaceholder() {
   return <WorkspaceSidebarSkeleton variant="notes" />;
@@ -56,7 +50,6 @@ export function NotesLayoutShell() {
     overlayTransition,
     prefersReducedMotion,
     setShowCommandPalette,
-    setShowSettings,
     setShowShortcutHelp,
     sidebarPanelProps,
     sidebarRef,
@@ -64,7 +57,6 @@ export function NotesLayoutShell() {
     sidebarWidth,
     showCommandPalette,
     showMetadata,
-    showSettings,
     showSidebar,
     showShortcutHelp,
     shortcutGroups,
@@ -90,11 +82,9 @@ export function NotesLayoutShell() {
                 aria-orientation="vertical"
                 aria-label="Resize sidebar"
                 onPointerDown={handleDesktopSidebarResizeStart}
-                className="absolute inset-y-0 right-0 z-20 hidden w-3 cursor-col-resize items-center justify-end pr-0 md:flex"
+                className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
               >
-                <div className="group flex h-20 w-1 flex-col items-center justify-center gap-2 rounded-sm bg-gradient-to-r from-transparent via-white/10 to-transparent transition-colors hover:bg-gradient-to-r hover:from-transparent hover:via-white/25 hover:to-transparent">
-                  <div className="h-6 w-1 rounded-full bg-white/30 group-hover:bg-white/60" />
-                </div>
+                <div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-white/8 transition-colors hover:bg-white/20" />
               </div>
             </div>
           )
@@ -140,7 +130,6 @@ export function NotesLayoutShell() {
         )}
       </div>
 
-      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
       <CommandPalette
         open={showCommandPalette}
         onOpenChange={setShowCommandPalette}

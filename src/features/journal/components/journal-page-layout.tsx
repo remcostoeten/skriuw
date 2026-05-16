@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import { CalendarDays, ChevronLeft, Code, Settings2, Sidebar, Type } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,11 +19,6 @@ import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalLayout } from "../hooks/use-journal-layout";
 import { useJournalEntry } from "../hooks/use-journal-entry";
-
-const SettingsModal = dynamic(
-  () => import("@/features/settings/components/settings-modal").then((mod) => mod.SettingsModal),
-  { ssr: false },
-);
 
 function JournalSidebarPlaceholder() {
   return <WorkspaceSidebarSkeleton variant="journal" />;
@@ -203,8 +197,6 @@ export function JournalPageLayout() {
   const {
     selectedDate,
     sidebarWidth,
-    showSettings,
-    setShowSettings,
     showSidebar,
     showCommandPalette,
     setShowCommandPalette,
@@ -332,7 +324,6 @@ export function JournalPageLayout() {
         )}
       </AnimatePresence>
 
-      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
       <CommandPalette
         open={showCommandPalette}
         onOpenChange={setShowCommandPalette}
