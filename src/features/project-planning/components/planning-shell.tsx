@@ -160,15 +160,17 @@ function SidebarBody({
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-2 py-2">
-        <div
+        <button
+          type="button"
           onClick={() => onSelect(null)}
-          className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 ${
+          aria-current={selectedId === null ? "page" : undefined}
+          className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-left ${
             selectedId === null ? "bg-accent text-foreground" : "hover:bg-accent/50"
           }`}
         >
           <span className="font-medium">Overview</span>
           <span className="text-xs text-muted-foreground">{featuresCount}</span>
-        </div>
+        </button>
 
         {groups.map((g) => (
           <SidebarSection
@@ -228,9 +230,9 @@ function SidebarSection({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between px-2">
-        <button className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-muted-foreground">
           <ChevronDown className="h-3 w-3" /> {title}
-        </button>
+        </div>
         <span className="text-[10px] text-muted-foreground">{count}</span>
       </div>
       {children}

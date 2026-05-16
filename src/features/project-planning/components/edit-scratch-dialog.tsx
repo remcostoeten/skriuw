@@ -35,15 +35,22 @@ const types: ScratchType[] = ["note", "idea", "prompt", "question", "decision"];
 
 export function EditScratchDialog({ open, title, initial, onSubmit, onOpenChange }: Props) {
   const [draft, setDraft] = useState<ScratchDraft>(initial);
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setDraft(initial);
+    if (open) {
+      setDraft(initial);
+      setTitleError(null);
+    }
   }, [open, initial]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = draft.title.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setTitleError("Title is required.");
+      return;
+    }
     onSubmit({ ...draft, title: trimmed });
   }
 
@@ -63,10 +70,21 @@ export function EditScratchDialog({ open, title, initial, onSubmit, onOpenChange
             <Input
               id="scr-title"
               autoFocus
+              required
               value={draft.title}
-              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              onChange={(e) => {
+                setDraft((d) => ({ ...d, title: e.target.value }));
+                if (titleError) setTitleError(null);
+              }}
+              aria-invalid={Boolean(titleError)}
+              aria-describedby={titleError ? "scr-title-error" : undefined}
               className="bg-background border-border"
             />
+            {titleError ? (
+              <p id="scr-title-error" className="text-xs text-destructive">
+                {titleError}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
