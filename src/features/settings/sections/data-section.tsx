@@ -50,7 +50,7 @@ function ClearDataDialog({ disabled }: { disabled: boolean }) {
     if (!matches) return;
     setState("pending");
     setError(null);
-    const result = await clearAllData(CLEAR_PHRASE);
+    const result = await clearAllData(value.trim());
     if (result.ok) {
       // Wipe all cached query data so the app renders empty state immediately
       await queryClient.resetQueries({ queryKey: notesKeys.all });

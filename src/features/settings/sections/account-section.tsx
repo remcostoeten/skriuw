@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut, Upload } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
@@ -38,6 +38,11 @@ export function AccountSection() {
 
   const [displayName, setDisplayName] = useState(user?.name ?? "");
   const [isSavingName, setIsSavingName] = useState(false);
+  const [saveNameError, setSaveNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDisplayName(user?.name ?? "");
+  }, [user?.name]);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteValue, setDeleteValue] = useState("");
@@ -49,8 +54,12 @@ export function AccountSection() {
   const handleSaveName = async () => {
     if (!displayName.trim() || displayName === user?.name) return;
     setIsSavingName(true);
+    setSaveNameError(null);
     try {
       await updateUserDisplayName(displayName.trim());
+    } catch {
+      setDisplayName(user?.name ?? "");
+      setSaveNameError("Could not update display name. Please try again.");
     } finally {
       setIsSavingName(false);
     }
@@ -74,7 +83,7 @@ export function AccountSection() {
       const res = await fetch("/api/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation: `DELETE ${user?.email?.trim() ?? user?.id}` }),
+        body: JSON.stringify({ confirmation: deleteValue.trim() }),
       });
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? "Could not delete account.");
@@ -125,18 +134,23 @@ export function AccountSection() {
       <GroupLabel>PROFILE</GroupLabel>
       <SettingsCard>
         <Row title="Display name" description="Shown on shared notes and comments.">
-          <div className="flex gap-2">
-            <Input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-52 h-8"
-              onBlur={handleSaveName}
-              onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-            />
-            {displayName !== (user?.name ?? "") && (
-              <Button size="sm" className="h-8" onClick={handleSaveName} disabled={isSavingName}>
-                {isSavingName ? "Saving…" : "Save"}
-              </Button>
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-2">
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-52 h-8"
+                onBlur={handleSaveName}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+              />
+              {displayName !== (user?.name ?? "") && (
+                <Button size="sm" className="h-8" onClick={handleSaveName} disabled={isSavingName}>
+                  {isSavingName ? "Saving…" : "Save"}
+                </Button>
+              )}
+            </div>
+            {saveNameError && (
+              <p role="alert" className="mt-1 text-xs text-destructive">{saveNameError}</p>
             )}
           </div>
         </Row>
