@@ -23,7 +23,14 @@ function ShortcutHandlerProvider({ children }: Props) {
     journal: () => router.push("/app/journal"),
     activity: () => router.push("/app/activity"),
     settings: () => router.push("/app/settings"),
-    signOut: () => signOut().then(() => window.location.assign("/sign-in")),
+    signOut: async () => {
+      try {
+        await signOut()
+        window.location.assign("/sign-in")
+      } catch (error) {
+        console.error("Shortcut sign-out failed", error)
+      }
+    },
   }
 
   return <ShortcutProvider handlers={handlers}>{children}</ShortcutProvider>
