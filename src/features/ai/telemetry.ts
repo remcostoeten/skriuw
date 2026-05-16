@@ -23,7 +23,7 @@ export type AiTelemetryInput = {
   code: string;
   source: AiErrorSource;
   message: string;
-  provider?: "gemini";
+  provider?: "google" | "groq";
   providerStatus?: number | null;
   providerMessage?: string | null;
   contentLength?: number | null;
@@ -59,7 +59,7 @@ export async function recordAiError(input: AiTelemetryInput): Promise<AiTelemetr
     endpoint: input.endpoint,
     action: input.action ?? null,
     model: input.model ?? null,
-    provider: input.provider ?? "gemini",
+    provider: input.provider ?? "google",
     error_source: input.source,
     error_code: input.code,
     error_message: input.message,
