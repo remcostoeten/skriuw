@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  User as UserIcon,
   FileText,
   BookOpen,
   Activity,
@@ -17,7 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { useShortcutManager, SCOPES } from "@/core/shortcuts";
 import { getAvatarSeed } from "@/shared/lib/avatar";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -26,7 +24,6 @@ import { cn } from "@/shared/lib/utils";
 export type UserMenuProps = {
   onSettings: () => void;
   onSignOut: () => void;
-  onProfile?: () => void;
   onNotes?: () => void;
   onJournal?: () => void;
   onActivity?: () => void;
@@ -58,26 +55,13 @@ function Shortcut({ value }: { value: string }) {
 export function UserMenu({
   onSettings,
   onSignOut,
-  onProfile,
   onNotes,
   onJournal,
   onActivity,
 }: UserMenuProps) {
   const [open, setOpen] = React.useState(false);
   const [isSigningOut, setIsSigningOut] = React.useState(false);
-  const { enableScope, disableScope } = useShortcutManager();
   const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
-
-  React.useEffect(() => {
-    if (open) {
-      enableScope(SCOPES.userMenu);
-    } else {
-      disableScope(SCOPES.userMenu);
-    }
-    return () => {
-      disableScope(SCOPES.userMenu);
-    };
-  }, [open, enableScope, disableScope]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -109,13 +93,6 @@ export function UserMenu({
       >
         <div className="py-1">
           {[
-            {
-              key: "profile",
-              label: "Profile",
-              icon: UserIcon,
-              shortcut: "P",
-              onSelect: onProfile,
-            },
             { key: "notes", label: "Notes", icon: FileText, shortcut: "N", onSelect: onNotes },
             {
               key: "journal",

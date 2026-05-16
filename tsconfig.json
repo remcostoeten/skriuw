@@ -39,6 +39,7 @@
   ],
   "exclude": [
     "apps/mobile/**",
+    "project-management/**",
     "node_modules"
   ]
 }
