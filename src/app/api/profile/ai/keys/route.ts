@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     label?: string;
     apiKey?: string;
-    provider?: "gemini";
+    provider?: "google" | "groq";
   };
 
   try {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       label: body.label ?? "",
       apiKey: body.apiKey ?? "",
-      provider: body.provider ?? "gemini",
+      provider: body.provider ?? "google",
     });
     return NextResponse.json({ key }, { status: 201 });
   } catch (error) {

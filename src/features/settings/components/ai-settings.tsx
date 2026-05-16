@@ -15,7 +15,12 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore, type AiKey } from "@/features/settings/store";
-import { AI_MODELS } from "@/features/ai/constants";
+import { AI_MODELS, type AiProvider } from "@/features/ai/constants";
+
+const PROVIDER_LABELS: Record<AiProvider, string> = {
+  google: "Google",
+  groq: "Groq",
+};
 
 type TestStatus =
   | "idle"
@@ -32,15 +37,15 @@ type TestStatus =
   | "error";
 
 const STATUS_COPY: Record<Exclude<TestStatus, "idle" | "loading">, string> = {
-  ok: "Connection successful. Gemini accepted this key for the selected model.",
-  no_key: "Paste a Gemini API key before testing.",
+  ok: "Connection successful. The provider accepted this key for the selected model.",
+  no_key: "Paste an API key before testing.",
   authentication_required: "Sign in before testing keys so diagnostics can be linked to your account.",
-  invalid_key: "Gemini rejected this key. Check that it was copied correctly.",
+  invalid_key: "The provider rejected this key. Check that it was copied correctly.",
   invalid_model: "The selected model is no longer supported. Choose another model.",
   rate_limited: "This key is valid but rate limited or out of quota.",
   forbidden: "This key lacks permission for the selected model.",
   model_not_found: "Model not found. Try selecting a different model.",
-  provider_error: "Gemini returned an unexpected validation error.",
+  provider_error: "The provider returned an unexpected validation error.",
   error: "Could not reach the validation endpoint. Try again.",
 };
 
@@ -186,6 +191,11 @@ export function AiSettings() {
 
   const canAdd = draftTestStatus === "ok" && draftKey.trim() && draftName.trim();
 
+  const modelsByProvider = AI_MODELS.reduce<Record<string, typeof AI_MODELS[number][]>>((acc, m) => {
+    (acc[m.provider] ??= []).push(m);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-7">
       {/* Model */}
@@ -196,29 +206,36 @@ export function AiSettings() {
             Applied to all AI actions — spell check, continue writing, title generation.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {AI_MODELS.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => updateAiPreference("model", m.id)}
-              className={cn(
-                "relative flex min-w-[100px] flex-col items-start border px-3 py-2.5 text-left transition-colors",
-                ai.model === m.id
-                  ? "border-ring bg-accent text-accent-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <span className="text-xs font-medium leading-tight">{m.label}</span>
-              <span className="mt-0.5 text-[10px] opacity-60">{m.desc}</span>
-              {"recommended" in m && m.recommended && (
-                <span className="absolute -top-2 right-1.5 bg-ring px-1 text-[9px] font-semibold uppercase leading-5 tracking-wide text-background">
-                  rec
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {Object.entries(modelsByProvider).map(([provider, models]) => (
+          <div key={provider} className="space-y-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">
+              {PROVIDER_LABELS[provider as AiProvider] ?? provider}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {models.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => updateAiPreference("model", m.id)}
+                  className={cn(
+                    "relative flex min-w-[100px] flex-col items-start border px-3 py-2.5 text-left transition-colors",
+                    ai.model === m.id
+                      ? "border-ring bg-accent text-accent-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <span className="text-xs font-medium leading-tight">{m.label}</span>
+                  <span className="mt-0.5 text-[10px] opacity-60">{m.desc}</span>
+                  {"recommended" in m && m.recommended && (
+                    <span className="absolute -top-2 right-1.5 bg-ring px-1 text-[9px] font-semibold uppercase leading-5 tracking-wide text-background">
+                      rec
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Key list */}
@@ -313,7 +330,7 @@ export function AiSettings() {
 	                    setDraftTestStatus("idle");
 	                    setDraftTestDetails(null);
 	                  }}
-                  placeholder="AIzaSy..."
+                  placeholder="API key..."
                   autoComplete="off"
                   spellCheck={false}
                   className="h-9 w-full border border-border bg-background px-3 pr-9 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors"

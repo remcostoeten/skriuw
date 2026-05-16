@@ -1,11 +1,15 @@
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
+import { generateText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import { DEFAULT_AI_MODEL, isAiModelId, type AiModelId } from "@/features/ai/constants";
+import { DEFAULT_AI_MODEL, getProviderFromModelId, isAiModelId, type AiModelId } from "@/features/ai/constants";
+import type { AiProvider } from "@/features/ai/types";
 import { recordAiError, type AiErrorSource } from "@/features/ai/telemetry";
 import { recordAiUsage } from "@/features/ai/usage";
 
-function classifyGeminiError(err: unknown): {
+function classifyProviderError(err: unknown, provider: AiProvider): {
   code: string;
   source: AiErrorSource;
   message: string;
@@ -17,45 +21,46 @@ function classifyGeminiError(err: unknown): {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
   const providerStatus = (err as { status?: number }).status ?? null;
   const rawMessage = err instanceof Error ? err.message : String(err);
+  const providerLabel = provider === "google" ? "Gemini" : provider === "groq" ? "Groq" : provider;
 
-  if (providerStatus === 401 || msg.includes("api_key_invalid") || msg.includes("unauthenticated")) {
+  if (providerStatus === 401 || msg.includes("api_key_invalid") || msg.includes("unauthenticated") || msg.includes("invalid_api_key") || msg.includes("invalid x-api-key")) {
     return {
       code: "invalid_key",
       source: "provider",
-      message: "Gemini rejected this API key.",
-      details: "Check that the key was copied correctly and belongs to an enabled Gemini project.",
+      message: `${providerLabel} rejected this API key.`,
+      details: "Check that the key was copied correctly and belongs to an enabled project.",
       status: 401,
       providerStatus,
       providerMessage: rawMessage,
     };
   }
-  if (providerStatus === 429 || msg.includes("resource_exhausted") || msg.includes("quota")) {
+  if (providerStatus === 429 || msg.includes("resource_exhausted") || msg.includes("quota") || msg.includes("rate_limit") || msg.includes("rate limit")) {
     return {
       code: "rate_limited",
       source: "rate_limit",
-      message: "This key is rate limited or out of quota.",
-      details: "The key is syntactically valid, but Gemini will not serve requests right now.",
+      message: `This ${providerLabel} key is rate limited or out of quota.`,
+      details: "The key is syntactically valid, but the provider will not serve requests right now.",
       status: 429,
       providerStatus,
       providerMessage: rawMessage,
     };
   }
-  if (providerStatus === 403 || msg.includes("permission_denied")) {
+  if (providerStatus === 403 || msg.includes("permission_denied") || msg.includes("forbidden")) {
     return {
       code: "forbidden",
       source: "provider",
-      message: "This key is not allowed to use the selected model.",
-      details: "Check API key restrictions, billing, and Gemini model access for the project.",
+      message: `This key is not allowed to use the selected model on ${providerLabel}.`,
+      details: "Check API key restrictions, billing, and model access.",
       status: 403,
       providerStatus,
       providerMessage: rawMessage,
     };
   }
-  if (providerStatus === 404 || msg.includes("not_found") || msg.includes("not found")) {
+  if (providerStatus === 404 || msg.includes("not_found") || msg.includes("not found") || msg.includes("model_not_found")) {
     return {
       code: "model_not_found",
       source: "provider",
-      message: "Gemini could not find the selected model.",
+      message: `${providerLabel} could not find the selected model.`,
       details: "Choose another supported model in Settings -> AI.",
       status: 404,
       providerStatus,
@@ -66,8 +71,8 @@ function classifyGeminiError(err: unknown): {
   return {
     code: "provider_error",
     source: "provider",
-    message: "Could not validate the key with Gemini.",
-    details: "Gemini returned an unexpected response while checking model access.",
+    message: `Could not validate the key with ${providerLabel}.`,
+    details: `${providerLabel} returned an unexpected response while checking model access.`,
     status: 502,
     providerStatus,
     providerMessage: rawMessage,
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest) {
       user,
       code: "authentication_required",
       source: "auth",
-      message: "Sign in before testing Gemini keys.",
+      message: "Sign in before testing AI keys.",
       details: "Key tests are account-scoped so diagnostics can be attached to the right user.",
       status: 401,
     });
@@ -138,8 +143,10 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { apiKey?: string; model?: string };
   const apiKey = body.apiKey?.trim();
   const model: AiModelId = isAiModelId(body.model) ? body.model : DEFAULT_AI_MODEL;
+  const provider = getProviderFromModelId(model) ?? "google";
 
   if (!apiKey) {
+    const providerLabel = provider === "google" ? "Gemini" : provider === "groq" ? "Groq" : provider;
     return testKeyErrorResponse({
       req,
       user,
@@ -147,7 +154,7 @@ export async function POST(req: NextRequest) {
       model,
       code: "no_key",
       source: "validation",
-      message: "No Gemini API key was provided.",
+      message: `No ${providerLabel} API key was provided.`,
       details: "Paste a key before running the connection test.",
       status: 400,
     });
@@ -162,56 +169,36 @@ export async function POST(req: NextRequest) {
       code: "invalid_model",
       source: "validation",
       message: "The selected AI model is not supported.",
-      details: "Open Settings -> AI and choose one of the supported Gemini models.",
+      details: "Open Settings -> AI and choose one of the supported models.",
       status: 400,
     });
   }
 
-  // Validate key + model by listing the model — no generation quota consumed
+  const modelName = model.includes(".") ? model.split(".").slice(1).join(".") : model;
+
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${encodeURIComponent(apiKey)}`,
-      { method: "GET" },
-    );
+    const providerInstance =
+      provider === "google"
+        ? createGoogleGenerativeAI({ apiKey })
+        : createGroq({ apiKey });
 
-    if (res.ok) {
-      await recordAiUsage({
-        userId: user.id,
-        model,
-        action: "testKey",
-        status: "success",
-        keySource: "user_key",
-      });
-      return NextResponse.json({ ok: true });
-    }
+    await generateText({
+      model: providerInstance(modelName),
+      prompt: "test",
+      maxOutputTokens: 1,
+    });
 
-    // Synthesize an error to run through the classifier
-    const data = (await res.json().catch(() => ({}))) as { error?: { status?: string; message?: string } };
-    const errMsg = data.error?.status ?? data.error?.message ?? res.statusText;
-    const synthetic = Object.assign(new Error(errMsg), { status: res.status });
-    const classified = classifyGeminiError(synthetic);
     await recordAiUsage({
       userId: user.id,
       model,
       action: "testKey",
-      status: "error",
-      errorMessage: classified.providerMessage ?? classified.message,
+      status: "success",
       keySource: "user_key",
-      metadata: {
-        providerStatus: classified.providerStatus ?? null,
-        code: classified.code,
-      },
     });
-    return testKeyErrorResponse({
-      req,
-      user,
-      apiKey,
-      model,
-      ...classified,
-    });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[AI/test-key]", err);
-    const classified = classifyGeminiError(err);
+    const classified = classifyProviderError(err, provider);
     await recordAiUsage({
       userId: user.id,
       model,

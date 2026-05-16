@@ -1,4 +1,4 @@
-export type AiProvider = "gemini";
+export type AiProvider = "google" | "groq";
 
 export type AiUsageStatus = "success" | "error";
 

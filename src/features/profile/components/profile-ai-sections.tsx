@@ -109,7 +109,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
       const res = await fetch("/api/profile/ai/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "gemini", label, apiKey }),
+        body: JSON.stringify({ provider: "google", label, apiKey }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         key?: AiProviderKeySummary;
