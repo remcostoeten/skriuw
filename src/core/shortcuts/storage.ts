@@ -13,7 +13,23 @@ export function loadBindings(): ShortcutBindings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (!stored) return defaults
-    return { ...defaults, ...JSON.parse(stored) }
+
+    const parsed = JSON.parse(stored)
+
+    // Ensure parsed value is a plain object (not null, not an array)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return defaults
+    }
+
+    // Only accept known shortcut IDs with string values
+    const sanitized: Partial<ShortcutBindings> = {}
+    for (const [id, value] of Object.entries(parsed)) {
+      if (!(id in defaults)) continue
+      if (typeof value !== 'string') continue
+      sanitized[id as keyof ShortcutBindings] = value
+    }
+
+    return { ...defaults, ...sanitized }
   } catch {
     return defaults
   }
