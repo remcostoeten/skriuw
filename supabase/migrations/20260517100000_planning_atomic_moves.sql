@@ -31,9 +31,21 @@ begin
   end if;
 
   if _target = 'nice' then
+    if exists (
+      select 1 from public.issues where feature_id = _feature_id
+    ) then
+      raise exception 'Cannot move feature % while issues still exist', _feature_id;
+    end if;
+
     insert into public.nice_to_haves (title, description, reason, priority)
     values (v_title, v_description, '', v_priority);
   else
+    if exists (
+      select 1 from public.issues where feature_id = _feature_id
+    ) then
+      raise exception 'Cannot move feature % while issues still exist', _feature_id;
+    end if;
+
     insert into public.scratch_entries (title, content, type)
     values (v_title, v_description, 'note');
   end if;
@@ -63,6 +75,9 @@ begin
   end if;
   if _target not in ('roadmap', 'scratch') then
     raise exception 'Invalid target: %', _target;
+  end if;
+  if _target = 'roadmap' and nullif(btrim(_new_slug), '') is null then
+    raise exception 'Slug is required when moving into roadmap';
   end if;
 
   select title, description, reason, priority
@@ -107,6 +122,9 @@ begin
   end if;
   if _target not in ('roadmap', 'nice') then
     raise exception 'Invalid target: %', _target;
+  end if;
+  if _target = 'roadmap' and nullif(btrim(_new_slug), '') is null then
+    raise exception 'Slug is required when moving into roadmap';
   end if;
 
   select title, content into v_title, v_content

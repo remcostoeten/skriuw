@@ -123,12 +123,16 @@ function inlineContentToPlainText(content: unknown): string {
 }
 
 function getFirstHeadingTitle(editor: EditorInstance): string {
-  const firstBlock = editor.document?.[0];
-  if (!firstBlock || firstBlock.type !== "heading") {
+  const firstHeading = editor.document?.find(
+    (block: { type?: unknown }) => block?.type === "heading",
+  );
+  if (!firstHeading) {
     return "";
   }
 
-  return inlineContentToPlainText(firstBlock.content).trim().replace(/\s+/g, " ");
+  return inlineContentToPlainText((firstHeading as { content?: unknown }).content)
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function KeyboardAccessibleSlashMenu({

@@ -75,6 +75,7 @@ export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
   if (scratchRes.error) throw scratchRes.error;
   if (sectionsRes.error) throw sectionsRes.error;
   if (sectionItemsRes.error) throw sectionItemsRes.error;
+  if (userRes.error) throw userRes.error;
 
   const user = userRes.data.user;
   let isAdmin = false;
@@ -83,7 +84,8 @@ export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
       _user_id: user.id,
       _role: "admin",
     });
-    if (!error && data === true) isAdmin = true;
+    if (error) throw error;
+    isAdmin = data === true;
   }
 
   const featureRows = (featuresRes.data ?? []) as FeatureRow[];
