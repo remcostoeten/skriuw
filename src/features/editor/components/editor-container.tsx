@@ -14,6 +14,7 @@ import {
   type AiErrorCode,
 } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
+import { isMdxNote } from "@/features/editor/lib/editor-mode";
 
 interface EditorContainerProps {
   file: NoteFile | null;
@@ -96,7 +97,8 @@ export function EditorContainer({
   const [rateLimitPrompt, setRateLimitPrompt] = useState<RateLimitPrompt | null>(null);
   const [aiError, setAiError] = useState<AiUiError | null>(null);
 
-  const { ai: aiPrefs } = usePreferencesStore();
+  const aiPrefs = usePreferencesStore((s) => s.ai);
+  const editorPrefs = usePreferencesStore((s) => s.editor);
 
   const aiOptions = useMemo(
     () => ({
@@ -205,7 +207,9 @@ export function EditorContainer({
     aiHandleRef.current = handle;
   }, []);
 
-  const isAiAvailable = editorMode === "block";
+  const isMdx = isMdxNote(file);
+  const effectiveEditorMode = isMdx ? "raw" : editorMode;
+  const isAiAvailable = effectiveEditorMode === "block";
   const canUseAi = isAiAvailable && aiPrefs.keys.length > 0;
 
   const availableKeysForFallback = rateLimitPrompt
@@ -216,11 +220,12 @@ export function EditorContainer({
     <div className="flex flex-1 flex-col overflow-hidden">
       <EditorToolbar
         fileName={fileName}
-        editorMode={editorMode}
+        editorMode={effectiveEditorMode}
         isMobile={isMobile}
         onToggleSidebar={onToggleSidebar}
         onToggleMetadata={onToggleMetadata}
         onToggleEditorMode={onToggleEditorMode}
+        canToggleEditorMode={!isMdx}
         onOpenSettings={onOpenSettings}
         onNavigatePrev={onNavigatePrev}
         onNavigateNext={onNavigateNext}
@@ -335,7 +340,9 @@ export function EditorContainer({
         <Editor
           file={file}
           files={files}
-          editorMode={editorMode}
+          editorMode={effectiveEditorMode}
+          editorFontId={editorPrefs.defaultFont}
+          editorLineHeight={editorPrefs.lineHeight}
           isMobile={isMobile}
           onContentChange={onContentChange}
           onEditorReady={handleEditorReady}
