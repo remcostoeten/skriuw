@@ -30,12 +30,41 @@ export function readUsageMetadata(response: unknown): {
   totalTokens: number | null;
   metadata: Record<string, unknown>;
 } {
-  const usage = (response as { usageMetadata?: Record<string, unknown> })?.usageMetadata ?? {};
-  const inputTokens = typeof usage.promptTokenCount === "number" ? usage.promptTokenCount : null;
-  const outputTokens =
-    typeof usage.candidatesTokenCount === "number" ? usage.candidatesTokenCount : null;
-  const totalTokens = typeof usage.totalTokenCount === "number" ? usage.totalTokenCount : null;
-  return { inputTokens, outputTokens, totalTokens, metadata: { usageMetadata: usage } };
+  if (!response || typeof response !== "object") {
+    return { inputTokens: null, outputTokens: null, totalTokens: null, metadata: {} };
+  }
+
+  const r = response as Record<string, unknown>;
+  const usage = r.usage as Record<string, unknown> | undefined;
+
+  if (usage) {
+    const inputTokens = typeof usage.promptTokens === "number" ? usage.promptTokens : null;
+    const outputTokens = typeof usage.completionTokens === "number" ? usage.completionTokens : null;
+    const totalTokens =
+      inputTokens !== null && outputTokens !== null
+        ? inputTokens + outputTokens
+        : typeof usage.totalTokens === "number"
+          ? usage.totalTokens
+          : null;
+
+    return {
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      metadata: { usage },
+    };
+  }
+
+  const usageMetadata = r.usageMetadata as Record<string, unknown> | undefined;
+  if (usageMetadata) {
+    const inputTokens = typeof usageMetadata.promptTokenCount === "number" ? usageMetadata.promptTokenCount : null;
+    const outputTokens =
+      typeof usageMetadata.candidatesTokenCount === "number" ? usageMetadata.candidatesTokenCount : null;
+    const totalTokens = typeof usageMetadata.totalTokenCount === "number" ? usageMetadata.totalTokenCount : null;
+    return { inputTokens, outputTokens, totalTokens, metadata: { usageMetadata } };
+  }
+
+  return { inputTokens: null, outputTokens: null, totalTokens: null, metadata: {} };
 }
 
 export function mapUsageRow(row: {
