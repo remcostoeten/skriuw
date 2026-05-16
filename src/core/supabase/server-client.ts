@@ -52,6 +52,10 @@ export function createSupabaseAdminClient() {
   });
 }
 
+export function isSupabaseAdminConfigured() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+}
+
 export async function getServerUser() {
   const supabase = await createServerSupabaseClient();
   const {
