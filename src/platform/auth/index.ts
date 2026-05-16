@@ -5,6 +5,10 @@ import {
   isSupabaseConfigured,
   setSupabaseSessionPersistence,
 } from "@/core/supabase/browser-client";
+import {
+  isEditorFontId,
+  type EditorFontId,
+} from "@/shared/lib/editor-fonts";
 
 type User = {
   id: string;
@@ -29,6 +33,12 @@ export type AuthSnapshot = {
 type AuthPreferences = {
   rememberMe: boolean;
 };
+
+type StoredEditorPreferences = {
+  defaultFont?: EditorFontId;
+};
+
+const EDITOR_PREFERENCES_KEY = "editor_preferences";
 
 type AuthListener = () => void;
 
@@ -190,6 +200,22 @@ export function subscribeAuthState(listener: AuthListener): () => void {
 
 export function getAuthStateSnapshot(): AuthSnapshot {
   return snapshot;
+}
+
+export function getUserEditorPreferences(): StoredEditorPreferences | null {
+  const rawPreferences = snapshot.session?.user.user_metadata?.[EDITOR_PREFERENCES_KEY];
+  if (!rawPreferences || typeof rawPreferences !== "object") {
+    return null;
+  }
+
+  const rawEditorPreferences = rawPreferences as Record<string, unknown>;
+  const defaultFont =
+    typeof rawEditorPreferences.defaultFont === "string" &&
+    isEditorFontId(rawEditorPreferences.defaultFont)
+      ? (rawEditorPreferences.defaultFont as EditorFontId)
+      : undefined;
+
+  return defaultFont ? { defaultFont } : null;
 }
 
 export async function initializeAuth(): Promise<AuthSnapshot> {
@@ -369,6 +395,66 @@ export async function signOut(): Promise<AuthSnapshot> {
   }
 
   return applySession(null);
+}
+
+export async function updateUserDisplayName(name: string): Promise<void> {
+  await initializeAuth();
+  requireConfiguredSupabase();
+  clearError();
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.updateUser({
+    data: { full_name: name, name },
+  });
+
+  if (error) {
+    setError(error);
+    throw error;
+  }
+}
+
+export async function updateUserEditorPreferences(
+  preferences: Partial<StoredEditorPreferences>,
+): Promise<void> {
+  await initializeAuth();
+
+  if (!snapshot.session?.user || !isSupabaseConfigured()) {
+    return;
+  }
+
+  clearError();
+
+  const currentPreferences = getUserEditorPreferences() ?? {};
+  const nextPreferences = {
+    ...currentPreferences,
+    ...preferences,
+  };
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      [EDITOR_PREFERENCES_KEY]: nextPreferences,
+    },
+  });
+
+  if (error) {
+    setError(error);
+    throw error;
+  }
+}
+
+export async function updatePassword(newPassword: string): Promise<void> {
+  await initializeAuth();
+  requireConfiguredSupabase();
+  clearError();
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    setError(error);
+    throw error;
+  }
 }
 
 export function getWorkspaceId(): string {

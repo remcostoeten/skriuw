@@ -1,7 +1,17 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getWorkspaceId, resolveWorkspaceId } from "@/platform/auth";
+import {
+  getUserEditorPreferences,
+  getWorkspaceId,
+  resolveWorkspaceId,
+  updateUserEditorPreferences,
+} from "@/platform/auth";
 import { DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
+import { isEditorFontId, type EditorFontId } from "@/shared/lib/editor-fonts";
+import {
+  isEditorLineHeight,
+  type EditorLineHeight,
+} from "@/features/editor/lib/editor-line-height";
 
 type ActivityAction =
   | "settings_opened"
@@ -18,6 +28,26 @@ type ActivityItem = {
 interface EditorPreferences {
   defaultModeRaw: boolean;
   defaultPlaceholder: string;
+  defaultFont: EditorFontId;
+  lineHeight: EditorLineHeight;
+  spellcheck: boolean;
+  smartPunctuation: boolean;
+  markdownShortcuts: boolean;
+}
+
+interface AppearancePreferences {
+  theme: "midnight" | "graphite" | "paper";
+  accentColor: string;
+  compactSidebar: boolean;
+  showLineNumbers: boolean;
+  reduceMotion: boolean;
+}
+
+interface NotificationsPreferences {
+  dailyReminder: boolean;
+  weeklyReview: boolean;
+  mentions: boolean;
+  emailSummaries: boolean;
 }
 
 interface ProfilePreferences {
@@ -44,6 +74,8 @@ export interface AiPreferences {
 
 type PreferencesProfile = {
   editor: EditorPreferences;
+  appearance: AppearancePreferences;
+  notifications: NotificationsPreferences;
   profile: ProfilePreferences;
   journal: JournalPreferences;
   ai: AiPreferences;
@@ -53,6 +85,8 @@ type PreferencesProfile = {
 
 type PersistedPreferencesProfile = {
   editor?: Partial<EditorPreferences>;
+  appearance?: Partial<AppearancePreferences>;
+  notifications?: Partial<NotificationsPreferences>;
   profile?: Partial<ProfilePreferences>;
   journal?: Partial<JournalPreferences>;
   ai?: Partial<AiPreferences>;
@@ -66,6 +100,8 @@ interface PreferencesState {
   isHydrated: boolean;
   profiles: Record<string, PreferencesProfile>;
   editor: EditorPreferences;
+  appearance: AppearancePreferences;
+  notifications: NotificationsPreferences;
   profile: ProfilePreferences;
   journal: JournalPreferences;
   ai: AiPreferences;
@@ -75,6 +111,14 @@ interface PreferencesState {
   updateEditorPreference: <K extends keyof EditorPreferences>(
     key: K,
     value: EditorPreferences[K],
+  ) => void;
+  updateAppearancePreference: <K extends keyof AppearancePreferences>(
+    key: K,
+    value: AppearancePreferences[K],
+  ) => void;
+  updateNotificationsPreference: <K extends keyof NotificationsPreferences>(
+    key: K,
+    value: NotificationsPreferences[K],
   ) => void;
   updateProfilePreference: <K extends keyof ProfilePreferences>(
     key: K,
@@ -108,6 +152,26 @@ type PersistedPreferencesState = {
 const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   defaultModeRaw: false,
   defaultPlaceholder: "Start writing...",
+  defaultFont: "inter",
+  lineHeight: "comfortable",
+  spellcheck: true,
+  smartPunctuation: true,
+  markdownShortcuts: true,
+};
+
+const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
+  theme: "midnight",
+  accentColor: "#a78bfa",
+  compactSidebar: false,
+  showLineNumbers: true,
+  reduceMotion: false,
+};
+
+const DEFAULT_NOTIFICATIONS_PREFERENCES: NotificationsPreferences = {
+  dailyReminder: true,
+  weeklyReview: false,
+  mentions: true,
+  emailSummaries: false,
 };
 
 const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
@@ -128,6 +192,8 @@ const DEFAULT_AI_PREFERENCES: AiPreferences = {
 function createDefaultProfile(): PreferencesProfile {
   return {
     editor: { ...DEFAULT_EDITOR_PREFERENCES },
+    appearance: { ...DEFAULT_APPEARANCE_PREFERENCES },
+    notifications: { ...DEFAULT_NOTIFICATIONS_PREFERENCES },
     profile: { ...DEFAULT_PROFILE_PREFERENCES },
     journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
     ai: { ...DEFAULT_AI_PREFERENCES },
@@ -164,6 +230,70 @@ function normalizeProfile(profile: PersistedPreferencesProfile | undefined): Pre
         typeof profile?.editor?.defaultPlaceholder === "string"
           ? profile.editor.defaultPlaceholder
           : fallback.editor.defaultPlaceholder,
+      defaultFont:
+        typeof profile?.editor?.defaultFont === "string" &&
+        isEditorFontId(profile.editor.defaultFont)
+          ? profile.editor.defaultFont
+          : fallback.editor.defaultFont,
+      lineHeight:
+        typeof profile?.editor?.lineHeight === "string" &&
+        isEditorLineHeight(profile.editor.lineHeight)
+          ? profile.editor.lineHeight
+          : fallback.editor.lineHeight,
+      spellcheck:
+        typeof profile?.editor?.spellcheck === "boolean"
+          ? profile.editor.spellcheck
+          : fallback.editor.spellcheck,
+      smartPunctuation:
+        typeof profile?.editor?.smartPunctuation === "boolean"
+          ? profile.editor.smartPunctuation
+          : fallback.editor.smartPunctuation,
+      markdownShortcuts:
+        typeof profile?.editor?.markdownShortcuts === "boolean"
+          ? profile.editor.markdownShortcuts
+          : fallback.editor.markdownShortcuts,
+    },
+    appearance: {
+      theme:
+        (["midnight", "graphite", "paper"] as const).includes(
+          profile?.appearance?.theme as AppearancePreferences["theme"],
+        )
+          ? (profile!.appearance!.theme as AppearancePreferences["theme"])
+          : fallback.appearance.theme,
+      accentColor:
+        typeof profile?.appearance?.accentColor === "string"
+          ? profile.appearance.accentColor
+          : fallback.appearance.accentColor,
+      compactSidebar:
+        typeof profile?.appearance?.compactSidebar === "boolean"
+          ? profile.appearance.compactSidebar
+          : fallback.appearance.compactSidebar,
+      showLineNumbers:
+        typeof profile?.appearance?.showLineNumbers === "boolean"
+          ? profile.appearance.showLineNumbers
+          : fallback.appearance.showLineNumbers,
+      reduceMotion:
+        typeof profile?.appearance?.reduceMotion === "boolean"
+          ? profile.appearance.reduceMotion
+          : fallback.appearance.reduceMotion,
+    },
+    notifications: {
+      dailyReminder:
+        typeof profile?.notifications?.dailyReminder === "boolean"
+          ? profile.notifications.dailyReminder
+          : fallback.notifications.dailyReminder,
+      weeklyReview:
+        typeof profile?.notifications?.weeklyReview === "boolean"
+          ? profile.notifications.weeklyReview
+          : fallback.notifications.weeklyReview,
+      mentions:
+        typeof profile?.notifications?.mentions === "boolean"
+          ? profile.notifications.mentions
+          : fallback.notifications.mentions,
+      emailSummaries:
+        typeof profile?.notifications?.emailSummaries === "boolean"
+          ? profile.notifications.emailSummaries
+          : fallback.notifications.emailSummaries,
     },
     profile: {
       avatarColor:
@@ -251,12 +381,29 @@ function applyProfile(workspaceId: string, profile: PreferencesProfile) {
     workspaceId,
     isLoading: false,
     editor: profile.editor,
+    appearance: profile.appearance,
+    notifications: profile.notifications,
     profile: profile.profile,
     journal: profile.journal,
     ai: profile.ai,
     amountOfNotes: profile.amountOfNotes,
     activity: profile.activity,
   } satisfies Partial<PreferencesState>;
+}
+
+function applyAuthEditorPreferences(profile: PreferencesProfile): PreferencesProfile {
+  const authPreferences = getUserEditorPreferences();
+  if (!authPreferences?.defaultFont) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    editor: {
+      ...profile.editor,
+      defaultFont: authPreferences.defaultFont,
+    },
+  };
 }
 
 
@@ -269,6 +416,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       profiles: {},
       ...createDefaultProfile(),
 
+
       updateAiPreference: (key, value) => {
         set((state) => {
           const workspaceId = resolveWorkspaceId(state.workspaceId);
@@ -276,6 +424,36 @@ export const usePreferencesStore = create<PreferencesState>()(
           const nextProfile: PreferencesProfile = {
             ...currentProfile,
             ai: { ...currentProfile.ai, [key]: value },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      updateAppearancePreference: (key, value) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            appearance: { ...currentProfile.appearance, [key]: value },
+          };
+          return {
+            profiles: { ...state.profiles, [workspaceId]: nextProfile },
+            ...applyProfile(workspaceId, nextProfile),
+          };
+        });
+      },
+
+      updateNotificationsPreference: (key, value) => {
+        set((state) => {
+          const workspaceId = resolveWorkspaceId(state.workspaceId);
+          const currentProfile = normalizeProfile(state.profiles[workspaceId]);
+          const nextProfile: PreferencesProfile = {
+            ...currentProfile,
+            notifications: { ...currentProfile.notifications, [key]: value },
           };
           return {
             profiles: { ...state.profiles, [workspaceId]: nextProfile },
@@ -380,6 +558,10 @@ export const usePreferencesStore = create<PreferencesState>()(
             ...applyProfile(workspaceId, nextProfile),
           };
         });
+
+        if (key === "defaultFont") {
+          void updateUserEditorPreferences({ defaultFont: value as PreferencesProfile["editor"]["defaultFont"] });
+        }
       },
 
       updateProfilePreference: (key, value) => {
@@ -502,7 +684,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       syncWorkspace: (workspaceId) => {
         set((state) => {
-          const profile = normalizeProfile(state.profiles[workspaceId]);
+          const profile = applyAuthEditorPreferences(normalizeProfile(state.profiles[workspaceId]));
 
           return {
             profiles: state.profiles[workspaceId]
