@@ -5,7 +5,7 @@ import {
   isSupabaseAdminConfigured,
 } from "@/core/supabase/server-client";
 
-const DELETE_CONFIRM_PREFIX = "DELETE ";
+const DELETE_PHRASE = "delete my account";
 const USER_SCOPED_TABLES = [
   "ai_provider_keys",
   "ai_usage_logs",
@@ -25,10 +25,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => null)) as { confirmation?: string } | null;
-  const email = user.email?.trim();
-  const expectedConfirmation = `${DELETE_CONFIRM_PREFIX}${email ?? user.id}`;
 
-  if (body?.confirmation !== expectedConfirmation) {
+  if (body?.confirmation?.trim().toLowerCase() !== DELETE_PHRASE) {
     return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
   }
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
 export function SectionHeader({ title, description }: { title: string; description: string }) {
@@ -18,8 +19,8 @@ export function Row({
 }: {
   title: string;
   description?: string;
-  visualization?: React.ReactNode;
-  children: React.ReactNode;
+  visualization?: ReactNode;
+  children: ReactNode;
   disabled?: boolean;
 }) {
   return (
@@ -36,7 +37,7 @@ export function Row({
   );
 }
 
-export function SettingsCard({ children }: { children: React.ReactNode }) {
+export function SettingsCard({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-lg border border-border/60 bg-card/40 px-5 divide-y divide-border/50">
       {children}
@@ -44,7 +45,7 @@ export function SettingsCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function GroupLabel({ children }: { children: React.ReactNode }) {
+export function GroupLabel({ children }: { children: ReactNode }) {
   return (
     <div className="mb-2 mt-8 px-1 text-[10px] font-medium tracking-[0.14em] text-muted-foreground">
       {children}

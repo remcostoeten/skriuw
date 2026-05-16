@@ -35,6 +35,8 @@ export function AppearanceSection() {
         {THEMES.map((t) => (
           <button
             key={t.id}
+            type="button"
+            aria-pressed={appearance.theme === t.id}
             onClick={() => update("theme", t.id)}
             className={cn(
               "group rounded-lg border p-2 text-left transition-colors",
@@ -66,6 +68,8 @@ export function AppearanceSection() {
         {ACCENTS.map((c) => (
           <button
             key={c}
+            type="button"
+            aria-pressed={appearance.accentColor === c}
             onClick={() => update("accentColor", c)}
             className={cn(
               "size-7 rounded-full ring-offset-2 ring-offset-background transition-all",
