@@ -109,11 +109,12 @@ Copy the env template first:
 cp .env.example .env.local
 ```
 
-Set these client-safe env vars in `.env.local`:
+Set these Supabase env vars in `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 Supabase project notes:
@@ -122,6 +123,7 @@ Supabase project notes:
 - Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
 - Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
 - For Expo mobile OAuth, also allow `skriuw://auth/callback` as a redirect URL in Supabase Auth.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-only. It is required for account deletion and other admin-only server actions.
 - The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, `tags`, `ai_error_events`, `ai_provider_keys`, and `ai_usage_logs`, each scoped by `user_id` with RLS enabled.
 - Set `AI_KEYS_ENCRYPTION_SECRET` when you want profile-owned AI keys to be stored encrypted server-side.
 - Mobile now supports email/password plus Google and GitHub OAuth via Expo deep links.
