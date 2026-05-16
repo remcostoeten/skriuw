@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   createSupabaseAdminClient,
   getAuthenticatedUser,
+  isSupabaseAdminConfigured,
 } from "@/core/supabase/server-client";
 
 const DELETE_CONFIRM_PREFIX = "DELETE ";
@@ -31,20 +32,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
   }
 
-  const admin = (() => {
-    try {
-      return createSupabaseAdminClient();
-    } catch {
-      return null;
-    }
-  })();
-
-  if (!admin) {
+  if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Account deletion is not configured." },
-      { status: 500 },
+      {
+        error:
+          "Account deletion is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
+      },
+      { status: 503 },
     );
   }
+
+  const admin = createSupabaseAdminClient();
 
   for (const table of USER_SCOPED_TABLES) {
     const { error } = await admin.from(table).delete().eq("user_id", user.id);

@@ -20,29 +20,23 @@ describe("createProfileViewModel", () => {
   test("describes the signed-out account state and formats counts", () => {
     const viewModel = createProfileViewModel(buildAuthSnapshot(), 1, 2);
 
-    expect(viewModel.title).toBe("Workspace");
-    expect(viewModel.statusLabel).toBe("Signed out");
-    expect(viewModel.workspaceLabel).toBe("Account required");
-    expect(viewModel.isAuthenticated).toBe(false);
+    expect(viewModel.title).toBe("Profile");
+    expect(viewModel.subtitle).toBe("Sign in to sync your notes and journal.");
     expect(viewModel.identityRows).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: "User ID", value: "Unavailable" }),
-        expect.objectContaining({ label: "Workspace ID", value: "signed-out-local" }),
+        expect.objectContaining({ label: "Name", value: "Not signed in" }),
+        expect.objectContaining({ label: "Email", value: "Not signed in" }),
       ]),
     );
     expect(viewModel.metrics).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: "Notes", value: "1 note", hint: "Available after sign-in." }),
-        expect.objectContaining({
-          label: "Journal entries",
-          value: "2 entries",
-          hint: "Available after sign-in.",
-        }),
+        expect.objectContaining({ label: "Notes", value: "1 note" }),
+        expect.objectContaining({ label: "Journal entries", value: "2 entries" }),
       ]),
     );
   });
 
-  test("describes an authenticated cloud workspace", () => {
+  test("describes an authenticated profile", () => {
     const viewModel = createProfileViewModel(
       buildAuthSnapshot({
         phase: "authenticated",
@@ -59,14 +53,11 @@ describe("createProfileViewModel", () => {
     );
 
     expect(viewModel.title).toBe("User Name");
-    expect(viewModel.subtitle).toContain("cloud workspace profile");
-    expect(viewModel.statusLabel).toBe("Authenticated");
-    expect(viewModel.workspaceLabel).toBe("Cloud workspace");
-    expect(viewModel.isAuthenticated).toBe(true);
+    expect(viewModel.subtitle).toBe("user@example.com");
     expect(viewModel.identityRows).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ label: "Name", value: "User Name" }),
         expect.objectContaining({ label: "Email", value: "user@example.com" }),
-        expect.objectContaining({ label: "Workspace ID", value: "user-123" }),
       ]),
     );
     expect(viewModel.metrics).toEqual(
