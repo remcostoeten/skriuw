@@ -1,0 +1,1 @@
+export const DESKTOP_SIDEBAR_MIN_WIDTH = 248;

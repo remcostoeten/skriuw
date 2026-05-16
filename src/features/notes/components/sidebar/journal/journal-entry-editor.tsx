@@ -7,12 +7,17 @@ import { cn } from "@/shared/lib/utils";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import { useJournalEntry } from "@/features/journal/hooks/use-journal-entry";
 import { useJournalTags } from "@/features/journal/hooks/use-journal-tags";
+import { usePreferencesStore } from "@/features/settings/store";
+import {
+  getEditorLineHeightValue,
+} from "@/features/editor/lib/editor-line-height";
 
 type JournalEntryEditorProps = {
   selectedDate: Date;
 };
 
 export function JournalEntryEditor({ selectedDate }: JournalEntryEditorProps) {
+  const lineHeight = usePreferencesStore((s) => s.editor.lineHeight);
   const {
     content,
     setContent,
@@ -94,7 +99,8 @@ export function JournalEntryEditor({ selectedDate }: JournalEntryEditorProps) {
         value={content}
         onChange={(event) => setContent(event.target.value)}
         placeholder="Write a quick journal note..."
-        className="min-h-[180px] w-full resize-none rounded-2xl border border-border/40 bg-background/55 px-3 py-3 text-[13px] leading-6 text-foreground outline-none placeholder:text-muted-foreground/35"
+        className="min-h-[180px] w-full resize-none rounded-2xl border border-border/40 bg-background/55 px-3 py-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/35"
+        style={{ lineHeight: getEditorLineHeightValue(lineHeight) }}
       />
 
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/55">
