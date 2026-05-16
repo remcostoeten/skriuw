@@ -39,13 +39,29 @@ function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
 }
 
 function safeName(name: string): string {
-  return name.replace(/[/\\:*?"<>|]/g, "-").trim();
+  const sanitized = name.replace(/[/\\:*?"<>|]/g, "-").trim();
+  return sanitized || "untitled";
+}
+
+function yamlString(value: string): string {
+  // Wrap in double quotes and escape internal quotes and newlines
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+}
+
+function uniquePath(files: Record<string, Uint8Array>, desired: string): string {
+  if (!(desired in files)) return desired;
+  const dot = desired.lastIndexOf(".");
+  const base = dot !== -1 ? desired.slice(0, dot) : desired;
+  const ext = dot !== -1 ? desired.slice(dot) : "";
+  let i = 2;
+  while (`${base}-${i}${ext}` in files) i++;
+  return `${base}-${i}${ext}`;
 }
 
 function noteFrontmatter(note: NoteRow): string {
   const lines = ["---"];
   lines.push(`id: ${note.id}`);
-  if (note.tags?.length) lines.push(`tags: [${note.tags.map((t) => `"${t}"`).join(", ")}]`);
+  if (note.tags?.length) lines.push(`tags: [${note.tags.map(yamlString).join(", ")}]`);
   lines.push(`created: ${note.created_at}`);
   lines.push(`updated: ${note.updated_at}`);
   lines.push("---", "", "");
@@ -55,8 +71,8 @@ function noteFrontmatter(note: NoteRow): string {
 function journalFrontmatter(entry: JournalRow): string {
   const lines = ["---"];
   lines.push(`date: ${entry.date_key}`);
-  if (entry.mood) lines.push(`mood: ${entry.mood}`);
-  if (entry.tags?.length) lines.push(`tags: [${entry.tags.map((t) => `"${t}"`).join(", ")}]`);
+  if (entry.mood) lines.push(`mood: ${yamlString(entry.mood)}`);
+  if (entry.tags?.length) lines.push(`tags: [${entry.tags.map(yamlString).join(", ")}]`);
   lines.push("---", "", "");
   return lines.join("\n");
 }
@@ -90,14 +106,16 @@ export async function GET() {
   for (const note of (notesRes.data ?? []) as NoteRow[]) {
     const folderPath = note.parent_id ? folderPaths.get(note.parent_id) : undefined;
     const noteName = safeName(note.name.endsWith(".md") ? note.name : `${note.name}.md`);
-    const filePath = folderPath
+    const desired = folderPath
       ? `${root}/notes/${folderPath}/${noteName}`
       : `${root}/notes/${noteName}`;
+    const filePath = uniquePath(files, desired);
     files[filePath] = strToU8(noteFrontmatter(note) + note.content);
   }
 
   for (const entry of (journalRes.data ?? []) as JournalRow[]) {
-    const filePath = `${root}/journal/${entry.date_key}.md`;
+    const desired = `${root}/journal/${entry.date_key}.md`;
+    const filePath = uniquePath(files, desired);
     files[filePath] = strToU8(journalFrontmatter(entry) + entry.content);
   }
 
@@ -120,11 +138,12 @@ export async function GET() {
 
   const zip = zipSync(files);
 
-  return new Response(zip.buffer as ArrayBuffer, {
+  return new Response(zip, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="skriuw-export-${dateSlug}.zip"`,
       "Content-Length": String(zip.byteLength),
+      "Cache-Control": "no-store",
     },
   });
 }
