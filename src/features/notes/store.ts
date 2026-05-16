@@ -10,6 +10,7 @@ type LayoutUiState = {
   showSidebar: boolean;
   showMetadata: boolean;
   sidebarWidth: number;
+  selectedInspectorTag: string | null;
 };
 
 type NotesUiState = {
@@ -30,6 +31,7 @@ type NotesUiState = {
   expandAllFolders: (folderIds: string[]) => void;
   ui: LayoutUiState;
   setUIState: (updates: Partial<LayoutUiState>) => void;
+  setSelectedInspectorTag: (tag: string | null) => void;
   setSidebarWidth: (width: number) => void;
 };
 
@@ -53,6 +55,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
     showSidebar: true,
     showMetadata: true,
     sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
+    selectedInspectorTag: null,
   },
 
   resetWorkspace: () => {
@@ -66,6 +69,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
         showSidebar: true,
         showMetadata: true,
         sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
+        selectedInspectorTag: null,
       },
     });
   },
@@ -151,6 +155,12 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
   setUIState: (updates) => {
     set((state) => ({
       ui: { ...state.ui, ...updates },
+    }));
+  },
+
+  setSelectedInspectorTag: (tag) => {
+    set((state) => ({
+      ui: { ...state.ui, selectedInspectorTag: tag },
     }));
   },
 

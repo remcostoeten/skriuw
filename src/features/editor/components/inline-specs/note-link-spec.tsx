@@ -75,13 +75,14 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
           data-note-link-status={resolved.status}
           title={tooltip}
           className={cn(
-            "mx-[1px] inline-flex items-baseline rounded-[3px] px-1 text-[0.95em] font-medium align-baseline transition-colors",
+            "mx-[1px] inline-flex items-baseline rounded-[3px] border px-1 text-[0.95em] font-medium align-baseline transition-colors",
+            "border-border bg-popover text-popover-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40",
             isResolved
-              ? "bg-foreground/[0.08] text-foreground underline decoration-foreground/50 decoration-1 underline-offset-[3px] hover:bg-foreground/[0.14] hover:decoration-foreground cursor-pointer"
+              ? "underline decoration-foreground/50 decoration-1 underline-offset-[3px] hover:bg-foreground/[0.08] hover:decoration-foreground cursor-pointer"
               : resolved.status === "ambiguous"
-                ? "bg-amber-500/15 text-amber-400 underline decoration-amber-400/60 decoration-1 underline-offset-[3px] cursor-help"
-                : "bg-primary/10 text-primary underline decoration-primary/40 decoration-dashed decoration-1 underline-offset-[3px] hover:bg-primary/20 hover:decoration-primary/70 cursor-pointer",
+                ? "text-amber-400 underline decoration-amber-400/60 decoration-1 underline-offset-[3px] cursor-help"
+                : "text-primary underline decoration-primary/40 decoration-dashed decoration-1 underline-offset-[3px] hover:bg-primary/10 hover:decoration-primary/70 cursor-pointer",
           )}
         >
           {title || "untitled"}

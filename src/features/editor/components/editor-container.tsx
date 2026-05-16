@@ -15,6 +15,7 @@ import {
 } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
+import { normalizeNoteTitle } from "@/features/notes/lib/note-links";
 
 interface EditorContainerProps {
   file: NoteFile | null;
@@ -70,6 +71,12 @@ const AI_ERROR_TITLES: Partial<Record<AiErrorCode, string>> = {
   network_error: "Network error",
   rate_limited: "Gemini key rate limited",
 };
+
+function shouldRenameUntitledNote(fileName: string, title: string): boolean {
+  const currentName = normalizeNoteTitle(fileName);
+  const nextTitle = normalizeNoteTitle(title);
+  return currentName === "untitled" && nextTitle.length > 0 && nextTitle !== "untitled";
+}
 
 export function EditorContainer({
   file,
@@ -206,6 +213,17 @@ export function EditorContainer({
   const handleEditorReady = useCallback((handle: AiEditorHandle) => {
     aiHandleRef.current = handle;
   }, []);
+
+  const handleTitleCommit = useCallback(
+    (title: string) => {
+      if (!file || !onRenameFile || !shouldRenameUntitledNote(file.name, title)) {
+        return;
+      }
+
+      onRenameFile(file.id, title.trim());
+    },
+    [file, onRenameFile],
+  );
 
   const isMdx = isMdxNote(file);
   const effectiveEditorMode = isMdx ? "raw" : editorMode;
@@ -348,6 +366,7 @@ export function EditorContainer({
           onEditorReady={handleEditorReady}
           onAiSpellCheck={canUseAi ? () => runAiAction("spellCheck") : undefined}
           onAiContinueWriting={canUseAi ? () => runAiAction("continueWriting") : undefined}
+          onTitleCommit={handleTitleCommit}
         />
       </div>
     </div>
