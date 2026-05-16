@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { createSupabaseAdminClient } from "@/core/supabase/server-client";
-import { DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
+import { AI_MODELS, DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
 import type { AiProvider, AiProviderKeyStatus, AiProviderKeySummary } from "@/features/ai/types";
 import {
   decryptApiKey,
@@ -137,9 +137,11 @@ export async function getDecryptedAiProviderKey({
     .update({ last_used_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", keyId);
 
+  const rawProvider = (data as { provider?: AiProvider | "gemini" | null }).provider;
+
   return {
     apiKey: decryptApiKey((data as { encrypted_key: string }).encrypted_key),
-    provider: (data as { provider: AiProvider }).provider ?? "google",
+    provider: rawProvider === "gemini" ? "google" : (rawProvider ?? "google"),
     keyId,
   };
 }
@@ -156,8 +158,19 @@ export async function testStoredAiProviderKey({
   const stored = await getDecryptedAiProviderKey({ userId, keyId });
   if (!stored) return { ok: false, code: "not_found", message: "Key not found.", status: "error" };
 
-  const selectedModel = isAiModelId(model) ? model : DEFAULT_AI_MODEL;
   const provider = stored.provider;
+  const defaultModelForProvider = AI_MODELS.find((m) => m.provider === provider)?.id ?? DEFAULT_AI_MODEL;
+  const selectedModel = isAiModelId(model) ? model : defaultModelForProvider;
+
+  if (isAiModelId(model) && !model.startsWith(`${provider}.`)) {
+    return {
+      ok: false,
+      code: "provider_mismatch",
+      message: `The selected model requires a ${model.split(".")[0]} key but this key is for ${provider}.`,
+      status: "error",
+    };
+  }
+
   let status: AiProviderKeyStatus = "valid";
   let result: { ok: true } | { ok: false; code: string; message: string; status: AiProviderKeyStatus } = { ok: true };
 
@@ -175,7 +188,9 @@ export async function testStoredAiProviderKey({
       maxOutputTokens: 1,
     });
   } catch (error) {
-    const providerStatus = (error as { status?: number }).status ?? null;
+    const providerStatus =
+      (error as { status?: number }).status ??
+      ((error as { statusCode?: number }).statusCode ?? null);
     const message = error instanceof Error ? error.message : "Could not test key.";
     status =
       providerStatus === 429

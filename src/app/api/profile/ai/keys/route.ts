@@ -16,15 +16,20 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     label?: string;
     apiKey?: string;
-    provider?: "google" | "groq";
+    provider?: string;
   };
+
+  const provider = body.provider ?? "google";
+  if (provider !== "google" && provider !== "groq") {
+    return NextResponse.json({ error: "Unsupported provider." }, { status: 400 });
+  }
 
   try {
     const key = await createAiProviderKey({
       userId: user.id,
       label: body.label ?? "",
       apiKey: body.apiKey ?? "",
-      provider: body.provider ?? "google",
+      provider,
     });
     return NextResponse.json({ key }, { status: 201 });
   } catch (error) {
