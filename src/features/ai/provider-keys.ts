@@ -1,6 +1,9 @@
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
+import { generateText } from "ai";
 import { createSupabaseAdminClient } from "@/core/supabase/server-client";
-import { DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
-import type { AiProviderKeyStatus, AiProviderKeySummary } from "@/features/ai/types";
+import { AI_MODELS, DEFAULT_AI_MODEL, isAiModelId } from "@/features/ai/constants";
+import type { AiProvider, AiProviderKeyStatus, AiProviderKeySummary } from "@/features/ai/types";
 import {
   decryptApiKey,
   encryptApiKey,
@@ -12,7 +15,7 @@ import {
 
 type KeyRow = {
   id: string;
-  provider: "gemini";
+  provider: AiProvider;
   label: string;
   encrypted_key: string;
   key_preview: string;
@@ -25,7 +28,7 @@ type KeyRow = {
 
 type ProviderKeyInput = {
   userId: string;
-  provider?: "gemini";
+  provider?: AiProvider;
   label: string;
   apiKey: string;
 };
@@ -61,9 +64,10 @@ export async function createAiProviderKey(input: ProviderKeyInput): Promise<AiPr
   const label = normalizeLabel(input.label);
   const admin = createSupabaseAdminClient();
   const now = new Date().toISOString();
+  const provider = input.provider ?? "google";
   const row = {
     user_id: input.userId,
-    provider: input.provider ?? "gemini",
+    provider,
     label,
     encrypted_key: encryptApiKey(apiKey),
     key_preview: previewApiKey(apiKey),
@@ -116,7 +120,7 @@ export async function getDecryptedAiProviderKey({
 }: {
   userId: string;
   keyId: string;
-}): Promise<{ apiKey: string; provider: "gemini"; keyId: string } | null> {
+}): Promise<{ apiKey: string; provider: AiProvider; keyId: string } | null> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("ai_provider_keys")
@@ -133,9 +137,11 @@ export async function getDecryptedAiProviderKey({
     .update({ last_used_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", keyId);
 
+  const rawProvider = (data as { provider?: AiProvider | "gemini" | null }).provider;
+
   return {
     apiKey: decryptApiKey((data as { encrypted_key: string }).encrypted_key),
-    provider: "gemini",
+    provider: rawProvider === "gemini" ? "google" : (rawProvider ?? "google"),
     keyId,
   };
 }
@@ -152,27 +158,46 @@ export async function testStoredAiProviderKey({
   const stored = await getDecryptedAiProviderKey({ userId, keyId });
   if (!stored) return { ok: false, code: "not_found", message: "Key not found.", status: "error" };
 
-  const selectedModel = isAiModelId(model) ? model : DEFAULT_AI_MODEL;
+  const provider = stored.provider;
+  const defaultModelForProvider = AI_MODELS.find((m) => m.provider === provider)?.id ?? DEFAULT_AI_MODEL;
+  const selectedModel = isAiModelId(model) ? model : defaultModelForProvider;
+
+  if (isAiModelId(model) && !model.startsWith(`${provider}.`)) {
+    return {
+      ok: false,
+      code: "provider_mismatch",
+      message: `The selected model requires a ${model.split(".")[0]} key but this key is for ${provider}.`,
+      status: "error",
+    };
+  }
+
   let status: AiProviderKeyStatus = "valid";
   let result: { ok: true } | { ok: false; code: string; message: string; status: AiProviderKeyStatus } = { ok: true };
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}?key=${encodeURIComponent(stored.apiKey)}`,
-      { method: "GET" },
-    );
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as {
-        error?: { status?: string; message?: string };
-      };
-      throw Object.assign(new Error(data.error?.status ?? data.error?.message ?? response.statusText), {
-        status: response.status,
-      });
-    }
+    const providerInstance =
+      provider === "google"
+        ? createGoogleGenerativeAI({ apiKey: stored.apiKey })
+        : createGroq({ apiKey: stored.apiKey });
+
+    const modelName = selectedModel.includes(".") ? selectedModel.split(".").slice(1).join(".") : selectedModel;
+
+    await generateText({
+      model: providerInstance(modelName),
+      prompt: "test",
+      maxOutputTokens: 1,
+    });
   } catch (error) {
-    const providerStatus = (error as { status?: number }).status;
+    const providerStatus =
+      (error as { status?: number }).status ??
+      ((error as { statusCode?: number }).statusCode ?? null);
     const message = error instanceof Error ? error.message : "Could not test key.";
-    status = providerStatus === 429 ? "rate_limited" : providerStatus === 401 || providerStatus === 403 ? "invalid" : "error";
+    status =
+      providerStatus === 429
+        ? "rate_limited"
+        : providerStatus === 401 || providerStatus === 403
+          ? "invalid"
+          : "error";
     result = { ok: false, code: status, message, status };
   }
 

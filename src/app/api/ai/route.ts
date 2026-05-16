@@ -1,28 +1,45 @@
-import { GoogleGenAI } from "@google/genai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
+import { generateText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
 import {
+  ACTION_MODEL_DEFAULTS,
   DEFAULT_AI_MODEL,
   MAX_AI_CONTENT_CHARS,
+  getProviderFromModelId,
   isAiModelId,
   type AiModelId,
 } from "@/features/ai/constants";
 import type { AiAction } from "@/features/ai/service";
+import type { AiProvider } from "@/features/ai/types";
 import { getDecryptedAiProviderKey } from "@/features/ai/provider-keys";
 import { recordAiError, type AiErrorSource } from "@/features/ai/telemetry";
 import { recordAiUsage } from "@/features/ai/usage";
 import { readUsageMetadata } from "@/features/ai/usage-utils";
 import type { AiKeySource } from "@/features/ai/types";
 
-const SERVER_GEMINI_KEY = process.env.GEMINI_API_KEY;
-const serverGenai = SERVER_GEMINI_KEY ? new GoogleGenAI({ apiKey: SERVER_GEMINI_KEY }) : null;
+const SERVER_GOOGLE_KEY = process.env.GEMINI_API_KEY;
+const SERVER_GROQ_KEY = process.env.GROQ_API_KEY;
 
-const ACTION_DEFAULTS: Record<AiAction, string> = {
-  generateTitle: DEFAULT_AI_MODEL,
-  spellCheck: DEFAULT_AI_MODEL,
-  continueWriting: "gemini-2.5-pro",
-};
+function createProviderInstance(provider: AiProvider, apiKey: string) {
+  switch (provider) {
+    case "google":
+      return createGoogleGenerativeAI({ apiKey });
+    case "groq":
+      return createGroq({ apiKey });
+  }
+}
+
+function getServerProviderInstance(provider: AiProvider) {
+  switch (provider) {
+    case "google":
+      return SERVER_GOOGLE_KEY ? createGoogleGenerativeAI({ apiKey: SERVER_GOOGLE_KEY }) : null;
+    case "groq":
+      return SERVER_GROQ_KEY ? createGroq({ apiKey: SERVER_GROQ_KEY }) : null;
+  }
+}
 
 const PROMPTS: Record<AiAction, (content: string) => string> = {
   generateTitle: (content) =>
@@ -41,7 +58,7 @@ function readOptionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function classifyGeminiGenerationError(err: unknown): {
+function classifyProviderError(err: unknown, provider: AiProvider): {
   code: string;
   source: AiErrorSource;
   message: string;
@@ -52,13 +69,17 @@ function classifyGeminiGenerationError(err: unknown): {
 } {
   const rawMessage = err instanceof Error ? err.message : String(err);
   const msg = rawMessage.toLowerCase();
-  const providerStatus = (err as { status?: number }).status ?? null;
+  const providerStatus =
+    (err as { status?: number }).status ??
+    ((err as { statusCode?: number }).statusCode ?? null);
 
-  if (providerStatus === 429 || msg.includes("resource_exhausted") || msg.includes("quota")) {
+  const providerLabel = provider === "google" ? "Gemini" : provider === "groq" ? "Groq" : provider;
+
+  if (providerStatus === 429 || msg.includes("resource_exhausted") || msg.includes("quota") || msg.includes("rate_limit") || msg.includes("rate limit")) {
     return {
       code: "rate_limited",
       source: "rate_limit",
-      message: "The selected Gemini key is rate limited or out of quota.",
+      message: `The selected ${providerLabel} key is rate limited or out of quota.`,
       details: "Choose another saved key or wait for the provider quota window to reset.",
       status: 429,
       providerStatus,
@@ -66,35 +87,35 @@ function classifyGeminiGenerationError(err: unknown): {
     };
   }
 
-  if (providerStatus === 401 || msg.includes("api_key_invalid") || msg.includes("unauthenticated")) {
+  if (providerStatus === 401 || msg.includes("api_key_invalid") || msg.includes("unauthenticated") || msg.includes("invalid_api_key") || msg.includes("invalid x-api-key")) {
     return {
       code: "invalid_key",
       source: "provider",
-      message: "Gemini rejected the selected API key.",
-      details: "Re-test the key in Settings -> AI or replace it with a valid key.",
+      message: `${providerLabel} rejected the selected API key.`,
+      details: `Re-test the key in Settings -> AI or replace it with a valid key.`,
       status: 401,
       providerStatus,
       providerMessage: rawMessage,
     };
   }
 
-  if (providerStatus === 403 || msg.includes("permission_denied")) {
+  if (providerStatus === 403 || msg.includes("permission_denied") || msg.includes("forbidden")) {
     return {
       code: "forbidden",
       source: "provider",
-      message: "Gemini denied access for the selected key or model.",
-      details: "Check API key restrictions and whether the selected Gemini model is enabled.",
+      message: `${providerLabel} denied access for the selected key or model.`,
+      details: "Check API key restrictions and whether the selected model is enabled.",
       status: 403,
       providerStatus,
       providerMessage: rawMessage,
     };
   }
 
-  if (providerStatus === 404 || msg.includes("not_found") || msg.includes("not found")) {
+  if (providerStatus === 404 || msg.includes("not_found") || msg.includes("not found") || msg.includes("model_not_found")) {
     return {
       code: "model_not_found",
       source: "provider",
-      message: "Gemini could not find the selected model.",
+      message: `${providerLabel} could not find the selected model.`,
       details: "Switch to a supported model in Settings -> AI.",
       status: 404,
       providerStatus,
@@ -105,7 +126,7 @@ function classifyGeminiGenerationError(err: unknown): {
   return {
     code: "provider_error",
     source: "provider",
-    message: "Gemini returned an unexpected error.",
+    message: `${providerLabel} returned an unexpected error.`,
     details: "The provider request failed. The diagnostic event includes the provider status and message.",
     status: 502,
     providerStatus,
@@ -262,13 +283,14 @@ export async function POST(req: NextRequest) {
       code: "invalid_model",
       source: "validation",
       message: "The selected AI model is not supported.",
-      details: "Open Settings -> AI and choose one of the supported Gemini models.",
+      details: "Open Settings -> AI and choose one of the supported models.",
       status: 400,
       contentLength,
     });
   }
 
-  const model = (requestedModel as AiModelId | undefined) || ACTION_DEFAULTS[action as AiAction];
+  const model = (requestedModel as AiModelId | undefined) || ACTION_MODEL_DEFAULTS[action as AiAction] || DEFAULT_AI_MODEL;
+  const provider = getProviderFromModelId(model) ?? "google";
   let user: UserContext = null;
 
   const authResult = await getAuthenticatedUser().catch(() => ({ user: null }));
@@ -341,12 +363,34 @@ export async function POST(req: NextRequest) {
         contentLength,
       });
     }
+    if (storedKey.provider !== provider) {
+      return aiErrorResponse({
+        req,
+        user,
+        action,
+        model,
+        apiKey: null,
+        code: "provider_mismatch",
+        source: "validation",
+        message: `The saved key is for ${storedKey.provider} but the selected model requires ${provider}.`,
+        details: "Choose a key that matches the selected model's provider in Settings → AI.",
+        status: 400,
+        contentLength,
+      });
+    }
     apiKey = storedKey.apiKey;
     keySource = "user_key";
   }
 
-  const client = apiKey ? new GoogleGenAI({ apiKey }) : serverGenai;
-  if (!client) {
+  let providerInstance;
+  if (apiKey) {
+    providerInstance = createProviderInstance(provider, apiKey);
+  } else {
+    providerInstance = getServerProviderInstance(provider);
+  }
+
+  if (!providerInstance) {
+    const providerLabel = provider === "google" ? "GEMINI_API_KEY" : "GROQ_API_KEY";
     return aiErrorResponse({
       req,
       user,
@@ -356,19 +400,22 @@ export async function POST(req: NextRequest) {
       code: "server_not_configured",
       source: "config",
       message: "Server AI is not configured.",
-      details: "GEMINI_API_KEY is missing on the server. Add a personal key in Settings -> AI or configure the deployment.",
+      details: `${providerLabel} is missing on the server. Add a personal key in Settings -> AI or configure the deployment.`,
       status: 503,
       contentLength,
     });
   }
 
+  const modelName = model.includes(".") ? model.split(".").slice(1).join(".") : model;
+  const languageModel = providerInstance(modelName);
   const prompt = PROMPTS[action as AiAction](content);
 
   try {
-    const response = await client.models.generateContent({
-      model,
-      contents: prompt,
+    const response = await generateText({
+      model: languageModel,
+      prompt,
     });
+
     const usage = readUsageMetadata(response);
     await recordAiUsage({
       userId: user?.id,
@@ -382,10 +429,10 @@ export async function POST(req: NextRequest) {
       keySource,
       ...usage,
     });
-    return NextResponse.json({ result: (response.text ?? "").trim() });
+    return NextResponse.json({ result: response.text.trim() });
   } catch (err) {
     console.error(`[AI/${action}]`, err);
-    const classified = classifyGeminiGenerationError(err);
+    const classified = classifyProviderError(err, provider);
     await recordAiUsage({
       userId: user?.id,
       model,
