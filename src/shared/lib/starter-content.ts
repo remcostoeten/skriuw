@@ -124,7 +124,7 @@ This is not a brochure. It is a note you can edit, fold, break, rename, link, an
 ## Try the surface
 
 - Type \`/\` on a blank line to add headings, lists, code blocks, and more.
-- Type \`[[\` to connect notes. This one is meant to link nicely with [[Idea board]] and [[Research brief - local-first notes]].
+- Type \`@\` to connect notes. This one is meant to link nicely with [[Idea board]] and [[Research brief - local-first notes]].
 - Drag blocks by the handle, or just write like normal markdown and let the editor keep up.
 - Open the metadata panel and move this note between folders.
 
@@ -140,7 +140,7 @@ This is not a brochure. It is a note you can edit, fold, break, rename, link, an
 
 ## A quick map
 
-\`\`\`text
+\`\`\`filetree
 Skriuw starter workspace
 |-- Start here - editor field guide.md
 |-- Product Studio/

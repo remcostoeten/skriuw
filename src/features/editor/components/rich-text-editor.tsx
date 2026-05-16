@@ -1,20 +1,49 @@
 "use client";
 
 import { useEffect, useMemo, useCallback, useId, useRef, useState } from "react";
-import { filterSuggestionItems } from "@blocknote/core/extensions";
+import type { CSSProperties } from "react";
 import {
+  filterSuggestionItems,
+  insertOrUpdateBlockForSlashMenu,
+  SuggestionMenu as SuggestionMenuExtension,
+} from "@blocknote/core/extensions";
+import { LinkToolbarExtension } from "@blocknote/core/extensions";
+import {
+  DeleteLinkButton,
+  EditLinkButton,
+  FormattingToolbar,
+  FormattingToolbarController,
+  getFormattingToolbarItems,
   getDefaultReactSlashMenuItems,
+  LinkToolbarController,
+  OpenLinkButton,
   SuggestionMenuController,
   type DefaultReactSuggestionItem,
+  type LinkToolbarProps,
   type SuggestionMenuProps,
+  useBlockNoteEditor,
+  useComponentsContext,
   useCreateBlockNote,
+  useEditorState,
+  useExtension,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
-import { PenTool, SpellCheck } from "lucide-react";
+import { FileText, FolderTree, PenTool, SpellCheck } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
+import {
+  getEditorFontFamily,
+  type EditorFontId,
+} from "@/shared/lib/editor-fonts";
+import {
+  getEditorLineHeightValue,
+  type EditorLineHeight,
+} from "@/features/editor/lib/editor-line-height";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/features/notes/lib/note-links";
+import { useNotesStore } from "@/features/notes/store";
+import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import {
   cloneRichDocument,
   flattenInlineChips,
@@ -33,6 +62,8 @@ interface RichTextEditorProps {
   richContent?: RichTextDocument;
   files?: NoteFile[];
   activeFileId?: string;
+  editorFontId: EditorFontId;
+  editorLineHeight: EditorLineHeight;
   onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
   onEditorReady?: (handle: AiEditorHandle) => void;
   onAiSpellCheck?: () => void;
@@ -41,6 +72,7 @@ interface RichTextEditorProps {
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
   try {
+    await Promise.resolve();
     const flattened = flattenInlineChips(editor.document);
     // biome-ignore lint/suspicious/noExplicitAny: blocksToMarkdownLossy accepts schema-shaped blocks
     const markdown = await editor.blocksToMarkdownLossy(flattened as any);
@@ -134,7 +166,7 @@ function KeyboardAccessibleSlashMenu({
       role="listbox"
       aria-label="Editor suggestions"
       aria-activedescendant={`${menuId}-item-${activeIndex}`}
-      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-card p-1 shadow-xl"
+      className="bn-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl"
     >
       {items.map((item, index) => (
         <button
@@ -147,17 +179,21 @@ function KeyboardAccessibleSlashMenu({
           onMouseEnter={() => setActiveIndex(index)}
           onClick={() => onItemClick?.(item)}
           className={cn(
-            "flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+            "flex w-full items-start gap-3 rounded-[4px] px-2.5 py-1.5 text-left transition-colors",
             index === activeIndex
               ? "bg-accent text-accent-foreground"
-              : "text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none",
+              : "text-popover-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none",
           )}
         >
-          {item.icon ? <span className="mt-0.5 shrink-0 text-muted-foreground">{item.icon}</span> : null}
+          {item.icon ? (
+            <span className="mt-0.5 shrink-0 text-muted-foreground">{item.icon}</span>
+          ) : null}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{item.title}</span>
             {item.subtext ? (
-              <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.subtext}</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {item.subtext}
+              </span>
             ) : null}
           </span>
           {item.badge ? (
@@ -168,6 +204,220 @@ function KeyboardAccessibleSlashMenu({
         </button>
       ))}
     </div>
+  );
+}
+
+function NoteLinkMenuList({
+  files,
+  activeFileId,
+  onSelect,
+}: {
+  files: NoteFile[];
+  activeFileId?: string;
+  onSelect: (file: NoteFile) => void;
+}) {
+  const noteItems = files.filter((file) => file.id !== activeFileId).slice(0, 12);
+
+  if (noteItems.length === 0) {
+    return <p className="px-3 py-2 text-xs text-muted-foreground">No other notes available.</p>;
+  }
+
+  return (
+    <div className="max-h-64 min-w-56 overflow-y-auto p-1">
+      {noteItems.map((file) => (
+        <button
+          key={file.id}
+          type="button"
+          onClick={() => onSelect(file)}
+          className="flex min-h-8 w-full items-center gap-2 rounded-[4px] px-2 text-left text-xs text-foreground/82 transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:outline-none"
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.6} />
+          <span className="min-w-0 flex-1 truncate">{getNoteTitle(file)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InternalNoteLinkButton({
+  files,
+  activeFileId,
+}: {
+  files: NoteFile[];
+  activeFileId?: string;
+}) {
+  const editor = useBlockNoteEditor<any, any, any>();
+  const Components = useComponentsContext()!;
+  const [open, setOpen] = useState(false);
+
+  const state = useEditorState({
+    editor,
+    selector: ({ editor }) => {
+      if (
+        !editor.isEditable ||
+        !(editor.getSelection?.()?.blocks || [editor.getTextCursorPosition?.().block]).find(
+          (block: { content?: unknown }) => block.content !== undefined,
+        )
+      ) {
+        return undefined;
+      }
+
+      return {
+        selectedText: editor.getSelectedText?.() ?? "",
+      };
+    },
+  });
+
+  if (state === undefined) {
+    return null;
+  }
+
+  return (
+    <Components.Generic.Popover.Root open={open} onOpenChange={setOpen}>
+      <Components.Generic.Popover.Trigger>
+        <Components.FormattingToolbar.Button
+          className="bn-button"
+          label="Link note"
+          mainTooltip="Link selected text to another note"
+          icon={<FileText />}
+          isSelected={false}
+          onClick={() => setOpen((current) => !current)}
+        />
+      </Components.Generic.Popover.Trigger>
+      <Components.Generic.Popover.Content className="bn-popover-content" variant="form-popover">
+        <NoteLinkMenuList
+          files={files}
+          activeFileId={activeFileId}
+          onSelect={(targetFile) => {
+            const title = getNoteTitle(targetFile);
+            editor.focus();
+            editor.createLink(`note://${targetFile.id}`, state.selectedText.trim() || title);
+            setOpen(false);
+          }}
+        />
+      </Components.Generic.Popover.Content>
+    </Components.Generic.Popover.Root>
+  );
+}
+
+function CustomFormattingToolbar({
+  files,
+  activeFileId,
+}: {
+  files: NoteFile[];
+  activeFileId?: string;
+}) {
+  return (
+    <FormattingToolbar>
+      {getFormattingToolbarItems()}
+      <InternalNoteLinkButton files={files} activeFileId={activeFileId} />
+    </FormattingToolbar>
+  );
+}
+
+function LinkKindBadge({ url }: { url: string }) {
+  const isInternal = url.startsWith("note://");
+  return (
+    <span className="mx-1 inline-flex h-7 items-center rounded-[4px] border border-border/80 px-2 text-[11px] font-medium text-muted-foreground">
+      {isInternal ? "Internal" : "External"}
+    </span>
+  );
+}
+
+function ConvertLinkToNoteButton({
+  files,
+  activeFileId,
+  text,
+  range,
+  setToolbarOpen,
+}: Pick<LinkToolbarProps, "text" | "range" | "setToolbarOpen"> & {
+  files: NoteFile[];
+  activeFileId?: string;
+}) {
+  const Components = useComponentsContext()!;
+  const { editLink } = useExtension(LinkToolbarExtension);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Components.Generic.Popover.Root open={open} onOpenChange={setOpen}>
+      <Components.Generic.Popover.Trigger>
+        <Components.LinkToolbar.Button
+          className="bn-button"
+          label="Link note"
+          mainTooltip="Point this link at another note"
+          icon={<FileText />}
+          isSelected={false}
+          onClick={() => setOpen((current) => !current)}
+        />
+      </Components.Generic.Popover.Trigger>
+      <Components.Generic.Popover.Content className="bn-popover-content" variant="form-popover">
+        <NoteLinkMenuList
+          files={files}
+          activeFileId={activeFileId}
+          onSelect={(targetFile) => {
+            editLink(
+              `note://${targetFile.id}`,
+              text.trim() || getNoteTitle(targetFile),
+              range.from,
+            );
+            setOpen(false);
+            setToolbarOpen?.(false);
+          }}
+        />
+      </Components.Generic.Popover.Content>
+    </Components.Generic.Popover.Root>
+  );
+}
+
+function CustomLinkToolbar(
+  props: LinkToolbarProps & {
+    files: NoteFile[];
+    activeFileId?: string;
+  },
+) {
+  const Components = useComponentsContext()!;
+  const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+  const internalNoteId = props.url.startsWith("note://")
+    ? props.url.replace(/^note:\/\//, "")
+    : null;
+
+  return (
+    <Components.LinkToolbar.Root className="bn-toolbar bn-link-toolbar">
+      <LinkKindBadge url={props.url} />
+      <EditLinkButton
+        url={props.url}
+        text={props.text}
+        range={props.range}
+        setToolbarOpen={props.setToolbarOpen}
+        setToolbarPositionFrozen={props.setToolbarPositionFrozen}
+      />
+      <ConvertLinkToNoteButton
+        files={props.files}
+        activeFileId={props.activeFileId}
+        text={props.text}
+        range={props.range}
+        setToolbarOpen={props.setToolbarOpen}
+      />
+      {internalNoteId ? (
+        <Components.LinkToolbar.Button
+          className="bn-button"
+          label="Open note"
+          mainTooltip="Open linked note"
+          icon={<FileText />}
+          isSelected={false}
+          onClick={() => {
+            setActiveFileId(internalNoteId);
+            const url = new URL(window.location.href);
+            url.searchParams.set("note", internalNoteId);
+            window.history.pushState({}, "", url.toString());
+            props.setToolbarOpen?.(false);
+          }}
+        />
+      ) : (
+        <OpenLinkButton url={props.url} />
+      )}
+      <DeleteLinkButton range={props.range} setToolbarOpen={props.setToolbarOpen} />
+    </Components.LinkToolbar.Root>
   );
 }
 
@@ -183,6 +433,19 @@ function insertNoteLinkChip(editor: EditorInstance, title: string) {
   if (!trimmed) return;
   // biome-ignore lint/suspicious/noExplicitAny: custom inline content type
   editor.insertInlineContent([{ type: "noteLink", props: { title: trimmed } } as any, " "]);
+}
+
+function openNoteMentionMenu(editor: EditorInstance) {
+  const suggestionMenu = editor.getExtension?.(SuggestionMenuExtension);
+  if (!suggestionMenu) {
+    editor.insertInlineContent("@", { updateSelection: true });
+    return;
+  }
+
+  suggestionMenu.openSuggestionMenu("@", {
+    deleteTriggerCharacter: true,
+    ignoreQueryLength: true,
+  });
 }
 
 function getTagMenuItems(
@@ -224,8 +487,10 @@ function getNoteMentionMenuItems(
   editor: EditorInstance,
   files: NoteFile[],
   activeFileId: string | undefined,
+  query: string,
+  onCreate: (title: string) => void,
 ): DefaultReactSuggestionItem[] {
-  return files
+  const existingItems: DefaultReactSuggestionItem[] = files
     .filter((file) => file.id !== activeFileId)
     .map((file) => {
       const title = getNoteTitle(file);
@@ -239,24 +504,35 @@ function getNoteMentionMenuItems(
         },
       };
     });
+
+  const filtered = filterSuggestionItems(existingItems, query);
+  const trimmedQuery = query.trim();
+  const hasExactMatch = trimmedQuery.length > 0
+    && existingItems.some((item) => item.title.toLowerCase() === trimmedQuery.toLowerCase());
+
+  if (trimmedQuery.length > 0 && !hasExactMatch) {
+    return [
+      ...filtered,
+      {
+        title: trimmedQuery,
+        subtext: "Create new note and link",
+        group: "Create",
+        onItemClick: () => {
+          onCreate(trimmedQuery);
+          insertNoteLinkChip(editor, trimmedQuery);
+        },
+      },
+    ];
+  }
+
+  return filtered;
 }
 
 function getCustomSlashMenuItems(
   editor: EditorInstance,
-  files: NoteFile[],
-  activeFileId: string | undefined,
   onAiSpellCheck?: () => void,
   onAiContinueWriting?: () => void,
 ): DefaultReactSuggestionItem[] {
-  const noteItems = getNoteMentionMenuItems(editor, files, activeFileId)
-    .slice(0, 8)
-    .map((item) => ({
-      ...item,
-      title: `Link ${item.title}`,
-      aliases: ["mention", "backlink", "link note", item.title],
-      group: "Connect",
-    }));
-
   const aiItems: DefaultReactSuggestionItem[] =
     onAiSpellCheck && onAiContinueWriting
       ? [
@@ -282,6 +558,20 @@ function getCustomSlashMenuItems(
   return [
     ...getDefaultReactSlashMenuItems(editor),
     {
+      title: "File tree",
+      aliases: ["tree", "folder", "files", "map", "directory"],
+      group: "Structure",
+      icon: <FolderTree size={16} />,
+      subtext: "Insert a readable workspace map",
+      onItemClick: () => {
+        insertOrUpdateBlockForSlashMenu(editor, {
+          type: "fileTree",
+          props: { source: DEFAULT_FILE_TREE_SOURCE },
+          // biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+        } as any);
+      },
+    },
+    {
       title: "Tag",
       aliases: ["tag", "label", "hash"],
       group: "Connect",
@@ -294,12 +584,11 @@ function getCustomSlashMenuItems(
       title: "Link note",
       aliases: ["mention", "backlink", "wiki"],
       group: "Connect",
-      subtext: "Insert a note link",
+      subtext: "Mention another note",
       onItemClick: () => {
-        editor.insertInlineContent("[[", { updateSelection: true });
+        openNoteMentionMenu(editor);
       },
     },
-    ...noteItems,
     ...aiItems,
   ];
 }
@@ -309,6 +598,8 @@ export function RichTextEditor({
   richContent,
   files = [],
   activeFileId,
+  editorFontId,
+  editorLineHeight,
   onChange,
   onEditorReady,
   onAiSpellCheck,
@@ -321,20 +612,55 @@ export function RichTextEditor({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serializeRunIdRef = useRef(0);
 
-  const initialBlocks = useMemo(
-    () => {
-      const base =
-        richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content);
-      return upgradeRichDocumentChips(base);
-    },
-    [],
-  );
+  const initialBlocks = useMemo(() => {
+    const base =
+      richContent && richContent.length > 0 ? richContent : markdownToRichDocument(content);
+    return upgradeRichDocumentChips(base);
+  }, []);
 
   const editor = useCreateBlockNote({
     schema: editorSchema,
     initialContent: initialBlocks,
   });
   const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
+  const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+  const createNote = useCreateNote();
+
+  const handleCreateNoteFromMention = useCallback(
+    (title: string) => {
+      createNote.mutate({
+        name: title,
+        content: `# ${title}\n\n`,
+      });
+    },
+    [createNote],
+  );
+
+  useEffect(() => {
+    const domElement = editor.domElement;
+    if (!domElement) return;
+
+    const handleInternalLinkClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const anchor = target.closest<HTMLAnchorElement>('a[href^="note://"]');
+      if (!anchor) return;
+
+      const noteId = anchor.getAttribute("href")?.replace(/^note:\/\//, "");
+      if (!noteId) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveFileId(noteId);
+      const url = new URL(window.location.href);
+      url.searchParams.set("note", noteId);
+      window.history.pushState({}, "", url.toString());
+    };
+
+    domElement.addEventListener("click", handleInternalLinkClick);
+    return () => domElement.removeEventListener("click", handleInternalLinkClick);
+  }, [editor.domElement, setActiveFileId]);
 
   useEffect(() => {
     if (!onEditorReady) return;
@@ -413,27 +739,41 @@ export function RichTextEditor({
   }, []);
 
   return (
-    <div className="blocknote-wrapper h-full min-h-full px-6 py-3">
+    <div
+      className="blocknote-wrapper h-full min-h-full px-6 py-3"
+      style={
+        {
+          "--bn-font-family": getEditorFontFamily(editorFontId),
+          "--skriuw-editor-line-height": getEditorLineHeightValue(editorLineHeight),
+        } as CSSProperties
+      }
+    >
       <NoteLinkProvider files={files} activeFileId={activeFileId}>
         <BlockNoteView
           editor={editor}
           onChange={handleEditorChange}
           theme="dark"
           className="h-full"
+          formattingToolbar={false}
+          linkToolbar={false}
           slashMenu={false}
         >
+          <FormattingToolbarController
+            formattingToolbar={() => (
+              <CustomFormattingToolbar files={files} activeFileId={activeFileId} />
+            )}
+          />
+          <LinkToolbarController
+            linkToolbar={(props) => (
+              <CustomLinkToolbar {...props} files={files} activeFileId={activeFileId} />
+            )}
+          />
           <SuggestionMenuController
             triggerCharacter="/"
             suggestionMenuComponent={KeyboardAccessibleSlashMenu}
             getItems={async (query) =>
               filterSuggestionItems(
-                getCustomSlashMenuItems(
-                  editor,
-                  files,
-                  activeFileId,
-                  onAiSpellCheck,
-                  onAiContinueWriting,
-                ),
+                getCustomSlashMenuItems(editor, onAiSpellCheck, onAiContinueWriting),
                 query,
               )
             }
@@ -442,7 +782,13 @@ export function RichTextEditor({
             triggerCharacter="@"
             suggestionMenuComponent={KeyboardAccessibleSlashMenu}
             getItems={async (query) =>
-              filterSuggestionItems(getNoteMentionMenuItems(editor, files, activeFileId), query)
+              getNoteMentionMenuItems(
+                editor,
+                files,
+                activeFileId,
+                query,
+                handleCreateNoteFromMention,
+              )
             }
           />
           <SuggestionMenuController
@@ -466,7 +812,6 @@ export function RichTextEditor({
           --bn-colors-disabled-text: hsl(220 8% 40%);
           --bn-colors-border: hsl(220 10% 15%);
           --bn-colors-side-menu: hsl(220 8% 40%);
-          --bn-font-family: "Inter", system-ui, -apple-system, sans-serif;
           height: 100%;
           min-height: 100%;
           background: hsl(var(--card));
@@ -489,11 +834,17 @@ export function RichTextEditor({
           min-height: 100%;
           background: hsl(var(--card)) !important;
         }
+        .blocknote-wrapper .bn-editor,
+        .blocknote-wrapper .bn-block-content,
+        .blocknote-wrapper .bn-inline-content {
+          font-family: var(--bn-font-family);
+        }
         .blocknote-wrapper .bn-block-content {
           font-size: 0.9375rem;
-          line-height: 1.7;
+          line-height: var(--skriuw-editor-line-height);
         }
         .blocknote-wrapper [data-content-type="heading"] {
+          line-height: 1.15;
           margin-top: 0.5rem;
           margin-bottom: 0.35rem;
         }
@@ -507,29 +858,83 @@ export function RichTextEditor({
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
+        .blocknote-wrapper .bn-inline-content a {
+          color: hsl(205 92% 72%);
+          text-decoration-line: underline;
+          text-decoration-color: hsl(205 92% 72% / 0.42);
+          text-decoration-thickness: 1px;
+          text-underline-offset: 0.26em;
+          transition:
+            color 120ms ease,
+            text-decoration-color 120ms ease;
+        }
+        .blocknote-wrapper .bn-inline-content a:hover {
+          color: hsl(205 100% 82%);
+          text-decoration-color: hsl(205 100% 82% / 0.72);
+        }
+        .blocknote-wrapper .bn-inline-content a:focus-visible {
+          border-radius: 0.2rem;
+          outline: 1px solid hsl(var(--ring));
+          outline-offset: 2px;
+        }
+        .blocknote-wrapper .bn-inline-content a[href^="note://"] {
+          color: hsl(154 72% 66%);
+          text-decoration-color: hsl(154 72% 66% / 0.36);
+        }
+        .blocknote-wrapper .bn-inline-content a[href^="note://"]:hover {
+          color: hsl(154 82% 76%);
+          text-decoration-color: hsl(154 82% 76% / 0.72);
+        }
+        .blocknote-wrapper .bn-inline-content a[href^="note://"]::before {
+          content: "";
+          display: inline-block;
+          width: 0.42em;
+          height: 0.42em;
+          margin-right: 0.28em;
+          border-radius: 999px;
+          background: currentColor;
+          opacity: 0.76;
+          vertical-align: 0.08em;
+        }
+        .blocknote-wrapper .bn-inline-content a[href^="http://"]::after,
+        .blocknote-wrapper .bn-inline-content a[href^="https://"]::after {
+          content: "";
+          display: inline-block;
+          width: 0.42em;
+          height: 0.42em;
+          margin-left: 0.24em;
+          border-top: 1px solid currentColor;
+          border-right: 1px solid currentColor;
+          opacity: 0.7;
+          transform: translateY(-0.14em) rotate(45deg);
+        }
         .blocknote-wrapper [data-note-link],
         .blocknote-wrapper [data-note-tag] {
           user-select: none;
           white-space: nowrap;
         }
+        .blocknote-wrapper .bn-suggestion-decorator {
+          border-radius: 0.2rem;
+          background: hsl(220 14% 18%);
+          box-shadow: 0 0 0 1px hsl(220 12% 28%);
+        }
         .blocknote-wrapper .bn-toolbar {
           min-height: 2rem;
-          background: hsl(220 18% 8%) !important;
-          border: 1px solid hsl(220 10% 18%) !important;
-          box-shadow:
-            0 10px 30px rgba(0, 0, 0, 0.35),
-            0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+          background: hsl(var(--popover)) !important;
+          border: 1px solid hsl(var(--border)) !important;
+          color: hsl(var(--popover-foreground)) !important;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
           padding: 1px;
           gap: 1px;
-          border-radius: 0.5rem;
+          border-radius: var(--radius);
         }
         .blocknote-wrapper .bn-toolbar .mantine-Button-root,
         .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root {
           min-height: 1.75rem;
           height: 1.75rem;
           background: transparent !important;
-          color: hsl(220 10% 82%) !important;
-          border-radius: 0.4rem;
+          color: hsl(var(--popover-foreground)) !important;
+          border-radius: calc(var(--radius) - 2px);
         }
         .blocknote-wrapper .bn-toolbar .mantine-Button-root {
           padding-left: 0.45rem;
@@ -546,14 +951,14 @@ export function RichTextEditor({
         .blocknote-wrapper .bn-toolbar .mantine-Button-root:hover,
         .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root:hover,
         .blocknote-wrapper .bn-toolbar .mantine-UnstyledButton-root:hover {
-          background: hsl(220 12% 15%) !important;
-          color: hsl(220 14% 94%) !important;
+          background: hsl(var(--accent)) !important;
+          color: hsl(var(--foreground)) !important;
         }
         .blocknote-wrapper .bn-toolbar .mantine-Button-root[data-active="true"],
         .blocknote-wrapper .bn-toolbar .mantine-ActionIcon-root[data-active="true"],
         .blocknote-wrapper .bn-toolbar .mantine-UnstyledButton-root[data-active="true"] {
-          background: hsl(220 14% 18%) !important;
-          color: hsl(220 14% 96%) !important;
+          background: hsl(var(--muted)) !important;
+          color: hsl(var(--foreground)) !important;
         }
         .blocknote-wrapper .bn-toolbar svg {
           width: 0.82rem;
@@ -567,19 +972,179 @@ export function RichTextEditor({
         .blocknote-wrapper .bn-toolbar .mantine-Menu-dropdown,
         .blocknote-wrapper .bn-toolbar .mantine-Popover-dropdown,
         .blocknote-wrapper .bn-toolbar .mantine-Tooltip-tooltip {
-          background: hsl(220 18% 8%) !important;
-          border: 1px solid hsl(220 10% 18%) !important;
-          color: hsl(220 10% 82%) !important;
-          box-shadow:
-            0 16px 36px rgba(0, 0, 0, 0.42),
-            0 0 0 1px rgba(255, 255, 255, 0.03) inset !important;
+          background: hsl(var(--popover)) !important;
+          border: 1px solid hsl(var(--border)) !important;
+          color: hsl(var(--popover-foreground)) !important;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42) !important;
           backdrop-filter: none !important;
         }
         .blocknote-wrapper .bn-toolbar .mantine-Menu-item:hover,
         .blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-hovered],
         .blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-selected] {
-          background: hsl(220 12% 15%) !important;
-          color: hsl(220 14% 94%) !important;
+          background: hsl(var(--accent)) !important;
+          color: hsl(var(--foreground)) !important;
+        }
+        .blocknote-wrapper .skriuw-file-tree {
+          --skriuw-file-tree-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+          width: min(100%, 42rem);
+          overflow: hidden;
+          border: 1px solid hsl(220 10% 18%);
+          border-radius: 0.5rem;
+          background: hsl(220 16% 7%);
+          color: hsl(220 10% 82%);
+          box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03);
+        }
+        .blocknote-wrapper .skriuw-file-tree__header {
+          display: flex;
+          min-height: 2.75rem;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          border-bottom: 1px solid hsl(220 10% 15%);
+          padding: 0.5rem 0.625rem 0.5rem 0.75rem;
+        }
+        .blocknote-wrapper .skriuw-file-tree__title-wrap {
+          display: flex;
+          min-width: 0;
+          align-items: center;
+          gap: 0.55rem;
+        }
+        .blocknote-wrapper .skriuw-file-tree__header-icon,
+        .blocknote-wrapper .skriuw-file-tree__icon {
+          flex: 0 0 auto;
+          color: hsl(220 8% 56%);
+        }
+        .blocknote-wrapper .skriuw-file-tree__title {
+          margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.8125rem;
+          font-weight: 600;
+          line-height: 1.25;
+          color: hsl(220 14% 90%);
+        }
+        .blocknote-wrapper .skriuw-file-tree__meta {
+          margin: 0.1rem 0 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.6875rem;
+          line-height: 1.2;
+          color: hsl(220 8% 48%);
+        }
+        .blocknote-wrapper .skriuw-file-tree__actions {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          gap: 0.125rem;
+        }
+        .blocknote-wrapper .skriuw-file-tree__icon-button {
+          display: inline-flex;
+          height: 1.75rem;
+          width: 1.75rem;
+          align-items: center;
+          justify-content: center;
+          border: 0;
+          border-radius: 0.375rem;
+          background: transparent;
+          color: hsl(220 8% 56%);
+          transition:
+            background-color 140ms var(--skriuw-file-tree-ease-out),
+            color 140ms var(--skriuw-file-tree-ease-out),
+            transform 140ms var(--skriuw-file-tree-ease-out);
+        }
+        .blocknote-wrapper .skriuw-file-tree__icon-button:active {
+          transform: scale(0.97);
+        }
+        .blocknote-wrapper .skriuw-file-tree__icon-button:focus-visible,
+        .blocknote-wrapper .skriuw-file-tree__row:focus-visible {
+          outline: 1px solid hsl(var(--ring));
+          outline-offset: -1px;
+        }
+        .blocknote-wrapper .skriuw-file-tree__body {
+          padding: 0.375rem;
+        }
+        .blocknote-wrapper .skriuw-file-tree__row {
+          display: flex;
+          width: 100%;
+          min-height: 1.75rem;
+          align-items: center;
+          gap: 0.375rem;
+          border: 0;
+          border-radius: 0.375rem;
+          background: transparent;
+          color: hsl(220 10% 78%);
+          padding: 0.125rem 0.5rem 0.125rem calc(0.375rem + var(--depth, 0) * 1.125rem);
+          text-align: left;
+          transition:
+            background-color 140ms var(--skriuw-file-tree-ease-out),
+            color 140ms var(--skriuw-file-tree-ease-out),
+            transform 140ms var(--skriuw-file-tree-ease-out);
+        }
+        .blocknote-wrapper .skriuw-file-tree__row--folder {
+          cursor: pointer;
+          font: inherit;
+        }
+        .blocknote-wrapper .skriuw-file-tree__row--folder:active {
+          transform: scale(0.997);
+        }
+        .blocknote-wrapper .skriuw-file-tree__toggle {
+          display: inline-flex;
+          width: 0.875rem;
+          flex: 0 0 0.875rem;
+          align-items: center;
+          justify-content: center;
+          color: hsl(220 8% 44%);
+        }
+        .blocknote-wrapper .skriuw-file-tree__chevron {
+          transition: transform 150ms var(--skriuw-file-tree-ease-out);
+        }
+        .blocknote-wrapper .skriuw-file-tree__chevron.is-open {
+          transform: rotate(90deg);
+        }
+        .blocknote-wrapper .skriuw-file-tree__name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+          font-size: 0.78rem;
+          line-height: 1.35;
+        }
+        .blocknote-wrapper .skriuw-file-tree__editor {
+          display: block;
+          width: calc(100% - 0.75rem);
+          min-height: 16rem;
+          resize: vertical;
+          border: 1px solid hsl(220 10% 16%);
+          border-radius: 0.375rem;
+          background: hsl(220 16% 5%);
+          color: hsl(220 10% 84%);
+          font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+          font-size: 0.75rem;
+          line-height: 1.65;
+          margin: 0.375rem;
+          padding: 0.625rem 0.75rem;
+          outline: none;
+        }
+        .blocknote-wrapper .skriuw-file-tree__editor:focus {
+          border-color: hsl(220 10% 26%);
+          box-shadow: 0 0 0 1px hsl(220 10% 26%);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .blocknote-wrapper .skriuw-file-tree__icon-button:hover,
+          .blocknote-wrapper .skriuw-file-tree__row--folder:hover {
+            background: hsl(220 12% 13%);
+            color: hsl(220 14% 92%);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .blocknote-wrapper .skriuw-file-tree__icon-button,
+          .blocknote-wrapper .skriuw-file-tree__row,
+          .blocknote-wrapper .skriuw-file-tree__chevron {
+            transition-duration: 0ms;
+          }
         }
         .blocknote-wrapper pre,
         .blocknote-wrapper pre code,

@@ -3,6 +3,7 @@
 import { createReactInlineContentSpec } from "@blocknote/react";
 import { useNotesStore } from "@/features/notes/store";
 import { resolveNoteLink, type NoteLink } from "@/features/notes/lib/note-links";
+import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { cn } from "@/shared/lib/utils";
 import { useNoteLinkContext } from "./note-link-context";
 
@@ -15,10 +16,20 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ inlineContent }) => {
+      const title = String(inlineContent.props.title ?? "").trim();
+
+      return (
+        <span data-note-link data-note-link-status="external">
+          {title ? `[[${title}]]` : "[[untitled]]"}
+        </span>
+      );
+    },
     render: ({ inlineContent }) => {
       const title = String(inlineContent.props.title ?? "");
       const { files, activeFileId } = useNoteLinkContext();
       const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+      const createNote = useCreateNote();
 
       const linkInput: NoteLink = {
         raw: `[[${title}]]`,
@@ -32,20 +43,27 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
       function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
         event.preventDefault();
         event.stopPropagation();
-        if (!isResolved || !resolved.targetNoteId) {
+        if (isResolved && resolved.targetNoteId) {
+          setActiveFileId(resolved.targetNoteId);
+          const url = new URL(window.location.href);
+          url.searchParams.set("note", resolved.targetNoteId);
+          window.history.pushState({}, "", url.toString());
           return;
         }
-        setActiveFileId(resolved.targetNoteId);
-        const url = new URL(window.location.href);
-        url.searchParams.set("note", resolved.targetNoteId);
-        window.history.pushState({}, "", url.toString());
+
+        if (resolved.status === "unresolved") {
+          createNote.mutate({
+            name: title,
+            content: `# ${title}\n\n`,
+          });
+        }
       }
 
       const tooltip = isResolved
         ? `Open ${title}`
         : resolved.status === "ambiguous"
           ? `Multiple notes match "${title}"`
-          : `Unresolved link: ${title}`;
+          : `Create note "${title}"`;
 
       return (
         <button
@@ -58,12 +76,12 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
           title={tooltip}
           className={cn(
             "mx-[1px] inline-flex items-baseline rounded-[3px] px-1 text-[0.95em] font-medium align-baseline transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40",
             isResolved
-              ? "bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+              ? "bg-foreground/[0.08] text-foreground underline decoration-foreground/50 decoration-1 underline-offset-[3px] hover:bg-foreground/[0.14] hover:decoration-foreground cursor-pointer"
               : resolved.status === "ambiguous"
-                ? "bg-amber-500/10 text-amber-500 cursor-help"
-                : "border border-dashed border-muted-foreground/40 text-muted-foreground cursor-not-allowed",
+                ? "bg-amber-500/15 text-amber-400 underline decoration-amber-400/60 decoration-1 underline-offset-[3px] cursor-help"
+                : "bg-primary/10 text-primary underline decoration-primary/40 decoration-dashed decoration-1 underline-offset-[3px] hover:bg-primary/20 hover:decoration-primary/70 cursor-pointer",
           )}
         >
           {title || "untitled"}

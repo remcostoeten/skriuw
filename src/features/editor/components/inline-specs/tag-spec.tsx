@@ -12,6 +12,11 @@ export const tagInlineSpec = createReactInlineContentSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ inlineContent }) => {
+      const name = String(inlineContent.props.name ?? "").trim();
+
+      return <span data-note-tag>{name ? `#${name}` : "#"}</span>;
+    },
     render: ({ inlineContent }) => {
       const name = String(inlineContent.props.name ?? "");
 
