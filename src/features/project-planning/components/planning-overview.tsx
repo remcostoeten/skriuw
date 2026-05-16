@@ -8,6 +8,7 @@ const cards: { status: FeatureStatus; label: string; accent: string }[] = [
   { status: "exploring", label: "Exploring", accent: "text-amber-300" },
   { status: "planned", label: "Planned", accent: "text-violet-300" },
   { status: "in_progress", label: "In progress", accent: "text-blue-300" },
+  { status: "blocked", label: "Blocked", accent: "text-rose-300" },
   { status: "completed", label: "Completed", accent: "text-emerald-300" },
 ];
 

@@ -133,7 +133,11 @@ export function Editor({
           value={file.content}
           onChange={(e) => handleMarkdownChange(e.target.value)}
           onBlur={(event) => {
-            const title = event.currentTarget.value.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1]?.trim();
+            const firstNonEmptyLine =
+              event.currentTarget.value
+                .split(/\r?\n/)
+                .find((line) => line.trim().length > 0) ?? "";
+            const title = firstNonEmptyLine.match(/^#\s+(.+?)\s*#*\s*$/)?.[1]?.trim();
             if (title) {
               onTitleCommit?.(title);
             }

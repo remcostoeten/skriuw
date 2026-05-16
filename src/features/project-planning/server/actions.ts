@@ -39,7 +39,9 @@ async function requireAdmin() {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+  if (userError) throw userError;
   if (!user) {
     throw new Error("Not authenticated");
   }
@@ -60,6 +62,15 @@ function slugify(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64) || `topic-${Date.now()}`;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "23505"
+  );
 }
 
 async function uniqueSlug(
@@ -93,23 +104,32 @@ export type FeatureDraft = {
 
 export async function createFeature(draft: FeatureDraft): Promise<Feature> {
   const { supabase, user } = await requireAdmin();
-  const slug = await uniqueSlug(supabase, draft.title || "new-topic");
-  const { data, error } = await supabase
-    .from("features")
-    .insert({
-      title: draft.title.trim() || "New topic",
-      slug,
-      description: draft.description ?? "",
-      status: draft.status ?? "exploring",
-      priority: draft.priority ?? "medium",
-      tags: draft.tags ?? [],
-      created_by: user.id,
-    })
-    .select("id, title, slug, description, status, priority, tags, created_at, updated_at")
-    .single();
-  if (error) throw error;
-  revalidatePath(ROUTE);
-  return mapFeature(data as FeatureRow, []);
+  const title = draft.title.trim() || "New topic";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const slug = await uniqueSlug(supabase, title);
+    const { data, error } = await supabase
+      .from("features")
+      .insert({
+        title,
+        slug,
+        description: draft.description ?? "",
+        status: draft.status ?? "exploring",
+        priority: draft.priority ?? "medium",
+        tags: draft.tags ?? [],
+        created_by: user.id,
+      })
+      .select("id, title, slug, description, status, priority, tags, created_at, updated_at")
+      .single();
+
+    if (!error) {
+      revalidatePath(ROUTE);
+      return mapFeature(data as FeatureRow, []);
+    }
+    if (!isUniqueViolation(error) || attempt === 2) throw error;
+  }
+
+  throw new Error("Could not create feature");
 }
 
 export type FeaturePatch = Partial<{
@@ -307,7 +327,7 @@ export async function moveFeature(id: string, to: "nice" | "scratch"): Promise<v
 
 export async function moveNiceToHave(id: string, to: "roadmap" | "scratch"): Promise<void> {
   const { supabase } = await requireAdmin();
-  let newSlug = "";
+  let title = "";
   if (to === "roadmap") {
     const { data: nice, error: readError } = await supabase
       .from("nice_to_haves")
@@ -316,20 +336,29 @@ export async function moveNiceToHave(id: string, to: "roadmap" | "scratch"): Pro
       .single();
     if (readError) throw readError;
     if (!nice) throw new Error("Nice-to-have not found");
-    newSlug = await uniqueSlug(supabase, nice.title);
+    title = nice.title;
   }
-  const { error } = await supabase.rpc("move_nice_to_section", {
-    _nice_id: id,
-    _target: to,
-    _new_slug: newSlug,
-  });
-  if (error) throw error;
-  revalidatePath(ROUTE);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const newSlug = to === "roadmap" ? await uniqueSlug(supabase, title) : "";
+    const { error } = await supabase.rpc("move_nice_to_section", {
+      _nice_id: id,
+      _target: to,
+      _new_slug: newSlug,
+    });
+    if (!error) {
+      revalidatePath(ROUTE);
+      return;
+    }
+    if (!isUniqueViolation(error) || attempt === 2) throw error;
+  }
+
+  throw new Error("Could not move nice-to-have");
 }
 
 export async function moveScratch(id: string, to: "roadmap" | "nice"): Promise<void> {
   const { supabase } = await requireAdmin();
-  let newSlug = "";
+  let title = "";
   if (to === "roadmap") {
     const { data: entry, error: readError } = await supabase
       .from("scratch_entries")
@@ -338,15 +367,24 @@ export async function moveScratch(id: string, to: "roadmap" | "nice"): Promise<v
       .single();
     if (readError) throw readError;
     if (!entry) throw new Error("Scratch entry not found");
-    newSlug = await uniqueSlug(supabase, entry.title);
+    title = entry.title;
   }
-  const { error } = await supabase.rpc("move_scratch_to_section", {
-    _scratch_id: id,
-    _target: to,
-    _new_slug: newSlug,
-  });
-  if (error) throw error;
-  revalidatePath(ROUTE);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const newSlug = to === "roadmap" ? await uniqueSlug(supabase, title) : "";
+    const { error } = await supabase.rpc("move_scratch_to_section", {
+      _scratch_id: id,
+      _target: to,
+      _new_slug: newSlug,
+    });
+    if (!error) {
+      revalidatePath(ROUTE);
+      return;
+    }
+    if (!isUniqueViolation(error) || attempt === 2) throw error;
+  }
+
+  throw new Error("Could not move scratch entry");
 }
 
 // Custom section actions ---------------------------------------------------
@@ -377,7 +415,6 @@ export type SectionDraft = {
 
 export async function createCustomSection(draft: SectionDraft): Promise<CustomSection> {
   const { supabase } = await requireAdmin();
-  const slug = await uniqueSectionSlug(supabase, draft.title || "section");
   const { data: maxRes } = await supabase
     .from("planning_sections")
     .select("sort_order")
@@ -385,19 +422,29 @@ export async function createCustomSection(draft: SectionDraft): Promise<CustomSe
     .limit(1)
     .maybeSingle();
   const nextOrder = (maxRes?.sort_order ?? -1) + 1;
-  const { data, error } = await supabase
-    .from("planning_sections")
-    .insert({
-      slug,
-      title: draft.title.trim() || "Untitled section",
-      description: draft.description ?? "",
-      sort_order: nextOrder,
-    })
-    .select("id, slug, title, description, sort_order, created_at, updated_at")
-    .single();
-  if (error) throw error;
-  revalidatePath(ROUTE);
-  return mapCustomSection(data as PlanningSectionRow, []);
+  const title = draft.title.trim() || "Untitled section";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const slug = await uniqueSectionSlug(supabase, title);
+    const { data, error } = await supabase
+      .from("planning_sections")
+      .insert({
+        slug,
+        title,
+        description: draft.description ?? "",
+        sort_order: nextOrder,
+      })
+      .select("id, slug, title, description, sort_order, created_at, updated_at")
+      .single();
+
+    if (!error) {
+      revalidatePath(ROUTE);
+      return mapCustomSection(data as PlanningSectionRow, []);
+    }
+    if (!isUniqueViolation(error) || attempt === 2) throw error;
+  }
+
+  throw new Error("Could not create custom section");
 }
 
 export type SectionPatch = Partial<{

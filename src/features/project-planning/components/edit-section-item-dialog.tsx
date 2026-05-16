@@ -143,14 +143,19 @@ export function EditSectionItemDialog({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Priority</Label>
+            <Label id="si-priority-label" className="text-xs text-muted-foreground">
+              Priority
+            </Label>
             <Select
               value={draft.priority ?? "none"}
               onValueChange={(v) =>
                 setDraft((d) => ({ ...d, priority: v === "none" ? null : (v as Priority) }))
               }
             >
-              <SelectTrigger className="bg-background border-border">
+              <SelectTrigger
+                aria-labelledby="si-priority-label"
+                className="bg-background border-border"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

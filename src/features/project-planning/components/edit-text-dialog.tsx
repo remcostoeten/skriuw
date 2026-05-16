@@ -35,6 +35,7 @@ export function EditTextDialog({
   onOpenChange,
 }: Props) {
   const [value, setValue] = useState(initialValue);
+  const canSubmit = value.trim().length > 0;
 
   useEffect(() => {
     if (open) setValue(initialValue);
@@ -64,6 +65,7 @@ export function EditTextDialog({
             <Input
               id="edit-text"
               autoFocus
+              required
               value={value}
               onChange={(e) => setValue(e.target.value)}
               className="bg-background border-border"
@@ -73,7 +75,7 @@ export function EditTextDialog({
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
+            <Button type="submit" size="sm" disabled={!canSubmit}>
               {submitLabel}
             </Button>
           </DialogFooter>

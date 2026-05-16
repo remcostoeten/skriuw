@@ -62,7 +62,8 @@ export function KanbanBoard({
     if (!isAdmin) return;
     e.preventDefault();
     const id = e.dataTransfer.getData(DRAG_MIME) || dragId;
-    if (id) onChangeStatus(id, status);
+    const current = id ? features.find((feature) => feature.id === id) : null;
+    if (id && current?.status !== status) onChangeStatus(id, status);
     setDragOver(null);
     setDragId(null);
   }
