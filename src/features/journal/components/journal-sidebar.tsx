@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   format,
+  parseISO,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -27,6 +28,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
+import { Calendar } from "@/shared/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { type MoodLevel, type DateKey, MOOD_OPTIONS } from "@/features/journal/types";
 import { useJournalEntries } from "../hooks/use-journal-entries";
 import { useJournalTags } from "../hooks/use-journal-tags";
@@ -50,8 +54,9 @@ type JournalSidebarProps = {
 export function JournalSidebar({ selectedDate, onSelectDate, className }: JournalSidebarProps) {
   const { data: entries = [] } = useJournalEntries();
   const { data: allTags = [] } = useJournalTags();
-  
+
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
+  const [jumpPopoverOpen, setJumpPopoverOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
   const selectedMood: MoodLevel | "all" = "all";
@@ -103,10 +108,22 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
     return allEntriesSorted.filter((e) => e.dateKey.startsWith(prefix));
   }, [allEntriesSorted, currentMonth]);
 
+  useEffect(() => {
+    setCurrentMonth(selectedDate);
+  }, [selectedDate]);
+
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(today);
     onSelectDate(today);
+  };
+
+  const jumpToDate = (value: string) => {
+    const parsed = parseISO(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      setCurrentMonth(parsed);
+      onSelectDate(parsed);
+    }
   };
 
   const journalTabs = [
@@ -150,7 +167,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
             aria-selected={view === tab.id}
             aria-label={tab.label}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+              "flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               view === tab.id
                 ? "border border-border bg-muted text-foreground/80"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground/75",
@@ -165,23 +182,59 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
       <div className="flex-1 overflow-y-auto">
         {view === "calendar" && (
           <div className="p-2">
-            {/* Month navigation */}
-            <div className="mb-1 flex items-center justify-between">
+            {/* Jump controls */}
+            <div className="mb-2 flex items-center gap-1.5">
               <button
                 onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label="Previous month"
               >
                 <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
               </button>
-              <span className="text-[11px] font-semibold text-foreground/90">
-                {format(currentMonth, "MMMM yyyy")}
-              </span>
               <button
                 onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label="Next month"
               >
                 <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
               </button>
+              <button
+                onClick={goToToday}
+                className="ml-1 flex h-7 items-center rounded-md border border-border/70 bg-background px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Today
+              </button>
+              <Popover open={jumpPopoverOpen} onOpenChange={setJumpPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto h-7 gap-1.5 border-border/70 px-2 text-[10px] font-medium text-muted-foreground"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    {format(selectedDate, "dd MMM yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    month={currentMonth}
+                    onMonthChange={setCurrentMonth}
+                  onSelect={(date) => {
+                    if (!date) return;
+                    jumpToDate(format(date, "yyyy-MM-dd"));
+                    setJumpPopoverOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            </div>
+
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-foreground/90">
+                {format(currentMonth, "MMMM yyyy")}
+              </span>
             </div>
 
             {/* Weekday headers */}
@@ -210,7 +263,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                     key={dateKey}
                     onClick={() => onSelectDate(day)}
                     className={cn(
-                      "relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",
+                      "relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       !inCurrentMonth && "text-muted-foreground/25",
                       inCurrentMonth && !isSelected && "text-foreground/70 hover:border-border hover:bg-muted",
                       isSelected && "border-border bg-muted text-foreground font-semibold",
@@ -247,7 +300,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
                           onSelectDate(new Date(y, m - 1, d));
                         }}
                         className={cn(
-                          "flex w-full items-center gap-1.5 border border-transparent px-2 py-1.5 text-left transition-colors",
+                          "flex w-full items-center gap-1.5 border border-transparent px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                           isActive ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted",
                         )}
                       >

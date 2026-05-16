@@ -1,6 +1,7 @@
 import { create } from "zustand";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import type { NoteFile, NoteFolder } from "@/types/notes";
+import { DESKTOP_SIDEBAR_MIN_WIDTH } from "./constants";
 
 type FolderOpenState = Record<string, boolean>;
 
@@ -50,8 +51,8 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
   ui: {
     isMobile: false,
     showSidebar: true,
-    showMetadata: false,
-    sidebarWidth: 280,
+    showMetadata: true,
+    sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
   },
 
   resetWorkspace: () => {
@@ -63,8 +64,8 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
       ui: {
         isMobile: false,
         showSidebar: true,
-        showMetadata: false,
-        sidebarWidth: 280,
+        showMetadata: true,
+        sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
       },
     });
   },

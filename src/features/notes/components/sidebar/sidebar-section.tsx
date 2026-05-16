@@ -95,15 +95,19 @@ export function SidebarSection({
         <div
           onDragOver={onDragOver}
           onDrop={onDrop}
+          onClick={onToggleCollapse}
           className={cn(
-            "group relative flex items-center gap-1.5 px-2 transition-colors hover:bg-muted",
+            "group relative flex cursor-pointer items-center gap-1.5 px-2 transition-colors hover:bg-muted",
             compactMode ? "min-h-7" : "min-h-8 md:h-7 md:min-h-0",
             isDropTarget && "bg-muted/80 ring-1 ring-border",
             isDragging && "opacity-55",
           )}
         >
           <button
-            onClick={onToggleCollapse}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleCollapse();
+            }}
             className={cn(
               "flex items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground",
               compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
@@ -164,7 +168,10 @@ export function SidebarSection({
               <div className="relative">
                 <button
                   ref={buttonRef}
-                  onClick={() => setShowMenu(!showMenu)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowMenu(!showMenu);
+                  }}
                   className={cn(
                     "flex items-center justify-center border border-transparent text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground",
                     compactMode ? "h-4 w-4" : "h-5 w-5 md:h-4 md:w-4",
