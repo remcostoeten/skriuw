@@ -8,49 +8,31 @@ type ProfileIdentityRow = {
 type ProfileMetric = {
   label: string;
   value: string;
-  hint: string;
 };
 
 type ProfileViewModel = {
   title: string;
   subtitle: string;
-  statusLabel: string;
   identityRows: ProfileIdentityRow[];
   metrics: ProfileMetric[];
-  isAuthenticated: boolean;
-  workspaceLabel: string;
 };
 
 function formatCount(count: number, singular: string, plural: string) {
   return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
 }
 
-function resolveStatusLabel(auth: AuthSnapshot) {
-  if (auth.phase === "authenticated") {
-    return "Authenticated";
-  }
-  return "Signed out";
-}
-
-function resolveWorkspaceLabel(auth: AuthSnapshot) {
-  if (auth.phase === "authenticated") {
-    return "Cloud workspace";
-  }
-
-  return "Account required";
-}
-
-export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, journalEntryCount: number): ProfileViewModel {
+export function createProfileViewModel(
+  auth: AuthSnapshot,
+  noteCount: number,
+  journalEntryCount: number,
+): ProfileViewModel {
   const isAuthenticated = auth.phase === "authenticated" && auth.user !== null;
 
   return {
-    title: isAuthenticated ? auth.user?.name ?? "Account" : "Workspace",
+    title: isAuthenticated ? (auth.user?.name ?? "Profile") : "Profile",
     subtitle: isAuthenticated
-      ? "Your cloud workspace profile and summary."
-      : "Sign in to access your account-backed notes and journal workspace.",
-    statusLabel: resolveStatusLabel(auth),
-    workspaceLabel: resolveWorkspaceLabel(auth),
-    isAuthenticated,
+      ? (auth.user?.email ?? "Manage your account.")
+      : "Sign in to sync your notes and journal.",
     identityRows: [
       {
         label: "Name",
@@ -60,29 +42,15 @@ export function createProfileViewModel(auth: AuthSnapshot, noteCount: number, jo
         label: "Email",
         value: auth.user?.email ?? "Not signed in",
       },
-      {
-        label: "User ID",
-        value: auth.user?.id ?? "Unavailable",
-      },
-      {
-        label: "Workspace ID",
-        value: auth.workspaceId,
-      },
     ],
     metrics: [
       {
         label: "Notes",
         value: formatCount(noteCount, "note", "notes"),
-        hint: isAuthenticated
-          ? "Private to this account."
-          : "Available after sign-in.",
       },
       {
         label: "Journal entries",
         value: formatCount(journalEntryCount, "entry", "entries"),
-        hint: isAuthenticated
-          ? "Private to this account."
-          : "Available after sign-in.",
       },
     ],
   };
