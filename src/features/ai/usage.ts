@@ -31,7 +31,7 @@ export async function recordAiUsage(input: AiUsageInput): Promise<void> {
     const admin = createSupabaseAdminClient();
     const { error } = await admin.from("ai_usage_logs").insert({
       user_id: input.userId ?? null,
-      provider: input.provider ?? "gemini",
+      provider: input.provider ?? "google",
       model: input.model ?? null,
       action: input.action,
       human_action: input.humanAction ?? resolveAiHumanAction(input.action),

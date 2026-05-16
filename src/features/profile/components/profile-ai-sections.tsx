@@ -58,10 +58,9 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState<"google" | "groq">("google");
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
-
-  const providerLabel = "Gemini";
 
   async function loadKeys() {
     if (!isSignedIn) return;
@@ -109,7 +108,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
       const res = await fetch("/api/profile/ai/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "gemini", label, apiKey }),
+        body: JSON.stringify({ provider, label, apiKey }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         key?: AiProviderKeySummary;
@@ -209,17 +208,34 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
         <Separator className="my-5" />
 
         <div className="space-y-3">
+          <div className="flex gap-1">
+            {(["google", "groq"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setProvider(p)}
+                className={cn(
+                  "border px-3 py-1 text-xs transition-colors",
+                  provider === p
+                    ? "border-ring bg-accent text-accent-foreground"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {p === "google" ? "Google" : "Groq"}
+              </button>
+            ))}
+          </div>
           <div className="grid gap-2 sm:grid-cols-[0.85fr_1.15fr]">
             <input
               value={label}
               onChange={(event) => setLabel(event.target.value)}
-              placeholder="Personal Gemini"
+              placeholder={provider === "google" ? "Personal Gemini" : "Personal Groq"}
               className="h-10 border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring"
             />
             <input
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              placeholder="Gemini API key"
+              placeholder={provider === "google" ? "Google API key" : "Groq API key"}
               type="password"
               autoComplete="off"
               spellCheck={false}
@@ -262,7 +278,7 @@ export function ProfileAiSections({ isSignedIn }: { isSignedIn: boolean }) {
                     <StatusBadge status={key.status} />
                   </div>
                   <p className="font-mono text-xs text-muted-foreground">
-                    {providerLabel} · {key.keyPreview}
+                    {key.provider === "google" ? "Google" : "Groq"} · {key.keyPreview}
                   </p>
                   <p className="flex items-center gap-1 text-xs text-muted-foreground/70">
                     <Clock className="h-3 w-3" />
