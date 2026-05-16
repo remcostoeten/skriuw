@@ -18,8 +18,6 @@ export type JournalEditorMode = "plain" | "rich";
 type UseJournalLayoutResult = {
   selectedDate: Date;
   sidebarWidth: number;
-  showSettings: boolean;
-  setShowSettings: Dispatch<SetStateAction<boolean>>;
   showSidebar: boolean;
   setShowSidebar: Dispatch<SetStateAction<boolean>>;
   showCommandPalette: boolean;
@@ -65,7 +63,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
   const ui = useNotesStore((state) => state.ui);
   const setUIState = useNotesStore((state) => state.setUIState);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -142,8 +139,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
 
   const handleOpenSettings = useCallback(() => {
     triggerNativeFeedback("selection");
-    setShowSettings(true);
-  }, []);
+    router.push("/app/settings");
+  }, [router]);
 
   const handleToggleEditorMode = useCallback(() => {
     triggerNativeFeedback("impact");
@@ -328,8 +325,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
   return {
     selectedDate,
     sidebarWidth,
-    showSettings,
-    setShowSettings,
     showSidebar,
     setShowSidebar,
     showCommandPalette,

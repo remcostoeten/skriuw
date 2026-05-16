@@ -63,7 +63,7 @@ export function JournalSection({
 
   const openJournalDate = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
-    router.push(`/journal?date=${dateKey}`);
+    router.push(`/app/journal?date=${dateKey}`);
   };
 
   // Recent entries for the "entries" view
@@ -153,34 +153,48 @@ export function JournalSection({
               }}
               onChangeMonth={setCurrentMonth}
             />
-            <div className={cn("border-t border-border px-2.5 py-2.5", compactMode && "px-2 py-2")}>
+            <div className={cn("border-t border-border/60 px-2.5 py-2", compactMode && "px-2 py-1.5")}>
               <button
                 onClick={() => openJournalDate(selectedDate)}
                 className={cn(
-                  "group flex w-full items-center justify-between ",
-                  " py-3 text-left",
-                  compactMode && "px-2.5 py-2.5",
-                  "transition-all duration-150",
+                  "group flex w-full items-center gap-2.5 text-left",
+                  "py-1.5 transition-colors duration-150 hover:text-foreground",
+                  compactMode && "py-1",
                 )}
               >
-                <div className="min-w-0 space-y-1">
-                  <p className={cn("text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70", compactMode && "text-[9px]")}>
-                    Open entry
-                  </p>
-                  <p className="text-[11px] font-medium text-foreground/85">
-                    {format(selectedDate, "dd MM yyyy")}
-                  </p>
-                  <p className={cn("text-[10px] leading-relaxed text-muted-foreground/66", compactMode && "text-[9px]")}>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/55",
+                        compactMode && "text-[8px]",
+                      )}
+                    >
+                      Open
+                    </span>
+                    <span className="h-px flex-1 bg-border/50" />
+                    <span className="text-[10px] font-medium tabular-nums text-foreground/82">
+                      {format(selectedDate, "dd MM yyyy")}
+                    </span>
+                  </div>
+                  <p
+                    className={cn(
+                      "line-clamp-2 text-[10px] leading-relaxed text-muted-foreground/58",
+                      compactMode && "text-[9px]",
+                    )}
+                  >
                     {selectedEntry?.content?.trim()
                       ? "Continue writing in the full journal editor."
                       : "Create this day’s note in the full journal editor."}
                   </p>
                 </div>
-                <span className={cn(
-                  "ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/70 text-muted-foreground transition-colors group-hover:text-foreground",
-                  compactMode && "ml-2 h-6 w-6",
-                )}>
-                  <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+                <span
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground/65 transition-colors group-hover:text-foreground",
+                    compactMode && "h-5 w-5",
+                  )}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </span>
               </button>
             </div>
@@ -203,7 +217,7 @@ export function JournalSection({
                       const entryDate = new Date(year, month - 1, day);
                       setSelectedDate(entryDate);
                       setCurrentMonth(entryDate);
-                      router.push(`/journal?date=${entry.dateKey}`);
+                      router.push(`/app/journal?date=${entry.dateKey}`);
                     }}
                     className={cn(
                       "flex w-full items-start gap-2 border-b border-border px-2.5 py-2.5 text-left transition-colors last:border-b-0 hover:bg-accent/[0.14]",

@@ -4,11 +4,18 @@ import { useRef, useEffect, useState, useMemo, useId, useCallback } from "react"
 import { cn } from "@/shared/lib/utils";
 import { findActiveTagMention, replaceActiveTagMention } from "./tag-mention-utils";
 import { useJournalTags } from "../hooks/use-journal-tags";
+import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
+import {
+  getEditorLineHeightValue,
+  type EditorLineHeight,
+} from "@/features/editor/lib/editor-line-height";
 
 type PlainTextEditorProps = {
   content: string;
   onChange: (content: string) => void;
   onInsertTag: (tagName: string) => void;
+  editorFontId?: EditorFontId;
+  editorLineHeight?: EditorLineHeight;
   placeholder?: string;
 };
 
@@ -16,6 +23,8 @@ export function PlainTextEditor({
   content,
   onChange,
   onInsertTag,
+  editorFontId,
+  editorLineHeight,
   placeholder = "Start writing... Use @ to mention tags.",
 }: PlainTextEditorProps) {
   const { data: allTags = [] } = useJournalTags();
@@ -184,8 +193,14 @@ export function PlainTextEditor({
         aria-controls={showTagPopup ? popupId : undefined}
         aria-expanded={showTagPopup}
         aria-activedescendant={activeOptionId}
-        className="w-full resize-none bg-transparent text-[16px] leading-[1.75] text-foreground outline-none placeholder:text-muted-foreground/30 md:text-[17px]"
-        style={{ minHeight: "400px" }}
+        className="w-full resize-none bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground/30 md:text-[17px]"
+        style={{
+          minHeight: "400px",
+          fontFamily: editorFontId ? getEditorFontFamily(editorFontId) : undefined,
+          lineHeight: editorLineHeight
+            ? getEditorLineHeightValue(editorLineHeight)
+            : undefined,
+        }}
         spellCheck
       />
 

@@ -2,18 +2,11 @@
 
 import { NoteFile } from "@/types/notes";
 import { formatDistanceToNow } from "date-fns";
-import {
-  ArrowUpRight,
-  FileText,
-  Hash,
-  Info,
-  Link2,
-  ListTree,
-  X,
-} from "lucide-react";
-import { useMemo } from "react";
+import { ArrowUpRight, FileText, Hash, Info, Link2, ListTree, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
+import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import {
   buildNoteLinkIndex,
   extractNoteTags,
@@ -30,10 +23,16 @@ interface MetadataPanelProps {
   onFileSelect?: (id: string) => void;
 }
 
+function normalizeTag(tag: string): string {
+  return tag.trim().replace(/^#/, "").toLowerCase();
+}
+
 function uniqueTags(file: NoteFile): string[] {
-  return [...new Set([...(file.tags ?? []), ...extractNoteTags(file.content)])].toSorted((a, b) =>
-    a.localeCompare(b),
-  );
+  return [
+    ...new Set(
+      [...(file.tags ?? []), ...extractNoteTags(file.content)].map(normalizeTag).filter(Boolean),
+    ),
+  ].toSorted((a, b) => a.localeCompare(b));
 }
 
 function formatSize(bytes: number) {
@@ -84,6 +83,7 @@ function LinkRow({
   filesById: Map<string, NoteFile>;
   onFileSelect?: (id: string) => void;
 }) {
+  const createNote = useCreateNote();
   const source = filesById.get(link.sourceNoteId);
   const target = link.targetNoteId ? filesById.get(link.targetNoteId) : null;
   const title =
@@ -93,7 +93,8 @@ function LinkRow({
         ? getNoteTitle(target)
         : link.alias || link.targetLabel;
   const isResolved = link.status === "resolved" && link.targetNoteId;
-  const navigateTargetId = source && source.id !== link.targetNoteId ? source.id : link.targetNoteId;
+  const navigateTargetId =
+    source && source.id !== link.targetNoteId ? source.id : link.targetNoteId;
   const rowLabel =
     source && source.id !== link.targetNoteId
       ? `Open backlink source ${title}`
@@ -114,6 +115,23 @@ function LinkRow({
             className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
             strokeWidth={1.5}
           />
+        </button>
+      </li>
+    );
+  }
+
+  if (link.status === "unresolved") {
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={() => createNote.mutate({ name: title, content: `# ${title}\n\n` })}
+          aria-label={`Create note "${title}"`}
+          className="group flex min-h-9 w-full items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none active:scale-[0.99]"
+        >
+          <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground/62" strokeWidth={1.5} />
+          <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/82">{title}</span>
+          <span className="text-[10px] uppercase tracking-[0.12em] text-primary/70">Create</span>
         </button>
       </li>
     );
@@ -140,6 +158,8 @@ export function MetadataPanel({
   onRequestClose,
   onFileSelect,
 }: MetadataPanelProps) {
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
   const details = useMemo(() => {
     if (!file) return [];
     const wordCount = file.content.split(/\s+/).filter(Boolean).length;
@@ -170,17 +190,29 @@ export function MetadataPanel({
 
   const linkIndex = useMemo(() => buildNoteLinkIndex(file, files), [file, files]);
   const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
+  const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
+  const taggedNotes = useMemo(() => {
+    if (!file || !selectedTag) return [];
+    return files.filter((item) => item.id !== file.id && uniqueTags(item).includes(selectedTag));
+  }, [file, files, selectedTag]);
+
+  useEffect(() => {
+    if (!selectedTag) return;
+    if (!tags.includes(selectedTag)) {
+      setSelectedTag(null);
+    }
+  }, [selectedTag, tags]);
 
   if (!file) return null;
-
-  const tags = uniqueTags(file);
 
   return (
     <aside
       aria-label="Note inspector"
       className={cn(
         "flex flex-col bg-background",
-        isMobile ? "h-full w-full rounded-[inherit] border-0 bg-transparent" : "w-72 border-l border-border xl:w-80",
+        isMobile
+          ? "h-full w-full rounded-[inherit] border-0 bg-transparent"
+          : "w-72 border-l border-border xl:w-80",
         className,
       )}
     >
@@ -193,9 +225,6 @@ export function MetadataPanel({
         {isMobile && <div className="mx-auto mb-3 h-1.5 w-12 bg-border" />}
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground/70">
-              Inspector
-            </p>
             <p className="mt-1 truncate text-sm font-semibold tracking-[-0.02em] text-foreground">
               {getNoteTitle(file)}
             </p>
@@ -221,17 +250,67 @@ export function MetadataPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <InspectorSection id="note-inspector-tags" title="Tags" icon={Hash}>
           {tags.length > 0 ? (
-            <ul aria-label="Tags on this note" className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <li
-                  key={tag}
-                  aria-label={`Tag ${tag}`}
-                  className="inline-flex min-h-7 items-center border border-border bg-muted px-2 text-[12px] font-medium text-foreground/78"
-                >
-                  #{tag}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-3">
+              <ul aria-label="Tags on this note" className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => {
+                  const isSelected = tag === selectedTag;
+                  return (
+                    <li key={tag}>
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={`${isSelected ? "Hide" : "Show"} notes tagged ${tag}`}
+                        onClick={() => setSelectedTag(isSelected ? null : tag)}
+                        className={cn(
+                          "inline-flex min-h-7 items-center border px-2 text-[12px] font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
+                          isSelected
+                            ? "border-ring bg-muted text-foreground"
+                            : "border-border bg-muted text-foreground/78 hover:border-ring/70 hover:text-foreground",
+                        )}
+                      >
+                        #{tag}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {selectedTag ? (
+                <div className="-mx-2">
+                  <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/62">
+                    Tagged #{selectedTag}
+                  </p>
+                  {taggedNotes.length > 0 ? (
+                    <ul aria-label={`Notes tagged ${selectedTag}`} className="space-y-0.5">
+                      {taggedNotes.map((taggedFile) => (
+                        <li key={taggedFile.id}>
+                          <button
+                            type="button"
+                            onClick={() => onFileSelect?.(taggedFile.id)}
+                            disabled={!onFileSelect}
+                            className="group flex min-h-9 w-full items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60 active:scale-[0.99]"
+                          >
+                            <FileText
+                              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                              strokeWidth={1.5}
+                            />
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/82">
+                              {getNoteTitle(taggedFile)}
+                            </span>
+                            <ArrowUpRight
+                              className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                              strokeWidth={1.5}
+                            />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyLine>No other notes are tagged #{selectedTag}.</EmptyLine>
+                  )}
+                </div>
+              ) : null}
+            </div>
           ) : (
             <EmptyLine>No tags yet. Type # in the editor or use /tag.</EmptyLine>
           )}
@@ -254,7 +333,7 @@ export function MetadataPanel({
               ))}
             </ul>
           ) : (
-            <EmptyLine>No backlinks yet. Mention this note from another note with @ or [[...]].</EmptyLine>
+            <EmptyLine>No backlinks yet. Mention this note from another note with @.</EmptyLine>
           )}
         </InspectorSection>
 
@@ -281,14 +360,23 @@ export function MetadataPanel({
 
         <InspectorSection id="note-inspector-outline" title="Outline" icon={ListTree}>
           {headingItems.length > 0 ? (
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {headingItems.map((heading, index) => (
                 <li
                   key={`${heading.text}-${index}`}
-                  className="truncate text-[13px] text-foreground/62"
-                  style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
+                  className="group flex items-center gap-2 rounded px-2 py-1 text-[13px] text-foreground/62 transition-colors hover:bg-muted hover:text-foreground/80"
+                  style={{ paddingLeft: `${(heading.level - 1) * 16 + 8}px` }}
                 >
-                  {heading.text}
+                  <span
+                    className="shrink-0 rounded-full transition-colors group-hover:bg-foreground/30"
+                    style={{
+                      width: `${Math.max(4, 10 - heading.level * 2)}px`,
+                      height: `${Math.max(4, 10 - heading.level * 2)}px`,
+                      backgroundColor: heading.level === 1 ? "var(--foreground)" : undefined,
+                      opacity: heading.level === 1 ? 0.4 : 0.25,
+                    }}
+                  />
+                  <span className="truncate">{heading.text}</span>
                 </li>
               ))}
             </ul>
