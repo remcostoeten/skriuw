@@ -133,15 +133,23 @@ function buildTitleIndex(files: NoteFile[]): Map<string, NoteFile[]> {
   return index;
 }
 
-export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNoteLink {
+function buildNoteIdIndex(files: NoteFile[]): Map<string, NoteFile> {
+  return new Map(files.map((file) => [file.id, file]));
+}
+
+function resolveNoteLinkWithIndexes(
+  link: NoteLink,
+  notesById: Map<string, NoteFile>,
+  titleIndex: Map<string, NoteFile[]>,
+): ResolvedNoteLink {
   if (link.targetNoteId) {
-    const target = files.find((file) => file.id === link.targetNoteId);
+    const target = notesById.get(link.targetNoteId);
     return target
       ? { ...link, status: "resolved", targetNoteId: target.id }
       : { ...link, status: "unresolved" };
   }
 
-  const matches = buildTitleIndex(files).get(normalizeNoteTitle(link.targetLabel)) ?? [];
+  const matches = titleIndex.get(normalizeNoteTitle(link.targetLabel)) ?? [];
 
   if (matches.length === 1) {
     return { ...link, status: "resolved", targetNoteId: matches[0].id };
@@ -154,6 +162,10 @@ export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNote
   return { ...link, status: "unresolved" };
 }
 
+export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNoteLink {
+  return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
+}
+
 export function buildNoteLinkIndex(activeNote: NoteFile | null, files: NoteFile[]): NoteLinkIndex {
   if (!activeNote) {
     return {
@@ -163,10 +175,14 @@ export function buildNoteLinkIndex(activeNote: NoteFile | null, files: NoteFile[
     };
   }
 
-  const outgoing = extractNoteLinks(activeNote).map((link) => resolveNoteLink(link, files));
+  const notesById = buildNoteIdIndex(files);
+  const titleIndex = buildTitleIndex(files);
+  const resolve = (link: NoteLink) => resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+
+  const outgoing = extractNoteLinks(activeNote).map(resolve);
   const backlinks = files
     .filter((file) => file.id !== activeNote.id)
-    .flatMap((file) => extractNoteLinks(file).map((link) => resolveNoteLink(link, files)))
+    .flatMap((file) => extractNoteLinks(file).map(resolve))
     .filter((link) => link.status === "resolved" && link.targetNoteId === activeNote.id);
 
   return {
