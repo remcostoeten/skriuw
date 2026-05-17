@@ -8,6 +8,7 @@ import type { NoteFile } from "@/types/notes";
 
 export function useUpdateNote() {
   return useApiMutation<UpdateNoteInput, NoteFile | undefined, NoteFile[]>(updateNote, {
+    invalidateKeys: [],
     optimistic: {
       queryKey: notesKeys.files(),
       updater: (current, input) =>
