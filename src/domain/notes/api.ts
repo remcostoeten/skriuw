@@ -31,6 +31,9 @@ type NoteRow = {
   updated_at: string;
 };
 
+const NOTE_SELECT =
+  "id, name, content, rich_content, preferred_editor_mode, parent_id, tags, journal_meta, created_at, updated_at";
+
 function rowToNoteFile(row: NoteRow): NoteFile {
   return fromPersistedNote({
     id: row.id as NoteId,
@@ -56,7 +59,7 @@ export async function listNotes(): Promise<NoteFile[]> {
 
   const { data, error } = await supabase
     .from("notes")
-    .select("*")
+    .select(NOTE_SELECT)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -116,42 +119,42 @@ export type UpdateNoteInput = {
 
 export async function updateNote(input: UpdateNoteInput): Promise<NoteFile | undefined> {
   const { supabase, user } = await getAuthenticatedUser();
-
-  const { data: existing, error: fetchError } = await supabase
-    .from("notes")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("id", input.id)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (fetchError) throw fetchError;
-  if (!existing) return undefined;
-
-  const updatedRow = {
-    ...existing,
-    name: input.name
-      ? input.name.endsWith(".md") ? input.name : `${input.name}.md`
-      : existing.name,
-    content: input.content ?? existing.content,
-    rich_content:
-      input.richContent ??
-      (input.content !== undefined
-        ? markdownToRichDocument(input.content)
-        : existing.rich_content),
-    preferred_editor_mode: input.preferredEditorMode ?? existing.preferred_editor_mode,
-    parent_id: input.parentId === undefined ? existing.parent_id : input.parentId,
-    ...(input.tags ? { tags: input.tags } : {}),
+  const patch: Partial<NoteRow> = {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase
+  if (input.name !== undefined) {
+    patch.name = input.name.endsWith(".md") ? input.name : `${input.name}.md`;
+  }
+  if (input.content !== undefined) {
+    patch.content = input.content;
+    patch.rich_content = input.richContent ?? markdownToRichDocument(input.content);
+  } else if (input.richContent !== undefined) {
+    patch.rich_content = input.richContent;
+  }
+  if (input.preferredEditorMode !== undefined) {
+    patch.preferred_editor_mode = input.preferredEditorMode;
+  }
+  if (input.parentId !== undefined) {
+    patch.parent_id = input.parentId;
+  }
+  if (input.tags !== undefined) {
+    patch.tags = input.tags;
+  }
+
+  const { data, error } = await supabase
     .from("notes")
-    .upsert([updatedRow], { onConflict: "user_id,id" });
+    .update(patch)
+    .eq("user_id", user.id)
+    .eq("id", input.id)
+    .is("deleted_at", null)
+    .select(NOTE_SELECT)
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) return undefined;
 
-  return rowToNoteFile(updatedRow as NoteRow);
+  return rowToNoteFile(data as NoteRow);
 }
 
 export async function deleteNote(id: string): Promise<void> {
