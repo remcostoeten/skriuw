@@ -154,7 +154,7 @@ export function SidebarPanel({
             files: files.filter(
                 (file) =>
                     file.name.toLowerCase().includes(lowerQuery) ||
-                    file.content.toLowerCase().includes(lowerQuery),
+                    (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery)),
             ),
             folders: folders.filter((folder) =>
                 folder.name.toLowerCase().includes(lowerQuery),
