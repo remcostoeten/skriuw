@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
-import { AppProviders } from "@/providers/app-providers";
 import { editorFontVariables } from "@/app/editor-fonts";
 
 export const metadata: Metadata = {
@@ -42,7 +41,7 @@ export default function RootLayout({ children }: Props) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${editorFontVariables} font-sans`}>
-        <AppProviders>{children}</AppProviders>
+        {children}
       </body>
     </html>
   );

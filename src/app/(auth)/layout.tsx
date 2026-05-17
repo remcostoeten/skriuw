@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { RawLogo } from "@/shared/icons/logo";
 import { Button } from "@/shared/ui/button";
 import { getServerUser } from "@/core/supabase/server-client";
-import PixelBlast from "@/shared/PixelBlast";
+import { AuthVisual } from "@/features/auth/components/auth-visual";
 import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -15,22 +15,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     <div className="flex h-dvh">
       <div className="relative hidden flex-col items-start justify-between overflow-hidden p-12 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 md:flex md:w-1/2">
         <div className="absolute inset-0 pointer-events-none">
-          <PixelBlast
-            variant="circle"
-            pixelSize={2}
-            color="#B497CF"
-            className="pixel-blast-auth-fade"
-            style={{}}
-            patternScale={1.5}
-            patternDensity={0.6}
-            enableRipples
-            rippleSpeed={0.2}
-            rippleThickness={0.25}
-            rippleIntensityScale={0.6}
-            speed={1.3}
-            transparent
-            edgeFade={0.2}
-          />
+          <AuthVisual />
         </div>
         <Button
           link="/"
