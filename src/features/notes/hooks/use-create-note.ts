@@ -13,6 +13,7 @@ export function useCreateNote() {
   return useApiMutation<CreateNoteInput, NoteFile, NoteFile[]>(createNote, {
     onSuccess: (note) => {
       queryClient.setQueryData(notesKeys.detail(note.id), note);
+      void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
     },
     optimistic: {
       queryKey: notesKeys.files(),

@@ -8,8 +8,9 @@ import type { ComponentType, ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 import { useNotesStore } from "@/features/notes/store";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
+import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
 import {
-    buildNoteLinkIndex,
+    buildOutgoingNoteLinks,
     extractNoteTags,
     getNoteTitle,
     type ResolvedNoteLink,
@@ -161,6 +162,7 @@ export function MetadataPanel({
 }: Props) {
     const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
     const setSelectedTag = useNotesStore((state) => state.setSelectedInspectorTag);
+    const backlinksQuery = useNoteBacklinks(file?.id);
 
     const details = useMemo(() => {
         if (!file) return [];
@@ -190,7 +192,8 @@ export function MetadataPanel({
             }));
     }, [file]);
 
-    const linkIndex = useMemo(() => buildNoteLinkIndex(file, files), [file, files]);
+    const outgoingLinks = useMemo(() => buildOutgoingNoteLinks(file, files), [file, files]);
+    const backlinks = backlinksQuery.data ?? [];
     const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
     const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
     const taggedNotes = useMemo(() => {
@@ -336,12 +339,12 @@ export function MetadataPanel({
 
                 <InspectorSection
                     id="note-inspector-backlinks"
-                    title={`Backlinks (${linkIndex.backlinks.length})`}
+                    title={`Backlinks (${backlinks.length})`}
                     icon={Link2}
                 >
-                    {linkIndex.backlinks.length > 0 ? (
+                    {backlinks.length > 0 ? (
                         <ul aria-label="Notes linking to this note" className="-mx-2 space-y-0.5">
-                            {linkIndex.backlinks.map((link) => (
+                            {backlinks.map((link) => (
                                 <LinkRow
                                     key={`${link.sourceNoteId}-${link.raw}`}
                                     link={link}
@@ -350,6 +353,8 @@ export function MetadataPanel({
                                 />
                             ))}
                         </ul>
+                    ) : backlinksQuery.isLoading ? (
+                        <EmptyLine>Loading backlinks...</EmptyLine>
                     ) : (
                         <EmptyLine>No backlinks yet. Mention this note from another note with @.</EmptyLine>
                     )}
@@ -357,12 +362,12 @@ export function MetadataPanel({
 
                 <InspectorSection
                     id="note-inspector-outgoing"
-                    title={`Outgoing (${linkIndex.outgoing.length})`}
+                    title={`Outgoing (${outgoingLinks.length})`}
                     icon={ArrowUpRight}
                 >
-                    {linkIndex.outgoing.length > 0 ? (
+                    {outgoingLinks.length > 0 ? (
                         <ul aria-label="Notes this note links to" className="-mx-2 space-y-0.5">
-                            {linkIndex.outgoing.map((link) => (
+                            {outgoingLinks.map((link) => (
                                 <LinkRow
                                     key={`${link.sourceNoteId}-${link.raw}-${link.targetLabel}`}
                                     link={link}

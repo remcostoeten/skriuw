@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildNoteBacklinks,
   buildNoteLinkIndex,
+  buildOutgoingNoteLinks,
   extractNoteLinks,
   extractNoteTags,
   getNoteTitle,
@@ -64,6 +66,50 @@ describe("note link indexing", () => {
 
     expect(index.backlinks).toHaveLength(1);
     expect(index.backlinks[0]).toMatchObject({
+      sourceNoteId: "source-id",
+      targetNoteId: "target-id",
+      status: "resolved",
+    });
+  });
+
+  test("builds outgoing links without backlink sources", () => {
+    const target = note({
+      id: "target-id",
+      name: "Target.md",
+      content: "# Target\n\nSee [[Source]].",
+    });
+    const source = note({
+      id: "source-id",
+      name: "Source.md",
+      content: "# Source\n\nBacklink to [[Target]].",
+    });
+
+    const outgoing = buildOutgoingNoteLinks(target, [target, source]);
+
+    expect(outgoing).toHaveLength(1);
+    expect(outgoing[0]).toMatchObject({
+      sourceNoteId: "target-id",
+      targetNoteId: "source-id",
+      status: "resolved",
+    });
+  });
+
+  test("builds backlinks with a single note graph pass", () => {
+    const target = note({
+      id: "target-id",
+      name: "Target.md",
+      content: "# Target\n\n",
+    });
+    const source = note({
+      id: "source-id",
+      name: "Source.md",
+      content: "# Source\n\nBacklink to [[Target]].",
+    });
+
+    const backlinks = buildNoteBacklinks(target, [target, source]);
+
+    expect(backlinks).toHaveLength(1);
+    expect(backlinks[0]).toMatchObject({
       sourceNoteId: "source-id",
       targetNoteId: "target-id",
       status: "resolved",
