@@ -1,14 +1,22 @@
 "use client";
 
 import { useApiMutation } from "@/shared/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { updateNote, type UpdateNoteInput } from "@/domain/notes/api";
 import { markdownToRichDocument } from "@/shared/lib/rich-document";
 import { notesKeys } from "./use-notes";
 import type { NoteFile } from "@/types/notes";
 
 export function useUpdateNote() {
+  const queryClient = useQueryClient();
+
   return useApiMutation<UpdateNoteInput, NoteFile | undefined, NoteFile[]>(updateNote, {
     invalidateKeys: [],
+    onSuccess: (note) => {
+      if (note) {
+        queryClient.setQueryData(notesKeys.detail(note.id), note);
+      }
+    },
     optimistic: {
       queryKey: notesKeys.files(),
       updater: (current, input) =>

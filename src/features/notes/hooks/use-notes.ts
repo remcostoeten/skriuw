@@ -1,7 +1,7 @@
 "use client";
 
 import { useApiQuery } from "@/shared/api";
-import { listNotes } from "@/domain/notes/api";
+import { listNoteMetadata } from "@/domain/notes/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { NoteFile } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
@@ -13,7 +13,7 @@ export function useNotes() {
 
   return useApiQuery<NoteFile[]>(
     notesKeys.files(),
-    () => listNotes(),
+    () => listNoteMetadata(),
     { enabled: auth.isReady && auth.phase === "authenticated" },
   );
 }

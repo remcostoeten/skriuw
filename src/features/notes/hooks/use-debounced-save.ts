@@ -56,6 +56,17 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
           : note,
       ),
     );
+    queryClient.setQueryData<NoteFile | null>(notesKeys.detail(id), (current) =>
+      current
+        ? {
+            ...current,
+            content,
+            richContent: nextRichContent,
+            preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
+            modifiedAt: updatedAt,
+          }
+        : current,
+    );
 
     options.onSaving?.(id);
 
@@ -84,6 +95,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
           queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
             current.map((item) => (item.id === id ? note : item)),
           );
+          queryClient.setQueryData(notesKeys.detail(id), note);
           options.onSaved?.(id);
         })
         .catch(() => {
