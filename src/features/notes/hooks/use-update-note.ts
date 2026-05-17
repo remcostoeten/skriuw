@@ -15,6 +15,7 @@ export function useUpdateNote() {
     onSuccess: (note) => {
       if (note) {
         queryClient.setQueryData(notesKeys.detail(note.id), note);
+        void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
       }
     },
     optimistic: {
