@@ -26,6 +26,23 @@ export type PlanningSnapshot = {
   isSignedIn: boolean;
 };
 
+function groupByKey<TRow>(
+  rows: TRow[],
+  getKey: (row: TRow) => string,
+): Map<string, TRow[]> {
+  const groups = new Map<string, TRow[]>();
+  for (const row of rows) {
+    const key = getKey(row);
+    const group = groups.get(key);
+    if (group) {
+      group.push(row);
+    } else {
+      groups.set(key, [row]);
+    }
+  }
+  return groups;
+}
+
 export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
   const supabase = await createServerSupabaseClient();
 
@@ -94,12 +111,14 @@ export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
   const scratchRows = (scratchRes.data ?? []) as ScratchEntryRow[];
   const sectionRows = (sectionsRes.data ?? []) as PlanningSectionRow[];
   const sectionItemRows = (sectionItemsRes.data ?? []) as PlanningSectionItemRow[];
+  const issuesByFeatureId = groupByKey(issueRows, (issue) => issue.feature_id);
+  const itemsBySectionId = groupByKey(sectionItemRows, (item) => item.section_id);
 
   return {
-    features: featureRows.map((f) => mapFeature(f, issueRows)),
+    features: featureRows.map((f) => mapFeature(f, issuesByFeatureId.get(f.id) ?? [])),
     niceToHaves: niceRows.map(mapNiceToHave),
     scratch: scratchRows.map(mapScratch),
-    customSections: sectionRows.map((s) => mapCustomSection(s, sectionItemRows)),
+    customSections: sectionRows.map((s) => mapCustomSection(s, itemsBySectionId.get(s.id) ?? [])),
     isAdmin,
     isSignedIn: Boolean(user),
   };
