@@ -31,8 +31,12 @@ type NoteRow = {
   updated_at: string;
 };
 
+type NoteMetadataRow = Omit<NoteRow, "content" | "rich_content" | "journal_meta">;
+
 const NOTE_SELECT =
   "id, name, content, rich_content, preferred_editor_mode, parent_id, tags, journal_meta, created_at, updated_at";
+const NOTE_METADATA_SELECT =
+  "id, name, preferred_editor_mode, parent_id, tags, created_at, updated_at";
 
 function rowToNoteFile(row: NoteRow): NoteFile {
   return fromPersistedNote({
@@ -54,6 +58,35 @@ function rowToNoteFile(row: NoteRow): NoteFile {
   });
 }
 
+function rowToNoteMetadataFile(row: NoteMetadataRow): NoteFile {
+  return fromPersistedNote({
+    id: row.id as NoteId,
+    name: row.name,
+    content: "" as MarkdownContent,
+    richContent: [],
+    preferredEditorMode: row.preferred_editor_mode ?? "block",
+    parentId: row.parent_id as FolderId | null,
+    tags: row.tags?.map((tag) => tag as TagName),
+    createdAt: row.created_at as IsoTime,
+    updatedAt: row.updated_at as IsoTime,
+  });
+}
+
+export async function listNoteMetadata(): Promise<NoteFile[]> {
+  const { supabase, user } = await getAuthenticatedUser();
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select(NOTE_METADATA_SELECT)
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: NoteMetadataRow) => rowToNoteMetadataFile(row));
+}
+
 export async function listNotes(): Promise<NoteFile[]> {
   const { supabase, user } = await getAuthenticatedUser();
 
@@ -67,6 +100,22 @@ export async function listNotes(): Promise<NoteFile[]> {
   if (error) throw error;
 
   return (data ?? []).map((row: NoteRow) => rowToNoteFile(row));
+}
+
+export async function getNote(id: string): Promise<NoteFile | null> {
+  const { supabase, user } = await getAuthenticatedUser();
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select(NOTE_SELECT)
+    .eq("user_id", user.id)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data ? rowToNoteFile(data as NoteRow) : null;
 }
 
 export type CreateNoteInput = {
