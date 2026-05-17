@@ -12,6 +12,7 @@ export function useDeleteNote() {
   return useApiMutation<string, void, NoteFile[]>(deleteNote, {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: notesKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
     },
     optimistic: {
       queryKey: notesKeys.files(),

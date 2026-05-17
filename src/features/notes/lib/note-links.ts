@@ -166,6 +166,30 @@ export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNote
   return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
 }
 
+export function buildOutgoingNoteLinks(activeNote: NoteFile | null, files: NoteFile[]): ResolvedNoteLink[] {
+  if (!activeNote) return [];
+
+  const notesById = buildNoteIdIndex(files);
+  const titleIndex = buildTitleIndex(files);
+
+  return extractNoteLinks(activeNote).map((link) =>
+    resolveNoteLinkWithIndexes(link, notesById, titleIndex),
+  );
+}
+
+export function buildNoteBacklinks(activeNote: NoteFile | null, files: NoteFile[]): ResolvedNoteLink[] {
+  if (!activeNote) return [];
+
+  const notesById = buildNoteIdIndex(files);
+  const titleIndex = buildTitleIndex(files);
+  const resolve = (link: NoteLink) => resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+
+  return files
+    .filter((file) => file.id !== activeNote.id)
+    .flatMap((file) => extractNoteLinks(file).map(resolve))
+    .filter((link) => link.status === "resolved" && link.targetNoteId === activeNote.id);
+}
+
 export function buildNoteLinkIndex(activeNote: NoteFile | null, files: NoteFile[]): NoteLinkIndex {
   if (!activeNote) {
     return {
@@ -175,15 +199,8 @@ export function buildNoteLinkIndex(activeNote: NoteFile | null, files: NoteFile[
     };
   }
 
-  const notesById = buildNoteIdIndex(files);
-  const titleIndex = buildTitleIndex(files);
-  const resolve = (link: NoteLink) => resolveNoteLinkWithIndexes(link, notesById, titleIndex);
-
-  const outgoing = extractNoteLinks(activeNote).map(resolve);
-  const backlinks = files
-    .filter((file) => file.id !== activeNote.id)
-    .flatMap((file) => extractNoteLinks(file).map(resolve))
-    .filter((link) => link.status === "resolved" && link.targetNoteId === activeNote.id);
+  const outgoing = buildOutgoingNoteLinks(activeNote, files);
+  const backlinks = buildNoteBacklinks(activeNote, files);
 
   return {
     outgoing,
