@@ -7,6 +7,7 @@ import type { NoteFolder } from "@/types/notes";
 
 export function useUpdateFolder() {
   return useApiMutation<UpdateFolderInput, NoteFolder | undefined, NoteFolder[]>(updateFolder, {
+    invalidateKeys: [],
     optimistic: {
       queryKey: notesKeys.folders(),
       updater: (current, input) =>
