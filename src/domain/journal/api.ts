@@ -23,6 +23,9 @@ type TagRow = {
   updated_at: string;
 };
 
+const JOURNAL_ENTRY_SELECT = "id, date_key, content, mood, tags, created_at, updated_at";
+const JOURNAL_TAG_SELECT = "id, name, color, usage_count, last_used_at, created_at, updated_at";
+
 function rowToEntry(row: EntryRow): JournalEntry {
   return {
     id: row.id,
@@ -51,7 +54,7 @@ export async function listJournalEntries(): Promise<JournalEntry[]> {
 
   const { data, error } = await supabase
     .from("journal_entries")
-    .select("*")
+    .select(JOURNAL_ENTRY_SELECT)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -105,33 +108,33 @@ export async function updateJournalEntry(
   input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
   const { supabase, user } = await getAuthenticatedUser();
-
-  const { data: existing, error: fetchError } = await supabase
-    .from("journal_entries")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("id", input.id)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (fetchError) throw fetchError;
-  if (!existing) return undefined;
-
-  const updatedRow = {
-    ...existing,
-    content: input.content ?? existing.content,
-    tags: input.tags ?? existing.tags,
-    mood: input.mood === undefined ? existing.mood : input.mood,
+  const patch: Partial<EntryRow> = {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase
+  if (input.content !== undefined) {
+    patch.content = input.content;
+  }
+  if (input.tags !== undefined) {
+    patch.tags = input.tags;
+  }
+  if (input.mood !== undefined) {
+    patch.mood = input.mood;
+  }
+
+  const { data, error } = await supabase
     .from("journal_entries")
-    .upsert([updatedRow], { onConflict: "user_id,id" });
+    .update(patch)
+    .eq("user_id", user.id)
+    .eq("id", input.id)
+    .is("deleted_at", null)
+    .select(JOURNAL_ENTRY_SELECT)
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) return undefined;
 
-  return rowToEntry(updatedRow as EntryRow);
+  return rowToEntry(data as EntryRow);
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
@@ -153,7 +156,7 @@ export async function listJournalTags(): Promise<JournalTag[]> {
 
   const { data, error } = await supabase
     .from("tags")
-    .select("*")
+    .select(JOURNAL_TAG_SELECT)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -219,16 +222,18 @@ export async function deleteJournalTag(id: string): Promise<void> {
     (entry: { tags: string[] | null }) => entry.tags?.includes(tag.name),
   );
 
-  for (const entry of entriesToUpdate) {
-    await supabase
-      .from("journal_entries")
-      .update({
-        tags: (entry.tags as string[]).filter((t: string) => t !== tag.name),
-        updated_at: now,
-      })
-      .eq("user_id", user.id)
-      .eq("id", entry.id);
-  }
+  await Promise.all(
+    entriesToUpdate.map((entry: { id: string; tags: string[] | null }) =>
+      supabase
+        .from("journal_entries")
+        .update({
+          tags: (entry.tags ?? []).filter((t: string) => t !== tag.name),
+          updated_at: now,
+        })
+        .eq("user_id", user.id)
+        .eq("id", entry.id),
+    ),
+  );
 
   // Soft-delete the tag
   const { error } = await supabase

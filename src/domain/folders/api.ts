@@ -11,6 +11,8 @@ type FolderRow = {
   updated_at: string;
 };
 
+const FOLDER_SELECT = "id, name, parent_id, created_at, updated_at";
+
 function rowToFolder(row: FolderRow): NoteFolder {
   return {
     id: row.id,
@@ -25,7 +27,7 @@ export async function listFolders(): Promise<NoteFolder[]> {
 
   const { data, error } = await supabase
     .from("folders")
-    .select("*")
+    .select(FOLDER_SELECT)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -72,32 +74,30 @@ export type UpdateFolderInput = {
 
 export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined> {
   const { supabase, user } = await getAuthenticatedUser();
-
-  const { data: existing, error: fetchError } = await supabase
-    .from("folders")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("id", input.id)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (fetchError) throw fetchError;
-  if (!existing) return undefined;
-
-  const updatedRow = {
-    ...existing,
-    name: input.name ?? existing.name,
-    parent_id: input.parentId === undefined ? existing.parent_id : input.parentId,
+  const patch: Partial<FolderRow> = {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase
+  if (input.name !== undefined) {
+    patch.name = input.name;
+  }
+  if (input.parentId !== undefined) {
+    patch.parent_id = input.parentId;
+  }
+
+  const { data, error } = await supabase
     .from("folders")
-    .upsert([updatedRow], { onConflict: "user_id,id" });
+    .update(patch)
+    .eq("user_id", user.id)
+    .eq("id", input.id)
+    .is("deleted_at", null)
+    .select(FOLDER_SELECT)
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) return undefined;
 
-  return rowToFolder(updatedRow);
+  return rowToFolder(data as FolderRow);
 }
 
 export async function deleteFolder(id: string): Promise<void> {
