@@ -20,6 +20,8 @@ type DebouncedContentArgs = {
   preferredEditorMode?: NoteEditorMode;
 };
 
+const CONTENT_SAVE_DEBOUNCE_MS = 750;
+
 export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
   const queryClient = useQueryClient();
   const timeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -91,7 +93,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
 
           options.onError?.(id);
         });
-    }, 220);
+    }, CONTENT_SAVE_DEBOUNCE_MS);
 
     timeoutsRef.current.set(id, timeoutId);
   };
