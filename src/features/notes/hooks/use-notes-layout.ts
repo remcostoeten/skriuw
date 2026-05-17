@@ -10,6 +10,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { useFileNavigation, useUrlSync } from "./use-notes-navigation";
 import { useNotes } from "./use-notes";
+import { useNote } from "./use-note";
 import { useFolders } from "./use-folders";
 import { useCreateNote } from "./use-create-note";
 import { useUpdateNote } from "./use-update-note";
@@ -95,6 +96,7 @@ export function useNotesLayout() {
   const notesQuery = useNotes();
   const foldersQuery = useFolders();
   const activeFileId = useNotesStore((state) => state.activeFileId);
+  const activeNoteQuery = useNote(activeFileId);
   const ensureActiveFileId = useNotesStore((state) => state.ensureActiveFileId);
   const folderOpenState = useNotesStore((state) => state.folderOpenState);
   const activeFileSaveState = useNotesStore((state) => state.getFileSaveState(state.activeFileId));
@@ -167,7 +169,24 @@ export function useNotesLayout() {
     },
     [updateFileContent],
   );
-  const files = notesQuery.data ?? [];
+  const metadataFiles = notesQuery.data ?? [];
+  const activeNote = activeNoteQuery.data;
+  const files = useMemo(() => {
+    if (!activeNote) {
+      return metadataFiles;
+    }
+
+    let found = false;
+    const nextFiles = metadataFiles.map((file) => {
+      if (file.id !== activeNote.id) {
+        return file;
+      }
+      found = true;
+      return activeNote;
+    });
+
+    return found ? nextFiles : [...nextFiles, activeNote];
+  }, [activeNote, metadataFiles]);
   const folders = useMemo(
     () => applyFolderUiState(foldersQuery.data ?? [], folderOpenState),
     [folderOpenState, foldersQuery.data],
@@ -761,7 +780,8 @@ export function useNotesLayout() {
 
   const isEditorReady =
     !notesQuery.isPending &&
-    !foldersQuery.isPending;
+    !foldersQuery.isPending &&
+    (!activeFileId || !activeNoteQuery.isPending);
   const sidebarPanelProps = {
     files,
     folders,
