@@ -12,7 +12,7 @@ export function JournalDetailScreen() {
   const { isHydrated, workspace, updateJournalEntry, deleteJournalEntry } = useWorkspace();
 
   if (!isHydrated) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="editor" />;
   }
 
   const entry = workspace.journalEntries.find((item) => item.id === entryId);

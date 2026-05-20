@@ -56,7 +56,7 @@ export default function SignInRoute() {
   }
 
   if (!auth.isReady) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="app" />;
   }
 
   if (auth.phase === "authenticated") {

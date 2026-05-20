@@ -3,44 +3,64 @@
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateNote, type UpdateNoteInput } from "@/domain/notes/api";
-import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { notesKeys } from "./use-notes";
 import type { NoteFile } from "@/types/notes";
 
-export function useUpdateNote() {
-  const queryClient = useQueryClient();
+function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
+	return {
+		...note,
+		name: input.name
+			? input.name.endsWith(".md")
+				? input.name
+				: `${input.name}.md`
+			: note.name,
+		content: input.content ?? note.content,
+		richContent:
+			input.richContent ??
+			(input.content !== undefined
+				? markdownToRichDocument(input.content)
+				: note.richContent),
+		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
+		parentId: input.parentId === undefined ? note.parentId : input.parentId,
+		tags: input.tags === undefined ? note.tags : input.tags,
+		modifiedAt: new Date(),
+	};
+}
 
-  return useApiMutation<UpdateNoteInput, NoteFile | undefined, NoteFile[]>(updateNote, {
-    invalidateKeys: [],
-    onSuccess: (note) => {
-      if (note) {
-        queryClient.setQueryData(notesKeys.detail(note.id), note);
-        void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
-      }
-    },
-    optimistic: {
-      queryKey: notesKeys.files(),
-      updater: (current, input) =>
-        (current ?? []).map((note) =>
-          note.id === input.id
-            ? {
-                ...note,
-                name: input.name
-                  ? input.name.endsWith(".md") ? input.name : `${input.name}.md`
-                  : note.name,
-                content: input.content ?? note.content,
-                richContent:
-                  input.richContent ??
-                  (input.content !== undefined
-                    ? markdownToRichDocument(input.content)
-                    : note.richContent),
-                preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
-                parentId: input.parentId === undefined ? note.parentId : input.parentId,
-                tags: input.tags === undefined ? note.tags : input.tags,
-                modifiedAt: new Date(),
-              }
-            : note,
-        ),
-    },
-  });
+export function useUpdateNote() {
+	const queryClient = useQueryClient();
+
+	return useApiMutation<UpdateNoteInput, NoteFile | undefined, NoteFile[]>(updateNote, {
+		invalidateKeys: [],
+		onSuccess: (note, input) => {
+			if (note) {
+				queryClient.setQueryData(notesKeys.detail(note.id), note);
+				void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
+			} else {
+				// Even if the server returned nothing, make sure the detail cache
+				// reflects the optimistic write so the editor doesn't flash stale data.
+				queryClient.setQueryData<NoteFile | null>(
+					notesKeys.detail(input.id),
+					(current) => (current ? applyNoteUpdate(current, input) : current),
+				);
+			}
+		},
+		optimistic: {
+			queryKey: notesKeys.files(),
+			updater: (current, input) => {
+				// Also patch the detail cache so that components reading from
+				// notesKeys.detail(id) (e.g. the block editor) see the update
+				// immediately — not just after the server responds.
+				queryClient.setQueryData<NoteFile | null>(
+					notesKeys.detail(input.id),
+					(current) => (current ? applyNoteUpdate(current, input) : current),
+				);
+
+				return (current ?? []).map((note) =>
+					note.id === input.id ? applyNoteUpdate(note, input) : note,
+				);
+			},
+		},
+	});
 }
