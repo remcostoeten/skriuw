@@ -1,25 +1,25 @@
-import type { FolderId, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
-import type { NoteEditorMode, RichTextDocument } from "@/types/notes";
+import type { FolderId, MarkdownContent, NoteId, TagName } from "@/domain/persistence/types";
+import type { NoteEditorMode, RichTextDocument } from "@/domain/notes/models";
 
 export type CreateNoteInput = {
-  id?: NoteId;
-  name: string;
-  content: MarkdownContent;
-  richContent?: RichTextDocument;
-  preferredEditorMode?: NoteEditorMode;
-  parentId?: FolderId | null;
-  tags?: TagName[];
-  createdAt?: Date;
-  updatedAt?: Date;
+	id?: NoteId;
+	name: string;
+	content: MarkdownContent;
+	richContent?: RichTextDocument;
+	preferredEditorMode?: NoteEditorMode;
+	parentId?: FolderId | null;
+	tags?: TagName[];
+	createdAt?: Date;
+	updatedAt?: Date;
 };
 
 export type UpdateNoteInput = {
-  id: NoteId;
-  name?: string;
-  content?: MarkdownContent;
-  richContent?: RichTextDocument;
-  preferredEditorMode?: NoteEditorMode;
-  parentId?: FolderId | null;
-  tags?: TagName[];
-  updatedAt?: Date;
+	id: NoteId;
+	name?: string;
+	content?: MarkdownContent;
+	richContent?: RichTextDocument;
+	preferredEditorMode?: NoteEditorMode;
+	parentId?: FolderId | null;
+	tags?: TagName[];
+	updatedAt?: Date;
 };

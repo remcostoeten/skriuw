@@ -52,18 +52,18 @@ This spec intentionally precedes implementation. Tags and backlinks touch editor
 Users should be able to add tags in three ways:
 
 1. `/tag`
-   - Opens a BlockNote slash menu action.
-   - Selecting or creating a tag inserts an inline tag chip at the cursor and adds the tag to `note.tags`.
-   - If text is selected, the slash action can convert it to a tag name.
+    - Opens a BlockNote slash menu action.
+    - Selecting or creating a tag inserts an inline tag chip at the cursor and adds the tag to `note.tags`.
+    - If text is selected, the slash action can convert it to a tag name.
 
 2. `#`
-   - Opens a BlockNote suggestion menu filtered by tag names.
-   - Selecting a tag inserts an inline tag chip and adds it to `note.tags`.
-   - Typing a new name and pressing Enter creates the tag if allowed.
+    - Opens a BlockNote suggestion menu filtered by tag names.
+    - Selecting a tag inserts an inline tag chip and adds it to `note.tags`.
+    - Typing a new name and pressing Enter creates the tag if allowed.
 
 3. Inspector tag section
-   - Still useful for cleanup and overview.
-   - Should not be the only way to add tags.
+    - Still useful for cleanup and overview.
+    - Should not be the only way to add tags.
 
 Important behavior:
 
@@ -79,18 +79,18 @@ Backlinks are not created directly. A backlink appears automatically when anothe
 Users should be able to create graph edges in three ways:
 
 1. `/link note`
-   - Opens a BlockNote slash menu action.
-   - Selecting a note inserts a note mention chip.
+    - Opens a BlockNote slash menu action.
+    - Selecting a note inserts a note mention chip.
 
 2. `@`
-   - Opens a BlockNote suggestion menu filtered by note names.
-   - Selecting a note inserts a note mention chip.
-   - The inline chip stores the target note id and display title.
+    - Opens a BlockNote suggestion menu filtered by note names.
+    - Selecting a note inserts a note mention chip.
+    - The inline chip stores the target note id and display title.
 
 3. `[[`
-   - Raw or markdown-friendly typed syntax.
-   - `[[Note title]]` and `[[Note title|Alias]]` are parsed into outgoing links and backlinks.
-   - In block mode, we can either preserve typed wiki text or convert it to a note mention chip after selection. Conversion is preferred if serialization is reliable.
+    - Raw or markdown-friendly typed syntax.
+    - `[[Note title]]` and `[[Note title|Alias]]` are parsed into outgoing links and backlinks.
+    - In block mode, we can either preserve typed wiki text or convert it to a note mention chip after selection. Conversion is preferred if serialization is reliable.
 
 Recommended v1 source of truth:
 
@@ -122,8 +122,8 @@ Add first-class note tags:
 
 ```ts
 type NoteFile = {
-  // existing fields
-  tags: string[];
+	// existing fields
+	tags: string[];
 };
 ```
 
@@ -178,17 +178,17 @@ Add a parser/index module:
 
 ```ts
 type NoteLink = {
-  raw: string;
-  kind: "wiki" | "mention" | "markdown-note-link";
-  targetLabel: string;
-  alias?: string;
-  targetNoteId?: string;
-  sourceNoteId: string;
+	raw: string;
+	kind: "wiki" | "mention" | "markdown-note-link";
+	targetLabel: string;
+	alias?: string;
+	targetNoteId?: string;
+	sourceNoteId: string;
 };
 
 type ResolvedNoteLink = NoteLink & {
-  status: "resolved" | "ambiguous" | "unresolved";
-  targetNoteId?: string;
+	status: "resolved" | "ambiguous" | "unresolved";
+	targetNoteId?: string;
 };
 ```
 
@@ -233,30 +233,30 @@ Replace the current tabbed `MetadataPanel` with a single scrollable view.
 Suggested section order:
 
 1. Header
-   - Active note title.
-   - Close button on mobile.
-   - Compact modified/read-time summary.
+    - Active note title.
+    - Close button on mobile.
+    - Compact modified/read-time summary.
 
 2. Tags
-   - Existing tags as removable chips.
-   - Inline add control with autocomplete from workspace tags for cleanup/manual management.
-   - Copy should make clear the fastest path is typing `#` or using `/tag` in the editor.
-   - Empty state: small inline prompt, not a large card.
-   - Keyboard behavior: `Enter` adds highlighted/typed tag, `Escape` closes input, Backspace removes last empty chip only when focus is in the tag input.
+    - Existing tags as removable chips.
+    - Inline add control with autocomplete from workspace tags for cleanup/manual management.
+    - Copy should make clear the fastest path is typing `#` or using `/tag` in the editor.
+    - Empty state: small inline prompt, not a large card.
+    - Keyboard behavior: `Enter` adds highlighted/typed tag, `Escape` closes input, Backspace removes last empty chip only when focus is in the tag input.
 
 3. Links
-   - Backlinks count and list.
-   - Outgoing links count and list.
-   - Unresolved links surfaced as muted rows with an action reserved for later.
-   - Click a resolved link to select/open that note.
-   - Copy should make clear links are created by `@note`, `/link note`, or `[[note]]`.
+    - Backlinks count and list.
+    - Outgoing links count and list.
+    - Unresolved links surfaced as muted rows with an action reserved for later.
+    - Click a resolved link to select/open that note.
+    - Copy should make clear links are created by `@note`, `/link note`, or `[[note]]`.
 
 4. Outline
-   - Existing heading extraction.
-   - If heading navigation is implemented, use buttons and scroll the editor to the heading. If not, keep as static text until editor anchors are reliable.
+    - Existing heading extraction.
+    - If heading navigation is implemented, use buttons and scroll the editor to the heading. If not, keep as static text until editor anchors are reliable.
 
 5. Details
-   - Created, modified, file size, character count, word count, read time.
+    - Created, modified, file size, character count, word count, read time.
 
 Visual direction:
 
@@ -325,28 +325,28 @@ Visual direction:
 ## Testing Plan
 
 - Unit tests:
-  - `note-links.ts` parser and resolver.
-  - BlockNote inline mention/tag extraction.
-  - `core/notes/mappers.ts` note tags.
-  - `domain/notes/api.ts` row mapping if server helpers stay directly tested.
-  - optimistic update preserves tags.
+    - `note-links.ts` parser and resolver.
+    - BlockNote inline mention/tag extraction.
+    - `core/notes/mappers.ts` note tags.
+    - `domain/notes/api.ts` row mapping if server helpers stay directly tested.
+    - optimistic update preserves tags.
 
 - Component tests if existing setup supports them:
-  - Inspector renders all sections for an active note.
-  - Add/remove tag calls update with the expected tag array.
-  - Backlink row opens the source note.
-  - Unresolved outgoing link renders as non-interactive status.
-  - `@` note suggestion inserts a note mention.
-  - `#` tag suggestion inserts a tag chip.
-  - `/tag` and `/link note` actions appear in the slash menu.
+    - Inspector renders all sections for an active note.
+    - Add/remove tag calls update with the expected tag array.
+    - Backlink row opens the source note.
+    - Unresolved outgoing link renders as non-interactive status.
+    - `@` note suggestion inserts a note mention.
+    - `#` tag suggestion inserts a tag chip.
+    - `/tag` and `/link note` actions appear in the slash menu.
 
 - Manual QA:
-  - Desktop inspector open/close and resized sidebar.
-  - Mobile bottom sheet drag/close plus tag controls.
-  - Keyboard-only tag add/remove and link navigation.
-  - Raw editor wiki-link preservation.
-  - Block editor wiki-link preservation.
-  - Duplicate-title ambiguous link state.
+    - Desktop inspector open/close and resized sidebar.
+    - Mobile bottom sheet drag/close plus tag controls.
+    - Keyboard-only tag add/remove and link navigation.
+    - Raw editor wiki-link preservation.
+    - Block editor wiki-link preservation.
+    - Duplicate-title ambiguous link state.
 
 ## Open Questions
 

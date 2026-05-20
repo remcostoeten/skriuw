@@ -1,16 +1,16 @@
-import type { FolderId } from "@/core/persistence-types";
+import type { FolderId } from "@/domain/persistence/types";
 
 export type CreateFolderInput = {
-  id?: FolderId;
-  name: string;
-  parentId?: FolderId | null;
-  createdAt?: Date;
-  updatedAt?: Date;
+	id?: FolderId;
+	name: string;
+	parentId?: FolderId | null;
+	createdAt?: Date;
+	updatedAt?: Date;
 };
 
 export type UpdateFolderInput = {
-  id: FolderId;
-  name?: string;
-  parentId?: FolderId | null;
-  updatedAt?: Date;
+	id: FolderId;
+	name?: string;
+	parentId?: FolderId | null;
+	updatedAt?: Date;
 };

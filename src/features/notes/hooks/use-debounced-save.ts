@@ -3,110 +3,110 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateNote, type UpdateNoteInput } from "@/domain/notes/api";
-import { markdownToRichDocument } from "@/shared/lib/rich-document";
+import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { notesKeys } from "./use-notes";
 import type { NoteFile, NoteEditorMode, RichTextDocument } from "@/types/notes";
 
 type DebouncedUpdateOptions = {
-  onSaving?: (noteId: string) => void;
-  onSaved?: (noteId: string) => void;
-  onError?: (noteId: string) => void;
+	onSaving?: (noteId: string) => void;
+	onSaved?: (noteId: string) => void;
+	onError?: (noteId: string) => void;
 };
 
 type DebouncedContentArgs = {
-  id: string;
-  content: string;
-  richContent?: RichTextDocument;
-  preferredEditorMode?: NoteEditorMode;
+	id: string;
+	content: string;
+	richContent?: RichTextDocument;
+	preferredEditorMode?: NoteEditorMode;
 };
 
 const CONTENT_SAVE_DEBOUNCE_MS = 750;
 
 export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
-  const queryClient = useQueryClient();
-  const timeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const versionsRef = useRef(new Map<string, number>());
+	const queryClient = useQueryClient();
+	const timeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+	const versionsRef = useRef(new Map<string, number>());
 
-  useEffect(() => {
-    return () => {
-      for (const timeoutId of timeoutsRef.current.values()) {
-        clearTimeout(timeoutId);
-      }
-      timeoutsRef.current.clear();
-    };
-  }, []);
+	useEffect(() => {
+		return () => {
+			for (const timeoutId of timeoutsRef.current.values()) {
+				clearTimeout(timeoutId);
+			}
+			timeoutsRef.current.clear();
+		};
+	}, []);
 
-  return ({ id, content, richContent, preferredEditorMode }: DebouncedContentArgs) => {
-    const updatedAt = new Date();
-    const nextRichContent = richContent ?? markdownToRichDocument(content);
-    const nextVersion = (versionsRef.current.get(id) ?? 0) + 1;
-    versionsRef.current.set(id, nextVersion);
+	return ({ id, content, richContent, preferredEditorMode }: DebouncedContentArgs) => {
+		const updatedAt = new Date();
+		const nextRichContent = richContent ?? markdownToRichDocument(content);
+		const nextVersion = (versionsRef.current.get(id) ?? 0) + 1;
+		versionsRef.current.set(id, nextVersion);
 
-    // Patch the cache optimistically
-    queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
-      current.map((note) =>
-        note.id === id
-          ? {
-              ...note,
-              content,
-              richContent: nextRichContent,
-              preferredEditorMode: preferredEditorMode ?? note.preferredEditorMode,
-              modifiedAt: updatedAt,
-            }
-          : note,
-      ),
-    );
-    queryClient.setQueryData<NoteFile | null>(notesKeys.detail(id), (current) =>
-      current
-        ? {
-            ...current,
-            content,
-            richContent: nextRichContent,
-            preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
-            modifiedAt: updatedAt,
-          }
-        : current,
-    );
+		// Patch the cache optimistically
+		queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
+			current.map((note) =>
+				note.id === id
+					? {
+							...note,
+							content,
+							richContent: nextRichContent,
+							preferredEditorMode: preferredEditorMode ?? note.preferredEditorMode,
+							modifiedAt: updatedAt,
+						}
+					: note,
+			),
+		);
+		queryClient.setQueryData<NoteFile | null>(notesKeys.detail(id), (current) =>
+			current
+				? {
+						...current,
+						content,
+						richContent: nextRichContent,
+						preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
+						modifiedAt: updatedAt,
+					}
+				: current,
+		);
 
-    options.onSaving?.(id);
+		options.onSaving?.(id);
 
-    const pendingTimeout = timeoutsRef.current.get(id);
-    if (pendingTimeout) {
-      clearTimeout(pendingTimeout);
-    }
+		const pendingTimeout = timeoutsRef.current.get(id);
+		if (pendingTimeout) {
+			clearTimeout(pendingTimeout);
+		}
 
-    const timeoutId = setTimeout(() => {
-      timeoutsRef.current.delete(id);
-      const requestVersion = versionsRef.current.get(id);
+		const timeoutId = setTimeout(() => {
+			timeoutsRef.current.delete(id);
+			const requestVersion = versionsRef.current.get(id);
 
-      const input: UpdateNoteInput = {
-        id,
-        content,
-        richContent: nextRichContent,
-        preferredEditorMode,
-      };
+			const input: UpdateNoteInput = {
+				id,
+				content,
+				richContent: nextRichContent,
+				preferredEditorMode,
+			};
 
-      void updateNote(input)
-        .then((note) => {
-          if (!note || versionsRef.current.get(id) !== requestVersion) {
-            return;
-          }
+			void updateNote(input)
+				.then((note) => {
+					if (!note || versionsRef.current.get(id) !== requestVersion) {
+						return;
+					}
 
-          queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
-            current.map((item) => (item.id === id ? note : item)),
-          );
-          queryClient.setQueryData(notesKeys.detail(id), note);
-          options.onSaved?.(id);
-        })
-        .catch(() => {
-          if (versionsRef.current.get(id) !== requestVersion) {
-            return;
-          }
+					queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
+						current.map((item) => (item.id === id ? note : item)),
+					);
+					queryClient.setQueryData(notesKeys.detail(id), note);
+					options.onSaved?.(id);
+				})
+				.catch(() => {
+					if (versionsRef.current.get(id) !== requestVersion) {
+						return;
+					}
 
-          options.onError?.(id);
-        });
-    }, CONTENT_SAVE_DEBOUNCE_MS);
+					options.onError?.(id);
+				});
+		}, CONTENT_SAVE_DEBOUNCE_MS);
 
-    timeoutsRef.current.set(id, timeoutId);
-  };
+		timeoutsRef.current.set(id, timeoutId);
+	};
 }

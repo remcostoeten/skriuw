@@ -61,7 +61,7 @@ export function JournalHomeScreen() {
   const [searchFocused, setSearchFocused] = useState(false);
 
   if (!isHydrated) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="journal" />;
   }
 
   const entries = [...workspace.journalEntries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));

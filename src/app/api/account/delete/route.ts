@@ -1,60 +1,59 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  createSupabaseAdminClient,
-  getAuthenticatedUser,
-  isSupabaseAdminConfigured,
+	createSupabaseAdminClient,
+	getAuthenticatedUser,
+	isSupabaseAdminConfigured,
 } from "@/core/supabase/server-client";
 
 const DELETE_PHRASE = "delete my account";
 const USER_SCOPED_TABLES = [
-  "ai_provider_keys",
-  "ai_usage_logs",
-  "ai_error_events",
-  "user_recents",
-  "journal_entries",
-  "tags",
-  "notes",
-  "folders",
+	"ai_provider_keys",
+	"ai_usage_logs",
+	"ai_error_events",
+	"user_recents",
+	"journal_entries",
+	"tags",
+	"notes",
+	"folders",
 ] as const;
 
 export async function POST(request: NextRequest) {
-  const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
 
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
+	if (!user) {
+		return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+	}
 
-  const body = (await request.json().catch(() => null)) as { confirmation?: string } | null;
+	const body = (await request.json().catch(() => null)) as { confirmation?: string } | null;
 
-  if (body?.confirmation?.trim().toLowerCase() !== DELETE_PHRASE) {
-    return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
-  }
+	if (body?.confirmation?.trim().toLowerCase() !== DELETE_PHRASE) {
+		return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
+	}
 
-  if (!isSupabaseAdminConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          "Account deletion is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
-      },
-      { status: 503 },
-    );
-  }
+	if (!isSupabaseAdminConfigured()) {
+		return NextResponse.json(
+			{
+				error: "Account deletion is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
+			},
+			{ status: 503 },
+		);
+	}
 
-  const admin = createSupabaseAdminClient();
+	const admin = createSupabaseAdminClient();
 
-  for (const table of USER_SCOPED_TABLES) {
-    const { error } = await admin.from(table).delete().eq("user_id", user.id);
+	for (const table of USER_SCOPED_TABLES) {
+		const { error } = await admin.from(table).delete().eq("user_id", user.id);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-  }
+		if (error) {
+			return NextResponse.json({ error: error.message }, { status: 500 });
+		}
+	}
 
-  const { error } = await admin.auth.admin.deleteUser(user.id);
+	const { error } = await admin.auth.admin.deleteUser(user.id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+	if (error) {
+		return NextResponse.json({ error: error.message }, { status: 500 });
+	}
 
-  return NextResponse.json({ ok: true });
+	return NextResponse.json({ ok: true });
 }

@@ -10,30 +10,30 @@ const CONTENT_TABLES = ["notes", "folders", "journal_entries", "tags", "user_rec
 export type ClearDataResult = { ok: true } | { ok: false; error: string };
 
 export async function clearAllData(confirmation: string): Promise<ClearDataResult> {
-  if (confirmation.trim().toLowerCase() !== CLEAR_PHRASE) {
-    return { ok: false, error: "Confirmation did not match." };
-  }
+	if (confirmation.trim().toLowerCase() !== CLEAR_PHRASE) {
+		return { ok: false, error: "Confirmation did not match." };
+	}
 
-  const { supabase, user } = await getAuthenticatedUser().catch(() => ({
-    supabase: null,
-    user: null,
-  }));
+	const { supabase, user } = await getAuthenticatedUser().catch(() => ({
+		supabase: null,
+		user: null,
+	}));
 
-  if (!supabase || !user) {
-    return { ok: false, error: "Not authenticated." };
-  }
+	if (!supabase || !user) {
+		return { ok: false, error: "Not authenticated." };
+	}
 
-  const now = new Date().toISOString();
+	const now = new Date().toISOString();
 
-  for (const table of CONTENT_TABLES) {
-    const { error } = await supabase
-      .from(table)
-      .update({ deleted_at: now })
-      .eq("user_id", user.id)
-      .is("deleted_at", null);
+	for (const table of CONTENT_TABLES) {
+		const { error } = await supabase
+			.from(table)
+			.update({ deleted_at: now })
+			.eq("user_id", user.id)
+			.is("deleted_at", null);
 
-    if (error) return { ok: false, error: error.message };
-  }
+		if (error) return { ok: false, error: error.message };
+	}
 
-  return { ok: true };
+	return { ok: true };
 }

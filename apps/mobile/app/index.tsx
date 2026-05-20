@@ -11,7 +11,7 @@ export default function IndexScreen() {
   const auth = useAuthSnapshot() as MobileAuthSnapshot;
 
   if (!auth.isReady) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="app" />;
   }
 
   return <Redirect href={(auth.phase === "authenticated" ? "/notes" : "/sign-in") as Href} />;

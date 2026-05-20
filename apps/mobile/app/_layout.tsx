@@ -72,7 +72,7 @@ export default function RootLayout() {
         <WorkspaceProvider>
           <StatusBar style="light" backgroundColor={palette.canvas} />
           {shouldBlockRender ? (
-            <LoadingScreen />
+            <LoadingScreen variant="app" />
           ) : (
             <Stack
               screenOptions={{
