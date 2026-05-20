@@ -154,14 +154,19 @@ export async function updateNote(input: UpdateNoteInput): Promise<NoteFile | und
   return rowToNoteFile(updatedRow as NoteRow);
 }
 
-export async function deleteNote(id: string): Promise<void> {
+export async function deleteNote(id: string): Promise<boolean> {
   const { supabase, user } = await getAuthenticatedUser();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("notes")
     .update({ deleted_at: new Date().toISOString() })
     .eq("user_id", user.id)
-    .eq("id", id);
+    .eq("id", id)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+
+  return Boolean(data);
 }
