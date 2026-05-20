@@ -6,25 +6,31 @@ import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 
-export default async function AppHomePage() {
-  const queryClient = new QueryClient();
+export default function AppHomePage() {
+	return (
+		<Suspense fallback={<WorkspaceLoadingShell variant="notes" />}>
+			<AppHomeContent />
+		</Suspense>
+	);
+}
 
-  await Promise.all([
-    queryClient.prefetchQuery({
-      queryKey: notesKeys.files(),
-      queryFn: () => listNoteMetadata(),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: notesKeys.folders(),
-      queryFn: () => listFolders(),
-    }),
-  ]);
+async function AppHomeContent() {
+	const queryClient = new QueryClient();
 
-  return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={<WorkspaceLoadingShell variant="notes" />}>
-        <NotesLayout />
-      </Suspense>
-    </HydrationBoundary>
-  );
+	await Promise.all([
+		queryClient.prefetchQuery({
+			queryKey: notesKeys.files(),
+			queryFn: () => listNoteMetadata(),
+		}),
+		queryClient.prefetchQuery({
+			queryKey: notesKeys.folders(),
+			queryFn: () => listFolders(),
+		}),
+	]);
+
+	return (
+		<HydrationBoundary state={dehydrate(queryClient)}>
+			<NotesLayout />
+		</HydrationBoundary>
+	);
 }

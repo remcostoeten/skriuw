@@ -15,7 +15,7 @@ export function NoteDetailScreen() {
   const [sheetMode, setSheetMode] = useState<"main" | "move">("main");
 
   if (!isHydrated) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="editor" />;
   }
 
   const note = workspace.notes.find((item) => item.id === noteId);

@@ -1,246 +1,244 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import type { JournalEntry, JournalTag, MoodLevel } from "@/types/journal";
+import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 
 type EntryRow = {
-  id: string;
-  date_key: string;
-  content: string;
-  mood: MoodLevel | null;
-  tags: string[] | null;
-  created_at: string;
-  updated_at: string;
+	id: string;
+	date_key: string;
+	content: string;
+	mood: MoodLevel | null;
+	tags: string[] | null;
+	created_at: string;
+	updated_at: string;
 };
 
 type TagRow = {
-  id: string;
-  name: string;
-  color: string;
-  usage_count: number | null;
-  last_used_at: string | null;
-  created_at: string;
-  updated_at: string;
+	id: string;
+	name: string;
+	color: string;
+	usage_count: number | null;
+	last_used_at: string | null;
+	created_at: string;
+	updated_at: string;
 };
 
 const JOURNAL_ENTRY_SELECT = "id, date_key, content, mood, tags, created_at, updated_at";
 const JOURNAL_TAG_SELECT = "id, name, color, usage_count, last_used_at, created_at, updated_at";
 
 function rowToEntry(row: EntryRow): JournalEntry {
-  return {
-    id: row.id,
-    dateKey: row.date_key,
-    content: row.content,
-    tags: row.tags ?? [],
-    mood: row.mood ?? undefined,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  };
+	return {
+		id: row.id,
+		dateKey: row.date_key,
+		content: row.content,
+		tags: row.tags ?? [],
+		mood: row.mood ?? undefined,
+		createdAt: new Date(row.created_at),
+		updatedAt: new Date(row.updated_at),
+	};
 }
 
 function rowToTag(row: TagRow): JournalTag {
-  return {
-    id: row.id,
-    name: row.name,
-    color: row.color,
-    usageCount: row.usage_count ?? 0,
-  };
+	return {
+		id: row.id,
+		name: row.name,
+		color: row.color,
+		usageCount: row.usage_count ?? 0,
+	};
 }
 
 // ── Journal Entries ──────────────────────────────────────────────────
 
 export async function listJournalEntries(): Promise<JournalEntry[]> {
-  const { supabase, user } = await getAuthenticatedUser();
+	const { supabase, user } = await getAuthenticatedUser();
 
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .select(JOURNAL_ENTRY_SELECT)
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+	const { data, error } = await supabase
+		.from("journal_entries")
+		.select(JOURNAL_ENTRY_SELECT)
+		.eq("user_id", user.id)
+		.is("deleted_at", null)
+		.order("created_at", { ascending: true });
 
-  if (error) throw error;
+	if (error) throw error;
 
-  return (data ?? []).map((row: EntryRow) => rowToEntry(row));
+	return (data ?? []).map((row: EntryRow) => rowToEntry(row));
 }
 
 export type CreateJournalEntryInput = {
-  id?: string;
-  dateKey: string;
-  content: string;
-  tags?: string[];
-  mood?: MoodLevel;
+	id?: string;
+	dateKey: string;
+	content: string;
+	tags?: string[];
+	mood?: MoodLevel;
 };
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
-  const { supabase, user } = await getAuthenticatedUser();
-  const now = new Date().toISOString();
-  const id = input.id ?? crypto.randomUUID();
+	const { supabase, user } = await getAuthenticatedUser();
+	const now = new Date().toISOString();
+	const id = input.id ?? crypto.randomUUID();
 
-  const row = {
-    user_id: user.id,
-    id,
-    date_key: input.dateKey,
-    content: input.content,
-    mood: input.mood ?? null,
-    tags: input.tags ?? [],
-    created_at: now,
-    updated_at: now,
-  };
+	const row = {
+		user_id: user.id,
+		id,
+		date_key: input.dateKey,
+		content: input.content,
+		mood: input.mood ?? null,
+		tags: input.tags ?? [],
+		created_at: now,
+		updated_at: now,
+	};
 
-  const { error } = await supabase
-    .from("journal_entries")
-    .upsert([row], { onConflict: "user_id,id" });
+	const { error } = await supabase
+		.from("journal_entries")
+		.upsert([row], { onConflict: "user_id,id" });
 
-  if (error) throw error;
+	if (error) throw error;
 
-  return rowToEntry(row as EntryRow);
+	return rowToEntry(row as EntryRow);
 }
 
 export type UpdateJournalEntryInput = {
-  id: string;
-  content?: string;
-  tags?: string[];
-  mood?: MoodLevel | null;
+	id: string;
+	content?: string;
+	tags?: string[];
+	mood?: MoodLevel | null;
 };
 
 export async function updateJournalEntry(
-  input: UpdateJournalEntryInput,
+	input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
-  const { supabase, user } = await getAuthenticatedUser();
-  const patch: Partial<EntryRow> = {
-    updated_at: new Date().toISOString(),
-  };
+	const { supabase, user } = await getAuthenticatedUser();
+	const patch: Partial<EntryRow> = {
+		updated_at: new Date().toISOString(),
+	};
 
-  if (input.content !== undefined) {
-    patch.content = input.content;
-  }
-  if (input.tags !== undefined) {
-    patch.tags = input.tags;
-  }
-  if (input.mood !== undefined) {
-    patch.mood = input.mood;
-  }
+	if (input.content !== undefined) {
+		patch.content = input.content;
+	}
+	if (input.tags !== undefined) {
+		patch.tags = input.tags;
+	}
+	if (input.mood !== undefined) {
+		patch.mood = input.mood;
+	}
 
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .update(patch)
-    .eq("user_id", user.id)
-    .eq("id", input.id)
-    .is("deleted_at", null)
-    .select(JOURNAL_ENTRY_SELECT)
-    .maybeSingle();
+	const { data, error } = await supabase
+		.from("journal_entries")
+		.update(patch)
+		.eq("user_id", user.id)
+		.eq("id", input.id)
+		.is("deleted_at", null)
+		.select(JOURNAL_ENTRY_SELECT)
+		.maybeSingle();
 
-  if (error) throw error;
-  if (!data) return undefined;
+	if (error) throw error;
+	if (!data) return undefined;
 
-  return rowToEntry(data as EntryRow);
+	return rowToEntry(data as EntryRow);
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
-  const { supabase, user } = await getAuthenticatedUser();
+	const { supabase, user } = await getAuthenticatedUser();
 
-  const { error } = await supabase
-    .from("journal_entries")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("user_id", user.id)
-    .eq("id", id);
+	const { error } = await supabase
+		.from("journal_entries")
+		.update({ deleted_at: new Date().toISOString() })
+		.eq("user_id", user.id)
+		.eq("id", id);
 
-  if (error) throw error;
+	if (error) throw error;
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────
 
 export async function listJournalTags(): Promise<JournalTag[]> {
-  const { supabase, user } = await getAuthenticatedUser();
+	const { supabase, user } = await getAuthenticatedUser();
 
-  const { data, error } = await supabase
-    .from("tags")
-    .select(JOURNAL_TAG_SELECT)
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+	const { data, error } = await supabase
+		.from("tags")
+		.select(JOURNAL_TAG_SELECT)
+		.eq("user_id", user.id)
+		.is("deleted_at", null)
+		.order("created_at", { ascending: true });
 
-  if (error) throw error;
+	if (error) throw error;
 
-  return (data ?? []).map((row: TagRow) => rowToTag(row));
+	return (data ?? []).map((row: TagRow) => rowToTag(row));
 }
 
 export type CreateJournalTagInput = {
-  name: string;
-  color: string;
+	name: string;
+	color: string;
 };
 
 export async function createJournalTag(input: CreateJournalTagInput): Promise<JournalTag> {
-  const { supabase, user } = await getAuthenticatedUser();
-  const now = new Date().toISOString();
-  const id = crypto.randomUUID();
+	const { supabase, user } = await getAuthenticatedUser();
+	const now = new Date().toISOString();
+	const id = crypto.randomUUID();
 
-  const row = {
-    user_id: user.id,
-    id,
-    name: input.name,
-    color: input.color,
-    usage_count: 0,
-    last_used_at: null,
-    created_at: now,
-    updated_at: now,
-  };
+	const row = {
+		user_id: user.id,
+		id,
+		name: input.name,
+		color: input.color,
+		usage_count: 0,
+		last_used_at: null,
+		created_at: now,
+		updated_at: now,
+	};
 
-  const { error } = await supabase
-    .from("tags")
-    .upsert([row], { onConflict: "user_id,id" });
+	const { error } = await supabase.from("tags").upsert([row], { onConflict: "user_id,id" });
 
-  if (error) throw error;
+	if (error) throw error;
 
-  return rowToTag(row as TagRow);
+	return rowToTag(row as TagRow);
 }
 
 export async function deleteJournalTag(id: string): Promise<void> {
-  const { supabase, user } = await getAuthenticatedUser();
+	const { supabase, user } = await getAuthenticatedUser();
 
-  // Find the tag to get its name for cleanup
-  const { data: tag } = await supabase
-    .from("tags")
-    .select("name")
-    .eq("user_id", user.id)
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
+	// Find the tag to get its name for cleanup
+	const { data: tag } = await supabase
+		.from("tags")
+		.select("name")
+		.eq("user_id", user.id)
+		.eq("id", id)
+		.is("deleted_at", null)
+		.maybeSingle();
 
-  if (!tag) return;
+	if (!tag) return;
 
-  // Remove tag name from all journal entries that use it
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("id, tags")
-    .eq("user_id", user.id)
-    .is("deleted_at", null);
+	// Remove tag name from all journal entries that use it
+	const { data: entries } = await supabase
+		.from("journal_entries")
+		.select("id, tags")
+		.eq("user_id", user.id)
+		.is("deleted_at", null);
 
-  const now = new Date().toISOString();
-  const entriesToUpdate = (entries ?? []).filter(
-    (entry: { tags: string[] | null }) => entry.tags?.includes(tag.name),
-  );
+	const now = new Date().toISOString();
+	const entriesToUpdate = (entries ?? []).filter((entry: { tags: string[] | null }) =>
+		entry.tags?.includes(tag.name),
+	);
 
-  await Promise.all(
-    entriesToUpdate.map((entry: { id: string; tags: string[] | null }) =>
-      supabase
-        .from("journal_entries")
-        .update({
-          tags: (entry.tags ?? []).filter((t: string) => t !== tag.name),
-          updated_at: now,
-        })
-        .eq("user_id", user.id)
-        .eq("id", entry.id),
-    ),
-  );
+	await Promise.all(
+		entriesToUpdate.map((entry: { id: string; tags: string[] | null }) =>
+			supabase
+				.from("journal_entries")
+				.update({
+					tags: (entry.tags ?? []).filter((t: string) => t !== tag.name),
+					updated_at: now,
+				})
+				.eq("user_id", user.id)
+				.eq("id", entry.id),
+		),
+	);
 
-  // Soft-delete the tag
-  const { error } = await supabase
-    .from("tags")
-    .update({ deleted_at: now })
-    .eq("user_id", user.id)
-    .eq("id", id);
+	// Soft-delete the tag
+	const { error } = await supabase
+		.from("tags")
+		.update({ deleted_at: now })
+		.eq("user_id", user.id)
+		.eq("id", id);
 
-  if (error) throw error;
+	if (error) throw error;
 }

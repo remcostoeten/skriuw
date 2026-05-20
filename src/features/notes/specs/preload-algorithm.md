@@ -3,15 +3,15 @@
 > Status: design proposal. Depends on the data-layer split described in
 > `right-path.md` (metadata vs per-note content endpoints). The chip
 > feature works today on the eager-loaded layer; this doc describes how
-> to make navigation feel instant *after* we stop shipping every note up
+> to make navigation feel instant _after_ we stop shipping every note up
 > front.
 
 ## Goal
 
 The user clicks a note-link chip → the target appears with no spinner,
 no flash of empty editor. To do that without preloading every note we
-need a small algorithm that decides, per active note, *which other notes
-are likely to be opened next* and prefetches their content.
+need a small algorithm that decides, per active note, _which other notes
+are likely to be opened next_ and prefetches their content.
 
 Inputs we already have:
 
@@ -98,11 +98,11 @@ Refinements:
   cellular.
 - Multiply budget by `0.5` if `navigator.deviceMemory <= 4`.
 - Multiply budget by `0` if power-save mode is on (`(await
-  navigator.getBattery()).charging === false && level < 0.2`).
+navigator.getBattery()).charging === false && level < 0.2`).
 
 ## Tier 3 — hover / focus prefetch
 
-A user moving the cursor toward a chip is a *much* stronger signal than
+A user moving the cursor toward a chip is a _much_ stronger signal than
 graph proximity. Wire `onPointerEnter` and `onFocus` on each chip to
 trigger an immediate `prefetchQuery` (bypass the budget — hover is cheap
 and intent is explicit). This is the single highest-ROI addition once

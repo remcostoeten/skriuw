@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "next-skeletons": {
+      "source": "blurrah/next-skeletons-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "bf1e0a3a6a6f754fbeb24a6cbc261c8466c915b85a66bc3a5ff748b4ecdb8982"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "45a3cdccc364a4bbd6cdf700fc069e9f24ebc0428098746cbfbf8b18a5e160d2"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "d606a1146be6d54fb9e73f718b5320b9acac5ff2ba2d7230a555df4b5a923b4a"
+    }
+  }
+}

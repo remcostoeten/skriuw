@@ -175,7 +175,7 @@ export function NotesHomeScreen() {
   }
 
   if (!isHydrated) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="notes" />;
   }
 
   return (

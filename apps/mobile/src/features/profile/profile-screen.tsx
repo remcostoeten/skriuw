@@ -59,7 +59,7 @@ export function ProfileScreen() {
   const { isHydrated, workspace, cloudConfigured } = useWorkspace();
 
   if (!isHydrated || !auth.isReady) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="profile" />;
   }
 
   return (
