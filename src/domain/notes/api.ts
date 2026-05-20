@@ -272,7 +272,8 @@ export async function deleteNote(id: string): Promise<void> {
 		.from("notes")
 		.update({ deleted_at: new Date().toISOString() })
 		.eq("user_id", user.id)
-		.eq("id", id);
+		.eq("id", id)
+		.is("deleted_at", null);
 
 	if (error) throw error;
 }
