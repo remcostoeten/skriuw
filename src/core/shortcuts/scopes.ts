@@ -1,8 +1,8 @@
 export const SCOPES = {
-  global: 'global',
-  userMenu: 'user-menu',
-} as const
+	global: "global",
+	userMenu: "user-menu",
+} as const;
 
-export type Scope = (typeof SCOPES)[keyof typeof SCOPES]
+export type Scope = (typeof SCOPES)[keyof typeof SCOPES];
 
-export const DEFAULT_ACTIVE_SCOPES: Scope[] = [SCOPES.global]
+export const DEFAULT_ACTIVE_SCOPES: Scope[] = [SCOPES.global];

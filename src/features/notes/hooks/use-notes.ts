@@ -9,11 +9,9 @@ import { notesKeys } from "./notes-keys";
 export { notesKeys };
 
 export function useNotes() {
-  const auth = useAuthSnapshot();
+	const auth = useAuthSnapshot();
 
-  return useApiQuery<NoteFile[]>(
-    notesKeys.files(),
-    () => listNoteMetadata(),
-    { enabled: auth.isReady && auth.phase === "authenticated" },
-  );
+	return useApiQuery<NoteFile[]>(notesKeys.files(), () => listNoteMetadata(), {
+		enabled: auth.isReady && auth.phase === "authenticated",
+	});
 }

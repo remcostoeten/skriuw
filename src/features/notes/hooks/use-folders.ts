@@ -7,11 +7,9 @@ import { notesKeys } from "./use-notes";
 import type { NoteFolder } from "@/types/notes";
 
 export function useFolders() {
-  const auth = useAuthSnapshot();
+	const auth = useAuthSnapshot();
 
-  return useApiQuery<NoteFolder[]>(
-    notesKeys.folders(),
-    () => listFolders(),
-    { enabled: auth.isReady && auth.phase === "authenticated" },
-  );
+	return useApiQuery<NoteFolder[]>(notesKeys.folders(), () => listFolders(), {
+		enabled: auth.isReady && auth.phase === "authenticated",
+	});
 }

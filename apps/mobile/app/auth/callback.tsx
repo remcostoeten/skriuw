@@ -11,7 +11,7 @@ export default function AuthCallbackRoute() {
   const auth = useAuthSnapshot() as MobileAuthSnapshot;
 
   if (!auth.isReady) {
-    return <LoadingScreen />;
+    return <LoadingScreen variant="app" />;
   }
 
   if (auth.phase === "authenticated") {

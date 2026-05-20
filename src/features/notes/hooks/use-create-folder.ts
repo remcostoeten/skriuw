@@ -6,19 +6,19 @@ import { notesKeys } from "./use-notes";
 import type { NoteFolder } from "@/types/notes";
 
 export function useCreateFolder() {
-  return useApiMutation<CreateFolderInput, NoteFolder, NoteFolder[]>(createFolder, {
-    optimistic: {
-      queryKey: notesKeys.folders(),
-      updater: (current, input) => {
-        const optimisticFolder: NoteFolder = {
-          id: input.id ?? crypto.randomUUID(),
-          name: input.name,
-          parentId: input.parentId ?? null,
-          isOpen: true,
-        };
+	return useApiMutation<CreateFolderInput, NoteFolder, NoteFolder[]>(createFolder, {
+		optimistic: {
+			queryKey: notesKeys.folders(),
+			updater: (current, input) => {
+				const optimisticFolder: NoteFolder = {
+					id: input.id ?? crypto.randomUUID(),
+					name: input.name,
+					parentId: input.parentId ?? null,
+					isOpen: true,
+				};
 
-        return [...(current ?? []), optimisticFolder];
-      },
-    },
-  });
+				return [...(current ?? []), optimisticFolder];
+			},
+		},
+	});
 }

@@ -16,7 +16,7 @@ for the lifetime of the session.
 Rough budgets:
 
 | Notes | Avg payload per note | Total transfer |
-|-------|----------------------|----------------|
+| ----- | -------------------- | -------------- |
 | 100   | 5 KB                 | 0.5 MB         |
 | 1 000 | 5 KB                 | 5 MB           |
 | 1 000 | 50 KB                | 50 MB          |
@@ -42,25 +42,25 @@ Two endpoints, two react-query keys:
 ```ts
 // src/domain/notes/api.ts
 export type NoteMetadata = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  tags: string[];
-  preferredEditorMode: NoteEditorMode;
-  createdAt: Date;
-  modifiedAt: Date;
+	id: string;
+	name: string;
+	parentId: string | null;
+	tags: string[];
+	preferredEditorMode: NoteEditorMode;
+	createdAt: Date;
+	modifiedAt: Date;
 };
 
 export async function listNoteMetadata(): Promise<NoteMetadata[]> {
-  const { supabase, user } = await getAuthenticatedUser();
-  const { data, error } = await supabase
-    .from("notes")
-    .select("id, name, parent_id, tags, preferred_editor_mode, created_at, updated_at")
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(rowToNoteMetadata);
+	const { supabase, user } = await getAuthenticatedUser();
+	const { data, error } = await supabase
+		.from("notes")
+		.select("id, name, parent_id, tags, preferred_editor_mode, created_at, updated_at")
+		.eq("user_id", user.id)
+		.is("deleted_at", null)
+		.order("created_at", { ascending: true });
+	if (error) throw error;
+	return (data ?? []).map(rowToNoteMetadata);
 }
 ```
 
@@ -75,16 +75,16 @@ Cheap, tiny rows. Drives:
 
 ```ts
 export async function getNote(id: string): Promise<NoteFile | null> {
-  const { supabase, user } = await getAuthenticatedUser();
-  const { data, error } = await supabase
-    .from("notes")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? rowToNoteFile(data) : null;
+	const { supabase, user } = await getAuthenticatedUser();
+	const { data, error } = await supabase
+		.from("notes")
+		.select("*")
+		.eq("user_id", user.id)
+		.eq("id", id)
+		.is("deleted_at", null)
+		.maybeSingle();
+	if (error) throw error;
+	return data ? rowToNoteFile(data) : null;
 }
 ```
 
@@ -109,7 +109,7 @@ back to a recently-viewed note is instant.
    `files.find(...)` path until parity is verified.
 3. Remove the old `listNotes()` + `useNotes()` after the editor migration.
 4. Update `buildNoteLinkIndex` to take metadata-only inputs. The link
-   extractor still needs *content* of every note to compute incoming links,
+   extractor still needs _content_ of every note to compute incoming links,
    which kills the savings — see "Backlinks index" below.
 
 ## Backlinks index
@@ -117,11 +117,11 @@ back to a recently-viewed note is instant.
 Once we stop shipping every note's content, `buildNoteLinkIndex` can no
 longer scan in-browser. Three options:
 
-| Option | Where | Cost | Notes |
-|--------|-------|------|-------|
-| A. Server search per active note | Postgres `LIKE '%[[Title]]%'` or `tsvector` | Per-note query on activate | Cheap, simple, lives next to `getNote`. |
-| B. Materialized `note_links` table | Trigger on note save | Constant query cost; trigger writes on every save | Best for read-heavy workloads + graph views. |
-| C. Edge function index | Cron / on-write | Periodic | Stale until rebuild; not great. |
+| Option                             | Where                                       | Cost                                              | Notes                                        |
+| ---------------------------------- | ------------------------------------------- | ------------------------------------------------- | -------------------------------------------- |
+| A. Server search per active note   | Postgres `LIKE '%[[Title]]%'` or `tsvector` | Per-note query on activate                        | Cheap, simple, lives next to `getNote`.      |
+| B. Materialized `note_links` table | Trigger on note save                        | Constant query cost; trigger writes on every save | Best for read-heavy workloads + graph views. |
+| C. Edge function index             | Cron / on-write                             | Periodic                                          | Stale until rebuild; not great.              |
 
 Recommend **A** for now (Postgres regex / FTS), upgrade to **B** when we
 need the graph view or "what links here" sidebar to feel instant on 5k+
