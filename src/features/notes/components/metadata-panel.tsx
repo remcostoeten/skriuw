@@ -1,10 +1,8 @@
 "use client";
 
-import { NoteFile } from "@/types/notes";
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowUpRight,
-	Check,
 	ChevronRight,
 	Eye,
 	FileText,
@@ -16,25 +14,24 @@ import {
 	Plus,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { cn } from "@/shared/lib/utils";
-import { useNotesStore } from "@/features/notes/store";
+import { useEffect, useMemo, useState } from "react";
+import {
+	formatNoteVersionDelta,
+	summarizeNoteVersionReason,
+} from "@/domain/notes/versioning";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
 import { useNoteVersions } from "@/features/notes/hooks/use-note-versions";
-import { useRestoreNoteVersion } from "@/features/notes/hooks/use-restore-note-version";
 import {
 	buildOutgoingNoteLinks,
 	extractNoteTags,
 	getNoteTitle,
 	type ResolvedNoteLink,
 } from "@/features/notes/lib/note-links";
-import {
-	formatNoteVersionDelta,
-	previewVersionContent,
-	summarizeNoteVersionReason,
-} from "@/domain/notes/versioning";
+import { useNotesStore } from "@/features/notes/store";
+import { cn } from "@/shared/lib/utils";
+import type { NoteFile, NoteVersion } from "@/types/notes";
 
 type Props = {
 	file: NoteFile | null;
@@ -43,6 +40,7 @@ type Props = {
 	isMobile?: boolean;
 	onRequestClose?: () => void;
 	onFileSelect?: (id: string) => void;
+	onViewVersion?: (version: NoteVersion) => void;
 };
 
 type SectionKey = "outline" | "tags" | "links" | "history" | "details";
@@ -91,7 +89,10 @@ function InspectorSection({
 	className?: string;
 }) {
 	return (
-		<section aria-labelledby={id} className={cn("border-b border-border", className)}>
+		<section
+			aria-labelledby={id}
+			className={cn("border-b border-border", className)}
+		>
 			<button
 				type="button"
 				onClick={onToggle}
@@ -121,7 +122,9 @@ function InspectorSection({
 }
 
 function EmptyLine({ children }: { children: ReactNode }) {
-	return <p className="text-[13px] leading-5 text-muted-foreground/62">{children}</p>;
+	return (
+		<p className="text-[13px] leading-5 text-muted-foreground/62">{children}</p>
+	);
 }
 
 type VersionListItem = {
@@ -136,19 +139,12 @@ type VersionListItem = {
 function VersionRow({
 	version,
 	diffLabel,
-	isPreviewing,
-	onTogglePreview,
-	onRestore,
-	onClosePreview,
+	onView,
 }: {
 	version: VersionListItem;
 	diffLabel: string;
-	isPreviewing: boolean;
-	onTogglePreview: () => void;
-	onRestore?: () => void;
-	onClosePreview: () => void;
+	onView?: () => void;
 }) {
-	const preview = previewVersionContent(version.content);
 	return (
 		<li className="relative pl-6 py-1.5 group">
 			<span
@@ -156,9 +152,7 @@ function VersionRow({
 					"absolute left-[10px] top-2.5 h-2 w-2 rounded-full ring-2 ring-background",
 					version.current
 						? "bg-emerald-400"
-						: isPreviewing
-							? "bg-foreground"
-							: "bg-muted-foreground/40 group-hover:bg-foreground/60",
+						: "bg-muted-foreground/40 group-hover:bg-foreground/60",
 				)}
 				aria-hidden
 			/>
@@ -170,69 +164,27 @@ function VersionRow({
 					{diffLabel}
 				</span>
 			</div>
-			<p className="truncate text-[12px] leading-snug text-foreground/86" title={version.name}>
+			<p
+				className="truncate text-[12px] leading-snug text-foreground/86"
+				title={version.name}
+			>
 				{version.current ? "Current version" : version.reason}
 			</p>
 			<div className="mt-0.5 flex items-center justify-between gap-2">
 				<span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60">
 					{version.current ? "Live" : "Checkpoint"}
 				</span>
-				{!version.current && (
+				{!version.current && onView && (
 					<button
 						type="button"
-						onClick={onTogglePreview}
-						className={cn(
-							"inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] transition-colors",
-							isPreviewing
-								? "text-foreground"
-								: "text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-						)}
+						onClick={onView}
+						className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground"
 					>
 						<Eye className="h-2.5 w-2.5" strokeWidth={1.6} />
-						{isPreviewing ? "Hide" : "Preview"}
+						View
 					</button>
 				)}
 			</div>
-
-			{isPreviewing && (
-				<div className="mt-2 overflow-hidden border border-border/80 bg-background/70">
-					<div className="flex items-center justify-between border-b border-border/70 bg-muted/35 px-2 py-1">
-						<span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/64">
-							Preview
-						</span>
-						<button
-							type="button"
-							onClick={onClosePreview}
-							className="text-muted-foreground transition-colors hover:text-foreground"
-							aria-label="Close preview"
-						>
-							<X className="h-3 w-3" />
-						</button>
-					</div>
-					<pre className="whitespace-pre-wrap break-words px-2 py-1.5 font-mono text-[11px] leading-relaxed text-foreground/78">
-						{preview.join("\n")}
-					</pre>
-					{onRestore && (
-						<div className="flex items-center gap-1 border-t border-border/70 p-1.5">
-							<button
-								type="button"
-								onClick={onClosePreview}
-								className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								onClick={onRestore}
-								className="flex-1 inline-flex items-center justify-center gap-1 bg-foreground px-2 py-1 text-[11px] font-medium text-background transition-colors hover:bg-foreground/90"
-							>
-								<Check className="h-3 w-3" />
-								Restore
-							</button>
-						</div>
-					)}
-				</div>
-			)}
 		</li>
 	);
 }
@@ -293,7 +245,9 @@ function LinkRow({
 			<li>
 				<button
 					type="button"
-					onClick={() => createNote.mutate({ name: title, content: `# ${title}\n\n` })}
+					onClick={() =>
+						createNote.mutate({ name: title, content: `# ${title}\n\n` })
+					}
 					aria-label={`Create note "${title}"`}
 					className="group flex min-h-9 w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none active:scale-[0.99]"
 				>
@@ -314,7 +268,10 @@ function LinkRow({
 
 	return (
 		<li className="flex min-h-9 items-center gap-2 px-2 py-1.5">
-			<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground/62" strokeWidth={1.5} />
+			<FileText
+				className="h-3.5 w-3.5 shrink-0 text-muted-foreground/62"
+				strokeWidth={1.5}
+			/>
 			<span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
 				{link.alias || link.targetLabel}
 			</span>
@@ -332,20 +289,23 @@ export function MetadataPanel({
 	isMobile = false,
 	onRequestClose,
 	onFileSelect,
+	onViewVersion,
 }: Props) {
 	const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
-	const setSelectedTag = useNotesStore((state) => state.setSelectedInspectorTag);
+	const setSelectedTag = useNotesStore(
+		(state) => state.setSelectedInspectorTag,
+	);
 	const backlinksQuery = useNoteBacklinks(file?.id);
 	const versionsQuery = useNoteVersions(file?.id);
-	const restoreVersion = useRestoreNoteVersion();
-	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-		outline: true,
-		tags: true,
-		links: true,
-		history: true,
-		details: true,
-	});
-	const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
+	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
+		{
+			outline: true,
+			tags: true,
+			links: true,
+			history: true,
+			details: true,
+		},
+	);
 
 	const details = useMemo(() => {
 		if (!file) return [];
@@ -375,9 +335,15 @@ export function MetadataPanel({
 			}));
 	}, [file]);
 
-	const outgoingLinks = useMemo(() => buildOutgoingNoteLinks(file, files), [file, files]);
+	const outgoingLinks = useMemo(
+		() => buildOutgoingNoteLinks(file, files),
+		[file, files],
+	);
 	const backlinks = backlinksQuery.data ?? [];
-	const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
+	const filesById = useMemo(
+		() => new Map(files.map((item) => [item.id, item])),
+		[files],
+	);
 	const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
@@ -411,7 +377,10 @@ export function MetadataPanel({
 	}, [file, versionsQuery.data]);
 
 	const toggleSection = (section: SectionKey) => {
-		setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+		setOpenSections((current) => ({
+			...current,
+			[section]: !current[section],
+		}));
 	};
 
 	useEffect(() => {
@@ -420,10 +389,6 @@ export function MetadataPanel({
 			setSelectedTag(null);
 		}
 	}, [selectedTag, tags]);
-
-	useEffect(() => {
-		setPreviewVersionId(null);
-	}, [file?.id]);
 
 	const asideClass = cn(
 		"flex flex-col bg-background",
@@ -438,10 +403,7 @@ export function MetadataPanel({
 	}
 
 	return (
-		<aside
-			aria-label="Note inspector"
-			className={asideClass}
-		>
+		<aside aria-label="Note inspector" className={asideClass}>
 			{isMobile && (
 				<div className="shrink-0 border-b border-border bg-background px-4 pb-3 pt-3">
 					<div className="flex items-center justify-between gap-3">
@@ -486,21 +448,17 @@ export function MetadataPanel({
 													),
 												);
 												const levelStr =
-													heading.level === 1
-														? null
-														: String(heading.level);
+													heading.level === 1 ? null : String(heading.level);
 												const candidates = all.filter(
 													(el) =>
-														(el.getAttribute("data-level") ??
-															null) === levelStr &&
+														(el.getAttribute("data-level") ?? null) ===
+															levelStr &&
 														el.textContent?.trim() === heading.text,
 												);
 												const target =
 													candidates[0] ??
 													all.find(
-														(el) =>
-															el.textContent?.trim() ===
-															heading.text,
+														(el) => el.textContent?.trim() === heading.text,
 													);
 												target?.scrollIntoView({
 													behavior: "smooth",
@@ -561,7 +519,10 @@ export function MetadataPanel({
 				>
 					{tags.length > 0 ? (
 						<div className="space-y-3">
-							<ul aria-label="Tags on this note" className="flex flex-wrap gap-1.5">
+							<ul
+								aria-label="Tags on this note"
+								className="flex flex-wrap gap-1.5"
+							>
 								{tags.map((tag) => {
 									const isSelected = tag === selectedTag;
 									return (
@@ -570,9 +531,7 @@ export function MetadataPanel({
 												type="button"
 												aria-pressed={isSelected}
 												aria-label={`${isSelected ? "Hide" : "Show"} notes tagged ${tag}`}
-												onClick={() =>
-													setSelectedTag(isSelected ? null : tag)
-												}
+												onClick={() => setSelectedTag(isSelected ? null : tag)}
 												className={cn(
 													"inline-flex min-h-7 cursor-pointer items-center border px-2 text-[12px] font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
 													isSelected
@@ -601,9 +560,7 @@ export function MetadataPanel({
 												<li key={taggedFile.id}>
 													<button
 														type="button"
-														onClick={() =>
-															onFileSelect?.(taggedFile.id)
-														}
+														onClick={() => onFileSelect?.(taggedFile.id)}
 														disabled={!onFileSelect}
 														className="group flex min-h-9 w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60 active:scale-[0.99]"
 													>
@@ -631,7 +588,9 @@ export function MetadataPanel({
 							) : null}
 						</div>
 					) : (
-						<EmptyLine>No tags yet. Type # in the editor or use /tag.</EmptyLine>
+						<EmptyLine>
+							No tags yet. Type # in the editor or use /tag.
+						</EmptyLine>
 					)}
 				</InspectorSection>
 
@@ -650,7 +609,10 @@ export function MetadataPanel({
 									<p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50">
 										Backlinks · {backlinks.length}
 									</p>
-									<ul aria-label="Notes linking to this note" className="-mx-2 space-y-0.5">
+									<ul
+										aria-label="Notes linking to this note"
+										className="-mx-2 space-y-0.5"
+									>
 										{backlinks.map((link) => (
 											<LinkRow
 												key={`${link.sourceNoteId}-${link.raw}`}
@@ -667,7 +629,10 @@ export function MetadataPanel({
 									<p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50">
 										Outgoing · {outgoingLinks.length}
 									</p>
-									<ul aria-label="Notes this note links to" className="-mx-2 space-y-0.5">
+									<ul
+										aria-label="Notes this note links to"
+										className="-mx-2 space-y-0.5"
+									>
 										{outgoingLinks.map((link) => (
 											<LinkRow
 												key={`${link.sourceNoteId}-${link.raw}-${link.targetLabel}`}
@@ -698,7 +663,8 @@ export function MetadataPanel({
 								className="absolute left-[14px] top-2 bottom-2 w-px bg-border"
 							/>
 							{historyItems.map((version, index) => {
-								const newerVersion = index === 0 ? null : historyItems[index - 1];
+								const newerVersion =
+									index === 0 ? null : historyItems[index - 1];
 								const diffLabel =
 									index === 0
 										? "live"
@@ -706,29 +672,21 @@ export function MetadataPanel({
 												version.content,
 												newerVersion?.content,
 											);
-								const isPreviewing = previewVersionId === version.id;
-								const canRestore = !version.current;
 
 								return (
 									<VersionRow
 										key={version.id}
 										version={version}
 										diffLabel={diffLabel}
-										isPreviewing={isPreviewing}
-										onTogglePreview={() =>
-											setPreviewVersionId(
-												isPreviewing ? null : version.id,
-											)
-										}
-										onClosePreview={() => setPreviewVersionId(null)}
-										onRestore={
-											canRestore
+										onView={
+											!version.current && onViewVersion
 												? () => {
-														void restoreVersion.mutate(version.id, {
-															onSuccess: () => {
-																setPreviewVersionId(null);
-															},
-														});
+														const fullVersion = (versionsQuery.data ?? []).find(
+															(v) => v.id === version.id,
+														);
+														if (fullVersion) {
+															onViewVersion(fullVersion);
+														}
 													}
 												: undefined
 										}
@@ -737,7 +695,9 @@ export function MetadataPanel({
 							})}
 						</ol>
 					) : (
-						<EmptyLine>No history yet. The first checkpoint appears after the next save.</EmptyLine>
+						<EmptyLine>
+							No history yet. The first checkpoint appears after the next save.
+						</EmptyLine>
 					)}
 				</InspectorSection>
 			</div>

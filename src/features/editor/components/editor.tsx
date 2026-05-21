@@ -41,6 +41,7 @@ interface EditorProps {
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
 	isMobile?: boolean;
+	readOnly?: boolean;
 	onContentChange: (
 		id: string,
 		content: string,
@@ -61,6 +62,7 @@ export function Editor({
 	editorMode,
 	editorFontId,
 	editorLineHeight,
+	readOnly = false,
 	onContentChange,
 	onEditorReady,
 	onAiSpellCheck,
@@ -123,6 +125,7 @@ export function Editor({
 					activeFileId={file.id}
 					editorFontId={editorFontId}
 					editorLineHeight={editorLineHeight}
+					readOnly={readOnly}
 					onChange={handleRichTextChange}
 					onEditorReady={onEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
@@ -140,6 +143,7 @@ export function Editor({
 				<textarea
 					ref={textareaRef}
 					value={file.content}
+					readOnly={readOnly}
 					onChange={(e) => handleMarkdownChange(e.target.value)}
 					onBlur={(event) => {
 						const firstNonEmptyLine =
