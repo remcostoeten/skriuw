@@ -23,6 +23,33 @@ function NotesEditorPlaceholder() {
 	return <WorkspaceContentSkeleton variant="notes" />;
 }
 
+function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) {
+	return (
+		<aside
+			aria-label="Loading note inspector"
+			aria-busy="true"
+			className={
+				isMobile
+					? "h-full w-full rounded-[inherit] border-0 bg-transparent"
+					: "w-72 shrink-0 border-l border-border bg-background xl:w-80"
+			}
+		>
+			<div className="space-y-5 px-4 py-4" aria-hidden="true">
+				{Array.from({ length: 4 }).map((_, sectionIndex) => (
+					<div key={sectionIndex} className="space-y-2.5">
+						<div className="h-3 w-24 bg-muted" />
+						<div className="space-y-1.5">
+							<div className="h-2 w-full bg-muted/70" />
+							<div className="h-2 w-10/12 bg-muted/55" />
+							<div className="h-2 w-7/12 bg-muted/45" />
+						</div>
+					</div>
+				))}
+			</div>
+		</aside>
+	);
+}
+
 export function NotesLayoutShell() {
 	const layout = useNotesLayout();
 	const {
@@ -44,6 +71,7 @@ export function NotesLayoutShell() {
 		handleToggleEditorMode,
 		handleToggleMetadata,
 		handleToggleSidebar,
+		isActiveNoteLoading,
 		isEditorReady,
 		isMobile,
 		metadataDragControls,
@@ -102,7 +130,9 @@ export function NotesLayoutShell() {
 					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 						<div className="relative flex min-w-0 flex-1 overflow-hidden">
 							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-								{viewingVersion ? (
+								{isActiveNoteLoading ? (
+									<NotesEditorPlaceholder />
+								) : viewingVersion ? (
 									<VersionPreviewContainer
 										version={viewingVersion}
 										file={activeFile}
@@ -133,15 +163,19 @@ export function NotesLayoutShell() {
 								)}
 							</div>
 
-							{!isMobile && showMetadata && (
-								<MetadataPanel
-									file={activeFile}
-									files={files}
-									onFileSelect={sidebarPanelProps.actions.onFileSelect}
-									onViewVersion={handleViewVersion}
-									className="shrink-0"
-								/>
-							)}
+							{!isMobile &&
+								showMetadata &&
+								(isActiveNoteLoading ? (
+									<NotesMetadataPlaceholder />
+								) : (
+									<MetadataPanel
+										file={activeFile}
+										files={files}
+										onFileSelect={sidebarPanelProps.actions.onFileSelect}
+										onViewVersion={handleViewVersion}
+										className="shrink-0"
+									/>
+								))}
 						</div>
 					</div>
 				) : (
@@ -256,18 +290,22 @@ export function NotesLayoutShell() {
 								style={{ willChange: "transform, opacity" }}
 								className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
 							>
-								<MetadataPanel
-									file={activeFile}
-									files={files}
-									isMobile
-									onFileSelect={sidebarPanelProps.actions.onFileSelect}
-									onViewVersion={(version) => {
-										handleViewVersion(version);
-										closeMetadata();
-									}}
-									onRequestClose={closeMetadata}
-									className="h-full w-full border-l-0"
-								/>
+								{isActiveNoteLoading ? (
+									<NotesMetadataPlaceholder isMobile />
+								) : (
+									<MetadataPanel
+										file={activeFile}
+										files={files}
+										isMobile
+										onFileSelect={sidebarPanelProps.actions.onFileSelect}
+										onViewVersion={(version) => {
+											handleViewVersion(version);
+											closeMetadata();
+										}}
+										onRequestClose={closeMetadata}
+										className="h-full w-full border-l-0"
+									/>
+								)}
 							</motion.div>
 						</div>
 					</>
