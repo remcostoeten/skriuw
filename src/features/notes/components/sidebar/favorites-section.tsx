@@ -133,18 +133,30 @@ export const FavoritesSection = memo(function FavoritesSection({
 								/>
 							)}
 							<span className="flex-1 truncate">{fav.name}</span>
-							<button
+							<span
+								role="button"
+							aria-label="Remove from favorites"
+								tabIndex={0}
 								onClick={(e) => {
 									e.stopPropagation();
 									onRemoveFromFavorites(fav.itemId);
 								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										if (e.key === " ") {
+											e.preventDefault();
+										}
+										e.stopPropagation();
+										onRemoveFromFavorites(fav.itemId);
+									}
+								}}
 								className={cn(
-									"flex items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
+									"flex cursor-pointer items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
 									compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
 								)}
 							>
 								<X className="w-3 h-3" strokeWidth={1.5} />
-							</button>
+							</span>
 						</button>
 					))}
 				</div>

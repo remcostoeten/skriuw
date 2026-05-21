@@ -223,6 +223,7 @@ export function EditorContainer({
 			if (!file || !onRenameFile) return;
 			const trimmed = title.trim();
 			if (!trimmed) return;
+			if (normalizeNoteTitle(file.name) !== "untitled") return;
 			const newName = titleToFileName(trimmed);
 			if (normalizeNoteTitle(newName) === normalizeNoteTitle(file.name)) return;
 			isRenamingFromH1Ref.current = true;

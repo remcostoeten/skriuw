@@ -8,6 +8,7 @@ import {
 	WorkspaceSidebarSkeleton,
 } from "@/features/layout/components/app-loading-shell";
 import { EditorContainer } from "@/features/editor/components/editor-container";
+import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
@@ -20,6 +21,33 @@ function NotesSidebarPlaceholder() {
 
 function NotesEditorPlaceholder() {
 	return <WorkspaceContentSkeleton variant="notes" />;
+}
+
+function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) {
+	return (
+		<aside
+			aria-label="Loading note inspector"
+			aria-busy="true"
+			className={
+				isMobile
+					? "h-full w-full rounded-[inherit] border-0 bg-transparent"
+					: "w-72 shrink-0 border-l border-border bg-background xl:w-80"
+			}
+		>
+			<div className="space-y-5 px-4 py-4" aria-hidden="true">
+				{Array.from({ length: 4 }).map((_, sectionIndex) => (
+					<div key={sectionIndex} className="space-y-2.5">
+						<div className="h-3 w-24 bg-muted" />
+						<div className="space-y-1.5">
+							<div className="h-2 w-full bg-muted/70" />
+							<div className="h-2 w-10/12 bg-muted/55" />
+							<div className="h-2 w-7/12 bg-muted/45" />
+						</div>
+					</div>
+				))}
+			</div>
+		</aside>
+	);
 }
 
 export function NotesLayoutShell() {
@@ -43,6 +71,7 @@ export function NotesLayoutShell() {
 		handleToggleEditorMode,
 		handleToggleMetadata,
 		handleToggleSidebar,
+		isActiveNoteLoading,
 		isEditorReady,
 		isMobile,
 		metadataDragControls,
@@ -61,6 +90,11 @@ export function NotesLayoutShell() {
 		showShortcutHelp,
 		shortcutGroups,
 		updateFileContent,
+		viewingVersion,
+		handleViewVersion,
+		handleExitVersionPreview,
+		handleRestoreViewedVersion,
+		isRestoringVersion,
 	} = layout;
 
 	return (
@@ -96,33 +130,52 @@ export function NotesLayoutShell() {
 					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 						<div className="relative flex min-w-0 flex-1 overflow-hidden">
 							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-								<EditorContainer
-									file={activeFile}
-									files={files}
-									editorMode={editorMode ?? "raw"}
-									isMobile={isMobile}
-									onContentChange={updateFileContent}
-									onToggleSidebar={handleToggleSidebar}
-									onToggleMetadata={handleToggleMetadata}
-									onToggleEditorMode={handleToggleEditorMode}
-									onOpenSettings={handleOpenSettings}
-									onNavigatePrev={handleNavigatePrev}
-									onNavigateNext={handleNavigateNext}
-									canNavigatePrev={canNavigatePrev}
-									canNavigateNext={canNavigateNext}
-									fileName={activeFile?.name || "No file selected"}
-									onRenameFile={layout.renameFile}
-								/>
+								{isActiveNoteLoading ? (
+									<NotesEditorPlaceholder />
+								) : viewingVersion ? (
+									<VersionPreviewContainer
+										version={viewingVersion}
+										file={activeFile}
+										files={files}
+										isMobile={isMobile}
+										isRestoring={isRestoringVersion}
+										onBack={handleExitVersionPreview}
+										onRestore={handleRestoreViewedVersion}
+									/>
+								) : (
+									<EditorContainer
+										file={activeFile}
+										files={files}
+										editorMode={editorMode ?? "raw"}
+										isMobile={isMobile}
+										onContentChange={updateFileContent}
+										onToggleSidebar={handleToggleSidebar}
+										onToggleMetadata={handleToggleMetadata}
+										onToggleEditorMode={handleToggleEditorMode}
+										onOpenSettings={handleOpenSettings}
+										onNavigatePrev={handleNavigatePrev}
+										onNavigateNext={handleNavigateNext}
+										canNavigatePrev={canNavigatePrev}
+										canNavigateNext={canNavigateNext}
+										fileName={activeFile?.name || "No file selected"}
+										onRenameFile={layout.renameFile}
+									/>
+								)}
 							</div>
 
-							{!isMobile && showMetadata && (
-								<MetadataPanel
-									file={activeFile}
-									files={files}
-									onFileSelect={sidebarPanelProps.actions.onFileSelect}
-									className="shrink-0"
-								/>
-							)}
+							{!isMobile &&
+								showMetadata &&
+								(isActiveNoteLoading ? (
+									<NotesMetadataPlaceholder />
+								) : (
+									<MetadataPanel
+										file={activeFile}
+										files={files}
+										onFileSelect={sidebarPanelProps.actions.onFileSelect}
+										onViewVersion={handleViewVersion}
+										className="shrink-0"
+									/>
+								))}
 						</div>
 					</div>
 				) : (
@@ -237,14 +290,22 @@ export function NotesLayoutShell() {
 								style={{ willChange: "transform, opacity" }}
 								className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
 							>
-								<MetadataPanel
-									file={activeFile}
-									files={files}
-									isMobile
-									onFileSelect={sidebarPanelProps.actions.onFileSelect}
-									onRequestClose={closeMetadata}
-									className="h-full w-full border-l-0"
-								/>
+								{isActiveNoteLoading ? (
+									<NotesMetadataPlaceholder isMobile />
+								) : (
+									<MetadataPanel
+										file={activeFile}
+										files={files}
+										isMobile
+										onFileSelect={sidebarPanelProps.actions.onFileSelect}
+										onViewVersion={(version) => {
+											handleViewVersion(version);
+											closeMetadata();
+										}}
+										onRequestClose={closeMetadata}
+										className="h-full w-full border-l-0"
+									/>
+								)}
 							</motion.div>
 						</div>
 					</>

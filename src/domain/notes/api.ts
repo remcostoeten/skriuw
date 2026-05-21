@@ -1,7 +1,17 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/supabase/server-client";
-import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
+import type { MoodLevel } from "@/domain/journal/models";
+import {
+	fromPersistedNote,
+	fromPersistedNoteVersion,
+} from "@/domain/notes/mappers";
+import type {
+	NoteFile,
+	NoteVersion,
+	NoteVersionReason,
+	RichTextDocument,
+} from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isMissingNotesTagsColumnError } from "@/domain/notes/schema-compat";
 import {
@@ -15,8 +25,6 @@ import type {
 	NoteId,
 	TagName,
 } from "@/domain/persistence/types";
-import type { NoteFile, NoteVersion, NoteVersionReason, RichTextDocument } from "@/domain/notes/models";
-import type { MoodLevel } from "@/domain/journal/models";
 
 type NoteRow = {
 	id: string;
@@ -36,7 +44,10 @@ type NoteRow = {
 	updated_at: string;
 };
 
-type NoteMetadataRow = Omit<NoteRow, "content" | "rich_content" | "journal_meta">;
+type NoteMetadataRow = Omit<
+	NoteRow,
+	"content" | "rich_content" | "journal_meta"
+>;
 type NoteVersionRow = {
 	id: string;
 	note_id: string;
@@ -68,7 +79,9 @@ type PostgrestLikeError = {
 };
 
 async function selectRowsWithOptionalTags<TRow>(
-	run: (select: string) => Promise<{ data: unknown; error: PostgrestLikeError | null }>,
+	run: (
+		select: string,
+	) => Promise<{ data: unknown; error: PostgrestLikeError | null }>,
 	selectWithTags: string,
 	selectWithoutTags: string,
 ): Promise<TRow[]> {
@@ -89,7 +102,9 @@ async function selectRowsWithOptionalTags<TRow>(
 }
 
 async function selectMaybeSingleWithOptionalTags<TRow>(
-	run: (select: string) => Promise<{ data: unknown; error: PostgrestLikeError | null }>,
+	run: (
+		select: string,
+	) => Promise<{ data: unknown; error: PostgrestLikeError | null }>,
 	selectWithTags: string,
 	selectWithoutTags: string,
 ): Promise<TRow | null> {
@@ -160,7 +175,15 @@ function rowToNoteVersion(row: NoteVersionRow): NoteVersion {
 }
 
 function buildVersionCandidate(
-	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
+	note: Pick<
+		NoteFile,
+		| "name"
+		| "content"
+		| "richContent"
+		| "preferredEditorMode"
+		| "parentId"
+		| "tags"
+	>,
 	reason: NoteVersionReason,
 ) {
 	return {
@@ -191,7 +214,15 @@ async function insertNoteVersion(
 	supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"],
 	userId: string,
 	noteId: string,
-	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
+	note: Pick<
+		NoteFile,
+		| "name"
+		| "content"
+		| "richContent"
+		| "preferredEditorMode"
+		| "parentId"
+		| "tags"
+	>,
 	reason: NoteVersionReason,
 ): Promise<boolean> {
 	const latestVersion = await fetchLatestNoteVersion(supabase, userId, noteId);
@@ -240,7 +271,10 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 	return data.map((row: NoteMetadataRow) => rowToNoteMetadataFile(row));
 }
 
-export async function listNoteVersions(noteId: string, limit = 12): Promise<NoteVersion[]> {
+export async function listNoteVersions(
+	noteId: string,
+	limit = 12,
+): Promise<NoteVersion[]> {
 	const { supabase, user } = await getAuthenticatedUser();
 
 	const { data, error } = await supabase
@@ -322,7 +356,9 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 		updated_at: now,
 	};
 
-	const { error } = await supabase.from("notes").upsert([row], { onConflict: "user_id,id" });
+	const { error } = await supabase
+		.from("notes")
+		.upsert([row], { onConflict: "user_id,id" });
 
 	if (error) throw error;
 
@@ -352,6 +388,7 @@ export type UpdateNoteInput = {
 	preferredEditorMode?: "raw" | "block";
 	parentId?: string | null;
 	tags?: string[];
+	createCheckpoint?: boolean;
 };
 
 export type UpdateNoteResult = {
@@ -359,7 +396,9 @@ export type UpdateNoteResult = {
 	versionCreated: boolean;
 };
 
-export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
+export async function updateNote(
+	input: UpdateNoteInput,
+): Promise<UpdateNoteResult> {
 	const { supabase, user } = await getAuthenticatedUser();
 
 	const patch: Partial<NoteRow> = {
@@ -371,7 +410,8 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (input.content !== undefined) {
 		patch.content = input.content;
-		patch.rich_content = input.richContent ?? markdownToRichDocument(input.content);
+		patch.rich_content =
+			input.richContent ?? markdownToRichDocument(input.content);
 	} else if (input.richContent !== undefined) {
 		patch.rich_content = input.richContent;
 	}
@@ -398,26 +438,33 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	if (!data) return { versionCreated: false };
 
 	const updatedNote = rowToNoteFile(data as NoteRow);
-	const versionReason: NoteVersionReason = input.name !== undefined ? "rename" : "autosave";
-	const versionCreated = await insertNoteVersion(
-		supabase,
-		user.id,
-		input.id,
-		{
-			name: updatedNote.name,
-			content: updatedNote.content,
-			richContent: updatedNote.richContent,
-			preferredEditorMode: updatedNote.preferredEditorMode,
-			parentId: updatedNote.parentId,
-			tags: updatedNote.tags ?? [],
-		},
-		versionReason,
-	);
+	const shouldCreateVersion =
+		input.name !== undefined || input.createCheckpoint === true;
+	const versionReason: NoteVersionReason =
+		input.name !== undefined ? "rename" : "autosave";
+	const versionCreated = shouldCreateVersion
+		? await insertNoteVersion(
+				supabase,
+				user.id,
+				input.id,
+				{
+					name: updatedNote.name,
+					content: updatedNote.content,
+					richContent: updatedNote.richContent,
+					preferredEditorMode: updatedNote.preferredEditorMode,
+					parentId: updatedNote.parentId,
+					tags: updatedNote.tags ?? [],
+				},
+				versionReason,
+			)
+		: false;
 
 	return { note: updatedNote, versionCreated };
 }
 
-export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteResult> {
+export async function restoreNoteVersion(
+	versionId: string,
+): Promise<UpdateNoteResult> {
 	const { supabase, user } = await getAuthenticatedUser();
 	const { data: versionRow, error: versionError } = await supabase
 		.from("note_versions")
