@@ -279,8 +279,12 @@ export function useNotesLayout() {
 	);
 
 	useEffect(() => {
+		if (notesQuery.isPending) {
+			return;
+		}
+
 		ensureActiveFileId(files);
-	}, [ensureActiveFileId, files]);
+	}, [ensureActiveFileId, files, notesQuery.isPending]);
 
 	useEffect(() => {
 		if (!activeFile) {
