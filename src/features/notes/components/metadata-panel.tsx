@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import type { NoteVersionReason } from "@/domain/notes/models";
 import {
 	formatNoteVersionDelta,
 	summarizeNoteVersionReason,
@@ -133,8 +134,15 @@ type VersionListItem = {
 	content: string;
 	createdAt: Date;
 	reason: string;
+	reasonKind: NoteVersionReason | "current";
 	current?: boolean;
 };
+
+function getVersionEventLabel(version: VersionListItem) {
+	if (version.current) return "Live";
+	if (version.reasonKind === "autosave") return null;
+	return version.reason;
+}
 
 function VersionRow({
 	version,
@@ -145,6 +153,8 @@ function VersionRow({
 	diffLabel: string;
 	onView?: () => void;
 }) {
+	const eventLabel = getVersionEventLabel(version);
+
 	return (
 		<li className="relative pl-6 py-1.5 group">
 			<span
@@ -168,12 +178,16 @@ function VersionRow({
 				className="truncate text-[12px] leading-snug text-foreground/86"
 				title={version.name}
 			>
-				{version.current ? "Current version" : version.reason}
+				{version.current ? "Current version" : version.name}
 			</p>
 			<div className="mt-0.5 flex items-center justify-between gap-2">
-				<span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60">
-					{version.current ? "Live" : "Checkpoint"}
-				</span>
+				{eventLabel ? (
+					<span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60">
+						{eventLabel}
+					</span>
+				) : (
+					<span aria-hidden />
+				)}
 				{!version.current && onView && (
 					<button
 						type="button"
@@ -351,17 +365,20 @@ export function MetadataPanel({
 			(item) => item.id !== file.id && uniqueTags(item).includes(selectedTag),
 		);
 	}, [file, files, selectedTag]);
-	const historyItems = useMemo(() => {
+	const historyItems = useMemo<VersionListItem[]>(() => {
 		if (!file) return [];
 
-		const checkpoints = (versionsQuery.data ?? []).map((version) => ({
-			id: version.id,
-			name: version.name,
-			content: version.content,
-			createdAt: version.createdAt,
-			reason: summarizeNoteVersionReason(version.reason),
-			current: false,
-		}));
+		const checkpoints: VersionListItem[] = (versionsQuery.data ?? []).map(
+			(version) => ({
+				id: version.id,
+				name: version.name,
+				content: version.content,
+				createdAt: version.createdAt,
+				reason: summarizeNoteVersionReason(version.reason),
+				reasonKind: version.reason,
+				current: false,
+			}),
+		);
 
 		return [
 			{
@@ -370,6 +387,7 @@ export function MetadataPanel({
 				content: file.content,
 				createdAt: file.modifiedAt,
 				reason: "Current version",
+				reasonKind: "current",
 				current: true,
 			},
 			...checkpoints,
