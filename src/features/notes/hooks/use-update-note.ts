@@ -31,11 +31,15 @@ function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
 export function useUpdateNote() {
 	const queryClient = useQueryClient();
 
-	return useApiMutation<UpdateNoteInput, NoteFile | undefined, NoteFile[]>(updateNote, {
+	return useApiMutation<
+		UpdateNoteInput,
+		{ note?: NoteFile; versionCreated: boolean },
+		NoteFile[]
+	>(updateNote, {
 		invalidateKeys: [],
-		onSuccess: (note, input) => {
-			if (note) {
-				queryClient.setQueryData(notesKeys.detail(note.id), note);
+		onSuccess: (result, input) => {
+			if (result.note) {
+				queryClient.setQueryData(notesKeys.detail(result.note.id), result.note);
 				void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
 			} else {
 				// Even if the server returned nothing, make sure the detail cache
@@ -44,6 +48,10 @@ export function useUpdateNote() {
 					notesKeys.detail(input.id),
 					(current) => (current ? applyNoteUpdate(current, input) : current),
 				);
+			}
+
+			if (result.versionCreated) {
+				void queryClient.invalidateQueries({ queryKey: notesKeys.versions(input.id) });
 			}
 		},
 		optimistic: {
