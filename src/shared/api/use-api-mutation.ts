@@ -2,16 +2,42 @@
 
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 
-type OptimisticConfig<TInput, TData> = {
+type OptimisticQueryKey<TInput> = QueryKey | ((input: TInput) => QueryKey);
+
+type OptimisticUpdater<TInput, TData> = {
+	bivarianceHack(current: TData | undefined, input: TInput): TData | undefined;
+}["bivarianceHack"];
+
+type OptimisticUpdate<TInput, TData = unknown> = {
 	/**
 	 * Query key(s) to cancel and snapshot before the mutation fires.
 	 */
-	queryKey: QueryKey;
+	queryKey: OptimisticQueryKey<TInput>;
 	/**
 	 * Produce the next cache value from the current cache and the mutation input.
 	 * Return `undefined` to skip the optimistic write for this key.
 	 */
-	updater: (current: TData | undefined, input: TInput) => TData | undefined;
+	updater: OptimisticUpdater<TInput, TData>;
+};
+
+type OptimisticConfig<TInput, TData> =
+	| OptimisticUpdate<TInput, TData>
+	| {
+			/**
+			 * Multiple query caches to cancel, snapshot, patch, and roll back together.
+			 */
+			updates: readonly OptimisticUpdate<TInput>[];
+	  };
+
+type OptimisticSnapshot = {
+	queryKey: QueryKey;
+	previous: unknown;
+	hadQuery: boolean;
+};
+
+type OptimisticMutationContext = {
+	queryKeys: QueryKey[];
+	snapshots: OptimisticSnapshot[];
 };
 
 type UseApiMutationOptions<TInput, TOutput, TData = unknown> = {
@@ -42,27 +68,61 @@ export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 	const queryClient = useQueryClient();
 	const { optimistic, invalidateKeys, onSuccess, onError } = options;
 
-	return useMutation<TOutput, Error, TInput, { previous?: TData }>({
+	const getOptimisticUpdates = (input: TInput) =>
+		optimistic
+			? ("updates" in optimistic ? optimistic.updates : [optimistic]).map((update) => ({
+					queryKey:
+						typeof update.queryKey === "function"
+							? update.queryKey(input)
+							: update.queryKey,
+					updater: update.updater,
+				}))
+			: [];
+
+	return useMutation<TOutput, Error, TInput, OptimisticMutationContext>({
 		mutationFn,
 
 		onMutate: optimistic
 			? async (input) => {
-					await queryClient.cancelQueries({ queryKey: optimistic.queryKey });
+					const updates = getOptimisticUpdates(input);
 
-					const previous = queryClient.getQueryData<TData>(optimistic.queryKey);
+					await Promise.all(
+						updates.map(({ queryKey }) => queryClient.cancelQueries({ queryKey })),
+					);
 
-					const next = optimistic.updater(previous, input);
-					if (next !== undefined) {
-						queryClient.setQueryData(optimistic.queryKey, next);
+					const snapshots = updates.map(({ queryKey }) => ({
+						queryKey,
+						previous: queryClient.getQueryData(queryKey),
+						hadQuery: queryClient.getQueryState(queryKey) !== undefined,
+					}));
+
+					for (const { queryKey, updater } of updates) {
+						const previous = queryClient.getQueryData(queryKey);
+						const next = updater(previous, input);
+						if (next !== undefined) {
+							queryClient.setQueryData(queryKey, next);
+						}
 					}
 
-					return { previous };
+					return {
+						queryKeys: updates.map(({ queryKey }) => queryKey),
+						snapshots,
+					};
 				}
 			: undefined,
 
 		onError: (error, input, context) => {
-			if (optimistic && context?.previous !== undefined) {
-				queryClient.setQueryData(optimistic.queryKey, context.previous);
+			if (optimistic) {
+				for (const snapshot of context?.snapshots ?? []) {
+					if (snapshot.hadQuery) {
+						queryClient.setQueryData(snapshot.queryKey, snapshot.previous);
+					} else {
+						queryClient.removeQueries({
+							queryKey: snapshot.queryKey,
+							exact: true,
+						});
+					}
+				}
 			}
 
 			onError?.(error, input);
@@ -72,8 +132,8 @@ export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 			onSuccess?.(data, input);
 		},
 
-		onSettled: () => {
-			const keys = invalidateKeys ?? (optimistic ? [optimistic.queryKey] : []);
+		onSettled: (_data, _error, _input, context) => {
+			const keys = invalidateKeys ?? context?.queryKeys ?? [];
 
 			for (const key of keys) {
 				void queryClient.invalidateQueries({ queryKey: key });

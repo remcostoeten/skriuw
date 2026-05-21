@@ -63,6 +63,7 @@ interface RichTextEditorProps {
 	activeFileId?: string;
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
+	readOnly?: boolean;
 	onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
@@ -665,6 +666,7 @@ export function RichTextEditor({
 	activeFileId,
 	editorFontId,
 	editorLineHeight,
+	readOnly = false,
 	onChange,
 	onEditorReady,
 	onAiSpellCheck,
@@ -677,6 +679,8 @@ export function RichTextEditor({
 	const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
 	const pendingMarkdownRef = useRef(content);
 	const isInternalChangeRef = useRef(false);
+	const hasNormalizedInitialContentRef = useRef(false);
+	const activeFileIdRef = useRef(activeFileId);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const serializeRunIdRef = useRef(0);
 
@@ -825,6 +829,15 @@ export function RichTextEditor({
 		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
 		const nextRichContent = cloneRichDocument(editor.document as any);
 		const nextRichContentKey = JSON.stringify(nextRichContent);
+
+		if (!hasNormalizedInitialContentRef.current) {
+			hasNormalizedInitialContentRef.current = true;
+			lastContentRef.current = markdown;
+			lastRichContentRef.current = nextRichContentKey;
+			pendingMarkdownRef.current = markdown;
+			return;
+		}
+
 		pendingMarkdownRef.current = markdown;
 
 		if (saveTimeoutRef.current) {
@@ -859,13 +872,17 @@ export function RichTextEditor({
 			content !== lastContentRef.current ||
 			nextRichContentKey !== lastRichContentRef.current
 		) {
+			if (activeFileIdRef.current !== activeFileId) {
+				hasNormalizedInitialContentRef.current = false;
+				activeFileIdRef.current = activeFileId;
+			}
 			// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
 			editor.replaceBlocks(editor.document, nextRichContent as any);
 			lastContentRef.current = content;
 			lastRichContentRef.current = nextRichContentKey;
 			pendingMarkdownRef.current = content;
 		}
-	}, [content, editor, richContent]);
+	}, [activeFileId, content, editor, richContent]);
 
 	useEffect(() => {
 		return () => {
@@ -888,6 +905,7 @@ export function RichTextEditor({
 			<NoteLinkProvider files={files} activeFileId={activeFileId}>
 				<BlockNoteView
 					editor={editor}
+					editable={!readOnly}
 					onChange={handleEditorChange}
 					theme={blockNoteTheme}
 					className="h-full"
