@@ -135,6 +135,7 @@ export const FavoritesSection = memo(function FavoritesSection({
 							<span className="flex-1 truncate">{fav.name}</span>
 							<span
 								role="button"
+							aria-label="Remove from favorites"
 								tabIndex={0}
 								onClick={(e) => {
 									e.stopPropagation();
@@ -142,6 +143,9 @@ export const FavoritesSection = memo(function FavoritesSection({
 								}}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" || e.key === " ") {
+										if (e.key === " ") {
+											e.preventDefault();
+										}
 										e.stopPropagation();
 										onRemoveFromFavorites(fav.itemId);
 									}
