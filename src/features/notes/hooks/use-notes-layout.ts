@@ -1,35 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { useDragControls, useReducedMotion, type PanInfo, type Transition } from "framer-motion";
 import { useShortcut } from "@remcostoeten/use-shortcut";
+import { format } from "date-fns";
+import {
+	type PanInfo,
+	type Transition,
+	useDragControls,
+	useReducedMotion,
+} from "framer-motion";
+import { useRouter } from "next/navigation";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CreateFolderInput } from "@/domain/folders/api";
+import type { CreateNoteInput } from "@/domain/notes/api";
+import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import {
+	isMdxNote,
+	resolveEditorMode,
+} from "@/features/editor/lib/editor-mode";
+import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
-import { useFileNavigation, useUrlSync } from "./use-notes-navigation";
-import { useNotes } from "./use-notes";
-import { useNote } from "./use-note";
-import { useFolders } from "./use-folders";
-import { useCreateNote } from "./use-create-note";
-import { useUpdateNote } from "./use-update-note";
-import { useDeleteNote } from "./use-delete-note";
-import { useCreateFolder } from "./use-create-folder";
-import { useUpdateFolder } from "./use-update-folder";
-import { useDeleteFolder } from "./use-delete-folder";
-import { useDebouncedSave } from "./use-debounced-save";
-import type { CreateNoteInput } from "@/domain/notes/api";
-import type { CreateFolderInput } from "@/domain/folders/api";
+import { EASE_SHEET } from "@/shared/lib/motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
-import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { NoteVersion } from "@/types/notes";
 import { DESKTOP_SIDEBAR_MIN_WIDTH } from "../constants";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
-import { EASE_SHEET } from "@/shared/lib/motion";
+import { useCreateFolder } from "./use-create-folder";
+import { useCreateNote } from "./use-create-note";
+import { useDebouncedSave } from "./use-debounced-save";
+import { useDeleteFolder } from "./use-delete-folder";
+import { useDeleteNote } from "./use-delete-note";
+import { useFolders } from "./use-folders";
+import { useNote } from "./use-note";
+import { useNotes } from "./use-notes";
+import { useFileNavigation, useUrlSync } from "./use-notes-navigation";
+import { useRestoreNoteVersion } from "./use-restore-note-version";
+import { useUpdateFolder } from "./use-update-folder";
+import { useUpdateNote } from "./use-update-note";
 
 const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
@@ -149,7 +159,7 @@ export function useNotesLayout() {
 		},
 		[clearPendingSaveReset, setFileSaveState],
 	);
-	const updateFileContent = useDebouncedSave({
+	const saveController = useDebouncedSave({
 		onSaving: markFileSaving,
 		onSaved: markFileSaved,
 		onError: markFileError,
@@ -163,14 +173,14 @@ export function useNotesLayout() {
 				preferredEditorMode?: "raw" | "block";
 			},
 		) => {
-			updateFileContent({
+			saveController.schedule({
 				id,
 				content,
 				richContent: options?.richContent,
 				preferredEditorMode: options?.preferredEditorMode,
 			});
 		},
-		[updateFileContent],
+		[saveController],
 	);
 	const metadataFiles = notesQuery.data ?? [];
 	const activeNote = activeNoteQuery.data;
@@ -200,12 +210,22 @@ export function useNotesLayout() {
 	const setSidebarWidth = useNotesStore((state) => state.setSidebarWidth);
 	const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
 
-	const initializePreferences = usePreferencesStore((state) => state.initialize);
-	const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
-	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
+	const initializePreferences = usePreferencesStore(
+		(state) => state.initialize,
+	);
+	const defaultModeRaw = usePreferencesStore(
+		(state) => state.editor.defaultModeRaw,
+	);
+	const diaryModeEnabled = usePreferencesStore(
+		(state) => state.journal.diaryModeEnabled,
+	);
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [editorMode, setEditorMode] = useState<"raw" | "block" | null>(null);
+	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(
+		null,
+	);
+	const restoreNoteVersion = useRestoreNoteVersion();
 	const lastSyncedFileIdRef = useRef<string | null>(null);
 	const prefersReducedMotion = useReducedMotion();
 	const metadataDragControls = useDragControls();
@@ -224,10 +244,8 @@ export function useNotesLayout() {
 	);
 
 	const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
-	const { canNavigatePrev, canNavigateNext, navigatePrev, navigateNext } = useFileNavigation(
-		files,
-		activeFileId,
-	);
+	const { canNavigatePrev, canNavigateNext, navigatePrev, navigateNext } =
+		useFileNavigation(files, activeFileId);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -280,8 +298,67 @@ export function useNotesLayout() {
 		}
 
 		lastSyncedFileIdRef.current = activeFile.id;
-		setEditorMode(resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block"));
+		setEditorMode(
+			resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block"),
+		);
 	}, [activeFile, defaultModeRaw]);
+
+	useEffect(() => {
+		if (viewingVersion && viewingVersion.noteId !== activeFileId) {
+			setViewingVersion(null);
+		}
+	}, [activeFileId, viewingVersion]);
+
+	const previousActiveFileIdRef = useRef<string>("");
+	useEffect(() => {
+		const previousId = previousActiveFileIdRef.current;
+		previousActiveFileIdRef.current = activeFileId;
+		if (previousId && previousId !== activeFileId) {
+			void saveController.flush(previousId);
+		}
+	}, [activeFileId, saveController]);
+
+	const saveControllerRef = useRef(saveController);
+	useEffect(() => {
+		saveControllerRef.current = saveController;
+	}, [saveController]);
+
+	useEffect(() => {
+		const handleHidden = () => {
+			void saveControllerRef.current.flushAll();
+		};
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "hidden") {
+				handleHidden();
+			}
+		};
+		window.addEventListener("pagehide", handleHidden);
+		window.addEventListener("beforeunload", handleHidden);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		return () => {
+			window.removeEventListener("pagehide", handleHidden);
+			window.removeEventListener("beforeunload", handleHidden);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			void saveControllerRef.current.flushAll();
+		};
+	}, []);
+
+	const handleViewVersion = useCallback((version: NoteVersion) => {
+		setViewingVersion(version);
+	}, []);
+
+	const handleExitVersionPreview = useCallback(() => {
+		setViewingVersion(null);
+	}, []);
+
+	const handleRestoreViewedVersion = useCallback(() => {
+		if (!viewingVersion) return;
+		restoreNoteVersion.mutate(viewingVersion.id, {
+			onSuccess: () => {
+				setViewingVersion(null);
+			},
+		});
+	}, [restoreNoteVersion, viewingVersion]);
 
 	useEffect(() => {
 		if (!isMobile) {
@@ -475,7 +552,14 @@ export function useNotesLayout() {
 		markFileSaving(activeFile.id);
 
 		setEditorMode(nextMode);
-	}, [activeFile, editorMode, markFileError, markFileSaved, markFileSaving, updateNoteMutation]);
+	}, [
+		activeFile,
+		editorMode,
+		markFileError,
+		markFileSaved,
+		markFileSaving,
+		updateNoteMutation,
+	]);
 
 	const handleOpenCommandPalette = useCallback(() => {
 		triggerNativeFeedback("selection");
@@ -666,10 +750,13 @@ export function useNotesLayout() {
 				preventDefault: true,
 				description: "Open the notes command palette",
 			}),
-			$.in("notes").mod.shift.key("p").except("typing").on(handleOpenCommandPalette, {
-				preventDefault: true,
-				description: "Open the notes command palette",
-			}),
+			$.in("notes")
+				.mod.shift.key("p")
+				.except("typing")
+				.on(handleOpenCommandPalette, {
+					preventDefault: true,
+					description: "Open the notes command palette",
+				}),
 			$.in("notes").mod.key("n").except("typing").on(handleCreateFile, {
 				preventDefault: true,
 				description: "Create a new note",
@@ -681,9 +768,12 @@ export function useNotesLayout() {
 			$.in("notes").mod.key("b").except("typing").on(handleToggleSidebar, {
 				description: "Toggle the notes sidebar",
 			}),
-			$.in("notes").mod.shift.key("b").except("typing").on(handleToggleMetadata, {
-				description: "Toggle the note details panel",
-			}),
+			$.in("notes")
+				.mod.shift.key("b")
+				.except("typing")
+				.on(handleToggleMetadata, {
+					description: "Toggle the note details panel",
+				}),
 			$.in("notes").mod.key("comma").except("typing").on(handleOpenSettings, {
 				preventDefault: true,
 				description: "Open settings",
@@ -691,9 +781,12 @@ export function useNotesLayout() {
 			$.in("notes").mod.key("e").except("typing").on(handleToggleEditorMode, {
 				description: "Switch editor mode",
 			}),
-			$.in("notes").shift.key("slash").except("typing").on(handleOpenShortcutHelp, {
-				description: "Open shortcut help",
-			}),
+			$.in("notes")
+				.shift.key("slash")
+				.except("typing")
+				.on(handleOpenShortcutHelp, {
+					description: "Open shortcut help",
+				}),
 		];
 
 		return () => {
@@ -840,8 +933,10 @@ export function useNotesLayout() {
 		isFilesLoading: notesQuery.isFetching && files.length === 0,
 		actions: treeActions,
 		queries: treeQueries,
-		onCollapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
-		onExpandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
+		onCollapseAllFolders: () =>
+			collapseAllFolders(folders.map((folder) => folder.id)),
+		onExpandAllFolders: () =>
+			expandAllFolders(folders.map((folder) => folder.id)),
 		onCreateFile: handleCreateFile,
 		onCreateFolder: handleCreateFolder,
 	};
@@ -854,13 +949,15 @@ export function useNotesLayout() {
 		canNavigatePrev,
 		closeMetadata,
 		closeSidebar,
-		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
+		collapseAllFolders: () =>
+			collapseAllFolders(folders.map((folder) => folder.id)),
 		commandItems,
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,
 		editorMode,
-		expandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
+		expandAllFolders: () =>
+			expandAllFolders(folders.map((folder) => folder.id)),
 		files,
 		getFilesInFolder,
 		getFoldersInFolder,
@@ -901,5 +998,10 @@ export function useNotesLayout() {
 		showSidebar,
 		shortcutGroups: NOTES_SHORTCUT_GROUPS,
 		updateFileContent: handleUpdateFileContent,
+		viewingVersion,
+		handleViewVersion,
+		handleExitVersionPreview,
+		handleRestoreViewedVersion,
+		isRestoringVersion: restoreNoteVersion.isPending,
 	};
 }
