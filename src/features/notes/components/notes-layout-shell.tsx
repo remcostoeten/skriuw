@@ -8,6 +8,7 @@ import {
 	WorkspaceSidebarSkeleton,
 } from "@/features/layout/components/app-loading-shell";
 import { EditorContainer } from "@/features/editor/components/editor-container";
+import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
@@ -61,6 +62,11 @@ export function NotesLayoutShell() {
 		showShortcutHelp,
 		shortcutGroups,
 		updateFileContent,
+		viewingVersion,
+		handleViewVersion,
+		handleExitVersionPreview,
+		handleRestoreViewedVersion,
+		isRestoringVersion,
 	} = layout;
 
 	return (
@@ -96,23 +102,35 @@ export function NotesLayoutShell() {
 					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 						<div className="relative flex min-w-0 flex-1 overflow-hidden">
 							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-								<EditorContainer
-									file={activeFile}
-									files={files}
-									editorMode={editorMode ?? "raw"}
-									isMobile={isMobile}
-									onContentChange={updateFileContent}
-									onToggleSidebar={handleToggleSidebar}
-									onToggleMetadata={handleToggleMetadata}
-									onToggleEditorMode={handleToggleEditorMode}
-									onOpenSettings={handleOpenSettings}
-									onNavigatePrev={handleNavigatePrev}
-									onNavigateNext={handleNavigateNext}
-									canNavigatePrev={canNavigatePrev}
-									canNavigateNext={canNavigateNext}
-									fileName={activeFile?.name || "No file selected"}
-									onRenameFile={layout.renameFile}
-								/>
+								{viewingVersion ? (
+									<VersionPreviewContainer
+										version={viewingVersion}
+										file={activeFile}
+										files={files}
+										isMobile={isMobile}
+										isRestoring={isRestoringVersion}
+										onBack={handleExitVersionPreview}
+										onRestore={handleRestoreViewedVersion}
+									/>
+								) : (
+									<EditorContainer
+										file={activeFile}
+										files={files}
+										editorMode={editorMode ?? "raw"}
+										isMobile={isMobile}
+										onContentChange={updateFileContent}
+										onToggleSidebar={handleToggleSidebar}
+										onToggleMetadata={handleToggleMetadata}
+										onToggleEditorMode={handleToggleEditorMode}
+										onOpenSettings={handleOpenSettings}
+										onNavigatePrev={handleNavigatePrev}
+										onNavigateNext={handleNavigateNext}
+										canNavigatePrev={canNavigatePrev}
+										canNavigateNext={canNavigateNext}
+										fileName={activeFile?.name || "No file selected"}
+										onRenameFile={layout.renameFile}
+									/>
+								)}
 							</div>
 
 							{!isMobile && showMetadata && (
@@ -120,6 +138,7 @@ export function NotesLayoutShell() {
 									file={activeFile}
 									files={files}
 									onFileSelect={sidebarPanelProps.actions.onFileSelect}
+									onViewVersion={handleViewVersion}
 									className="shrink-0"
 								/>
 							)}
@@ -242,6 +261,10 @@ export function NotesLayoutShell() {
 									files={files}
 									isMobile
 									onFileSelect={sidebarPanelProps.actions.onFileSelect}
+									onViewVersion={(version) => {
+										handleViewVersion(version);
+										closeMetadata();
+									}}
 									onRequestClose={closeMetadata}
 									className="h-full w-full border-l-0"
 								/>
