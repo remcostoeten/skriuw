@@ -1,11 +1,12 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, History, RotateCcw } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowLeft, Columns2, Eye, History, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { summarizeNoteVersionReason } from "@/domain/notes/versioning";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { usePreferencesStore } from "@/features/settings/store";
+import { cn } from "@/shared/lib/utils";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import { Editor } from "./editor";
 
@@ -19,6 +20,8 @@ type Props = {
 	onRestore: () => void;
 };
 
+type PreviewMode = "preview" | "compare";
+
 export function VersionPreviewContainer({
 	version,
 	file,
@@ -29,6 +32,7 @@ export function VersionPreviewContainer({
 	onRestore,
 }: Props) {
 	const editorPrefs = usePreferencesStore((s) => s.editor);
+	const [previewMode, setPreviewMode] = useState<PreviewMode>("preview");
 
 	const previewFile = useMemo<NoteFile | null>(() => {
 		if (!file) return null;
@@ -47,8 +51,27 @@ export function VersionPreviewContainer({
 	const effectiveMode = isMdxNote(previewFile)
 		? "raw"
 		: (version.preferredEditorMode ?? "block");
+	const currentMode = isMdxNote(file)
+		? "raw"
+		: (file?.preferredEditorMode ?? "block");
 	const ageLabel = formatDistanceToNow(version.createdAt, { addSuffix: false });
 	const reasonLabel = summarizeNoteVersionReason(version.reason);
+	const isCompareMode = previewMode === "compare";
+
+	function renderEditor(targetFile: NoteFile | null, mode: "raw" | "block") {
+		return (
+			<Editor
+				file={targetFile}
+				files={files}
+				editorMode={mode}
+				editorFontId={editorPrefs.defaultFont}
+				editorLineHeight={editorPrefs.lineHeight}
+				isMobile={isMobile}
+				readOnly
+				onContentChange={() => {}}
+			/>
+		);
+	}
 
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
@@ -76,7 +99,40 @@ export function VersionPreviewContainer({
 							</p>
 						</div>
 					</div>
-					<div className="flex shrink-0 items-center gap-1.5">
+					<div className="flex shrink-0 flex-wrap items-center gap-1.5">
+						<div
+							className="inline-flex border border-border bg-background p-0.5"
+							aria-label="Version view mode"
+						>
+							<button
+								type="button"
+								onClick={() => setPreviewMode("preview")}
+								aria-pressed={!isCompareMode}
+								className={cn(
+									"inline-flex items-center gap-1.5 px-2 py-1 text-[11px] transition-colors",
+									!isCompareMode
+										? "bg-foreground text-background"
+										: "text-muted-foreground hover:bg-muted hover:text-foreground",
+								)}
+							>
+								<Eye className="h-3 w-3" strokeWidth={1.7} />
+								Preview
+							</button>
+							<button
+								type="button"
+								onClick={() => setPreviewMode("compare")}
+								aria-pressed={isCompareMode}
+								className={cn(
+									"inline-flex items-center gap-1.5 px-2 py-1 text-[11px] transition-colors",
+									isCompareMode
+										? "bg-foreground text-background"
+										: "text-muted-foreground hover:bg-muted hover:text-foreground",
+								)}
+							>
+								<Columns2 className="h-3 w-3" strokeWidth={1.7} />
+								Compare
+							</button>
+						</div>
 						<button
 							type="button"
 							onClick={onBack}
@@ -99,18 +155,46 @@ export function VersionPreviewContainer({
 				</div>
 			</div>
 
-			<div className="flex min-h-0 flex-1 overflow-hidden">
-				<Editor
-					file={previewFile}
-					files={files}
-					editorMode={effectiveMode}
-					editorFontId={editorPrefs.defaultFont}
-					editorLineHeight={editorPrefs.lineHeight}
-					isMobile={isMobile}
-					readOnly
-					onContentChange={() => {}}
-				/>
-			</div>
+			{isCompareMode ? (
+				<div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
+					<section
+						aria-label="Checkpoint version"
+						className="flex min-h-0 flex-col overflow-hidden border-b border-border md:border-b-0 md:border-r"
+					>
+						<div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/35 px-3">
+							<span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+								Checkpoint
+							</span>
+							<span className="truncate text-[11px] text-muted-foreground">
+								{ageLabel} ago
+							</span>
+						</div>
+						<div className="min-h-0 flex-1 overflow-hidden">
+							{renderEditor(previewFile, effectiveMode)}
+						</div>
+					</section>
+					<section
+						aria-label="Current version"
+						className="flex min-h-0 flex-col overflow-hidden"
+					>
+						<div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/35 px-3">
+							<span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+								Current
+							</span>
+							<span className="truncate text-[11px] text-muted-foreground">
+								Live note
+							</span>
+						</div>
+						<div className="min-h-0 flex-1 overflow-hidden">
+							{renderEditor(file, currentMode)}
+						</div>
+					</section>
+				</div>
+			) : (
+				<div className="flex min-h-0 flex-1 overflow-hidden">
+					{renderEditor(previewFile, effectiveMode)}
+				</div>
+			)}
 		</div>
 	);
 }
