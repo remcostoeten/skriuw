@@ -87,15 +87,19 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}) {
 			};
 
 			void updateNote(input)
-				.then((note) => {
-					if (!note || versionsRef.current.get(id) !== requestVersion) {
+				.then((result) => {
+					if (!result.note || versionsRef.current.get(id) !== requestVersion) {
 						return;
 					}
 
 					queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
-						current.map((item) => (item.id === id ? note : item)),
+						current.map((item) => (item.id === id ? result.note! : item)),
 					);
-					queryClient.setQueryData(notesKeys.detail(id), note);
+					queryClient.setQueryData(notesKeys.detail(id), result.note);
+					void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
+					if (result.versionCreated) {
+						void queryClient.invalidateQueries({ queryKey: notesKeys.versions(id) });
+					}
 					options.onSaved?.(id);
 				})
 				.catch(() => {
