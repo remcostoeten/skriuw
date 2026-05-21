@@ -4,6 +4,8 @@ import type { MoodLevel } from "@/domain/journal/models";
 export type NoteEditorMode = "raw" | "block";
 export type RichTextDocument = PartialBlock[];
 
+export type NoteVersionReason = "created" | "autosave" | "rename" | "restore";
+
 // Tag system for organizing notes
 export type NoteTag = {
 	id: string;
@@ -33,6 +35,20 @@ export interface NoteFile {
 	tags?: string[];
 	// Optional journal metadata
 	journalMeta?: JournalMetadata;
+}
+
+export interface NoteVersion {
+	id: string;
+	noteId: string;
+	name: string;
+	content: string;
+	richContent: RichTextDocument;
+	preferredEditorMode: NoteEditorMode;
+	createdAt: Date;
+	parentId: string | null;
+	tags?: string[];
+	reason: NoteVersionReason;
+	contentHash: string;
 }
 
 export interface NoteFolder {

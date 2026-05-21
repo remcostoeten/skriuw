@@ -1,6 +1,10 @@
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { describe, expect, test } from "bun:test";
-import { fromPersistedNote, toPersistedNote } from "@/domain/notes/mappers";
+import {
+	fromPersistedNote,
+	fromPersistedNoteVersion,
+	toPersistedNote,
+} from "@/domain/notes/mappers";
 
 describe("note mappers", () => {
 	test("maps note files to persisted notes", () => {
@@ -81,5 +85,27 @@ describe("note mappers", () => {
 		});
 
 		expect(note.richContent).toEqual(markdownToRichDocument(markdown));
+	});
+
+	test("maps persisted note versions back to note version models", () => {
+		const version = fromPersistedNoteVersion({
+			id: "version-1",
+			note_id: "note-1",
+			name: "Alpha.md",
+			content: "# Alpha",
+			rich_content: markdownToRichDocument("# Alpha"),
+			preferred_editor_mode: "block",
+			parent_id: null,
+			tags: ["draft"],
+			reason: "autosave",
+			content_hash: "hash",
+			created_at: "2026-03-03T12:00:00.000Z",
+		});
+
+		expect(version.id).toBe("version-1");
+		expect(version.noteId).toBe("note-1");
+		expect(version.createdAt.toISOString()).toBe("2026-03-03T12:00:00.000Z");
+		expect(version.reason).toBe("autosave");
+		expect(version.richContent).toEqual(markdownToRichDocument("# Alpha"));
 	});
 });
