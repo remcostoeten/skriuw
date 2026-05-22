@@ -3,7 +3,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { tryGetAuthenticatedUser } from "@/core/db";
 import {
 	ACTION_MODEL_DEFAULTS,
 	DEFAULT_AI_MODEL,
@@ -54,7 +54,7 @@ const PROMPTS: Record<AiAction, (content: string) => string> = {
 
 const VALID_ACTIONS = new Set(Object.keys(PROMPTS));
 
-type UserContext = Awaited<ReturnType<typeof getAuthenticatedUser>>["user"] | null;
+type UserContext = Awaited<ReturnType<typeof tryGetAuthenticatedUser>>["user"];
 
 function readOptionalString(value: unknown): string | undefined {
 	return typeof value === "string" ? value : undefined;
@@ -320,7 +320,7 @@ export async function POST(req: NextRequest) {
 	const provider = getProviderFromModelId(model) ?? "google";
 	let user: UserContext = null;
 
-	const authResult = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const authResult = await tryGetAuthenticatedUser();
 	user = authResult.user;
 
 	if (userApiKey && keyId) {

@@ -12,7 +12,6 @@ import {
 	FlaskConical,
 	Palette,
 	PenLine,
-	Plug,
 	Shield,
 	Sparkles,
 	Tag,
@@ -31,7 +30,6 @@ import { AppearanceSection } from "@/features/settings/sections/appearance-secti
 import { EditorSection } from "@/features/settings/sections/editor-section";
 import { NotificationsSection } from "@/features/settings/sections/notifications-section";
 import { DataSection } from "@/features/settings/sections/data-section";
-import { IntegrationsSection } from "@/features/settings/sections/integrations-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
 import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
@@ -56,12 +54,6 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		description: "Reminders and alerts",
 	},
 	{ id: "data", label: "Data & sync", icon: Database, description: "Export and backup" },
-	{
-		id: "integrations",
-		label: "Integrations",
-		icon: Plug,
-		description: "Third-party connections",
-	},
 	{ id: "security", label: "Security", icon: Shield, description: "Password and sessions" },
 	{ id: "ai", label: "AI", icon: Sparkles, description: "Providers and keys" },
 	{ id: "tags", label: "Tags", icon: Tag, description: "Manage tags" },
@@ -95,8 +87,6 @@ function renderSection(id: SettingsTabId) {
 			return <NotificationsSection />;
 		case "data":
 			return <DataSection />;
-		case "integrations":
-			return <IntegrationsSection />;
 		case "security":
 			return <SecuritySection />;
 		case "ai":

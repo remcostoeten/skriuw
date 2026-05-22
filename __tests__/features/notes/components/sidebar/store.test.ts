@@ -50,7 +50,7 @@ function buildAuthSnapshot() {
 		phase: authUserScopeId === "signed-out-local" ? "signed_out" : "authenticated",
 		rememberMe: true,
 		isReady: true,
-		isSupabaseConfigured: false,
+		isAuthConfigured: false,
 		user:
 			authUserScopeId === "signed-out-local"
 				? null

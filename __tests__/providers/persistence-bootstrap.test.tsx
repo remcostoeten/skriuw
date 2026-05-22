@@ -104,7 +104,7 @@ beforeEach(() => {
 		phase: "authenticated",
 		rememberMe: true,
 		isReady: true,
-		isSupabaseConfigured: true,
+		isAuthConfigured: true,
 		user: {
 			id: "user-a",
 			email: "user-a@example.com",

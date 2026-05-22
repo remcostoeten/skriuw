@@ -1,10 +1,4 @@
-import type { Session } from "@supabase/supabase-js";
-import {
-	getStoredRememberMePreference,
-	getSupabaseClient,
-	isSupabaseConfigured,
-	setSupabaseSessionPersistence,
-} from "@/core/supabase/browser-client";
+import { authClient } from "@/lib/auth-client";
 
 type User = {
 	id: string;
@@ -13,15 +7,19 @@ type User = {
 };
 
 type AuthPhase = "initializing" | "signed_out" | "authenticated";
-type OAuthProvider = "google" | "github";
+type OAuthProvider = "github";
+
+export type AuthSession = {
+	user: User;
+};
 
 export type AuthSnapshot = {
 	phase: AuthPhase;
 	rememberMe: boolean;
 	isReady: boolean;
-	isSupabaseConfigured: boolean;
+	isAuthConfigured: boolean;
 	user: User | null;
-	session: Session | null;
+	session: AuthSession | null;
 	error: string | null;
 	workspaceId: string;
 };
@@ -34,13 +32,12 @@ type AuthListener = () => void;
 
 const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
 const SIGNED_OUT_WORKSPACE_ID = "signed-out-local";
-const INITIAL_PHASE: AuthPhase = "signed_out";
 
 let snapshot: AuthSnapshot = {
-	phase: INITIAL_PHASE,
+	phase: "signed_out",
 	rememberMe: true,
 	isReady: true,
-	isSupabaseConfigured: isSupabaseConfigured(),
+	isAuthConfigured: true,
 	user: null,
 	session: null,
 	error: null,
@@ -48,31 +45,12 @@ let snapshot: AuthSnapshot = {
 };
 
 let initializePromise: Promise<AuthSnapshot> | null = null;
-let authSubscriptionBound = false;
 const listeners = new Set<AuthListener>();
 
 function emit(): void {
 	for (const listener of listeners) {
 		listener();
 	}
-}
-
-function toUser(session: Session | null): User | null {
-	const authUser = session?.user;
-	if (!authUser) {
-		return null;
-	}
-
-	return {
-		id: authUser.id,
-		email: authUser.email ?? "",
-		name:
-			typeof authUser.user_metadata?.full_name === "string"
-				? authUser.user_metadata.full_name
-				: typeof authUser.user_metadata?.name === "string"
-					? authUser.user_metadata.name
-					: (authUser.email?.split("@")[0] ?? "Signed-in user"),
-	};
 }
 
 function readPreferences(): AuthPreferences {
@@ -82,33 +60,18 @@ function readPreferences(): AuthPreferences {
 
 	try {
 		const raw = window.localStorage.getItem(AUTH_PREFERENCES_KEY);
-		if (!raw) {
-			return {
-				rememberMe: getStoredRememberMePreference(),
-			};
-		}
-
-		const parsed = JSON.parse(raw) as {
-			rememberMe?: boolean;
-		};
+		if (!raw) return { rememberMe: true };
+		const parsed = JSON.parse(raw) as { rememberMe?: boolean };
 		return {
-			rememberMe:
-				typeof parsed.rememberMe === "boolean"
-					? parsed.rememberMe
-					: getStoredRememberMePreference(),
+			rememberMe: typeof parsed.rememberMe === "boolean" ? parsed.rememberMe : true,
 		};
 	} catch {
-		return {
-			rememberMe: getStoredRememberMePreference(),
-		};
+		return { rememberMe: true };
 	}
 }
 
 function persistPreferences(preferences: AuthPreferences): void {
-	if (typeof window === "undefined") {
-		return;
-	}
-
+	if (typeof window === "undefined") return;
 	window.localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify(preferences));
 }
 
@@ -125,8 +88,8 @@ function normalizeSnapshot(next: AuthSnapshot): AuthSnapshot {
 }
 
 function setSnapshot(next: AuthSnapshot | ((current: AuthSnapshot) => AuthSnapshot)): AuthSnapshot {
-	const rawSnapshot = typeof next === "function" ? next(snapshot) : next;
-	snapshot = normalizeSnapshot(rawSnapshot);
+	const raw = typeof next === "function" ? next(snapshot) : next;
+	snapshot = normalizeSnapshot(raw);
 	emit();
 	return snapshot;
 }
@@ -142,39 +105,40 @@ function clearError(): void {
 	}
 }
 
-function applySession(session: Session | null): AuthSnapshot {
-	const user = toUser(session);
-	const phase = user ? "authenticated" : "signed_out";
+type BetterAuthUser = {
+	id: string;
+	email: string;
+	name?: string | null;
+};
 
+function toUser(rawUser: BetterAuthUser | null | undefined): User | null {
+	if (!rawUser) return null;
+	return {
+		id: rawUser.id,
+		email: rawUser.email ?? "",
+		name: rawUser.name?.trim() || rawUser.email?.split("@")[0] || "Signed-in user",
+	};
+}
+
+function applySession(rawUser: BetterAuthUser | null | undefined): AuthSnapshot {
+	const user = toUser(rawUser);
 	return setSnapshot({
 		...snapshot,
-		phase,
-		isSupabaseConfigured: isSupabaseConfigured(),
+		phase: user ? "authenticated" : "signed_out",
 		user,
-		session,
+		session: user ? { user } : null,
 		error: null,
 	});
 }
 
-function updatePreferences(nextPreferences: Partial<AuthPreferences>): AuthPreferences {
-	const merged = {
-		rememberMe: nextPreferences.rememberMe ?? snapshot.rememberMe,
-	} satisfies AuthPreferences;
-
-	persistPreferences(merged);
-	return merged;
-}
-
-async function ensureAuthSubscription(): Promise<void> {
-	if (authSubscriptionBound || !isSupabaseConfigured()) {
-		return;
+async function refreshSession(): Promise<AuthSnapshot> {
+	try {
+		const { data } = await authClient.getSession();
+		return applySession(data?.user ?? null);
+	} catch (error) {
+		setError(error);
+		return applySession(null);
 	}
-
-	const supabase = getSupabaseClient();
-	supabase.auth.onAuthStateChange((_event, session) => {
-		applySession(session);
-	});
-	authSubscriptionBound = true;
 }
 
 export function subscribeAuthState(listener: AuthListener): () => void {
@@ -195,27 +159,9 @@ export async function initializeAuth(): Promise<AuthSnapshot> {
 
 	if (!initializePromise) {
 		initializePromise = (async () => {
-			const preferences = readPreferences();
-			setSupabaseSessionPersistence(preferences.rememberMe);
-			setSnapshot((current) => ({
-				...current,
-				rememberMe: preferences.rememberMe,
-				isSupabaseConfigured: isSupabaseConfigured(),
-			}));
-
-			if (!isSupabaseConfigured()) {
-				return applySession(null);
-			}
-
-			await ensureAuthSubscription();
-
-			const supabase = getSupabaseClient();
-			const { data, error } = await supabase.auth.getSession();
-			if (error) {
-				setError(error);
-			}
-
-			return applySession(data.session);
+			const prefs = readPreferences();
+			setSnapshot((current) => ({ ...current, rememberMe: prefs.rememberMe, phase: "initializing" }));
+			return refreshSession();
 		})();
 	}
 
@@ -223,13 +169,8 @@ export async function initializeAuth(): Promise<AuthSnapshot> {
 }
 
 export async function setRememberMe(rememberMe: boolean): Promise<AuthSnapshot> {
-	const preferences = updatePreferences({ rememberMe });
-	setSupabaseSessionPersistence(preferences.rememberMe);
-
-	return setSnapshot((current) => ({
-		...current,
-		rememberMe: preferences.rememberMe,
-	}));
+	persistPreferences({ rememberMe });
+	return setSnapshot((current) => ({ ...current, rememberMe }));
 }
 
 type EmailAuthInput = {
@@ -239,159 +180,112 @@ type EmailAuthInput = {
 	name?: string;
 };
 
-function requireConfiguredSupabase(): void {
-	if (!isSupabaseConfigured()) {
-		throw new Error(
-			"Cloud auth is not configured. Add the Supabase env vars to enable sign-in.",
-		);
-	}
-}
-
 function getPostOAuthPath(): string {
-	if (typeof window === "undefined") {
+	if (typeof window === "undefined") return "/app";
+	const next = `${window.location.pathname}${window.location.search}`;
+	if (next === "/" || next.startsWith("/sign-in") || next.startsWith("/sign-up")) {
 		return "/app";
 	}
-
-	const nextPath = `${window.location.pathname}${window.location.search}`;
-	if (nextPath === "/" || nextPath.startsWith("/sign-in") || nextPath.startsWith("/sign-up")) {
-		return "/app";
-	}
-
-	return nextPath;
+	return next;
 }
 
 export function getOAuthRedirectTo(): string | undefined {
-	if (typeof window === "undefined") {
-		return undefined;
-	}
-
-	const callbackUrl = new URL("/auth/callback", window.location.origin);
-	callbackUrl.searchParams.set("next", getPostOAuthPath());
-	return callbackUrl.toString();
+	if (typeof window === "undefined") return undefined;
+	return new URL(getPostOAuthPath(), window.location.origin).toString();
 }
 
 export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
-	await initializeAuth();
-	requireConfiguredSupabase();
 	await setRememberMe(input.rememberMe);
 	clearError();
 
-	const supabase = getSupabaseClient();
-	const { data, error } = await supabase.auth.signInWithPassword({
+	const { data, error } = await authClient.signIn.email({
 		email: input.email,
 		password: input.password,
+		rememberMe: input.rememberMe,
 	});
 
 	if (error) {
-		setError(error);
-		throw error;
+		setError(new Error(error.message ?? "Sign-in failed"));
+		throw new Error(error.message ?? "Sign-in failed");
 	}
 
-	return applySession(data.session);
+	return applySession(data?.user ?? null);
 }
 
 export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
-	await initializeAuth();
-	requireConfiguredSupabase();
 	await setRememberMe(input.rememberMe);
 	clearError();
 
-	const supabase = getSupabaseClient();
-	const { data, error } = await supabase.auth.signUp({
+	const fallbackName = input.name?.trim() || input.email.split("@")[0] || "Skriuw user";
+
+	const { data, error } = await authClient.signUp.email({
 		email: input.email,
 		password: input.password,
-		options: input.name
-			? {
-					data: {
-						full_name: input.name,
-						name: input.name,
-					},
-				}
-			: undefined,
+		name: fallbackName,
 	});
 
 	if (error) {
-		setError(error);
-		throw error;
+		setError(new Error(error.message ?? "Sign-up failed"));
+		throw new Error(error.message ?? "Sign-up failed");
 	}
 
-	if (!data.session) {
-		throw new Error(
-			"Account created, but no session was returned. Disable email confirmation in Supabase to allow immediate sign-in.",
-		);
+	if (!data?.user) {
+		throw new Error("Account created but no session returned.");
 	}
 
-	return applySession(data.session);
+	return applySession(data.user);
 }
 
 export async function signInWithOAuth(
 	provider: OAuthProvider,
 	options: { rememberMe: boolean },
 ): Promise<void> {
-	await initializeAuth();
-	requireConfiguredSupabase();
 	await setRememberMe(options.rememberMe);
 	clearError();
 
-	const supabase = getSupabaseClient();
-	const { error } = await supabase.auth.signInWithOAuth({
+	const { error } = await authClient.signIn.social({
 		provider,
-		options: {
-			redirectTo: getOAuthRedirectTo(),
-		},
+		callbackURL: getOAuthRedirectTo(),
 	});
 
 	if (error) {
-		setError(error);
-		throw error;
+		setError(new Error(error.message ?? "OAuth sign-in failed"));
+		throw new Error(error.message ?? "OAuth sign-in failed");
 	}
 }
 
 export async function signOut(): Promise<AuthSnapshot> {
-	await initializeAuth();
 	clearError();
-
-	if (!isSupabaseConfigured()) {
-		return applySession(null);
-	}
-
-	const supabase = getSupabaseClient();
-	const { error } = await supabase.auth.signOut();
-	if (error) {
+	try {
+		await authClient.signOut();
+	} catch (error) {
 		setError(error);
-		throw error;
 	}
-
 	return applySession(null);
 }
 
 export async function updateUserDisplayName(name: string): Promise<void> {
-	await initializeAuth();
-	requireConfiguredSupabase();
 	clearError();
-
-	const supabase = getSupabaseClient();
-	const { error } = await supabase.auth.updateUser({
-		data: { full_name: name, name },
-	});
-
+	const { error } = await authClient.updateUser({ name });
 	if (error) {
-		setError(error);
-		throw error;
+		setError(new Error(error.message ?? "Could not update name"));
+		throw new Error(error.message ?? "Could not update name");
 	}
+	await refreshSession();
 }
 
-export async function updatePassword(newPassword: string): Promise<void> {
-	await initializeAuth();
-	requireConfiguredSupabase();
+export async function updatePassword(input: {
+	currentPassword: string;
+	newPassword: string;
+}): Promise<void> {
 	clearError();
-
-	const supabase = getSupabaseClient();
-	const { error } = await supabase.auth.updateUser({ password: newPassword });
-
+	const { error } = await authClient.changePassword({
+		currentPassword: input.currentPassword,
+		newPassword: input.newPassword,
+	});
 	if (error) {
-		setError(error);
-		throw error;
+		setError(new Error(error.message ?? "Could not update password"));
+		throw new Error(error.message ?? "Could not update password");
 	}
 }
 
@@ -413,13 +307,12 @@ export function resolveUserScopeId(userScopeId?: string | null): string {
 
 export function resetAuthForTests(): void {
 	initializePromise = null;
-	authSubscriptionBound = false;
 	listeners.clear();
 	snapshot = normalizeSnapshot({
 		phase: "initializing",
 		rememberMe: true,
 		isReady: false,
-		isSupabaseConfigured: isSupabaseConfigured(),
+		isAuthConfigured: true,
 		user: null,
 		session: null,
 		error: null,

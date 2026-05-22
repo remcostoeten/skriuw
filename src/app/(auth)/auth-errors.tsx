@@ -37,17 +37,10 @@ export function resolveAuthError(error: unknown): AuthErrorNotice {
 		};
 	}
 
-	if (normalized.includes("supabase") && normalized.includes("configured")) {
-		return {
-			kind: "configuration",
-			title: "Cloud auth is not configured",
-			message: "Add the Supabase environment variables before signing in.",
-		};
-	}
-
 	if (
 		normalized.includes("invalid login credentials") ||
-		normalized.includes("invalid credentials")
+		normalized.includes("invalid credentials") ||
+		normalized.includes("invalid email or password")
 	) {
 		return {
 			kind: "credentials",

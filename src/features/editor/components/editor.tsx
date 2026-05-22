@@ -10,19 +10,12 @@ import {
 	getEditorLineHeightValue,
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
+import { EditorContentSkeleton } from "./editor-content-skeleton";
 
 type EditorMode = "raw" | "block";
 
 function RichTextEditorLoading() {
-	return (
-		<div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8">
-			<div className="space-y-5" aria-hidden="true">
-				<div className="h-px w-full bg-foreground/[0.08]" />
-				<div className="h-px w-10/12 bg-foreground/[0.07]" />
-				<div className="h-px w-7/12 bg-foreground/[0.06]" />
-			</div>
-		</div>
-	);
+	return <EditorContentSkeleton />;
 }
 
 // Dynamically import RichTextEditor to avoid SSR issues with BlockNote
@@ -54,6 +47,11 @@ interface EditorProps {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onTitleCommit?: (title: string) => void;
+	onCursorChange?: (position: {
+		line: number;
+		column: number;
+		selection?: { words: number; characters: number };
+	}) => void;
 }
 
 export function Editor({
@@ -68,8 +66,10 @@ export function Editor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onTitleCommit,
+	onCursorChange,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const cursorAnimationFrameRef = useRef<number | null>(null);
 
 	// Auto-resize textarea
 	useEffect(() => {
@@ -99,6 +99,50 @@ export function Editor({
 		},
 		[file, onContentChange],
 	);
+
+	const reportTextareaCursor = useCallback(() => {
+		const textarea = textareaRef.current;
+		if (!textarea || !onCursorChange) return;
+		const cursorOffset = textarea.selectionStart ?? 0;
+		const beforeCursor = textarea.value.slice(0, cursorOffset);
+		const lines = beforeCursor.split(/\r?\n/);
+		const selectionStart = textarea.selectionStart ?? cursorOffset;
+		const selectionEnd = textarea.selectionEnd ?? cursorOffset;
+		const selectedText =
+			selectionEnd > selectionStart ? textarea.value.slice(selectionStart, selectionEnd) : "";
+		const selectedWords = selectedText.trim()
+			? selectedText.trim().split(/\s+/).filter(Boolean).length
+			: 0;
+		onCursorChange({
+			line: lines.length,
+			column: (lines.at(-1)?.length ?? 0) + 1,
+			selection: selectedText
+				? {
+						words: selectedWords,
+						characters: selectedText.length,
+					}
+				: undefined,
+		});
+	}, [onCursorChange]);
+
+	const queueTextareaCursorReport = useCallback(() => {
+		if (cursorAnimationFrameRef.current !== null) {
+			window.cancelAnimationFrame(cursorAnimationFrameRef.current);
+		}
+
+		cursorAnimationFrameRef.current = window.requestAnimationFrame(() => {
+			cursorAnimationFrameRef.current = null;
+			reportTextareaCursor();
+		});
+	}, [reportTextareaCursor]);
+
+	useEffect(() => {
+		return () => {
+			if (cursorAnimationFrameRef.current !== null) {
+				window.cancelAnimationFrame(cursorAnimationFrameRef.current);
+			}
+		};
+	}, []);
 
 	if (!file) {
 		return (
@@ -131,6 +175,7 @@ export function Editor({
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onTitleCommit={onTitleCommit}
+					onCursorChange={onCursorChange}
 				/>
 			</div>
 		);
@@ -144,7 +189,16 @@ export function Editor({
 					ref={textareaRef}
 					value={file.content}
 					readOnly={readOnly}
-					onChange={(e) => handleMarkdownChange(e.target.value)}
+					onChange={(e) => {
+						handleMarkdownChange(e.target.value);
+						queueTextareaCursorReport();
+					}}
+					onClick={queueTextareaCursorReport}
+					onFocus={queueTextareaCursorReport}
+					onKeyUp={queueTextareaCursorReport}
+					onMouseUp={queueTextareaCursorReport}
+					onPointerUp={queueTextareaCursorReport}
+					onSelect={queueTextareaCursorReport}
 					onBlur={(event) => {
 						const firstNonEmptyLine =
 							event.currentTarget.value

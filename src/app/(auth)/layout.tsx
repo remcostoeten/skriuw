@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { RawLogo } from "@/shared/icons/logo";
 import { Button } from "@/shared/ui/button";
-import { getServerUser } from "@/core/supabase/server-client";
+import { getServerUser } from "@/core/db";
 import { AuthVisual } from "@/features/auth/components/auth-visual";
 import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 
