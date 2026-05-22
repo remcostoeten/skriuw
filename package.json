@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "env -u NODE_ENV bun --bun next dev --turbopack",
     "build": "env -u NODE_ENV bun --bun next build",
     "build:verified": "bun scripts/verified-build.ts",
