@@ -5,11 +5,7 @@ const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
 const publicRoutes = new Set(["/sign-in", "/sign-up", "/project-planning"]);
 
 function isPublicRoute(path: string) {
-	return (
-		publicRoutes.has(path) ||
-		path.startsWith("/api/auth/") ||
-		path.startsWith("/project-planning/")
-	);
+	return publicRoutes.has(path) || path.startsWith("/project-planning/");
 }
 
 export default function proxy(req: NextRequest) {

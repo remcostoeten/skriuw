@@ -1,6 +1,6 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/core/db";
+import { tryGetAuthenticatedUser } from "@/core/db";
 
 const CLEAR_PHRASE = "clear my data";
 
@@ -11,14 +11,18 @@ export async function clearAllData(confirmation: string): Promise<ClearDataResul
 		return { ok: false, error: "Confirmation did not match." };
 	}
 
-	let prisma: Awaited<ReturnType<typeof getAuthenticatedUser>>["prisma"];
+	let prisma: Awaited<ReturnType<typeof tryGetAuthenticatedUser>>["prisma"];
 	let userId: string;
 	try {
-		const { prisma: p, user } = await getAuthenticatedUser();
-		prisma = p;
-		userId = user.id;
-	} catch {
-		return { ok: false, error: "Not authenticated." };
+		const result = await tryGetAuthenticatedUser();
+		if (!result.user) {
+			return { ok: false, error: "Not authenticated." };
+		}
+		prisma = result.prisma;
+		userId = result.user.id;
+	} catch (error) {
+		console.error("Failed to clear data due to infrastructure error.", error);
+		return { ok: false, error: "Could not clear data right now." };
 	}
 
 	const now = new Date();

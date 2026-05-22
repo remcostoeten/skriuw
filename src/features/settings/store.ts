@@ -149,6 +149,12 @@ export const usePreferencesStore = create<PreferencesState>()(
 							defaultFont: value as PreferencesProfile["editor"]["defaultFont"],
 						});
 					}
+
+					if (key === "animateNumbers") {
+						void updateUserEditorPreferences({
+							animateNumbers: value as PreferencesProfile["editor"]["animateNumbers"],
+						});
+					}
 				},
 
 				updateAppearancePreference: (key, value) => {

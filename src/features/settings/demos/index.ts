@@ -1,4 +1,5 @@
 export { DemoFrame } from "./demo-frame";
-export { RawMdxModeDemo } from "./editor";
-export { DefaultFontDemo } from "./editor";
-export { LineHeightDemo } from "./editor";
+export { AnimatedNumberDemo } from "./editor/animated-number-demo";
+export { RawMdxModeDemo } from "./editor/raw-mdx-mode-demo";
+export { DefaultFontDemo } from "./editor/default-font-demo";
+export { LineHeightDemo } from "./editor/line-height-demo";

@@ -1,19 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-	Bell,
-	Check,
-	Copy,
-	FileText,
-	FolderPlus,
-	Image as ImageIcon,
-	Inbox,
-	MessageSquare,
-	Search,
-	Users,
-	type LucideIcon,
-} from "lucide-react";
+import { Bell, FileText, FolderPlus, Image as ImageIcon, Inbox, MessageSquare, Search, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 export type EmptyStateVariant =
@@ -137,39 +124,5 @@ export function EmptyState({
 			</p>
 			{action ? <ActionButton action={action} /> : null}
 		</div>
-	);
-}
-
-export function EmptyStateCopyButton({ text, className }: { text: string; className?: string }) {
-	const [copied, setCopied] = useState(false);
-
-	function handleCopy() {
-		void navigator.clipboard.writeText(text).catch(() => {});
-		setCopied(true);
-		window.setTimeout(() => setCopied(false), 1600);
-	}
-
-	return (
-		<button
-			type="button"
-			onClick={handleCopy}
-			title="Copy usage code"
-			className={cn(
-				"fixed bottom-6 right-6 z-50 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/90 px-3 py-2 text-[12px] font-medium text-foreground/90 shadow-lg backdrop-blur transition-colors hover:bg-accent/60",
-				className,
-			)}
-		>
-			{copied ? (
-				<>
-					<Check className="h-3.5 w-3.5" strokeWidth={2} />
-					Copied!
-				</>
-			) : (
-				<>
-					<Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
-					Copy usage
-				</>
-			)}
-		</button>
 	);
 }

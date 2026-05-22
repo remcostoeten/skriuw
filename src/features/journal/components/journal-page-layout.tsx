@@ -9,8 +9,10 @@ import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import {
 	WorkspaceContentSkeleton,
+	WorkspaceLoadingShell,
 	WorkspaceSidebarSkeleton,
 } from "@/features/layout/components/app-loading-shell";
+import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
@@ -207,6 +209,8 @@ function JournalEditorToolbar({
 
 export function JournalPageLayout() {
 	const auth = useAuthSnapshot();
+	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
+
 	const {
 		selectedDate,
 		sidebarWidth,
@@ -236,6 +240,10 @@ export function JournalPageLayout() {
 		closeSidebar,
 	} = useJournalLayout();
 	const journalEntry = useJournalEntry(selectedDate);
+
+	if (forceLoading) {
+		return <WorkspaceLoadingShell variant="journal" />;
+	}
 
 	if (auth.isReady && auth.phase !== "authenticated") {
 		return (

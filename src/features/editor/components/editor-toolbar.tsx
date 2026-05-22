@@ -3,10 +3,13 @@ import {
 	ChevronRight,
 	Code,
 	Loader2,
+	PanelLeft,
 	PanelRight,
 	PenTool,
 	Settings2,
+	Share2,
 	Sidebar,
+	SlidersHorizontal,
 	Sparkles,
 	SpellCheck,
 	Type,
@@ -64,7 +67,7 @@ export function EditorToolbar({
 		: false;
 	const hasAiActions = Boolean(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting);
 	const sidebarIconButtonClass =
-		"pressable flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200";
+		"pressable flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
 	const editorModeTitle = canToggleEditorMode
 		? editorMode === "raw"
 			? "Switch to Block Note"
@@ -162,37 +165,27 @@ export function EditorToolbar({
 		);
 	}
 
-	const segmentBase =
-		"inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11px] transition-colors";
-	const segmentActive = "bg-sidebar-accent/70 text-sidebar-foreground";
-	const segmentInactive = "text-sidebar-foreground/55 hover:text-sidebar-foreground";
-
 	return (
 		<div
 			className={cn(
-				"border-b border-l border-sidebar-border bg-sidebar text-sidebar-foreground",
-				"flex h-11 items-center gap-1 pl-2 pr-3",
+				"border-b border-border bg-background text-foreground",
+				"flex h-11 items-center gap-1 px-3",
 			)}
 		>
 			<button
 				onClick={onToggleSidebar}
-				className={cn(
-					sidebarIconButtonClass,
-					"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-				)}
+				className={sidebarIconButtonClass}
 				title="Toggle sidebar"
 				aria-label="Toggle sidebar"
 			>
-				<Sidebar className="h-4 w-4" strokeWidth={1.5} />
+				<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
 			</button>
 			<button
 				onClick={onNavigatePrev}
 				disabled={!canNavigatePrev}
 				className={cn(
 					sidebarIconButtonClass,
-					canNavigatePrev
-						? "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-						: "cursor-not-allowed text-sidebar-foreground/25",
+					!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
 				)}
 				title="Previous file"
 				aria-label="Previous file"
@@ -204,9 +197,7 @@ export function EditorToolbar({
 				disabled={!canNavigateNext}
 				className={cn(
 					sidebarIconButtonClass,
-					canNavigateNext
-						? "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-						: "cursor-not-allowed text-sidebar-foreground/25",
+					!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
 				)}
 				title="Next file"
 				aria-label="Next file"
@@ -214,21 +205,39 @@ export function EditorToolbar({
 				<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
 			</button>
 
-			<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-xs">
+			<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
 				{breadcrumb && breadcrumb.length > 0 && (
 					<>
 						{breadcrumb.map((part, i) => (
 							<span key={i} className="flex shrink-0 items-center gap-1.5">
-								<span className="truncate text-sidebar-foreground/55">{part}</span>
-								<span className="text-sidebar-foreground/30">/</span>
+								<span className="truncate text-muted-foreground">{part}</span>
+								<span className="text-muted-foreground/50">/</span>
 							</span>
 						))}
 					</>
 				)}
-				<span className="truncate font-medium text-sidebar-foreground/85">{fileName}</span>
+				<span className="truncate font-medium ">{fileName}</span>
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
+				<button
+					type="button"
+					onClick={() => {
+						const shareTitle = fileName;
+						const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+						if (navigator.share) {
+							void navigator.share({ title: shareTitle, url: shareUrl });
+							return;
+						}
+						if (shareUrl) void navigator.clipboard?.writeText(shareUrl);
+					}}
+					className="pressable hidden h-8 items-center gap-1.5 border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+					title="Share note"
+					aria-label="Share note"
+				>
+					<Share2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+					<span>Share</span>
+				</button>
 				{hasAiActions && (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -314,60 +323,9 @@ export function EditorToolbar({
 					</DropdownMenu>
 				)}
 
-				<div
-					className={cn(
-						"inline-flex items-center rounded-md border border-sidebar-border/70 bg-sidebar-accent/20 p-0.5",
-						!canToggleEditorMode && "opacity-50",
-					)}
-					role="group"
-					aria-label="Editor mode"
-				>
-					<button
-						onClick={
-							canToggleEditorMode && editorMode === "raw"
-								? onToggleEditorMode
-								: undefined
-						}
-						disabled={!canToggleEditorMode}
-						aria-pressed={editorMode === "block"}
-						className={cn(
-							segmentBase,
-							editorMode === "block" ? segmentActive : segmentInactive,
-							!canToggleEditorMode && "cursor-not-allowed",
-						)}
-						title="Block Note"
-					>
-						<Type className="h-3 w-3" strokeWidth={1.6} />
-						<span>Block</span>
-					</button>
-					<button
-						onClick={
-							canToggleEditorMode && editorMode === "block"
-								? onToggleEditorMode
-								: undefined
-						}
-						disabled={!canToggleEditorMode}
-						aria-pressed={editorMode === "raw"}
-						className={cn(
-							segmentBase,
-							editorMode === "raw" ? segmentActive : segmentInactive,
-							!canToggleEditorMode && "cursor-not-allowed",
-						)}
-						title={editorModeTitle}
-					>
-						<Code className="h-3 w-3" strokeWidth={1.6} />
-						<span>Raw</span>
-					</button>
-				</div>
-
-				<div className="mx-0.5 h-5 w-px bg-sidebar-border/60" />
-
 				<button
 					onClick={onToggleMetadata}
-					className={cn(
-						sidebarIconButtonClass,
-						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-					)}
+					className={sidebarIconButtonClass}
 					title="Toggle metadata"
 					aria-label="Toggle metadata"
 				>
@@ -376,14 +334,11 @@ export function EditorToolbar({
 				{onOpenSettings && (
 					<button
 						onClick={onOpenSettings}
-						className={cn(
-							sidebarIconButtonClass,
-							"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-						)}
+						className={sidebarIconButtonClass}
 						title="Open settings"
 						aria-label="Open settings"
 					>
-						<Settings2 className="h-4 w-4" strokeWidth={1.5} />
+						<SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} />
 					</button>
 				)}
 			</div>

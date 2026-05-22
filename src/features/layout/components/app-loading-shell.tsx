@@ -12,6 +12,7 @@ import {
 	FolderOpen,
 	Kanban,
 	Palette,
+	PanelLeft,
 	PanelRight,
 	PanelTopClose,
 	Plus,
@@ -21,11 +22,11 @@ import {
 	Settings2,
 	Shield,
 	Sidebar,
+	SlidersHorizontal,
 	SortDesc,
 	UnfoldVertical,
 	Sparkles,
 	Tag,
-	Type,
 	User,
 } from "lucide-react";
 import { LayoutContainer } from "./layout-container";
@@ -33,6 +34,10 @@ import { cn } from "@/shared/lib/utils";
 import { RawLogo } from "@/shared/icons/logo";
 import { DESKTOP_SIDEBAR_MIN_WIDTH } from "@/features/notes/constants";
 import { NewFolderNoteIcon, NewNoteIcon } from "@/features/notes/components/sidebar/header-icons";
+import {
+	DetailsPanelSkeleton,
+	EditorContentSkeleton,
+} from "@/features/editor/components/editor-content-skeleton";
 
 type WorkspaceLoadingVariant = "notes" | "journal";
 
@@ -52,6 +57,26 @@ function StaticControl({
 			aria-hidden="true"
 			className={cn(
 				"flex h-7 items-center justify-center border border-sidebar-border/70 bg-sidebar-accent/25 text-sidebar-foreground/48",
+				className,
+			)}
+		>
+			{children}
+		</div>
+	);
+}
+
+function StaticIconButton({
+	children,
+	className,
+}: {
+	children: React.ReactNode;
+	className?: string;
+}) {
+	return (
+		<div
+			aria-hidden="true"
+			className={cn(
+				"flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground",
 				className,
 			)}
 		>
@@ -201,7 +226,7 @@ function SidebarHeaderIcon({ children }: { children: React.ReactNode }) {
 	return (
 		<div
 			aria-hidden="true"
-			className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/60"
+			className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground"
 		>
 			{children}
 		</div>
@@ -337,14 +362,14 @@ export function WorkspaceSidebarSkeleton({ variant }: { variant: WorkspaceLoadin
 			className="hidden shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col"
 			style={{ width: DESKTOP_SIDEBAR_MIN_WIDTH, minWidth: DESKTOP_SIDEBAR_MIN_WIDTH }}
 		>
-			<div className="flex h-11 items-center justify-between overflow-hidden border-b border-sidebar-border px-3">
+			<div className="sticky top-0 z-10 flex h-11 items-center justify-between overflow-hidden border-b border-sidebar-border bg-sidebar/95 px-3 backdrop-blur-xl">
 				<div className="flex h-full w-full items-center justify-between gap-3">
-					<div className="flex items-center gap-2 md:gap-2.5 w-full justify-between">
+					<div className="flex w-full items-center justify-between gap-2 md:gap-2.5">
 						<SidebarHeaderIcon>
-							<NewNoteIcon className="h-4 w-4" />
+							<NewNoteIcon />
 						</SidebarHeaderIcon>
 						<SidebarHeaderIcon>
-							<NewFolderNoteIcon className="h-4 w-4" />
+							<NewFolderNoteIcon />
 						</SidebarHeaderIcon>
 						<SidebarHeaderIcon>
 							<PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
@@ -484,71 +509,42 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 			<MobileTopBar variant="notes" title="Loading note data" />
 			<div className="flex min-h-0 flex-1 overflow-hidden md:hidden">
 				<div className="flex min-h-full flex-1 flex-col overflow-y-auto bg-card">
-					<div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8">
-						<div className="space-y-5">
-							<DataLine className="h-px w-full bg-foreground/[0.08]" />
-							<DataLine className="h-px w-11/12 bg-foreground/[0.07]" />
-							<DataLine className="h-px w-7/12 bg-foreground/[0.06]" />
-						</div>
-					</div>
+					<EditorContentSkeleton />
 				</div>
 			</div>
-			<div className="hidden h-11 items-center gap-1 border-b border-l border-sidebar-border bg-sidebar pl-2 pr-3 md:flex">
-				<div className="flex items-center gap-2">
-					<StaticControl className="w-7">
-						<Sidebar className="h-4 w-4" strokeWidth={1.5} />
-					</StaticControl>
-					<StaticControl className="w-7">
-						<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-					</StaticControl>
-					<StaticControl className="w-7">
-						<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
-					</StaticControl>
+			<div className="hidden h-11 items-center gap-1 border-b border-border bg-background px-3 text-foreground md:flex">
+				<StaticIconButton>
+					<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
+				</StaticIconButton>
+				<StaticIconButton>
+					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+				</StaticIconButton>
+				<StaticIconButton>
+					<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+				</StaticIconButton>
+
+				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+					<span className="truncate font-medium ">Loading note data</span>
 				</div>
-				<div className="ml-2 min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/58">
-					Loading note data
-				</div>
+
 				<div className="flex shrink-0 items-center gap-1">
-					<StaticControl className="w-7">
+					<StaticIconButton>
 						<Sparkles className="h-3.5 w-3.5" strokeWidth={1.6} />
-					</StaticControl>
-					<StaticControl className="w-[108px]">
-						<Type className="h-3 w-3" strokeWidth={1.6} />
-						<span className="ml-1 text-[11px]">Block</span>
-						<Code className="ml-2 h-3 w-3" strokeWidth={1.6} />
-						<span className="ml-1 text-[11px]">Raw</span>
-					</StaticControl>
-					<div className="mx-0.5 h-5 w-px bg-sidebar-border/60" />
-					<StaticControl className="w-7">
+					</StaticIconButton>
+					<StaticIconButton>
 						<PanelRight className="h-4 w-4" strokeWidth={1.5} />
-					</StaticControl>
-					<StaticControl className="w-7">
-						<Settings2 className="h-4 w-4" strokeWidth={1.5} />
-					</StaticControl>
+					</StaticIconButton>
+					<StaticIconButton>
+						<SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} />
+					</StaticIconButton>
 				</div>
 			</div>
 			<div className="hidden min-h-0 flex-1 md:flex">
 				<div className="flex min-h-full min-w-0 flex-1 flex-col overflow-y-auto bg-card">
-					<div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8">
-						<div className="space-y-5">
-							<DataLine className="h-px w-full bg-foreground/[0.08]" />
-							<DataLine className="h-px w-10/12 bg-foreground/[0.07]" />
-							<DataLine className="h-px w-7/12 bg-foreground/[0.06]" />
-						</div>
-					</div>
+					<EditorContentSkeleton />
 				</div>
 				<div className="hidden w-72 shrink-0 border-l border-border bg-background xl:w-80 lg:block">
-					<div className="border-b border-border px-4 py-4">
-						<div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
-							<FileText className="h-3.5 w-3.5" strokeWidth={1.5} />
-							Details
-						</div>
-					</div>
-					<div className="space-y-4 px-4 py-4">
-						<DataLine className="h-px w-full bg-foreground/[0.08]" />
-						<DataLine className="h-px w-5/6 bg-foreground/[0.07]" />
-						<DataLine className="h-px w-3/5 bg-foreground/[0.06]" />
-					</div>
+					<DetailsPanelSkeleton />
 				</div>
 			</div>
 		</div>
