@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Cloud, Eye, EyeOff, Github, LogIn } from "lucide-react";
+import { Check, Eye, EyeOff, Github, LogIn } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/shared/ui/button";
@@ -14,7 +14,7 @@ import {
 	signInWithPassword,
 } from "@/platform/auth";
 
-type AuthIntent = "sign-in" | "google" | "github";
+type AuthIntent = "sign-in" | "github";
 type AuthActionState = "idle" | "pending" | "success";
 
 const SUCCESS_PAUSE_MS = 260;
@@ -110,37 +110,7 @@ export default function SignInPage() {
 			</div>
 			<div className="relative px-6">
 				<div className="space-y-6">
-					<div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-2">
-						<Button
-							type="button"
-							variant="outline"
-							data-state={getActionState("google")}
-							aria-busy={pendingIntent === "google"}
-							className="auth-action-button h-12 w-full justify-start rounded-none border border-border bg-transparent px-4"
-							disabled={isBusy}
-							onClick={() =>
-								void runIntent("google", async () => {
-									await signInWithOAuth("google", { rememberMe });
-								})
-							}
-						>
-							<span className="auth-action-icon">
-								{completedIntent === "google" ? (
-									<Check className="size-4" aria-hidden="true" />
-								) : pendingIntent === "google" ? (
-									<LoadingDots />
-								) : (
-									<Cloud className="size-4" aria-hidden="true" />
-								)}
-							</span>
-							<span className="auth-action-label">
-								{completedIntent === "google"
-									? "Redirecting..."
-									: pendingIntent === "google"
-										? "Opening Google..."
-										: "Sign in with Google"}
-							</span>
-						</Button>
+					<div className="grid w-full grid-cols-1 gap-3 ">
 						<Button
 							type="button"
 							variant="outline"

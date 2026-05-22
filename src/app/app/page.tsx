@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
-import { getServerUser } from "@/core/supabase/server-client";
+import { getServerUser } from "@/core/db";
 import { listFolders } from "@/domain/folders/api";
 import { listNoteMetadata } from "@/domain/notes/api";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";

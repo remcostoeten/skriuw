@@ -1,67 +1,62 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { getAuthenticatedUser } from "@/core/db";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 
-type EntryRow = {
+type EntryRecord = {
 	id: string;
-	date_key: string;
+	dateKey: string;
 	content: string;
-	mood: MoodLevel | null;
-	tags: string[] | null;
-	created_at: string;
-	updated_at: string;
+	mood: string | null;
+	tags: string[];
+	createdAt: Date;
+	updatedAt: Date;
 };
 
-type TagRow = {
+type TagRecord = {
 	id: string;
 	name: string;
 	color: string;
-	usage_count: number | null;
-	last_used_at: string | null;
-	created_at: string;
-	updated_at: string;
+	usageCount: number;
 };
 
-const JOURNAL_ENTRY_SELECT = "id, date_key, content, mood, tags, created_at, updated_at";
-const JOURNAL_TAG_SELECT = "id, name, color, usage_count, last_used_at, created_at, updated_at";
-
-function rowToEntry(row: EntryRow): JournalEntry {
+function recordToEntry(record: EntryRecord): JournalEntry {
 	return {
-		id: row.id,
-		dateKey: row.date_key,
-		content: row.content,
-		tags: row.tags ?? [],
-		mood: row.mood ?? undefined,
-		createdAt: new Date(row.created_at),
-		updatedAt: new Date(row.updated_at),
+		id: record.id,
+		dateKey: record.dateKey,
+		content: record.content,
+		tags: record.tags,
+		mood: (record.mood ?? undefined) as MoodLevel | undefined,
+		createdAt: record.createdAt,
+		updatedAt: record.updatedAt,
 	};
 }
 
-function rowToTag(row: TagRow): JournalTag {
+function recordToTag(record: TagRecord): JournalTag {
 	return {
-		id: row.id,
-		name: row.name,
-		color: row.color,
-		usageCount: row.usage_count ?? 0,
+		id: record.id,
+		name: record.name,
+		color: record.color,
+		usageCount: record.usageCount,
 	};
 }
-
-// ── Journal Entries ──────────────────────────────────────────────────
 
 export async function listJournalEntries(): Promise<JournalEntry[]> {
-	const { supabase, user } = await getAuthenticatedUser();
-
-	const { data, error } = await supabase
-		.from("journal_entries")
-		.select(JOURNAL_ENTRY_SELECT)
-		.eq("user_id", user.id)
-		.is("deleted_at", null)
-		.order("created_at", { ascending: true });
-
-	if (error) throw error;
-
-	return (data ?? []).map((row: EntryRow) => rowToEntry(row));
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.journalEntry.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: { createdAt: "asc" },
+		select: {
+			id: true,
+			dateKey: true,
+			content: true,
+			mood: true,
+			tags: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+	return records.map(recordToEntry);
 }
 
 export type CreateJournalEntryInput = {
@@ -73,28 +68,35 @@ export type CreateJournalEntryInput = {
 };
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
-	const { supabase, user } = await getAuthenticatedUser();
-	const now = new Date().toISOString();
+	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
-
-	const row = {
-		user_id: user.id,
-		id,
-		date_key: input.dateKey,
-		content: input.content,
-		mood: input.mood ?? null,
-		tags: input.tags ?? [],
-		created_at: now,
-		updated_at: now,
-	};
-
-	const { error } = await supabase
-		.from("journal_entries")
-		.upsert([row], { onConflict: "user_id,id" });
-
-	if (error) throw error;
-
-	return rowToEntry(row as EntryRow);
+	const record = await prisma.journalEntry.upsert({
+		where: { id },
+		create: {
+			id,
+			userId: user.id,
+			dateKey: input.dateKey,
+			content: input.content,
+			mood: input.mood ?? null,
+			tags: input.tags ?? [],
+		},
+		update: {
+			dateKey: input.dateKey,
+			content: input.content,
+			mood: input.mood ?? null,
+			tags: input.tags ?? [],
+		},
+		select: {
+			id: true,
+			dateKey: true,
+			content: true,
+			mood: true,
+			tags: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+	return recordToEntry(record);
 }
 
 export type UpdateJournalEntryInput = {
@@ -107,63 +109,49 @@ export type UpdateJournalEntryInput = {
 export async function updateJournalEntry(
 	input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
-	const { supabase, user } = await getAuthenticatedUser();
-	const patch: Partial<EntryRow> = {
-		updated_at: new Date().toISOString(),
-	};
+	const { prisma, user } = await getAuthenticatedUser();
 
-	if (input.content !== undefined) {
-		patch.content = input.content;
-	}
-	if (input.tags !== undefined) {
-		patch.tags = input.tags;
-	}
-	if (input.mood !== undefined) {
-		patch.mood = input.mood;
-	}
+	const { count } = await prisma.journalEntry.updateMany({
+		where: { id: input.id, userId: user.id, deletedAt: null },
+		data: {
+			...(input.content !== undefined && { content: input.content }),
+			...(input.tags !== undefined && { tags: input.tags }),
+			...(input.mood !== undefined && { mood: input.mood }),
+		},
+	});
+	if (count === 0) return undefined;
 
-	const { data, error } = await supabase
-		.from("journal_entries")
-		.update(patch)
-		.eq("user_id", user.id)
-		.eq("id", input.id)
-		.is("deleted_at", null)
-		.select(JOURNAL_ENTRY_SELECT)
-		.maybeSingle();
-
-	if (error) throw error;
-	if (!data) return undefined;
-
-	return rowToEntry(data as EntryRow);
+	const record = await prisma.journalEntry.findFirst({
+		where: { id: input.id, userId: user.id, deletedAt: null },
+		select: {
+			id: true,
+			dateKey: true,
+			content: true,
+			mood: true,
+			tags: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+	return record ? recordToEntry(record) : undefined;
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
-	const { supabase, user } = await getAuthenticatedUser();
-
-	const { error } = await supabase
-		.from("journal_entries")
-		.update({ deleted_at: new Date().toISOString() })
-		.eq("user_id", user.id)
-		.eq("id", id);
-
-	if (error) throw error;
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.journalEntry.updateMany({
+		where: { id, userId: user.id },
+		data: { deletedAt: new Date() },
+	});
 }
 
-// ── Tags ─────────────────────────────────────────────────────────────
-
 export async function listJournalTags(): Promise<JournalTag[]> {
-	const { supabase, user } = await getAuthenticatedUser();
-
-	const { data, error } = await supabase
-		.from("tags")
-		.select(JOURNAL_TAG_SELECT)
-		.eq("user_id", user.id)
-		.is("deleted_at", null)
-		.order("created_at", { ascending: true });
-
-	if (error) throw error;
-
-	return (data ?? []).map((row: TagRow) => rowToTag(row));
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.journalTag.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: { createdAt: "asc" },
+		select: { id: true, name: true, color: true, usageCount: true },
+	});
+	return records.map(recordToTag);
 }
 
 export type CreateJournalTagInput = {
@@ -172,73 +160,42 @@ export type CreateJournalTagInput = {
 };
 
 export async function createJournalTag(input: CreateJournalTagInput): Promise<JournalTag> {
-	const { supabase, user } = await getAuthenticatedUser();
-	const now = new Date().toISOString();
-	const id = crypto.randomUUID();
-
-	const row = {
-		user_id: user.id,
-		id,
-		name: input.name,
-		color: input.color,
-		usage_count: 0,
-		last_used_at: null,
-		created_at: now,
-		updated_at: now,
-	};
-
-	const { error } = await supabase.from("tags").upsert([row], { onConflict: "user_id,id" });
-
-	if (error) throw error;
-
-	return rowToTag(row as TagRow);
+	const { prisma, user } = await getAuthenticatedUser();
+	const record = await prisma.journalTag.create({
+		data: {
+			userId: user.id,
+			name: input.name,
+			color: input.color,
+		},
+		select: { id: true, name: true, color: true, usageCount: true },
+	});
+	return recordToTag(record);
 }
 
 export async function deleteJournalTag(id: string): Promise<void> {
-	const { supabase, user } = await getAuthenticatedUser();
-
-	// Find the tag to get its name for cleanup
-	const { data: tag } = await supabase
-		.from("tags")
-		.select("name")
-		.eq("user_id", user.id)
-		.eq("id", id)
-		.is("deleted_at", null)
-		.maybeSingle();
-
+	const { prisma, user } = await getAuthenticatedUser();
+	const tag = await prisma.journalTag.findFirst({
+		where: { id, userId: user.id, deletedAt: null },
+		select: { name: true },
+	});
 	if (!tag) return;
 
-	// Remove tag name from all journal entries that use it
-	const { data: entries } = await supabase
-		.from("journal_entries")
-		.select("id, tags")
-		.eq("user_id", user.id)
-		.is("deleted_at", null);
+	const entries = await prisma.journalEntry.findMany({
+		where: { userId: user.id, deletedAt: null, tags: { has: tag.name } },
+		select: { id: true, tags: true },
+	});
 
-	const now = new Date().toISOString();
-	const entriesToUpdate = (entries ?? []).filter((entry: { tags: string[] | null }) =>
-		entry.tags?.includes(tag.name),
-	);
-
-	await Promise.all(
-		entriesToUpdate.map((entry: { id: string; tags: string[] | null }) =>
-			supabase
-				.from("journal_entries")
-				.update({
-					tags: (entry.tags ?? []).filter((t: string) => t !== tag.name),
-					updated_at: now,
-				})
-				.eq("user_id", user.id)
-				.eq("id", entry.id),
+	const now = new Date();
+	await prisma.$transaction([
+		...entries.map((entry) =>
+			prisma.journalEntry.update({
+				where: { id: entry.id },
+				data: { tags: entry.tags.filter((t) => t !== tag.name) },
+			}),
 		),
-	);
-
-	// Soft-delete the tag
-	const { error } = await supabase
-		.from("tags")
-		.update({ deleted_at: now })
-		.eq("user_id", user.id)
-		.eq("id", id);
-
-	if (error) throw error;
+		prisma.journalTag.update({
+			where: { id },
+			data: { deletedAt: now },
+		}),
+	]);
 }

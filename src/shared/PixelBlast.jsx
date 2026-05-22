@@ -509,6 +509,7 @@ const PixelBlast = ({
 			const animate = () => {
 				if (autoPauseOffscreen && !visibilityRef.current.visible) {
 					raf = requestAnimationFrame(animate);
+					if (threeRef.current) threeRef.current.raf = raf;
 					return;
 				}
 				uniforms.uTime.value = timeOffset + clock.getElapsedTime() * speedRef.current;
@@ -526,6 +527,7 @@ const PixelBlast = ({
 					composer.render();
 				} else renderer.render(scene, camera);
 				raf = requestAnimationFrame(animate);
+				if (threeRef.current) threeRef.current.raf = raf;
 			};
 			raf = requestAnimationFrame(animate);
 			threeRef.current = {

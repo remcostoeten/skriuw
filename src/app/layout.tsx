@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
 import { editorFontVariables } from "@/app/editor-font-loaders";
 import { AppProviders } from "@/providers/app-providers";
+import { getServerUser } from "@/core/db";
+import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.app"),
@@ -35,11 +37,19 @@ type Props = {
 	children: React.ReactNode;
 };
 
-export default function RootLayout({ children }: Props) {
+export default async function RootLayout({ children }: Props) {
+	const { user } = await getServerUser();
+	const initialEditorPreferences: EditorPreferencesRecord | null = user
+		? ((user as { editorPreferences?: EditorPreferencesRecord | null }).editorPreferences ??
+				null)
+		: null;
+
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body className={`${editorFontVariables} font-sans`}>
-				<AppProviders>{children}</AppProviders>
+				<AppProviders initialEditorPreferences={initialEditorPreferences}>
+					{children}
+				</AppProviders>
 			</body>
 		</html>
 	);

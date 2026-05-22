@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { tryGetAuthenticatedUser } from "@/core/db";
 import { testStoredAiProviderKey } from "@/domain/ai/provider-keys";
 import { recordAiUsage } from "@/domain/ai/usage";
 
@@ -9,7 +9,7 @@ type RouteContext = {
 };
 
 export async function POST(req: NextRequest, context: RouteContext) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	const { keyId } = await context.params;
 	const body = (await req.json().catch(() => ({}))) as { model?: string };

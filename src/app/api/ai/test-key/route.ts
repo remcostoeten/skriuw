@@ -3,7 +3,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { tryGetAuthenticatedUser } from "@/core/db";
 import {
 	DEFAULT_AI_MODEL,
 	getProviderFromModelId,
@@ -154,7 +154,7 @@ async function testKeyErrorResponse({
 }
 
 export async function POST(req: NextRequest) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) {
 		return testKeyErrorResponse({
 			req,

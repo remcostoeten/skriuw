@@ -1,7 +1,7 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
-import { createSupabaseAdminClient } from "@/core/supabase/server-client";
+import { prisma } from "@/core/db";
 import { AI_MODELS, DEFAULT_AI_MODEL, isAiModelId } from "@/domain/ai/constants";
 import type { AiProvider, AiProviderKeyStatus, AiProviderKeySummary } from "@/domain/ai/types";
 import {
@@ -13,17 +13,17 @@ import {
 	previewApiKey,
 } from "@/domain/ai/key-utils";
 
-type KeyRow = {
+type KeyRecord = {
 	id: string;
-	provider: AiProvider;
+	provider: string;
 	label: string;
-	encrypted_key: string;
-	key_preview: string;
-	status: AiProviderKeyStatus;
-	last_tested_at: string | null;
-	last_used_at: string | null;
-	created_at: string;
-	updated_at: string;
+	encryptedKey: string;
+	keyPreview: string;
+	status: string;
+	lastTestedAt: Date | null;
+	lastUsedAt: Date | null;
+	createdAt: Date;
+	updatedAt: Date;
 };
 
 type ProviderKeyInput = {
@@ -33,61 +33,74 @@ type ProviderKeyInput = {
 	apiKey: string;
 };
 
-function toSummary(row: KeyRow): AiProviderKeySummary {
+function toSummary(record: KeyRecord): AiProviderKeySummary {
 	return {
-		id: row.id,
-		provider: row.provider,
-		label: row.label,
-		keyPreview: row.key_preview,
-		status: row.status,
-		lastTestedAt: row.last_tested_at,
-		lastUsedAt: row.last_used_at,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
+		id: record.id,
+		provider: record.provider as AiProvider,
+		label: record.label,
+		keyPreview: record.keyPreview,
+		status: record.status as AiProviderKeyStatus,
+		lastTestedAt: record.lastTestedAt?.toISOString() ?? null,
+		lastUsedAt: record.lastUsedAt?.toISOString() ?? null,
+		createdAt: record.createdAt.toISOString(),
+		updatedAt: record.updatedAt.toISOString(),
 	};
 }
 
-export async function listAiProviderKeys(userId: string): Promise<AiProviderKeySummary[]> {
-	const admin = createSupabaseAdminClient();
-	const { data, error } = await admin
-		.from("ai_provider_keys")
-		.select(
-			"id, provider, label, encrypted_key, key_preview, status, last_tested_at, last_used_at, created_at, updated_at",
-		)
-		.eq("user_id", userId)
-		.order("created_at", { ascending: false });
+const KEY_SELECT = {
+	id: true,
+	provider: true,
+	label: true,
+	encryptedKey: true,
+	keyPreview: true,
+	status: true,
+	lastTestedAt: true,
+	lastUsedAt: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
-	if (error) throw error;
-	return ((data ?? []) as KeyRow[]).map(toSummary);
+export async function listAiProviderKeys(userId: string): Promise<AiProviderKeySummary[]> {
+	const records = await prisma.aiProviderKey.findMany({
+		where: { userId },
+		orderBy: { createdAt: "desc" },
+		select: KEY_SELECT,
+	});
+	return records.map(toSummary);
 }
 
 export async function createAiProviderKey(input: ProviderKeyInput): Promise<AiProviderKeySummary> {
 	const apiKey = normalizeApiKey(input.apiKey);
 	const label = normalizeLabel(input.label);
-	const admin = createSupabaseAdminClient();
-	const now = new Date().toISOString();
 	const provider = input.provider ?? "google";
-	const row = {
-		user_id: input.userId,
-		provider,
-		label,
-		encrypted_key: encryptApiKey(apiKey),
-		key_preview: previewApiKey(apiKey),
-		key_fingerprint: fingerprintApiKey(apiKey),
-		status: "untested" satisfies AiProviderKeyStatus,
-		updated_at: now,
-	};
+	const fingerprint = fingerprintApiKey(apiKey);
 
-	const { data, error } = await admin
-		.from("ai_provider_keys")
-		.upsert(row, { onConflict: "user_id,provider,key_fingerprint" })
-		.select(
-			"id, provider, label, encrypted_key, key_preview, status, last_tested_at, last_used_at, created_at, updated_at",
-		)
-		.single();
+	const record = await prisma.aiProviderKey.upsert({
+		where: {
+			userId_provider_keyFingerprint: {
+				userId: input.userId,
+				provider,
+				keyFingerprint: fingerprint,
+			},
+		},
+		create: {
+			userId: input.userId,
+			provider,
+			label,
+			encryptedKey: encryptApiKey(apiKey),
+			keyPreview: previewApiKey(apiKey),
+			keyFingerprint: fingerprint,
+			status: "untested",
+		},
+		update: {
+			label,
+			encryptedKey: encryptApiKey(apiKey),
+			keyPreview: previewApiKey(apiKey),
+		},
+		select: KEY_SELECT,
+	});
 
-	if (error) throw error;
-	return toSummary(data as KeyRow);
+	return toSummary(record);
 }
 
 export async function updateAiProviderKeyLabel({
@@ -99,29 +112,21 @@ export async function updateAiProviderKeyLabel({
 	keyId: string;
 	label: string;
 }): Promise<AiProviderKeySummary> {
-	const admin = createSupabaseAdminClient();
-	const { data, error } = await admin
-		.from("ai_provider_keys")
-		.update({ label: normalizeLabel(label), updated_at: new Date().toISOString() })
-		.eq("user_id", userId)
-		.eq("id", keyId)
-		.select(
-			"id, provider, label, encrypted_key, key_preview, status, last_tested_at, last_used_at, created_at, updated_at",
-		)
-		.single();
-
-	if (error) throw error;
-	return toSummary(data as KeyRow);
+	await prisma.aiProviderKey.updateMany({
+		where: { id: keyId, userId },
+		data: { label: normalizeLabel(label) },
+	});
+	const record = await prisma.aiProviderKey.findFirstOrThrow({
+		where: { id: keyId, userId },
+		select: KEY_SELECT,
+	});
+	return toSummary(record);
 }
 
 export async function deleteAiProviderKey(userId: string, keyId: string): Promise<void> {
-	const admin = createSupabaseAdminClient();
-	const { error } = await admin
-		.from("ai_provider_keys")
-		.delete()
-		.eq("user_id", userId)
-		.eq("id", keyId);
-	if (error) throw error;
+	await prisma.aiProviderKey.deleteMany({
+		where: { id: keyId, userId },
+	});
 }
 
 export async function getDecryptedAiProviderKey({
@@ -131,27 +136,21 @@ export async function getDecryptedAiProviderKey({
 	userId: string;
 	keyId: string;
 }): Promise<{ apiKey: string; provider: AiProvider; keyId: string } | null> {
-	const admin = createSupabaseAdminClient();
-	const { data, error } = await admin
-		.from("ai_provider_keys")
-		.select("id, provider, encrypted_key")
-		.eq("user_id", userId)
-		.eq("id", keyId)
-		.maybeSingle();
+	const record = await prisma.aiProviderKey.findFirst({
+		where: { id: keyId, userId },
+		select: { id: true, provider: true, encryptedKey: true },
+	});
+	if (!record) return null;
 
-	if (error) throw error;
-	if (!data) return null;
+	await prisma.aiProviderKey.update({
+		where: { id: keyId },
+		data: { lastUsedAt: new Date() },
+	});
 
-	await admin
-		.from("ai_provider_keys")
-		.update({ last_used_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-		.eq("id", keyId);
-
-	const rawProvider = (data as { provider?: AiProvider | "gemini" | null }).provider;
-
+	const rawProvider = record.provider as AiProvider | "gemini";
 	return {
-		apiKey: decryptApiKey((data as { encrypted_key: string }).encrypted_key),
-		provider: rawProvider === "gemini" ? "google" : (rawProvider ?? "google"),
+		apiKey: decryptApiKey(record.encryptedKey),
+		provider: rawProvider === "gemini" ? "google" : rawProvider,
 		keyId,
 	};
 }
@@ -220,16 +219,10 @@ export async function testStoredAiProviderKey({
 		result = { ok: false, code: status, message, status };
 	}
 
-	const admin = createSupabaseAdminClient();
-	await admin
-		.from("ai_provider_keys")
-		.update({
-			status,
-			last_tested_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		})
-		.eq("user_id", userId)
-		.eq("id", keyId);
+	await prisma.aiProviderKey.updateMany({
+		where: { id: keyId, userId },
+		data: { status, lastTestedAt: new Date() },
+	});
 
 	return result;
 }

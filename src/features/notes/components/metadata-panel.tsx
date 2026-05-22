@@ -14,13 +14,10 @@ import {
 	Plus,
 	X,
 } from "lucide-react";
-import type { ComponentType, ReactNode } from "react";
+import { memo, type ComponentType, type ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { NoteVersionReason } from "@/domain/notes/models";
-import {
-	formatNoteVersionDelta,
-	summarizeNoteVersionReason,
-} from "@/domain/notes/versioning";
+import { summarizeNoteVersionReason } from "@/domain/notes/versioning";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
 import { useNoteVersions } from "@/features/notes/hooks/use-note-versions";
@@ -32,6 +29,7 @@ import {
 } from "@/features/notes/lib/note-links";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
+import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
 type Props = {
@@ -138,19 +136,61 @@ type VersionListItem = {
 	current?: boolean;
 };
 
+type VersionRowData = VersionListItem & {
+	previousContent?: string;
+};
+
+function countWords(content: string): number {
+	const trimmed = content.trim();
+	if (!trimmed) return 0;
+	return trimmed.split(/\s+/).filter(Boolean).length;
+}
+
+function countChars(content: string): number {
+	return content.length;
+}
+
+const VersionDelta = memo(function VersionDelta({
+	currentContent,
+	previousContent,
+}: {
+	currentContent: string;
+	previousContent?: string;
+}) {
+	if (!previousContent) {
+		return null;
+	}
+
+	const wordDelta = countWords(currentContent) - countWords(previousContent);
+	const charDelta = countChars(currentContent) - countChars(previousContent);
+
+	const renderDelta = (value: number) => (
+		<span className="inline-flex items-baseline gap-0.5">
+			<span>{value >= 0 ? "+" : "−"}</span>
+			<AnimatedNumber value={Math.abs(value)} />
+		</span>
+	);
+
+	return (
+		<span className="inline-flex items-baseline gap-1 text-[10px] font-mono text-muted-foreground/70 tabular-nums">
+			{renderDelta(wordDelta)}
+			{renderDelta(charDelta)}
+		</span>
+	);
+});
+
 function getVersionEventLabel(version: VersionListItem) {
-	if (version.current) return "Live";
 	if (version.reasonKind === "autosave") return null;
 	return version.reason;
 }
 
-function VersionRow({
+const VersionRow = memo(function VersionRow({
 	version,
-	diffLabel,
+	previousContent,
 	onView,
 }: {
 	version: VersionListItem;
-	diffLabel: string;
+	previousContent?: string;
 	onView?: () => void;
 }) {
 	const eventLabel = getVersionEventLabel(version);
@@ -170,15 +210,10 @@ function VersionRow({
 				<span className="text-[11px] text-muted-foreground">
 					{formatDistanceToNow(version.createdAt, { addSuffix: false })} ago
 				</span>
-				<span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-					{diffLabel}
-				</span>
+				<VersionDelta currentContent={version.content} previousContent={previousContent} />
 			</div>
-			<p
-				className="truncate text-[12px] leading-snug text-foreground/86"
-				title={version.name}
-			>
-				{version.current ? "Current version" : version.name}
+			<p className="truncate text-[12px] leading-snug text-foreground/86" title={version.name}>
+				{version.name}
 			</p>
 			<div className="mt-0.5 flex items-center justify-between gap-2">
 				{eventLabel ? (
@@ -201,7 +236,7 @@ function VersionRow({
 			</div>
 		</li>
 	);
-}
+});
 
 function LinkRow({
 	link,
@@ -365,33 +400,36 @@ export function MetadataPanel({
 			(item) => item.id !== file.id && uniqueTags(item).includes(selectedTag),
 		);
 	}, [file, files, selectedTag]);
-	const historyItems = useMemo<VersionListItem[]>(() => {
+	const historyItems = useMemo<VersionRowData[]>(() => {
 		if (!file) return [];
 
-		const checkpoints: VersionListItem[] = (versionsQuery.data ?? []).map(
-			(version) => ({
-				id: version.id,
-				name: version.name,
-				content: version.content,
-				createdAt: version.createdAt,
-				reason: summarizeNoteVersionReason(version.reason),
-				reasonKind: version.reason,
-				current: false,
-			}),
-		);
+		const checkpoints = (versionsQuery.data ?? []).map((version) => ({
+			id: version.id,
+			name: version.name,
+			content: version.content,
+			createdAt: version.createdAt,
+			reason: summarizeNoteVersionReason(version.reason),
+			reasonKind: version.reason,
+			current: false,
+		}));
 
-		return [
+		const items = [
 			{
 				id: `current-${file.id}`,
 				name: file.name,
 				content: file.content,
 				createdAt: file.modifiedAt,
-				reason: "Current version",
-				reasonKind: "current",
+				reason: "",
+				reasonKind: "current" as const,
 				current: true,
 			},
 			...checkpoints,
 		];
+
+		return items.map((item, index) => ({
+			...item,
+			previousContent: index === 0 ? undefined : items[index - 1]?.content,
+		}));
 	}, [file, versionsQuery.data]);
 
 	const toggleSection = (section: SectionKey) => {
@@ -631,9 +669,9 @@ export function MetadataPanel({
 										aria-label="Notes linking to this note"
 										className="-mx-2 space-y-0.5"
 									>
-										{backlinks.map((link) => (
+										{backlinks.map((link, index) => (
 											<LinkRow
-												key={`${link.sourceNoteId}-${link.raw}`}
+												key={`${link.sourceNoteId}-${link.raw}-${link.targetNoteId ?? "unresolved"}-${index}`}
 												link={link}
 												filesById={filesById}
 												onFileSelect={onFileSelect}
@@ -651,9 +689,9 @@ export function MetadataPanel({
 										aria-label="Notes this note links to"
 										className="-mx-2 space-y-0.5"
 									>
-										{outgoingLinks.map((link) => (
+										{outgoingLinks.map((link, index) => (
 											<LinkRow
-												key={`${link.sourceNoteId}-${link.raw}-${link.targetLabel}`}
+												key={`${link.sourceNoteId}-${link.raw}-${link.targetLabel}-${link.targetNoteId ?? "unresolved"}-${index}`}
 												link={link}
 												filesById={filesById}
 												onFileSelect={onFileSelect}
@@ -680,22 +718,12 @@ export function MetadataPanel({
 								aria-hidden
 								className="absolute left-[14px] top-2 bottom-2 w-px bg-border"
 							/>
-							{historyItems.map((version, index) => {
-								const newerVersion =
-									index === 0 ? null : historyItems[index - 1];
-								const diffLabel =
-									index === 0
-										? "live"
-										: formatNoteVersionDelta(
-												version.content,
-												newerVersion?.content,
-											);
-
+							{historyItems.map((version) => {
 								return (
 									<VersionRow
 										key={version.id}
 										version={version}
-										diffLabel={diffLabel}
+										previousContent={version.previousContent}
 										onView={
 											!version.current && onViewVersion
 												? () => {
