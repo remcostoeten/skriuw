@@ -1,40 +1,31 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { getAuthenticatedUser } from "@/core/db";
 import type { NoteFolder } from "@/domain/notes/models";
 
-type FolderRow = {
+type FolderRecord = {
 	id: string;
 	name: string;
-	parent_id: string | null;
-	created_at: string;
-	updated_at: string;
+	parentId: string | null;
 };
 
-const FOLDER_SELECT = "id, name, parent_id, created_at, updated_at";
-
-function rowToFolder(row: FolderRow): NoteFolder {
+function recordToFolder(record: FolderRecord): NoteFolder {
 	return {
-		id: row.id,
-		name: row.name,
-		parentId: row.parent_id,
+		id: record.id,
+		name: record.name,
+		parentId: record.parentId,
 		isOpen: false,
 	};
 }
 
 export async function listFolders(): Promise<NoteFolder[]> {
-	const { supabase, user } = await getAuthenticatedUser();
-
-	const { data, error } = await supabase
-		.from("folders")
-		.select(FOLDER_SELECT)
-		.eq("user_id", user.id)
-		.is("deleted_at", null)
-		.order("created_at", { ascending: true });
-
-	if (error) throw error;
-
-	return (data ?? []).map((row: FolderRow) => rowToFolder(row));
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.folder.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: { createdAt: "asc" },
+		select: { id: true, name: true, parentId: true },
+	});
+	return records.map(recordToFolder);
 }
 
 export type CreateFolderInput = {
@@ -44,24 +35,25 @@ export type CreateFolderInput = {
 };
 
 export async function createFolder(input: CreateFolderInput): Promise<NoteFolder> {
-	const { supabase, user } = await getAuthenticatedUser();
-	const now = new Date().toISOString();
+	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
 
-	const row = {
-		user_id: user.id,
-		id,
-		name: input.name,
-		parent_id: input.parentId ?? null,
-		created_at: now,
-		updated_at: now,
-	};
+	const record = await prisma.folder.upsert({
+		where: { id },
+		create: {
+			id,
+			userId: user.id,
+			name: input.name,
+			parentId: input.parentId ?? null,
+		},
+		update: {
+			name: input.name,
+			parentId: input.parentId ?? null,
+		},
+		select: { id: true, name: true, parentId: true },
+	});
 
-	const { error } = await supabase.from("folders").upsert([row], { onConflict: "user_id,id" });
-
-	if (error) throw error;
-
-	return rowToFolder(row);
+	return recordToFolder(record);
 }
 
 export type UpdateFolderInput = {
@@ -71,87 +63,64 @@ export type UpdateFolderInput = {
 };
 
 export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined> {
-	const { supabase, user } = await getAuthenticatedUser();
-	const patch: Partial<FolderRow> = {
-		updated_at: new Date().toISOString(),
-	};
+	const { prisma, user } = await getAuthenticatedUser();
 
-	if (input.name !== undefined) {
-		patch.name = input.name;
-	}
-	if (input.parentId !== undefined) {
-		patch.parent_id = input.parentId;
-	}
+	const { count } = await prisma.folder.updateMany({
+		where: { id: input.id, userId: user.id, deletedAt: null },
+		data: {
+			...(input.name !== undefined && { name: input.name }),
+			...(input.parentId !== undefined && { parentId: input.parentId }),
+		},
+	});
+	if (count === 0) return undefined;
 
-	const { data, error } = await supabase
-		.from("folders")
-		.update(patch)
-		.eq("user_id", user.id)
-		.eq("id", input.id)
-		.is("deleted_at", null)
-		.select(FOLDER_SELECT)
-		.maybeSingle();
-
-	if (error) throw error;
-	if (!data) return undefined;
-
-	return rowToFolder(data as FolderRow);
+	const record = await prisma.folder.findFirst({
+		where: { id: input.id, userId: user.id, deletedAt: null },
+		select: { id: true, name: true, parentId: true },
+	});
+	return record ? recordToFolder(record) : undefined;
 }
 
 export async function deleteFolder(id: string): Promise<void> {
-	const { supabase, user } = await getAuthenticatedUser();
+	const { prisma, user } = await getAuthenticatedUser();
 
-	// Collect all descendant folder IDs
-	const { data: allFolders } = await supabase
-		.from("folders")
-		.select("id, parent_id")
-		.eq("user_id", user.id)
-		.is("deleted_at", null);
+	const allFolders = await prisma.folder.findMany({
+		where: { userId: user.id, deletedAt: null },
+		select: { id: true, parentId: true },
+	});
 
 	const descendants = new Set<string>([id]);
 	const stack = [id];
-
 	while (stack.length > 0) {
 		const current = stack.pop();
-		for (const folder of allFolders ?? []) {
-			if (folder.parent_id === current && !descendants.has(folder.id)) {
+		for (const folder of allFolders) {
+			if (folder.parentId === current && !descendants.has(folder.id)) {
 				descendants.add(folder.id);
 				stack.push(folder.id);
 			}
 		}
 	}
 
-	// Find notes inside any of those folders
-	const { data: notes } = await supabase
-		.from("notes")
-		.select("id, parent_id")
-		.eq("user_id", user.id)
-		.is("deleted_at", null);
-
-	const noteIdsToDelete = (notes ?? [])
-		.filter(
-			(note: { parent_id: string | null }) =>
-				note.parent_id && descendants.has(note.parent_id),
-		)
-		.map((note: { id: string }) => note.id);
-
-	const now = new Date().toISOString();
-
-	// Soft-delete folders and their notes
 	const folderIds = Array.from(descendants);
-	if (folderIds.length > 0) {
-		await supabase
-			.from("folders")
-			.update({ deleted_at: now })
-			.eq("user_id", user.id)
-			.in("id", folderIds);
-	}
+	const notes = await prisma.note.findMany({
+		where: { userId: user.id, deletedAt: null, parentId: { in: folderIds } },
+		select: { id: true },
+	});
+	const noteIds = notes.map((n) => n.id);
 
-	if (noteIdsToDelete.length > 0) {
-		await supabase
-			.from("notes")
-			.update({ deleted_at: now })
-			.eq("user_id", user.id)
-			.in("id", noteIdsToDelete);
-	}
+	const now = new Date();
+	await prisma.$transaction([
+		prisma.folder.updateMany({
+			where: { userId: user.id, id: { in: folderIds } },
+			data: { deletedAt: now },
+		}),
+		...(noteIds.length > 0
+			? [
+					prisma.note.updateMany({
+						where: { userId: user.id, id: { in: noteIds } },
+						data: { deletedAt: now },
+					}),
+				]
+			: []),
+	]);
 }

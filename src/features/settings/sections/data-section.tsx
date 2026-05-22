@@ -7,7 +7,6 @@ import { Download, Trash2, Upload } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { Switch } from "@/shared/ui/switch";
 import {
 	Dialog,
 	DialogClose,
@@ -136,7 +135,7 @@ type ExportState = "idle" | "pending" | "error";
 
 export function DataSection() {
 	const auth = useAuthSnapshot();
-	const isConnected = auth.phase === "authenticated" && auth.isSupabaseConfigured;
+	const isConnected = auth.phase === "authenticated" && auth.isAuthConfigured;
 	const [exportState, setExportState] = useState<ExportState>("idle");
 
 	const handleExport = async () => {
@@ -171,7 +170,7 @@ export function DataSection() {
 			<SettingsCard>
 				<Row
 					title="Cloud sync"
-					description={isConnected ? "Active" : "Supabase not configured"}
+					description={isConnected ? "Active" : "Not signed in"}
 				>
 					<span
 						className={
@@ -180,15 +179,8 @@ export function DataSection() {
 								: "inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
 						}
 					>
-						{isConnected ? "Connected" : "Not configured"}
+						{isConnected ? "Connected" : "Not signed in"}
 					</span>
-				</Row>
-				<Row
-					title="Sync over cellular"
-					description="Use mobile data when Wi-Fi isn't available."
-					disabled
-				>
-					<Switch disabled title="Cellular sync is not yet available" />
 				</Row>
 				<Row
 					title="Export notes"

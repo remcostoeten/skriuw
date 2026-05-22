@@ -8,7 +8,12 @@ import {
 	Row,
 	SettingsCard,
 } from "@/features/settings/components/settings-primitives";
-import { DefaultFontDemo, LineHeightDemo, RawMdxModeDemo } from "@/features/settings/demos";
+import {
+	AnimatedNumberDemo,
+	DefaultFontDemo,
+	LineHeightDemo,
+	RawMdxModeDemo,
+} from "@/features/settings/demos";
 import { EditorFontPicker } from "@/features/settings/components/editor-font-picker";
 import {
 	EDITOR_LINE_HEIGHTS,
@@ -56,24 +61,6 @@ export function EditorSection() {
 						</SelectContent>
 					</Select>
 				</Row>
-				<Row title="Spellcheck" description="Underline misspelled words.">
-					<Switch
-						checked={editor.spellcheck}
-						onCheckedChange={(v) => update("spellcheck", v)}
-					/>
-				</Row>
-				<Row title="Smart punctuation" description="Auto-convert quotes and dashes.">
-					<Switch
-						checked={editor.smartPunctuation}
-						onCheckedChange={(v) => update("smartPunctuation", v)}
-					/>
-				</Row>
-				<Row title="Markdown shortcuts" description="Use # and * to format inline.">
-					<Switch
-						checked={editor.markdownShortcuts}
-						onCheckedChange={(v) => update("markdownShortcuts", v)}
-					/>
-				</Row>
 				<Row
 					title="Default to Raw MDX"
 					description="New notes open in raw MDX mode."
@@ -82,6 +69,16 @@ export function EditorSection() {
 					<Switch
 						checked={editor.defaultModeRaw}
 						onCheckedChange={(v) => update("defaultModeRaw", v)}
+					/>
+				</Row>
+				<Row
+					title="Animated numbers"
+					description="Animate changing counts in the inspector and status bar."
+					visualization={<AnimatedNumberDemo />}
+				>
+					<Switch
+						checked={editor.animateNumbers}
+						onCheckedChange={(v) => update("animateNumbers", v)}
 					/>
 				</Row>
 			</SettingsCard>

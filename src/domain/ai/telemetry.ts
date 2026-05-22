@@ -1,7 +1,8 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import { createSupabaseAdminClient } from "@/core/supabase/server-client";
+import { prisma } from "@/core/db";
+import type { Prisma } from "@/generated/prisma/client";
 import type { AiAction } from "@/domain/ai/types";
 
 export type AiErrorSource = "auth" | "config" | "provider" | "rate_limit" | "validation" | "server";
@@ -49,33 +50,29 @@ export async function recordAiError(input: AiTelemetryInput): Promise<AiTelemetr
 	const eventId = crypto.randomUUID();
 	const keyFingerprint = fingerprintApiKey(input.apiKey);
 
-	const payload = {
-		id: eventId,
-		user_id: input.userId ?? null,
-		user_email: input.userEmail ?? null,
-		endpoint: input.endpoint,
-		action: input.action ?? null,
-		model: input.model ?? null,
-		provider: input.provider ?? "google",
-		error_source: input.source,
-		error_code: input.code,
-		error_message: input.message,
-		http_status: input.status ?? null,
-		provider_status: input.providerStatus ?? null,
-		provider_message: redactProviderMessage(input.providerMessage, input.apiKey),
-		content_length: input.contentLength ?? null,
-		has_user_api_key: Boolean(input.apiKey?.trim()),
-		api_key_fingerprint: keyFingerprint,
-		user_agent: input.userAgent ?? null,
-		request_context: input.requestContext ?? {},
-	};
-
 	try {
-		const admin = createSupabaseAdminClient();
-		const { error } = await admin.from("ai_error_events").insert(payload);
-		if (error) {
-			console.error("[AI/telemetry] failed to persist", { eventId, error: error.message });
-		}
+		await prisma.aiErrorEvent.create({
+			data: {
+				id: eventId,
+				userId: input.userId ?? null,
+				userEmail: input.userEmail ?? null,
+				endpoint: input.endpoint,
+				action: input.action ?? null,
+				model: input.model ?? null,
+				provider: input.provider ?? "google",
+				errorSource: input.source,
+				errorCode: input.code,
+				errorMessage: input.message,
+				httpStatus: input.status ?? null,
+				providerStatus: input.providerStatus ?? null,
+				providerMessage: redactProviderMessage(input.providerMessage, input.apiKey),
+				contentLength: input.contentLength ?? null,
+				hasUserApiKey: Boolean(input.apiKey?.trim()),
+				apiKeyFingerprint: keyFingerprint,
+				userAgent: input.userAgent ?? null,
+				requestContext: (input.requestContext ?? {}) as Prisma.InputJsonValue,
+			},
+		});
 	} catch (err) {
 		console.error("[AI/telemetry] unavailable", { eventId, error: err });
 	}

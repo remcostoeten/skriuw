@@ -5,8 +5,10 @@ import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import {
 	WorkspaceContentSkeleton,
+	WorkspaceLoadingShell,
 	WorkspaceSidebarSkeleton,
 } from "@/features/layout/components/app-loading-shell";
+import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
 import { SidebarPanel } from "./sidebar-panel";
@@ -52,6 +54,12 @@ function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) 
 
 export function NotesLayoutShell() {
 	const layout = useNotesLayout();
+	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
+
+	if (forceLoading) {
+		return <WorkspaceLoadingShell variant="notes" />;
+	}
+
 	const {
 		activeFile,
 		files,

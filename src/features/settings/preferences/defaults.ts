@@ -15,9 +15,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	defaultPlaceholder: "Start writing...",
 	defaultFont: "inter",
 	lineHeight: "comfortable",
-	spellcheck: true,
-	smartPunctuation: true,
-	markdownShortcuts: true,
+	animateNumbers: true,
 };
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {

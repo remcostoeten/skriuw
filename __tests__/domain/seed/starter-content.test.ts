@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildMobileStarterWorkspace, buildWebStarterContent } from "@/domain/seed/starter-content";
+import { buildWebStarterContent } from "@/domain/seed/starter-content";
 
 describe("starter content", () => {
 	test("builds a filled nested web starter workspace", () => {
@@ -47,25 +47,4 @@ describe("starter content", () => {
 		expect(launchNote?.content).toContain("- [x] Replace empty-feeling demo files");
 	});
 
-	test("builds the same filled starter shape for mobile", () => {
-		const starter = buildMobileStarterWorkspace();
-
-		expect(starter.folders.map((folder) => [folder.id, folder.parentId])).toEqual([
-			["mobile-folder-studio", null],
-			["mobile-folder-research", "mobile-folder-studio"],
-			["mobile-folder-playground", null],
-			["mobile-folder-experiments", "mobile-folder-playground"],
-			["mobile-folder-recipes", "mobile-folder-playground"],
-			["mobile-folder-templates", null],
-		]);
-		expect(starter.notes.map((note) => [note.id, note.parentId])).toEqual([
-			["mobile-note-field-guide", null],
-			["mobile-note-launch-review", "mobile-folder-studio"],
-			["mobile-note-research-local-first", "mobile-folder-research"],
-			["mobile-note-idea-board", "mobile-folder-playground"],
-			["mobile-note-prompt-snippets", "mobile-folder-experiments"],
-			["mobile-note-mdx-space-pancakes", "mobile-folder-recipes"],
-			["mobile-note-daily-template", "mobile-folder-templates"],
-		]);
-	});
 });

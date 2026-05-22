@@ -1,50 +1,44 @@
-import { getAuthStateSnapshot, initializeAuth } from "@/platform/auth";
-import { getSupabaseClient, isSupabaseConfigured } from "@/core/supabase/browser-client";
 import { isEditorFontId, type EditorFontId } from "@/shared/lib/editor-fonts";
+import {
+	updateUserEditorPreferences as saveUserEditorPreferences,
+} from "@/features/settings/server/actions";
+
+export const EDITOR_PREFERENCES_STORAGE_KEY = "skriuw:editor:preferences:v1";
 
 export type StoredEditorPreferences = {
 	defaultFont?: EditorFontId;
+	animateNumbers?: boolean;
 };
 
 export function getUserEditorPreferences(): StoredEditorPreferences | null {
-	const rawPreferences = getAuthStateSnapshot().session?.user.user_metadata?.editor_preferences;
-	if (!rawPreferences || typeof rawPreferences !== "object") {
+	if (typeof window === "undefined") return null;
+	try {
+		const raw = window.localStorage.getItem(EDITOR_PREFERENCES_STORAGE_KEY);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as Record<string, unknown>;
+		const defaultFont =
+			typeof parsed.defaultFont === "string" && isEditorFontId(parsed.defaultFont)
+				? (parsed.defaultFont as EditorFontId)
+				: undefined;
+		const animateNumbers =
+			typeof parsed.animateNumbers === "boolean" ? parsed.animateNumbers : undefined;
+		if (!defaultFont && animateNumbers === undefined) return null;
+		return { ...(defaultFont ? { defaultFont } : {}), ...(animateNumbers !== undefined ? { animateNumbers } : {}) };
+	} catch {
 		return null;
 	}
-
-	const rawEditorPreferences = rawPreferences as Record<string, unknown>;
-	const defaultFont =
-		typeof rawEditorPreferences.defaultFont === "string" &&
-		isEditorFontId(rawEditorPreferences.defaultFont)
-			? (rawEditorPreferences.defaultFont as EditorFontId)
-			: undefined;
-
-	return defaultFont ? { defaultFont } : null;
 }
 
 export async function updateUserEditorPreferences(
 	preferences: Partial<StoredEditorPreferences>,
 ): Promise<void> {
-	await initializeAuth();
-
-	if (!getAuthStateSnapshot().session?.user || !isSupabaseConfigured()) {
-		return;
-	}
-
-	const currentPreferences = getUserEditorPreferences() ?? {};
-	const nextPreferences = {
-		...currentPreferences,
-		...preferences,
-	};
-
-	const supabase = getSupabaseClient();
-	const { error } = await supabase.auth.updateUser({
-		data: {
-			editor_preferences: nextPreferences,
-		},
-	});
-
-	if (error) {
-		throw error;
+	if (typeof window === "undefined") return;
+	const current = getUserEditorPreferences() ?? {};
+	const next = { ...current, ...preferences };
+	try {
+		window.localStorage.setItem(EDITOR_PREFERENCES_STORAGE_KEY, JSON.stringify(next));
+		await saveUserEditorPreferences(next);
+	} catch {
+		// Storage unavailable; nothing to do.
 	}
 }

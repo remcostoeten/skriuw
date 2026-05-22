@@ -69,6 +69,11 @@ interface RichTextEditorProps {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onTitleCommit?: (title: string) => void;
+	onCursorChange?: (position: {
+		line: number;
+		column: number;
+		selection?: { words: number; characters: number };
+	}) => void;
 }
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
@@ -672,6 +677,7 @@ export function RichTextEditor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onTitleCommit,
+	onCursorChange,
 }: RichTextEditorProps) {
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
 	const blockNoteTheme = appTheme === "paper" ? "light" : "dark";
@@ -683,6 +689,7 @@ export function RichTextEditor({
 	const activeFileIdRef = useRef(activeFileId);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const serializeRunIdRef = useRef(0);
+	const wrapperRef = useRef<HTMLDivElement>(null);
 
 	const initialBlocks = useMemo(() => {
 		const base = resolveRichDocument(content, richContent);
@@ -780,6 +787,80 @@ export function RichTextEditor({
 		domElement.addEventListener("focusout", handleTitleFocusOut);
 		return () => domElement.removeEventListener("focusout", handleTitleFocusOut);
 	}, [editor, editor.domElement, onTitleCommit]);
+
+	useEffect(() => {
+		if (!onCursorChange) return;
+		const root = wrapperRef.current ?? editor.domElement;
+		if (!root) return;
+
+		let animationFrame: number | null = null;
+
+		const clearSelectionStatus = () => {
+			onCursorChange({ line: 1, column: 1 });
+		};
+
+		const reportSelection = () => {
+			const selection = document.getSelection();
+			if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+				clearSelectionStatus();
+				return;
+			}
+
+			const range = selection.getRangeAt(0);
+			if (!root.contains(range.commonAncestorContainer)) {
+				clearSelectionStatus();
+				return;
+			}
+
+			const selectedText = selection.toString();
+			if (!selectedText) {
+				clearSelectionStatus();
+				return;
+			}
+
+			const trimmed = selectedText.trim();
+			onCursorChange({
+				line: 1,
+				column: 1,
+				selection: {
+					words: trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0,
+					characters: selectedText.length,
+				},
+			});
+		};
+
+		const queueSelectionReport = () => {
+			if (animationFrame !== null) {
+				window.cancelAnimationFrame(animationFrame);
+			}
+
+			animationFrame = window.requestAnimationFrame(() => {
+				animationFrame = null;
+				reportSelection();
+			});
+		};
+
+		document.addEventListener("selectionchange", queueSelectionReport);
+		document.addEventListener("pointerup", queueSelectionReport);
+		root.addEventListener("blur", queueSelectionReport, true);
+		root.addEventListener("focusout", queueSelectionReport);
+		root.addEventListener("keyup", queueSelectionReport);
+		root.addEventListener("pointerdown", queueSelectionReport);
+		root.addEventListener("pointerup", queueSelectionReport);
+		return () => {
+			if (animationFrame !== null) {
+				window.cancelAnimationFrame(animationFrame);
+			}
+
+			document.removeEventListener("selectionchange", queueSelectionReport);
+			document.removeEventListener("pointerup", queueSelectionReport);
+			root.removeEventListener("blur", queueSelectionReport, true);
+			root.removeEventListener("focusout", queueSelectionReport);
+			root.removeEventListener("keyup", queueSelectionReport);
+			root.removeEventListener("pointerdown", queueSelectionReport);
+			root.removeEventListener("pointerup", queueSelectionReport);
+		};
+	}, [editor.domElement, onCursorChange]);
 
 	useEffect(() => {
 		if (!onEditorReady) return;
@@ -894,6 +975,7 @@ export function RichTextEditor({
 
 	return (
 		<div
+			ref={wrapperRef}
 			className="blocknote-wrapper h-full min-h-full px-6 py-3"
 			style={
 				{

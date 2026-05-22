@@ -1,6 +1,9 @@
 import "server-only";
 
-import { createServerSupabaseClient } from "@/core/supabase/server-client";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { isAdmin as roleIsAdmin } from "@/lib/roles";
 import type { CustomSection, Feature, NiceToHave, ScratchEntry } from "../types";
 import { mapCustomSection, mapFeature, mapNiceToHave, mapScratch } from "./mappers";
 import type {
@@ -36,68 +39,79 @@ function groupByKey<TRow>(rows: TRow[], getKey: (row: TRow) => string): Map<stri
 }
 
 export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
-	const supabase = await createServerSupabaseClient();
+	const [session, features, issues, nice, scratch, sections, sectionItems] = await Promise.all([
+		auth.api.getSession({ headers: await headers() }),
+		prisma.planningFeature.findMany({ orderBy: { updatedAt: "desc" } }),
+		prisma.planningIssue.findMany({ orderBy: { createdAt: "asc" } }),
+		prisma.planningNiceToHave.findMany({ orderBy: { createdAt: "desc" } }),
+		prisma.planningScratchEntry.findMany({ orderBy: { createdAt: "desc" } }),
+		prisma.planningSection.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+		prisma.planningSectionItem.findMany({ orderBy: { sortOrder: "asc" } }),
+	]);
 
-	const [featuresRes, issuesRes, niceRes, scratchRes, sectionsRes, sectionItemsRes, userRes] =
-		await Promise.all([
-			supabase
-				.from("features")
-				.select(
-					"id, title, slug, description, status, priority, tags, created_at, updated_at",
-				)
-				.order("updated_at", { ascending: false }),
-			supabase
-				.from("issues")
-				.select(
-					"id, feature_id, title, description, status, priority, assignee, tags, notes, created_at, updated_at",
-				)
-				.order("created_at", { ascending: true }),
-			supabase
-				.from("nice_to_haves")
-				.select("id, title, description, reason, priority, created_at")
-				.order("created_at", { ascending: false }),
-			supabase
-				.from("scratch_entries")
-				.select("id, title, content, type, created_at")
-				.order("created_at", { ascending: false }),
-			supabase
-				.from("planning_sections")
-				.select("id, slug, title, description, sort_order, created_at, updated_at")
-				.order("sort_order", { ascending: true })
-				.order("created_at", { ascending: true }),
-			supabase
-				.from("planning_section_items")
-				.select(
-					"id, section_id, title, content, priority, tags, sort_order, created_at, updated_at",
-				),
-			supabase.auth.getUser(),
-		]);
+	const user = session?.user ?? null;
+	const isAdmin = roleIsAdmin(user?.role);
 
-	if (featuresRes.error) throw featuresRes.error;
-	if (issuesRes.error) throw issuesRes.error;
-	if (niceRes.error) throw niceRes.error;
-	if (scratchRes.error) throw scratchRes.error;
-	if (sectionsRes.error) throw sectionsRes.error;
-	if (sectionItemsRes.error) throw sectionItemsRes.error;
-	if (userRes.error) throw userRes.error;
+	const featureRows: FeatureRow[] = features.map((f) => ({
+		id: f.id,
+		title: f.title,
+		slug: f.slug,
+		description: f.description,
+		status: f.status as FeatureRow["status"],
+		priority: f.priority as FeatureRow["priority"],
+		tags: f.tags,
+		created_at: f.createdAt.toISOString(),
+		updated_at: f.updatedAt.toISOString(),
+	}));
+	const issueRows: IssueRow[] = issues.map((i) => ({
+		id: i.id,
+		feature_id: i.featureId,
+		title: i.title,
+		description: i.description,
+		status: i.status as IssueRow["status"],
+		priority: i.priority as IssueRow["priority"],
+		assignee: i.assignee,
+		tags: i.tags,
+		notes: i.notes,
+		created_at: i.createdAt.toISOString(),
+		updated_at: i.updatedAt.toISOString(),
+	}));
+	const niceRows: NiceToHaveRow[] = nice.map((n) => ({
+		id: n.id,
+		title: n.title,
+		description: n.description,
+		reason: n.reason,
+		priority: n.priority as NiceToHaveRow["priority"],
+		created_at: n.createdAt.toISOString(),
+	}));
+	const scratchRows: ScratchEntryRow[] = scratch.map((s) => ({
+		id: s.id,
+		title: s.title,
+		content: s.content,
+		type: s.type as ScratchEntryRow["type"],
+		created_at: s.createdAt.toISOString(),
+	}));
+	const sectionRows: PlanningSectionRow[] = sections.map((s) => ({
+		id: s.id,
+		slug: s.slug,
+		title: s.title,
+		description: s.description,
+		sort_order: s.sortOrder,
+		created_at: s.createdAt.toISOString(),
+		updated_at: s.updatedAt.toISOString(),
+	}));
+	const sectionItemRows: PlanningSectionItemRow[] = sectionItems.map((i) => ({
+		id: i.id,
+		section_id: i.sectionId,
+		title: i.title,
+		content: i.content,
+		priority: (i.priority ?? null) as PlanningSectionItemRow["priority"],
+		tags: i.tags,
+		sort_order: i.sortOrder,
+		created_at: i.createdAt.toISOString(),
+		updated_at: i.updatedAt.toISOString(),
+	}));
 
-	const user = userRes.data.user;
-	let isAdmin = false;
-	if (user) {
-		const { data, error } = await supabase.rpc("has_role", {
-			_user_id: user.id,
-			_role: "admin",
-		});
-		if (error) throw error;
-		isAdmin = data === true;
-	}
-
-	const featureRows = (featuresRes.data ?? []) as FeatureRow[];
-	const issueRows = (issuesRes.data ?? []) as IssueRow[];
-	const niceRows = (niceRes.data ?? []) as NiceToHaveRow[];
-	const scratchRows = (scratchRes.data ?? []) as ScratchEntryRow[];
-	const sectionRows = (sectionsRes.data ?? []) as PlanningSectionRow[];
-	const sectionItemRows = (sectionItemsRes.data ?? []) as PlanningSectionItemRow[];
 	const issuesByFeatureId = groupByKey(issueRows, (issue) => issue.feature_id);
 	const itemsBySectionId = groupByKey(sectionItemRows, (item) => item.section_id);
 
