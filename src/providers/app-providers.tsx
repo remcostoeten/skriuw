@@ -45,7 +45,7 @@ function EditorPreferencesBootstrap({
 	return null;
 }
 
-function ShortcutHandlerProvider({ children }: Props) {
+function ShortcutHandlerProvider({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 
 	const handlers: ShortcutHandlers = {

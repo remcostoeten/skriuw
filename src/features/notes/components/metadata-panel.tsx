@@ -420,7 +420,7 @@ export function MetadataPanel({
 				content: file.content,
 				createdAt: file.modifiedAt,
 				reason: "",
-				reasonKind: "current",
+				reasonKind: "current" as const,
 				current: true,
 			},
 			...checkpoints,
