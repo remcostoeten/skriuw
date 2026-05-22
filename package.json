@@ -29,6 +29,7 @@
     "@blocknote/mantine": "^0.46.2",
     "@blocknote/react": "^0.46.2",
     "@hookform/resolvers": "^3.10.0",
+    "@number-flow/react": "^0.6.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-context-menu": "^2.2.15",

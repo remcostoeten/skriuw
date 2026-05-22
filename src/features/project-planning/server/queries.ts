@@ -3,6 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin as roleIsAdmin } from "@/lib/roles";
 import type { CustomSection, Feature, NiceToHave, ScratchEntry } from "../types";
 import { mapCustomSection, mapFeature, mapNiceToHave, mapScratch } from "./mappers";
 import type {
@@ -45,17 +46,11 @@ export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
 		prisma.planningNiceToHave.findMany({ orderBy: { createdAt: "desc" } }),
 		prisma.planningScratchEntry.findMany({ orderBy: { createdAt: "desc" } }),
 		prisma.planningSection.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
-		prisma.planningSectionItem.findMany(),
+		prisma.planningSectionItem.findMany({ orderBy: { sortOrder: "asc" } }),
 	]);
 
 	const user = session?.user ?? null;
-	let isAdmin = false;
-	if (user) {
-		const adminRole = await prisma.userRole.findUnique({
-			where: { userId_role: { userId: user.id, role: "admin" } },
-		});
-		isAdmin = adminRole !== null;
-	}
+	const isAdmin = roleIsAdmin(user?.role);
 
 	const featureRows: FeatureRow[] = features.map((f) => ({
 		id: f.id,

@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { admin } from "better-auth/plugins";
 import { prisma } from "./prisma";
 
 const hasGithubCredentials = Boolean(
@@ -17,6 +18,8 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,
+		// Email verification is deferred until the app has the supporting mail flow
+		// and anti-abuse handling wired up.
 		requireEmailVerification: false,
 	},
 	socialProviders: hasGithubCredentials
@@ -27,7 +30,13 @@ export const auth = betterAuth({
 				},
 			}
 		: undefined,
-	plugins: [nextCookies()],
+	plugins: [
+		admin({
+			defaultRole: "user",
+			adminRoles: ["admin"],
+		}),
+		nextCookies(),
+	],
 	session: {
 		expiresIn: 60 * 60 * 24 * 30,
 		updateAge: 60 * 60 * 24,

@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ADMIN_ROLE } from "@/lib/roles";
 import type {
 	CustomSection,
 	CustomSectionItem,
@@ -44,10 +45,7 @@ async function requireAdmin() {
 	if (!user) {
 		throw new Error("Not authenticated");
 	}
-	const role = await prisma.userRole.findUnique({
-		where: { userId_role: { userId: user.id, role: "admin" } },
-	});
-	if (!role) {
+	if (user.role !== ADMIN_ROLE) {
 		throw new Error("Forbidden: admin role required");
 	}
 	return { user };
@@ -278,6 +276,8 @@ export async function updateFeatureStatus(id: string, status: FeatureStatus): Pr
 
 export async function deleteFeature(id: string): Promise<void> {
 	await requireAdmin();
+	// PlanningIssue.feature is configured with onDelete: Cascade, so deleting a
+	// feature intentionally removes its linked issues as part of the same action.
 	await prisma.planningFeature.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
