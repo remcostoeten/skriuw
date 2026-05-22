@@ -4,7 +4,8 @@ const PORT = 3007;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
-  testDir: "./tests/smoke",
+  testDir: "./__tests__/e2e",
+  testMatch: "**/*.e2e.ts",
   timeout: 30_000,
   expect: {
     timeout: 10_000,
