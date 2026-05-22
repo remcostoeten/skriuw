@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { getServerUser } from "@/core/supabase/server-client";
 import { listFolders } from "@/domain/folders/api";
 import { listNoteMetadata } from "@/domain/notes/api";
+import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
@@ -15,6 +17,11 @@ export default function AppHomePage() {
 }
 
 async function AppHomeContent() {
+	const { user } = await getServerUser();
+	if (user) {
+		await ensureCloudStarterContentSeeded(user.id);
+	}
+
 	const queryClient = new QueryClient();
 
 	await Promise.all([

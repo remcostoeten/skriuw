@@ -1,206 +1,175 @@
-# Skriuw
+<p align="center">
+  <img src="public/icons/128x128.png" width="80" alt="Skriuw logo" />
+</p>
 
-## Mobile
+<h1 align="center">Skriuw</h1>
 
-Run the Expo app from the repo root:
+<p align="center">
+  <em>Frisian, "to write."</em>
+</p>
 
-```bash
-bun run dev:mobile
-```
+<p align="center">
+  A calm, keyboard-first notes and journal workspace with account-backed sync, rich editing, backlinks, version history, and bring-your-own-key AI.
+</p>
 
-Useful mobile commands:
+<p align="center">
+  <a href="https://skriuw.app"><img src="https://img.shields.io/website?url=https%3A%2F%2Fskriuw.app&style=flat-square&label=skriuw.app" alt="Website" /></a>
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-149eca?style=flat-square" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.8-3178c6?style=flat-square" alt="TypeScript 5.8" />
+  <img src="https://img.shields.io/badge/Bun-runtime-f9f1e1?style=flat-square" alt="Bun runtime" />
+  <img src="https://img.shields.io/badge/Supabase-sync-3ecf8e?style=flat-square" alt="Supabase" />
+</p>
 
-```bash
-bun run dev:mobile:tunnel
-bun run dev:mobile:lan
-bun run dev:mobile:web
-bun run dev:mobile:ios
-bun run dev:mobile:android
-bun run mobile:ios
-bun run mobile:android
-bun run mobile:typecheck
-bun run mobile:doctor
-```
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#getting-started">Getting Started</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#project-structure">Project Structure</a> ·
+  <a href="#scripts">Scripts</a>
+</p>
 
-`dev:mobile:*` starts Expo with the relevant target or connection mode.
-`mobile:ios` and `mobile:android` run the native Expo build commands.
+<p align="center">
+  <img src="public/screenshot.png" alt="Skriuw workspace screenshot" />
+</p>
 
-Set up local Expo env vars if you want cloud-ready mobile config:
+## Overview
 
-```bash
-bun run mobile:env:setup
-```
+Skriuw combines long-form notes, daily journaling, and lightweight project planning in a single writing-focused workspace. It is built for fast keyboard navigation, low-friction organization, and private-by-default AI workflows where users bring their own provider keys.
 
-That copies the root `.env.local` into `apps/mobile/.env.local`.
+The app is a Next.js App Router project backed by Supabase Auth and Postgres. Client state is kept responsive with Zustand and TanStack Query, while server actions own persistence, exports, account deletion, and AI provider access.
 
-Mobile auth code accepts either:
-
-- `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-
-The legacy `EXPO_PUBLIC_SUPABASE_ANON_KEY` and
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` names are still supported as fallbacks.
-
-So copying the root env file is enough for local setup if web is already
-configured.
-
-A keyboard-first note-taking application built with Next.js, React, and
-TypeScript.
+> [!NOTE]
+> AI features are opt-in. Provider keys are stored per account and can be encrypted with `AI_KEYS_ENCRYPTION_SECRET`.
 
 ## Features
 
-- **Markdown and Rich Text Editing**: Switch between markdown and rich text modes
-- **File Management**: Create, organize, and manage notes with folders
-- **Keyboard-First**: Optimized for keyboard navigation and shortcuts
-- **Responsive Design**: Works on desktop and mobile
-- **Cloud Workspace**: Notes, folders, journal entries, and tags are loaded from Supabase
+| Area | What Skriuw does |
+| --- | --- |
+| Notes | Rich BlockNote editor, raw markdown mode, slash commands, checklists, code blocks, file-tree blocks, and per-note editor mode preferences. |
+| Linking | Wiki-style `[[Note Title]]` links, inline note chips, unresolved-link creation, backlinks, and inline `#tag` extraction. |
+| Organization | Nested folders, favorites, recents, configurable sidebar sections, compact mode, and soft deletion. |
+| Journal | Calendar-based daily entries with mood tracking, color-coded tags, autosave, word counts, streaks, mood distribution, and activity heatmaps. |
+| Versioning | Automatic note checkpoints with content hashing, meaningful-change thresholds, side-by-side previews, and one-click restore. |
+| AI | Bring-your-own-key actions for title generation, spell check, and continuing text with Google Gemini and Groq models. |
+| Settings | Theme, accent, editor typography, line height, markdown behavior, AI keys, export, and account controls. |
+| Planning | Public `/project-planning` roadmap with feature states, issues, custom sections, admin-only editing, and atomic moves. |
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Custom components with Radix UI primitives
-- **State Management**: Zustand
-- **Editor**: Blocknote for rich text editing
-- **Icons**: Lucide React
+- **Framework:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS v4, Radix UI primitives, custom theme tokens
+- **Editor:** BlockNote, Shiki, custom inline/block specs
+- **Data:** Supabase Auth, Supabase Postgres, Row Level Security
+- **State:** TanStack Query, Zustand
+- **AI:** Vercel AI SDK v6, Google Gemini, Groq
+- **Testing:** Bun test, Playwright, `@next/playwright`
+- **Tooling:** Bun, oxlint, oxfmt
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm, yarn, or bun
+- [Bun](https://bun.sh)
+- A Supabase project with Email/Password auth enabled
+- Optional OAuth providers: Google and GitHub
 
-### Installation
+### Run Locally
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd skriuw
-
-# Install dependencies
-npm install
-# or
-yarn install
-# or
 bun install
+```
 
-# Start development server
-npm run dev
-# or
-yarn dev
-# or
+Create `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-supabase-publishable-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+AI_KEYS_ENCRYPTION_SECRET="your-ai-provider-key-encryption-secret"
+```
+
+Start the development server:
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Supabase Setup
+> [!IMPORTANT]
+> `SUPABASE_SERVICE_ROLE_KEY` is server-only. Do not expose it to the browser or commit real secrets.
 
-This app uses Supabase for all persistent backend storage.
+## Configuration
 
-Copy the env template first:
+### Supabase
 
-```bash
-cp .env.example .env.local
-```
+Skriuw expects user-scoped tables protected by RLS. The core app uses:
 
-Set these Supabase env vars in `.env.local`:
+- `folders`
+- `notes`
+- `note_versions`
+- `journal_entries`
+- `tags`
+- `user_recents`
+- `ai_provider_keys`
+- `ai_usage_logs`
+- `ai_error_events`
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
+The public planning board uses:
 
-Supabase project notes:
+- `user_roles`
+- `features`
+- `issues`
+- `nice_to_haves`
+- `scratch_entries`
+- `planning_sections`
+- `planning_section_items`
 
-- Enable Email/Password, Google, and GitHub providers if you want all auth options in the drawer.
-- Disable email confirmation if you want email sign-up to create an immediate session with no verification step.
-- Add your local and production callback URLs in Supabase Auth settings for OAuth redirects.
-- For Expo mobile OAuth, also allow `skriuw://auth/callback` as a redirect URL in Supabase Auth.
-- Keep `SUPABASE_SERVICE_ROLE_KEY` server-only. It is required for account deletion and other admin-only server actions.
-- The connected Supabase schema expects public tables named `notes`, `folders`, `journal_entries`, `tags`, `ai_error_events`, `ai_provider_keys`, and `ai_usage_logs`, each scoped by `user_id` with RLS enabled.
-- Set `AI_KEYS_ENCRYPTION_SECRET` when you want profile-owned AI keys to be stored encrypted server-side.
-- Mobile now supports email/password plus Google and GitHub OAuth via Expo deep links.
+Migration SQL lives in [`supabase/migrations`](supabase/migrations). Apply the migrations to your Supabase project, then configure Auth redirect URLs for local and production environments.
 
-### Build
+### Admin Access
 
-```bash
-npm run build
-npm run start
-```
+Project planning writes are admin-only. Use [`scripts/set-admin.sql`](scripts/set-admin.sql) as the starting point for assigning an admin role in Supabase.
 
 ## Project Structure
 
-```
+```text
 src/
-├── app/          # Route entry points and top-level composition
-├── features/     # Product features: notes, journal, settings, layout, tags
-├── platform/     # Auth and platform/runtime integrations
-├── shared/       # Reusable UI primitives and generic helpers
-├── core/         # Persistence adapters and repository layer
-├── providers/    # App-level providers and bootstrapping
-└── types/        # Shared TypeScript types still used across older layers
+├── app/          # App Router routes, layouts, API handlers, loading states
+├── core/         # Supabase clients, persistence bootstrap, shortcut runtime
+├── domain/       # Server-side models, mappers, persistence APIs, seed data
+├── features/     # Product modules: notes, editor, journal, settings, AI, planning
+├── platform/     # Auth integration and platform-specific adapters
+├── providers/    # App-level providers and protected workspace bootstrapping
+├── shared/       # Reusable UI primitives, icons, hooks, and utilities
+└── types/        # Shared legacy types kept during migration
 ```
 
-## Usage
+## Scripts
 
-### Creating Notes
+| Command | Description |
+| --- | --- |
+| `bun dev` | Start Next.js with Turbopack. |
+| `bun build` | Create a production build. |
+| `bun run build:verified` | Run the verified build helper. |
+| `bun start` | Serve the production build. |
+| `bun test` | Run the unit test suite. |
+| `bun run test:smoke` | Build and run Playwright smoke tests. |
+| `bun run test:skeleton` | Build and run skeleton/loading-state QA. |
+| `bun run lint` | Run oxlint. |
+| `bun run format` | Run oxfmt. |
+| `bun run colors:audit` | Report hardcoded color values. |
+| `bun run colors:audit:strict` | Enforce the color audit. |
 
-1. Click "New File" in the sidebar or press `Ctrl+N`
-2. Choose between Markdown or Rich Text mode
-3. Start typing
+## Data Export
 
-### Organizing Notes
+Authenticated users can export their workspace as a ZIP from the app. The export contains markdown notes, journal entries with frontmatter, and a small `skriuw-export.json` manifest for future import tooling.
 
-- Create folders to organize your notes
-- Drag and drop files to move them between folders
-- Use the search feature to find notes quickly
+## Development Notes
 
-### Keyboard Shortcuts
-
-- `Ctrl+N`: Create new note
-- `Ctrl+S`: Save note (auto-saves by default)
-- `Ctrl+/`: Toggle sidebar
-- `Ctrl+Shift+P`: Command palette
-
-## Development
-
-### Adding New Components
-
-1. Put feature-specific UI and state under `src/features/<feature>/`
-2. Put shared UI primitives in `src/shared/ui/`
-3. Keep route files in `src/app/` thin and focused on composition
-4. Put auth and runtime integrations in `src/platform/`
-
-### State Management
-
-The app uses colocated Zustand stores inside the owning feature where possible:
-
-- `features/notes/store.ts`: note and folder state
-- `features/settings/store.ts`: local UI/preferences state
-- `features/layout/store.ts`: shell UI state
-- `features/tags/store.ts`: tag data
-
-### Styling
-
-- Uses Tailwind CSS for styling
-- Custom theme defined in `tailwind.config.ts`
-- Dark mode support via CSS variables
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
+- Server actions in `src/domain/**/api.ts` are the primary persistence boundary.
+- Supabase clients are split between browser, server, and admin usage in `src/core/supabase`.
+- Notes are soft-deleted with `deleted_at`; exports and list queries only include active records.
+- Version history is persisted only when content changes are meaningful enough to avoid noisy checkpoints.
+- Route loading shells and skeleton QA live alongside the App Router pages and Playwright smoke tests.
