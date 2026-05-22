@@ -1,17 +1,17 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { tryGetAuthenticatedUser } from "@/core/db";
 import { createAiProviderKey, listAiProviderKeys } from "@/domain/ai/provider-keys";
 
 export async function GET() {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	const keys = await listAiProviderKeys(user.id);
 	return NextResponse.json({ keys });
 }
 
 export async function POST(req: NextRequest) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	const body = (await req.json().catch(() => ({}))) as {
 		label?: string;

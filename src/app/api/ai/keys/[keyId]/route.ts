@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { tryGetAuthenticatedUser } from "@/core/db";
 import { deleteAiProviderKey, updateAiProviderKeyLabel } from "@/domain/ai/provider-keys";
 
 type RouteContext = {
@@ -8,7 +8,7 @@ type RouteContext = {
 };
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	const { keyId } = await context.params;
 	const body = (await req.json().catch(() => ({}))) as { label?: string };
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_req: NextRequest, context: RouteContext) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
+	const { user } = await tryGetAuthenticatedUser();
 	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	const { keyId } = await context.params;
 	await deleteAiProviderKey(user.id, keyId);

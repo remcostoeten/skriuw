@@ -1,58 +1,39 @@
+import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import {
-	createSupabaseAdminClient,
-	getAuthenticatedUser,
-	isSupabaseAdminConfigured,
-} from "@/core/supabase/server-client";
+import { getAuthenticatedUser, prisma } from "@/core/db";
+import { auth } from "@/lib/auth";
 
 const DELETE_PHRASE = "delete my account";
-const USER_SCOPED_TABLES = [
-	"ai_provider_keys",
-	"ai_usage_logs",
-	"ai_error_events",
-	"user_recents",
-	"journal_entries",
-	"tags",
-	"notes",
-	"folders",
-] as const;
 
 export async function POST(request: NextRequest) {
-	const { user } = await getAuthenticatedUser().catch(() => ({ user: null }));
-
-	if (!user) {
+	let userId: string;
+	try {
+		const { user } = await getAuthenticatedUser();
+		userId = user.id;
+	} catch {
 		return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	}
 
 	const body = (await request.json().catch(() => null)) as { confirmation?: string } | null;
-
 	if (body?.confirmation?.trim().toLowerCase() !== DELETE_PHRASE) {
 		return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
 	}
 
-	if (!isSupabaseAdminConfigured()) {
+	const requestHeaders = await headers();
+
+	try {
+		await auth.api.signOut({ headers: requestHeaders });
+	} catch {
+		// Best-effort cookie clear; the user.delete below will cascade any remaining session row.
+	}
+
+	try {
+		await prisma.user.delete({ where: { id: userId } });
+	} catch (error) {
 		return NextResponse.json(
-			{
-				error: "Account deletion is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
-			},
-			{ status: 503 },
+			{ error: error instanceof Error ? error.message : "Could not delete account." },
+			{ status: 500 },
 		);
-	}
-
-	const admin = createSupabaseAdminClient();
-
-	for (const table of USER_SCOPED_TABLES) {
-		const { error } = await admin.from(table).delete().eq("user_id", user.id);
-
-		if (error) {
-			return NextResponse.json({ error: error.message }, { status: 500 });
-		}
-	}
-
-	const { error } = await admin.auth.admin.deleteUser(user.id);
-
-	if (error) {
-		return NextResponse.json({ error: error.message }, { status: 500 });
 	}
 
 	return NextResponse.json({ ok: true });

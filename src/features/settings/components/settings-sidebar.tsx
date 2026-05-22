@@ -6,7 +6,6 @@ import {
 	FlaskConical,
 	Palette,
 	PenLine,
-	Plug,
 	Shield,
 	Sparkles,
 	Tag,
@@ -21,7 +20,6 @@ export type SettingsTabId =
 	| "editor"
 	| "notifications"
 	| "data"
-	| "integrations"
 	| "security"
 	| "ai"
 	| "tags"
@@ -39,7 +37,6 @@ const NAV_ITEMS: ReadonlyArray<SettingsNavItem> = [
 	{ id: "editor", label: "Editor", icon: PenLine },
 	{ id: "notifications", label: "Notifications", icon: Bell },
 	{ id: "data", label: "Data & sync", icon: Database },
-	{ id: "integrations", label: "Integrations", icon: Plug },
 	{ id: "security", label: "Security", icon: Shield },
 	{ id: "ai", label: "AI", icon: Sparkles },
 	{ id: "tags", label: "Tags", icon: Tag },

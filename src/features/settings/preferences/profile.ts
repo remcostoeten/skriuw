@@ -100,14 +100,9 @@ export function normalizeProfile(
 				isEditorLineHeight(profile.editor.lineHeight)
 					? profile.editor.lineHeight
 					: fallback.editor.lineHeight,
-			spellcheck: normalizeBoolean(profile?.editor?.spellcheck, fallback.editor.spellcheck),
-			smartPunctuation: normalizeBoolean(
-				profile?.editor?.smartPunctuation,
-				fallback.editor.smartPunctuation,
-			),
-			markdownShortcuts: normalizeBoolean(
-				profile?.editor?.markdownShortcuts,
-				fallback.editor.markdownShortcuts,
+			animateNumbers: normalizeBoolean(
+				profile?.editor?.animateNumbers,
+				fallback.editor.animateNumbers,
 			),
 		},
 		appearance: {

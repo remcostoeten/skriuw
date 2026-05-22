@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AlertTriangle, Code, FileText, X } from "lucide-react";
 import { Editor } from "./editor";
 import { EditorToolbar } from "./editor-toolbar";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -16,6 +17,8 @@ import {
 import { usePreferencesStore } from "@/features/settings/store";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { normalizeNoteTitle, stripMarkdownExtension } from "@/features/notes/lib/note-links";
+import { cn } from "@/shared/lib/utils";
+import { AnimatedNumber } from "@/shared/ui/animated-number";
 
 interface EditorContainerProps {
 	file: NoteFile | null;
@@ -59,6 +62,15 @@ type AiUiError = {
 	action: AiAction;
 };
 
+type EditorCursorStatus = {
+	line: number;
+	column: number;
+	selection?: {
+		words: number;
+		characters: number;
+	};
+};
+
 const AI_ERROR_TITLES: Partial<Record<AiErrorCode, string>> = {
 	authentication_required: "Authentication required",
 	invalid_model: "Unsupported model",
@@ -71,6 +83,63 @@ const AI_ERROR_TITLES: Partial<Record<AiErrorCode, string>> = {
 	network_error: "Network error",
 	rate_limited: "AI key rate limited",
 };
+
+function getWordCount(content: string): number {
+	const trimmed = content.trim();
+	if (!trimmed) return 0;
+	return trimmed.split(/\s+/).filter(Boolean).length;
+}
+
+function BottomStatusText({
+	children,
+	isSelection,
+}: {
+	children: React.ReactNode;
+	isSelection: boolean;
+}) {
+	const prefersReducedMotion = useReducedMotion();
+	const direction = isSelection ? 1 : -1;
+
+	return (
+		<span
+			className="relative inline-grid min-h-4 min-w-[9.5rem] items-center overflow-hidden"
+			style={{ perspective: 360 }}
+		>
+			<AnimatePresence initial={false} mode="popLayout" custom={direction}>
+				<motion.span
+					key={isSelection ? "selection" : "position"}
+					custom={direction}
+					initial={
+						prefersReducedMotion
+							? { opacity: 0 }
+							: {
+									opacity: 0,
+									y: direction > 0 ? 6 : -6,
+									rotateX: direction > 0 ? -12 : 12,
+									scale: 0.985,
+								}
+					}
+					animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+					exit={
+						prefersReducedMotion
+							? { opacity: 0 }
+							: {
+									opacity: 0,
+									y: direction > 0 ? -6 : 6,
+									rotateX: direction > 0 ? 12 : -12,
+									scale: 0.985,
+								}
+					}
+					transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+					className="col-start-1 row-start-1 whitespace-nowrap tabular-nums"
+					style={{ transformOrigin: "50% 50%" }}
+				>
+					{children}
+				</motion.span>
+			</AnimatePresence>
+		</span>
+	);
+}
 
 function titleToFileName(title: string): string {
 	return title.trim().replace(/\s+/g, "-");
@@ -103,6 +172,10 @@ export function EditorContainer({
 	});
 	const [rateLimitPrompt, setRateLimitPrompt] = useState<RateLimitPrompt | null>(null);
 	const [aiError, setAiError] = useState<AiUiError | null>(null);
+	const [cursorPosition, setCursorPosition] = useState<EditorCursorStatus>({
+		line: 1,
+		column: 1,
+	});
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
@@ -124,6 +197,7 @@ export function EditorContainer({
 	useEffect(() => {
 		setRateLimitPrompt(null);
 		setAiError(null);
+		setCursorPosition({ line: 1, column: 1 });
 	}, [file?.id]);
 
 	const getActiveKey = useCallback(
@@ -248,6 +322,7 @@ export function EditorContainer({
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const isAiAvailable = effectiveEditorMode === "block";
 	const canUseAi = isAiAvailable;
+	const wordCount = getWordCount(file?.content ?? "");
 
 	const availableKeysForFallback = rateLimitPrompt
 		? aiPrefs.keys.filter((k) => !rateLimitPrompt.exhaustedKeyIds.includes(k.id))
@@ -420,7 +495,85 @@ export function EditorContainer({
 						canUseAi ? () => runAiAction("continueWriting") : undefined
 					}
 					onTitleCommit={handleTitleCommit}
+					onCursorChange={setCursorPosition}
 				/>
+			</div>
+
+			<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
+				<div className="flex min-w-0 flex-1 items-center gap-3">
+					<span className="tabular-nums inline-flex items-baseline">
+						<AnimatedNumber value={wordCount} />
+						<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
+					</span>
+					<span className="h-4 w-px bg-border" aria-hidden="true" />
+					<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
+						{cursorPosition.selection ? (
+							<>
+								<AnimatedNumber value={cursorPosition.selection.words} /> selected{" "}
+								{cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
+								<AnimatedNumber value={cursorPosition.selection.characters} />{" "}
+								{cursorPosition.selection.characters === 1 ? "char" : "chars"}
+							</>
+						) : effectiveEditorMode === "raw" ? (
+							<>
+								Ln <AnimatedNumber value={cursorPosition.line} />, Col{" "}
+								<AnimatedNumber value={cursorPosition.column} />
+							</>
+						) : (
+							<>Block editor</>
+						)}
+					</BottomStatusText>
+				</div>
+
+				<div
+					className={cn(
+						"inline-flex items-center border border-border bg-background p-0.5",
+						!isMdx || "opacity-60",
+					)}
+					role="group"
+					aria-label="Editor mode"
+				>
+					<button
+						type="button"
+						onClick={
+							!isMdx && effectiveEditorMode === "raw" ? onToggleEditorMode : undefined
+						}
+						disabled={isMdx}
+						aria-pressed={effectiveEditorMode === "block"}
+						className={cn(
+							"inline-flex h-6 items-center gap-1 px-2 text-[11px] transition-colors",
+							effectiveEditorMode === "block"
+								? "bg-muted text-foreground"
+								: "text-muted-foreground hover:text-foreground",
+							isMdx && "cursor-not-allowed",
+						)}
+						title="Block editor"
+					>
+						<FileText className="h-3 w-3" strokeWidth={1.6} />
+						<span>Block</span>
+					</button>
+					<button
+						type="button"
+						onClick={
+							!isMdx && effectiveEditorMode === "block"
+								? onToggleEditorMode
+								: undefined
+						}
+						disabled={isMdx}
+						aria-pressed={effectiveEditorMode === "raw"}
+						className={cn(
+							"inline-flex h-6 items-center gap-1 px-2 text-[11px] transition-colors",
+							effectiveEditorMode === "raw"
+								? "bg-muted text-foreground"
+								: "text-muted-foreground hover:text-foreground",
+							isMdx && "cursor-not-allowed",
+						)}
+						title={isMdx ? "MDX opens in raw source mode" : "Raw source"}
+					>
+						<Code className="h-3 w-3" strokeWidth={1.6} />
+						<span>Raw</span>
+					</button>
+				</div>
 			</div>
 		</div>
 	);

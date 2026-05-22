@@ -25,20 +25,25 @@ import {
 
 function ChangePasswordDialog() {
 	const [open, setOpen] = useState(false);
+	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 
-	const canSubmit = newPassword.length >= 8 && newPassword === confirm && !isPending;
+	const canSubmit =
+		currentPassword.length > 0 &&
+		newPassword.length >= 8 &&
+		newPassword === confirm &&
+		!isPending;
 
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
 		setIsPending(true);
 		setError(null);
 		try {
-			await updatePassword(newPassword);
+			await updatePassword({ currentPassword, newPassword });
 			setSuccess(true);
 			setTimeout(() => setOpen(false), 1200);
 		} catch (err) {
@@ -54,6 +59,7 @@ function ChangePasswordDialog() {
 			onOpenChange={(o) => {
 				setOpen(o);
 				if (!o) {
+					setCurrentPassword("");
 					setNewPassword("");
 					setConfirm("");
 					setError(null);
@@ -70,10 +76,22 @@ function ChangePasswordDialog() {
 				<DialogHeader>
 					<DialogTitle>Change password</DialogTitle>
 					<DialogDescription>
-						Choose a strong password of at least 8 characters.
+						Enter your current password, then choose a strong new password of at least 8 characters.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3">
+					<div className="space-y-1">
+						<Label htmlFor="current-password" className="text-xs text-muted-foreground">
+							Current password
+						</Label>
+						<Input
+							id="current-password"
+							type="password"
+							value={currentPassword}
+							onChange={(e) => setCurrentPassword(e.target.value)}
+							autoComplete="current-password"
+						/>
+					</div>
 					<div className="space-y-1">
 						<Label htmlFor="new-password" className="text-xs text-muted-foreground">
 							New password

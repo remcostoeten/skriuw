@@ -32,7 +32,9 @@ project-management/
 .vercel
 test-results/
 *.tsbuildinfo
-supabase/.temp/
+
+# Prisma generated client (regenerated via `bunx prisma generate`)
+src/generated/
 
 TODO.*
 .env*.local

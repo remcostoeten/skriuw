@@ -9,12 +9,8 @@ type StorageMock = {
 	clear: () => void;
 };
 
-let rememberMePreference = true;
-let setSessionPersistenceCalls: boolean[] = [];
-
 function createStorage(): StorageMock {
 	const entries = new Map<string, string>();
-
 	return {
 		getItem: (key) => entries.get(key) ?? null,
 		setItem: (key, value) => {
@@ -51,44 +47,28 @@ function installWindow(href = "http://localhost:3000/") {
 	return { localStorage, sessionStorage };
 }
 
-function registerSupabaseMocks() {
-	const supabaseModuleMock = {
-		getStoredRememberMePreference: () => rememberMePreference,
-		getSupabaseClient: () => ({
-			auth: {
-				getSession: async () => ({ data: { session: null }, error: null }),
-				onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-				signOut: async () => ({ error: null }),
+function registerAuthClientMock() {
+	mock.module("@/lib/auth-client", () => ({
+		authClient: {
+			getSession: async () => ({ data: null, error: null }),
+			signIn: {
+				email: async () => ({ data: null, error: null }),
+				social: async () => ({ data: null, error: null }),
 			},
-		}),
-		isSupabaseConfigured: () => false,
-		setSupabaseSessionPersistence: (rememberMe: boolean) => {
-			setSessionPersistenceCalls.push(rememberMe);
+			signUp: {
+				email: async () => ({ data: null, error: null }),
+			},
+			signOut: async () => ({ data: null, error: null }),
+			updateUser: async () => ({ data: null, error: null }),
+			changePassword: async () => ({ data: null, error: null }),
 		},
-		canUseRemotePersistence: () => false,
-		getRemotePersistenceUserId: () => null,
-		getRemoteRecord: async () => undefined,
-		listRemoteRecords: async () => [],
-		putRemoteRecord: async () => undefined,
-		softDeleteRemoteRecord: async () => undefined,
-		softDeleteRemoteRecords: async () => undefined,
-		pullAllFromRemote: async () => undefined,
-		pushAllToRemote: async () => undefined,
-		pushRecordToRemote: async () => undefined,
-		deleteRecordFromRemote: async () => undefined,
-		getLastSyncTime: () => null,
-		SUPABASE_AUTH_STORAGE_KEY: "supabase.auth.token",
-	};
-
-	mock.module("@/core/supabase/browser-client", () => supabaseModuleMock);
+	}));
 }
 
 describe("auth session state", () => {
 	beforeEach(() => {
-		rememberMePreference = true;
-		setSessionPersistenceCalls = [];
 		installWindow();
-		registerSupabaseMocks();
+		registerAuthClientMock();
 	});
 
 	afterEach(() => {
@@ -115,7 +95,6 @@ describe("auth session state", () => {
 			}),
 		);
 		expect(authModule.getWorkspaceId()).toBe("signed-out-local");
-		expect(setSessionPersistenceCalls).toEqual([false]);
 	});
 
 	test("signing out returns the auth state to signed out", async () => {
@@ -141,9 +120,7 @@ describe("auth session state", () => {
 			`@/platform/auth/index?oauth-redirect-auth-page=${Math.random().toString(36).slice(2)}`
 		);
 
-		expect(authModule.getOAuthRedirectTo()).toBe(
-			"http://localhost:3000/auth/callback?next=%2Fapp",
-		);
+		expect(authModule.getOAuthRedirectTo()).toBe("http://localhost:3000/app");
 	});
 
 	test("preserves app paths as the OAuth callback next target", async () => {
@@ -153,7 +130,7 @@ describe("auth session state", () => {
 		);
 
 		expect(authModule.getOAuthRedirectTo()).toBe(
-			"https://skriuw.example/auth/callback?next=%2Fapp%2Fjournal%3Fentry%3D42",
+			"https://skriuw.example/app/journal?entry=42",
 		);
 	});
 });

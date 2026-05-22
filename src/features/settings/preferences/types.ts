@@ -15,9 +15,7 @@ export interface EditorPreferences {
 	defaultPlaceholder: string;
 	defaultFont: EditorFontId;
 	lineHeight: EditorLineHeight;
-	spellcheck: boolean;
-	smartPunctuation: boolean;
-	markdownShortcuts: boolean;
+	animateNumbers: boolean;
 }
 
 export interface AppearancePreferences {
