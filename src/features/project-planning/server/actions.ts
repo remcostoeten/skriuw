@@ -3,18 +3,21 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
-import { createServerSupabaseClient } from "@/core/supabase/server-client";
+import { headers } from "next/headers";
+import { Prisma } from "@/generated/prisma/client";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import type {
 	CustomSection,
 	CustomSectionItem,
 	Feature,
 	FeatureStatus,
 	Issue,
+	IssueStatus,
 	NiceToHave,
 	Priority,
 	ScratchEntry,
 	ScratchType,
-	IssueStatus,
 } from "../types";
 import {
 	mapCustomItem,
@@ -36,24 +39,18 @@ import type {
 const ROUTE = "/project-planning";
 
 async function requireAdmin() {
-	const supabase = await createServerSupabaseClient();
-	const {
-		data: { user },
-		error: userError,
-	} = await supabase.auth.getUser();
-	if (userError) throw userError;
+	const session = await auth.api.getSession({ headers: await headers() });
+	const user = session?.user;
 	if (!user) {
 		throw new Error("Not authenticated");
 	}
-	const { data, error } = await supabase.rpc("has_role", {
-		_user_id: user.id,
-		_role: "admin",
+	const role = await prisma.userRole.findUnique({
+		where: { userId_role: { userId: user.id, role: "admin" } },
 	});
-	if (error) throw error;
-	if (data !== true) {
+	if (!role) {
 		throw new Error("Forbidden: admin role required");
 	}
-	return { supabase, user };
+	return { user };
 }
 
 function slugify(input: string): string {
@@ -68,30 +65,160 @@ function slugify(input: string): string {
 
 function isUniqueViolation(error: unknown): boolean {
 	return (
-		typeof error === "object" &&
-		error !== null &&
-		"code" in error &&
-		(error as { code?: string }).code === "23505"
+		error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
 	);
 }
 
-async function uniqueSlug(
-	supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-	base: string,
-): Promise<string> {
+async function uniqueFeatureSlug(base: string): Promise<string> {
 	let slug = slugify(base);
 	let suffix = 1;
 	while (true) {
-		const { data, error } = await supabase
-			.from("features")
-			.select("id")
-			.eq("slug", slug)
-			.maybeSingle();
-		if (error) throw error;
-		if (!data) return slug;
+		const existing = await prisma.planningFeature.findUnique({ where: { slug } });
+		if (!existing) return slug;
 		suffix += 1;
 		slug = `${slugify(base)}-${suffix}`;
 	}
+}
+
+async function uniqueSectionSlug(base: string): Promise<string> {
+	let slug = slugify(base);
+	let suffix = 1;
+	while (true) {
+		const existing = await prisma.planningSection.findUnique({ where: { slug } });
+		if (!existing) return slug;
+		suffix += 1;
+		slug = `${slugify(base)}-${suffix}`;
+	}
+}
+
+function toFeatureRow(f: {
+	id: string;
+	title: string;
+	slug: string;
+	description: string;
+	status: string;
+	priority: string;
+	tags: string[];
+	createdAt: Date;
+	updatedAt: Date;
+}): FeatureRow {
+	return {
+		id: f.id,
+		title: f.title,
+		slug: f.slug,
+		description: f.description,
+		status: f.status as FeatureRow["status"],
+		priority: f.priority as FeatureRow["priority"],
+		tags: f.tags,
+		created_at: f.createdAt.toISOString(),
+		updated_at: f.updatedAt.toISOString(),
+	};
+}
+
+function toIssueRow(i: {
+	id: string;
+	featureId: string;
+	title: string;
+	description: string;
+	status: string;
+	priority: string;
+	assignee: string | null;
+	tags: string[];
+	notes: string | null;
+	createdAt: Date;
+	updatedAt: Date;
+}): IssueRow {
+	return {
+		id: i.id,
+		feature_id: i.featureId,
+		title: i.title,
+		description: i.description,
+		status: i.status as IssueRow["status"],
+		priority: i.priority as IssueRow["priority"],
+		assignee: i.assignee,
+		tags: i.tags,
+		notes: i.notes,
+		created_at: i.createdAt.toISOString(),
+		updated_at: i.updatedAt.toISOString(),
+	};
+}
+
+function toNiceRow(n: {
+	id: string;
+	title: string;
+	description: string;
+	reason: string;
+	priority: string;
+	createdAt: Date;
+}): NiceToHaveRow {
+	return {
+		id: n.id,
+		title: n.title,
+		description: n.description,
+		reason: n.reason,
+		priority: n.priority as NiceToHaveRow["priority"],
+		created_at: n.createdAt.toISOString(),
+	};
+}
+
+function toScratchRow(s: {
+	id: string;
+	title: string;
+	content: string;
+	type: string;
+	createdAt: Date;
+}): ScratchEntryRow {
+	return {
+		id: s.id,
+		title: s.title,
+		content: s.content,
+		type: s.type as ScratchEntryRow["type"],
+		created_at: s.createdAt.toISOString(),
+	};
+}
+
+function toSectionRow(s: {
+	id: string;
+	slug: string;
+	title: string;
+	description: string;
+	sortOrder: number;
+	createdAt: Date;
+	updatedAt: Date;
+}): PlanningSectionRow {
+	return {
+		id: s.id,
+		slug: s.slug,
+		title: s.title,
+		description: s.description,
+		sort_order: s.sortOrder,
+		created_at: s.createdAt.toISOString(),
+		updated_at: s.updatedAt.toISOString(),
+	};
+}
+
+function toSectionItemRow(i: {
+	id: string;
+	sectionId: string;
+	title: string;
+	content: string;
+	priority: string | null;
+	tags: string[];
+	sortOrder: number;
+	createdAt: Date;
+	updatedAt: Date;
+}): PlanningSectionItemRow {
+	return {
+		id: i.id,
+		section_id: i.sectionId,
+		title: i.title,
+		content: i.content,
+		priority: i.priority as PlanningSectionItemRow["priority"],
+		tags: i.tags,
+		sort_order: i.sortOrder,
+		created_at: i.createdAt.toISOString(),
+		updated_at: i.updatedAt.toISOString(),
+	};
 }
 
 // Feature actions ----------------------------------------------------------
@@ -105,32 +232,29 @@ export type FeatureDraft = {
 };
 
 export async function createFeature(draft: FeatureDraft): Promise<Feature> {
-	const { supabase, user } = await requireAdmin();
+	const { user } = await requireAdmin();
 	const title = draft.title.trim() || "New topic";
 
 	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const slug = await uniqueSlug(supabase, title);
-		const { data, error } = await supabase
-			.from("features")
-			.insert({
-				title,
-				slug,
-				description: draft.description ?? "",
-				status: draft.status ?? "exploring",
-				priority: draft.priority ?? "medium",
-				tags: draft.tags ?? [],
-				created_by: user.id,
-			})
-			.select("id, title, slug, description, status, priority, tags, created_at, updated_at")
-			.single();
-
-		if (!error) {
+		const slug = await uniqueFeatureSlug(title);
+		try {
+			const record = await prisma.planningFeature.create({
+				data: {
+					title,
+					slug,
+					description: draft.description ?? "",
+					status: draft.status ?? "exploring",
+					priority: draft.priority ?? "medium",
+					tags: draft.tags ?? [],
+					createdBy: user.id,
+				},
+			});
 			revalidatePath(ROUTE);
-			return mapFeature(data as FeatureRow, []);
+			return mapFeature(toFeatureRow(record), []);
+		} catch (error) {
+			if (!isUniqueViolation(error) || attempt === 2) throw error;
 		}
-		if (!isUniqueViolation(error) || attempt === 2) throw error;
 	}
-
 	throw new Error("Could not create feature");
 }
 
@@ -143,9 +267,8 @@ export type FeaturePatch = Partial<{
 }>;
 
 export async function updateFeature(id: string, patch: FeaturePatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("features").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningFeature.update({ where: { id }, data: patch });
 	revalidatePath(ROUTE);
 }
 
@@ -154,9 +277,8 @@ export async function updateFeatureStatus(id: string, status: FeatureStatus): Pr
 }
 
 export async function deleteFeature(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("features").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningFeature.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
 
@@ -173,11 +295,10 @@ export type IssueDraftInput = {
 };
 
 export async function createIssue(featureId: string, draft: IssueDraftInput): Promise<Issue> {
-	const { supabase } = await requireAdmin();
-	const { data, error } = await supabase
-		.from("issues")
-		.insert({
-			feature_id: featureId,
+	await requireAdmin();
+	const record = await prisma.planningIssue.create({
+		data: {
+			featureId,
 			title: draft.title.trim(),
 			description: draft.description ?? "",
 			status: draft.status ?? "todo",
@@ -185,14 +306,10 @@ export async function createIssue(featureId: string, draft: IssueDraftInput): Pr
 			assignee: draft.assignee?.trim() || null,
 			tags: draft.tags ?? [],
 			notes: draft.notes?.trim() || null,
-		})
-		.select(
-			"id, feature_id, title, description, status, priority, assignee, tags, notes, created_at, updated_at",
-		)
-		.single();
-	if (error) throw error;
+		},
+	});
 	revalidatePath(ROUTE);
-	return mapIssue(data as IssueRow);
+	return mapIssue(toIssueRow(record));
 }
 
 export type IssuePatch = Partial<{
@@ -206,16 +323,14 @@ export type IssuePatch = Partial<{
 }>;
 
 export async function updateIssue(id: string, patch: IssuePatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("issues").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningIssue.update({ where: { id }, data: patch });
 	revalidatePath(ROUTE);
 }
 
 export async function deleteIssue(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("issues").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningIssue.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
 
@@ -229,20 +344,17 @@ export type NiceDraftInput = {
 };
 
 export async function createNiceToHave(draft: NiceDraftInput): Promise<NiceToHave> {
-	const { supabase } = await requireAdmin();
-	const { data, error } = await supabase
-		.from("nice_to_haves")
-		.insert({
+	await requireAdmin();
+	const record = await prisma.planningNiceToHave.create({
+		data: {
 			title: draft.title.trim(),
 			description: draft.description ?? "",
 			reason: draft.reason ?? "",
 			priority: draft.priority ?? "medium",
-		})
-		.select("id, title, description, reason, priority, created_at")
-		.single();
-	if (error) throw error;
+		},
+	});
 	revalidatePath(ROUTE);
-	return mapNiceToHave(data as NiceToHaveRow);
+	return mapNiceToHave(toNiceRow(record));
 }
 
 export type NicePatch = Partial<{
@@ -253,16 +365,14 @@ export type NicePatch = Partial<{
 }>;
 
 export async function updateNiceToHave(id: string, patch: NicePatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("nice_to_haves").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningNiceToHave.update({ where: { id }, data: patch });
 	revalidatePath(ROUTE);
 }
 
 export async function deleteNiceToHave(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("nice_to_haves").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningNiceToHave.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
 
@@ -275,19 +385,16 @@ export type ScratchDraftInput = {
 };
 
 export async function createScratch(draft: ScratchDraftInput): Promise<ScratchEntry> {
-	const { supabase } = await requireAdmin();
-	const { data, error } = await supabase
-		.from("scratch_entries")
-		.insert({
+	await requireAdmin();
+	const record = await prisma.planningScratchEntry.create({
+		data: {
 			title: draft.title.trim(),
 			content: draft.content ?? "",
 			type: draft.type ?? "note",
-		})
-		.select("id, title, content, type, created_at")
-		.single();
-	if (error) throw error;
+		},
+	});
 	revalidatePath(ROUTE);
-	return mapScratch(data as ScratchEntryRow);
+	return mapScratch(toScratchRow(record));
 }
 
 export type ScratchPatch = Partial<{
@@ -297,115 +404,147 @@ export type ScratchPatch = Partial<{
 }>;
 
 export async function updateScratch(id: string, patch: ScratchPatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("scratch_entries").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningScratchEntry.update({ where: { id }, data: patch });
 	revalidatePath(ROUTE);
 }
 
 export async function deleteScratch(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("scratch_entries").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningScratchEntry.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
 
 // Cross-section moves ------------------------------------------------------
-// Backed by SECURITY DEFINER RPCs that wrap the insert+delete in one
-// transaction. Admin role is enforced inside the function and at this layer.
 
 export async function moveFeature(id: string, to: "nice" | "scratch"): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.rpc("move_feature_to_section", {
-		_feature_id: id,
-		_target: to,
+	await requireAdmin();
+
+	await prisma.$transaction(async (tx) => {
+		const feature = await tx.planningFeature.findUnique({ where: { id } });
+		if (!feature) throw new Error("Feature not found");
+		const issueCount = await tx.planningIssue.count({ where: { featureId: id } });
+		if (issueCount > 0) {
+			throw new Error("Cannot move feature while issues still exist");
+		}
+
+		if (to === "nice") {
+			await tx.planningNiceToHave.create({
+				data: {
+					title: feature.title,
+					description: feature.description,
+					reason: "",
+					priority: feature.priority,
+				},
+			});
+		} else {
+			await tx.planningScratchEntry.create({
+				data: {
+					title: feature.title,
+					content: feature.description,
+					type: "note",
+				},
+			});
+		}
+
+		await tx.planningFeature.delete({ where: { id } });
 	});
-	if (error) throw error;
+
 	revalidatePath(ROUTE);
 }
 
 export async function moveNiceToHave(id: string, to: "roadmap" | "scratch"): Promise<void> {
-	const { supabase } = await requireAdmin();
-	let title = "";
-	if (to === "roadmap") {
-		const { data: nice, error: readError } = await supabase
-			.from("nice_to_haves")
-			.select("title")
-			.eq("id", id)
-			.single();
-		if (readError) throw readError;
-		if (!nice) throw new Error("Nice-to-have not found");
-		title = nice.title;
+	await requireAdmin();
+	const nice = await prisma.planningNiceToHave.findUnique({ where: { id } });
+	if (!nice) throw new Error("Nice-to-have not found");
+
+	if (to === "scratch") {
+		await prisma.$transaction([
+			prisma.planningScratchEntry.create({
+				data: {
+					title: nice.title,
+					content: [nice.description, nice.reason].filter(Boolean).join("\n\n").trim(),
+					type: "note",
+				},
+			}),
+			prisma.planningNiceToHave.delete({ where: { id } }),
+		]);
+		revalidatePath(ROUTE);
+		return;
 	}
 
 	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const newSlug = to === "roadmap" ? await uniqueSlug(supabase, title) : "";
-		const { error } = await supabase.rpc("move_nice_to_section", {
-			_nice_id: id,
-			_target: to,
-			_new_slug: newSlug,
-		});
-		if (!error) {
+		const newSlug = await uniqueFeatureSlug(nice.title);
+		try {
+			await prisma.$transaction([
+				prisma.planningFeature.create({
+					data: {
+						title: nice.title,
+						slug: newSlug,
+						description: nice.description,
+						status: "exploring",
+						priority: nice.priority,
+						tags: [],
+					},
+				}),
+				prisma.planningNiceToHave.delete({ where: { id } }),
+			]);
 			revalidatePath(ROUTE);
 			return;
+		} catch (error) {
+			if (!isUniqueViolation(error) || attempt === 2) throw error;
 		}
-		if (!isUniqueViolation(error) || attempt === 2) throw error;
 	}
-
 	throw new Error("Could not move nice-to-have");
 }
 
 export async function moveScratch(id: string, to: "roadmap" | "nice"): Promise<void> {
-	const { supabase } = await requireAdmin();
-	let title = "";
-	if (to === "roadmap") {
-		const { data: entry, error: readError } = await supabase
-			.from("scratch_entries")
-			.select("title")
-			.eq("id", id)
-			.single();
-		if (readError) throw readError;
-		if (!entry) throw new Error("Scratch entry not found");
-		title = entry.title;
+	await requireAdmin();
+	const entry = await prisma.planningScratchEntry.findUnique({ where: { id } });
+	if (!entry) throw new Error("Scratch entry not found");
+
+	if (to === "nice") {
+		await prisma.$transaction([
+			prisma.planningNiceToHave.create({
+				data: {
+					title: entry.title,
+					description: entry.content,
+					reason: "",
+					priority: "medium",
+				},
+			}),
+			prisma.planningScratchEntry.delete({ where: { id } }),
+		]);
+		revalidatePath(ROUTE);
+		return;
 	}
 
 	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const newSlug = to === "roadmap" ? await uniqueSlug(supabase, title) : "";
-		const { error } = await supabase.rpc("move_scratch_to_section", {
-			_scratch_id: id,
-			_target: to,
-			_new_slug: newSlug,
-		});
-		if (!error) {
+		const newSlug = await uniqueFeatureSlug(entry.title);
+		try {
+			await prisma.$transaction([
+				prisma.planningFeature.create({
+					data: {
+						title: entry.title,
+						slug: newSlug,
+						description: entry.content,
+						status: "exploring",
+						priority: "medium",
+						tags: [],
+					},
+				}),
+				prisma.planningScratchEntry.delete({ where: { id } }),
+			]);
 			revalidatePath(ROUTE);
 			return;
+		} catch (error) {
+			if (!isUniqueViolation(error) || attempt === 2) throw error;
 		}
-		if (!isUniqueViolation(error) || attempt === 2) throw error;
 	}
-
 	throw new Error("Could not move scratch entry");
 }
 
 // Custom section actions ---------------------------------------------------
-
-async function uniqueSectionSlug(
-	supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-	base: string,
-): Promise<string> {
-	let slug = slugify(base);
-	let suffix = 1;
-	while (true) {
-		const { data, error } = await supabase
-			.from("planning_sections")
-			.select("id")
-			.eq("slug", slug)
-			.maybeSingle();
-		if (error) throw error;
-		if (!data) return slug;
-		suffix += 1;
-		slug = `${slugify(base)}-${suffix}`;
-	}
-}
 
 export type SectionDraft = {
 	title: string;
@@ -413,36 +552,31 @@ export type SectionDraft = {
 };
 
 export async function createCustomSection(draft: SectionDraft): Promise<CustomSection> {
-	const { supabase } = await requireAdmin();
-	const { data: maxRes } = await supabase
-		.from("planning_sections")
-		.select("sort_order")
-		.order("sort_order", { ascending: false })
-		.limit(1)
-		.maybeSingle();
-	const nextOrder = (maxRes?.sort_order ?? -1) + 1;
+	await requireAdmin();
+	const last = await prisma.planningSection.findFirst({
+		orderBy: { sortOrder: "desc" },
+		select: { sortOrder: true },
+	});
+	const nextOrder = (last?.sortOrder ?? -1) + 1;
 	const title = draft.title.trim() || "Untitled section";
 
 	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const slug = await uniqueSectionSlug(supabase, title);
-		const { data, error } = await supabase
-			.from("planning_sections")
-			.insert({
-				slug,
-				title,
-				description: draft.description ?? "",
-				sort_order: nextOrder,
-			})
-			.select("id, slug, title, description, sort_order, created_at, updated_at")
-			.single();
-
-		if (!error) {
+		const slug = await uniqueSectionSlug(title);
+		try {
+			const record = await prisma.planningSection.create({
+				data: {
+					slug,
+					title,
+					description: draft.description ?? "",
+					sortOrder: nextOrder,
+				},
+			});
 			revalidatePath(ROUTE);
-			return mapCustomSection(data as PlanningSectionRow, []);
+			return mapCustomSection(toSectionRow(record), []);
+		} catch (error) {
+			if (!isUniqueViolation(error) || attempt === 2) throw error;
 		}
-		if (!isUniqueViolation(error) || attempt === 2) throw error;
 	}
-
 	throw new Error("Could not create custom section");
 }
 
@@ -453,16 +587,18 @@ export type SectionPatch = Partial<{
 }>;
 
 export async function updateCustomSection(id: string, patch: SectionPatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("planning_sections").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	const data: { title?: string; description?: string; sortOrder?: number } = {};
+	if (patch.title !== undefined) data.title = patch.title;
+	if (patch.description !== undefined) data.description = patch.description;
+	if (patch.sort_order !== undefined) data.sortOrder = patch.sort_order;
+	await prisma.planningSection.update({ where: { id }, data });
 	revalidatePath(ROUTE);
 }
 
 export async function deleteCustomSection(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("planning_sections").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningSection.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }
 
@@ -477,23 +613,18 @@ export async function createCustomItem(
 	sectionId: string,
 	draft: SectionItemDraft,
 ): Promise<CustomSectionItem> {
-	const { supabase } = await requireAdmin();
-	const { data, error } = await supabase
-		.from("planning_section_items")
-		.insert({
-			section_id: sectionId,
+	await requireAdmin();
+	const record = await prisma.planningSectionItem.create({
+		data: {
+			sectionId,
 			title: draft.title.trim() || "Untitled",
 			content: draft.content ?? "",
 			priority: draft.priority ?? null,
 			tags: draft.tags ?? [],
-		})
-		.select(
-			"id, section_id, title, content, priority, tags, sort_order, created_at, updated_at",
-		)
-		.single();
-	if (error) throw error;
+		},
+	});
 	revalidatePath(ROUTE);
-	return mapCustomItem(data as PlanningSectionItemRow);
+	return mapCustomItem(toSectionItemRow(record));
 }
 
 export type SectionItemPatch = Partial<{
@@ -504,15 +635,13 @@ export type SectionItemPatch = Partial<{
 }>;
 
 export async function updateCustomItem(id: string, patch: SectionItemPatch): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("planning_section_items").update(patch).eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningSectionItem.update({ where: { id }, data: patch });
 	revalidatePath(ROUTE);
 }
 
 export async function deleteCustomItem(id: string): Promise<void> {
-	const { supabase } = await requireAdmin();
-	const { error } = await supabase.from("planning_section_items").delete().eq("id", id);
-	if (error) throw error;
+	await requireAdmin();
+	await prisma.planningSectionItem.delete({ where: { id } });
 	revalidatePath(ROUTE);
 }

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
-import { getServerUser } from "@/core/supabase/server-client";
+import { getServerUser } from "@/core/db";
 import { listJournalEntries, listJournalTags } from "@/domain/journal/api";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";

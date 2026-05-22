@@ -63,8 +63,6 @@ describe("AI provider key helpers", () => {
 	});
 
 	test("requires a stable dedicated encryption secret", () => {
-		const previousServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-		process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-should-not-be-used";
 		process.env.AI_KEYS_ENCRYPTION_SECRET = undefined;
 		expect(() => encryptApiKey("k".repeat(MIN_KEY_LENGTH))).toThrow(
 			"AI_KEYS_ENCRYPTION_SECRET is required",
@@ -74,6 +72,5 @@ describe("AI provider key helpers", () => {
 		const encrypted = encryptApiKey("k".repeat(MIN_KEY_LENGTH));
 		process.env.AI_KEYS_ENCRYPTION_SECRET = "secret-two";
 		expect(() => decryptApiKey(encrypted)).toThrow();
-		process.env.SUPABASE_SERVICE_ROLE_KEY = previousServiceRoleKey;
 	});
 });

@@ -1,67 +1,40 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/core/supabase/server-client";
+import { getAuthenticatedUser } from "@/core/db";
 import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
-import { isMissingNotesTagsColumnError } from "@/domain/notes/schema-compat";
 import { buildNoteBacklinks, type ResolvedNoteLink } from "@/features/notes/lib/note-links";
 import type { NoteFile } from "@/types/notes";
 
-type NoteContentRow = {
-	id: string;
-	name: string;
-	content: string;
-	preferred_editor_mode: "raw" | "block" | null;
-	parent_id: string | null;
-	tags?: string[] | null;
-	created_at: string;
-	updated_at: string;
-};
-
-const NOTE_CONTENT_SELECT =
-	"id, name, content, preferred_editor_mode, parent_id, tags, created_at, updated_at";
-const NOTE_CONTENT_SELECT_LEGACY =
-	"id, name, content, preferred_editor_mode, parent_id, created_at, updated_at";
-
-function rowToContentNote(row: NoteContentRow): NoteFile {
-	return {
-		id: row.id as NoteId,
-		name: row.name,
-		content: row.content as MarkdownContent,
-		richContent: [],
-		preferredEditorMode: row.preferred_editor_mode ?? "block",
-		parentId: row.parent_id as FolderId | null,
-		tags: row.tags?.map((tag) => tag as TagName),
-		createdAt: new Date(row.created_at as IsoTime),
-		modifiedAt: new Date(row.updated_at as IsoTime),
-	};
-}
-
 export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLink[]> {
-	const { supabase, user } = await getAuthenticatedUser();
+	const { prisma, user } = await getAuthenticatedUser();
 
-	const initialResult = await supabase
-		.from("notes")
-		.select(NOTE_CONTENT_SELECT)
-		.eq("user_id", user.id)
-		.is("deleted_at", null);
-	let data = initialResult.data as NoteContentRow[] | null;
-	let error = initialResult.error;
+	const records = await prisma.note.findMany({
+		where: { userId: user.id, deletedAt: null },
+		select: {
+			id: true,
+			name: true,
+			content: true,
+			preferredEditorMode: true,
+			parentId: true,
+			tags: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
 
-	if (error && isMissingNotesTagsColumnError(error)) {
-		const fallbackResult = await supabase
-			.from("notes")
-			.select(NOTE_CONTENT_SELECT_LEGACY)
-			.eq("user_id", user.id)
-			.is("deleted_at", null);
-		data = fallbackResult.data as NoteContentRow[] | null;
-		error = fallbackResult.error;
-	}
+	const files: NoteFile[] = records.map((record) => ({
+		id: record.id as NoteId,
+		name: record.name,
+		content: record.content as MarkdownContent,
+		richContent: [],
+		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
+		parentId: record.parentId as FolderId | null,
+		tags: record.tags.map((tag) => tag as TagName),
+		createdAt: new Date(record.createdAt.toISOString() as IsoTime),
+		modifiedAt: new Date(record.updatedAt.toISOString() as IsoTime),
+	}));
 
-	if (error) throw error;
-
-	const files = (data ?? []).map((row: NoteContentRow) => rowToContentNote(row));
 	const activeNote = files.find((file) => file.id === noteId);
-
 	if (!activeNote) return [];
 
 	return buildNoteBacklinks(activeNote, files);

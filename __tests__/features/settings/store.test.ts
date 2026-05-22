@@ -47,7 +47,7 @@ async function loadStoreModule() {
 			phase: authWorkspaceId === "signed-out-local" ? "signed_out" : "authenticated",
 			rememberMe: true,
 			isReady: true,
-			isSupabaseConfigured: false,
+			isAuthConfigured: false,
 			user:
 				authWorkspaceId === "signed-out-local"
 					? null

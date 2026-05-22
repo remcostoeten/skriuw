@@ -136,7 +136,7 @@ type ExportState = "idle" | "pending" | "error";
 
 export function DataSection() {
 	const auth = useAuthSnapshot();
-	const isConnected = auth.phase === "authenticated" && auth.isSupabaseConfigured;
+	const isConnected = auth.phase === "authenticated" && auth.isAuthConfigured;
 	const [exportState, setExportState] = useState<ExportState>("idle");
 
 	const handleExport = async () => {
@@ -171,7 +171,7 @@ export function DataSection() {
 			<SettingsCard>
 				<Row
 					title="Cloud sync"
-					description={isConnected ? "Active" : "Supabase not configured"}
+					description={isConnected ? "Active" : "Not signed in"}
 				>
 					<span
 						className={
