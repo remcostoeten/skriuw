@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { getAuthenticatedUser } from "@/core/db";
 import { isExpired } from "./expiry";
 import {
@@ -109,8 +110,17 @@ export async function getSharedNotesOverview(): Promise<TSharedOverview> {
 				_min: { viewedAt: true },
 			}),
 		]);
-	} catch {
-		// view-log unavailable — recurrence metrics degrade to empty
+	} catch (err) {
+		// Only suppress "table does not exist" errors during migrations;
+		// re-throw all other DB/runtime errors to surface real issues.
+		if (
+			err instanceof Prisma.PrismaClientKnownRequestError &&
+			err.code === "P2021"
+		) {
+			// view-log unavailable — recurrence metrics degrade to empty
+		} else {
+			throw err;
+		}
 	}
 
 	const firstViewedByShare = new Map<string, Date | null>(
