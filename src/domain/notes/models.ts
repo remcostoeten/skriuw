@@ -4,7 +4,7 @@ import type { MoodLevel } from "@/domain/journal/models";
 export type NoteEditorMode = "raw" | "block";
 export type RichTextDocument = PartialBlock[];
 
-export type NoteVersionReason = "created" | "autosave" | "rename" | "restore";
+export type NoteVersionReason = "created" | "autosave" | "checkpoint" | "rename" | "restore";
 
 // Tag system for organizing notes
 export type NoteTag = {
