@@ -247,7 +247,8 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 
 	const updatedNote = recordToNoteFile(record);
 	const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
-	const versionReason: NoteVersionReason = input.name !== undefined ? "rename" : "autosave";
+	const versionReason: NoteVersionReason =
+		input.name !== undefined ? "rename" : input.createCheckpoint ? "checkpoint" : "autosave";
 	const versionCreated = shouldCreateVersion
 		? await insertNoteVersion(
 				user.id,
