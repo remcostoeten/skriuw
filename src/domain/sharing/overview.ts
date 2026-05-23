@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { getAuthenticatedUser } from "@/core/db";
 import { isExpired } from "./expiry";
 import {
