@@ -1,10 +1,36 @@
 import "server-only";
 
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { RichTextDocument } from "@/domain/notes/models";
-import { verifySharePassword } from "./crypto";
+import { hashViewer, verifySharePassword } from "./crypto";
 import { isExpired } from "./expiry";
 import type { TPublicSharePeek, TPublicShareResult } from "./models";
+
+/**
+ * Record a single open as a NoteShareView event. Best-effort: a logging
+ * failure (including the table not yet existing on a not-fully-migrated
+ * deployment) must never prevent a viewer from reading a shared note.
+ */
+async function logShareView(shareId: string, token: string): Promise<void> {
+	try {
+		const h = await headers();
+		const forwarded = h.get("x-forwarded-for");
+		const ip = forwarded?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+		const userAgent = h.get("user-agent");
+		const referrer = h.get("referer");
+		await prisma.noteShareView.create({
+			data: {
+				shareId,
+				viewerHash: hashViewer({ ip, userAgent, token }),
+				referrer: referrer ?? null,
+				country: h.get("x-vercel-ip-country"),
+			},
+		});
+	} catch {
+		// swallow — analytics is non-critical
+	}
+}
 
 /**
  * Non-consuming probe for the public route's server component. Returns no
@@ -62,6 +88,8 @@ export async function openShare(input: {
 		});
 	}
 
+	await logShareView(share.id, share.token);
+
 	return {
 		status: "ok",
 		snapshot: {
@@ -70,6 +98,7 @@ export async function openShare(input: {
 			richContent: (share.richContent as RichTextDocument | null) ?? null,
 			preferredEditorMode: (share.preferredEditorMode as "raw" | "block") ?? "block",
 			sharedAt: share.createdAt.toISOString(),
+			author: share.authorName ?? null,
 		},
 	};
 }

@@ -6,6 +6,7 @@ import {
 	FlaskConical,
 	Palette,
 	PenLine,
+	Share2,
 	Shield,
 	Sparkles,
 	Tag,
@@ -94,8 +95,18 @@ export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsS
 				</ul>
 			</nav>
 
-			{userIsAdmin && (
-				<div className="border-t border-border p-2">
+			<div className="space-y-0.5 border-t border-border p-2">
+				<Link
+					href="/app/shared"
+					className={cn(
+						"flex w-full items-center gap-2 border border-transparent px-2.5 py-2 text-left text-[12px] font-medium transition-colors",
+						"text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
+					)}
+				>
+					<Share2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+					<span className="truncate">Shared notes</span>
+				</Link>
+				{userIsAdmin && (
 					<Link
 						href="/admin"
 						className={cn(
@@ -106,8 +117,8 @@ export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsS
 						<Shield className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
 						<span className="truncate">Admin</span>
 					</Link>
-				</div>
-			)}
+				)}
+			</div>
 		</div>
 	);
 }
