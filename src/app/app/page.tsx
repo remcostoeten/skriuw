@@ -22,9 +22,11 @@ async function AppHomeContent(props: { searchParams?: Promise<Record<string, str
 
 	const queryClient = new QueryClient();
 
-	// Prefetch the files list and folders in parallel with the seed check.
+	// Seed must finish before the data queries so new users see their content.
+	// For existing users starterSeededAt is set → single-field lookup → ~instant.
+	if (user) await ensureCloudStarterContentSeeded(user.id);
+
 	await Promise.all([
-		user ? ensureCloudStarterContentSeeded(user.id) : undefined,
 		queryClient.prefetchQuery({
 			queryKey: notesKeys.files(),
 			queryFn: () => listNoteMetadata(),
