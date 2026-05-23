@@ -17,13 +17,11 @@ export default function JournalPage() {
 
 async function JournalContent() {
 	const { user } = await getServerUser();
-	if (user) {
-		await ensureCloudStarterContentSeeded(user.id);
-	}
 
 	const queryClient = new QueryClient();
 
 	await Promise.all([
+		user ? ensureCloudStarterContentSeeded(user.id) : undefined,
 		queryClient.prefetchQuery({
 			queryKey: journalKeys.entries(),
 			queryFn: () => listJournalEntries(),

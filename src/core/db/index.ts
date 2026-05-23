@@ -1,17 +1,20 @@
 import "server-only";
 
+import { cache } from "react";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export { prisma };
 
-export async function getServerUser() {
+// Per-request memoization: auth.api.getSession() hits the DB once per request
+// regardless of how many server components / query functions call getServerUser().
+export const getServerUser = cache(async () => {
 	const session = await auth.api.getSession({
 		headers: await headers(),
 	});
 	return { prisma, user: session?.user ?? null };
-}
+});
 
 export async function getAuthenticatedUser() {
 	const { user } = await getServerUser();
