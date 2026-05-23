@@ -68,7 +68,7 @@ export type PersistedNoteVersion = {
 	preferred_editor_mode: "raw" | "block" | null;
 	parent_id: string | null;
 	tags?: string[] | null;
-	reason: "created" | "autosave" | "rename" | "restore";
+	reason: "created" | "autosave" | "checkpoint" | "rename" | "restore";
 	content_hash: string;
 	created_at: string;
 };

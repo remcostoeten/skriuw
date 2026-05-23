@@ -17,7 +17,9 @@ import {
 	buildNoteVersionContentHash,
 	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
-import { getNote } from "@/domain/notes/queries";
+import { getNote, listNoteVersions } from "@/domain/notes/queries";
+import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
+import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import type {
 	FolderId,
 	IsoTime,
@@ -105,7 +107,7 @@ async function insertNoteVersion(
 	noteId: string,
 	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
 	reason: NoteVersionReason,
-): Promise<boolean> {
+): Promise<string | null> {
 	const { prisma } = await getAuthenticatedUser();
 
 	const latest = await prisma.noteVersion.findFirst({
@@ -117,10 +119,10 @@ async function insertNoteVersion(
 	const createdAt = new Date();
 	const candidate = { ...note, reason, createdAt };
 	if (!shouldPersistNoteVersion(candidate, latestVersion)) {
-		return false;
+		return null;
 	}
 
-	await prisma.noteVersion.create({
+	const created = await prisma.noteVersion.create({
 		data: {
 			userId,
 			noteId,
@@ -136,7 +138,45 @@ async function insertNoteVersion(
 		},
 	});
 
-	return true;
+	return created.id;
+}
+
+async function updateExistingNoteVersion(
+	userId: string,
+	versionId: string,
+	noteId: string,
+	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
+	reason: NoteVersionReason,
+): Promise<boolean> {
+	const { prisma } = await getAuthenticatedUser();
+
+	const existing = await prisma.noteVersion.findFirst({
+		where: { id: versionId, userId, noteId },
+	});
+	if (!existing) {
+		return false;
+	}
+
+	const candidate = { ...note, reason, createdAt: existing.createdAt };
+	const nextHash = buildNoteVersionContentHash(candidate);
+	if (nextHash === existing.contentHash) {
+		return false;
+	}
+
+	const { count } = await prisma.noteVersion.updateMany({
+		where: { id: versionId, userId, noteId },
+		data: {
+			name: note.name,
+			content: note.content,
+			richContent: (note.richContent ?? markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
+			preferredEditorMode: note.preferredEditorMode ?? "block",
+			parentId: note.parentId ?? null,
+			tags: note.tags ?? [],
+			contentHash: nextHash,
+		},
+	});
+
+	return count > 0;
 }
 
 export type CreateNoteInput = {
@@ -204,11 +244,14 @@ export type UpdateNoteInput = {
 	parentId?: string | null;
 	tags?: string[];
 	createCheckpoint?: boolean;
+	sessionVersionId?: string | null;
 };
 
 export type UpdateNoteResult = {
 	note?: NoteFile;
 	versionCreated: boolean;
+	versionChanged?: boolean;
+	versionId?: string | null;
 };
 
 export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
@@ -246,26 +289,47 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	if (!record) return { versionCreated: false };
 
 	const updatedNote = recordToNoteFile(record);
-	const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
 	const versionReason: NoteVersionReason =
 		input.name !== undefined ? "rename" : input.createCheckpoint ? "checkpoint" : "autosave";
-	const versionCreated = shouldCreateVersion
-		? await insertNoteVersion(
-				user.id,
-				input.id,
-				{
-					name: updatedNote.name,
-					content: updatedNote.content,
-					richContent: updatedNote.richContent,
-					preferredEditorMode: updatedNote.preferredEditorMode,
-					parentId: updatedNote.parentId,
-					tags: updatedNote.tags ?? [],
-				},
-				versionReason,
-			)
-		: false;
+	const noteSnapshot = {
+		name: updatedNote.name,
+		content: updatedNote.content,
+		richContent: updatedNote.richContent,
+		preferredEditorMode: updatedNote.preferredEditorMode,
+		parentId: updatedNote.parentId,
+		tags: updatedNote.tags ?? [],
+	};
 
-	return { note: updatedNote, versionCreated };
+	if (input.sessionVersionId && input.createCheckpoint) {
+		const versionChanged = await updateExistingNoteVersion(
+			user.id,
+			input.sessionVersionId,
+			input.id,
+			noteSnapshot,
+			versionReason,
+		);
+		if (versionChanged) {
+			return {
+				note: updatedNote,
+				versionCreated: false,
+				versionChanged: true,
+				versionId: input.sessionVersionId,
+			};
+		}
+	}
+
+	const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
+	const versionId = shouldCreateVersion
+		? await insertNoteVersion(user.id, input.id, noteSnapshot, versionReason)
+		: null;
+	const versionCreated = versionId !== null;
+
+	return {
+		note: updatedNote,
+		versionCreated,
+		versionChanged: versionCreated,
+		versionId,
+	};
 }
 
 export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteResult> {
@@ -326,4 +390,12 @@ export async function deleteNote(id: string): Promise<void> {
 
 export async function fetchNote(id: string): Promise<NoteFile | null> {
 	return getNote(id);
+}
+
+export async function fetchNoteBacklinks(id: string): Promise<ResolvedNoteLink[]> {
+	return listNoteBacklinks(id);
+}
+
+export async function fetchNoteVersions(id: string): Promise<NoteVersion[]> {
+	return listNoteVersions(id);
 }

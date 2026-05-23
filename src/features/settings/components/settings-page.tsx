@@ -16,6 +16,7 @@ import {
 	Sparkles,
 	Tag,
 	User,
+	X,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -179,7 +180,21 @@ export function SettingsPage() {
 					<SettingsSidebar activeTab={activeTab} onSelectTab={setTab} />
 				</div>
 
-				<main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+					<motion.button
+						type="button"
+						onClick={goHome}
+						initial={{ opacity: 0, y: -8 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ type: "tween", duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+						whileHover={{ scale: 1.03 }}
+						whileTap={{ scale: 0.97 }}
+						className="absolute right-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						aria-label="Back to app"
+					>
+						<ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+						Back
+					</motion.button>
 					<div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
 						<div className="mx-auto w-full max-w-3xl">{content}</div>
 					</div>

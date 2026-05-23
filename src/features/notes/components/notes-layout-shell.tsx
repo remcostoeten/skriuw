@@ -52,8 +52,16 @@ function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) 
 	);
 }
 
-export function NotesLayoutShell() {
-	const layout = useNotesLayout();
+type NotesLayoutShellProps = {
+	initialActiveFileId?: string | null;
+	initialUserScopeId?: string | null;
+};
+
+export function NotesLayoutShell({
+	initialActiveFileId = null,
+	initialUserScopeId = null,
+}: NotesLayoutShellProps = {}) {
+	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 
 	if (forceLoading) {
@@ -97,6 +105,7 @@ export function NotesLayoutShell() {
 		showSidebar,
 		showShortcutHelp,
 		shortcutGroups,
+		flushFileEdits,
 		updateFileContent,
 		viewingVersion,
 		handleViewVersion,
@@ -154,15 +163,17 @@ export function NotesLayoutShell() {
 									<EditorContainer
 										file={activeFile}
 										files={files}
-										editorMode={editorMode ?? "raw"}
+										editorMode={editorMode ?? "block"}
 										isMobile={isMobile}
 										onContentChange={updateFileContent}
 										onToggleSidebar={handleToggleSidebar}
 										onToggleMetadata={handleToggleMetadata}
-										onToggleEditorMode={handleToggleEditorMode}
 										onOpenSettings={handleOpenSettings}
 										onNavigatePrev={handleNavigatePrev}
 										onNavigateNext={handleNavigateNext}
+										onEditorBlur={
+											activeFile ? () => flushFileEdits(activeFile.id) : undefined
+										}
 										canNavigatePrev={canNavigatePrev}
 										canNavigateNext={canNavigateNext}
 										fileName={activeFile?.name || "No file selected"}
@@ -179,9 +190,11 @@ export function NotesLayoutShell() {
 									<MetadataPanel
 										file={activeFile}
 										files={files}
+										editorMode={editorMode ?? "block"}
+										onToggleEditorMode={handleToggleEditorMode}
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={handleViewVersion}
-										className="shrink-0"
+										className="h-full shrink-0"
 									/>
 								))}
 						</div>
@@ -305,6 +318,8 @@ export function NotesLayoutShell() {
 										file={activeFile}
 										files={files}
 										isMobile
+										editorMode={editorMode ?? "block"}
+										onToggleEditorMode={handleToggleEditorMode}
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={(version) => {
 											handleViewVersion(version);

@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
+import {
+	useMutation,
+	useQueryClient,
+	type QueryClient,
+	type QueryKey,
+} from "@tanstack/react-query";
 
 type OptimisticQueryKey<TInput> = QueryKey | ((input: TInput) => QueryKey);
 
@@ -33,12 +38,32 @@ type OptimisticSnapshot = {
 	queryKey: QueryKey;
 	previous: unknown;
 	hadQuery: boolean;
+	token: number;
+	keyHash: string;
 };
 
 type OptimisticMutationContext = {
 	queryKeys: QueryKey[];
 	snapshots: OptimisticSnapshot[];
 };
+
+const optimisticKeyTokensByClient = new WeakMap<QueryClient, Map<string, number>>();
+let optimisticMutationToken = 0;
+
+function getKeyHash(queryKey: QueryKey): string {
+	return JSON.stringify(queryKey);
+}
+
+function getOptimisticKeyTokens(queryClient: QueryClient): Map<string, number> {
+	const existing = optimisticKeyTokensByClient.get(queryClient);
+	if (existing) {
+		return existing;
+	}
+
+	const created = new Map<string, number>();
+	optimisticKeyTokensByClient.set(queryClient, created);
+	return created;
+}
 
 type UseApiMutationOptions<TInput, TOutput, TData = unknown> = {
 	/**
@@ -61,6 +86,42 @@ type UseApiMutationOptions<TInput, TOutput, TData = unknown> = {
 	onError?: (error: Error, input: TInput) => void;
 };
 
+/**
+ * React Query mutation with optional optimistic cache updates and invalidation.
+ *
+ * When `optimistic` is set, matching queries are cancelled, patched immediately,
+ * and rolled back on error. On settle, `invalidateKeys` (or the optimistic keys)
+ * are invalidated so server state can reconcile.
+ *
+ * @example Optimistic note update with multi-key cache patches
+ * ```ts
+ * return useApiMutation<UpdateNoteInput, SaveNoteResult>(
+ *   updateNote,
+ *   {
+ *     invalidateKeys: [],
+ *     onSuccess: (result, input) => {
+ *       reconcileSavedNoteCache(queryClient, input, result);
+ *     },
+ *     optimistic: {
+ *       updates: [
+ *         {
+ *           queryKey: notesKeys.files(),
+ *           updater: (current: NoteFile[] | undefined, input) =>
+ *             (current ?? []).map((note) =>
+ *               note.id === input.id ? applyNoteUpdate(note, input) : note,
+ *             ),
+ *         },
+ *         {
+ *           queryKey: (input) => notesKeys.detail(input.id),
+ *           updater: (current, input) =>
+ *             current ? applyNoteUpdate(current, input) : current,
+ *         },
+ *       ],
+ *     },
+ *   },
+ * );
+ * ```
+ */
 export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 	mutationFn: (input: TInput) => Promise<TOutput>,
 	options: UseApiMutationOptions<TInput, TOutput, TData> = {},
@@ -85,18 +146,23 @@ export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 		onMutate: optimistic
 			? async (input) => {
 					const updates = getOptimisticUpdates(input);
+					const keyTokens = getOptimisticKeyTokens(queryClient);
+					const mutationToken = ++optimisticMutationToken;
 
 					await Promise.all(
 						updates.map(({ queryKey }) => queryClient.cancelQueries({ queryKey })),
 					);
 
 					const snapshots = updates.map(({ queryKey }) => ({
+						keyHash: getKeyHash(queryKey),
+						token: mutationToken,
 						queryKey,
 						previous: queryClient.getQueryData(queryKey),
 						hadQuery: queryClient.getQueryState(queryKey) !== undefined,
 					}));
 
 					for (const { queryKey, updater } of updates) {
+						keyTokens.set(getKeyHash(queryKey), mutationToken);
 						const previous = queryClient.getQueryData(queryKey);
 						const next = updater(previous, input);
 						if (next !== undefined) {
@@ -113,7 +179,13 @@ export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 
 		onError: (error, input, context) => {
 			if (optimistic) {
+				const keyTokens = getOptimisticKeyTokens(queryClient);
+
 				for (const snapshot of context?.snapshots ?? []) {
+					if (keyTokens.get(snapshot.keyHash) !== snapshot.token) {
+						continue;
+					}
+
 					if (snapshot.hadQuery) {
 						queryClient.setQueryData(snapshot.queryKey, snapshot.previous);
 					} else {
@@ -134,9 +206,16 @@ export function useApiMutation<TInput, TOutput = void, TData = unknown>(
 
 		onSettled: (_data, _error, _input, context) => {
 			const keys = invalidateKeys ?? context?.queryKeys ?? [];
+			const keyTokens = getOptimisticKeyTokens(queryClient);
 
 			for (const key of keys) {
 				void queryClient.invalidateQueries({ queryKey: key });
+			}
+
+			for (const snapshot of context?.snapshots ?? []) {
+				if (keyTokens.get(snapshot.keyHash) === snapshot.token) {
+					keyTokens.delete(snapshot.keyHash);
+				}
 			}
 		},
 	});

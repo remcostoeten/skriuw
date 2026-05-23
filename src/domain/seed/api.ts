@@ -1,7 +1,7 @@
 "use server";
 
-import { loadActiveSeedBundle } from "@/features/admin/seed/server/queries";
-import type { SeedJournalEntry, SeedTag } from "@/features/admin/seed/types";
+import { loadActiveSeedBundle } from "@/domain/seed/queries";
+import type { SeedJournalEntry, SeedTag } from "@/domain/seed/types";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 

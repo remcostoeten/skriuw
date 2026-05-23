@@ -89,6 +89,7 @@ export const FileList = memo(function FileList({
 }: FileListProps) {
 	const {
 		onFileSelect,
+		onFilePrefetch,
 		onToggleFolder,
 		onRenameFile,
 		onRenameFolder,
@@ -1197,6 +1198,7 @@ export const FileList = memo(function FileList({
 							})
 						}
 						onContextMenu={(event) => handleContextMenu(event, fileItem)}
+						onPointerEnter={() => onFilePrefetch?.(file.id)}
 						onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
 						onPointerUp={cancelLongPress}
 						onPointerMove={cancelLongPress}

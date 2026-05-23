@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { CustomSection, Feature, FeatureStatus, NiceToHave, ScratchEntry } from "./types";
 import { PlanningShell } from "./components/planning-shell";
-import { PlanningOverview } from "./components/planning-overview";
 import { FeatureCard } from "./components/feature-card";
 import { NiceToHaveSection } from "./components/nice-to-have-section";
 import { ScratchpadSection } from "./components/scratchpad-section";
@@ -155,6 +154,21 @@ const closedSectionItem: SectionItemEditState = {
 	onSubmit: () => {},
 };
 
+function planningDay(): string {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function tempPlanningId(): string {
+	return `temp-${crypto.randomUUID()}`;
+}
+
+type MutationOptions<T> = {
+	optimistic?: () => void;
+	rollback?: () => void;
+	mutation: () => Promise<T>;
+	commit?: (result: T) => void;
+};
+
 export function ProjectPlanningPage({
 	initialFeatures,
 	initialNiceToHaves,
@@ -184,13 +198,22 @@ export function ProjectPlanningPage({
 		[features, selectedId],
 	);
 
-	// Run a server mutation. On error, refresh from server and surface the message.
-	const run = useCallback(
-		(fn: () => Promise<unknown>) => {
+	useEffect(() => {
+		setFeatures(initialFeatures);
+		setNiceToHaves(initialNiceToHaves);
+		setScratch(initialScratch);
+		setCustomSections(initialCustomSections);
+	}, [initialFeatures, initialNiceToHaves, initialScratch, initialCustomSections]);
+
+	const runMutation = useCallback(
+		<T,>({ optimistic, rollback, mutation, commit }: MutationOptions<T>) => {
+			optimistic?.();
 			startTransition(async () => {
 				try {
-					await fn();
+					const result = await mutation();
+					commit?.(result);
 				} catch (e) {
+					rollback?.();
 					setError(e instanceof Error ? e.message : "Something went wrong");
 					router.refresh();
 				}
@@ -201,17 +224,51 @@ export function ProjectPlanningPage({
 
 	function handleNewTopic() {
 		if (!isAdmin) return;
-		run(async () => {
-			const created = await createFeature({ title: "New topic", description: "" });
-			setFeatures((prev) => [created, ...prev]);
-			setSelectedId(created.id);
+		const tempId = tempPlanningId();
+		const now = planningDay();
+		runMutation({
+			optimistic: () => {
+				setFeatures((prev) => [
+					{
+						id: tempId,
+						title: "New topic",
+						slug: "",
+						status: "exploring",
+						description: "",
+						priority: "medium",
+						createdAt: now,
+						updatedAt: now,
+						tags: [],
+						issues: [],
+					},
+					...prev,
+				]);
+				setSelectedId(tempId);
+			},
+			rollback: () => {
+				setFeatures((prev) => prev.filter((f) => f.id !== tempId));
+				setSelectedId((current) => (current === tempId ? null : current));
+			},
+			mutation: () => createFeature({ title: "New topic", description: "" }),
+			commit: (created) => {
+				setFeatures((prev) => prev.map((f) => (f.id === tempId ? created : f)));
+				setSelectedId((current) => (current === tempId ? created.id : current));
+			},
 		});
 	}
 
 	function handleDeleteFeature(id: string) {
+		const snapshot = features;
+		const previousSelected = selectedId;
 		setFeatures((prev) => prev.filter((f) => f.id !== id));
 		if (selectedId === id) setSelectedId(null);
-		run(() => deleteFeature(id));
+		runMutation({
+			rollback: () => {
+				setFeatures(snapshot);
+				setSelectedId(previousSelected);
+			},
+			mutation: () => deleteFeature(id),
+		});
 	}
 
 	function handleEditFeature(id: string) {
@@ -223,8 +280,15 @@ export function ProjectPlanningPage({
 			label: "Title",
 			value: current.title,
 			onSubmit: (next) => {
+				const previousTitle = current.title;
 				setFeatures((prev) => prev.map((f) => (f.id === id ? { ...f, title: next } : f)));
-				run(() => updateFeature(id, { title: next }));
+				runMutation({
+					rollback: () =>
+						setFeatures((prev) =>
+							prev.map((f) => (f.id === id ? { ...f, title: previousTitle } : f)),
+						),
+					mutation: () => updateFeature(id, { title: next }),
+				});
 			},
 		});
 	}
@@ -235,15 +299,58 @@ export function ProjectPlanningPage({
 			title: "New issue",
 			submitLabel: "Create issue",
 			initial: emptyIssueDraft,
-			onSubmit: (draft) =>
-				run(async () => {
-					const created = await createIssue(featureId, draft);
-					setFeatures((prev) =>
-						prev.map((f) =>
-							f.id === featureId ? { ...f, issues: [...f.issues, created] } : f,
+			onSubmit: (draft) => {
+				const tempId = tempPlanningId();
+				const now = planningDay();
+				runMutation({
+					optimistic: () =>
+						setFeatures((prev) =>
+							prev.map((f) =>
+								f.id === featureId
+									? {
+											...f,
+											issues: [
+												...f.issues,
+												{
+													id: tempId,
+													featureId,
+													title: draft.title,
+													description: draft.description,
+													status: draft.status,
+													priority: draft.priority,
+													assignee: draft.assignee?.trim() || undefined,
+													tags: draft.tags,
+													notes: draft.notes?.trim() || undefined,
+													createdAt: now,
+													updatedAt: now,
+												},
+											],
+										}
+									: f,
+							),
 						),
-					);
-				}),
+					rollback: () =>
+						setFeatures((prev) =>
+							prev.map((f) =>
+								f.id === featureId
+									? { ...f, issues: f.issues.filter((i) => i.id !== tempId) }
+									: f,
+							),
+						),
+					mutation: () => createIssue(featureId, draft),
+					commit: (created) =>
+						setFeatures((prev) =>
+							prev.map((f) =>
+								f.id === featureId
+									? {
+											...f,
+											issues: f.issues.map((i) => (i.id === tempId ? created : i)),
+										}
+									: f,
+							),
+						),
+				});
+			},
 		});
 	}
 
@@ -266,6 +373,7 @@ export function ProjectPlanningPage({
 				notes: current.notes ?? "",
 			},
 			onSubmit: (draft) => {
+				const snapshot = features.find((f) => f.id === featureId)?.issues.find((i) => i.id === issueId);
 				setFeatures((prev) =>
 					prev.map((f) =>
 						f.id === featureId
@@ -278,28 +386,55 @@ export function ProjectPlanningPage({
 							: f,
 					),
 				);
-				run(() =>
-					updateIssue(issueId, {
-						title: draft.title,
-						description: draft.description,
-						status: draft.status,
-						priority: draft.priority,
-						assignee: draft.assignee?.trim() || null,
-						tags: draft.tags,
-						notes: draft.notes?.trim() || null,
-					}),
-				);
+				runMutation({
+					rollback: () => {
+						if (!snapshot) return;
+						setFeatures((prev) =>
+							prev.map((f) =>
+								f.id === featureId
+									? {
+											...f,
+											issues: f.issues.map((i) =>
+												i.id === issueId ? snapshot : i,
+											),
+										}
+									: f,
+							),
+						);
+					},
+					mutation: () =>
+						updateIssue(issueId, {
+							title: draft.title,
+							description: draft.description,
+							status: draft.status,
+							priority: draft.priority,
+							assignee: draft.assignee?.trim() || null,
+							tags: draft.tags,
+							notes: draft.notes?.trim() || null,
+						}),
+				});
 			},
 		});
 	}
 
 	function handleDeleteIssue(featureId: string, issueId: string) {
+		const snapshot = features.find((f) => f.id === featureId)?.issues.find((i) => i.id === issueId);
 		setFeatures((prev) =>
 			prev.map((f) =>
 				f.id === featureId ? { ...f, issues: f.issues.filter((i) => i.id !== issueId) } : f,
 			),
 		);
-		run(() => deleteIssue(issueId));
+		runMutation({
+			rollback: () => {
+				if (!snapshot) return;
+				setFeatures((prev) =>
+					prev.map((f) =>
+						f.id === featureId ? { ...f, issues: [...f.issues, snapshot] } : f,
+					),
+				);
+			},
+			mutation: () => deleteIssue(issueId),
+		});
 	}
 
 	function handleCreateNice() {
@@ -307,11 +442,20 @@ export function ProjectPlanningPage({
 			open: true,
 			title: "New nice to have",
 			initial: emptyNice,
-			onSubmit: (draft) =>
-				run(async () => {
-					const created = await createNiceToHave(draft);
-					setNiceToHaves((prev) => [created, ...prev]);
-				}),
+			onSubmit: (draft) => {
+				const tempId = tempPlanningId();
+				runMutation({
+					optimistic: () =>
+						setNiceToHaves((prev) => [
+							{ id: tempId, ...draft, createdAt: planningDay() },
+							...prev,
+						]),
+					rollback: () => setNiceToHaves((prev) => prev.filter((n) => n.id !== tempId)),
+					mutation: () => createNiceToHave(draft),
+					commit: (created) =>
+						setNiceToHaves((prev) => prev.map((n) => (n.id === tempId ? created : n))),
+				});
+			},
 		});
 	}
 
@@ -328,15 +472,26 @@ export function ProjectPlanningPage({
 				priority: current.priority,
 			},
 			onSubmit: (draft) => {
+				const snapshot = niceToHaves.find((n) => n.id === id);
 				setNiceToHaves((prev) => prev.map((n) => (n.id === id ? { ...n, ...draft } : n)));
-				run(() => updateNiceToHave(id, draft));
+				runMutation({
+					rollback: () => {
+						if (!snapshot) return;
+						setNiceToHaves((prev) => prev.map((n) => (n.id === id ? snapshot : n)));
+					},
+					mutation: () => updateNiceToHave(id, draft),
+				});
 			},
 		});
 	}
 
 	function handleDeleteNice(id: string) {
+		const snapshot = niceToHaves;
 		setNiceToHaves((prev) => prev.filter((n) => n.id !== id));
-		run(() => deleteNiceToHave(id));
+		runMutation({
+			rollback: () => setNiceToHaves(snapshot),
+			mutation: () => deleteNiceToHave(id),
+		});
 	}
 
 	function handleCreateScratch() {
@@ -344,11 +499,20 @@ export function ProjectPlanningPage({
 			open: true,
 			title: "New note",
 			initial: emptyScratch,
-			onSubmit: (draft) =>
-				run(async () => {
-					const created = await createScratch(draft);
-					setScratch((prev) => [created, ...prev]);
-				}),
+			onSubmit: (draft) => {
+				const tempId = tempPlanningId();
+				runMutation({
+					optimistic: () =>
+						setScratch((prev) => [
+							{ id: tempId, ...draft, createdAt: planningDay() },
+							...prev,
+						]),
+					rollback: () => setScratch((prev) => prev.filter((s) => s.id !== tempId)),
+					mutation: () => createScratch(draft),
+					commit: (created) =>
+						setScratch((prev) => prev.map((s) => (s.id === tempId ? created : s))),
+				});
+			},
 		});
 	}
 
@@ -360,15 +524,26 @@ export function ProjectPlanningPage({
 			title: "Edit note",
 			initial: { title: current.title, content: current.content, type: current.type },
 			onSubmit: (draft) => {
+				const snapshot = scratch.find((s) => s.id === id);
 				setScratch((prev) => prev.map((s) => (s.id === id ? { ...s, ...draft } : s)));
-				run(() => updateScratch(id, draft));
+				runMutation({
+					rollback: () => {
+						if (!snapshot) return;
+						setScratch((prev) => prev.map((s) => (s.id === id ? snapshot : s)));
+					},
+					mutation: () => updateScratch(id, draft),
+				});
 			},
 		});
 	}
 
 	function handleDeleteScratch(id: string) {
+		const snapshot = scratch;
 		setScratch((prev) => prev.filter((s) => s.id !== id));
-		run(() => deleteScratch(id));
+		runMutation({
+			rollback: () => setScratch(snapshot),
+			mutation: () => deleteScratch(id),
+		});
 	}
 
 	function handleCreateSection() {
@@ -377,11 +552,30 @@ export function ProjectPlanningPage({
 			title: "New section",
 			submitLabel: "Create section",
 			initial: emptySectionDraft,
-			onSubmit: (value) =>
-				run(async () => {
-					const created = await createCustomSection(value);
-					setCustomSections((prev) => [...prev, created]);
-				}),
+			onSubmit: (value) => {
+				const tempId = tempPlanningId();
+				const now = planningDay();
+				runMutation({
+					optimistic: () =>
+						setCustomSections((prev) => [
+							...prev,
+							{
+								id: tempId,
+								slug: "",
+								title: value.title,
+								description: value.description,
+								sortOrder: prev.length,
+								createdAt: now,
+								updatedAt: now,
+								items: [],
+							},
+						]),
+					rollback: () => setCustomSections((prev) => prev.filter((s) => s.id !== tempId)),
+					mutation: () => createCustomSection(value),
+					commit: (created) =>
+						setCustomSections((prev) => prev.map((s) => (s.id === tempId ? created : s))),
+				});
+			},
 		});
 	}
 
@@ -394,17 +588,28 @@ export function ProjectPlanningPage({
 			submitLabel: "Save",
 			initial: { title: current.title, description: current.description },
 			onSubmit: (value) => {
+				const snapshot = customSections.find((s) => s.id === id);
 				setCustomSections((prev) =>
 					prev.map((s) => (s.id === id ? { ...s, ...value } : s)),
 				);
-				run(() => updateCustomSection(id, value));
+				runMutation({
+					rollback: () => {
+						if (!snapshot) return;
+						setCustomSections((prev) => prev.map((s) => (s.id === id ? snapshot : s)));
+					},
+					mutation: () => updateCustomSection(id, value),
+				});
 			},
 		});
 	}
 
 	function handleDeleteSection(id: string) {
+		const snapshot = customSections;
 		setCustomSections((prev) => prev.filter((s) => s.id !== id));
-		run(() => deleteCustomSection(id));
+		runMutation({
+			rollback: () => setCustomSections(snapshot),
+			mutation: () => deleteCustomSection(id),
+		});
 	}
 
 	function handleCreateSectionItem(sectionId: string) {
@@ -413,15 +618,55 @@ export function ProjectPlanningPage({
 			title: "New item",
 			submitLabel: "Create",
 			initial: emptySectionItemDraft,
-			onSubmit: (value) =>
-				run(async () => {
-					const created = await createCustomItem(sectionId, value);
-					setCustomSections((prev) =>
-						prev.map((s) =>
-							s.id === sectionId ? { ...s, items: [...s.items, created] } : s,
+			onSubmit: (value) => {
+				const tempId = tempPlanningId();
+				const now = planningDay();
+				runMutation({
+					optimistic: () =>
+						setCustomSections((prev) =>
+							prev.map((s) =>
+								s.id === sectionId
+									? {
+											...s,
+											items: [
+												...s.items,
+												{
+													id: tempId,
+													sectionId,
+													title: value.title,
+													content: value.content,
+													priority: value.priority,
+													tags: value.tags,
+													createdAt: now,
+													updatedAt: now,
+												},
+											],
+										}
+									: s,
+							),
 						),
-					);
-				}),
+					rollback: () =>
+						setCustomSections((prev) =>
+							prev.map((s) =>
+								s.id === sectionId
+									? { ...s, items: s.items.filter((i) => i.id !== tempId) }
+									: s,
+							),
+						),
+					mutation: () => createCustomItem(sectionId, value),
+					commit: (created) =>
+						setCustomSections((prev) =>
+							prev.map((s) =>
+								s.id === sectionId
+									? {
+											...s,
+											items: s.items.map((i) => (i.id === tempId ? created : i)),
+										}
+									: s,
+							),
+						),
+				});
+			},
 		});
 	}
 
@@ -441,6 +686,9 @@ export function ProjectPlanningPage({
 				tags: current.tags,
 			},
 			onSubmit: (value) => {
+				const snapshot = customSections
+					.find((s) => s.id === sectionId)
+					?.items.find((i) => i.id === itemId);
 				setCustomSections((prev) =>
 					prev.map((s) =>
 						s.id === sectionId
@@ -453,50 +701,288 @@ export function ProjectPlanningPage({
 							: s,
 					),
 				);
-				run(() => updateCustomItem(itemId, value));
+				runMutation({
+					rollback: () => {
+						if (!snapshot) return;
+						setCustomSections((prev) =>
+							prev.map((s) =>
+								s.id === sectionId
+									? {
+											...s,
+											items: s.items.map((i) => (i.id === itemId ? snapshot : i)),
+										}
+									: s,
+							),
+						);
+					},
+					mutation: () => updateCustomItem(itemId, value),
+				});
 			},
 		});
 	}
 
 	function handleDeleteSectionItem(sectionId: string, itemId: string) {
+		const snapshot = customSections
+			.find((s) => s.id === sectionId)
+			?.items.find((i) => i.id === itemId);
 		setCustomSections((prev) =>
 			prev.map((s) =>
 				s.id === sectionId ? { ...s, items: s.items.filter((i) => i.id !== itemId) } : s,
 			),
 		);
-		run(() => deleteCustomItem(itemId));
+		runMutation({
+			rollback: () => {
+				if (!snapshot) return;
+				setCustomSections((prev) =>
+					prev.map((s) =>
+						s.id === sectionId ? { ...s, items: [...s.items, snapshot] } : s,
+					),
+				);
+			},
+			mutation: () => deleteCustomItem(itemId),
+		});
 	}
 
 	function handleChangeFeatureStatus(id: string, status: FeatureStatus) {
+		const previousStatus = features.find((f) => f.id === id)?.status;
+		if (!previousStatus || previousStatus === status) return;
+
 		setFeatures((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
-		run(() => updateFeatureStatus(id, status));
+		runMutation({
+			rollback: () =>
+				setFeatures((prev) =>
+					prev.map((f) => (f.id === id ? { ...f, status: previousStatus } : f)),
+				),
+			mutation: () => updateFeatureStatus(id, status),
+		});
 	}
 
 	function handleMoveFeature(id: string, to: Section) {
 		if (to === "roadmap") return;
-		setFeatures((prev) => prev.filter((x) => x.id !== id));
-		if (selectedId === id) setSelectedId(null);
-		run(async () => {
-			await moveFeature(id, to);
-			router.refresh();
+		const feature = features.find((f) => f.id === id);
+		if (!feature) return;
+
+		const snapshot = {
+			features,
+			niceToHaves,
+			scratch,
+			selectedId,
+		};
+		const tempItemId = tempPlanningId();
+
+		if (to === "nice") {
+			runMutation({
+				optimistic: () => {
+					setFeatures((prev) => prev.filter((x) => x.id !== id));
+					if (selectedId === id) setSelectedId(null);
+					setNiceToHaves((prev) => [
+						{
+							id: tempItemId,
+							title: feature.title,
+							description: feature.description,
+							reason: "",
+							priority: feature.priority,
+							createdAt: planningDay(),
+						},
+						...prev,
+					]);
+				},
+				rollback: () => {
+					setFeatures(snapshot.features);
+					setNiceToHaves(snapshot.niceToHaves);
+					setScratch(snapshot.scratch);
+					setSelectedId(snapshot.selectedId);
+				},
+				mutation: () => moveFeature(id, "nice"),
+				commit: (created) => {
+					const next = created as unknown as NiceToHave;
+					setNiceToHaves((prev) =>
+						prev.map((item) => (item.id === tempItemId ? next : item)),
+					);
+				},
+			});
+			return;
+		}
+
+		runMutation({
+			optimistic: () => {
+				setFeatures((prev) => prev.filter((x) => x.id !== id));
+				if (selectedId === id) setSelectedId(null);
+				setScratch((prev) => [
+					{
+						id: tempItemId,
+						title: feature.title,
+						content: feature.description,
+						type: "note",
+						createdAt: planningDay(),
+					},
+					...prev,
+				]);
+			},
+			rollback: () => {
+				setFeatures(snapshot.features);
+				setNiceToHaves(snapshot.niceToHaves);
+				setScratch(snapshot.scratch);
+				setSelectedId(snapshot.selectedId);
+			},
+			mutation: () => moveFeature(id, "scratch"),
+			commit: (created) => {
+				const next = created as unknown as ScratchEntry;
+				setScratch((prev) => prev.map((item) => (item.id === tempItemId ? next : item)));
+			},
 		});
 	}
 
 	function handleMoveNice(id: string, to: Section) {
 		if (to === "nice") return;
-		setNiceToHaves((prev) => prev.filter((x) => x.id !== id));
-		run(async () => {
-			await moveNiceToHave(id, to === "roadmap" ? "roadmap" : "scratch");
-			router.refresh();
+		const item = niceToHaves.find((entry) => entry.id === id);
+		if (!item) return;
+
+		const snapshot = {
+			features,
+			niceToHaves,
+			scratch,
+		};
+		const tempItemId = tempPlanningId();
+
+		if (to === "roadmap") {
+			runMutation({
+				optimistic: () => {
+					setNiceToHaves((prev) => prev.filter((entry) => entry.id !== id));
+					const now = planningDay();
+					setFeatures((prev) => [
+						{
+							id: tempItemId,
+							title: item.title,
+							slug: "",
+							status: "exploring",
+							description: item.description,
+							priority: item.priority,
+							createdAt: now,
+							updatedAt: now,
+							tags: [],
+							issues: [],
+						},
+						...prev,
+					]);
+				},
+				rollback: () => {
+					setFeatures(snapshot.features);
+					setNiceToHaves(snapshot.niceToHaves);
+					setScratch(snapshot.scratch);
+				},
+				mutation: () => moveNiceToHave(id, "roadmap"),
+				commit: (created) => {
+					const next = created as unknown as Feature;
+					setFeatures((prev) =>
+						prev.map((feature) => (feature.id === tempItemId ? next : feature)),
+					);
+				},
+			});
+			return;
+		}
+
+		runMutation({
+			optimistic: () => {
+				setNiceToHaves((prev) => prev.filter((entry) => entry.id !== id));
+				setScratch((prev) => [
+					{
+						id: tempItemId,
+						title: item.title,
+						content: [item.description, item.reason].filter(Boolean).join("\n\n").trim(),
+						type: "note",
+						createdAt: planningDay(),
+					},
+					...prev,
+				]);
+			},
+			rollback: () => {
+				setFeatures(snapshot.features);
+				setNiceToHaves(snapshot.niceToHaves);
+				setScratch(snapshot.scratch);
+			},
+			mutation: () => moveNiceToHave(id, "scratch"),
+			commit: (created) => {
+				const next = created as unknown as ScratchEntry;
+				setScratch((prev) => prev.map((entry) => (entry.id === tempItemId ? next : entry)));
+			},
 		});
 	}
 
 	function handleMoveScratch(id: string, to: Section) {
 		if (to === "scratch") return;
-		setScratch((prev) => prev.filter((x) => x.id !== id));
-		run(async () => {
-			await moveScratch(id, to === "roadmap" ? "roadmap" : "nice");
-			router.refresh();
+		const item = scratch.find((entry) => entry.id === id);
+		if (!item) return;
+
+		const snapshot = {
+			features,
+			niceToHaves,
+			scratch,
+		};
+		const tempItemId = tempPlanningId();
+
+		if (to === "roadmap") {
+			runMutation({
+				optimistic: () => {
+					setScratch((prev) => prev.filter((entry) => entry.id !== id));
+					const now = planningDay();
+					setFeatures((prev) => [
+						{
+							id: tempItemId,
+							title: item.title,
+							slug: "",
+							status: "exploring",
+							description: item.content,
+							priority: "medium",
+							createdAt: now,
+							updatedAt: now,
+							tags: [],
+							issues: [],
+						},
+						...prev,
+					]);
+				},
+				rollback: () => {
+					setFeatures(snapshot.features);
+					setNiceToHaves(snapshot.niceToHaves);
+					setScratch(snapshot.scratch);
+				},
+				mutation: () => moveScratch(id, "roadmap"),
+				commit: (created) => {
+					const next = created as unknown as Feature;
+					setFeatures((prev) =>
+						prev.map((feature) => (feature.id === tempItemId ? next : feature)),
+					);
+				},
+			});
+			return;
+		}
+
+		runMutation({
+			optimistic: () => {
+				setScratch((prev) => prev.filter((entry) => entry.id !== id));
+				setNiceToHaves((prev) => [
+					{
+						id: tempItemId,
+						title: item.title,
+						description: item.content,
+						reason: "",
+						priority: "medium",
+						createdAt: planningDay(),
+					},
+					...prev,
+				]);
+			},
+			rollback: () => {
+				setFeatures(snapshot.features);
+				setNiceToHaves(snapshot.niceToHaves);
+				setScratch(snapshot.scratch);
+			},
+			mutation: () => moveScratch(id, "nice"),
+			commit: (created) => {
+				const next = created as unknown as NiceToHave;
+				setNiceToHaves((prev) => prev.map((entry) => (entry.id === tempItemId ? next : entry)));
+			},
 		});
 	}
 
@@ -554,8 +1040,6 @@ export function ProjectPlanningPage({
 						</button>
 					</div>
 				)}
-
-				{!selected && <PlanningOverview features={features} />}
 
 				<section className="space-y-3">
 					<div className="flex items-center justify-between">

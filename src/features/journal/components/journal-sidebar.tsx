@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
 	format,
@@ -82,6 +82,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [jumpPopoverOpen, setJumpPopoverOpen] = useState(false);
 	const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
 	const [searchQuery, setSearchQuery] = useState("");
+	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 	const selectedTag: string | "all" = "all";
 
@@ -104,8 +105,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 		let filtered = [...entries];
 
 		// Search filter
-		if (searchQuery.trim()) {
-			const query = searchQuery.toLowerCase();
+		if (deferredSearchQuery.trim()) {
+			const query = deferredSearchQuery.toLowerCase();
 			filtered = filtered.filter(
 				(entry) =>
 					entry.content.toLowerCase().includes(query) ||
@@ -124,7 +125,22 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 		}
 
 		return filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-	}, [entries, searchQuery, selectedMood, selectedTag]);
+	}, [entries, deferredSearchQuery, selectedMood, selectedTag]);
+
+	const entriesByTagName = useMemo(() => {
+		const tagMap = new Map<string, typeof entries>();
+		for (const entry of entries) {
+			for (const tagName of entry.tags) {
+				const existing = tagMap.get(tagName);
+				if (existing) {
+					existing.push(entry);
+				} else {
+					tagMap.set(tagName, [entry]);
+				}
+			}
+		}
+		return tagMap;
+	}, [entries]);
 
 	const entriesForMonth = useMemo(() => {
 		const prefix = format(currentMonth, "yyyy-MM");
@@ -495,7 +511,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 					<div className="p-3">
 						<div className="space-y-1">
 							{allTags.map((tag) => {
-								const tagEntries = entries.filter((e) => e.tags.includes(tag.name));
+								const tagEntries = entriesByTagName.get(tag.name) ?? [];
 								return (
 									<div
 										key={tag.id}

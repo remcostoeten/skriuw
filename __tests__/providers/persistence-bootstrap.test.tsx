@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import type { AuthSnapshot } from "@/platform/auth";
+import type { AuthSnapshot } from "@/core/auth";
 
 type EffectRecord = {
 	deps: unknown[] | undefined;
@@ -10,11 +10,10 @@ type MockFn = (...args: any[]) => any;
 const createMock = mock as unknown as (implementation: MockFn) => MockFn;
 
 let authSnapshot: AuthSnapshot;
-let resetNotesWorkspace: MockFn;
+let resetNotesUi: MockFn;
 let initializeNotes: MockFn;
 let syncPreferencesActor: MockFn;
 let syncSidebarActor: MockFn;
-let initializeAuth: MockFn;
 let renderedEffects: EffectRecord[][] = [];
 let currentRenderEffects: EffectRecord[] = [];
 let effectCursor = 0;
@@ -62,21 +61,14 @@ function registerModuleMocks() {
 		},
 	}));
 
-	mock.module("@/platform/auth/use-auth", () => ({
-		useAuthSnapshot: () => authSnapshot,
-	}));
-
-	mock.module("@/platform/auth", () => ({
-		getWorkspaceId: () => authSnapshot.workspaceId,
-		getAuthStateSnapshot: () => authSnapshot,
-		subscribeAuthState: () => () => undefined,
-		initializeAuth: () => initializeAuth(),
+	mock.module("@/core/auth/use-auth", () => ({
+		useAuth: () => authSnapshot,
 	}));
 
 	mock.module("@/features/notes/store", () => ({
 		useNotesStore: {
 			getState: () => ({
-				resetWorkspace: resetNotesWorkspace,
+				resetUi: resetNotesUi,
 				initialize: initializeNotes,
 			}),
 		},
@@ -85,7 +77,7 @@ function registerModuleMocks() {
 	mock.module("@/features/settings/store", () => ({
 		usePreferencesStore: {
 			getState: () => ({
-				syncWorkspace: syncPreferencesActor,
+				syncUserScope: syncPreferencesActor,
 			}),
 		},
 	}));
@@ -93,7 +85,7 @@ function registerModuleMocks() {
 	mock.module("@/features/notes/components/sidebar/store", () => ({
 		useSidebarStore: {
 			getState: () => ({
-				syncWorkspace: syncSidebarActor,
+				syncUserScope: syncSidebarActor,
 			}),
 		},
 	}));
@@ -104,22 +96,19 @@ beforeEach(() => {
 		phase: "authenticated",
 		rememberMe: true,
 		isReady: true,
-		isAuthConfigured: true,
 		user: {
 			id: "user-a",
 			email: "user-a@example.com",
 			name: "User A",
+			role: null,
 		},
-		session: null,
 		error: null,
-		workspaceId: "user-a",
 	};
 
-	resetNotesWorkspace = createMock(() => undefined);
+	resetNotesUi = createMock(() => undefined);
 	initializeNotes = createMock(async () => undefined);
 	syncPreferencesActor = createMock(() => undefined);
 	syncSidebarActor = createMock(async () => undefined);
-	initializeAuth = createMock(async () => authSnapshot);
 	renderedEffects = [];
 	currentRenderEffects = [];
 	effectCursor = 0;
@@ -130,20 +119,20 @@ afterEach(() => {
 });
 
 describe("PersistenceBootstrap", () => {
-	test("re-initializes persisted state when the authenticated workspace changes", async () => {
+	test("re-initializes persisted state when the authenticated user changes", async () => {
 		registerModuleMocks();
 
 		const { PersistenceBootstrap } = await import(
-			`@/providers/persistence-bootstrap?workspace-switch=${Math.random().toString(36).slice(2)}`
+			`@/providers/persistence-bootstrap?user-switch=${Math.random().toString(36).slice(2)}`
 		);
 
 		renderComponent(PersistenceBootstrap);
 		await flushMicrotasks();
 
-		expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
+		expect(resetNotesUi).toHaveBeenCalledTimes(1);
 		expect(initializeNotes).toHaveBeenCalledTimes(1);
-		expect(resetNotesWorkspace).toHaveBeenCalledTimes(1);
-		expect(initializeNotes).toHaveBeenCalledWith("user-a");
+		expect(resetNotesUi).toHaveBeenCalledTimes(1);
+		expect(initializeNotes).toHaveBeenCalledWith();
 		expect(syncPreferencesActor).toHaveBeenCalledWith("user-a");
 		expect(syncSidebarActor).toHaveBeenCalledWith("user-a");
 
@@ -153,28 +142,27 @@ describe("PersistenceBootstrap", () => {
 				id: "user-b",
 				email: "user-b@example.com",
 				name: "User B",
+				role: null,
 			},
-			workspaceId: "user-b",
 		};
 
 		renderComponent(PersistenceBootstrap);
 		await flushMicrotasks();
 
 		expect(renderedEffects).toHaveLength(2);
-		expect(resetNotesWorkspace).toHaveBeenCalledTimes(2);
+		expect(resetNotesUi).toHaveBeenCalledTimes(2);
 		expect(initializeNotes).toHaveBeenCalledTimes(2);
-		expect(resetNotesWorkspace).toHaveBeenLastCalledWith();
-		expect(initializeNotes).toHaveBeenLastCalledWith("user-b");
+		expect(resetNotesUi).toHaveBeenLastCalledWith();
+		expect(initializeNotes).toHaveBeenLastCalledWith();
 		expect(syncPreferencesActor).toHaveBeenLastCalledWith("user-b");
 		expect(syncSidebarActor).toHaveBeenLastCalledWith("user-b");
 	});
 
-	test("does not initialize workspace data while signed out", async () => {
+	test("does not initialize scoped data while signed out", async () => {
 		authSnapshot = {
 			...authSnapshot,
 			phase: "signed_out",
 			user: null,
-			workspaceId: "signed-out-local",
 		};
 
 		registerModuleMocks();
@@ -186,7 +174,7 @@ describe("PersistenceBootstrap", () => {
 		renderComponent(PersistenceBootstrap);
 		await flushMicrotasks();
 
-		expect(resetNotesWorkspace).toHaveBeenCalledWith();
+		expect(resetNotesUi).toHaveBeenCalledWith();
 		expect(initializeNotes).not.toHaveBeenCalled();
 		expect(syncPreferencesActor).not.toHaveBeenCalled();
 		expect(syncSidebarActor).not.toHaveBeenCalled();

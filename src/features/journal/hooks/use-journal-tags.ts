@@ -2,53 +2,21 @@
 
 import { useMemo } from "react";
 import { useApiQuery, useApiMutation } from "@/shared/api";
+import { useAuthedApiQuery } from "@/shared/api/use-authed-api-query";
 import {
 	createJournalTag,
 	deleteJournalTag,
 	type CreateJournalTagInput,
 } from "@/domain/journal/actions";
-import type { JournalEntry, JournalTag } from "@/types/journal";
+import { deriveWorkspaceTags } from "@/domain/tags/workspace-tags";
+import type { JournalTag } from "@/types/journal";
 import { TAG_COLORS } from "@/features/journal/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { createCacheQueryFn } from "@/shared/api/cache-query";
+import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "./journal-keys";
 import { useJournalEntries } from "./use-journal-entries";
-
-function deriveJournalTags(entries: JournalEntry[], persistedTags: JournalTag[]): JournalTag[] {
-	const usageCounts = new Map<string, number>();
-
-	for (const entry of entries) {
-		for (const tagName of entry.tags) {
-			usageCounts.set(tagName, (usageCounts.get(tagName) ?? 0) + 1);
-		}
-	}
-
-	const tagsByName = new Map(
-		persistedTags.map((tag) => [
-			tag.name,
-			{ ...tag, usageCount: usageCounts.get(tag.name) ?? 0 },
-		]),
-	);
-
-	for (const [tagName, usageCount] of usageCounts) {
-		if (!tagsByName.has(tagName)) {
-			tagsByName.set(tagName, {
-				id: `derived-${tagName}`,
-				name: tagName,
-				color: TAG_COLORS[0],
-				usageCount,
-			});
-		}
-	}
-
-	return [...tagsByName.values()].toSorted((a, b) => {
-		if (b.usageCount !== a.usageCount) {
-			return b.usageCount - a.usageCount;
-		}
-
-		return a.name.localeCompare(b.name);
-	});
-}
+import type { NoteFile } from "@/types/notes";
 
 export function useJournalTags() {
 	const entriesQuery = useJournalEntries();
@@ -58,10 +26,20 @@ export function useJournalTags() {
 		createCacheQueryFn<JournalTag[]>(queryClient, journalKeys.tags()),
 		{ staleTime: Infinity },
 	);
+	const notesQuery = useAuthedApiQuery<NoteFile[]>(
+		notesKeys.files(),
+		async () => queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [],
+		{ staleTime: Infinity },
+	);
 
 	const data = useMemo(
-		() => deriveJournalTags(entriesQuery.data ?? [], tagsQuery.data ?? []),
-		[entriesQuery.data, tagsQuery.data],
+		() =>
+			deriveWorkspaceTags(
+				entriesQuery.data ?? [],
+				tagsQuery.data ?? [],
+				notesQuery.data ?? [],
+			),
+		[entriesQuery.data, notesQuery.data, tagsQuery.data],
 	);
 
 	return {
@@ -70,7 +48,19 @@ export function useJournalTags() {
 	};
 }
 
+export function useWorkspaceTags() {
+	const queryClient = useQueryClient();
+
+	return useAuthedApiQuery<JournalTag[]>(
+		journalKeys.workspaceTags(),
+		createCacheQueryFn<JournalTag[]>(queryClient, journalKeys.workspaceTags()),
+		{ staleTime: Infinity },
+	);
+}
+
 export function useCreateJournalTag() {
+	const queryClient = useQueryClient();
+
 	return useApiMutation<CreateJournalTagInput, JournalTag, JournalTag[]>(createJournalTag, {
 		invalidateKeys: [journalKeys.tags()],
 		optimistic: {
@@ -91,15 +81,36 @@ export function useCreateJournalTag() {
 				];
 			},
 		},
+		onSuccess: (createdTag) => {
+			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(), (current) => {
+				const next = current ?? [];
+				if (next.some((tag) => tag.name === createdTag.name)) {
+					return next.map((tag) =>
+						tag.name === createdTag.name ? { ...createdTag, usageCount: tag.usageCount } : tag,
+					);
+				}
+
+				return [...next, createdTag];
+			});
+		},
 	});
 }
 
 export function useDeleteJournalTag() {
+	const queryClient = useQueryClient();
+
 	return useApiMutation<string, void, JournalTag[]>(deleteJournalTag, {
 		invalidateKeys: [journalKeys.tags(), journalKeys.entries()],
 		optimistic: {
 			queryKey: journalKeys.tags(),
 			updater: (current, id) => (current ?? []).filter((tag) => tag.id !== id),
 		},
+		onSuccess: (_result, id) => {
+			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(), (current) =>
+				(current ?? []).filter((tag) => tag.id !== id),
+			);
+		},
 	});
 }
+
+export { TAG_COLORS };

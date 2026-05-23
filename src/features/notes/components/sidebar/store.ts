@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getUserScopeId, resolveUserScopeId } from "@/platform/auth";
+import { getUserScopeId, resolveUserScopeId } from "@/core/auth";
 import {
+	DEFAULT_SECTIONS,
 	DEFAULT_SIDEBAR_CONFIG,
+	DEFAULT_MAX_RECENTS,
 	PROJECT_COLORS,
 	resolveProjectColorClass,
 	type FavoriteItem,
@@ -19,7 +21,7 @@ type SidebarState = {
 	isHydrated: boolean;
 	profiles: Record<string, SidebarConfig>;
 
-	syncWorkspace: (userScopeId: string) => void;
+	syncUserScope: (userScopeId: string) => void;
 	getSections: () => SidebarSection[];
 	toggleSectionCollapse: (sectionId: string) => void;
 	toggleSectionVisibility: (sectionId: string) => void;
@@ -63,8 +65,25 @@ type PersistedSidebarState = {
 };
 
 function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): SidebarConfig {
+	const sectionsById = new Map((config.sections ?? []).map((section) => [section.id, section]));
+	const normalizedDefaultSections = DEFAULT_SECTIONS.map((defaultSection) => {
+		const section = sectionsById.get(defaultSection.id);
+		if (!section) return { ...defaultSection };
+
+		return {
+			...defaultSection,
+			...section,
+			// The notes tree is the primary navigation surface. Older persisted
+			// profiles may have hidden or omitted it; always restore it.
+			isVisible: defaultSection.type === "file-tree" ? true : section.isVisible,
+		};
+	});
+	const customSections = (config.sections ?? [])
+		.filter((section) => section.type === "custom")
+		.map((section) => ({ ...section }));
+
 	return {
-		sections: (config.sections ?? []).map((section) => ({
+		sections: [...normalizedDefaultSections, ...customSections].map((section) => ({
 			...section,
 			customConfig: section.customConfig
 				? {
@@ -82,7 +101,7 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 			fileIds: [...project.fileIds],
 			folderIds: [...project.folderIds],
 		})),
-		maxRecents: config.maxRecents ?? 10,
+		maxRecents: Math.max(config.maxRecents ?? DEFAULT_MAX_RECENTS, DEFAULT_MAX_RECENTS),
 		showSectionHeaders: config.showSectionHeaders,
 		compactMode: config.compactMode,
 	};
@@ -123,7 +142,7 @@ export const useSidebarStore = create<SidebarState>()(
 				isHydrated: false,
 				profiles: {},
 
-				syncWorkspace: (userScopeId: string) => {
+				syncUserScope: (userScopeId: string) => {
 					const nextUserScopeId = resolveUserScopeId(userScopeId);
 					const profiles = get().profiles;
 					const nextConfig = readUserScopeConfig(profiles, nextUserScopeId);

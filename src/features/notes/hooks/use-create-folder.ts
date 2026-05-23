@@ -2,7 +2,7 @@
 
 import { useApiMutation } from "@/shared/api";
 import { createFolder, type CreateFolderInput } from "@/domain/folders/actions";
-import { notesKeys } from "./use-notes";
+import { notesKeys } from "./notes-keys";
 import type { NoteFolder } from "@/types/notes";
 
 export function useCreateFolder() {
