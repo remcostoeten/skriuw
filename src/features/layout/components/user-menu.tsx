@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, BookOpen, Activity, Settings, LogOut, LoaderCircle } from "lucide-react";
+import { FileText, BookOpen, Activity, Settings, LogOut, LoaderCircle, Shield } from "lucide-react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -20,6 +20,8 @@ export type UserMenuProps = {
 	onNotes?: () => void;
 	onJournal?: () => void;
 	onActivity?: () => void;
+	onAdmin?: () => void;
+	isAdmin?: boolean;
 };
 
 function Shortcut({ value }: { value: string }) {
@@ -45,7 +47,7 @@ function Shortcut({ value }: { value: string }) {
 	);
 }
 
-export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity }: UserMenuProps) {
+export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity, onAdmin, isAdmin }: UserMenuProps) {
 	const [open, setOpen] = React.useState(false);
 	const [isSigningOut, setIsSigningOut] = React.useState(false);
 	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
@@ -108,6 +110,17 @@ export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity
 							shortcut: "⌘,",
 							onSelect: onSettings,
 						},
+						...(isAdmin
+							? [
+									{
+										key: "admin",
+										label: "Admin",
+										icon: Shield,
+										shortcut: "",
+										onSelect: onAdmin,
+									},
+								]
+							: []),
 					].map((item) => {
 						const Icon = item.icon;
 						return (

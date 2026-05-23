@@ -10,6 +10,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import { signOut } from "@/platform/auth";
+import { isAdmin } from "@/lib/roles";
 import { UserMenu } from "./user-menu";
 
 interface IconRailProps {
@@ -144,6 +145,8 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
 							onNotes={() => router.push("/app")}
 							onJournal={() => router.push("/app/journal")}
 							onActivity={() => router.push("/app/activity")}
+							isAdmin={isAdmin(auth.user?.role)}
+							onAdmin={() => router.push("/admin")}
 						/>
 					) : (
 						<Tooltip>

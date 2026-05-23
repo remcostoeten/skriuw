@@ -4,6 +4,7 @@ type User = {
 	id: string;
 	email: string;
 	name: string;
+	role: string | null;
 };
 
 type AuthPhase = "initializing" | "signed_out" | "authenticated";
@@ -109,6 +110,7 @@ type BetterAuthUser = {
 	id: string;
 	email: string;
 	name?: string | null;
+	role?: string | null;
 };
 
 function toUser(rawUser: BetterAuthUser | null | undefined): User | null {
@@ -117,6 +119,7 @@ function toUser(rawUser: BetterAuthUser | null | undefined): User | null {
 		id: rawUser.id,
 		email: rawUser.email ?? "",
 		name: rawUser.name?.trim() || rawUser.email?.split("@")[0] || "Signed-in user",
+		role: rawUser.role ?? null,
 	};
 }
 
