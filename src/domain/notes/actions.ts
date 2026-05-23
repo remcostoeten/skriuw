@@ -322,3 +322,7 @@ export async function deleteNote(id: string): Promise<void> {
 		data: { deletedAt: new Date() },
 	});
 }
+
+export async function fetchNote(id: string): Promise<NoteFile | null> {
+	return getNote(id);
+}
