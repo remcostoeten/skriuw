@@ -59,6 +59,8 @@ export type SidebarConfig = {
 	compactMode: boolean;
 };
 
+export const DEFAULT_MAX_RECENTS = 50;
+
 export const PROJECT_COLORS = [
 	{ name: "Gray", value: "bg-project-gray", text: "text-project-gray" },
 	{ name: "Red", value: "bg-project-red", text: "text-project-red" },
@@ -128,7 +130,7 @@ export const DEFAULT_SIDEBAR_CONFIG: SidebarConfig = {
 	favorites: [],
 	recents: [],
 	projects: [],
-	maxRecents: 10,
+	maxRecents: DEFAULT_MAX_RECENTS,
 	showSectionHeaders: true,
 	compactMode: false,
 };

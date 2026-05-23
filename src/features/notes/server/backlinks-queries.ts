@@ -1,13 +1,21 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
-import { buildNoteBacklinks, type ResolvedNoteLink } from "@/features/notes/lib/note-links";
+import { buildNoteBacklinks, type ResolvedNoteLink } from "@/domain/notes/note-links";
 import type { NoteFile } from "@/types/notes";
 
 export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLink[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 
 	const records = await prisma.note.findMany({
-		where: { userId: user.id, deletedAt: null },
+		where: {
+			userId: user.id,
+			deletedAt: null,
+			OR: [
+				{ id: noteId },
+				{ content: { contains: "[[" } },
+				{ content: { contains: "note://" } },
+			],
+		},
 		select: {
 			id: true,
 			name: true,

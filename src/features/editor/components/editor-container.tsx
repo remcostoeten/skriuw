@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, Code, FileText, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { Editor } from "./editor";
 import { EditorToolbar } from "./editor-toolbar";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -14,10 +14,11 @@ import {
 	type AiAction,
 	type AiErrorCode,
 } from "@/features/ai/service";
+import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
+import { listFallbackAiKeys, resolveAiKey } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
-import { normalizeNoteTitle, stripMarkdownExtension } from "@/features/notes/lib/note-links";
-import { cn } from "@/shared/lib/utils";
+import { normalizeNoteTitle, stripMarkdownExtension } from "@/domain/notes/note-links";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 
 interface EditorContainerProps {
@@ -35,7 +36,6 @@ interface EditorContainerProps {
 	) => void;
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
-	onToggleEditorMode: () => void;
 	onOpenSettings?: () => void;
 	onNavigatePrev: () => void;
 	onNavigateNext: () => void;
@@ -43,6 +43,7 @@ interface EditorContainerProps {
 	canNavigateNext: boolean;
 	fileName: string;
 	onRenameFile?: (id: string, name: string) => void;
+	onEditorBlur?: () => void;
 }
 
 type RateLimitPrompt = {
@@ -153,7 +154,6 @@ export function EditorContainer({
 	onContentChange,
 	onToggleSidebar,
 	onToggleMetadata,
-	onToggleEditorMode,
 	onOpenSettings,
 	onNavigatePrev,
 	onNavigateNext,
@@ -161,6 +161,7 @@ export function EditorContainer({
 	canNavigateNext,
 	fileName,
 	onRenameFile,
+	onEditorBlur,
 }: EditorContainerProps) {
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
@@ -179,18 +180,16 @@ export function EditorContainer({
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
+	const { data: serverKeys = [] } = useAiProviderKeys();
 
-	const aiOptions = useMemo(
+	const aiResourceOptions = useMemo(
 		() => ({
-			apiKey: aiPrefs.activeKeyId
-				? (aiPrefs.keys.find((k) => k.id === aiPrefs.activeKeyId)?.apiKey ?? null)
-				: null,
 			model: aiPrefs.model,
 			resourceType: file ? "note" : undefined,
 			resourceId: file?.id,
 			resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
 		}),
-		[aiPrefs.activeKeyId, aiPrefs.keys, aiPrefs.model, file],
+		[aiPrefs.model, file],
 	);
 
 	// Clear transient state when switching files
@@ -200,41 +199,53 @@ export function EditorContainer({
 		setCursorPosition({ line: 1, column: 1 });
 	}, [file?.id]);
 
-	const getActiveKey = useCallback(
-		(excludeIds: string[] = []) => {
-			const available = aiPrefs.keys.filter((k) => !excludeIds.includes(k.id));
-			if (available.length === 0) return null;
-			const preferred = available.find((k) => k.id === aiPrefs.activeKeyId);
-			return preferred ?? available[0];
-		},
-		[aiPrefs.keys, aiPrefs.activeKeyId],
-	);
-
 	const runAiAction = useCallback(
 		async (action: AiAction, keyId?: string, exhaustedIds: string[] = []) => {
-			if (!aiHandleRef.current) return;
+			const editorHandle = aiHandleRef.current;
+			if (!editorHandle) {
+				setAiError({
+					action,
+					code: "unknown",
+					title: "Editor is still loading",
+					message: "The AI action could not start because the editor is not ready yet.",
+					details: "Wait for the note body to finish loading, then try again.",
+				});
+				return;
+			}
 
-			const keyEntry = keyId
-				? aiPrefs.keys.find((k) => k.id === keyId)
-				: getActiveKey(exhaustedIds);
+			const resolvedKey = resolveAiKey({
+				model: aiPrefs.model,
+				localKeys: aiPrefs.keys,
+				activeLocalKeyId: aiPrefs.activeKeyId,
+				serverKeys,
+				overrideKeyId: keyId,
+				exhaustedIds,
+			});
 
-			const callOptions = keyEntry
+			const callOptions = resolvedKey
 				? {
-						apiKey: keyEntry.apiKey,
-						model: aiPrefs.model,
-						resourceType: file ? "note" : undefined,
-						resourceId: file?.id,
-						resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+						...aiResourceOptions,
+						...(resolvedKey.source === "local"
+							? { apiKey: resolvedKey.apiKey }
+							: { keyId: resolvedKey.keyId }),
 					}
-				: aiOptions;
+				: aiResourceOptions;
 
 			setAiLoading((s) => ({ ...s, [action]: true }));
 			setRateLimitPrompt(null);
 			setAiError(null);
 
 			try {
-				const markdown = await aiHandleRef.current.getMarkdown();
-				if (!markdown.trim()) return;
+				const markdown = await editorHandle.getMarkdown();
+				if (!markdown.trim()) {
+					setAiError({
+						action,
+						code: "no_content",
+						title: "Nothing to send to AI",
+						message: "Write some content first, then run the AI action again.",
+					});
+					return;
+				}
 
 				const result = await callAi(action, markdown, callOptions);
 				if (!result) return;
@@ -242,13 +253,15 @@ export function EditorContainer({
 				if (action === "generateTitle") {
 					if (file && onRenameFile) onRenameFile(file.id, result);
 				} else if (action === "spellCheck") {
-					aiHandleRef.current.replaceContent(result);
+					editorHandle.replaceContent(result);
 				} else {
-					aiHandleRef.current.appendContent(result);
+					editorHandle.appendContent(result);
 				}
 			} catch (err) {
 				if (err instanceof AiRateLimitError) {
-					const newExhausted = keyEntry ? [...exhaustedIds, keyEntry.id] : exhaustedIds;
+					const newExhausted = resolvedKey
+						? [...exhaustedIds, resolvedKey.id]
+						: exhaustedIds;
 					setRateLimitPrompt({
 						action,
 						exhaustedKeyIds: newExhausted,
@@ -285,7 +298,15 @@ export function EditorContainer({
 				setAiLoading((s) => ({ ...s, [action]: false }));
 			}
 		},
-		[aiPrefs.keys, aiPrefs.model, file, onRenameFile, getActiveKey, aiOptions],
+		[
+			aiPrefs.keys,
+			aiPrefs.activeKeyId,
+			aiPrefs.model,
+			aiResourceOptions,
+			file,
+			onRenameFile,
+			serverKeys,
+		],
 	);
 
 	const handleEditorReady = useCallback((handle: AiEditorHandle) => {
@@ -325,19 +346,20 @@ export function EditorContainer({
 	const wordCount = getWordCount(file?.content ?? "");
 
 	const availableKeysForFallback = rateLimitPrompt
-		? aiPrefs.keys.filter((k) => !rateLimitPrompt.exhaustedKeyIds.includes(k.id))
+		? listFallbackAiKeys({
+				localKeys: aiPrefs.keys,
+				serverKeys,
+				exhaustedIds: rateLimitPrompt.exhaustedKeyIds,
+			})
 		: [];
 
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
 			<EditorToolbar
 				fileName={fileName}
-				editorMode={effectiveEditorMode}
 				isMobile={isMobile}
 				onToggleSidebar={onToggleSidebar}
 				onToggleMetadata={onToggleMetadata}
-				onToggleEditorMode={onToggleEditorMode}
-				canToggleEditorMode={!isMdx}
 				onOpenSettings={onOpenSettings}
 				onNavigatePrev={onNavigatePrev}
 				onNavigateNext={onNavigateNext}
@@ -418,11 +440,14 @@ export function EditorContainer({
 											{" "}
 											Last key:{" "}
 											<span className="font-medium text-warning-foreground">
-												{aiPrefs.keys.find(
-													(k) =>
-														k.id ===
+												{listFallbackAiKeys({
+													localKeys: aiPrefs.keys,
+													serverKeys,
+												}).find(
+													(key) =>
+														key.id ===
 														rateLimitPrompt.exhaustedKeyIds.at(-1),
-												)?.name ?? "Unknown"}
+												)?.label ?? "Unknown"}
 											</span>
 										</>
 									)}
@@ -456,7 +481,7 @@ export function EditorContainer({
 											}
 											className="border border-warning/40 bg-warning/10 px-2 py-0.5 text-warning-foreground transition-colors hover:bg-warning/20"
 										>
-											{k.name}
+											{k.label}
 										</button>
 									))}
 								</div>
@@ -495,6 +520,7 @@ export function EditorContainer({
 						canUseAi ? () => runAiAction("continueWriting") : undefined
 					}
 					onTitleCommit={handleTitleCommit}
+					onBlur={onEditorBlur}
 					onCursorChange={setCursorPosition}
 				/>
 			</div>
@@ -502,77 +528,37 @@ export function EditorContainer({
 			<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
 				<div className="flex min-w-0 flex-1 items-center gap-3">
 					<span className="tabular-nums inline-flex items-baseline">
-						<AnimatedNumber value={wordCount} />
+						<AnimatedNumber value={wordCount} animate={editorPrefs.animateNumbers} />
 						<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
 					</span>
 					<span className="h-4 w-px bg-border" aria-hidden="true" />
 					<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
 						{cursorPosition.selection ? (
 							<>
-								<AnimatedNumber value={cursorPosition.selection.words} /> selected{" "}
+								<AnimatedNumber
+									value={cursorPosition.selection.words}
+									animate={editorPrefs.animateNumbers}
+								/>{" "}
+								selected{" "}
 								{cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
-								<AnimatedNumber value={cursorPosition.selection.characters} />{" "}
+								<AnimatedNumber
+									value={cursorPosition.selection.characters}
+									animate={editorPrefs.animateNumbers}
+								/>{" "}
 								{cursorPosition.selection.characters === 1 ? "char" : "chars"}
 							</>
 						) : effectiveEditorMode === "raw" ? (
 							<>
 								Ln <AnimatedNumber value={cursorPosition.line} />, Col{" "}
-								<AnimatedNumber value={cursorPosition.column} />
+								<AnimatedNumber
+									value={cursorPosition.column}
+									animate={editorPrefs.animateNumbers}
+								/>
 							</>
 						) : (
 							<>Block editor</>
 						)}
 					</BottomStatusText>
-				</div>
-
-				<div
-					className={cn(
-						"inline-flex items-center border border-border bg-background p-0.5",
-						!isMdx || "opacity-60",
-					)}
-					role="group"
-					aria-label="Editor mode"
-				>
-					<button
-						type="button"
-						onClick={
-							!isMdx && effectiveEditorMode === "raw" ? onToggleEditorMode : undefined
-						}
-						disabled={isMdx}
-						aria-pressed={effectiveEditorMode === "block"}
-						className={cn(
-							"inline-flex h-6 items-center gap-1 px-2 text-[11px] transition-colors",
-							effectiveEditorMode === "block"
-								? "bg-muted text-foreground"
-								: "text-muted-foreground hover:text-foreground",
-							isMdx && "cursor-not-allowed",
-						)}
-						title="Block editor"
-					>
-						<FileText className="h-3 w-3" strokeWidth={1.6} />
-						<span>Block</span>
-					</button>
-					<button
-						type="button"
-						onClick={
-							!isMdx && effectiveEditorMode === "block"
-								? onToggleEditorMode
-								: undefined
-						}
-						disabled={isMdx}
-						aria-pressed={effectiveEditorMode === "raw"}
-						className={cn(
-							"inline-flex h-6 items-center gap-1 px-2 text-[11px] transition-colors",
-							effectiveEditorMode === "raw"
-								? "bg-muted text-foreground"
-								: "text-muted-foreground hover:text-foreground",
-							isMdx && "cursor-not-allowed",
-						)}
-						title={isMdx ? "MDX opens in raw source mode" : "Raw source"}
-					>
-						<Code className="h-3 w-3" strokeWidth={1.6} />
-						<span>Raw</span>
-					</button>
 				</div>
 			</div>
 		</div>

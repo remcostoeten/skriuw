@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
 	ChevronLeft,
@@ -20,6 +20,7 @@ import { useJournalEntries } from "../hooks/use-journal-entries";
 
 const JOURNAL_ROW_HEIGHT = 54;
 const JOURNAL_OVERSCAN = 8;
+const JOURNAL_INITIAL_VIEWPORT_HEIGHT = JOURNAL_ROW_HEIGHT * 12;
 
 type FilterTab = "all" | "daily" | "tagged" | "moods";
 type SortOrder = "newest" | "oldest";
@@ -52,6 +53,26 @@ export function JournalDatabaseView({
 	const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 	const listRef = useRef<HTMLDivElement>(null);
 	const [scrollTop, setScrollTop] = useState(0);
+	const [viewportHeight, setViewportHeight] = useState(JOURNAL_INITIAL_VIEWPORT_HEIGHT);
+
+	useEffect(() => {
+		const node = listRef.current;
+		if (!node) return;
+
+		const updateHeight = () => {
+			const nextHeight = node.clientHeight;
+			if (nextHeight > 0) {
+				setViewportHeight(nextHeight);
+			}
+		};
+
+		updateHeight();
+
+		const observer = new ResizeObserver(updateHeight);
+		observer.observe(node);
+
+		return () => observer.disconnect();
+	}, [isMobile]);
 
 	const filteredEntries = useMemo(() => {
 		let filtered = [...entries];
@@ -107,7 +128,6 @@ export function JournalDatabaseView({
 	];
 
 	const totalHeight = filteredEntries.length * JOURNAL_ROW_HEIGHT;
-	const viewportHeight = listRef.current?.clientHeight ?? 0;
 	const visibleCount = Math.ceil(viewportHeight / JOURNAL_ROW_HEIGHT) + JOURNAL_OVERSCAN * 2;
 	const startIndex = Math.max(0, Math.floor(scrollTop / JOURNAL_ROW_HEIGHT) - JOURNAL_OVERSCAN);
 	const endIndex = Math.min(filteredEntries.length, startIndex + visibleCount);

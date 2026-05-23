@@ -7,7 +7,7 @@ import {
 	extractNoteTags,
 	getNoteTitle,
 	getWorkspaceTags,
-} from "@/features/notes/lib/note-links";
+} from "@/domain/notes/note-links";
 import type { NoteFile } from "@/types/notes";
 
 function note(input: Partial<NoteFile> & Pick<NoteFile, "id" | "name" | "content">): NoteFile {

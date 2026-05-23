@@ -11,11 +11,11 @@ import type { CssColorValue, TagId, TagName } from "@/core/persistence-types";
 import {
 	useCreateJournalTag,
 	useDeleteJournalTag,
-	useJournalTags,
+	useWorkspaceTags,
 } from "@/features/journal/hooks/use-journal-tags";
 
 export function TagManager() {
-	const { data: tags = [] } = useJournalTags();
+	const { data: tags = [] } = useWorkspaceTags();
 	const createTag = useCreateJournalTag();
 	const removeTag = useDeleteJournalTag();
 
@@ -171,7 +171,7 @@ export function TagManager() {
 					<EmptyState
 						icon={Hash}
 						title="No tags yet."
-						description="Create your first tag to organize your notes."
+						description="Create your first tag to organize notes and journal entries."
 						className="py-8"
 					/>
 				)}
@@ -183,6 +183,7 @@ export function TagManager() {
 function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
 	const [showMenu, setShowMenu] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
+	const canDelete = !tag.id.startsWith("derived-") && !tag.id.startsWith("optimistic-");
 
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -218,7 +219,8 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
 			</div>
 
 			{/* Actions */}
-			<div className="relative" ref={menuRef}>
+			{canDelete ? (
+				<div className="relative" ref={menuRef}>
 				<button
 					onClick={() => setShowMenu(!showMenu)}
 					className={cn(
@@ -246,6 +248,7 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
 					</div>
 				)}
 			</div>
+			) : null}
 		</div>
 	);
 }

@@ -8,11 +8,11 @@ import { cn } from "@/shared/lib/utils";
 import { EmailDomainAutocomplete } from "../email-domain-autocomplete";
 import { AuthErrorAlert, resolveAuthError, type AuthErrorNotice } from "../auth-errors";
 import {
-	initializeAuth,
+	getRememberMePreference,
 	setRememberMe as saveRememberMePreference,
 	signInWithOAuth,
 	signInWithPassword,
-} from "@/platform/auth";
+} from "@/core/auth";
 
 type AuthIntent = "sign-in" | "github";
 type AuthActionState = "idle" | "pending" | "success";
@@ -34,9 +34,7 @@ export default function SignInPage() {
 	const [completedIntent, setCompletedIntent] = useState<AuthIntent | null>(null);
 
 	useEffect(() => {
-		void initializeAuth().then((snapshot) => {
-			setRememberMe(snapshot.rememberMe);
-		});
+		setRememberMe(getRememberMePreference());
 	}, []);
 
 	useEffect(() => {

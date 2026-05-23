@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronRight, File, Folder, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useSeedEditorStore } from "../store";
-import type { SeedFolder, SeedNote } from "../types";
+import type { SeedFolder, SeedNote } from "@/domain/seed/types";
 
 interface TreeNodeProps {
 	folder?: SeedFolder;

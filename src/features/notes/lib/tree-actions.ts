@@ -11,6 +11,8 @@ import type { NoteFile, NoteFolder } from "@/types/notes";
  */
 export type NoteTreeActions = {
 	onFileSelect: (id: string) => void;
+	/** Optional: warm a note's detail cache before it is opened (e.g. on hover). */
+	onFilePrefetch?: (id: string) => void;
 	onToggleFolder: (id: string) => void;
 	onRenameFile: (id: string, name: string) => void;
 	onRenameFolder: (id: string, name: string) => void;

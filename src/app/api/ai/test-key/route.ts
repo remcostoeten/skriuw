@@ -10,101 +10,9 @@ import {
 	isAiModelId,
 	type AiModelId,
 } from "@/domain/ai/constants";
-import type { AiProvider } from "@/domain/ai/types";
+import { classifyAiProviderError } from "@/domain/ai/provider-errors";
 import { recordAiError, type AiErrorSource } from "@/domain/ai/telemetry";
 import { recordAiUsage } from "@/domain/ai/usage";
-
-function classifyProviderError(
-	err: unknown,
-	provider: AiProvider,
-): {
-	code: string;
-	source: AiErrorSource;
-	message: string;
-	details: string;
-	status: number;
-	providerStatus?: number | null;
-	providerMessage?: string | null;
-} {
-	const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-	const providerStatus = (err as { status?: number }).status ?? null;
-	const rawMessage = err instanceof Error ? err.message : String(err);
-	const providerLabel =
-		provider === "google" ? "Gemini" : provider === "groq" ? "Groq" : provider;
-
-	if (
-		providerStatus === 401 ||
-		msg.includes("api_key_invalid") ||
-		msg.includes("unauthenticated") ||
-		msg.includes("invalid_api_key") ||
-		msg.includes("invalid x-api-key")
-	) {
-		return {
-			code: "invalid_key",
-			source: "provider",
-			message: `${providerLabel} rejected this API key.`,
-			details: "Check that the key was copied correctly and belongs to an enabled project.",
-			status: 401,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-	if (
-		providerStatus === 429 ||
-		msg.includes("resource_exhausted") ||
-		msg.includes("quota") ||
-		msg.includes("rate_limit") ||
-		msg.includes("rate limit")
-	) {
-		return {
-			code: "rate_limited",
-			source: "rate_limit",
-			message: `This ${providerLabel} key is rate limited or out of quota.`,
-			details:
-				"The key is syntactically valid, but the provider will not serve requests right now.",
-			status: 429,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-	if (providerStatus === 403 || msg.includes("permission_denied") || msg.includes("forbidden")) {
-		return {
-			code: "forbidden",
-			source: "provider",
-			message: `This key is not allowed to use the selected model on ${providerLabel}.`,
-			details: "Check API key restrictions, billing, and model access.",
-			status: 403,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-	if (
-		providerStatus === 404 ||
-		msg.includes("not_found") ||
-		msg.includes("not found") ||
-		msg.includes("model_not_found")
-	) {
-		return {
-			code: "model_not_found",
-			source: "provider",
-			message: `${providerLabel} could not find the selected model.`,
-			details: "Choose another supported model in Settings -> AI.",
-			status: 404,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-
-	return {
-		code: "provider_error",
-		source: "provider",
-		message: `Could not validate the key with ${providerLabel}.`,
-		details: `${providerLabel} returned an unexpected response while checking model access.`,
-		status: 502,
-		providerStatus,
-		providerMessage: rawMessage,
-	};
-}
 
 async function testKeyErrorResponse({
 	req,
@@ -225,7 +133,7 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ ok: true });
 	} catch (err) {
 		console.error("[AI/test-key]", err);
-		const classified = classifyProviderError(err, provider);
+		const classified = classifyAiProviderError(err, provider);
 		await recordAiUsage({
 			userId: user.id,
 			model,
@@ -243,7 +151,13 @@ export async function POST(req: NextRequest) {
 			user,
 			apiKey,
 			model,
-			...classified,
+			code: classified.code,
+			source: classified.source as AiErrorSource,
+			message: classified.message,
+			details: classified.details,
+			status: classified.status,
+			providerStatus: classified.providerStatus,
+			providerMessage: classified.providerMessage,
 		});
 	}
 }

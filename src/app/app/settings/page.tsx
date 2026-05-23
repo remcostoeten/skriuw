@@ -1,11 +1,25 @@
-import { Suspense } from "react";
+import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { getServerUser } from "@/core/db";
+import { listWorkspaceTags } from "@/domain/tags/queries";
+import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { SettingsPage } from "@/features/settings/components/settings-page";
-import { SettingsLoadingShell } from "@/features/layout/components/app-loading-shell";
+import { journalKeys } from "@/features/journal/hooks/journal-keys";
 
-export default function SettingsRoute() {
+export default async function SettingsRoute() {
+	const { user } = await getServerUser();
+	const queryClient = new QueryClient();
+
+	if (user) {
+		await ensureCloudStarterContentSeeded(user.id);
+		await queryClient.prefetchQuery({
+			queryKey: journalKeys.workspaceTags(),
+			queryFn: () => listWorkspaceTags(),
+		});
+	}
+
 	return (
-		<Suspense fallback={<SettingsLoadingShell />}>
+		<HydrationBoundary state={dehydrate(queryClient)}>
 			<SettingsPage />
-		</Suspense>
+		</HydrationBoundary>
 	);
 }

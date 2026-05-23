@@ -1,18 +1,15 @@
+import { useEffect, useState } from "react";
 import {
 	ChevronLeft,
 	ChevronRight,
-	Code,
 	Loader2,
 	PanelLeft,
 	PanelRight,
 	PenTool,
 	Settings2,
-	Share2,
 	Sidebar,
 	SlidersHorizontal,
-	Sparkles,
 	SpellCheck,
-	Type,
 	Wand2,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -26,12 +23,9 @@ import {
 type Props = {
 	fileName: string;
 	breadcrumb?: string[];
-	editorMode: "raw" | "block";
 	isMobile?: boolean;
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
-	onToggleEditorMode: () => void;
-	canToggleEditorMode?: boolean;
 	onOpenSettings?: () => void;
 	onNavigatePrev?: () => void;
 	onNavigateNext?: () => void;
@@ -46,12 +40,9 @@ type Props = {
 export function EditorToolbar({
 	fileName,
 	breadcrumb,
-	editorMode,
 	isMobile = false,
 	onToggleSidebar,
 	onToggleMetadata,
-	onToggleEditorMode,
-	canToggleEditorMode = true,
 	onOpenSettings,
 	onNavigatePrev,
 	onNavigateNext,
@@ -62,17 +53,21 @@ export function EditorToolbar({
 	onAiSpellCheck,
 	onAiContinueWriting,
 }: Props) {
+	const [isMounted, setIsMounted] = useState(false);
 	const anyAiLoading = aiLoading
 		? aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting
 		: false;
 	const hasAiActions = Boolean(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting);
 	const sidebarIconButtonClass =
 		"pressable flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
-	const editorModeTitle = canToggleEditorMode
-		? editorMode === "raw"
-			? "Switch to Block Note"
-			: "Switch to Raw MDX"
-		: "MDX opens in raw source mode";
+
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
+	const runAiAction = (handler?: () => void) => () => {
+		handler?.();
+	};
 
 	if (isMobile) {
 		const mobileControlClass =
@@ -119,7 +114,7 @@ export function EditorToolbar({
 					<div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
 						<div className="min-w-0">
 							{breadcrumb && breadcrumb.length > 0 && (
-								<div className="truncate text-[10px] text-muted-foreground/70">
+								<div className="truncate text-[10px] text-muted-foreground">
 									{breadcrumb.join(" / ")}
 								</div>
 							)}
@@ -130,19 +125,6 @@ export function EditorToolbar({
 					</div>
 
 					<div className="flex h-11 items-center gap-1.5 sm:gap-2">
-						<button
-							onClick={onToggleEditorMode}
-							disabled={!canToggleEditorMode}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97] disabled:opacity-40"
-							title={editorModeTitle}
-							aria-label={editorModeTitle}
-						>
-							{editorMode === "raw" ? (
-								<Code className="h-[18px] w-[18px]" strokeWidth={1.7} />
-							) : (
-								<Type className="h-[18px] w-[18px]" strokeWidth={1.7} />
-							)}
-						</button>
 						<button
 							onClick={onToggleMetadata}
 							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
@@ -210,35 +192,30 @@ export function EditorToolbar({
 					<>
 						{breadcrumb.map((part, i) => (
 							<span key={i} className="flex shrink-0 items-center gap-1.5">
-								<span className="truncate text-muted-foreground">{part}</span>
+								<span className="text-muted-foreground/50 truncate">{part}</span>
 								<span className="text-muted-foreground/50">/</span>
 							</span>
 						))}
 					</>
 				)}
-				<span className="truncate font-medium ">{fileName}</span>
+				<span className="text-muted-foreground/50 truncate font-medium ">{fileName}</span>
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
-				<button
-					type="button"
-					onClick={() => {
-						const shareTitle = fileName;
-						const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-						if (navigator.share) {
-							void navigator.share({ title: shareTitle, url: shareUrl });
-							return;
-						}
-						if (shareUrl) void navigator.clipboard?.writeText(shareUrl);
-					}}
-					className="pressable hidden h-8 items-center gap-1.5 border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-					title="Share note"
-					aria-label="Share note"
-				>
-					<Share2 className="h-3.5 w-3.5" strokeWidth={1.6} />
-					<span>Share</span>
-				</button>
-				{hasAiActions && (
+				{hasAiActions && !isMounted && (
+					<button
+						disabled
+						className={cn(
+							sidebarIconButtonClass,
+							"text-sidebar-foreground/58 opacity-50",
+						)}
+						title="AI actions"
+						aria-label="AI actions"
+					>
+						<SparkleIcon className="h-3.5 w-3.5" />
+					</button>
+				)}
+				{hasAiActions && isMounted && (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<button
@@ -257,19 +234,19 @@ export function EditorToolbar({
 										strokeWidth={1.6}
 									/>
 								) : (
-									<Sparkles className="h-3.5 w-3.5" strokeWidth={1.6} />
+									<SparkleIcon className="h-3.5 w-3.5" />
 								)}
 							</button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-52">
+						<DropdownMenuContent align="end" className="w-52 rounded-md shadow-xl animate-in fade-in-80">
 							{onAiGenerateTitle && (
 								<DropdownMenuItem
-									onSelect={onAiGenerateTitle}
+									onSelect={runAiAction(onAiGenerateTitle)}
 									disabled={anyAiLoading}
 									className="gap-2 text-xs"
 								>
 									<Wand2
-										className="h-3.5 w-3.5 text-status-progress"
+										className="h-3.5 w-3.5"
 										strokeWidth={1.6}
 									/>
 									Generate title
@@ -283,12 +260,12 @@ export function EditorToolbar({
 							)}
 							{onAiSpellCheck && (
 								<DropdownMenuItem
-									onSelect={onAiSpellCheck}
+									onSelect={runAiAction(onAiSpellCheck)}
 									disabled={anyAiLoading}
 									className="gap-2 text-xs"
 								>
 									<SpellCheck
-										className="h-3.5 w-3.5 text-success"
+										className="h-3.5 w-3.5"
 										strokeWidth={1.6}
 									/>
 									Spell check
@@ -302,12 +279,12 @@ export function EditorToolbar({
 							)}
 							{onAiContinueWriting && (
 								<DropdownMenuItem
-									onSelect={onAiContinueWriting}
+									onSelect={runAiAction(onAiContinueWriting)}
 									disabled={anyAiLoading}
 									className="gap-2 text-xs"
 								>
 									<PenTool
-										className="h-3.5 w-3.5 text-status-planned"
+										className="h-3.5 w-3.5"
 										strokeWidth={1.6}
 									/>
 									Continue writing
@@ -343,5 +320,34 @@ export function EditorToolbar({
 				)}
 			</div>
 		</div>
+	);
+}
+
+	function SparkleIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.6}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			className={className}
+		>
+			<path
+				d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.34a.5.5 0 0 1 0-.99L8.5 10.437A2 2 0 0 0 9.936 9l1.34-6.135a.5.5 0 0 1 .99 0L13.56 9A2 2 0 0 0 15 10.437l6.135 1.34a.5.5 0 0 1 0 .99L15 14.063A2 2 0 0 0 13.562 15.5l-1.34 6.135a.5.5 0 0 1-.99 0Z"
+				stroke="hsl(43, 96%, 56%)"
+				style={{ animation: "sparkle-float-up 2.4s ease-in-out infinite" }}
+			/>
+			<circle cx={12} cy={2.5} r={1.5} fill="#22d3ee" stroke="none"
+				style={{ animation: "sparkle-float-down 2s ease-in-out infinite 0.15s" }} />
+			<circle cx={21.5} cy={12} r={1.5} fill="#34d399" stroke="none"
+				style={{ animation: "sparkle-float-up 2.8s ease-in-out infinite 0.4s" }} />
+			<circle cx={12} cy={21.5} r={1.5} fill="#a78bfa" stroke="none"
+				style={{ animation: "sparkle-float-down 2.2s ease-in-out infinite 0.9s" }} />
+			<circle cx={2.5} cy={12} r={1.5} fill="#f472b6" stroke="none"
+				style={{ animation: "sparkle-float-up 3s ease-in-out infinite 0.6s" }} />
+		</svg>
 	);
 }

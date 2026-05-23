@@ -41,8 +41,14 @@ import {
 
 type WorkspaceLoadingVariant = "notes" | "journal";
 
-function DataLine({ className }: { className?: string }) {
-	return <div aria-hidden="true" className={cn("bg-sidebar-foreground/[0.075]", className)} />;
+function DataLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
+	return (
+		<div
+			aria-hidden="true"
+			className={cn("bg-sidebar-foreground/[0.075]", className)}
+			style={style}
+		/>
+	);
 }
 
 function StaticControl({
@@ -196,25 +202,26 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 	);
 }
 
-function SidebarDataRows({ variant }: { variant: WorkspaceLoadingVariant }) {
-	const rows =
-		variant === "journal"
-			? ["Today", "Yesterday", "This week", "Ideas", "Work log", "Private"]
-			: ["Start here", "Inbox", "Projects", "Writing", "References", "Archive"];
+// Enough rows to fill the column on tall viewports; the parent clips the
+// overflow on shorter ones. Deterministic widths + a gentle fade keep the
+// list reading as a real file tree rather than a stub pinned to the top.
+const SIDEBAR_SKELETON_ROW_COUNT = 22;
 
+function SidebarDataRows() {
 	return (
 		<div className="space-y-1.5">
-			{rows.map((label, index) => {
-				const Icon = variant === "journal" ? CalendarDays : index === 2 ? Folder : FileText;
+			{Array.from({ length: SIDEBAR_SKELETON_ROW_COUNT }).map((_, index) => {
+				const Icon = index === 2 || index === 9 ? Folder : FileText;
+				const width = 46 + ((index * 53) % 44);
 
 				return (
 					<div
-						key={label}
+						key={index}
 						className="flex h-8 items-center gap-2 px-2 text-sidebar-foreground/36"
+						style={{ opacity: Math.max(0.18, 1 - index * 0.045) }}
 					>
 						<Icon className="h-4 w-4 shrink-0" strokeWidth={1.45} />
-						<span className="text-[12px] leading-none">{label}</span>
-						{index < 3 ? <DataLine className="ml-auto h-px w-8" /> : null}
+						<DataLine className="h-2.5 rounded-sm" style={{ width: `${width}%` }} />
 					</div>
 				);
 			})}
@@ -383,12 +390,12 @@ export function WorkspaceSidebarSkeleton({ variant }: { variant: WorkspaceLoadin
 					</div>
 				</div>
 			</div>
-			<div className="space-y-5 p-3">
+			<div className="min-h-0 flex-1 overflow-hidden p-3">
 				<div className="space-y-2">
 					<div className="px-2 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/32">
 						Notes
 					</div>
-					<SidebarDataRows variant={variant} />
+					<SidebarDataRows />
 				</div>
 			</div>
 		</div>
@@ -524,7 +531,7 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 				</StaticIconButton>
 
 				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-					<span className="truncate font-medium ">Loading note data</span>
+					<span className="text-muted-foreground/50 truncate font-mediumi">Loading note data</span>
 				</div>
 
 				<div className="flex shrink-0 items-center gap-1">

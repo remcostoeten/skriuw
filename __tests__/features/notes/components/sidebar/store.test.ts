@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { createStore, type StateCreator } from "zustand/vanilla";
 import type {
 	Project,
 	RecentItem,
@@ -45,38 +46,27 @@ async function flushMicrotasks() {
 	await Promise.resolve();
 }
 
-function buildAuthSnapshot() {
-	return {
-		phase: authUserScopeId === "signed-out-local" ? "signed_out" : "authenticated",
-		rememberMe: true,
-		isReady: true,
-		isAuthConfigured: false,
-		user:
-			authUserScopeId === "signed-out-local"
-				? null
-				: {
-						id: authUserScopeId,
-						email: `${authUserScopeId}@example.com`,
-						name: authUserScopeId,
-					},
-		session: null,
-		error: null,
-		workspaceId: authUserScopeId,
-		userScopeId: authUserScopeId,
-	};
-}
-
 async function loadStoreModule() {
+	mock.module("zustand", () => {
+		const createBoundStore = (creator: StateCreator<unknown>) => {
+			const store = createStore(creator);
+			const useBoundStore = (selector?: (state: unknown) => unknown) =>
+				selector ? selector(store.getState()) : store.getState();
+			return Object.assign(useBoundStore, store);
+		};
+
+		return {
+			create: (creator?: StateCreator<unknown>) =>
+				creator ? createBoundStore(creator) : createBoundStore,
+		};
+	});
+
 	const authModuleMock = {
-		getWorkspaceId: () => authUserScopeId,
-		resolveWorkspaceId: (userScopeId?: string | null) => userScopeId ?? authUserScopeId,
 		getUserScopeId: () => authUserScopeId,
 		resolveUserScopeId: (userScopeId?: string | null) => userScopeId ?? authUserScopeId,
-		getAuthStateSnapshot: () => buildAuthSnapshot(),
-		subscribeAuthState: () => () => undefined,
 	};
-	mock.module("@/platform/auth", () => authModuleMock);
-	mock.module("@/platform/auth/index", () => authModuleMock);
+	mock.module("@/core/auth", () => authModuleMock);
+	mock.module("@/core/auth/index", () => authModuleMock);
 
 	return import(
 		`@/features/notes/components/sidebar/store?test=${Math.random().toString(36).slice(2)}`
@@ -117,6 +107,121 @@ afterEach(() => {
 });
 
 describe("sidebar store user scope scoping", () => {
+	test("normalizes older low recent caps so history can grow beyond the preview size", async () => {
+		authUserScopeId = "user-a";
+		storage.setItem(
+			"skriuw-sidebar",
+			JSON.stringify({
+				state: {
+					profiles: {
+						"user-a": {
+							sections: [],
+							favorites: [],
+							recents: [],
+							projects: [],
+							maxRecents: 6,
+							showSectionHeaders: true,
+							compactMode: false,
+						},
+					},
+				},
+				version: 0,
+			}),
+		);
+
+		const { useSidebarStore } = await loadStoreModule();
+		await flushMicrotasks();
+
+		for (let index = 0; index < 8; index += 1) {
+			useSidebarStore.getState().addToRecents(`file-${index}`, "file");
+		}
+
+		expect(useSidebarStore.getState().config.maxRecents).toBeGreaterThanOrEqual(50);
+		expect(useSidebarStore.getState().config.recents).toHaveLength(8);
+	});
+
+	test("restores the required file tree section from older persisted profiles", async () => {
+		authUserScopeId = "user-a";
+		const { useSidebarStore } = await loadStoreModule();
+
+		await flushMicrotasks();
+
+		useSidebarStore.setState({
+			profiles: {
+				"user-a": {
+					sections: [
+						{
+							id: "journal",
+							type: "journal",
+							name: "Journal",
+							isCollapsed: false,
+							isVisible: true,
+							order: 2,
+						},
+						{
+							id: "recents",
+							type: "recents",
+							name: "Recents",
+							isCollapsed: false,
+							isVisible: true,
+							order: 4,
+						},
+						{
+							id: "projects",
+							type: "projects",
+							name: "Projects",
+							isCollapsed: false,
+							isVisible: true,
+							order: 5,
+						},
+					],
+					favorites: [],
+					recents: [],
+					projects: [],
+					maxRecents: 10,
+					showSectionHeaders: true,
+					compactMode: false,
+				},
+				"user-b": {
+					sections: [
+						{
+							id: "file-tree",
+							type: "file-tree",
+							name: "All Notes",
+							isCollapsed: false,
+							isVisible: false,
+							order: 0,
+						},
+					],
+					favorites: [],
+					recents: [],
+					projects: [],
+					maxRecents: 10,
+					showSectionHeaders: true,
+					compactMode: false,
+				},
+			},
+		});
+
+		useSidebarStore.getState().syncUserScope("user-a");
+
+		expect(
+			useSidebarStore
+				.getState()
+				.getSections()
+				.some((section: SidebarSection) => section.id === "file-tree"),
+		).toBe(true);
+
+		useSidebarStore.getState().syncUserScope("user-b");
+
+		expect(
+			useSidebarStore
+				.getState()
+				.getSections()
+				.find((section: SidebarSection) => section.id === "file-tree")?.isVisible,
+		).toBe(true);
+	});
+
 	test("keeps favorites, recents, custom sections, projects, and visibility prefs isolated per user scope", async () => {
 		authUserScopeId = "user-a";
 		const { useSidebarStore } = await loadStoreModule();
@@ -142,7 +247,7 @@ describe("sidebar store user scope scoping", () => {
 		await flushMicrotasks();
 
 		authUserScopeId = "user-b";
-		await useSidebarStore.getState().syncWorkspace("user-b");
+		await useSidebarStore.getState().syncUserScope("user-b");
 		await flushMicrotasks();
 
 		expect(useSidebarStore.getState().config.favorites).toHaveLength(0);
@@ -196,7 +301,7 @@ describe("sidebar store user scope scoping", () => {
 		).toEqual(["file-b"]);
 
 		authUserScopeId = "user-a";
-		await useSidebarStore.getState().syncWorkspace("user-a");
+		await useSidebarStore.getState().syncUserScope("user-a");
 		await flushMicrotasks();
 
 		expect(
@@ -222,7 +327,7 @@ describe("sidebar store user scope scoping", () => {
 		expect(useSidebarStore.getState().config.compactMode).toBe(true);
 
 		authUserScopeId = "user-b";
-		await useSidebarStore.getState().syncWorkspace("user-b");
+		await useSidebarStore.getState().syncUserScope("user-b");
 		await flushMicrotasks();
 
 		expect(

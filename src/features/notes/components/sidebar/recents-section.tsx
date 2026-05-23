@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { FileTextIcon } from "@/shared/icons/file-text";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
@@ -10,6 +10,8 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import type { RecentItem } from "./types";
 import { SidebarSection } from "./sidebar-section";
 import { EmptyState } from "@/shared/ui/empty-state";
+
+const RECENTS_PREVIEW_LIMIT = 6;
 
 type Props = {
 	recents: RecentItem[];
@@ -62,6 +64,7 @@ export const RecentsSection = memo(function RecentsSection({
 	onDragEnd,
 }: Props) {
 	const [isHydrated, setIsHydrated] = useState(false);
+	const [showAllRecents, setShowAllRecents] = useState(false);
 	useEffect(() => {
 		setIsHydrated(true);
 	}, []);
@@ -82,6 +85,17 @@ export const RecentsSection = memo(function RecentsSection({
 			>,
 		[recents, filesById, foldersById],
 	);
+
+	useEffect(() => {
+		if (resolvedRecents.length <= RECENTS_PREVIEW_LIMIT) {
+			setShowAllRecents(false);
+		}
+	}, [resolvedRecents.length]);
+
+	const visibleRecents = showAllRecents
+		? resolvedRecents
+		: resolvedRecents.slice(0, RECENTS_PREVIEW_LIMIT);
+	const hiddenRecentCount = resolvedRecents.length - visibleRecents.length;
 
 	const clearButton =
 		isHydrated && resolvedRecents.length > 0 ? (
@@ -126,7 +140,7 @@ export const RecentsSection = memo(function RecentsSection({
 				/>
 			) : (
 				<div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
-					{resolvedRecents.map((recent) => (
+					{visibleRecents.map((recent) => (
 						<motion.button
 							key={recent.id}
 							whileTap={{ scale: 0.985 }}
@@ -156,6 +170,27 @@ export const RecentsSection = memo(function RecentsSection({
 							<span className="flex-1 truncate">{recent.name}</span>
 						</motion.button>
 					))}
+					{(hiddenRecentCount > 0 || showAllRecents) && (
+						<button
+							type="button"
+							onClick={() => setShowAllRecents((value) => !value)}
+							className={cn(
+								"mt-1 flex w-full items-center justify-center gap-1.5 border border-transparent px-2 text-xs text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground",
+								compactMode ? "h-[26px]" : "h-[30px]",
+							)}
+						>
+							{showAllRecents ? (
+								<ChevronUp className="h-3 w-3" strokeWidth={1.5} />
+							) : (
+								<ChevronDown className="h-3 w-3" strokeWidth={1.5} />
+							)}
+							<span>
+								{showAllRecents
+									? "Show less"
+									: `Load ${hiddenRecentCount} more`}
+							</span>
+						</button>
+					)}
 				</div>
 			)}
 		</SidebarSection>
