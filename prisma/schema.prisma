@@ -149,6 +149,8 @@ model NoteShare {
   content             String
   richContent         Json?     @map("rich_content")
   preferredEditorMode String    @default("block") @map("preferred_editor_mode")
+  // Author name snapshot. Null → the public page is anonymous.
+  authorName          String?   @map("author_name")
 
   // Access controls
   passwordHash        String?   @map("password_hash")
@@ -159,12 +161,32 @@ model NoteShare {
   viewCount           Int       @default(0) @map("view_count")
   lastViewedAt        DateTime? @map("last_viewed_at")
 
+  views               NoteShareView[]
+
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@unique([noteId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("note_shares")
+}
+
+model NoteShareView {
+  id         String    @id @default(uuid()) @db.Uuid
+  shareId    String    @map("share_id") @db.Uuid
+  share      NoteShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  // Salted hash of (ip + user-agent) — approximates a unique viewer without
+  // storing any PII. Never reversible to an address.
+  viewerHash String    @map("viewer_hash")
+  referrer   String?
+  country    String?
+
+  viewedAt   DateTime  @default(now()) @map("viewed_at")
+
+  @@index([shareId, viewedAt(sort: Desc)])
+  @@index([shareId, viewerHash])
+  @@map("note_share_views")
 }
 
 model NoteVersion {
