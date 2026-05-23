@@ -70,80 +70,52 @@ export function EditorToolbar({
 	};
 
 	if (isMobile) {
-		const mobileControlClass =
-			"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:scale-[0.97]";
+		const mobileIconButton =
+			"flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]";
 
 		return (
-			<div className="border-b border-border bg-card px-3 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] sm:px-4">
-				<div className="flex items-center gap-2.5 sm:gap-3">
-					<div className="flex h-11 items-center gap-1 border border-border bg-background px-1">
-						<button
-							onClick={onToggleSidebar}
-							className={mobileControlClass}
-							title="Open notes"
-							aria-label="Open notes"
-						>
-							<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						</button>
-						<button
-							onClick={onNavigatePrev}
-							disabled={!canNavigatePrev}
-							className={cn(
-								mobileControlClass,
-								!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
-							)}
-							title="Previous file"
-							aria-label="Previous file"
-						>
-							<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						</button>
-						<button
-							onClick={onNavigateNext}
-							disabled={!canNavigateNext}
-							className={cn(
-								mobileControlClass,
-								!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
-							)}
-							title="Next file"
-							aria-label="Next file"
-						>
-							<ChevronRight className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						</button>
+			<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3">
+				<div className="flex min-h-11 items-center gap-0.5">
+					<button
+						onClick={onToggleSidebar}
+						className={mobileIconButton}
+						title="Open notes"
+						aria-label="Open notes"
+					>
+						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
+					</button>
+
+					<div className="min-w-0 flex-1 px-1.5">
+						{breadcrumb && breadcrumb.length > 0 && (
+							<p className="truncate text-[11px] leading-tight text-muted-foreground/70">
+								{breadcrumb.join(" / ")}
+							</p>
+						)}
+						<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
+							{fileName}
+						</h1>
 					</div>
 
-					<div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
-						<div className="min-w-0">
-							{breadcrumb && breadcrumb.length > 0 && (
-								<div className="truncate text-[10px] text-muted-foreground">
-									{breadcrumb.join(" / ")}
-								</div>
-							)}
-							<div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-								{fileName}
-							</div>
-						</div>
-					</div>
-
-					<div className="flex h-11 items-center gap-1.5 sm:gap-2">
-						<button
-							onClick={onToggleMetadata}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
-							title="Open note details"
-							aria-label="Open note details"
-						>
-							<PanelRight className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						</button>
+					<button
+						onClick={onToggleMetadata}
+						className={mobileIconButton}
+						title="Open note details"
+						aria-label="Open note details"
+					>
+						<PanelRight className="h-5 w-5" strokeWidth={1.7} />
+					</button>
+					{onOpenSettings ? (
 						<button
 							onClick={onOpenSettings}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
+							className={mobileIconButton}
 							title="Open settings"
 							aria-label="Open settings"
 						>
-							<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
+							<Settings2 className="h-5 w-5" strokeWidth={1.7} />
 						</button>
-					</div>
+					) : null}
 				</div>
-			</div>
+			</header>
 		);
 	}
 
@@ -238,7 +210,7 @@ export function EditorToolbar({
 								)}
 							</button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-52 rounded-md shadow-xl animate-in fade-in-80">
+						<DropdownMenuContent align="end" className="w-52 rounded-none shadow-none animate-in fade-in-80">
 							{onAiGenerateTitle && (
 								<DropdownMenuItem
 									onSelect={runAiAction(onAiGenerateTitle)}

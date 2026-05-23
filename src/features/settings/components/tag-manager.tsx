@@ -88,7 +88,7 @@ export function TagManager() {
 							onChange={(e) => setNewTagName(e.target.value)}
 							onKeyDown={handleKeyDown}
 							placeholder="Tag name..."
-							className="flex-1 text-sm bg-transparent outline-hidden placeholder:text-muted-foreground/50"
+							className="flex-1 text-base bg-transparent outline-hidden placeholder:text-muted-foreground/50 md:text-sm"
 						/>
 					</div>
 

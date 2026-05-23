@@ -68,7 +68,7 @@ export function PlanningShell({
 	);
 
 	return (
-		<div className="flex h-screen w-full bg-background text-foreground text-sm">
+		<div className="flex h-dvh w-full bg-background text-foreground text-sm">
 			<IconRail onOpenSettings={() => router.push("/app/settings")} />
 
 			<aside className="hidden w-72 shrink-0 flex-col border-r border-border bg-sidebar md:flex">
@@ -87,13 +87,13 @@ export function PlanningShell({
 			</Sheet>
 
 			<main className="flex min-w-0 flex-1 flex-col bg-background">
-				<header className="flex items-center justify-between border-b border-border bg-sidebar px-3 py-2">
+				<header className="flex items-center justify-between border-b border-border bg-sidebar px-3 pb-2 pt-[max(env(safe-area-inset-top),0.5rem)] md:py-2">
 					<div className="flex min-w-0 items-center gap-1">
 						<button
 							type="button"
 							onClick={() => setMobileOpen(true)}
 							aria-label="Open planning sidebar"
-							className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground md:hidden"
+							className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground md:hidden"
 						>
 							<Menu className="h-4 w-4" />
 						</button>

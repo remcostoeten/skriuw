@@ -4,7 +4,6 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
-	Code,
 	Database,
 	FileText,
 	FlaskConical,
@@ -146,6 +145,29 @@ function LoadingRail({ active }: { active: WorkspaceLoadingVariant }) {
 }
 
 function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; title: string }) {
+	if (variant === "notes") {
+		return (
+			<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3 md:hidden">
+				<div className="flex min-h-11 items-center gap-0.5">
+					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
+					</StaticControl>
+					<div className="min-w-0 flex-1 px-1.5">
+						<div className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground/70">
+							{title}
+						</div>
+					</div>
+					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+						<PanelRight className="h-5 w-5" strokeWidth={1.7} />
+					</StaticControl>
+					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+						<Settings2 className="h-5 w-5" strokeWidth={1.7} />
+					</StaticControl>
+				</div>
+			</header>
+		);
+	}
+
 	return (
 		<div className="border-b border-border bg-card px-3 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] sm:px-4 md:hidden">
 			<div className="flex items-center gap-2.5 sm:gap-3">
@@ -157,19 +179,13 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 						<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
 					<StaticControl className="h-11 w-11 border-transparent bg-transparent">
-						{variant === "notes" ? (
-							<ChevronRight className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						) : (
-							<CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						)}
+						<CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
 				</div>
 
 				<div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
 					<div className="min-w-0">
-						<div className="truncate text-[10px] text-muted-foreground/70">
-							{variant === "notes" ? "Notes" : "Journal"}
-						</div>
+						<div className="truncate text-[10px] text-muted-foreground/70">Journal</div>
 						<div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground/70">
 							{title}
 						</div>
@@ -178,24 +194,11 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 
 				<div className="flex h-11 items-center gap-1.5 sm:gap-2">
 					<StaticControl className="h-11 w-11 shrink-0 border-border bg-background">
-						{variant === "notes" ? (
-							<Code className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						) : (
-							<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						)}
+						<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
 					<StaticControl className="h-11 w-11 shrink-0 border-border bg-background">
-						{variant === "notes" ? (
-							<PanelRight className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						) : (
-							<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						)}
+						<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
-					{variant === "notes" ? (
-						<StaticControl className="h-11 w-11 shrink-0 border-border bg-background">
-							<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
-						</StaticControl>
-					) : null}
 				</div>
 			</div>
 		</div>

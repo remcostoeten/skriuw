@@ -573,11 +573,11 @@ export function SidebarPanel({
 										}
 									}}
 									placeholder="Search"
-									className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
+									className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
 								/>
 								<button
 									onClick={closeSearch}
-									className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+									className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:h-7 md:w-7"
 									title="Close search"
 								>
 									<X className="h-4 w-4" strokeWidth={1.5} />

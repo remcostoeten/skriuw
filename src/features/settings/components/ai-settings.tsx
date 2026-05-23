@@ -347,7 +347,7 @@ export function AiLocalKeySettings() {
 								value={draftName}
 								onChange={(e) => setDraftName(e.target.value)}
 								placeholder="Key name (e.g. Personal)"
-								className="h-9 flex-1 border border-border bg-background px-3 text-xs text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors"
+								className="h-9 flex-1 border border-border bg-background px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
 							/>
 						</div>
 						<div className="flex gap-2">
@@ -363,7 +363,7 @@ export function AiLocalKeySettings() {
 									placeholder="API key..."
 									autoComplete="off"
 									spellCheck={false}
-									className="h-9 w-full border border-border bg-background px-3 pr-9 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors"
+									className="h-9 w-full border border-border bg-background px-3 pr-9 font-mono text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
 								/>
 								<button
 									type="button"
