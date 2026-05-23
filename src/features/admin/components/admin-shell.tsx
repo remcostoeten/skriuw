@@ -11,7 +11,7 @@ export function AdminShell({ children }: Props) {
 			<aside className="w-56 shrink-0 border-r border-border/40 bg-muted/15">
 				<AdminNav />
 			</aside>
-			<main className="flex-1 overflow-auto">{children}</main>
+			<main className="flex-1 min-h-0 overflow-hidden">{children}</main>
 		</div>
 	);
 }
