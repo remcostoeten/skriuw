@@ -11,7 +11,7 @@
     "start": "bun --bun next start",
     "test": "bun run test:unit",
     "test:unit": "bun test --isolate __tests__",
-    "test:unit:core": "bun test __tests__/domain/journal/mappers.test.ts __tests__/domain/notes/mappers.test.ts __tests__/domain/seed/starter-content.test.ts __tests__/platform/auth/index.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
+    "test:unit:core": "bun test __tests__/domain/journal/mappers.test.ts __tests__/domain/notes/mappers.test.ts __tests__/platform/auth/index.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
     "test:unit:web-state": "bun test __tests__/features/settings/store.test.ts __tests__/features/notes/components/sidebar/store.test.ts",
     "test:unit:bootstrap": "bun test __tests__/providers/persistence-bootstrap.test.tsx",
     "test:unit:stores": "bun test __tests__/features/notes/store.test.ts && bun test __tests__/features/journal/store.test.ts",
