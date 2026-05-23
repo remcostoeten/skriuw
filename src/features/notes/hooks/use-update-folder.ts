@@ -1,7 +1,7 @@
 "use client";
 
 import { useApiMutation } from "@/shared/api";
-import { updateFolder, type UpdateFolderInput } from "@/domain/folders/api";
+import { updateFolder, type UpdateFolderInput } from "@/domain/folders/actions";
 import { notesKeys } from "./use-notes";
 import type { NoteFolder } from "@/types/notes";
 

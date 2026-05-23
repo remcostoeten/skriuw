@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
-import { type UpdateNoteInput, updateNote } from "@/domain/notes/api";
+import { type UpdateNoteInput, updateNote } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { NoteEditorMode, NoteFile, RichTextDocument } from "@/types/notes";
 import { notesKeys } from "./use-notes";

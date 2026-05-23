@@ -1,5 +1,3 @@
-"use server";
-
 import { getAuthenticatedUser } from "@/core/db";
 import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
 import { buildNoteBacklinks, type ResolvedNoteLink } from "@/features/notes/lib/note-links";
