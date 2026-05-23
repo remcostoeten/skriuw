@@ -76,7 +76,7 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 		authorName: input.showAuthor ? user.name : null,
 		viewOnce: input.viewOnce,
 		expiresAt: resolveExpiry(input.expiry),
-		passwordHash: input.password ? hashSharePassword(input.password) : null,
+		passwordHash: input.password ? await hashSharePassword(input.password) : null,
 		consumedAt: null,
 		revokedAt: null,
 		viewCount: 0,
@@ -109,7 +109,7 @@ export async function updateNoteShareSettings(
 		authorName: input.showAuthor ? user.name : null,
 	};
 	if (input.password !== undefined) {
-		data.passwordHash = input.password ? hashSharePassword(input.password) : null;
+		data.passwordHash = input.password ? await hashSharePassword(input.password) : null;
 	}
 
 	const share = await prisma.noteShare.update({ where: { id: existing.id }, data });
