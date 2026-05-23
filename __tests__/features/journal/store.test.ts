@@ -11,7 +11,7 @@ describe("journal ui store", () => {
 
 		expect(useJournalStore.getState().selectedDate).toEqual(updatedDate);
 
-		useJournalStore.getState().resetWorkspace();
+		useJournalStore.getState().resetUi();
 
 		expect(useJournalStore.getState().selectedDate).toBeInstanceOf(Date);
 	});

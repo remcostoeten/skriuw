@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { SeedFolder, SeedNote } from "./types";
+import type { SeedFolder, SeedNote } from "@/domain/seed/types";
 
 type State = {
 	bundleId: string;

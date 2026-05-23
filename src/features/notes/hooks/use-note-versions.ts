@@ -1,23 +1,19 @@
 "use client";
 
-import { useApiQuery } from "@/shared/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useAuthedApiQuery } from "@/shared/api";
 import type { NoteVersion } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
-import { createCacheQueryFn } from "@/shared/api/cache-query";
+import { fetchNoteVersions } from "@/domain/notes/actions";
 
 export function useNoteVersions(noteId: string | null | undefined) {
-	const auth = useAuthSnapshot();
 	const id = noteId ?? "";
-	const queryClient = useQueryClient();
 
-	return useApiQuery<NoteVersion[]>(
+	return useAuthedApiQuery<NoteVersion[]>(
 		notesKeys.versions(id),
-		createCacheQueryFn<NoteVersion[]>(queryClient, notesKeys.versions(id)),
+		() => fetchNoteVersions(id),
 		{
-		enabled: Boolean(id) && auth.isReady && auth.phase === "authenticated",
-			staleTime: Infinity,
+			enabled: Boolean(id),
+			staleTime: 0,
 		},
 	);
 }

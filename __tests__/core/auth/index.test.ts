@@ -76,30 +76,21 @@ describe("auth session state", () => {
 		Reflect.deleteProperty(globalThis, "window");
 	});
 
-	test("initializes a signed-out session with a stable local workspace id", async () => {
+	test("reads remember-me preference without loading a client session", async () => {
 		const { localStorage } = installWindow();
 		localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify({ rememberMe: false }));
 
 		const authModule = await import(
-			`@/platform/auth/index?initialize-signed-out=${Math.random().toString(36).slice(2)}`
+			`@/core/auth/index?remember-me=${Math.random().toString(36).slice(2)}`
 		);
 
-		const snapshot = await authModule.initializeAuth();
-
-		expect(snapshot).toEqual(
-			expect.objectContaining({
-				phase: "signed_out",
-				workspaceId: "signed-out-local",
-				isReady: true,
-				user: null,
-			}),
-		);
-		expect(authModule.getWorkspaceId()).toBe("signed-out-local");
+		expect(authModule.getRememberMePreference()).toBe(false);
+		expect(authModule.getUserScopeId()).toBe("signed-out-local");
 	});
 
 	test("signing out returns the auth state to signed out", async () => {
 		const authModule = await import(
-			`@/platform/auth/index?sign-out=${Math.random().toString(36).slice(2)}`
+			`@/core/auth/index?sign-out=${Math.random().toString(36).slice(2)}`
 		);
 
 		authModule.resetAuthForTests();
@@ -108,7 +99,6 @@ describe("auth session state", () => {
 		expect(snapshot).toEqual(
 			expect.objectContaining({
 				phase: "signed_out",
-				workspaceId: "signed-out-local",
 				user: null,
 			}),
 		);
@@ -117,7 +107,7 @@ describe("auth session state", () => {
 	test("builds a stable OAuth callback redirect", async () => {
 		installWindow("http://localhost:3000/sign-in?draft=1");
 		const authModule = await import(
-			`@/platform/auth/index?oauth-redirect-auth-page=${Math.random().toString(36).slice(2)}`
+			`@/core/auth/index?oauth-redirect-auth-page=${Math.random().toString(36).slice(2)}`
 		);
 
 		expect(authModule.getOAuthRedirectTo()).toBe("http://localhost:3000/app");
@@ -126,7 +116,7 @@ describe("auth session state", () => {
 	test("preserves app paths as the OAuth callback next target", async () => {
 		installWindow("https://skriuw.example/app/journal?entry=42");
 		const authModule = await import(
-			`@/platform/auth/index?oauth-redirect-app-page=${Math.random().toString(36).slice(2)}`
+			`@/core/auth/index?oauth-redirect-app-page=${Math.random().toString(36).slice(2)}`
 		);
 
 		expect(authModule.getOAuthRedirectTo()).toBe(

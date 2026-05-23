@@ -23,7 +23,7 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useAuth } from "@/core/auth/use-auth";
 import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
@@ -41,7 +41,7 @@ function ClearDataDialog({ disabled }: { disabled: boolean }) {
 
 	const router = useRouter();
 	const queryClient = useQueryClient();
-	const resetNotesStore = useNotesStore((s) => s.resetWorkspace);
+	const resetNotesStore = useNotesStore((s) => s.resetUi);
 
 	const matches = value.trim().toLowerCase() === CLEAR_PHRASE;
 
@@ -134,8 +134,8 @@ function ClearDataDialog({ disabled }: { disabled: boolean }) {
 type ExportState = "idle" | "pending" | "error";
 
 export function DataSection() {
-	const auth = useAuthSnapshot();
-	const isConnected = auth.phase === "authenticated" && auth.isAuthConfigured;
+	const auth = useAuth();
+	const isConnected = auth.phase === "authenticated";
 	const [exportState, setExportState] = useState<ExportState>("idle");
 
 	const handleExport = async () => {
@@ -168,20 +168,6 @@ export function DataSection() {
 				description="Your notes are yours. Sync, export, or back them up anytime."
 			/>
 			<SettingsCard>
-				<Row
-					title="Cloud sync"
-					description={isConnected ? "Active" : "Not signed in"}
-				>
-					<span
-						className={
-							isConnected
-								? "inline-flex items-center rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success"
-								: "inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-						}
-					>
-						{isConnected ? "Connected" : "Not signed in"}
-					</span>
-				</Row>
 				<Row
 					title="Export notes"
 					description="Download all notes and journal entries as Markdown."

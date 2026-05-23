@@ -2,20 +2,19 @@
 
 import NumberFlow from "@number-flow/react";
 import { memo } from "react";
-import { usePreferencesStore } from "@/features/settings/store";
 
-type AnimatedNumberProps = {
+type Props = {
 	value: number;
 	className?: string;
+	animate?: boolean;
 };
 
-export const AnimatedNumber = memo(function AnimatedNumber({
+export const AnimatedNumber = memo(function AnimatedNumberComponent({
 	value,
 	className,
-}: AnimatedNumberProps) {
-	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
-
-	if (!animateNumbers) {
+	animate = true,
+}: Props) {
+	if (!animate) {
 		return <span className={className}>{value}</span>;
 	}
 

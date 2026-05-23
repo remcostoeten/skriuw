@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getWorkspaceId, resolveWorkspaceId } from "@/platform/auth";
+import { getUserScopeId, resolveUserScopeId } from "@/core/auth";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
 import {
@@ -28,7 +28,7 @@ import type {
 export type { AiKey, AiPreferences } from "./preferences/types";
 
 interface PreferencesState {
-	workspaceId: string | null;
+	userScopeId: string | null;
 	isLoading: boolean;
 	isHydrated: boolean;
 	profiles: Record<string, PreferencesProfile>;
@@ -66,17 +66,17 @@ interface PreferencesState {
 	recordMood: (mood: string) => void;
 	incrementNoteCount: () => void;
 	logActivity: (action: ActivityAction) => void;
-	syncWorkspace: (workspaceId: string) => void;
+	syncUserScope: (userScopeId: string) => void;
 }
 
 /**
  * Flatten a profile onto the top-level store state for ergonomic access
- * via `state.editor.defaultFont` etc. The full per-workspace map lives in
- * `profiles`; this is the projection of the *active* workspace.
+ * via `state.editor.defaultFont` etc. The full per-user map lives in
+ * `profiles`; this is the projection of the *active* user scope.
  */
-function projectProfile(workspaceId: string, profile: PreferencesProfile) {
+function projectProfile(userScopeId: string, profile: PreferencesProfile) {
 	return {
-		workspaceId,
+		userScopeId,
 		isLoading: false,
 		editor: profile.editor,
 		appearance: profile.appearance,
@@ -93,7 +93,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 	persist(
 		(set, get) => {
 			/**
-			 * Apply a pure update to the active workspace's profile, writing
+			 * Apply a pure update to the active user's profile, writing
 			 * both the profile map and the projected top-level fields.
 			 *
 			 * This collapses ~12 nearly-identical action bodies into a single
@@ -103,37 +103,37 @@ export const usePreferencesStore = create<PreferencesState>()(
 			 */
 			function mutate(updater: (profile: PreferencesProfile) => PreferencesProfile) {
 				set((state) => {
-					const workspaceId = resolveWorkspaceId(state.workspaceId);
-					const current = normalizeProfile(state.profiles[workspaceId]);
+					const userScopeId = resolveUserScopeId(state.userScopeId);
+					const current = normalizeProfile(state.profiles[userScopeId]);
 					const next = updater(current);
 					return {
-						profiles: { ...state.profiles, [workspaceId]: next },
-						...projectProfile(workspaceId, next),
+						profiles: { ...state.profiles, [userScopeId]: next },
+						...projectProfile(userScopeId, next),
 					};
 				});
 			}
 
 			return {
-				workspaceId: null,
+				userScopeId: null,
 				isLoading: true,
 				isHydrated: false,
 				profiles: {},
 				...createDefaultProfile(),
 
 				initialize: () => {
-					get().syncWorkspace(getWorkspaceId());
+					get().syncUserScope(getUserScopeId());
 				},
 
-				syncWorkspace: (workspaceId) => {
+				syncUserScope: (userScopeId) => {
 					set((state) => {
 						const profile = applyAuthEditorPreferences(
-							normalizeProfile(state.profiles[workspaceId]),
+							normalizeProfile(state.profiles[userScopeId]),
 						);
 						return {
-							profiles: state.profiles[workspaceId]
+							profiles: state.profiles[userScopeId]
 								? state.profiles
-								: { ...state.profiles, [workspaceId]: profile },
-							...projectProfile(workspaceId, profile),
+								: { ...state.profiles, [userScopeId]: profile },
+							...projectProfile(userScopeId, profile),
 						};
 					});
 				},
@@ -287,8 +287,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 						...currentState,
 						profiles: Object.fromEntries(
 							Object.entries(typedPersisted.profiles).map(
-								([workspaceId, profile]) => [
-									workspaceId,
+								([userScopeId, profile]) => [
+									userScopeId,
 									normalizeProfile(profile),
 								],
 							),
@@ -322,7 +322,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 			onRehydrateStorage: () => (state) => {
 				if (state) {
 					state.isHydrated = true;
-					state.isLoading = state.workspaceId === null;
+					state.isLoading = state.userScopeId === null;
 				}
 			},
 		},

@@ -11,9 +11,9 @@ import {
 	Trash2,
 } from "lucide-react";
 import type { AiProviderKeySummary, AiUsageLogRow } from "@/domain/ai/types";
+import { AiUsageLog } from "@/features/settings/components/ai/ai-usage-log";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
-import { Separator } from "@/shared/ui/separator";
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -41,10 +41,6 @@ function formatDate(value: string | null) {
 		dateStyle: "medium",
 		timeStyle: "short",
 	}).format(new Date(value));
-}
-
-function formatTokenCount(value: number | null) {
-	return typeof value === "number" ? value.toLocaleString() : "—";
 }
 
 export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
@@ -185,30 +181,29 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 
 	if (!isSignedIn) {
 		return (
-			<section className="border border-border bg-card p-5 shadow-sm">
-				<h2 className="text-lg font-medium text-foreground">AI</h2>
-				<p className="mt-2 text-sm text-muted-foreground">
-					Sign in to manage AI provider keys and view usage.
+			<div className="rounded-lg border border-border/60 bg-card/40 px-5 py-4">
+				<p className="text-sm text-muted-foreground">
+					Sign in to manage encrypted provider keys and view activity.
 				</p>
-			</section>
+			</div>
 		);
 	}
 
 	return (
-		<section className="grid gap-6 lg:grid-cols-[0.9fr_1.35fr]">
-			<div className="border border-border bg-card p-5 shadow-sm">
+		<div className="space-y-6">
+			<div className="rounded-lg border border-border/60 bg-card/40 px-5 py-4">
 				<div className="flex items-start justify-between gap-4">
 					<div className="space-y-1">
-						<h2 className="text-lg font-medium text-foreground">AI Keys</h2>
-						<p className="text-sm text-muted-foreground">
+						<h3 className="text-sm font-medium text-foreground">Server keys</h3>
+						<p className="text-xs text-muted-foreground">
 							User-owned provider keys stay encrypted server-side. Raw values are
 							never shown after save.
 						</p>
 					</div>
-					<KeyRound className="h-5 w-5 text-muted-foreground" />
+					<KeyRound className="h-4 w-4 text-muted-foreground" />
 				</div>
 
-				<Separator className="my-5" />
+				<div className="my-4 border-t border-border/50" />
 
 				<div className="space-y-3">
 					<div className="flex gap-1">
@@ -333,109 +328,13 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 				</div>
 			</div>
 
-			<div className="border border-border bg-card p-5 shadow-sm">
-				<div className="flex items-start justify-between gap-4">
-					<div className="space-y-1">
-						<h2 className="text-lg font-medium text-foreground">AI Usage</h2>
-						<p className="text-sm text-muted-foreground">
-							Signed-in model calls, provider errors, token counts, and linked
-							resources.
-						</p>
-					</div>
-					{usageState === "loading" ? (
-						<LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
-					) : null}
-				</div>
-
-				<Separator className="my-5" />
-
-				{usageError ? <p className="mb-4 text-sm text-destructive">{usageError}</p> : null}
-
-				{usage.length === 0 && usageState !== "loading" ? (
-					<div className="border border-dashed border-border bg-background/60 p-5 text-sm text-muted-foreground">
-						No AI usage has been logged for this account yet.
-					</div>
-				) : null}
-
-				<div className="space-y-3">
-					{usage.map((row) => (
-						<article key={row.id} className="border border-border bg-background p-3">
-							<div className="flex flex-wrap items-start justify-between gap-3">
-								<div className="min-w-0">
-									<div className="flex flex-wrap items-center gap-2">
-										<h3 className="text-sm font-medium text-foreground">
-											{row.humanAction ?? row.action}
-										</h3>
-										<StatusBadge status={row.status} />
-									</div>
-									<p className="mt-1 text-xs text-muted-foreground">
-										{row.provider} · {row.model ?? "Unknown model"} ·{" "}
-										{formatDate(row.createdAt)}
-									</p>
-								</div>
-								<span className="border border-border bg-card px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-									{row.keySource.replace("_", " ")}
-								</span>
-							</div>
-
-							{row.resourceUrl ? (
-								<a
-									href={row.resourceUrl}
-									className="mt-2 inline-flex text-xs text-ring underline-offset-4 hover:underline"
-								>
-									{row.resourceUrl}
-								</a>
-							) : null}
-
-							{row.errorMessage ? (
-								<p className="mt-2 text-xs text-destructive">{row.errorMessage}</p>
-							) : null}
-
-							{row.prompt ? (
-								<p className="mt-2 line-clamp-2 text-xs text-muted-foreground/80">
-									{row.prompt}
-								</p>
-							) : null}
-
-							<div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-								<div className="border border-border bg-card px-2 py-1.5">
-									<span className="text-muted-foreground">In</span>
-									<p className="font-medium">
-										{formatTokenCount(row.inputTokens)}
-									</p>
-								</div>
-								<div className="border border-border bg-card px-2 py-1.5">
-									<span className="text-muted-foreground">Out</span>
-									<p className="font-medium">
-										{formatTokenCount(row.outputTokens)}
-									</p>
-								</div>
-								<div className="border border-border bg-card px-2 py-1.5">
-									<span className="text-muted-foreground">Total</span>
-									<p className="font-medium">
-										{formatTokenCount(row.totalTokens)}
-									</p>
-								</div>
-							</div>
-						</article>
-					))}
-				</div>
-
-				{nextOffset !== null ? (
-					<Button
-						type="button"
-						variant="outline"
-						className="mt-4 h-10 border-border bg-transparent"
-						disabled={usageState === "loading"}
-						onClick={() => void loadUsage(nextOffset)}
-					>
-						{usageState === "loading" ? (
-							<LoaderCircle className="h-4 w-4 animate-spin" />
-						) : null}
-						Load more
-					</Button>
-				) : null}
-			</div>
-		</section>
+			<AiUsageLog
+				usage={usage}
+				usageState={usageState}
+				usageError={usageError}
+				nextOffset={nextOffset}
+				onLoadMore={(offset) => void loadUsage(offset)}
+			/>
+		</div>
 	);
 }

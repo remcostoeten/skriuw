@@ -2,7 +2,7 @@
 
 import { createReactInlineContentSpec } from "@blocknote/react";
 import { useNotesStore } from "@/features/notes/store";
-import { resolveNoteLink, type NoteLink } from "@/features/notes/lib/note-links";
+import { resolveNoteLink, type NoteLink } from "@/domain/notes/note-links";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { cn } from "@/shared/lib/utils";
 import { useNoteLinkContext } from "./note-link-context";

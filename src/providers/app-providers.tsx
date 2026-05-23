@@ -9,7 +9,7 @@ import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/platform/auth";
+import { signOut } from "@/core/auth";
 import { DevMenu } from "@/features/dev-tools/dev-menu";
 import {
 	EDITOR_PREFERENCES_STORAGE_KEY,

@@ -38,3 +38,5 @@ src/generated/
 
 TODO.*
 .env*.local
+.pnpm-store/
+.claude/

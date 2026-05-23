@@ -8,8 +8,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
-import { signOut } from "@/platform/auth";
+import { useAuth } from "@/core/auth/use-auth";
+import { signOut } from "@/core/auth";
 import { isAdmin } from "@/lib/roles";
 import { UserMenu } from "./user-menu";
 
@@ -20,7 +20,7 @@ interface IconRailProps {
 export function IconRail({ onOpenSettings }: IconRailProps) {
 	const pathname = usePathname();
 	const router = useRouter();
-	const auth = useAuthSnapshot();
+	const auth = useAuth();
 	const [isMounted, setIsMounted] = useState(false);
 
 	useEffect(() => {

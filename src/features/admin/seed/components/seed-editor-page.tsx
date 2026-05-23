@@ -5,7 +5,7 @@ import { useSeedEditorStore } from "../store";
 import { SeedTree } from "./seed-tree";
 import { SeedNoteEditor } from "./seed-note-editor";
 import { SeedToolbar } from "./seed-toolbar";
-import type { SeedBundlePayload } from "../types";
+import type { SeedBundlePayload } from "@/domain/seed/types";
 
 interface SeedEditorPageProps {
 	bundleId: string;

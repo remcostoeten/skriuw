@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/features/admin/guards/require-admin";
 import { prisma } from "@/lib/prisma";
-import type { SeedBundlePayload } from "../types";
+import type { SeedBundlePayload } from "@/domain/seed/types";
 
 const ADMIN_SEED_ROUTE = "/admin/seed";
 
