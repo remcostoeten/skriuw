@@ -21,7 +21,8 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "colors:audit": "bun scripts/color-audit.ts",
-    "colors:audit:strict": "bun scripts/color-audit.ts --strict"
+    "colors:audit:strict": "bun scripts/color-audit.ts --strict",
+    "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3",
