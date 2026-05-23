@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listFolders } from "@/domain/folders/queries";
-import { listNoteMetadata } from "@/domain/notes/queries";
+import { getNote, listNoteMetadata } from "@/domain/notes/queries";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
@@ -16,11 +16,13 @@ export default function AppHomePage() {
 	);
 }
 
-async function AppHomeContent() {
+async function AppHomeContent(props: { searchParams?: Promise<Record<string, string>> }) {
 	const { user } = await getServerUser();
+	const searchParams = await props.searchParams;
 
 	const queryClient = new QueryClient();
 
+	// Prefetch the files list and folders in parallel with the seed check.
 	await Promise.all([
 		user ? ensureCloudStarterContentSeeded(user.id) : undefined,
 		queryClient.prefetchQuery({
@@ -32,6 +34,19 @@ async function AppHomeContent() {
 			queryFn: () => listFolders(),
 		}),
 	]);
+
+	// Prefetch the active note's full content so the editor renders without a
+	// loading state. Priority: ?note= URL param → first note in the list.
+	const files = queryClient.getQueryData<Awaited<ReturnType<typeof listNoteMetadata>>>(
+		notesKeys.files(),
+	);
+	const activeNoteId = searchParams?.note ?? files?.[0]?.id;
+	if (activeNoteId) {
+		await queryClient.prefetchQuery({
+			queryKey: notesKeys.detail(activeNoteId),
+			queryFn: () => getNote(activeNoteId),
+		});
+	}
 
 	return (
 		<HydrationBoundary state={dehydrate(queryClient)}>
