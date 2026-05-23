@@ -12,7 +12,10 @@ import {
 	User,
 	type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/shared/lib/utils";
+import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { isAdmin } from "@/lib/roles";
 
 export type SettingsTabId =
 	| "account"
@@ -50,6 +53,9 @@ type SettingsSidebarProps = {
 };
 
 export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsSidebarProps) {
+	const auth = useAuthSnapshot();
+	const userIsAdmin = isAdmin(auth.user?.role);
+
 	return (
 		<div
 			className={cn(
@@ -87,6 +93,21 @@ export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsS
 					})}
 				</ul>
 			</nav>
+
+			{userIsAdmin && (
+				<div className="border-t border-border p-2">
+					<Link
+						href="/admin"
+						className={cn(
+							"flex w-full items-center gap-2 border border-transparent px-2.5 py-2 text-left text-[12px] font-medium transition-colors",
+							"text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
+						)}
+					>
+						<Shield className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+						<span className="truncate">Admin</span>
+					</Link>
+				</div>
+			)}
 		</div>
 	);
 }
