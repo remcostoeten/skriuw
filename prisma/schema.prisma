@@ -29,6 +29,7 @@ model User {
   notes             Note[]
   folders           Folder[]
   noteVersions      NoteVersion[]
+  noteShares        NoteShare[]
   journalEntries    JournalEntry[]
   journalTags       JournalTag[]
   userRecents       UserRecent[]
@@ -126,12 +127,44 @@ model Note {
   tags                String[]  @default([])
   journalMeta         Json?     @map("journal_meta")
   versions            NoteVersion[]
+  shares              NoteShare[]
   deletedAt           DateTime? @map("deleted_at")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@index([userId, deletedAt, createdAt])
   @@map("notes")
+}
+
+model NoteShare {
+  id                  String    @id @default(uuid()) @db.Uuid
+  token               String    @unique
+  noteId              String    @map("note_id") @db.Uuid
+  note                Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId              String    @map("user_id")
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Snapshot frozen at publish / re-publish time — the public view never reads the live note.
+  name                String
+  content             String
+  richContent         Json?     @map("rich_content")
+  preferredEditorMode String    @default("block") @map("preferred_editor_mode")
+
+  // Access controls
+  passwordHash        String?   @map("password_hash")
+  viewOnce            Boolean   @default(false) @map("view_once")
+  expiresAt           DateTime? @map("expires_at")
+  consumedAt          DateTime? @map("consumed_at")
+  revokedAt           DateTime? @map("revoked_at")
+  viewCount           Int       @default(0) @map("view_count")
+  lastViewedAt        DateTime? @map("last_viewed_at")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([noteId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("note_shares")
 }
 
 model NoteVersion {

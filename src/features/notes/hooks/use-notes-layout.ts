@@ -241,6 +241,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
+	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
 	const prefersReducedMotion = useReducedMotion();
 	const metadataDragControls = useDragControls();
@@ -365,6 +366,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [activeFileId, viewingVersion]);
 
+	useEffect(() => {
+		if (sharingNoteId && sharingNoteId !== activeFileId) {
+			setSharingNoteId(null);
+		}
+	}, [activeFileId, sharingNoteId]);
+
 	const previousActiveFileIdRef = useRef<string>("");
 	useEffect(() => {
 		const previousId = previousActiveFileIdRef.current;
@@ -410,11 +417,21 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, []);
 
 	const handleViewVersion = useCallback((version: NoteVersion) => {
+		setSharingNoteId(null);
 		setViewingVersion(version);
 	}, []);
 
 	const handleExitVersionPreview = useCallback(() => {
 		setViewingVersion(null);
+	}, []);
+
+	const handleOpenShare = useCallback((noteId: string) => {
+		setViewingVersion(null);
+		setSharingNoteId(noteId);
+	}, []);
+
+	const handleCloseShare = useCallback(() => {
+		setSharingNoteId(null);
 	}, []);
 
 	const handleRestoreViewedVersion = useCallback(() => {
@@ -1080,5 +1097,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleExitVersionPreview,
 		handleRestoreViewedVersion,
 		isRestoringVersion: restoreNoteVersion.isPending,
+		sharingNoteId,
+		handleOpenShare,
+		handleCloseShare,
 	};
 }
