@@ -41,6 +41,12 @@ export function PublicNoteReader({ snapshot }: { snapshot: TPublicShareSnapshot 
 
 			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 				<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-2 py-4 sm:px-6">
+					{snapshot.author && (
+						<p className="px-2 pb-1 text-[12px] text-muted-foreground sm:px-0">
+							by{" "}
+							<span className="font-medium text-foreground/80">{snapshot.author}</span>
+						</p>
+					)}
 					<Editor
 						file={file}
 						files={[]}

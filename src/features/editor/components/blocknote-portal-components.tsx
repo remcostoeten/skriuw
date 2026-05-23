@@ -8,7 +8,7 @@ import {
 	Popover as MantinePopover,
 } from "@mantine/core";
 import { forwardRef } from "react";
-import { HiChevronDown } from "react-icons/hi";
+import { ChevronDown } from "lucide-react";
 
 function PortalMenuRoot(props: ComponentProps["Generic"]["Menu"]["Root"]) {
 	const { children, onOpenChange, position, sub, ...rest } = props;
@@ -100,7 +100,7 @@ const PortalToolbarSelect = forwardRef<
 						}
 					}}
 					leftSection={selectedItem.icon}
-					rightSection={<HiChevronDown />}
+					rightSection={<ChevronDown size={14} />}
 					size="xs"
 					variant="subtle"
 					disabled={isDisabled}
