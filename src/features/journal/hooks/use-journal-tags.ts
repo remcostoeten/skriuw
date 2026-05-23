@@ -3,13 +3,14 @@
 import { useMemo } from "react";
 import { useApiQuery, useApiMutation } from "@/shared/api";
 import {
-	listJournalTags,
 	createJournalTag,
 	deleteJournalTag,
 	type CreateJournalTagInput,
-} from "@/domain/journal/queries";
+} from "@/domain/journal/actions";
 import type { JournalEntry, JournalTag } from "@/types/journal";
 import { TAG_COLORS } from "@/features/journal/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { journalKeys } from "./journal-keys";
 import { useJournalEntries } from "./use-journal-entries";
 
@@ -51,7 +52,12 @@ function deriveJournalTags(entries: JournalEntry[], persistedTags: JournalTag[])
 
 export function useJournalTags() {
 	const entriesQuery = useJournalEntries();
-	const tagsQuery = useApiQuery<JournalTag[]>(journalKeys.tags(), () => listJournalTags());
+	const queryClient = useQueryClient();
+	const tagsQuery = useApiQuery<JournalTag[]>(
+		journalKeys.tags(),
+		createCacheQueryFn<JournalTag[]>(queryClient, journalKeys.tags()),
+		{ staleTime: Infinity },
+	);
 
 	const data = useMemo(
 		() => deriveJournalTags(entriesQuery.data ?? [], tagsQuery.data ?? []),

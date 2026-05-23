@@ -4,6 +4,7 @@ import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mapp
 import type {
 	NoteFile,
 	NoteVersion,
+	NoteVersionReason,
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";

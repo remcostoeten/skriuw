@@ -1,3 +1,5 @@
+"use server";
+
 import { getAuthenticatedUser } from "@/core/db";
 import type { NoteFolder } from "@/domain/notes/models";
 

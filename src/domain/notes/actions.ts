@@ -139,45 +139,6 @@ async function insertNoteVersion(
 	return true;
 }
 
-async function insertNoteVersion(
-	userId: string,
-	noteId: string,
-	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
-	reason: NoteVersionReason,
-): Promise<boolean> {
-	const { prisma } = await getAuthenticatedUser();
-
-	const latest = await prisma.noteVersion.findFirst({
-		where: { userId, noteId },
-		orderBy: { createdAt: "desc" },
-	});
-	const latestVersion = latest ? recordToNoteVersion(latest) : null;
-
-	const createdAt = new Date();
-	const candidate = { ...note, reason, createdAt };
-	if (!shouldPersistNoteVersion(candidate, latestVersion)) {
-		return false;
-	}
-
-	await prisma.noteVersion.create({
-		data: {
-			userId,
-			noteId,
-			name: note.name,
-			content: note.content,
-			richContent: (note.richContent ?? markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
-			preferredEditorMode: note.preferredEditorMode ?? "block",
-			parentId: note.parentId ?? null,
-			tags: note.tags ?? [],
-			reason,
-			contentHash: buildNoteVersionContentHash(candidate),
-			createdAt,
-		},
-	});
-
-	return true;
-}
-
 export type CreateNoteInput = {
 	id?: string;
 	name: string;
