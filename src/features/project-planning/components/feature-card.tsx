@@ -149,7 +149,7 @@ function IconBtn({
 		<button
 			aria-label={label}
 			onClick={onClick}
-			className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50"
+			className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 md:h-7 md:w-7"
 		>
 			{children}
 		</button>
