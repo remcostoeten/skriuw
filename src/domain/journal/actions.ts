@@ -41,24 +41,6 @@ function recordToTag(record: TagRecord): JournalTag {
 	};
 }
 
-export async function listJournalEntries(): Promise<JournalEntry[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.journalEntry.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
-		select: {
-			id: true,
-			dateKey: true,
-			content: true,
-			mood: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
-	});
-	return records.map(recordToEntry);
-}
-
 export type CreateJournalEntryInput = {
 	id?: string;
 	dateKey: string;
@@ -142,16 +124,6 @@ export async function deleteJournalEntry(id: string): Promise<void> {
 		where: { id, userId: user.id },
 		data: { deletedAt: new Date() },
 	});
-}
-
-export async function listJournalTags(): Promise<JournalTag[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.journalTag.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
-		select: { id: true, name: true, color: true, usageCount: true },
-	});
-	return records.map(recordToTag);
 }
 
 export type CreateJournalTagInput = {

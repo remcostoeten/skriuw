@@ -2,7 +2,7 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { updateNote, type UpdateNoteInput } from "@/domain/notes/api";
+import { updateNote, type UpdateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { notesKeys } from "./use-notes";
 import type { NoteFile } from "@/types/notes";
