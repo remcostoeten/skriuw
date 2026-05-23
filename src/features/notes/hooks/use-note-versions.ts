@@ -2,7 +2,7 @@
 
 import { useApiQuery } from "@/shared/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
-import { listNoteVersions } from "@/domain/notes/api";
+import { listNoteVersions } from "@/domain/notes/queries";
 import type { NoteVersion } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
 

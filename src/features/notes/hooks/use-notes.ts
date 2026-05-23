@@ -1,7 +1,7 @@
 "use client";
 
 import { useApiQuery } from "@/shared/api";
-import { listNoteMetadata } from "@/domain/notes/api";
+import { listNoteMetadata } from "@/domain/notes/queries";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { NoteFile } from "@/types/notes";
 import { notesKeys } from "./notes-keys";

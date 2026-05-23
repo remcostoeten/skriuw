@@ -2,7 +2,7 @@
 
 import { useApiQuery } from "@/shared/api";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
-import { listNoteBacklinks } from "@/features/notes/server/backlinks";
+import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/features/notes/lib/note-links";
 import { notesKeys } from "./notes-keys";
 

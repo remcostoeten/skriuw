@@ -2,7 +2,7 @@
 
 import { keepPreviousData } from "@tanstack/react-query";
 import { useApiQuery } from "@/shared/api";
-import { getNote } from "@/domain/notes/api";
+import { getNote } from "@/domain/notes/queries";
 import { useAuthSnapshot } from "@/platform/auth/use-auth";
 import type { NoteFile } from "@/types/notes";
 import { notesKeys } from "./notes-keys";

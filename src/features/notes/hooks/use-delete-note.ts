@@ -2,7 +2,7 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteNote } from "@/domain/notes/api";
+import { deleteNote } from "@/domain/notes/actions";
 import { notesKeys } from "./use-notes";
 import type { NoteFile } from "@/types/notes";
 

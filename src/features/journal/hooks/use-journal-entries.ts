@@ -8,7 +8,7 @@ import {
 	deleteJournalEntry,
 	type CreateJournalEntryInput,
 	type UpdateJournalEntryInput,
-} from "@/domain/journal/api";
+} from "@/domain/journal/queries";
 import type { JournalEntry } from "@/types/journal";
 import { journalKeys } from "./journal-keys";
 

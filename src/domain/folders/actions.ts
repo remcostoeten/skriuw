@@ -1,5 +1,3 @@
-"use server";
-
 import { getAuthenticatedUser } from "@/core/db";
 import type { NoteFolder } from "@/domain/notes/models";
 
@@ -16,16 +14,6 @@ function recordToFolder(record: FolderRecord): NoteFolder {
 		parentId: record.parentId,
 		isOpen: false,
 	};
-}
-
-export async function listFolders(): Promise<NoteFolder[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.folder.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
-		select: { id: true, name: true, parentId: true },
-	});
-	return records.map(recordToFolder);
 }
 
 export type CreateFolderInput = {

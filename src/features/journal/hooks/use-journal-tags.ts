@@ -7,7 +7,7 @@ import {
 	createJournalTag,
 	deleteJournalTag,
 	type CreateJournalTagInput,
-} from "@/domain/journal/api";
+} from "@/domain/journal/queries";
 import type { JournalEntry, JournalTag } from "@/types/journal";
 import { TAG_COLORS } from "@/features/journal/types";
 import { journalKeys } from "./journal-keys";
