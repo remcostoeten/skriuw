@@ -1,6 +1,9 @@
 import "server-only";
 
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scryptAsync = promisify(scrypt);
 
 const TOKEN_BYTES = 16; // 128 bits → ~22 url-safe chars
 const SALT_BYTES = 16;
@@ -32,19 +35,19 @@ export function generateShareToken(): string {
 }
 
 /** Hash a share password as `salt:hash` (hex). */
-export function hashSharePassword(password: string): string {
+export async function hashSharePassword(password: string): Promise<string> {
 	const salt = randomBytes(SALT_BYTES);
-	const derived = scryptSync(password, salt, KEY_LENGTH);
+	const derived = (await scryptAsync(password, salt, KEY_LENGTH)) as Buffer;
 	return `${salt.toString("hex")}:${derived.toString("hex")}`;
 }
 
 /** Constant-time verification of a password against a stored `salt:hash`. */
-export function verifySharePassword(password: string, stored: string): boolean {
+export async function verifySharePassword(password: string, stored: string): Promise<boolean> {
 	const [saltHex, hashHex] = stored.split(":");
 	if (!saltHex || !hashHex) return false;
 	const salt = Buffer.from(saltHex, "hex");
 	const expected = Buffer.from(hashHex, "hex");
-	const derived = scryptSync(password, salt, expected.length);
+	const derived = (await scryptAsync(password, salt, expected.length)) as Buffer;
 	if (derived.length !== expected.length) return false;
 	return timingSafeEqual(derived, expected);
 }

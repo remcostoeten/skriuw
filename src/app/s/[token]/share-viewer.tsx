@@ -82,17 +82,20 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 	}
 
 	// gate
+	// Derive whether password input is needed from current state, not just initial prop
+	const needsPasswordInput = requiresPassword || (phase.kind === "gate" && error?.includes("password"));
+
 	function handleSubmit(event: FormEvent) {
 		event.preventDefault();
 		if (submitting) return;
-		void reveal(requiresPassword ? password : undefined);
+		void reveal(needsPasswordInput ? password : undefined);
 	}
 
 	return (
 		<ShareShell>
 			<form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col items-center text-center">
 				<div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
-					{requiresPassword ? (
+					{needsPasswordInput ? (
 						<Lock className="h-5 w-5" strokeWidth={1.6} />
 					) : (
 						<Eye className="h-5 w-5" strokeWidth={1.6} />
@@ -100,15 +103,15 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 				</div>
 
 				<h1 className="mt-5 text-lg font-semibold tracking-[-0.01em]">
-					{requiresPassword ? "Password required" : "View once"}
+					{needsPasswordInput ? "Password required" : "View once"}
 				</h1>
 				<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-					{requiresPassword
+					{needsPasswordInput
 						? "Enter the password to open this shared note."
 						: "This note can only be opened once. After you reveal it, the link stops working."}
 				</p>
 
-				{requiresPassword && (
+				{needsPasswordInput && (
 					<input
 						type="password"
 						value={password}
@@ -123,11 +126,11 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 
 				<button
 					type="submit"
-					disabled={submitting || (requiresPassword && password.length === 0)}
+					disabled={submitting || (needsPasswordInput && password.length === 0)}
 					className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-transform duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />}
-					{requiresPassword ? "Unlock note" : "Reveal note"}
+					{needsPasswordInput ? "Unlock note" : "Reveal note"}
 				</button>
 			</form>
 		</ShareShell>

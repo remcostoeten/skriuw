@@ -68,7 +68,7 @@ export async function openShare(input: {
 
 	if (share.passwordHash) {
 		if (!input.password) return { status: "need-password" };
-		if (!verifySharePassword(input.password, share.passwordHash)) {
+		if (!(await verifySharePassword(input.password, share.passwordHash))) {
 			return { status: "wrong-password" };
 		}
 	}
@@ -77,15 +77,40 @@ export async function openShare(input: {
 	if (share.viewOnce) {
 		// Atomic consume: only the first concurrent opener wins.
 		const { count } = await prisma.noteShare.updateMany({
-			where: { id: share.id, consumedAt: null },
+			where: {
+				id: share.id,
+				consumedAt: null,
+				revokedAt: null,
+				OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+			},
 			data: { consumedAt: now, viewCount: { increment: 1 }, lastViewedAt: now },
 		});
-		if (count !== 1) return { status: "consumed" };
+		if (count !== 1) {
+			// Re-check which condition failed
+			const recheck = await prisma.noteShare.findUnique({ where: { id: share.id } });
+			if (!recheck) return { status: "not-found" };
+			if (recheck.revokedAt) return { status: "revoked" };
+			if (isExpired(recheck.expiresAt)) return { status: "expired" };
+			return { status: "consumed" };
+		}
 	} else {
-		await prisma.noteShare.update({
-			where: { id: share.id },
+		const { count } = await prisma.noteShare.updateMany({
+			where: {
+				id: share.id,
+				revokedAt: null,
+				OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+			},
 			data: { viewCount: { increment: 1 }, lastViewedAt: now },
 		});
+		if (count !== 1) {
+			// Share became invalid between validation and write
+			const recheck = await prisma.noteShare.findUnique({ where: { id: share.id } });
+			if (!recheck) return { status: "not-found" };
+			if (recheck.revokedAt) return { status: "revoked" };
+			if (isExpired(recheck.expiresAt)) return { status: "expired" };
+			// Should not reach here for non-viewOnce, but be defensive
+			return { status: "not-found" };
+		}
 	}
 
 	await logShareView(share.id, share.token);

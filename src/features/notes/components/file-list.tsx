@@ -1048,7 +1048,7 @@ export const FileList = memo(function FileList({
 								<span
 									className={cn(
 										"flex min-w-0 flex-1 items-center",
-										isEditing ? "min-h-11 md:min-h-0 md:h-[18px]" : "h-[18px]",
+										isEditing ? "h-[18px]" : "h-[18px]",
 									)}
 								>
 									{isEditing ? (
@@ -1060,7 +1060,7 @@ export const FileList = memo(function FileList({
 											onBlur={finishRename}
 											onKeyDown={handleKeyDown}
 											onClick={(e) => e.stopPropagation()}
-											className="m-0 min-h-11 w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:h-[18px] md:min-h-0 md:text-xs"
+											className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
 											style={{ caretColor: "currentColor" }}
 										/>
 									) : (
@@ -1239,7 +1239,7 @@ export const FileList = memo(function FileList({
 						<span
 							className={cn(
 								"flex min-w-0 flex-1 items-center truncate",
-								isEditing ? "min-h-11 md:min-h-0 md:h-[18px]" : "h-[18px]",
+								isEditing ? "h-[18px]" : "h-[18px]",
 							)}
 						>
 							{isEditing ? (
@@ -1251,7 +1251,7 @@ export const FileList = memo(function FileList({
 									onBlur={finishRename}
 									onKeyDown={handleKeyDown}
 									onClick={(e) => e.stopPropagation()}
-									className="m-0 min-h-11 w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:h-[18px] md:min-h-0 md:text-xs"
+									className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
 									style={{ caretColor: "currentColor" }}
 								/>
 							) : (
