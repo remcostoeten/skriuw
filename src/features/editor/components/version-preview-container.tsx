@@ -247,10 +247,8 @@ export function VersionPreviewContainer({
 			),
 		[diffRows],
 	);
-	const modeButtonClass =
-		"inline-flex h-8 items-center justify-center gap-1.5 px-3 text-[11px] font-medium transition-colors";
-	const actionButtonClass =
-		"inline-flex h-8 items-center justify-center gap-1.5 border px-3 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-55";
+	const toolbarButtonClass =
+		"inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-55";
 
 	function renderEditor(targetFile: NoteFile | null, mode: "raw" | "block") {
 		return (
@@ -269,11 +267,11 @@ export function VersionPreviewContainer({
 
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
-			<div className="border-b border-warning/30 bg-[linear-gradient(135deg,hsl(var(--warning)/0.12),hsl(var(--background)/0.96)_62%)] px-4 py-3 text-xs">
-				<div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-					<div className="flex min-w-0 items-start gap-3">
+			<div className="@container border-b border-warning/30 bg-[linear-gradient(135deg,hsl(var(--warning)/0.12),hsl(var(--background)/0.96)_62%)] px-3 py-3 text-xs sm:px-4">
+				<div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center @2xl:justify-between @2xl:gap-4">
+					<div className="flex min-w-0 items-start gap-3 @sm:items-center">
 						<History
-							className="mt-1 h-4 w-4 shrink-0 text-warning-foreground/88"
+							className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground/88 @sm:mt-0"
 							strokeWidth={1.5}
 							aria-hidden
 						/>
@@ -282,28 +280,21 @@ export function VersionPreviewContainer({
 								<span className="text-sm font-semibold tracking-[-0.01em] text-warning-foreground">
 									Viewing checkpoint from {ageLabel} ago
 								</span>
-								<span className="border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-warning-foreground/78">
+								<span className="rounded-sm border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-warning-foreground/78">
 									{reasonLabel}
 								</span>
 							</div>
-							<p className="mt-1 max-w-3xl leading-5 text-warning-foreground/70">
+							<p className="mt-1 text-[11px] leading-5 text-warning-foreground/70">
 								Read-only preview. Restoring makes this version current and saves
 								the live note as a new checkpoint first.
 							</p>
 						</div>
 					</div>
 
-					<div
-						className={cn(
-							"flex shrink-0 flex-wrap items-center gap-2",
-							isMobile && "w-full",
-						)}
-					>
+					<div className="flex w-full min-w-0 flex-col gap-2 @2xl:w-auto @2xl:shrink-0 @2xl:flex-row @2xl:flex-wrap @2xl:items-center @4xl:flex-nowrap">
 						<div
-							className={cn(
-								"inline-flex h-9 items-center border border-border bg-background/80 p-0.5 shadow-sm",
-								isMobile && "w-full",
-							)}
+							className="inline-flex h-8 w-full min-w-0 items-stretch rounded-md border border-border bg-background/80 p-0.5 shadow-sm @2xl:w-auto"
+							role="group"
 							aria-label="Version view mode"
 						>
 							<button
@@ -311,14 +302,14 @@ export function VersionPreviewContainer({
 								onClick={() => setPreviewMode("preview")}
 								aria-pressed={!isCompareMode}
 								className={cn(
-									modeButtonClass,
-									isMobile && "flex-1",
+									toolbarButtonClass,
+									"min-w-0 flex-1 rounded-[5px] px-3 @2xl:flex-none",
 									!isCompareMode
 										? "bg-foreground text-background shadow-sm"
 										: "text-muted-foreground hover:bg-muted hover:text-foreground",
 								)}
 							>
-								<Eye className="h-3 w-3" strokeWidth={1.7} />
+								<Eye className="h-3 w-3 shrink-0" strokeWidth={1.7} />
 								Preview
 							</button>
 							<button
@@ -326,43 +317,46 @@ export function VersionPreviewContainer({
 								onClick={() => setPreviewMode("compare")}
 								aria-pressed={isCompareMode}
 								className={cn(
-									modeButtonClass,
-									isMobile && "flex-1",
+									toolbarButtonClass,
+									"min-w-0 flex-1 rounded-[5px] px-3 @2xl:flex-none",
 									isCompareMode
 										? "bg-foreground text-background shadow-sm"
 										: "text-muted-foreground hover:bg-muted hover:text-foreground",
 								)}
 							>
-								<Columns2 className="h-3 w-3" strokeWidth={1.7} />
+								<Columns2 className="h-3 w-3 shrink-0" strokeWidth={1.7} />
 								Compare
 							</button>
 						</div>
-						<button
-							type="button"
-							onClick={onBack}
-							disabled={isRestoring}
-							className={cn(
-								actionButtonClass,
-								isMobile && "flex-1",
-								"border-border bg-background/80 text-foreground hover:bg-muted",
-							)}
-						>
-							<ArrowLeft className="h-3 w-3" strokeWidth={1.7} />
-							Back to current
-						</button>
-						<button
-							type="button"
-							onClick={onRestore}
-							disabled={isRestoring}
-							className={cn(
-								actionButtonClass,
-								isMobile && "flex-1",
-								"border-foreground bg-foreground text-background shadow-sm hover:bg-foreground/90",
-							)}
-						>
-							<RotateCcw className="h-3 w-3" strokeWidth={1.7} />
-							{isRestoring ? "Restoring..." : "Restore this version"}
-						</button>
+
+						<div className="grid h-8 grid-cols-2 gap-2 @2xl:flex @2xl:items-center @2xl:gap-2">
+							<button
+								type="button"
+								onClick={onBack}
+								disabled={isRestoring}
+								className={cn(
+									toolbarButtonClass,
+									"min-w-0 border border-border bg-background/80 text-foreground hover:bg-muted",
+								)}
+							>
+								<ArrowLeft className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+								<span className="truncate">Back to current</span>
+							</button>
+							<button
+								type="button"
+								onClick={onRestore}
+								disabled={isRestoring}
+								className={cn(
+									toolbarButtonClass,
+									"min-w-0 border border-foreground bg-foreground text-background shadow-sm hover:bg-foreground/90",
+								)}
+							>
+								<RotateCcw className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+								<span className="truncate">
+									{isRestoring ? "Restoring..." : "Restore this version"}
+								</span>
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>

@@ -31,6 +31,7 @@ import {
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
+import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
 type Props = {
@@ -459,12 +460,14 @@ function VersionDelta({
 					<span
 						key={`${part}-${index}`}
 						className={cn(
+							"inline-flex items-baseline gap-0.5",
 							colorized && value > 0 && "text-emerald-400",
 							colorized && value < 0 && "text-destructive",
 							(!colorized || value === 0) && "text-muted-foreground/70",
 						)}
 					>
-						{part}
+						<span>{value < 0 ? "−" : "+"}</span>
+						<AnimatedNumber value={Math.abs(value)} />
 					</span>
 				);
 			})}

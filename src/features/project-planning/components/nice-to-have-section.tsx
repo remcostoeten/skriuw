@@ -66,14 +66,14 @@ export function NiceToHaveSection({ items, isAdmin, onCreate, onEdit, onDelete, 
 										<button
 											aria-label="Edit"
 											onClick={() => onEdit(n.id)}
-											className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50"
+											className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 md:h-7 md:w-7"
 										>
 											<Pencil className="h-3.5 w-3.5" />
 										</button>
 										<button
 											aria-label="Delete"
 											onClick={() => onDelete(n.id)}
-											className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50"
+											className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 md:h-7 md:w-7"
 										>
 											<Trash2 className="h-3.5 w-3.5" />
 										</button>

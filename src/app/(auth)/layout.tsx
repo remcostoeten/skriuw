@@ -29,7 +29,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 					<AuthHeroCopy />
 				</div>
 			</div>
-			<div className="flex w-full flex-col overflow-auto md:w-1/2">
+			<div className="flex w-full flex-col overflow-auto pt-[env(safe-area-inset-top)] md:w-1/2 md:pt-0">
 				<div className="flex flex-1 items-center justify-center px-0 py-8 md:p-8">
 					<div className="w-full max-w-md">
 						<div className="mb-6 flex justify-start px-6">

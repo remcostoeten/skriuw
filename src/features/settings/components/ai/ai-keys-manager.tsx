@@ -230,7 +230,7 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 							placeholder={
 								provider === "google" ? "Personal Gemini" : "Personal Groq"
 							}
-							className="h-10 border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring"
+							className="h-10 border border-border bg-background px-3 text-base outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring md:text-sm"
 						/>
 						<input
 							value={apiKey}
@@ -239,7 +239,7 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 							type="password"
 							autoComplete="off"
 							spellCheck={false}
-							className="h-10 border border-border bg-background px-3 font-mono text-sm outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring"
+							className="h-10 border border-border bg-background px-3 font-mono text-base outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-ring md:text-sm"
 						/>
 					</div>
 					<Button
