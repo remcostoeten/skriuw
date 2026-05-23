@@ -3,11 +3,9 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { Prisma } from "@/generated/prisma/client";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/features/admin/guards/require-admin";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_ROLE } from "@/lib/roles";
 import type {
 	CustomSection,
 	CustomSectionItem,
@@ -38,18 +36,6 @@ import type {
 } from "./rows";
 
 const ROUTE = "/project-planning";
-
-async function requireAdmin() {
-	const session = await auth.api.getSession({ headers: await headers() });
-	const user = session?.user;
-	if (!user) {
-		throw new Error("Not authenticated");
-	}
-	if (user.role !== ADMIN_ROLE) {
-		throw new Error("Forbidden: admin role required");
-	}
-	return { user };
-}
 
 function slugify(input: string): string {
 	return (
