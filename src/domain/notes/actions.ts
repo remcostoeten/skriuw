@@ -17,6 +17,7 @@ import {
 	buildNoteVersionContentHash,
 	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
+import { getNote } from "@/domain/notes/queries";
 import type {
 	FolderId,
 	IsoTime,
@@ -37,8 +38,6 @@ type NoteRecord = {
 	createdAt: Date;
 	updatedAt: Date;
 };
-
-type NoteMetadataRecord = Omit<NoteRecord, "content" | "richContent" | "journalMeta">;
 
 type NoteVersionRecord = {
 	id: string;
@@ -80,20 +79,6 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 					tags: meta.tags.map((tag) => tag as TagName),
 				}
 			: undefined,
-		createdAt: record.createdAt.toISOString() as IsoTime,
-		updatedAt: record.updatedAt.toISOString() as IsoTime,
-	});
-}
-
-function recordToNoteMetadata(record: NoteMetadataRecord): NoteFile {
-	return fromPersistedNote({
-		id: record.id as NoteId,
-		name: record.name,
-		content: "" as MarkdownContent,
-		richContent: [],
-		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
-		parentId: record.parentId as FolderId | null,
-		tags: record.tags.map((tag) => tag as TagName),
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
 	});
@@ -152,51 +137,6 @@ async function insertNoteVersion(
 	});
 
 	return true;
-}
-
-export async function listNoteMetadata(): Promise<NoteFile[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.note.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
-		select: {
-			id: true,
-			name: true,
-			preferredEditorMode: true,
-			parentId: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
-	});
-	return records.map(recordToNoteMetadata);
-}
-
-export async function listNoteVersions(noteId: string, limit = 12): Promise<NoteVersion[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.noteVersion.findMany({
-		where: { userId: user.id, noteId },
-		orderBy: { createdAt: "desc" },
-		take: limit,
-	});
-	return records.map(recordToNoteVersion);
-}
-
-export async function listNotes(): Promise<NoteFile[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.note.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
-	});
-	return records.map(recordToNoteFile);
-}
-
-export async function getNote(id: string): Promise<NoteFile | null> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const record = await prisma.note.findFirst({
-		where: { userId: user.id, id, deletedAt: null },
-	});
-	return record ? recordToNoteFile(record) : null;
 }
 
 export type CreateNoteInput = {

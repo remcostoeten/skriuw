@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
-import { listFolders } from "@/domain/folders/api";
-import { listNoteMetadata } from "@/domain/notes/api";
+import { listFolders } from "@/domain/folders/queries";
+import { listNoteMetadata } from "@/domain/notes/queries";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";

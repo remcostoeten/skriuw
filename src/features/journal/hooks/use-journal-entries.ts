@@ -2,18 +2,25 @@
 
 import { useApiQuery, useApiMutation } from "@/shared/api";
 import {
-	listJournalEntries,
 	createJournalEntry,
 	updateJournalEntry,
 	deleteJournalEntry,
 	type CreateJournalEntryInput,
 	type UpdateJournalEntryInput,
-} from "@/domain/journal/api";
+} from "@/domain/journal/actions";
 import type { JournalEntry } from "@/types/journal";
+import { useQueryClient } from "@tanstack/react-query";
+import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { journalKeys } from "./journal-keys";
 
 export function useJournalEntries() {
-	return useApiQuery<JournalEntry[]>(journalKeys.entries(), () => listJournalEntries());
+	const queryClient = useQueryClient();
+
+	return useApiQuery<JournalEntry[]>(
+		journalKeys.entries(),
+		createCacheQueryFn<JournalEntry[]>(queryClient, journalKeys.entries()),
+		{ staleTime: Infinity },
+	);
 }
 
 export function useCreateJournalEntry() {
