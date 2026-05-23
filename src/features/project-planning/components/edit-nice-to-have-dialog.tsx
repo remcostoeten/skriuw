@@ -94,7 +94,7 @@ export function EditNiceToHaveDialog({ open, title, initial, onSubmit, onOpenCha
 							onChange={(e) =>
 								setDraft((d) => ({ ...d, description: e.target.value }))
 							}
-							className="flex min-h-[60px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							className="flex min-h-[60px] w-full rounded-md border border-border bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
 						/>
 					</div>
 
@@ -107,7 +107,7 @@ export function EditNiceToHaveDialog({ open, title, initial, onSubmit, onOpenCha
 							rows={2}
 							value={draft.reason}
 							onChange={(e) => setDraft((d) => ({ ...d, reason: e.target.value }))}
-							className="flex min-h-[60px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							className="flex min-h-[60px] w-full rounded-md border border-border bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
 						/>
 					</div>
 

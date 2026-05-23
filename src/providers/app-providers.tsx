@@ -15,6 +15,7 @@ import {
 	EDITOR_PREFERENCES_STORAGE_KEY,
 } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
+import { BlockNoteMantineProvider } from "@/providers/mantine-provider";
 
 type Props = {
 	children: React.ReactNode;
@@ -81,19 +82,21 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<MotionConfig reducedMotion="user">
-				<TooltipProvider delayDuration={300}>
-					<EditorPreferencesBootstrap
-						initialEditorPreferences={initialEditorPreferences}
-					/>
-					<ProtectedAppGuard>
-						<PersistenceBootstrap />
-						<ThemeAttribute />
-						<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
-						<DevMenu />
-					</ProtectedAppGuard>
-				</TooltipProvider>
-			</MotionConfig>
+			<BlockNoteMantineProvider>
+				<MotionConfig reducedMotion="user">
+					<TooltipProvider delayDuration={300}>
+						<EditorPreferencesBootstrap
+							initialEditorPreferences={initialEditorPreferences}
+						/>
+						<ProtectedAppGuard>
+							<PersistenceBootstrap />
+							<ThemeAttribute />
+							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+							<DevMenu />
+						</ProtectedAppGuard>
+					</TooltipProvider>
+				</MotionConfig>
+			</BlockNoteMantineProvider>
 		</QueryClientProvider>
 	);
 }

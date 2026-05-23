@@ -150,8 +150,8 @@ export function SidebarSection({
 								}
 							}}
 							className={cn(
-								"flex-1 bg-transparent font-medium uppercase tracking-wide text-muted-foreground outline-none border-b border-foreground/30",
-								compactMode ? "text-[10px]" : "text-[11px]",
+								"flex-1 bg-transparent font-medium uppercase tracking-wide text-muted-foreground outline-none border-b border-foreground/30 text-base md:text-[11px]",
+								compactMode && "md:text-[10px]",
 							)}
 							autoFocus
 						/>
