@@ -9,32 +9,30 @@ import { prisma } from "@/lib/prisma";
  * Seeds a fresh user's workspace from the active SeedBundle row in the DB.
  *
  * Behavior:
- * - If the user already has any folder or note (deletedAt null), returns
- *   immediately. Existing users are never re-seeded.
- * - If no SeedBundle is marked active, returns immediately. New users start
- *   with an empty workspace by design — see ADMIN_SEED_PLAN.md §1.
- * - Otherwise, clones the bundle's folders + notes (+ tags, journals when
- *   authored) into the user's workspace inside a single transaction. Refs
- *   used inside the bundle to express parent relationships are remapped to
- *   fresh UUIDs before insert.
- *
- * Cross-note `noteLink` references resolve at render time via title lookup
- * (see features/notes/lib/note-links.ts), so no payload rewriting is needed
- * at seed time.
+ * - If `starterSeededAt` is set on the user, returns immediately (single field
+ *   check; zero extra queries on repeat page loads).
+ * - If no SeedBundle is marked active, returns immediately.
+ * - Otherwise clones folders + notes (+ tags, journals) into the user's
+ *   workspace in a single transaction, then stamps `starterSeededAt`.
  */
 export async function ensureCloudStarterContentSeeded(userId: string): Promise<void> {
-	const [existingNote, existingFolder] = await Promise.all([
-		prisma.note.findFirst({
-			where: { userId, deletedAt: null },
-			select: { id: true },
-		}),
-		prisma.folder.findFirst({
-			where: { userId, deletedAt: null },
-			select: { id: true },
-		}),
-	]);
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { starterSeededAt: true },
+	});
 
+	if (user?.starterSeededAt) {
+		return;
+	}
+
+	// Backfill for users who existed before this flag was added: if they already
+	// have content, stamp them so future loads skip this check entirely.
+	const [existingNote, existingFolder] = await Promise.all([
+		prisma.note.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
+		prisma.folder.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
+	]);
 	if (existingNote || existingFolder) {
+		await prisma.user.update({ where: { id: userId }, data: { starterSeededAt: new Date() } });
 		return;
 	}
 
@@ -114,6 +112,11 @@ export async function ensureCloudStarterContentSeeded(userId: string): Promise<v
 				})),
 			});
 		}
+
+		await tx.user.update({
+			where: { id: userId },
+			data: { starterSeededAt: new Date() },
+		});
 	});
 }
 
