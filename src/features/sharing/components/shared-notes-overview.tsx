@@ -60,9 +60,13 @@ const FILTERS: ReadonlyArray<{ id: StatusFilter; label: string }> = [
 ];
 
 function fullUrl(row: TSharedNoteRow): string {
+	return row.url;
+}
+
+/** Client-only full URL builder for clipboard actions. */
+function getClientFullUrl(row: TSharedNoteRow): string {
 	if (row.url.startsWith("http")) return row.url;
-	if (typeof window !== "undefined") return `${window.location.origin}${row.path}`;
-	return row.path;
+	return `${window.location.origin}${row.path}`;
 }
 
 export function SharedNotesOverview({ overview }: { overview: TSharedOverview }) {
@@ -89,7 +93,7 @@ export function SharedNotesOverview({ overview }: { overview: TSharedOverview })
 
 	async function copyLink(row: TSharedNoteRow) {
 		try {
-			await navigator.clipboard.writeText(fullUrl(row));
+			await navigator.clipboard.writeText(getClientFullUrl(row));
 			setCopiedId(row.noteId);
 			setTimeout(() => setCopiedId((id) => (id === row.noteId ? null : id)), 1600);
 		} catch {
@@ -375,7 +379,7 @@ function RowActions({ row, busy, copied, onCopy, onRefresh, onRevoke }: RowActio
 					{copied ? "Copied" : "Copy link"}
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild disabled={!live}>
-					<a href={fullUrl(row)} target="_blank" rel="noreferrer">
+					<a href={getClientFullUrl(row)} target="_blank" rel="noreferrer">
 						<ExternalLink className="h-3.5 w-3.5" />
 						Open link
 					</a>
@@ -438,11 +442,22 @@ function TableView({
 			<ul className="divide-y divide-border">
 				{rows.map((row) => {
 					const expanded = expandedId === row.noteId;
+					const handleToggle = () => onToggle(row.noteId);
+					const handleKeyDown = (e: React.KeyboardEvent) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleToggle();
+						}
+					};
 					return (
 						<li key={row.noteId}>
 							<div
 								className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
-								onClick={() => onToggle(row.noteId)}
+								onClick={handleToggle}
+								onKeyDown={handleKeyDown}
+								role="button"
+								tabIndex={0}
+								aria-expanded={expanded}
 							>
 								<div className="flex min-w-0 items-center gap-2">
 									<StatusPill status={row.status} />

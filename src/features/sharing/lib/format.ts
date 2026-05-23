@@ -37,11 +37,11 @@ export function formatExpiry(iso: string | null): string {
 	const ms = new Date(iso).getTime() - Date.now();
 	if (Number.isNaN(ms)) return "Never";
 	if (ms <= 0) return "Expired";
-	const min = Math.round(ms / 60000);
+	const min = Math.max(1, Math.ceil(ms / 60000));
 	if (min < 60) return `in ${min}m`;
-	const hr = Math.round(min / 60);
+	const hr = Math.max(1, Math.ceil(min / 60));
 	if (hr < 24) return `in ${hr}h`;
-	const day = Math.round(hr / 24);
+	const day = Math.max(1, Math.ceil(hr / 24));
 	return `in ${day}d`;
 }
 
