@@ -31,6 +31,8 @@ export type TPublishNoteInput = {
 	viewOnce: boolean;
 	expiry: TShareExpiry;
 	password?: TPasswordMutation;
+	/** When true, the public page credits the creator by name; otherwise anonymous. */
+	showAuthor?: boolean;
 };
 
 export type TUpdateShareInput = {
@@ -38,6 +40,8 @@ export type TUpdateShareInput = {
 	viewOnce: boolean;
 	expiry: TShareExpiry;
 	password?: TPasswordMutation;
+	/** When true, the public page credits the creator by name; otherwise anonymous. */
+	showAuthor?: boolean;
 };
 
 /** Owner-facing view of a note's share, returned to the share screen. */
@@ -54,8 +58,70 @@ export type TNoteShareState = {
 	lastViewedAt: string | null;
 	createdAt: string;
 	snapshotName: string;
+	/** Author name shown on the public page, or null when anonymous. */
+	authorName: string | null;
 	/** True when the live note diverged from the published snapshot. */
 	isStale: boolean;
+};
+
+/** Lifecycle status of a share, derived for the owner overview. */
+export type TSharedNoteStatus = "active" | "expired" | "revoked" | "consumed";
+
+/** One day of the recurrence window. `date` is a UTC `YYYY-MM-DD` key. */
+export type TViewBucket = { date: string; count: number };
+
+/** A single shared note as shown in the owner's "Shared notes" overview. */
+export type TSharedNoteRow = {
+	noteId: string;
+	token: string;
+	url: string;
+	path: string;
+	name: string;
+	status: TSharedNoteStatus;
+	hasPassword: boolean;
+	viewOnce: boolean;
+	/** Author name shown on the public page, or null when shared anonymously. */
+	authorName: string | null;
+	/** True when the live note diverged from the published snapshot. */
+	isStale: boolean;
+	/** True when the underlying note has been moved to trash. */
+	noteDeleted: boolean;
+	createdAt: string;
+	expiresAt: string | null;
+	lastViewedAt: string | null;
+
+	// ── Metrics ──────────────────────────────────────────────────────────
+	/** Authoritative running total of opens (counted since the share existed). */
+	totalViews: number;
+	/** Logged opens within the recurrence window. */
+	windowViews: number;
+	/** Distinct viewer fingerprints within the window (approximate). */
+	uniqueViewers: number;
+	/** Earliest logged open, all-time. */
+	firstViewedAt: string | null;
+	/** Days within the window that saw at least one open. */
+	activeDays: number;
+	/** Daily buckets across the whole window (length === windowDays). */
+	timeline: TViewBucket[];
+	/** Busiest day within the window. */
+	peak: TViewBucket | null;
+};
+
+export type TSharedOverviewSummary = {
+	total: number;
+	active: number;
+	expired: number;
+	revoked: number;
+	consumed: number;
+	/** Sum of authoritative view totals across all shares. */
+	totalViews: number;
+	/** Length of the recurrence window in days. */
+	windowDays: number;
+};
+
+export type TSharedOverview = {
+	rows: TSharedNoteRow[];
+	summary: TSharedOverviewSummary;
 };
 
 /** Self-contained snapshot served to an unauthenticated viewer. */
@@ -65,6 +131,8 @@ export type TPublicShareSnapshot = {
 	richContent: RichTextDocument | null;
 	preferredEditorMode: "raw" | "block";
 	sharedAt: string;
+	/** Creator's name, shown as the author, or null when shared anonymously. */
+	author: string | null;
 };
 
 /** Non-consuming probe result used by the public route's RSC. */

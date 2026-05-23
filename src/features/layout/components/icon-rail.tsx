@@ -13,11 +13,11 @@ import { signOut } from "@/core/auth";
 import { isAdmin } from "@/lib/roles";
 import { UserMenu } from "./user-menu";
 
-interface IconRailProps {
+ type Props = {
 	onOpenSettings: () => void;
 }
 
-export function IconRail({ onOpenSettings }: IconRailProps) {
+export function IconRail({ onOpenSettings }: Props) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const auth = useAuth();

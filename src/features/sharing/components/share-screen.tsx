@@ -13,6 +13,7 @@ import {
 	Loader2,
 	Lock,
 	RefreshCw,
+	User,
 } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
 import { cn } from "@/shared/lib/utils";
@@ -59,6 +60,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 	const [customDate, setCustomDate] = useState("");
 	const [passwordEnabled, setPasswordEnabled] = useState(false);
 	const [passwordInput, setPasswordInput] = useState("");
+	const [showAuthor, setShowAuthor] = useState(false);
 	const [dirty, setDirty] = useState(false);
 	const [copied, setCopied] = useState(false);
 
@@ -70,6 +72,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 		setCustomDate(share.expiresAt ? toLocalInputValue(share.expiresAt) : "");
 		setPasswordEnabled(share.hasPassword);
 		setPasswordInput("");
+		setShowAuthor(share.authorName != null);
 		setDirty(false);
 	}, [share]);
 
@@ -91,7 +94,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 
 	function handleTogglePublic(next: boolean) {
 		if (next) {
-			publish.mutate({ noteId, viewOnce: false, expiry: { kind: "never" } });
+			publish.mutate({ noteId, viewOnce: false, expiry: { kind: "never" }, showAuthor: false });
 		} else {
 			revoke.mutate(noteId);
 		}
@@ -107,7 +110,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 				? passwordInput
 				: undefined;
 		update.mutate(
-			{ noteId, viewOnce, expiry: buildExpiry(expiryMode, customDate), password },
+			{ noteId, viewOnce, expiry: buildExpiry(expiryMode, customDate), password, showAuthor },
 			{ onSuccess: () => setDirty(false) },
 		);
 	}
@@ -286,6 +289,22 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 										/>
 									</div>
 								)}
+
+								<div className="mx-4 border-t border-border/70" />
+
+								<ControlRow
+									icon={<User className="h-4 w-4" strokeWidth={1.7} />}
+									title="Show author"
+									description="Credit you by name on the public page. Off shares it anonymously."
+								>
+									<Switch
+										checked={showAuthor}
+										onCheckedChange={(next) => {
+											setShowAuthor(next);
+											markDirty();
+										}}
+									/>
+								</ControlRow>
 
 								<div className="mx-4 border-t border-border/70" />
 

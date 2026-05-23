@@ -17,6 +17,7 @@ type ShareRecord = {
 	token: string;
 	name: string;
 	content: string;
+	authorName: string | null;
 	passwordHash: string | null;
 	viewOnce: boolean;
 	expiresAt: Date | null;
@@ -51,6 +52,7 @@ function toShareState(share: ShareRecord, liveContent?: string): TNoteShareState
 		lastViewedAt: share.lastViewedAt?.toISOString() ?? null,
 		createdAt: share.createdAt.toISOString(),
 		snapshotName: share.name,
+		authorName: share.authorName,
 		isStale: liveContent !== undefined && liveContent !== share.content,
 	};
 }
@@ -71,6 +73,7 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 		content: note.content,
 		richContent,
 		preferredEditorMode: note.preferredEditorMode ?? "block",
+		authorName: input.showAuthor ? user.name : null,
 		viewOnce: input.viewOnce,
 		expiresAt: resolveExpiry(input.expiry),
 		passwordHash: input.password ? hashSharePassword(input.password) : null,
@@ -103,6 +106,7 @@ export async function updateNoteShareSettings(
 	const data: Prisma.NoteShareUpdateInput = {
 		viewOnce: input.viewOnce,
 		expiresAt: resolveExpiry(input.expiry),
+		authorName: input.showAuthor ? user.name : null,
 	};
 	if (input.password !== undefined) {
 		data.passwordHash = input.password ? hashSharePassword(input.password) : null;
