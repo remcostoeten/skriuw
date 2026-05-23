@@ -3,54 +3,27 @@
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateNote, type UpdateNoteInput } from "@/domain/notes/actions";
-import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { notesKeys } from "./use-notes";
+import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
-
-function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
-	return {
-		...note,
-		name: input.name
-			? input.name.endsWith(".md")
-				? input.name
-				: `${input.name}.md`
-			: note.name,
-		content: input.content ?? note.content,
-		richContent:
-			input.richContent ??
-			(input.content !== undefined
-				? markdownToRichDocument(input.content)
-				: note.richContent),
-		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
-		parentId: input.parentId === undefined ? note.parentId : input.parentId,
-		tags: input.tags === undefined ? note.tags : input.tags,
-		modifiedAt: new Date(),
-	};
-}
+import { applyNoteUpdate, reconcileSavedNoteCache } from "@/features/notes/lib/note-cache";
 
 export function useUpdateNote() {
 	const queryClient = useQueryClient();
 
-	return useApiMutation<UpdateNoteInput, { note?: NoteFile; versionCreated: boolean }>(
+	return useApiMutation<
+		UpdateNoteInput,
+		{
+			note?: NoteFile;
+			versionCreated: boolean;
+			versionChanged?: boolean;
+			versionId?: string | null;
+		}
+	>(
 		updateNote,
 		{
 			invalidateKeys: [],
 			onSuccess: (result, input) => {
-				if (result.note) {
-					queryClient.setQueryData(notesKeys.detail(result.note.id), result.note);
-					void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
-				} else {
-					// Even if the server returned nothing, make sure the detail cache
-					// reflects the optimistic write so the editor doesn't flash stale data.
-					queryClient.setQueryData<NoteFile | null>(
-						notesKeys.detail(input.id),
-						(current) => (current ? applyNoteUpdate(current, input) : current),
-					);
-				}
-
-				if (result.versionCreated) {
-					void queryClient.invalidateQueries({ queryKey: notesKeys.versions(input.id) });
-				}
+				reconcileSavedNoteCache(queryClient, input, result);
 			},
 			optimistic: {
 				updates: [

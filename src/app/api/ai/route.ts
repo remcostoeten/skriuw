@@ -15,6 +15,7 @@ import {
 import type { AiAction } from "@/domain/ai/types";
 import type { AiProvider } from "@/domain/ai/types";
 import { getDecryptedAiProviderKey } from "@/domain/ai/provider-keys";
+import { classifyAiProviderError } from "@/domain/ai/provider-errors";
 import { recordAiError, type AiErrorSource } from "@/domain/ai/telemetry";
 import { recordAiUsage } from "@/domain/ai/usage";
 import { readUsageMetadata } from "@/domain/ai/usage-utils";
@@ -58,103 +59,6 @@ type UserContext = Awaited<ReturnType<typeof tryGetAuthenticatedUser>>["user"];
 
 function readOptionalString(value: unknown): string | undefined {
 	return typeof value === "string" ? value : undefined;
-}
-
-function classifyProviderError(
-	err: unknown,
-	provider: AiProvider,
-): {
-	code: string;
-	source: AiErrorSource;
-	message: string;
-	details: string;
-	status: number;
-	providerStatus?: number | null;
-	providerMessage?: string | null;
-} {
-	const rawMessage = err instanceof Error ? err.message : String(err);
-	const msg = rawMessage.toLowerCase();
-	const providerStatus =
-		(err as { status?: number }).status ?? (err as { statusCode?: number }).statusCode ?? null;
-
-	const providerLabel =
-		provider === "google" ? "Gemini" : provider === "groq" ? "Groq" : provider;
-
-	if (
-		providerStatus === 429 ||
-		msg.includes("resource_exhausted") ||
-		msg.includes("quota") ||
-		msg.includes("rate_limit") ||
-		msg.includes("rate limit")
-	) {
-		return {
-			code: "rate_limited",
-			source: "rate_limit",
-			message: `The selected ${providerLabel} key is rate limited or out of quota.`,
-			details: "Choose another saved key or wait for the provider quota window to reset.",
-			status: 429,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-
-	if (
-		providerStatus === 401 ||
-		msg.includes("api_key_invalid") ||
-		msg.includes("unauthenticated") ||
-		msg.includes("invalid_api_key") ||
-		msg.includes("invalid x-api-key")
-	) {
-		return {
-			code: "invalid_key",
-			source: "provider",
-			message: `${providerLabel} rejected the selected API key.`,
-			details: `Re-test the key in Settings -> AI or replace it with a valid key.`,
-			status: 401,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-
-	if (providerStatus === 403 || msg.includes("permission_denied") || msg.includes("forbidden")) {
-		return {
-			code: "forbidden",
-			source: "provider",
-			message: `${providerLabel} denied access for the selected key or model.`,
-			details: "Check API key restrictions and whether the selected model is enabled.",
-			status: 403,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-
-	if (
-		providerStatus === 404 ||
-		msg.includes("not_found") ||
-		msg.includes("not found") ||
-		msg.includes("model_not_found")
-	) {
-		return {
-			code: "model_not_found",
-			source: "provider",
-			message: `${providerLabel} could not find the selected model.`,
-			details: "Switch to a supported model in Settings -> AI.",
-			status: 404,
-			providerStatus,
-			providerMessage: rawMessage,
-		};
-	}
-
-	return {
-		code: "provider_error",
-		source: "provider",
-		message: `${providerLabel} returned an unexpected error.`,
-		details:
-			"The provider request failed. The diagnostic event includes the provider status and message.",
-		status: 502,
-		providerStatus,
-		providerMessage: rawMessage,
-	};
 }
 
 async function aiErrorResponse({
@@ -460,7 +364,7 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ result: response.text.trim() });
 	} catch (err) {
 		console.error(`[AI/${action}]`, err);
-		const classified = classifyProviderError(err, provider);
+		const classified = classifyAiProviderError(err, provider);
 		await recordAiUsage({
 			userId: user?.id,
 			model,
@@ -490,7 +394,13 @@ export async function POST(req: NextRequest) {
 			keySource,
 			skipUsageLog: true,
 			contentLength,
-			...classified,
+			code: classified.code,
+			source: classified.source as AiErrorSource,
+			message: classified.message,
+			details: classified.details,
+			status: classified.status,
+			providerStatus: classified.providerStatus,
+			providerMessage: classified.providerMessage,
 		});
 	}
 }

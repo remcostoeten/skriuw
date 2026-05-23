@@ -31,7 +31,7 @@ describe("notes ui store", () => {
 		expect(useNotesStore.getState().activeFileId).toBe("");
 	});
 
-	test("tracks transient save state and resets workspace ui", () => {
+	test("tracks transient save state and resets ui", () => {
 		useNotesStore.setState({
 			activeFileId: "note-a",
 			isHydrated: true,
@@ -45,7 +45,7 @@ describe("notes ui store", () => {
 		useNotesStore.getState().clearFileSaveState("note-a");
 		expect(useNotesStore.getState().getFileSaveState("note-a")).toBe("idle");
 
-		useNotesStore.getState().resetWorkspace();
+		useNotesStore.getState().resetUi();
 		expect(useNotesStore.getState().activeFileId).toBe("");
 		expect(useNotesStore.getState().isHydrated).toBe(false);
 		expect(useNotesStore.getState().folderOpenState).toEqual({});

@@ -38,7 +38,7 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
-import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/features/notes/lib/note-links";
+import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/domain/notes/note-links";
 import { useNotesStore } from "@/features/notes/store";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import {
@@ -69,6 +69,7 @@ interface RichTextEditorProps {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onTitleCommit?: (title: string) => void;
+	onBlur?: () => void;
 	onCursorChange?: (position: {
 		line: number;
 		column: number;
@@ -286,6 +287,7 @@ function NoteLinkMenuList({
 				<button
 					key={file.id}
 					type="button"
+					onMouseDown={(event) => event.preventDefault()}
 					onClick={() => onSelect(file)}
 					className="flex min-h-8 w-full items-center gap-2 rounded-[4px] px-2 text-left text-xs text-foreground/82 transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:outline-none"
 				>
@@ -677,6 +679,7 @@ export function RichTextEditor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onTitleCommit,
+	onBlur,
 	onCursorChange,
 }: RichTextEditorProps) {
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
@@ -684,6 +687,9 @@ export function RichTextEditor({
 	const lastContentRef = useRef(content);
 	const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
 	const pendingMarkdownRef = useRef(content);
+	const pendingRichContentRef = useRef<RichTextDocument>(
+		upgradeRichDocumentChips(resolveRichDocument(content, richContent)),
+	);
 	const isInternalChangeRef = useRef(false);
 	const hasNormalizedInitialContentRef = useRef(false);
 	const activeFileIdRef = useRef(activeFileId);
@@ -920,6 +926,7 @@ export function RichTextEditor({
 		}
 
 		pendingMarkdownRef.current = markdown;
+		pendingRichContentRef.current = nextRichContent;
 
 		if (saveTimeoutRef.current) {
 			clearTimeout(saveTimeoutRef.current);
@@ -944,6 +951,31 @@ export function RichTextEditor({
 		}, 180);
 	}, [editor, onChange]);
 
+	const flushPendingEditorChange = useCallback(() => {
+		if (saveTimeoutRef.current) {
+			clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+		}
+
+		const nextRichContent = pendingRichContentRef.current;
+		const nextRichContentKey = JSON.stringify(nextRichContent);
+		if (
+			pendingMarkdownRef.current === lastContentRef.current &&
+			nextRichContentKey === lastRichContentRef.current
+		) {
+			return;
+		}
+
+		isInternalChangeRef.current = true;
+		lastContentRef.current = pendingMarkdownRef.current;
+		lastRichContentRef.current = nextRichContentKey;
+		onChange({ markdown: pendingMarkdownRef.current, richContent: nextRichContent });
+
+		window.setTimeout(() => {
+			isInternalChangeRef.current = false;
+		}, 80);
+	}, [onChange]);
+
 	useEffect(() => {
 		if (!editor || isInternalChangeRef.current) return;
 		const baseRichContent = resolveRichDocument(content, richContent);
@@ -962,6 +994,7 @@ export function RichTextEditor({
 			lastContentRef.current = content;
 			lastRichContentRef.current = nextRichContentKey;
 			pendingMarkdownRef.current = content;
+			pendingRichContentRef.current = nextRichContent;
 		}
 	}, [activeFileId, content, editor, richContent]);
 
@@ -976,6 +1009,17 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
+			onBlur={(event) => {
+				const nextFocusedElement = event.relatedTarget;
+				if (
+					nextFocusedElement instanceof Node &&
+					event.currentTarget.contains(nextFocusedElement)
+				) {
+					return;
+				}
+				flushPendingEditorChange();
+				onBlur?.();
+			}}
 			className="blocknote-wrapper h-full min-h-full px-6 py-3"
 			style={
 				{

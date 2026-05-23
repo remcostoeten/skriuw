@@ -6,7 +6,7 @@ import "@blocknote/mantine/style.css";
 import { editorSchema } from "@/features/editor/components/inline-specs/schema";
 import { NoteLinkProvider } from "@/features/editor/components/inline-specs/note-link-context";
 import { useSeedEditorStore } from "../store";
-import type { SeedNote } from "../types";
+import type { SeedNote } from "@/domain/seed/types";
 
 interface SeedNoteEditorProps {
 	note: SeedNote;

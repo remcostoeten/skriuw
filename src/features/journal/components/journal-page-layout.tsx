@@ -13,7 +13,7 @@ import {
 	WorkspaceSidebarSkeleton,
 } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useAuth } from "@/core/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
@@ -208,7 +208,7 @@ function JournalEditorToolbar({
 }
 
 export function JournalPageLayout() {
-	const auth = useAuthSnapshot();
+	const auth = useAuth();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 
 	const {

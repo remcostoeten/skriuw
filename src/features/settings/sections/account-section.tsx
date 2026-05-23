@@ -19,8 +19,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/shared/ui/dialog";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
-import { signOut, updateUserDisplayName } from "@/platform/auth";
+import { useAuth } from "@/core/auth/use-auth";
+import { signOut, updateUserDisplayName } from "@/core/auth";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
 	SectionHeader,
@@ -32,7 +32,7 @@ import {
 const DELETE_PHRASE = "delete my account";
 
 export function AccountSection() {
-	const auth = useAuthSnapshot();
+	const auth = useAuth();
 	const user = auth.user;
 	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
 	const avatarSeed = getAvatarSeed(user?.email || user?.name || user?.id, "account-user");

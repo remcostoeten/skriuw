@@ -150,16 +150,75 @@ function KeyRow({
 }
 
 export function AiSettings() {
-	const { ai, updateAiPreference, addAiKey, removeAiKey, setActiveAiKey, markAiKeyTested } =
-		usePreferencesStore();
+	return (
+		<div className="space-y-7">
+			<AiModelSettings />
+			<AiLocalKeySettings />
+		</div>
+	);
+}
 
+export function AiModelSettings() {
+	const { ai, updateAiPreference } = usePreferencesStore();
+
+	const modelsByProvider = AI_MODELS.reduce<Record<string, (typeof AI_MODELS)[number][]>>(
+		(acc, m) => {
+			(acc[m.provider] ??= []).push(m);
+			return acc;
+		},
+		{},
+	);
+
+	return (
+		<div className="space-y-3">
+			<div className="space-y-1">
+				<Label className="text-sm font-medium">Preferred model</Label>
+				<p className="text-xs text-muted-foreground">
+					Applied to all AI actions — spell check, continue writing, title generation.
+				</p>
+			</div>
+			{Object.entries(modelsByProvider).map(([provider, models]) => (
+				<div key={provider} className="space-y-1.5">
+					<span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">
+						{PROVIDER_LABELS[provider as AiProvider] ?? provider}
+					</span>
+					<div className="flex flex-wrap gap-2">
+						{models.map((m) => (
+							<button
+								key={m.id}
+								type="button"
+								onClick={() => updateAiPreference("model", m.id)}
+								className={cn(
+									"relative flex min-w-[100px] flex-col items-start border px-3 py-2.5 text-left transition-colors",
+									ai.model === m.id
+										? "border-ring bg-accent text-accent-foreground"
+										: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+								)}
+							>
+								<span className="text-xs font-medium leading-tight">{m.label}</span>
+								<span className="mt-0.5 text-[10px] opacity-60">{m.desc}</span>
+								{"recommended" in m && m.recommended && (
+									<span className="absolute -top-2 right-1.5 bg-ring px-1 text-[9px] font-semibold uppercase leading-5 tracking-wide text-background">
+										rec
+									</span>
+								)}
+							</button>
+						))}
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
+export function AiLocalKeySettings() {
+	const { ai, addAiKey, removeAiKey, setActiveAiKey, markAiKeyTested } = usePreferencesStore();
 	const [draftName, setDraftName] = useState("");
 	const [draftKey, setDraftKey] = useState("");
 	const [showDraftKey, setShowDraftKey] = useState(false);
 	const [draftTestStatus, setDraftTestStatus] = useState<TestStatus>("idle");
 	const [draftTestDetails, setDraftTestDetails] = useState<TestResult | null>(null);
 	const [showAddForm, setShowAddForm] = useState(false);
-
 	const [rowTestStatus, setRowTestStatus] = useState<Record<string, TestResult>>({});
 
 	const handleTestDraft = async () => {
@@ -195,86 +254,34 @@ export function AiSettings() {
 
 	const canAdd = draftTestStatus === "ok" && draftKey.trim() && draftName.trim();
 
-	const modelsByProvider = AI_MODELS.reduce<Record<string, (typeof AI_MODELS)[number][]>>(
-		(acc, m) => {
-			(acc[m.provider] ??= []).push(m);
-			return acc;
-		},
-		{},
-	);
-
 	return (
-		<div className="space-y-7">
-			{/* Model */}
-			<div className="space-y-3">
+		<div className="space-y-3">
+			<div className="flex items-center justify-between">
 				<div className="space-y-1">
-					<Label className="text-sm font-medium">Preferred model</Label>
+					<Label className="text-sm font-medium">Local API keys</Label>
 					<p className="text-xs text-muted-foreground">
-						Applied to all AI actions — spell check, continue writing, title generation.
+						Optional browser-stored keys for quick switching when a provider rate limits
+						you.
 					</p>
 				</div>
-				{Object.entries(modelsByProvider).map(([provider, models]) => (
-					<div key={provider} className="space-y-1.5">
-						<span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">
-							{PROVIDER_LABELS[provider as AiProvider] ?? provider}
-						</span>
-						<div className="flex flex-wrap gap-2">
-							{models.map((m) => (
-								<button
-									key={m.id}
-									type="button"
-									onClick={() => updateAiPreference("model", m.id)}
-									className={cn(
-										"relative flex min-w-[100px] flex-col items-start border px-3 py-2.5 text-left transition-colors",
-										ai.model === m.id
-											? "border-ring bg-accent text-accent-foreground"
-											: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-									)}
-								>
-									<span className="text-xs font-medium leading-tight">
-										{m.label}
-									</span>
-									<span className="mt-0.5 text-[10px] opacity-60">{m.desc}</span>
-									{"recommended" in m && m.recommended && (
-										<span className="absolute -top-2 right-1.5 bg-ring px-1 text-[9px] font-semibold uppercase leading-5 tracking-wide text-background">
-											rec
-										</span>
-									)}
-								</button>
-							))}
-						</div>
-					</div>
-				))}
+				<button
+					type="button"
+					onClick={() => setShowAddForm((v) => !v)}
+					className="flex h-7 items-center gap-1 border border-border bg-background px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+				>
+					<Plus className="h-3 w-3" strokeWidth={2} />
+					Add key
+				</button>
 			</div>
 
-			{/* Key list */}
-			<div className="space-y-3">
-				<div className="flex items-center justify-between">
-					<div className="space-y-1">
-						<Label className="text-sm font-medium">API keys</Label>
-						<p className="text-xs text-muted-foreground">
-							Keys are stored locally. When the active key hits a rate limit, you can
-							switch inline.
-						</p>
-					</div>
-					<button
-						type="button"
-						onClick={() => setShowAddForm((v) => !v)}
-						className="flex h-7 items-center gap-1 border border-border bg-background px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-					>
-						<Plus className="h-3 w-3" strokeWidth={2} />
-						Add key
-					</button>
-				</div>
+			{ai.keys.length === 0 && !showAddForm ? (
+				<p className="text-xs text-muted-foreground/60 italic">
+					No local keys saved yet. The editor will use your saved provider keys, then the
+					server deployment key when available.
+				</p>
+			) : null}
 
-				{ai.keys.length === 0 && !showAddForm && (
-					<p className="text-xs text-muted-foreground/60 italic">
-						No personal keys saved yet. The editor will use the server key when
-						available.
-					</p>
-				)}
-
-				<div className="space-y-1.5">
+			<div className="space-y-1.5">
 					{ai.keys.map((k) => (
 						<div key={k.id} className="space-y-1">
 							<KeyRow
@@ -332,9 +339,8 @@ export function AiSettings() {
 					))}
 				</div>
 
-				{/* Add key form */}
-				{showAddForm && (
-					<div className="space-y-3 border border-border bg-background/50 p-3">
+			{showAddForm ? (
+				<div className="space-y-3 border border-border bg-background/50 p-3">
 						<div className="flex gap-2">
 							<input
 								type="text"
@@ -439,9 +445,8 @@ export function AiSettings() {
 								Cancel
 							</button>
 						</div>
-					</div>
-				)}
-			</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

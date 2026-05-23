@@ -15,7 +15,7 @@ import {
 	DialogTrigger,
 } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
-import { updatePassword } from "@/platform/auth";
+import { updatePassword } from "@/core/auth";
 import {
 	SectionHeader,
 	Row,

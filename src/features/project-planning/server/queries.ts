@@ -1,7 +1,6 @@
 import "server-only";
 
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getServerUser } from "@/core/db";
 import { prisma } from "@/lib/prisma";
 import { isAdmin as roleIsAdmin } from "@/lib/roles";
 import type { CustomSection, Feature, NiceToHave, ScratchEntry } from "../types";
@@ -39,8 +38,8 @@ function groupByKey<TRow>(rows: TRow[], getKey: (row: TRow) => string): Map<stri
 }
 
 export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
-	const [session, features, issues, nice, scratch, sections, sectionItems] = await Promise.all([
-		auth.api.getSession({ headers: await headers() }),
+	const [{ user }, features, issues, nice, scratch, sections, sectionItems] = await Promise.all([
+		getServerUser(),
 		prisma.planningFeature.findMany({ orderBy: { updatedAt: "desc" } }),
 		prisma.planningIssue.findMany({ orderBy: { createdAt: "asc" } }),
 		prisma.planningNiceToHave.findMany({ orderBy: { createdAt: "desc" } }),
@@ -49,7 +48,6 @@ export async function fetchPlanningSnapshot(): Promise<PlanningSnapshot> {
 		prisma.planningSectionItem.findMany({ orderBy: { sortOrder: "asc" } }),
 	]);
 
-	const user = session?.user ?? null;
 	const isAdmin = roleIsAdmin(user?.role);
 
 	const featureRows: FeatureRow[] = features.map((f) => ({

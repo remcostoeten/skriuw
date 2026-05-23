@@ -6,6 +6,7 @@ import {
 	ChevronRight,
 	Eye,
 	FileText,
+	GitBranch,
 	Hash,
 	History,
 	Info,
@@ -17,7 +18,7 @@ import {
 import { memo, type ComponentType, type ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { NoteVersionReason } from "@/domain/notes/models";
-import { summarizeNoteVersionReason } from "@/domain/notes/versioning";
+import { summarizeNoteVersionReason, formatNoteVersionDelta } from "@/domain/notes/versioning";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
 import { useNoteVersions } from "@/features/notes/hooks/use-note-versions";
@@ -26,10 +27,10 @@ import {
 	extractNoteTags,
 	getNoteTitle,
 	type ResolvedNoteLink,
-} from "@/features/notes/lib/note-links";
+} from "@/domain/notes/note-links";
+import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
-import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
 type Props = {
@@ -37,6 +38,8 @@ type Props = {
 	files?: NoteFile[];
 	className?: string;
 	isMobile?: boolean;
+	editorMode?: "raw" | "block";
+	onToggleEditorMode?: () => void;
 	onRequestClose?: () => void;
 	onFileSelect?: (id: string) => void;
 	onViewVersion?: (version: NoteVersion) => void;
@@ -96,7 +99,7 @@ function InspectorSection({
 				type="button"
 				onClick={onToggle}
 				aria-expanded={open}
-				className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+				className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50"
 			>
 				<div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
 					<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
@@ -126,6 +129,85 @@ function EmptyLine({ children }: { children: ReactNode }) {
 	);
 }
 
+function InspectorNoteControls({
+	canToggleEditorMode,
+	effectiveEditorMode,
+	onToggleEditorMode,
+	shareLabel,
+	onShare,
+}: {
+	canToggleEditorMode: boolean;
+	effectiveEditorMode: "raw" | "block";
+	onToggleEditorMode?: () => void;
+	shareLabel: string;
+	onShare: () => void;
+}) {
+	return (
+		<>
+			<div className="flex items-baseline justify-between gap-4">
+				<dt className="text-[13px] text-muted-foreground">Format</dt>
+				<dd>
+					{canToggleEditorMode ? (
+						<div
+							className="inline-flex items-center gap-1.5 text-[13px]"
+							role="group"
+							aria-label="Editor mode"
+						>
+							<button
+								type="button"
+								onClick={
+									effectiveEditorMode === "raw" ? onToggleEditorMode : undefined
+								}
+								aria-pressed={effectiveEditorMode === "block"}
+								className={cn(
+									"transition-colors",
+									effectiveEditorMode === "block"
+										? "font-medium text-foreground/80"
+										: "text-muted-foreground/70 hover:text-foreground",
+								)}
+							>
+								Block
+							</button>
+							<span aria-hidden className="text-muted-foreground/30">
+								·
+							</span>
+							<button
+								type="button"
+								onClick={
+									effectiveEditorMode === "block" ? onToggleEditorMode : undefined
+								}
+								aria-pressed={effectiveEditorMode === "raw"}
+								className={cn(
+									"transition-colors",
+									effectiveEditorMode === "raw"
+										? "font-medium text-foreground/80"
+										: "text-muted-foreground/70 hover:text-foreground",
+								)}
+							>
+								Raw
+							</button>
+						</div>
+					) : (
+						<span className="text-[13px] font-medium text-foreground/80">Source</span>
+					)}
+				</dd>
+			</div>
+			<div className="flex items-baseline justify-between gap-4">
+				<dt className="text-[13px] text-muted-foreground">Share</dt>
+				<dd>
+					<button
+						type="button"
+						onClick={onShare}
+						className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+					>
+						{shareLabel}
+					</button>
+				</dd>
+			</div>
+		</>
+	);
+}
+
 type VersionListItem = {
 	id: string;
 	name: string;
@@ -140,100 +222,368 @@ type VersionRowData = VersionListItem & {
 	previousContent?: string;
 };
 
-function countWords(content: string): number {
-	const trimmed = content.trim();
-	if (!trimmed) return 0;
-	return trimmed.split(/\s+/).filter(Boolean).length;
+type HistoryBranchRole = "head" | "branch" | "fork" | "trunk";
+
+const HISTORY_TRUNK_X = 12;
+const HISTORY_BRANCH_X = 26;
+
+function getHistoryBranchRoles(items: VersionListItem[]): HistoryBranchRole[] {
+	const forkIndex = items.findIndex(
+		(item, index) => index > 0 && item.reasonKind === "restore",
+	);
+
+	if (forkIndex === -1) {
+		return items.map((_, index) => (index === 0 ? "head" : "trunk"));
+	}
+
+	return items.map((_, index) => {
+		if (index === 0) return "head";
+		if (index < forkIndex) return "branch";
+		if (index === forkIndex) return "fork";
+		return "trunk";
+	});
 }
 
-function countChars(content: string): number {
-	return content.length;
+function findRestoredSourceIndex(
+	items: VersionListItem[],
+	forkIndex: number,
+): number | null {
+	if (forkIndex === -1) return null;
+
+	const currentContent = items[0]?.content;
+	if (!currentContent) return null;
+
+	for (let index = forkIndex + 1; index < items.length; index += 1) {
+		if (items[index].content === currentContent) {
+			return index;
+		}
+	}
+
+	return null;
 }
 
-const VersionDelta = memo(function VersionDelta({
+function historyLaneX(role: HistoryBranchRole, hasFork: boolean) {
+	if (!hasFork) return HISTORY_TRUNK_X;
+	if (role === "head" || role === "branch") return HISTORY_BRANCH_X;
+	return HISTORY_TRUNK_X;
+}
+
+function HistoryGraphNode({
+	branchRole,
+	isFirst,
+	isLast,
+	isCurrent,
+	hasFork,
+	isRestoredTrunkLink,
+}: {
+	branchRole: HistoryBranchRole;
+	isFirst: boolean;
+	isLast: boolean;
+	isCurrent?: boolean;
+	hasFork: boolean;
+	isRestoredTrunkLink?: boolean;
+}) {
+	const laneX = historyLaneX(branchRole, hasFork);
+	const isFork = branchRole === "fork";
+	const lineClass = isRestoredTrunkLink
+		? "border-l border-dashed border-border bg-transparent w-0"
+		: "bg-border";
+
+	if (!hasFork) {
+		return (
+			<>
+				{!isFirst ? (
+					<span
+						aria-hidden
+						className={cn(
+							"absolute top-0 h-1/2 -translate-x-1/2",
+							isRestoredTrunkLink ? "w-0 border-l border-dashed border-border" : "w-px bg-border",
+						)}
+						style={{ left: laneX }}
+					/>
+				) : null}
+				{!isLast ? (
+					<span
+						aria-hidden
+						className={cn(
+							"absolute bottom-0 h-1/2 -translate-x-1/2",
+							isRestoredTrunkLink ? "w-0 border-l border-dashed border-border" : "w-px bg-border",
+						)}
+						style={{ left: laneX }}
+					/>
+				) : null}
+				<span
+					className={cn(
+						"absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-background",
+						isCurrent && isFork
+							? "bg-emerald-400"
+							: "bg-muted-foreground/40 group-hover:bg-foreground/60",
+					)}
+					style={{ left: laneX }}
+					aria-hidden
+				/>
+			</>
+		);
+	}
+
+	return (
+		<>
+			{branchRole === "head" || branchRole === "branch" ? (
+				<>
+					{!isFirst ? (
+						<span
+							aria-hidden
+							className={cn(
+								"absolute top-0 h-1/2 w-px -translate-x-1/2",
+								lineClass,
+							)}
+							style={{ left: HISTORY_BRANCH_X }}
+						/>
+					) : null}
+					{!isLast ? (
+						<span
+							aria-hidden
+							className={cn(
+								"absolute bottom-0 h-1/2 w-px -translate-x-1/2",
+								lineClass,
+							)}
+							style={{ left: HISTORY_BRANCH_X }}
+						/>
+					) : null}
+				</>
+			) : null}
+
+			{branchRole === "fork" ? (
+				<>
+					<svg
+						aria-hidden
+						className="pointer-events-none absolute left-0 top-0 h-full w-8 overflow-visible text-border"
+						viewBox="0 0 32 32"
+						preserveAspectRatio="none"
+					>
+						<path
+							d={`M ${HISTORY_TRUNK_X} 16 V 32`}
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1"
+						/>
+						<path
+							d={`M ${HISTORY_TRUNK_X} 16 H ${HISTORY_BRANCH_X} V 0`}
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1"
+							className="text-border"
+						/>
+						<path
+							d={`M ${HISTORY_TRUNK_X} 16 H ${HISTORY_BRANCH_X}`}
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							className="text-amber-400/80"
+						/>
+					</svg>
+					<span
+						aria-hidden
+						className="absolute top-0 h-1/2 w-px -translate-x-1/2 bg-border"
+						style={{ left: HISTORY_BRANCH_X }}
+					/>
+				</>
+			) : null}
+
+			{branchRole === "trunk" ? (
+				<>
+					{!isFirst ? (
+						<span
+							aria-hidden
+							className={cn(
+								"absolute top-0 h-1/2 -translate-x-1/2",
+								isRestoredTrunkLink
+									? "w-0 border-l border-dashed border-border"
+									: "w-px bg-border",
+							)}
+							style={{ left: HISTORY_TRUNK_X }}
+						/>
+					) : null}
+					{!isLast ? (
+						<span
+							aria-hidden
+							className={cn(
+								"absolute bottom-0 h-1/2 -translate-x-1/2",
+								isRestoredTrunkLink
+									? "w-0 border-l border-dashed border-border"
+									: "w-px bg-border",
+							)}
+							style={{ left: HISTORY_TRUNK_X }}
+						/>
+					) : null}
+				</>
+			) : null}
+
+			<span
+				className={cn(
+					"absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-background",
+					isCurrent && "bg-emerald-400",
+					isFork && "bg-amber-400 ring-amber-400/20",
+					!isCurrent &&
+						!isFork &&
+						"bg-muted-foreground/40 group-hover:bg-foreground/60",
+				)}
+				style={{ left: laneX }}
+				aria-hidden
+			/>
+		</>
+	);
+}
+
+function VersionDelta({
 	currentContent,
 	previousContent,
+	colorized = false,
 }: {
 	currentContent: string;
 	previousContent?: string;
+	colorized?: boolean;
 }) {
 	if (!previousContent) {
 		return null;
 	}
 
-	const wordDelta = countWords(currentContent) - countWords(previousContent);
-	const charDelta = countChars(currentContent) - countChars(previousContent);
-
-	const renderDelta = (value: number) => (
-		<span className="inline-flex items-baseline gap-0.5">
-			<span>{value >= 0 ? "+" : "−"}</span>
-			<AnimatedNumber value={Math.abs(value)} />
-		</span>
-	);
+	const delta = formatNoteVersionDelta(currentContent, previousContent);
+	const parts = delta.split(" ");
 
 	return (
-		<span className="inline-flex items-baseline gap-1 text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-			{renderDelta(wordDelta)}
-			{renderDelta(charDelta)}
+		<span className="inline-flex shrink-0 items-baseline gap-1 font-mono text-[10px] tabular-nums">
+			{parts.map((part, index) => {
+				const value = Number.parseInt(part, 10);
+				return (
+					<span
+						key={`${part}-${index}`}
+						className={cn(
+							colorized && value > 0 && "text-emerald-400",
+							colorized && value < 0 && "text-destructive",
+							(!colorized || value === 0) && "text-muted-foreground/70",
+						)}
+					>
+						{part}
+					</span>
+				);
+			})}
 		</span>
 	);
-});
+}
 
 function getVersionEventLabel(version: VersionListItem) {
-	if (version.reasonKind === "autosave") return null;
+	if (
+		version.reasonKind === "autosave" ||
+		version.reasonKind === "checkpoint" ||
+		version.reasonKind === "restore"
+	) {
+		return null;
+	}
 	return version.reason;
 }
 
 const VersionRow = memo(function VersionRow({
 	version,
 	previousContent,
+	branchRole,
+	isFirst,
+	isLast,
+	hasFork,
+	isRestoredSource,
+	isRestoredTrunkLink,
 	onView,
 }: {
 	version: VersionListItem;
 	previousContent?: string;
+	branchRole: HistoryBranchRole;
+	isFirst: boolean;
+	isLast: boolean;
+	hasFork: boolean;
+	isRestoredSource?: boolean;
+	isRestoredTrunkLink?: boolean;
 	onView?: () => void;
 }) {
 	const eventLabel = getVersionEventLabel(version);
+	const isFork = branchRole === "fork";
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	const delta =
+		previousContent !== undefined ? (
+			<VersionDelta
+				currentContent={version.content}
+				previousContent={previousContent}
+				colorized={isFork}
+			/>
+		) : null;
 
 	return (
-		<li className="relative pl-6 py-1.5 group">
-			<span
-				className={cn(
-					"absolute left-[10px] top-2.5 h-2 w-2 rounded-full ring-2 ring-background",
-					version.current
-						? "bg-emerald-400"
-						: "bg-muted-foreground/40 group-hover:bg-foreground/60",
-				)}
-				aria-hidden
+		<li className="group relative py-1.5 pl-9 pr-11">
+			<HistoryGraphNode
+				branchRole={branchRole}
+				isFirst={isFirst}
+				isLast={isLast}
+				isCurrent={version.current}
+				hasFork={hasFork}
+				isRestoredTrunkLink={isRestoredTrunkLink}
 			/>
-			<div className="flex items-baseline justify-between gap-3">
-				<span className="text-[11px] text-muted-foreground">
-					{formatDistanceToNow(version.createdAt, { addSuffix: false })} ago
+			<div className="flex min-w-0 items-center gap-1.5">
+				<span className="shrink-0 text-[11px] text-muted-foreground">
+					{mounted ? formatDistanceToNow(version.createdAt, { addSuffix: false }) : ""}{" "}
+					ago
 				</span>
-				<VersionDelta currentContent={version.content} previousContent={previousContent} />
-			</div>
-			<p className="truncate text-[12px] leading-snug text-foreground/86" title={version.name}>
-				{version.name}
-			</p>
-			<div className="mt-0.5 flex items-center justify-between gap-2">
+				{isFork ? (
+					<>
+						<span aria-hidden className="text-[10px] text-muted-foreground/30">
+							·
+						</span>
+						<span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-400/90">
+							<GitBranch className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+							Restored
+						</span>
+					</>
+				) : isRestoredSource ? (
+					<>
+						<span aria-hidden className="text-[10px] text-muted-foreground/30">
+							·
+						</span>
+						<span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">
+							Source
+						</span>
+					</>
+				) : null}
 				{eventLabel ? (
-					<span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60">
-						{eventLabel}
-					</span>
-				) : (
-					<span aria-hidden />
-				)}
-				{!version.current && onView && (
-					<button
-						type="button"
-						onClick={onView}
-						className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground"
-					>
-						<Eye className="h-2.5 w-2.5" strokeWidth={1.6} />
-						View
-					</button>
-				)}
+					<>
+						<span aria-hidden className="text-[10px] text-muted-foreground/30">
+							·
+						</span>
+						<span className="truncate text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60">
+							{eventLabel}
+						</span>
+					</>
+				) : null}
+				{delta ? (
+					<>
+						<span aria-hidden className="text-[10px] text-muted-foreground/30">
+							·
+						</span>
+						{delta}
+					</>
+				) : null}
 			</div>
+			{!version.current && onView ? (
+				<button
+					type="button"
+					onClick={onView}
+					className="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground"
+				>
+					<Eye className="h-2.5 w-2.5" strokeWidth={1.6} />
+					View
+				</button>
+			) : null}
 		</li>
 	);
 });
@@ -336,6 +686,8 @@ export function MetadataPanel({
 	files = [],
 	className,
 	isMobile = false,
+	editorMode = "block",
+	onToggleEditorMode,
 	onRequestClose,
 	onFileSelect,
 	onViewVersion,
@@ -355,6 +707,10 @@ export function MetadataPanel({
 			details: true,
 		},
 	);
+	const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+	const isMdx = isMdxNote(file);
+	const effectiveEditorMode = isMdx ? "raw" : editorMode;
+	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
 
 	const details = useMemo(() => {
 		if (!file) return [];
@@ -432,6 +788,17 @@ export function MetadataPanel({
 		}));
 	}, [file, versionsQuery.data]);
 
+	const historyBranchRoles = useMemo(
+		() => getHistoryBranchRoles(historyItems),
+		[historyItems],
+	);
+	const hasRestoreBranch = historyBranchRoles.includes("fork");
+	const restoredSourceIndex = useMemo(() => {
+		if (!hasRestoreBranch) return null;
+		const forkIndex = historyBranchRoles.indexOf("fork");
+		return findRestoredSourceIndex(historyItems, forkIndex);
+	}, [hasRestoreBranch, historyBranchRoles, historyItems]);
+
 	const toggleSection = (section: SectionKey) => {
 		setOpenSections((current) => ({
 			...current,
@@ -446,11 +813,31 @@ export function MetadataPanel({
 		}
 	}, [selectedTag, tags]);
 
+	useEffect(() => {
+		if (shareState !== "copied") return;
+		const timer = window.setTimeout(() => setShareState("idle"), 1800);
+		return () => window.clearTimeout(timer);
+	}, [shareState]);
+
+	const handleShare = () => {
+		if (!file) return;
+		const shareTitle = getNoteTitle(file);
+		const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+		if (navigator.share) {
+			void navigator.share({ title: shareTitle, url: shareUrl });
+			return;
+		}
+		if (shareUrl) {
+			void navigator.clipboard?.writeText(shareUrl);
+			setShareState("copied");
+		}
+	};
+
 	const asideClass = cn(
-		"flex flex-col bg-background",
+		"flex min-h-0 flex-col bg-background",
 		isMobile
 			? "h-full w-full rounded-[inherit] border-0 bg-transparent"
-			: "w-72 border-l border-border xl:w-80",
+			: "h-full w-72 border-l border-border xl:w-80",
 		className,
 	);
 
@@ -508,7 +895,7 @@ export function MetadataPanel({
 												const candidates = all.filter(
 													(el) =>
 														(el.getAttribute("data-level") ?? null) ===
-															levelStr &&
+														levelStr &&
 														el.textContent?.trim() === heading.text,
 												);
 												const target =
@@ -591,8 +978,8 @@ export function MetadataPanel({
 												className={cn(
 													"inline-flex min-h-7 cursor-pointer items-center border px-2 text-[12px] font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
 													isSelected
-														? "border-ring bg-muted text-foreground"
-														: "border-border bg-muted text-foreground/78 hover:border-ring/70 hover:text-foreground",
+														? "border-ring bg-secondary text-foreground"
+														: "border-border bg-secondary/50 text-foreground/78 hover:border-ring/70 hover:text-foreground",
 												)}
 											>
 												#{tag}
@@ -714,16 +1101,27 @@ export function MetadataPanel({
 				>
 					{historyItems.length > 0 ? (
 						<ol className="relative -mx-1">
-							<span
-								aria-hidden
-								className="absolute left-[14px] top-2 bottom-2 w-px bg-border"
-							/>
-							{historyItems.map((version) => {
+							{historyItems.map((version, index) => {
+								const forkIndex = hasRestoreBranch
+									? historyBranchRoles.indexOf("fork")
+									: -1;
+								const isRestoredTrunkLink =
+									restoredSourceIndex !== null &&
+									forkIndex !== -1 &&
+									index > forkIndex &&
+									index <= restoredSourceIndex;
+
 								return (
 									<VersionRow
 										key={version.id}
 										version={version}
 										previousContent={version.previousContent}
+										branchRole={historyBranchRoles[index] ?? "trunk"}
+										isFirst={index === 0}
+										isLast={index === historyItems.length - 1}
+										hasFork={hasRestoreBranch}
+										isRestoredSource={index === restoredSourceIndex}
+										isRestoredTrunkLink={isRestoredTrunkLink}
 										onView={
 											!version.current && onViewVersion
 												? () => {
@@ -748,12 +1146,12 @@ export function MetadataPanel({
 				</InspectorSection>
 			</div>
 
-			<div className="shrink-0">
+			<div className="shrink-0 border-t border-border bg-background">
 				<InspectorSection
 					id="note-inspector-details"
 					title="Details"
 					icon={Info}
-					count={details.length}
+					count={details.length + 2}
 					open={openSections.details}
 					onToggle={() => toggleSection("details")}
 					className="border-b-0"
@@ -772,6 +1170,18 @@ export function MetadataPanel({
 								</dd>
 							</div>
 						))}
+						<div
+							aria-hidden
+							className="my-1 border-t border-border/70"
+							role="separator"
+						/>
+						<InspectorNoteControls
+							canToggleEditorMode={canToggleEditorMode}
+							effectiveEditorMode={effectiveEditorMode}
+							onToggleEditorMode={onToggleEditorMode}
+							shareLabel={shareState === "copied" ? "Copied" : "Copy link"}
+							onShare={handleShare}
+						/>
 					</dl>
 				</InspectorSection>
 			</div>

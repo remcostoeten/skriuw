@@ -7,7 +7,7 @@ import type {
 	SeedJournalEntry,
 	SeedNote,
 	SeedTag,
-} from "../types";
+} from "./types";
 
 export type ActiveSeedBundle = {
 	id: string;

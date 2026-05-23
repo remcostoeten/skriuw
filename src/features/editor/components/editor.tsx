@@ -47,6 +47,7 @@ interface EditorProps {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onTitleCommit?: (title: string) => void;
+	onBlur?: () => void;
 	onCursorChange?: (position: {
 		line: number;
 		column: number;
@@ -66,6 +67,7 @@ export function Editor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onTitleCommit,
+	onBlur,
 	onCursorChange,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -175,6 +177,7 @@ export function Editor({
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onTitleCommit={onTitleCommit}
+					onBlur={onBlur}
 					onCursorChange={onCursorChange}
 				/>
 			</div>
@@ -208,6 +211,7 @@ export function Editor({
 						if (title) {
 							onTitleCommit?.(title);
 						}
+						onBlur?.();
 					}}
 					className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-sm resize-none outline-hidden"
 					style={{

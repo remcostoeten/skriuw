@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { type UpdateNoteInput, updateNote } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { NoteEditorMode, NoteFile, RichTextDocument } from "@/types/notes";
-import { notesKeys } from "./use-notes";
+import { notesKeys } from "./notes-keys";
+import { reconcileSavedNoteCache } from "@/features/notes/lib/note-cache";
 
 type DebouncedUpdateOptions = {
 	onSaving?: (noteId: string) => void;
@@ -26,8 +27,6 @@ type PendingEdit = {
 	preferredEditorMode?: NoteEditorMode;
 };
 
-const CONTENT_SAVE_DEBOUNCE_MS = 750;
-
 export type DebouncedSaveController = {
 	schedule(args: DebouncedContentArgs): void;
 	flush(
@@ -42,8 +41,9 @@ export function useDebouncedSave(
 	options: DebouncedUpdateOptions = {},
 ): DebouncedSaveController {
 	const queryClient = useQueryClient();
-	const timeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 	const versionsRef = useRef(new Map<string, number>());
+	const sessionVersionIdsRef = useRef(new Map<string, string>());
+	const flushQueuesRef = useRef(new Map<string, Promise<void>>());
 	const pendingRef = useRef(new Map<string, PendingEdit>());
 	const dirtyRef = useRef(new Set<string>());
 	const optionsRef = useRef(options);
@@ -51,15 +51,6 @@ export function useDebouncedSave(
 	useEffect(() => {
 		optionsRef.current = options;
 	}, [options]);
-
-	useEffect(() => {
-		return () => {
-			for (const timeoutId of timeoutsRef.current.values()) {
-				clearTimeout(timeoutId);
-			}
-			timeoutsRef.current.clear();
-		};
-	}, []);
 
 	return useMemo<DebouncedSaveController>(() => {
 		function applyOptimisticCache(
@@ -113,6 +104,9 @@ export function useDebouncedSave(
 				richContent: edit.richContent,
 				preferredEditorMode: edit.preferredEditorMode,
 				createCheckpoint: createCheckpoint || undefined,
+				sessionVersionId: createCheckpoint
+					? sessionVersionIdsRef.current.get(id)
+					: undefined,
 			};
 
 			try {
@@ -120,35 +114,16 @@ export function useDebouncedSave(
 				if (!result.note || versionsRef.current.get(id) !== requestVersion) {
 					return;
 				}
-
-				queryClient.setQueryData<NoteFile[]>(
-					notesKeys.files(),
-					(current = []) =>
-						current.map((item) => (item.id === id ? result.note! : item)),
-				);
-				queryClient.setQueryData(notesKeys.detail(id), result.note);
-				void queryClient.invalidateQueries({
-					queryKey: notesKeys.backlinksAll(),
-				});
-				if (result.versionCreated) {
-					void queryClient.invalidateQueries({
-						queryKey: notesKeys.versions(id),
-					});
+				if (createCheckpoint && result.versionId) {
+					sessionVersionIdsRef.current.set(id, result.versionId);
 				}
+				reconcileSavedNoteCache(queryClient, input, result);
 				optionsRef.current.onSaved?.(id);
 			} catch {
 				if (versionsRef.current.get(id) !== requestVersion) {
 					return;
 				}
 				optionsRef.current.onError?.(id);
-			}
-		}
-
-		function clearPending(id: string) {
-			const timeoutId = timeoutsRef.current.get(id);
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-				timeoutsRef.current.delete(id);
 			}
 		}
 
@@ -177,24 +152,12 @@ export function useDebouncedSave(
 			);
 
 			optionsRef.current.onSaving?.(id);
-
-			clearPending(id);
-			const timeoutId = setTimeout(() => {
-				timeoutsRef.current.delete(id);
-				const pending = pendingRef.current.get(id);
-				if (!pending) return;
-				pendingRef.current.delete(id);
-				void sendUpdate(id, pending, false);
-			}, CONTENT_SAVE_DEBOUNCE_MS);
-
-			timeoutsRef.current.set(id, timeoutId);
 		}
 
-		async function flush(
+		async function flushNow(
 			noteId: string,
 			flushOptions: { createCheckpoint?: boolean } = {},
 		): Promise<void> {
-			clearPending(noteId);
 			const pending = pendingRef.current.get(noteId);
 			const wantsCheckpoint = flushOptions.createCheckpoint ?? true;
 			const wasDirty = dirtyRef.current.has(noteId);
@@ -221,6 +184,25 @@ export function useDebouncedSave(
 					},
 					true,
 				);
+			}
+		}
+
+		async function flush(
+			noteId: string,
+			flushOptions: { createCheckpoint?: boolean } = {},
+		): Promise<void> {
+			const previousFlush = flushQueuesRef.current.get(noteId) ?? Promise.resolve();
+			const nextFlush = previousFlush
+				.catch(() => {})
+				.then(() => flushNow(noteId, flushOptions));
+
+			flushQueuesRef.current.set(noteId, nextFlush);
+			try {
+				await nextFlush;
+			} finally {
+				if (flushQueuesRef.current.get(noteId) === nextFlush) {
+					flushQueuesRef.current.delete(noteId);
+				}
 			}
 		}
 

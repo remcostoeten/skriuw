@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/shared/lib/utils";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useAuth } from "@/core/auth/use-auth";
 import { isAdmin } from "@/lib/roles";
 
 export type SettingsTabId =
@@ -53,7 +53,7 @@ type SettingsSidebarProps = {
 };
 
 export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsSidebarProps) {
-	const auth = useAuthSnapshot();
+	const auth = useAuth();
 	const userIsAdmin = isAdmin(auth.user?.role);
 
 	return (

@@ -1,7 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useAuthSnapshot } from "@/platform/auth/use-auth";
+import { useAuth } from "@/core/auth/use-auth";
+import {
+	GroupLabel,
+	SectionHeader,
+	SettingsCard,
+} from "@/features/settings/components/settings-primitives";
 
 function SettingsPanelLoading({ rows = 3 }: { rows?: number }) {
 	return (
@@ -22,10 +27,18 @@ function SettingsPanelLoading({ rows = 3 }: { rows?: number }) {
 	);
 }
 
-const AiSettings = dynamic(
+const AiModelSettings = dynamic(
 	() =>
 		import("@/features/settings/components/ai-settings").then((mod) => ({
-			default: mod.AiSettings,
+			default: mod.AiModelSettings,
+		})),
+	{ ssr: false, loading: () => <SettingsPanelLoading rows={2} /> },
+);
+
+const AiLocalKeySettings = dynamic(
+	() =>
+		import("@/features/settings/components/ai-settings").then((mod) => ({
+			default: mod.AiLocalKeySettings,
 		})),
 	{ ssr: false, loading: () => <SettingsPanelLoading rows={2} /> },
 );
@@ -39,21 +52,32 @@ const AiKeysManager = dynamic(
 );
 
 export function AiSection() {
-	const auth = useAuthSnapshot();
+	const auth = useAuth();
 	const isSignedIn = auth.phase === "authenticated" && auth.user !== null;
 
 	return (
-		<div className="space-y-6">
-			<div>
-				<h3 className="text-sm font-medium text-foreground">AI</h3>
-				<p className="text-xs text-muted-foreground mt-1">
-					Bring-your-own-key configuration and usage diagnostics.
-				</p>
-			</div>
-			<div className="border-t border-border" />
+		<>
+			<SectionHeader
+				title="AI"
+				description="Choose models, manage provider keys, and review recent activity."
+			/>
+
+			<GroupLabel>MODEL</GroupLabel>
+			<SettingsCard>
+				<div className="py-4">
+					<AiModelSettings />
+				</div>
+			</SettingsCard>
+
+			<GroupLabel>LOCAL KEYS</GroupLabel>
+			<SettingsCard>
+				<div className="py-4">
+					<AiLocalKeySettings />
+				</div>
+			</SettingsCard>
+
+			<GroupLabel>PROVIDER KEYS</GroupLabel>
 			<AiKeysManager isSignedIn={isSignedIn} />
-			<div className="border-t border-border" />
-			<AiSettings />
-		</div>
+		</>
 	);
 }

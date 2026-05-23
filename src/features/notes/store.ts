@@ -18,8 +18,8 @@ type NotesUiState = {
 	isHydrated: boolean;
 	folderOpenState: FolderOpenState;
 	saveStates: Record<string, SaveStatus>;
-	resetWorkspace: () => void;
-	initialize: (_workspaceId?: string) => Promise<void>;
+	resetUi: () => void;
+	initialize: () => Promise<void>;
 	getFileSaveState: (id: string | null | undefined) => SaveStatus;
 	setActiveFileId: (id: string) => void;
 	ensureActiveFileId: (files: NoteFile[]) => void;
@@ -58,7 +58,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 		selectedInspectorTag: null,
 	},
 
-	resetWorkspace: () => {
+	resetUi: () => {
 		set({
 			activeFileId: "",
 			isHydrated: false,

@@ -13,11 +13,11 @@ import {
 	type AuthErrorNotice,
 } from "../auth-errors";
 import {
-	initializeAuth,
+	getRememberMePreference,
 	setRememberMe as saveRememberMePreference,
 	signInWithOAuth,
 	signUpWithPassword,
-} from "@/platform/auth";
+} from "@/core/auth";
 
 type AuthIntent = "sign-up" | "github";
 type AuthActionState = "idle" | "pending" | "success";
@@ -41,9 +41,7 @@ export default function SignUpPage() {
 	const [completedIntent, setCompletedIntent] = useState<AuthIntent | null>(null);
 
 	useEffect(() => {
-		void initializeAuth().then((snapshot) => {
-			setRememberMe(snapshot.rememberMe);
-		});
+		setRememberMe(getRememberMePreference());
 	}, []);
 
 	const isPending = pendingIntent !== null;

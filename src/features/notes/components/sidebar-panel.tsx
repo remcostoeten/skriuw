@@ -108,6 +108,11 @@ export function SidebarPanel({
 			folders: folders.filter((folder) => folder.name.toLowerCase().includes(lowerQuery)),
 		};
 	}, [deferredSearchQuery, files, folders]);
+	const maxSearchResultsPerType = 10;
+	const visibleSearchFiles = searchResults.files.slice(0, maxSearchResultsPerType);
+	const visibleSearchFolders = searchResults.folders.slice(0, maxSearchResultsPerType);
+	const totalVisibleSearchResults = visibleSearchFiles.length + visibleSearchFolders.length;
+	const totalSearchResults = searchResults.files.length + searchResults.folders.length;
 
 	const handleFileSelect = useCallback(
 		(id: string) => {
@@ -174,7 +179,7 @@ export function SidebarPanel({
 		}
 	}, [isSearchOpen]);
 
-	const hasSearchResults = searchResults.files.length > 0 || searchResults.folders.length > 0;
+	const hasSearchResults = totalSearchResults > 0;
 	const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
 	const navigationSections = visibleSections.filter((section) => section.type !== "file-tree");
 
@@ -599,8 +604,7 @@ export function SidebarPanel({
 											Quick Jump
 										</p>
 										<p className="text-[12px] text-sidebar-foreground/72">
-											{searchResults.files.length +
-												searchResults.folders.length}{" "}
+											{totalVisibleSearchResults}{" "}
 											results for "{searchQuery.trim()}"
 										</p>
 									</div>
@@ -608,12 +612,12 @@ export function SidebarPanel({
 										Search
 									</span>
 								</div>
-								{searchResults.folders.length > 0 && (
+								{visibleSearchFolders.length > 0 && (
 									<div className="border-b border-sidebar-border p-2 last:border-b-0">
 										<p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sidebar-foreground/58">
 											Folders
 										</p>
-										{searchResults.folders.map((folder) => (
+										{visibleSearchFolders.map((folder) => (
 											<button
 												key={folder.id}
 												onClick={() => handleSearchFolderSelect(folder.id)}
@@ -628,14 +632,19 @@ export function SidebarPanel({
 												</span>
 											</button>
 										))}
+										{searchResults.folders.length > visibleSearchFolders.length && (
+											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
+												+{searchResults.folders.length - visibleSearchFolders.length} more folders
+											</p>
+										)}
 									</div>
 								)}
-								{searchResults.files.length > 0 && (
+								{visibleSearchFiles.length > 0 && (
 									<div className="p-2">
 										<p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-sidebar-foreground/58">
 											Files
 										</p>
-										{searchResults.files.slice(0, 10).map((file) => (
+										{visibleSearchFiles.map((file) => (
 											<button
 												key={file.id}
 												onClick={() => handleSearchFileSelect(file.id)}
@@ -655,9 +664,9 @@ export function SidebarPanel({
 												</span>
 											</button>
 										))}
-										{searchResults.files.length > 10 && (
+										{searchResults.files.length > visibleSearchFiles.length && (
 											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
-												+{searchResults.files.length - 10} more results
+												+{searchResults.files.length - visibleSearchFiles.length} more files
 											</p>
 										)}
 									</div>

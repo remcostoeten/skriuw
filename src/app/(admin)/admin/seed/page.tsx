@@ -1,4 +1,4 @@
-import { loadActiveSeedBundle } from "@/features/admin/seed/server/queries";
+import { loadActiveSeedBundle } from "@/domain/seed/queries";
 import { SeedEditorPage } from "@/features/admin/seed/components/seed-editor-page";
 
 export default async function AdminSeedPage() {

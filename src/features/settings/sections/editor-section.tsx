@@ -1,23 +1,19 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
 import { usePreferencesStore } from "@/features/settings/store";
+import { cn } from "@/shared/lib/utils";
 import {
 	SectionHeader,
 	Row,
 	SettingsCard,
+	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
-import {
-	AnimatedNumberDemo,
-	DefaultFontDemo,
-	LineHeightDemo,
-	RawMdxModeDemo,
-} from "@/features/settings/demos";
 import { EditorFontPicker } from "@/features/settings/components/editor-font-picker";
 import {
 	EDITOR_LINE_HEIGHTS,
 	getEditorLineHeightLabel,
+	getEditorLineHeightValue,
 } from "@/features/editor/lib/editor-line-height";
 
 export function EditorSection() {
@@ -27,44 +23,66 @@ export function EditorSection() {
 	return (
 		<>
 			<SectionHeader title="Editor" description="How writing in Skriuw should feel." />
-			<SettingsCard>
-				<Row
-					title="Default font"
-					description="Used in the rich text editor."
-					visualization={<DefaultFontDemo fontId={editor.defaultFont} />}
-				>
+
+			<GroupLabel>TYPOGRAPHY</GroupLabel>
+			<div className="space-y-6 rounded-lg border border-border/60 bg-card/40 p-5">
+				<div className="space-y-3">
+					<div>
+						<div className="text-sm font-medium">Default font</div>
+						<p className="mt-0.5 text-xs text-muted-foreground">
+							Choose a typeface for the rich text editor.
+						</p>
+					</div>
 					<EditorFontPicker
 						value={editor.defaultFont}
 						onChange={(value) => update("defaultFont", value)}
 					/>
-				</Row>
-				<Row
-					title="Line height"
-					description="Spacing between lines of text."
-					visualization={<LineHeightDemo lineHeight={editor.lineHeight} />}
-				>
-					<Select
-						value={editor.lineHeight}
-						onValueChange={(value) =>
-							update("lineHeight", value as typeof editor.lineHeight)
-						}
-					>
-						<SelectTrigger className="h-8 w-52">
-							<SelectValue placeholder="Select line height" />
-						</SelectTrigger>
-						<SelectContent>
+				</div>
+
+				<div className="border-t border-border/50 pt-5">
+					<div className="space-y-3">
+						<div>
+							<div className="text-sm font-medium">Line height</div>
+							<p className="mt-0.5 text-xs text-muted-foreground">
+								Spacing between lines while you write.
+							</p>
+						</div>
+						<div className="flex flex-wrap gap-2">
 							{EDITOR_LINE_HEIGHTS.map((lineHeight) => (
-								<SelectItem key={lineHeight} value={lineHeight}>
-									{getEditorLineHeightLabel(lineHeight)}
-								</SelectItem>
+								<button
+									key={lineHeight}
+									type="button"
+									aria-pressed={editor.lineHeight === lineHeight}
+									onClick={() => update("lineHeight", lineHeight)}
+									className={cn(
+										"min-w-[7.5rem] border px-3 py-2.5 text-left transition-colors",
+										editor.lineHeight === lineHeight
+											? "border-ring bg-accent text-accent-foreground"
+											: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+									)}
+								>
+									<span className="text-xs font-medium">
+										{getEditorLineHeightLabel(lineHeight)}
+									</span>
+								</button>
 							))}
-						</SelectContent>
-					</Select>
-				</Row>
+						</div>
+						<p
+							className="max-w-xl rounded-md border border-border/60 bg-background/55 px-3 py-2.5 text-sm text-foreground/88"
+							style={{ lineHeight: getEditorLineHeightValue(editor.lineHeight) }}
+						>
+							A calmer editing rhythm makes dense notes easier to scan while keeping
+							long writing sessions comfortable.
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<GroupLabel>BEHAVIOR</GroupLabel>
+			<SettingsCard>
 				<Row
 					title="Default to Raw MDX"
 					description="New notes open in raw MDX mode."
-					visualization={<RawMdxModeDemo enabled={editor.defaultModeRaw} />}
 				>
 					<Switch
 						checked={editor.defaultModeRaw}
@@ -74,7 +92,6 @@ export function EditorSection() {
 				<Row
 					title="Animated numbers"
 					description="Animate changing counts in the inspector and status bar."
-					visualization={<AnimatedNumberDemo />}
 				>
 					<Switch
 						checked={editor.animateNumbers}
