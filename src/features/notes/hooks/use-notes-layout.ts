@@ -6,8 +6,8 @@ import { type PanInfo, type Transition, useDragControls, useReducedMotion } from
 import { useRouter } from "next/navigation";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CreateFolderInput } from "@/domain/folders/api";
-import type { CreateNoteInput } from "@/domain/notes/api";
+import type { CreateFolderInput } from "@/domain/folders/actions";
+import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
