@@ -18,13 +18,11 @@ export default function AppHomePage() {
 
 async function AppHomeContent() {
 	const { user } = await getServerUser();
-	if (user) {
-		await ensureCloudStarterContentSeeded(user.id);
-	}
 
 	const queryClient = new QueryClient();
 
 	await Promise.all([
+		user ? ensureCloudStarterContentSeeded(user.id) : undefined,
 		queryClient.prefetchQuery({
 			queryKey: notesKeys.files(),
 			queryFn: () => listNoteMetadata(),
