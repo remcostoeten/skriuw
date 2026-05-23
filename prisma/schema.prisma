@@ -34,7 +34,6 @@ model User {
   aiProviderKeys    AiProviderKey[]
   aiUsageLogs       AiUsageLog[]
   aiErrorEvents     AiErrorEvent[]
-  userRoles         UserRole[]
   createdFeatures   PlanningFeature[]
 
   @@map("user")
@@ -282,20 +281,6 @@ model AiErrorEvent {
   @@map("ai_error_events")
 }
 
-// ─── Roles + Project Planning ────────────────────────────────────────────────
-
-model UserRole {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([userId, role])
-  @@index([userId])
-  @@map("user_roles")
-}
-
 // ─── Project Planning ────────────────────────────────────────────────────────
 
 model PlanningFeature {
@@ -387,4 +372,21 @@ model PlanningSectionItem {
 
   @@index([sectionId, sortOrder, createdAt])
   @@map("planning_section_items")
+}
+
+// ─── Seed Bundles ────────────────────────────────────────────────────────────
+
+model SeedBundle {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @default("Default")
+  folders   Json     @default("[]")
+  notes     Json     @default("[]")
+  tags      Json     @default("[]")
+  journals  Json     @default("[]")
+  isActive  Boolean  @default(false) @map("is_active")
+  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("seed_bundles")
 }
