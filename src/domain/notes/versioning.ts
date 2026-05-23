@@ -80,6 +80,8 @@ export function summarizeNoteVersionReason(reason: NoteVersionReason): string {
 			return "Metadata update";
 		case "restore":
 			return "Restored checkpoint";
+		case "checkpoint":
+			return "Saved checkpoint";
 		case "autosave":
 		default:
 			return "Autosaved checkpoint";
