@@ -20,8 +20,9 @@ async function JournalContent() {
 
 	const queryClient = new QueryClient();
 
+	if (user) await ensureCloudStarterContentSeeded(user.id);
+
 	await Promise.all([
-		user ? ensureCloudStarterContentSeeded(user.id) : undefined,
 		queryClient.prefetchQuery({
 			queryKey: journalKeys.entries(),
 			queryFn: () => listJournalEntries(),
