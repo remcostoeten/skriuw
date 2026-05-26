@@ -58,9 +58,6 @@ function classifyJournal(
 }
 
 export function resolveManifestFolders(archive: ParsedArchive): SkriuwExportFolder[] {
-	if (archive.profile === "markdown-vault" || archive.manifest.version === 1) {
-		return foldersFromNotePaths(archive.notes);
-	}
 	if (isSkriuwManifestV2OrV3(archive.manifest)) {
 		return archive.manifest.folders;
 	}
