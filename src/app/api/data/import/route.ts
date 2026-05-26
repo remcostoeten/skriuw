@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/core/db";
+import { mergeArchiveImport } from "@/domain/data-transfer/merge";
+import { parseImportBuffer } from "@/domain/data-transfer/parse-import";
+import {
+	mapImportRouteError,
+	readArchiveFile,
+	rejectOversizedUpload,
+} from "@/domain/data-transfer/import-http";
+import { parseImportPolicy, parseImportProfile } from "@/domain/data-transfer/types";
+
+export async function POST(request: Request) {
+	let prisma: Awaited<ReturnType<typeof getAuthenticatedUser>>["prisma"];
+	let userId: string;
+	try {
+		const auth = await getAuthenticatedUser();
+		prisma = auth.prisma;
+		userId = auth.user.id;
+	} catch {
+		return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+	}
+
+	const formData = await request.formData();
+	const file = formData.get("file");
+	if (!(file instanceof File)) {
+		return NextResponse.json({ error: "Missing archive file." }, { status: 400 });
+	}
+
+	const oversizeResponse = rejectOversizedUpload(request, file);
+	if (oversizeResponse) return oversizeResponse;
+
+	const policy = parseImportPolicy(formData.get("policy"));
+	const profile = parseImportProfile(formData.get("profile"));
+
+	try {
+		const buffer = await readArchiveFile(file);
+		const archive = parseImportBuffer(buffer, profile);
+		const result = await mergeArchiveImport(prisma, userId, archive, policy);
+		return NextResponse.json(result);
+	} catch (error) {
+		const mapped = mapImportRouteError(error, "Import failed.");
+		return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+	}
+}
