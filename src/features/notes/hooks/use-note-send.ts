@@ -101,8 +101,13 @@ export function useNoteSend(note: NoteSendSource) {
 	);
 
 	const prefetchShareLink = useCallback(async () => {
-		await ensureShareUrl();
-	}, [ensureShareUrl]);
+		if (cachedShareUrl) return cachedShareUrl;
+		if (shareQuery.data) {
+			return resolveClientShareUrl(shareQuery.data.path, shareQuery.data.url);
+		}
+		await shareQuery.refetch();
+		return null;
+	}, [cachedShareUrl, shareQuery]);
 
 	const shareNative = useCallback(async () => {
 		if (!payload) return;
@@ -185,6 +190,7 @@ export function useNoteSend(note: NoteSendSource) {
 	const shareLinkOnDiscord = useCallback(async () => {
 		await runWithShareUrl(async (url, value) => {
 			const result = await openDiscordShare(value.title, url);
+			if (result === "cancelled") return;
 			if (result === "shared") {
 				showUserToast("Opened share sheet", "success");
 				triggerNativeFeedback("success");
