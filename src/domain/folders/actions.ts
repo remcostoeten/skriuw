@@ -7,6 +7,7 @@ type FolderRecord = {
 	id: string;
 	name: string;
 	parentId: string | null;
+	sortOrder: number;
 };
 
 function recordToFolder(record: FolderRecord): NoteFolder {
@@ -14,6 +15,7 @@ function recordToFolder(record: FolderRecord): NoteFolder {
 		id: record.id,
 		name: record.name,
 		parentId: record.parentId,
+		sortOrder: record.sortOrder,
 		isOpen: false,
 	};
 }
@@ -22,11 +24,26 @@ export type CreateFolderInput = {
 	id?: string;
 	name: string;
 	parentId?: string | null;
+	sortOrder?: number;
 };
 
 export async function createFolder(input: CreateFolderInput): Promise<NoteFolder> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
+	const parentId = input.parentId ?? null;
+	const [lastFolder, lastNote] = await Promise.all([
+		prisma.folder.aggregate({
+			where: { userId: user.id, deletedAt: null, parentId },
+			_max: { sortOrder: true },
+		}),
+		prisma.note.aggregate({
+			where: { userId: user.id, deletedAt: null, parentId },
+			_max: { sortOrder: true },
+		}),
+	]);
+	const sortOrder =
+		input.sortOrder ??
+		Math.max(lastFolder._max.sortOrder ?? -1, lastNote._max.sortOrder ?? -1) + 1;
 
 	const record = await prisma.folder.upsert({
 		where: { id },
@@ -34,13 +51,15 @@ export async function createFolder(input: CreateFolderInput): Promise<NoteFolder
 			id,
 			userId: user.id,
 			name: input.name,
-			parentId: input.parentId ?? null,
+			parentId,
+			sortOrder,
 		},
 		update: {
 			name: input.name,
-			parentId: input.parentId ?? null,
+			parentId,
+			sortOrder,
 		},
-		select: { id: true, name: true, parentId: true },
+		select: { id: true, name: true, parentId: true, sortOrder: true },
 	});
 
 	return recordToFolder(record);
@@ -50,6 +69,7 @@ export type UpdateFolderInput = {
 	id: string;
 	name?: string;
 	parentId?: string | null;
+	sortOrder?: number;
 };
 
 export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined> {
@@ -60,13 +80,14 @@ export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder
 		data: {
 			...(input.name !== undefined && { name: input.name }),
 			...(input.parentId !== undefined && { parentId: input.parentId }),
+			...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
 		},
 	});
 	if (count === 0) return undefined;
 
 	const record = await prisma.folder.findFirst({
 		where: { id: input.id, userId: user.id, deletedAt: null },
-		select: { id: true, name: true, parentId: true },
+		select: { id: true, name: true, parentId: true, sortOrder: true },
 	});
 	return record ? recordToFolder(record) : undefined;
 }

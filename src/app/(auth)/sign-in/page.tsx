@@ -167,7 +167,7 @@ export default function SignInPage() {
 								placeholder="Enter your email"
 								required
 								className={cn(
-									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-sm text-foreground outline-hidden",
+									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-base text-foreground outline-hidden",
 									"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 								)}
 							/>
@@ -188,7 +188,7 @@ export default function SignInPage() {
 									placeholder="••••••••"
 									required
 									className={cn(
-										"auth-input h-12 w-full rounded-none border border-border bg-background px-4 pr-12 text-sm text-foreground outline-hidden",
+										"auth-input h-12 w-full rounded-none border border-border bg-background px-4 pr-12 text-base text-foreground outline-hidden",
 										"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 									)}
 								/>
