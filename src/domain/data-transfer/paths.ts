@@ -51,7 +51,20 @@ export function journalDateFromArchivePath(
 	}
 
 	const dateKey = archivePath.slice(journalPrefix.length, -3);
-	return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : null;
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+
+	const [year, month, day] = dateKey.split("-").map(Number);
+	const date = new Date(Date.UTC(year, month - 1, day));
+	const isValid =
+		date.getUTCFullYear() === year &&
+		date.getUTCMonth() === month - 1 &&
+		date.getUTCDate() === day;
+
+	return isValid ? dateKey : null;
+}
+
+export function noteImportKey(note: { name: string; parentPath: string | null }): string {
+	return `${note.parentPath ?? ""}/${normalizeNoteFileName(note.name)}`;
 }
 
 export function noteRichSidecarPath(noteMarkdownPath: string): string {

@@ -1,9 +1,10 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
 import type { RichTextDocument } from "@/types/notes";
+import { exportFolderPaths } from "@/domain/data-transfer/folders";
+import { noteImportKey } from "@/domain/data-transfer/paths";
 import {
 	buildImportPreview,
-	exportFolderPaths,
 	resolveManifestFolders,
 	sortFoldersForCreation,
 } from "@/domain/data-transfer/preview";
@@ -18,29 +19,6 @@ import { softClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
-function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
-	const byId = new Map(folders.map((folder) => [folder.id, folder]));
-	const cache = new Map<string, string>();
-
-	function getPath(id: string): string {
-		if (cache.has(id)) return cache.get(id)!;
-		const folder = byId.get(id);
-		if (!folder) return "";
-		const parent = folder.parentId ? getPath(folder.parentId) : "";
-		const path = parent ? `${parent}/${folder.name}` : folder.name;
-		cache.set(id, path);
-		return path;
-	}
-
-	for (const folder of folders) getPath(folder.id);
-	return cache;
-}
-
-function noteKey(note: ParsedNoteFile): string {
-	const normalizedName = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-	return `${note.parentPath ?? ""}/${normalizedName}`;
-}
-
 function noteWriteData(
 	note: ParsedNoteFile,
 	parentId: string | null,
@@ -52,6 +30,8 @@ function noteWriteData(
 	parentId: string | null;
 	sortOrder: number;
 	tags: string[];
+	createdAt?: Date;
+	updatedAt?: Date;
 } {
 	const preferredEditorMode = note.preferredEditorMode ?? "block";
 	const richContent = resolveRichDocument(
@@ -67,6 +47,8 @@ function noteWriteData(
 		parentId,
 		sortOrder: note.sortOrder ?? 0,
 		tags: note.tags,
+		...(note.createdAt ? { createdAt: new Date(note.createdAt) } : {}),
+		...(note.updatedAt ? { updatedAt: new Date(note.updatedAt) } : {}),
 	};
 }
 
@@ -114,7 +96,7 @@ export async function mergeArchiveImport(
 			parentId: folder.parentId,
 			sortOrder: folder.sortOrder,
 		}));
-		const folderPathToId = buildFolderPaths(folderRows);
+		const folderPathToId = exportFolderPaths(folderRows);
 		const pathToFolderId = new Map<string, string>(
 			Array.from(folderPathToId.entries()).map(([id, path]) => [path, id]),
 		);
@@ -129,8 +111,10 @@ export async function mergeArchiveImport(
 
 		for (const note of existingNotes) {
 			const parentPath = note.parentId ? folderPathToId.get(note.parentId) : null;
-			const name = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-			const key = `${parentPath ?? ""}/${name}`;
+			const key = noteImportKey({
+				name: note.name,
+				parentPath: parentPath ?? null,
+			});
 			existingNoteKeys.add(key);
 			existingNoteIdByKey.set(key, note.id);
 		}
@@ -162,7 +146,7 @@ export async function mergeArchiveImport(
 		const archiveNoteIdToWorkspaceId = new Map<string, string>();
 
 		for (const note of archive.notes) {
-			const key = noteKey(note);
+			const key = noteImportKey(note);
 			const parentId = note.parentPath ? (pathToFolderId.get(note.parentPath) ?? null) : null;
 			const data = noteWriteData(note, parentId);
 

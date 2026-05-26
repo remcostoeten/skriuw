@@ -21,7 +21,26 @@ updated: 2026-05-26T11:00:00.000Z
 		const { frontmatter, body } = splitFrontmatter(raw);
 		expect(frontmatter.id).toBe("11111111-1111-4111-8111-111111111111");
 		expect(parseTagsField(frontmatter.tags)).toEqual(["idea", "draft"]);
+		expect(frontmatter.sortOrder).toBe("2");
+		expect(frontmatter.preferredEditorMode).toBe("raw");
+		expect(frontmatter.created).toBe("2026-05-26T10:00:00.000Z");
+		expect(frontmatter.updated).toBe("2026-05-26T11:00:00.000Z");
 		expect(body).toBe("\n# Hello\n");
+	});
+
+	test("parses sortOrder zero from frontmatter", () => {
+		const raw = `---
+sortOrder: 0
+---
+
+Body
+`;
+		const { frontmatter } = splitFrontmatter(raw);
+		expect(frontmatter.sortOrder).toBe("0");
+	});
+
+	test("parses quoted yaml strings with escaped backslashes", () => {
+		expect(parseYamlString('"path\\\\to\\\\file"')).toBe("path\\to\\file");
 	});
 
 	test("parses quoted yaml strings", () => {

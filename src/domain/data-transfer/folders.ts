@@ -30,17 +30,30 @@ export function foldersFromNotePaths(notes: ParsedNoteFile[]): SkriuwExportFolde
 	return Array.from(byPath.values());
 }
 
-export function exportFolderPaths(folders: SkriuwExportFolder[]): Map<string, string> {
+type FolderPathRow = Pick<SkriuwExportFolder, "id" | "name" | "parentId">;
+
+export function exportFolderPaths(folders: FolderPathRow[]): Map<string, string> {
 	const byId = new Map(folders.map((folder) => [folder.id, folder]));
 	const cache = new Map<string, string>();
+	const visiting = new Set<string>();
 
 	function pathFor(id: string): string {
 		if (cache.has(id)) return cache.get(id)!;
+		if (visiting.has(id)) {
+			throw new Error(`Folder cycle detected for id: ${id}`);
+		}
+
+		visiting.add(id);
 		const folder = byId.get(id);
-		if (!folder) return "";
+		if (!folder) {
+			visiting.delete(id);
+			return "";
+		}
+
 		const parentPath = folder.parentId ? pathFor(folder.parentId) : "";
 		const path = parentPath ? `${parentPath}/${folder.name}` : folder.name;
 		cache.set(id, path);
+		visiting.delete(id);
 		return path;
 	}
 
