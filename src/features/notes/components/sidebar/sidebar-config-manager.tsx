@@ -29,6 +29,7 @@ type Props = {
 	sections: SidebarSectionType[];
 	showSectionHeaders: boolean;
 	compactMode: boolean;
+	showTreeGuides: boolean;
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 	hideTrigger?: boolean;
@@ -39,6 +40,7 @@ type Props = {
 	onRenameSection: (sectionId: string, name: string) => void;
 	onToggleShowSectionHeaders: () => void;
 	onToggleCompactMode: () => void;
+	onToggleTreeGuides: () => void;
 	onResetToDefaults: () => void;
 };
 
@@ -46,6 +48,7 @@ export function SidebarConfigManager({
 	sections,
 	showSectionHeaders,
 	compactMode,
+	showTreeGuides,
 	open,
 	onOpenChange,
 	hideTrigger = false,
@@ -56,6 +59,7 @@ export function SidebarConfigManager({
 	onRenameSection: _onRenameSection,
 	onToggleShowSectionHeaders,
 	onToggleCompactMode,
+	onToggleTreeGuides,
 	onResetToDefaults,
 }: Props) {
 	const [isOpenInternal, setIsOpenInternal] = useState(false);
@@ -164,7 +168,7 @@ export function SidebarConfigManager({
 			{!hideTrigger && (
 				<DialogTrigger asChild>
 					<button
-						className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+						className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground hover:bg-accent md:h-7 md:w-7"
 						title="Configure sidebar"
 					>
 						<Sliders className="w-4 h-4" strokeWidth={1.5} />
@@ -211,7 +215,7 @@ export function SidebarConfigManager({
 										}
 									}}
 									placeholder="Section name..."
-									className="flex-1 bg-transparent text-sm outline-none"
+									className="flex-1 bg-transparent text-base outline-none md:text-sm"
 									autoFocus
 								/>
 								<button
@@ -307,7 +311,7 @@ export function SidebarConfigManager({
 										</div>
 										<button
 											onClick={() => onToggleSectionVisibility(section.id)}
-											className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+											className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:h-7 md:w-7"
 											title={section.isVisible ? "Hide" : "Show"}
 										>
 											{section.isVisible ? (
@@ -319,7 +323,7 @@ export function SidebarConfigManager({
 										{section.type === "custom" && (
 											<button
 												onClick={() => onRemoveSection(section.id)}
-												className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
+												className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive md:h-7 md:w-7"
 												title="Remove"
 											>
 												<X className="w-3.5 h-3.5" />
@@ -354,6 +358,17 @@ export function SidebarConfigManager({
 								id="compact-mode"
 								checked={compactMode}
 								onCheckedChange={onToggleCompactMode}
+							/>
+						</div>
+
+						<div className="flex items-center justify-between">
+							<Label htmlFor="tree-guides" className="text-sm text-muted-foreground">
+								Tree guide lines
+							</Label>
+							<Switch
+								id="tree-guides"
+								checked={showTreeGuides}
+								onCheckedChange={onToggleTreeGuides}
 							/>
 						</div>
 					</div>

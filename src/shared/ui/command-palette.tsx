@@ -131,7 +131,7 @@ export function CommandPalette({
 							}
 							aria-expanded={open}
 							aria-autocomplete="list"
-							className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+							className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-sm"
 						/>
 					</label>
 				</div>

@@ -258,7 +258,7 @@ export function JournalDatabaseView({
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder="Filter entries..."
 								autoFocus
-								className="w-full border border-border bg-accent/20 py-2 pl-9 pr-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-border focus:bg-accent/30"
+								className="w-full border border-border bg-accent/20 py-2.5 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-border focus:bg-accent/30 md:py-2 md:text-[13px]"
 							/>
 						</div>
 					)}
@@ -428,7 +428,7 @@ export function JournalDatabaseView({
 							onChange={(e) => setSearchQuery(e.target.value)}
 							placeholder="Filter entries..."
 							autoFocus
-							className="w-full border border-border bg-background py-2 pl-8 pr-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/35 focus:border-border focus:bg-muted"
+							className="w-full border border-border bg-background py-2.5 pl-8 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/35 focus:border-border focus:bg-muted md:py-2 md:text-[13px]"
 						/>
 					</div>
 				)}
