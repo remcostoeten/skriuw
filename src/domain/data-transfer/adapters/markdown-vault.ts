@@ -30,7 +30,9 @@ function parseMarkdownNote(path: string, raw: string): ParsedNoteFile {
 	const frontmatterTags = parseTagsField(frontmatter.tags);
 	const contentTags = extractNoteTags(body);
 	const tags = [...new Set([...frontmatterTags, ...contentTags])];
-	const sortOrder = frontmatter.sortOrder ? Number(frontmatter.sortOrder) : undefined;
+	const sortOrderRaw = frontmatter.sortOrder;
+	const sortOrder =
+		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
 	const preferredEditorMode = frontmatter.preferredEditorMode;
 
 	return {

@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/db";
 import { buildImportPreview } from "@/domain/data-transfer/preview";
 import { parseImportBuffer } from "@/domain/data-transfer/parse-import";
+import {
+	mapImportRouteError,
+	readArchiveFile,
+	rejectOversizedUpload,
+} from "@/domain/data-transfer/import-http";
 import { parseImportPolicy, parseImportProfile } from "@/domain/data-transfer/types";
-
-const MAX_ARCHIVE_BYTES = 50 * 1024 * 1024;
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : "Import preview failed.";
-}
 
 export async function POST(request: Request) {
 	let prisma: Awaited<ReturnType<typeof getAuthenticatedUser>>["prisma"];
@@ -27,22 +26,19 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "Missing archive file." }, { status: 400 });
 	}
 
-	const buffer = new Uint8Array(await file.arrayBuffer());
-	if (buffer.byteLength === 0) {
-		return NextResponse.json({ error: "Archive file is empty." }, { status: 400 });
-	}
-	if (buffer.byteLength > MAX_ARCHIVE_BYTES) {
-		return NextResponse.json({ error: "Archive is too large." }, { status: 413 });
-	}
+	const oversizeResponse = rejectOversizedUpload(request, file);
+	if (oversizeResponse) return oversizeResponse;
 
 	const policy = parseImportPolicy(formData.get("policy"));
 	const profile = parseImportProfile(formData.get("profile"));
 
 	try {
+		const buffer = await readArchiveFile(file);
 		const archive = parseImportBuffer(buffer, profile);
 		const preview = await buildImportPreview(prisma, userId, archive, policy);
 		return NextResponse.json(preview);
 	} catch (error) {
-		return NextResponse.json({ error: errorMessage(error) }, { status: 400 });
+		const mapped = mapImportRouteError(error, "Import preview failed.");
+		return NextResponse.json({ error: mapped.message }, { status: mapped.status });
 	}
 }
