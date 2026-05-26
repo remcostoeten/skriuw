@@ -110,9 +110,8 @@ export const FavoritesSection = memo(function FavoritesSection({
 			) : (
 				<div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
 					{resolvedFavorites.map((fav) => (
-						<button
+						<div
 							key={fav.id}
-							onClick={() => fav.itemType === "file" && onFileSelect(fav.itemId)}
 							className={cn(
 								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
 								compactMode ? "h-6" : "h-7",
@@ -121,43 +120,36 @@ export const FavoritesSection = memo(function FavoritesSection({
 									: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
 							)}
 						>
-							{fav.itemType === "file" ? (
-								<FileTextIcon
-									size={compactMode ? 12 : 14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
-							) : (
-								<FolderOpenIcon
-									size={compactMode ? 12 : 14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
-							)}
-							<span className="flex-1 truncate">{fav.name}</span>
-							<span
-								role="button"
-							aria-label="Remove from favorites"
-								tabIndex={0}
-								onClick={(e) => {
-									e.stopPropagation();
-									onRemoveFromFavorites(fav.itemId);
-								}}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										if (e.key === " ") {
-											e.preventDefault();
-										}
-										e.stopPropagation();
-										onRemoveFromFavorites(fav.itemId);
-									}
-								}}
+							<button
+								type="button"
+								onClick={() => fav.itemType === "file" && onFileSelect(fav.itemId)}
+								className="flex min-w-0 flex-1 items-center gap-2 text-left"
+							>
+								{fav.itemType === "file" ? (
+									<FileTextIcon
+										size={compactMode ? 12 : 14}
+										className="shrink-0 text-muted-foreground/70"
+									/>
+								) : (
+									<FolderOpenIcon
+										size={compactMode ? 12 : 14}
+										className="shrink-0 text-muted-foreground/70"
+									/>
+								)}
+								<span className="flex-1 truncate">{fav.name}</span>
+							</button>
+							<button
+								type="button"
+								aria-label="Remove from favorites"
+								onClick={() => onRemoveFromFavorites(fav.itemId)}
 								className={cn(
-									"flex cursor-pointer items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
+									"flex shrink-0 items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
 									compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
 								)}
 							>
 								<X className="w-3 h-3" strokeWidth={1.5} />
-							</span>
-						</button>
+							</button>
+						</div>
 					))}
 				</div>
 			)}

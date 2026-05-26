@@ -3,6 +3,11 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
+import {
+	createNoteInputSchema,
+	parseServerInput,
+	updateNoteInputSchema,
+} from "@/domain/validation/schemas";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
 	NoteFile,
@@ -193,12 +198,13 @@ export type CreateNoteInput = {
 };
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
+	const validated = parseServerInput(createNoteInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	const id = input.id ?? crypto.randomUUID();
-	const name = input.name.endsWith(".md") ? input.name : `${input.name}.md`;
-	const richContent = (input.richContent ??
-		markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
-	const parentId = input.parentId ?? null;
+	const id = validated.id ?? crypto.randomUUID();
+	const name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
+	const richContent = (validated.richContent ??
+		markdownToRichDocument(validated.content)) as Prisma.InputJsonValue;
+	const parentId = validated.parentId ?? null;
 	await assertOwnedParentFolder(prisma, user.id, parentId);
 	const [lastNote, lastFolder] = await Promise.all([
 		prisma.note.aggregate({
@@ -211,18 +217,18 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 		}),
 	]);
 	const sortOrder =
-		input.sortOrder ??
+		validated.sortOrder ??
 		Math.max(lastNote._max.sortOrder ?? -1, lastFolder._max.sortOrder ?? -1) + 1;
 
 	return prisma.$transaction(async (tx) => {
 		const noteData = {
 			name,
-			content: input.content,
+			content: validated.content,
 			richContent,
-			preferredEditorMode: input.preferredEditorMode ?? "block",
+			preferredEditorMode: validated.preferredEditorMode ?? "block",
 			parentId,
 			sortOrder,
-			tags: input.tags ?? [],
+			tags: validated.tags ?? [],
 		};
 		const noteSelect = {
 			id: true,
@@ -304,50 +310,55 @@ export type UpdateNoteResult = {
 };
 
 export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
+	const validated = parseServerInput(updateNoteInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	if (input.parentId !== undefined) {
-		await assertOwnedParentFolder(prisma, user.id, input.parentId);
+	if (validated.parentId !== undefined) {
+		await assertOwnedParentFolder(prisma, user.id, validated.parentId);
 	}
 
 	const patch: Prisma.NoteUncheckedUpdateManyInput = {};
-	if (input.name !== undefined) {
-		patch.name = input.name.endsWith(".md") ? input.name : `${input.name}.md`;
+	if (validated.name !== undefined) {
+		patch.name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
 	}
-	if (input.content !== undefined) {
-		patch.content = input.content;
-		patch.richContent = (input.richContent ??
-			markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
-	} else if (input.richContent !== undefined) {
-		patch.richContent = input.richContent as Prisma.InputJsonValue;
+	if (validated.content !== undefined) {
+		patch.content = validated.content;
+		patch.richContent = (validated.richContent ??
+			markdownToRichDocument(validated.content)) as Prisma.InputJsonValue;
+	} else if (validated.richContent !== undefined) {
+		patch.richContent = validated.richContent as Prisma.InputJsonValue;
 	}
-	if (input.preferredEditorMode !== undefined) {
-		patch.preferredEditorMode = input.preferredEditorMode;
+	if (validated.preferredEditorMode !== undefined) {
+		patch.preferredEditorMode = validated.preferredEditorMode;
 	}
-	if (input.parentId !== undefined) {
-		patch.parentId = input.parentId;
+	if (validated.parentId !== undefined) {
+		patch.parentId = validated.parentId;
 	}
-	if (input.sortOrder !== undefined) {
-		patch.sortOrder = input.sortOrder;
+	if (validated.sortOrder !== undefined) {
+		patch.sortOrder = validated.sortOrder;
 	}
-	if (input.tags !== undefined) {
-		patch.tags = input.tags;
+	if (validated.tags !== undefined) {
+		patch.tags = validated.tags;
 	}
 
 	return prisma.$transaction(async (tx) => {
 		const { count } = await tx.note.updateMany({
-			where: { id: input.id, userId: user.id, deletedAt: null },
+			where: { id: validated.id, userId: user.id, deletedAt: null },
 			data: patch,
 		});
 		if (count === 0) return { versionCreated: false };
 
 		const record = await tx.note.findFirst({
-			where: { id: input.id, userId: user.id, deletedAt: null },
+			where: { id: validated.id, userId: user.id, deletedAt: null },
 		});
 		if (!record) return { versionCreated: false };
 
 		const updatedNote = recordToNoteFile(record);
 		const versionReason: NoteVersionReason =
-			input.name !== undefined ? "rename" : input.createCheckpoint ? "checkpoint" : "autosave";
+			validated.name !== undefined
+				? "rename"
+				: validated.createCheckpoint
+					? "checkpoint"
+					: "autosave";
 		const noteSnapshot = {
 			name: updatedNote.name,
 			content: updatedNote.content,
@@ -357,12 +368,12 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 			tags: updatedNote.tags ?? [],
 		};
 
-		if (input.sessionVersionId && input.createCheckpoint) {
+		if (validated.sessionVersionId && validated.createCheckpoint) {
 			const versionChanged = await updateExistingNoteVersion(
 				tx,
 				user.id,
-				input.sessionVersionId,
-				input.id,
+				validated.sessionVersionId,
+				validated.id,
 				noteSnapshot,
 				versionReason,
 			);
@@ -371,14 +382,15 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 					note: updatedNote,
 					versionCreated: false,
 					versionChanged: true,
-					versionId: input.sessionVersionId,
+					versionId: validated.sessionVersionId,
 				};
 			}
 		}
 
-		const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
+		const shouldCreateVersion =
+			validated.name !== undefined || validated.createCheckpoint === true;
 		const versionId = shouldCreateVersion
-			? await insertNoteVersion(tx, user.id, input.id, noteSnapshot, versionReason)
+			? await insertNoteVersion(tx, user.id, validated.id, noteSnapshot, versionReason)
 			: null;
 		const versionCreated = versionId !== null;
 
