@@ -9,6 +9,7 @@ import {
 	Loader2,
 	Mail,
 	MessageCircle,
+	MessageSquare,
 	NotebookPen,
 	Share2,
 } from "lucide-react";
@@ -113,6 +114,11 @@ function NoteSendMobilePanel({
 		shareLinkOnX,
 		shareLinkOnDiscord,
 		shareLinkWhatsApp,
+		shareLinkTelegram,
+		shareLinkSms,
+		shareSms,
+		copyMarkdown,
+		shareIsStale,
 	} = useNoteSendMenu(note, prefetch);
 
 	const runAction = (action: () => void | Promise<void>, closeAfter = true) => {
@@ -126,6 +132,11 @@ function NoteSendMobilePanel({
 
 	return (
 		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
+			{shareIsStale ? (
+				<p className="border-b border-foreground/8 px-4 py-3 text-[12px] leading-5 text-amber-700 dark:text-amber-500">
+					Public link shows an older snapshot. Refresh it from Manage link.
+				</p>
+			) : null}
 			<div className={MOBILE_SECTION_LABEL}>Share link</div>
 			<MobileActionButton
 				icon={
@@ -159,6 +170,20 @@ function NoteSendMobilePanel({
 				label="WhatsApp link"
 				disabled={isLinkShareBusy}
 				onClick={() => runAction(() => shareLinkWhatsApp())}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
+				icon={<MessageCircle className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="Telegram link"
+				disabled={isLinkShareBusy}
+				onClick={() => runAction(() => shareLinkTelegram())}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
+				icon={<MessageSquare className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="SMS link"
+				disabled={isLinkShareBusy}
+				onClick={() => runAction(() => shareLinkSms())}
 			/>
 
 			<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>Send note</div>
@@ -199,6 +224,18 @@ function NoteSendMobilePanel({
 			/>
 			<MobileActionDivider />
 			<MobileActionButton
+				icon={<MessageSquare className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="SMS"
+				onClick={() => runAction(() => shareSms())}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
+				icon={<Copy className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="Copy markdown"
+				onClick={() => runAction(() => copyMarkdown())}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
 				icon={<Mail className="h-5 w-5 shrink-0 text-foreground/72" />}
 				label="Email"
 				onClick={() => runAction(() => shareEmail())}
@@ -236,6 +273,8 @@ function LinkShareItems({
 	shareLinkOnX,
 	shareLinkOnDiscord,
 	shareLinkWhatsApp,
+	shareLinkTelegram,
+	shareLinkSms,
 }: {
 	onSelect?: () => void;
 	isBusy: boolean;
@@ -243,6 +282,8 @@ function LinkShareItems({
 	shareLinkOnX: () => Promise<void>;
 	shareLinkOnDiscord: () => Promise<void>;
 	shareLinkWhatsApp: () => Promise<void>;
+	shareLinkTelegram: () => Promise<void>;
+	shareLinkSms: () => Promise<void>;
 }) {
 	return (
 		<>
@@ -290,6 +331,28 @@ function LinkShareItems({
 				<MessageCircle className="h-4 w-4" />
 				WhatsApp link
 			</ContextMenuItem>
+			<ContextMenuItem
+				className="gap-2"
+				disabled={isBusy}
+				onClick={() => {
+					void shareLinkTelegram();
+					onSelect?.();
+				}}
+			>
+				<MessageCircle className="h-4 w-4" />
+				Telegram link
+			</ContextMenuItem>
+			<ContextMenuItem
+				className="gap-2"
+				disabled={isBusy}
+				onClick={() => {
+					void shareLinkSms();
+					onSelect?.();
+				}}
+			>
+				<MessageSquare className="h-4 w-4" />
+				SMS link
+			</ContextMenuItem>
 		</>
 	);
 }
@@ -316,6 +379,10 @@ function NoteSendItems({
 		shareLinkOnX,
 		shareLinkOnDiscord,
 		shareLinkWhatsApp,
+		shareLinkTelegram,
+		shareLinkSms,
+		shareSms,
+		copyMarkdown,
 	} = useNoteSend(note);
 
 	return (
@@ -333,6 +400,8 @@ function NoteSendItems({
 						shareLinkOnX={shareLinkOnX}
 						shareLinkOnDiscord={shareLinkOnDiscord}
 						shareLinkWhatsApp={shareLinkWhatsApp}
+						shareLinkTelegram={shareLinkTelegram}
+						shareLinkSms={shareLinkSms}
 					/>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
@@ -382,6 +451,26 @@ function NoteSendItems({
 			>
 				<MessageCircle className="h-4 w-4" />
 				WhatsApp
+			</ContextMenuItem>
+			<ContextMenuItem
+				className="gap-2"
+				onClick={() => {
+					shareSms();
+					onSelect?.();
+				}}
+			>
+				<MessageSquare className="h-4 w-4" />
+				SMS
+			</ContextMenuItem>
+			<ContextMenuItem
+				className="gap-2"
+				onClick={() => {
+					void copyMarkdown();
+					onSelect?.();
+				}}
+			>
+				<Copy className="h-4 w-4" />
+				Copy markdown
 			</ContextMenuItem>
 			<ContextMenuItem
 				className="gap-2"
@@ -443,6 +532,10 @@ function NoteSendDesktopDropdown({
 		shareLinkOnX,
 		shareLinkOnDiscord,
 		shareLinkWhatsApp,
+		shareLinkTelegram,
+		shareLinkSms,
+		shareSms,
+		copyMarkdown,
 	} = useNoteSend(note);
 
 	return (
@@ -492,6 +585,22 @@ function NoteSendDesktopDropdown({
 					<MessageCircle className="h-4 w-4" />
 					WhatsApp link
 				</DropdownMenuItem>
+				<DropdownMenuItem
+					className="gap-2"
+					disabled={isLinkShareBusy}
+					onClick={() => void shareLinkTelegram()}
+				>
+					<MessageCircle className="h-4 w-4" />
+					Telegram link
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					className="gap-2"
+					disabled={isLinkShareBusy}
+					onClick={() => void shareLinkSms()}
+				>
+					<MessageSquare className="h-4 w-4" />
+					SMS link
+				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				{canNativeShare ? (
 					<DropdownMenuItem className="gap-2" onClick={() => void shareNative()}>
@@ -514,6 +623,14 @@ function NoteSendDesktopDropdown({
 				<DropdownMenuItem className="gap-2" onClick={shareWhatsApp}>
 					<MessageCircle className="h-4 w-4" />
 					WhatsApp
+				</DropdownMenuItem>
+				<DropdownMenuItem className="gap-2" onClick={shareSms}>
+					<MessageSquare className="h-4 w-4" />
+					SMS
+				</DropdownMenuItem>
+				<DropdownMenuItem className="gap-2" onClick={() => void copyMarkdown()}>
+					<Copy className="h-4 w-4" />
+					Copy markdown
 				</DropdownMenuItem>
 				<DropdownMenuItem className="gap-2" onClick={shareEmail}>
 					<Mail className="h-4 w-4" />

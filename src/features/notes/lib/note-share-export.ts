@@ -224,6 +224,22 @@ export function buildWhatsAppShareUrlWithLink(title: string, url: string): strin
 	return `https://wa.me/?text=${text}`;
 }
 
+export function buildTelegramShareUrl(title: string, url: string): string {
+	const params = new URLSearchParams({
+		url,
+		text: title,
+	});
+	return `https://t.me/share/url?${params.toString()}`;
+}
+
+export function buildSmsShareUrl(payload: NoteSharePayload): string {
+	return `sms:?body=${encodeURIComponent(formatShareText(payload))}`;
+}
+
+export function buildSmsShareUrlWithLink(title: string, url: string): string {
+	return `sms:?body=${encodeURIComponent(buildLinkShareMessage(title, url))}`;
+}
+
 export function buildXShareUrl(shareUrl: string, title: string): string {
 	const params = new URLSearchParams({
 		text: title,
@@ -246,6 +262,22 @@ export function openWhatsAppShare(payload: NoteSharePayload): void {
 
 export function openWhatsAppShareWithLink(title: string, url: string): void {
 	openExternalShareUrl(buildWhatsAppShareUrlWithLink(title, url), { preferSameTab: true });
+}
+
+export function openTelegramShare(title: string, url: string): void {
+	openExternalShareUrl(buildTelegramShareUrl(title, url));
+}
+
+export function openTelegramShareWithLink(title: string, url: string): void {
+	openTelegramShare(title, url);
+}
+
+export function openSmsShare(payload: NoteSharePayload): void {
+	openExternalShareUrl(buildSmsShareUrl(payload), { preferSameTab: true });
+}
+
+export function openSmsShareWithLink(title: string, url: string): void {
+	openExternalShareUrl(buildSmsShareUrlWithLink(title, url), { preferSameTab: true });
 }
 
 export function openXShare(shareUrl: string, title: string): void {
