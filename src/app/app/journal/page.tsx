@@ -14,7 +14,7 @@ async function JournalContent() {
 
 	const queryClient = new QueryClient();
 
-	if (user) await ensureCloudStarterContentSeeded(user.id);
+	if (user) await ensureCloudStarterContentSeeded();
 
 	await Promise.all([
 		queryClient.prefetchQuery({
