@@ -417,10 +417,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		};
 	}, []);
 
-	const handleViewVersion = useCallback((version: NoteVersion) => {
-		setSharingNoteId(null);
-		setViewingVersion(version);
-	}, []);
+	const handleViewVersion = useCallback(
+		(version: NoteVersion) => {
+			void saveController.flush(version.noteId, { createCheckpoint: true });
+			setSharingNoteId(null);
+			setViewingVersion(version);
+		},
+		[saveController],
+	);
 
 	const handleExitVersionPreview = useCallback(() => {
 		setViewingVersion(null);
@@ -437,12 +441,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleRestoreViewedVersion = useCallback(() => {
 		if (!viewingVersion) return;
+		saveController.discardPending(viewingVersion.noteId);
 		restoreNoteVersion.mutate(viewingVersion.id, {
 			onSuccess: () => {
 				setViewingVersion(null);
 			},
 		});
-	}, [restoreNoteVersion, viewingVersion]);
+	}, [restoreNoteVersion, saveController, viewingVersion]);
 
 	useEffect(() => {
 		if (!isMobile) {
