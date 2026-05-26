@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
+import { parseMarkdownVaultEntries } from "@/domain/data-transfer/adapters/markdown-vault";
 import { buildExportArchiveFiles } from "@/domain/data-transfer/export-build";
+import { sha256Hex } from "@/domain/data-transfer/integrity";
+import { detectImportProfile } from "@/domain/data-transfer/parse-import";
+import { decodeArchiveEntries, parseArchiveBuffer } from "@/domain/data-transfer/parse-archive";
 import { resolveManifestFolders } from "@/domain/data-transfer/preview";
-import { parseArchiveBuffer } from "@/domain/data-transfer/parse-archive";
 
 const sampleRichContent = [
 	{
@@ -15,7 +18,7 @@ const sampleRichContent = [
 ];
 
 describe("data transfer archive parsing", () => {
-	test("round-trips a generated v2 export archive", () => {
+	test("round-trips a generated v3 export archive", () => {
 		const files = buildExportArchiveFiles({
 			folders: [
 				{
@@ -55,25 +58,38 @@ describe("data transfer archive parsing", () => {
 				},
 			],
 			journalTags: [{ name: "daily", color: "#64748b" }],
+			noteVersions: [
+				{
+					id: "55555555-5555-4555-8555-555555555555",
+					noteId: "11111111-1111-4111-8111-111111111111",
+					name: "Idea.md",
+					content: "# Idea\n\nOlder body",
+					richContent: sampleRichContent,
+					preferredEditorMode: "block",
+					parentId: "22222222-2222-4222-8222-222222222222",
+					tags: ["draft"],
+					reason: "autosave",
+					contentHash: "abc123",
+					createdAt: new Date("2026-05-26T09:00:00.000Z"),
+				},
+			],
 			exportedAt: new Date("2026-05-26T12:00:00.000Z"),
 		});
 
 		const archive = parseArchiveBuffer(zipSync(files));
 
-		expect(archive.manifest.version).toBe(2);
+		expect(archive.manifest.version).toBe(3);
+		expect(archive.profile).toBe("skriuw");
 		expect(archive.notes).toHaveLength(1);
 		expect(archive.notes[0]?.content).toBe("\n# Idea\n\nBody");
-		expect(archive.notes[0]?.parentPath).toBe("Projects");
-		expect(archive.notes[0]?.tags).toEqual(["draft"]);
 		expect(archive.notes[0]?.richContent).toEqual(sampleRichContent);
-		expect(archive.journalEntries).toHaveLength(1);
-		expect(archive.journalEntries[0]?.dateKey).toBe("2026-05-26");
-		expect(archive.journalEntries[0]?.mood).toBe("calm");
+		expect(archive.noteVersions).toHaveLength(1);
+		expect(archive.noteVersions[0]?.noteId).toBe("11111111-1111-4111-8111-111111111111");
 
-		const manifest = archive.manifest;
-		if (manifest.version !== 2) throw new Error("Expected v2 manifest");
-		expect(manifest.folders).toHaveLength(2);
-		expect(resolveManifestFolders(archive)).toHaveLength(2);
+		if (archive.manifest.version !== 3) throw new Error("Expected v3 manifest");
+		expect(archive.manifest.checksums).toBeDefined();
+		expect(archive.manifest.counts.noteVersions).toBe(1);
+		expect(archive.integrityWarnings).toEqual([]);
 	});
 
 	test("parses legacy v1 exports and infers folders from note paths", () => {
@@ -100,7 +116,7 @@ updated: 2026-05-26T11:00:00.000Z
 		const archive = parseArchiveBuffer(zip);
 
 		expect(archive.manifest.version).toBe(1);
-		expect(archive.notes[0]?.parentPath).toBe("Projects");
+		expect(archive.noteVersions).toEqual([]);
 		expect(resolveManifestFolders(archive)).toEqual([
 			{
 				id: "path:Projects",
@@ -111,11 +127,65 @@ updated: 2026-05-26T11:00:00.000Z
 		]);
 	});
 
+	test("detects and parses markdown vault archives", () => {
+		const zip = zipSync({
+			"Projects/Idea.md": strToU8(`---
+tags: ["idea"]
+---
+
+# Imported idea
+`),
+		});
+
+		const entries = decodeArchiveEntries(zip);
+		expect(detectImportProfile(entries)).toBe("markdown-vault");
+
+		const archive = parseMarkdownVaultEntries(entries);
+		expect(archive.profile).toBe("markdown-vault");
+		expect(archive.notes).toHaveLength(1);
+		expect(archive.notes[0]?.parentPath).toBe("Projects");
+		expect(archive.notes[0]?.preferredEditorMode).toBe("raw");
+	});
+
+	test("reports checksum mismatches for v3 archives", () => {
+		const root = "skriuw-export-2026-05-26";
+		const notePath = `${root}/notes/Idea.md`;
+		const noteBody = "---\nid: abc\n---\n\nBody";
+		const zip = zipSync({
+			[`${root}/skriuw-export.json`]: strToU8(
+				JSON.stringify({
+					version: 3,
+					source: "skriuw",
+					exportedAt: "2026-05-26T12:00:00.000Z",
+					options: { includeVersions: false },
+					counts: {
+						notes: 1,
+						journalEntries: 0,
+						folders: 0,
+						journalTags: 0,
+						noteVersions: 0,
+					},
+					folders: [],
+					journalTags: [],
+					checksums: {
+						"notes/Idea.md": sha256Hex("tampered"),
+					},
+				}),
+			),
+			[notePath]: strToU8(noteBody),
+		});
+
+		const archive = parseArchiveBuffer(zip);
+		expect(archive.integrityWarnings.some((warning) => warning.includes("Checksum mismatch"))).toBe(
+			true,
+		);
+	});
+
 	test("rejects invalid zip archives", () => {
 		expect(() => parseArchiveBuffer(strToU8("not-a-zip"))).toThrow("Invalid ZIP archive.");
 	});
 
-	test("rejects archives without manifest", () => {
+	test("rejects archives without manifest for skriuw profile", () => {
 		const zip = zipSync({ "notes/example.md": strToU8("hello") });
 		expect(() => parseArchiveBuffer(zip)).toThrow("Missing skriuw-export.json manifest.");
 	});

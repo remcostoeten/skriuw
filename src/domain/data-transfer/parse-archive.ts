@@ -1,7 +1,9 @@
 import { unzipSync } from "fflate";
+import { validateArchiveIntegrity } from "@/domain/data-transfer/integrity";
 import {
 	findExportRootPrefix,
 	isNoteRichSidecarPath,
+	isNoteVersionPath,
 	journalDateFromArchivePath,
 	notePathFromArchivePath,
 	noteRichSidecarPath,
@@ -15,15 +17,17 @@ import type {
 	ParsedArchive,
 	ParsedJournalFile,
 	ParsedNoteFile,
+	ParsedNoteVersion,
 	SkriuwExportManifest,
-	SkriuwExportManifestV2,
+	SkriuwExportManifestV3,
 } from "@/domain/data-transfer/types";
+import { isSkriuwManifestV2OrV3 } from "@/domain/data-transfer/types";
 
 function isManifest(value: unknown): value is SkriuwExportManifest {
 	if (!value || typeof value !== "object") return false;
 	const manifest = value as SkriuwExportManifest;
 	return (
-		(manifest.version === 1 || manifest.version === 2) &&
+		(manifest.version === 1 || manifest.version === 2 || manifest.version === 3) &&
 		manifest.source === "skriuw" &&
 		typeof manifest.exportedAt === "string" &&
 		typeof manifest.counts?.notes === "number" &&
@@ -73,6 +77,49 @@ function parseJournalFile(path: string, raw: string, rootPrefix: string): Parsed
 	};
 }
 
+function parseNoteVersionFile(path: string, raw: string): ParsedNoteVersion {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		throw new Error(`Malformed note version file: ${path}`);
+	}
+
+	if (!parsed || typeof parsed !== "object") {
+		throw new Error(`Malformed note version file: ${path}`);
+	}
+
+	const version = parsed as Record<string, unknown>;
+	const preferredEditorMode = version.preferredEditorMode;
+	if (
+		typeof version.id !== "string" ||
+		typeof version.noteId !== "string" ||
+		typeof version.name !== "string" ||
+		typeof version.content !== "string" ||
+		typeof version.reason !== "string" ||
+		typeof version.contentHash !== "string" ||
+		typeof version.createdAt !== "string" ||
+		(preferredEditorMode !== "raw" && preferredEditorMode !== "block")
+	) {
+		throw new Error(`Malformed note version file: ${path}`);
+	}
+
+	return {
+		id: version.id,
+		noteId: version.noteId,
+		name: version.name,
+		content: version.content,
+		richContent: version.richContent,
+		preferredEditorMode,
+		parentId: typeof version.parentId === "string" ? version.parentId : null,
+		tags: Array.isArray(version.tags) ? version.tags.map(String) : [],
+		reason: version.reason,
+		contentHash: version.contentHash,
+		createdAt: version.createdAt,
+		sourcePath: path,
+	};
+}
+
 export function decodeArchiveEntries(buffer: Uint8Array): Record<string, string> {
 	let unzipped: Record<string, Uint8Array>;
 	try {
@@ -89,8 +136,7 @@ export function decodeArchiveEntries(buffer: Uint8Array): Record<string, string>
 	return entries;
 }
 
-export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
-	const entries = decodeArchiveEntries(buffer);
+export function parseSkriuwArchiveEntries(entries: Record<string, string>): ParsedArchive {
 	const paths = Object.keys(entries);
 	const rootPrefix = findExportRootPrefix(paths);
 	if (!rootPrefix) {
@@ -113,18 +159,32 @@ export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
 		throw new Error("Unsupported export manifest.");
 	}
 
+	if (isSkriuwManifestV2OrV3(manifestJson)) {
+		if (!Array.isArray(manifestJson.folders) || !Array.isArray(manifestJson.journalTags)) {
+			throw new Error(`Malformed v${manifestJson.version} export manifest.`);
+		}
+	}
+
 	const notes: ParsedNoteFile[] = [];
 	const journalEntries: ParsedJournalFile[] = [];
+	const noteVersions: ParsedNoteVersion[] = [];
 	const richSidecars = new Map<string, unknown>();
+	const integrityWarnings: string[] = [];
 
 	for (const [path, raw] of Object.entries(entries)) {
 		if (path === `${rootPrefix}/skriuw-export.json`) continue;
+
 		if (isNoteRichSidecarPath(rootPrefix, path)) {
 			try {
 				richSidecars.set(path, JSON.parse(raw));
 			} catch {
 				throw new Error(`Malformed rich content sidecar: ${path}`);
 			}
+			continue;
+		}
+
+		if (isNoteVersionPath(rootPrefix, path)) {
+			noteVersions.push(parseNoteVersionFile(path, raw));
 			continue;
 		}
 
@@ -147,17 +207,23 @@ export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
 		}
 	}
 
-	if (manifestJson.version === 2) {
-		const manifest = manifestJson as SkriuwExportManifestV2;
-		if (!Array.isArray(manifest.folders) || !Array.isArray(manifest.journalTags)) {
-			throw new Error("Malformed v2 export manifest.");
-		}
+	if (manifestJson.version === 3) {
+		integrityWarnings.push(
+			...validateArchiveIntegrity(rootPrefix, entries, manifestJson as SkriuwExportManifestV3),
+		);
 	}
 
 	return {
 		manifest: manifestJson,
 		notes,
 		journalEntries,
+		noteVersions,
 		rootPrefix,
+		profile: "skriuw",
+		integrityWarnings,
 	};
+}
+
+export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
+	return parseSkriuwArchiveEntries(decodeArchiveEntries(buffer));
 }
