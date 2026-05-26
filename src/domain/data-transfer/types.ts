@@ -2,7 +2,13 @@ export const SKRIUW_EXPORT_SOURCE = "skriuw" as const;
 export const SKRIUW_EXPORT_VERSION = 3 as const;
 
 export type ImportPolicy = "merge" | "overwrite" | "replace-workspace";
-export type ImportProfile = "skriuw" | "markdown-vault";
+export type ImportProfile =
+	| "skriuw"
+	| "markdown-vault"
+	| "obsidian"
+	| "apple-notes"
+	| "bear"
+	| "notion";
 
 export const DEFAULT_IMPORT_POLICY: ImportPolicy = "merge";
 
@@ -160,7 +166,15 @@ export function parseImportPolicy(value: FormDataEntryValue | null): ImportPolic
 }
 
 export function parseImportProfile(value: FormDataEntryValue | null): ImportProfile | undefined {
-	if (value === "markdown-vault") return value;
-	if (value === "skriuw") return value;
+	if (
+		value === "markdown-vault" ||
+		value === "obsidian" ||
+		value === "apple-notes" ||
+		value === "bear" ||
+		value === "notion" ||
+		value === "skriuw"
+	) {
+		return value;
+	}
 	return undefined;
 }

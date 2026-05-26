@@ -11,6 +11,7 @@ import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/core/auth";
 import { DevMenu } from "@/features/dev-tools/dev-menu";
+import { UserToastHost } from "@/shared/ui/user-toast-host";
 import {
 	EDITOR_PREFERENCES_STORAGE_KEY,
 } from "@/features/settings/lib/editor-preferences";
@@ -92,6 +93,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<PersistenceBootstrap />
 							<ThemeAttribute />
 							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+							<UserToastHost />
 							<DevMenu />
 						</ProtectedAppGuard>
 					</TooltipProvider>
