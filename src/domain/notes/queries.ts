@@ -23,6 +23,7 @@ type NoteRecord = {
 	richContent: Prisma.JsonValue | null;
 	preferredEditorMode: string | null;
 	parentId: string | null;
+	sortOrder: number;
 	tags: string[];
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
@@ -47,16 +48,13 @@ type NoteVersionRecord = {
 
 function recordToNoteFile(record: NoteRecord): NoteFile {
 	const richContent =
-		(record.richContent as RichTextDocument | null) ??
-		markdownToRichDocument(record.content);
-	const meta = record.journalMeta as
-		| {
-				mood?: import("@/domain/journal/models").MoodLevel;
-				tags: string[];
-				weather?: string;
-				location?: string;
-		  }
-		| null;
+		(record.richContent as RichTextDocument | null) ?? markdownToRichDocument(record.content);
+	const meta = record.journalMeta as {
+		mood?: import("@/domain/journal/models").MoodLevel;
+		tags: string[];
+		weather?: string;
+		location?: string;
+	} | null;
 	return fromPersistedNote({
 		id: record.id as NoteId,
 		name: record.name,
@@ -64,6 +62,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		richContent,
 		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
 		parentId: record.parentId as FolderId | null,
+		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		journalMeta: meta
 			? {
@@ -84,6 +83,7 @@ function recordToNoteMetadata(record: NoteMetadataRecord): NoteFile {
 		richContent: [],
 		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
 		parentId: record.parentId as FolderId | null,
+		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
@@ -110,12 +110,13 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const records = await prisma.note.findMany({
 		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
+		orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
 		select: {
 			id: true,
 			name: true,
 			preferredEditorMode: true,
 			parentId: true,
+			sortOrder: true,
 			tags: true,
 			createdAt: true,
 			updatedAt: true,
@@ -138,7 +139,7 @@ export async function listNotes(): Promise<NoteFile[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const records = await prisma.note.findMany({
 		where: { userId: user.id, deletedAt: null },
-		orderBy: { createdAt: "asc" },
+		orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
 	});
 	return records.map(recordToNoteFile);
 }
