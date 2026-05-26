@@ -55,6 +55,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingEntryIdRef = useRef<string | null>(null);
+	const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
 
 	const clearPendingSave = useCallback(() => {
 		if (saveTimeoutRef.current) {
@@ -123,48 +124,53 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	);
 
 	const persistEntry = useCallback(
-		async (draft: { content: string; tags?: string[]; mood?: MoodLevel | null }) => {
-			const nextTags = uniqueTags(draft.tags ?? entry?.tags ?? []);
-			const nextMood =
-				draft.mood === undefined ? (entry?.mood ?? undefined) : (draft.mood ?? null);
-			const shouldPersist =
-				Boolean(entry) ||
-				draft.content.trim().length > 0 ||
-				nextTags.length > 0 ||
-				nextMood !== null;
+		(draft: { content: string; tags?: string[]; mood?: MoodLevel | null }) => {
+			const task = persistQueueRef.current.catch(() => {}).then(async () => {
+				const nextTags = uniqueTags(draft.tags ?? entry?.tags ?? []);
+				const nextMood =
+					draft.mood === undefined ? (entry?.mood ?? undefined) : (draft.mood ?? null);
+				const shouldPersist =
+					Boolean(entry) ||
+					draft.content.trim().length > 0 ||
+					nextTags.length > 0 ||
+					nextMood !== null;
 
-			if (!shouldPersist) {
-				setSaveState("idle");
-				return;
-			}
-
-			markSaving();
-
-			try {
-				if (entry?.id) {
-					await updateEntryMutation.mutateAsync({
-						id: entry.id,
-						content: draft.content,
-						tags: nextTags,
-						mood: nextMood,
-					});
-				} else {
-					const optimisticId = pendingEntryIdRef.current ?? crypto.randomUUID();
-					pendingEntryIdRef.current = optimisticId;
-
-					await createEntryMutation.mutateAsync({
-						id: optimisticId,
-						dateKey,
-						content: draft.content,
-						tags: nextTags,
-						mood: nextMood ?? undefined,
-					});
+				if (!shouldPersist) {
+					setSaveState("idle");
+					return;
 				}
 
-				markSaved();
-			} catch {
-				markError();
-			}
+				markSaving();
+
+				try {
+					if (entry?.id) {
+						await updateEntryMutation.mutateAsync({
+							id: entry.id,
+							content: draft.content,
+							tags: nextTags,
+							mood: nextMood,
+						});
+					} else {
+						const optimisticId = pendingEntryIdRef.current ?? crypto.randomUUID();
+						pendingEntryIdRef.current = optimisticId;
+
+						await createEntryMutation.mutateAsync({
+							id: optimisticId,
+							dateKey,
+							content: draft.content,
+							tags: nextTags,
+							mood: nextMood ?? undefined,
+						});
+					}
+
+					markSaved();
+				} catch {
+					markError();
+				}
+			});
+
+			persistQueueRef.current = task.catch(() => {});
+			return task;
 		},
 		[
 			createEntryMutation,

@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import {
 	WorkspaceContentSkeleton,
 	WorkspaceLoadingShell,
@@ -64,11 +66,6 @@ export function NotesLayoutShell({
 }: NotesLayoutShellProps = {}) {
 	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
-
-	if (forceLoading) {
-		return <WorkspaceLoadingShell variant="notes" />;
-	}
-
 	const {
 		activeFile,
 		files,
@@ -118,6 +115,16 @@ export function NotesLayoutShell({
 		handleCloseShare,
 	} = layout;
 
+	const mobileSidebarRef = useRef<HTMLDivElement>(null);
+	const mobileMetadataRef = useRef<HTMLDivElement>(null);
+	useFocusTrap(isMobile && showSidebar, mobileSidebarRef);
+	useFocusTrap(isMobile && showMetadata, mobileMetadataRef);
+	const mobileOverlayOpen = isMobile && (showSidebar || showMetadata);
+
+	if (forceLoading) {
+		return <WorkspaceLoadingShell variant="notes" />;
+	}
+
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -148,7 +155,10 @@ export function NotesLayoutShell({
 				)}
 
 				{isEditorReady ? (
-					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+					<div
+						className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+						inert={mobileOverlayOpen ? true : undefined}
+					>
 						<div className="relative flex min-w-0 flex-1 overflow-hidden">
 							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 								{isActiveNoteLoading ? (
@@ -288,6 +298,7 @@ export function NotesLayoutShell({
 						<div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full max-w-full items-stretch pr-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
 							<motion.div
 								key="sidebar-panel"
+								ref={mobileSidebarRef}
 								initial={
 									prefersReducedMotion
 										? { x: -12, opacity: 0 }
@@ -342,6 +353,7 @@ export function NotesLayoutShell({
 						<div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.35rem)]">
 							<motion.div
 								key="metadata-panel"
+								ref={mobileMetadataRef}
 								initial={
 									prefersReducedMotion
 										? { y: 16, opacity: 0 }

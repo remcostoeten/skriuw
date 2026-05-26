@@ -51,6 +51,13 @@ export default async function RootLayout({ children }: Props) {
 
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `(function(){try{var raw=localStorage.getItem("preferences-store");if(!raw)return;var parsed=JSON.parse(raw);var theme=parsed&&parsed.state&&parsed.state.appearance&&parsed.state.appearance.theme;if(theme){document.documentElement.setAttribute("data-theme",theme);}}catch(e){}})();`,
+					}}
+				/>
+			</head>
 			<body className={`${editorFontVariables} font-sans`}>
 				<AppProviders initialEditorPreferences={initialEditorPreferences}>
 					{children}

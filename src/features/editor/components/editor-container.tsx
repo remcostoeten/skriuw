@@ -180,6 +180,7 @@ export function EditorContainer({
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
+	const showLineNumbers = usePreferencesStore((s) => s.appearance.showLineNumbers);
 	const { data: serverKeys = [] } = useAiProviderKeys();
 
 	const aiResourceOptions = useMemo(
@@ -512,6 +513,7 @@ export function EditorContainer({
 					editorMode={effectiveEditorMode}
 					editorFontId={editorPrefs.defaultFont}
 					editorLineHeight={editorPrefs.lineHeight}
+					showLineNumbers={showLineNumbers}
 					isMobile={isMobile}
 					onContentChange={onContentChange}
 					onEditorReady={handleEditorReady}
