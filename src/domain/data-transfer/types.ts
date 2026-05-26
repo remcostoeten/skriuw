@@ -43,6 +43,7 @@ export type ParsedNoteFile = {
 	id?: string;
 	name: string;
 	content: string;
+	richContent?: unknown;
 	tags: string[];
 	parentPath: string | null;
 	sortOrder?: number;
