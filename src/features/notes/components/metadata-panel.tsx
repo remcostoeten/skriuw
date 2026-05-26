@@ -817,6 +817,8 @@ export function MetadataPanel({
 	const isMdx = isMdxNote(file);
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
+	const { shareQuery } = useNoteSharing(file?.id);
+	const inspectorControlCount = isMobile && shareQuery.data ? 4 : 3;
 
 	const details = useMemo(() => {
 		if (!file) return [];
@@ -1242,7 +1244,7 @@ export function MetadataPanel({
 					id="note-inspector-details"
 					title="Details"
 					icon={Info}
-					count={details.length + 3}
+					count={details.length + inspectorControlCount}
 					open={openSections.details}
 					onToggle={() => toggleSection("details")}
 					className="border-b-0"
