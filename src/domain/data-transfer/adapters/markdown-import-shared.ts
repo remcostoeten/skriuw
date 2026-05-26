@@ -16,6 +16,10 @@ export type MarkdownImportOptions = {
 	skipPath?: (path: string) => boolean;
 	transformBody?: (body: string, path: string) => string;
 	extraTags?: (body: string, frontmatter: Record<string, string>) => string[];
+	prepareBody?: (body: string, path: string) => {
+		content: string;
+		extraTags?: string[];
+	};
 };
 
 export function defaultSkipMarkdownPath(path: string): boolean {
@@ -99,11 +103,19 @@ export function parseMarkdownNoteFile(
 	const name = normalizeNoteFileName(parts.at(-1) ?? "untitled.md");
 	const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : null;
 	const { frontmatter, body } = splitFrontmatter(raw);
-	const extraTags = options.extraTags?.(body, frontmatter) ?? [];
-	const transformedBody = options.transformBody?.(body, path) ?? body;
+	let transformedBody = body;
+	let preparedTags: string[] = [];
+	if (options.prepareBody) {
+		const prepared = options.prepareBody(body, path);
+		transformedBody = prepared.content;
+		preparedTags = prepared.extraTags ?? [];
+	} else {
+		transformedBody = options.transformBody?.(body, path) ?? body;
+		preparedTags = options.extraTags?.(body, frontmatter) ?? [];
+	}
 	const frontmatterTags = parseTagsField(frontmatter.tags);
 	const contentTags = extractNoteTags(transformedBody);
-	const tags = [...new Set([...frontmatterTags, ...contentTags, ...extraTags])];
+	const tags = [...new Set([...frontmatterTags, ...contentTags, ...preparedTags])];
 	const sortOrderRaw = frontmatter.sortOrder;
 	const sortOrder =
 		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
