@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/core/db";
-import { parseArchiveBuffer } from "@/domain/data-transfer/parse-archive";
 import { buildImportPreview } from "@/domain/data-transfer/preview";
+import { parseImportBuffer } from "@/domain/data-transfer/parse-import";
+import { parseImportPolicy, parseImportProfile } from "@/domain/data-transfer/types";
 
 const MAX_ARCHIVE_BYTES = 50 * 1024 * 1024;
 
@@ -34,9 +35,12 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "Archive is too large." }, { status: 413 });
 	}
 
+	const policy = parseImportPolicy(formData.get("policy"));
+	const profile = parseImportProfile(formData.get("profile"));
+
 	try {
-		const archive = parseArchiveBuffer(buffer);
-		const preview = await buildImportPreview(prisma, userId, archive);
+		const archive = parseImportBuffer(buffer, profile);
+		const preview = await buildImportPreview(prisma, userId, archive, policy);
 		return NextResponse.json(preview);
 	} catch (error) {
 		return NextResponse.json({ error: errorMessage(error) }, { status: 400 });

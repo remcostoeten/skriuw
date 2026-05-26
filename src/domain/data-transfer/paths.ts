@@ -58,6 +58,16 @@ export function noteRichSidecarPath(noteMarkdownPath: string): string {
 	return noteMarkdownPath.replace(/\.md$/, ".rich.json");
 }
 
+export function noteVersionPath(rootPrefix: string, noteId: string, versionId: string): string {
+	return `${rootPrefix}/versions/${noteId}/${versionId}.json`;
+}
+
+export function isNoteVersionPath(rootPrefix: string, archivePath: string): boolean {
+	return (
+		archivePath.startsWith(`${rootPrefix}/versions/`) && archivePath.endsWith(".json")
+	);
+}
+
 export function isNoteRichSidecarPath(rootPrefix: string, archivePath: string): boolean {
 	return (
 		archivePath.startsWith(`${rootPrefix}/notes/`) && archivePath.endsWith(".rich.json")

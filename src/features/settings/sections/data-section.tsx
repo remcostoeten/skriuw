@@ -28,9 +28,17 @@ import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
-import type { ImportPreview } from "@/domain/data-transfer/types";
+import type { ImportPolicy, ImportPreview, ImportProfile } from "@/domain/data-transfer/types";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/shared/ui/select";
 
 const CLEAR_PHRASE = "clear my data";
+const REPLACE_PHRASE = "replace my workspace";
 
 type AsyncState = "idle" | "pending" | "error";
 
@@ -134,18 +142,40 @@ function ClearDataDialog({ disabled }: { disabled: boolean }) {
 type ExportState = "idle" | "pending" | "error";
 type ImportFlowState = "idle" | "previewing" | "ready" | "importing" | "success" | "error";
 
+function importHasWork(preview: ImportPreview): boolean {
+	if (preview.policy === "replace-workspace") {
+		return true;
+	}
+
+	return (
+		preview.folders.create +
+			preview.folders.overwrite +
+			preview.notes.create +
+			preview.notes.overwrite +
+			preview.journalEntries.create +
+			preview.journalEntries.overwrite +
+			preview.journalTags.create +
+			preview.noteVersions.create >
+		0
+	);
+}
+
 function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 	const totalCreate =
 		preview.folders.create +
 		preview.notes.create +
 		preview.journalEntries.create +
-		preview.journalTags.create;
+		preview.journalTags.create +
+		preview.noteVersions.create;
+	const totalOverwrite =
+		preview.notes.overwrite +
+		preview.journalEntries.overwrite +
+		preview.journalTags.overwrite;
 
-	if (totalCreate === 0) {
+	if (preview.policy !== "replace-workspace" && totalCreate === 0 && totalOverwrite === 0) {
 		return (
 			<p className="text-sm text-muted-foreground">
-				Everything in this archive already exists in your workspace. Nothing new will be
-				imported.
+				Everything in this archive already exists in your workspace. Nothing will change.
 			</p>
 		);
 	}
@@ -153,21 +183,60 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 	return (
 		<div className="space-y-3 text-sm">
 			<ul className="space-y-1.5 text-muted-foreground">
-				<li>{preview.folders.create} folders to create</li>
-				<li>{preview.notes.create} notes to create</li>
-				<li>{preview.journalEntries.create} journal entries to create</li>
-				<li>{preview.journalTags.create} journal tags to create</li>
+				<li>
+					{preview.folders.create} folders to create
+					{preview.folders.skip > 0 ? ` · ${preview.folders.skip} skipped` : ""}
+				</li>
+				<li>
+					{preview.notes.create} notes to create
+					{preview.notes.overwrite > 0 ? ` · ${preview.notes.overwrite} to overwrite` : ""}
+					{preview.notes.skip > 0 ? ` · ${preview.notes.skip} skipped` : ""}
+				</li>
+				<li>
+					{preview.journalEntries.create} journal entries to create
+					{preview.journalEntries.overwrite > 0
+						? ` · ${preview.journalEntries.overwrite} to overwrite`
+						: ""}
+				</li>
+				<li>
+					{preview.journalTags.create} journal tags to create
+					{preview.journalTags.overwrite > 0
+						? ` · ${preview.journalTags.overwrite} to update`
+						: ""}
+				</li>
+				{preview.noteVersions.create > 0 && (
+					<li>{preview.noteVersions.create} note versions to restore</li>
+				)}
 			</ul>
 			{(preview.samples.notesToCreate.length > 0 ||
-				preview.samples.journalToCreate.length > 0) && (
+				preview.samples.notesToOverwrite.length > 0 ||
+				preview.samples.journalToCreate.length > 0 ||
+				preview.samples.journalToOverwrite.length > 0) && (
 				<div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
 					{preview.samples.notesToCreate.length > 0 && (
-						<p>Notes: {preview.samples.notesToCreate.join(", ")}</p>
+						<p>Create notes: {preview.samples.notesToCreate.join(", ")}</p>
+					)}
+					{preview.samples.notesToOverwrite.length > 0 && (
+						<p className="mt-1">
+							Overwrite notes: {preview.samples.notesToOverwrite.join(", ")}
+						</p>
 					)}
 					{preview.samples.journalToCreate.length > 0 && (
-						<p className="mt-1">Journal: {preview.samples.journalToCreate.join(", ")}</p>
+						<p className="mt-1">Create journal: {preview.samples.journalToCreate.join(", ")}</p>
+					)}
+					{preview.samples.journalToOverwrite.length > 0 && (
+						<p className="mt-1">
+							Overwrite journal: {preview.samples.journalToOverwrite.join(", ")}
+						</p>
 					)}
 				</div>
+			)}
+			{preview.integrityWarnings.length > 0 && (
+				<ul className="space-y-1 text-xs text-warning-foreground">
+					{preview.integrityWarnings.map((warning) => (
+						<li key={warning}>{warning}</li>
+					))}
+				</ul>
 			)}
 			{preview.warnings.length > 0 && (
 				<ul className="space-y-1 text-xs text-warning-foreground">
@@ -187,8 +256,12 @@ export function DataSection() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const [exportState, setExportState] = useState<ExportState>("idle");
+	const [includeVersions, setIncludeVersions] = useState(true);
 	const [importState, setImportState] = useState<ImportFlowState>("idle");
 	const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+	const [importPolicy, setImportPolicy] = useState<ImportPolicy>("merge");
+	const [importProfile, setImportProfile] = useState<"auto" | ImportProfile>("auto");
+	const [replaceConfirm, setReplaceConfirm] = useState("");
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [importError, setImportError] = useState<string | null>(null);
 	const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -196,7 +269,8 @@ export function DataSection() {
 	const handleExport = async () => {
 		setExportState("pending");
 		try {
-			const res = await fetch("/api/data/export");
+			const query = includeVersions ? "" : "?includeVersions=false";
+			const res = await fetch(`/api/data/export${query}`);
 			if (!res.ok) {
 				const body = (await res.json().catch(() => null)) as { error?: string } | null;
 				throw new Error(body?.error ?? "Export failed.");
@@ -219,6 +293,9 @@ export function DataSection() {
 	const resetImportFlow = () => {
 		setImportState("idle");
 		setImportPreview(null);
+		setImportPolicy("merge");
+		setImportProfile("auto");
+		setReplaceConfirm("");
 		setSelectedFile(null);
 		setImportError(null);
 		if (fileInputRef.current) {
@@ -226,9 +303,18 @@ export function DataSection() {
 		}
 	};
 
-	const uploadArchive = async (file: File, endpoint: "/api/data/import/preview" | "/api/data/import") => {
+	const uploadArchive = async (
+		file: File,
+		endpoint: "/api/data/import/preview" | "/api/data/import",
+		policy: ImportPolicy,
+		profile: "auto" | ImportProfile,
+	) => {
 		const formData = new FormData();
 		formData.set("file", file);
+		formData.set("policy", policy);
+		if (profile !== "auto") {
+			formData.set("profile", profile);
+		}
 		const response = await fetch(endpoint, { method: "POST", body: formData });
 		const body = (await response.json().catch(() => null)) as
 			| ({ error?: string } & Partial<ImportPreview>)
@@ -239,18 +325,16 @@ export function DataSection() {
 		return body as ImportPreview;
 	};
 
-	const handleImportFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (!file) return;
-
-		setSelectedFile(file);
-		setImportDialogOpen(true);
+	const previewArchive = async (
+		file: File,
+		policy: ImportPolicy,
+		profile: "auto" | ImportProfile,
+	) => {
 		setImportState("previewing");
 		setImportError(null);
 		setImportPreview(null);
-
 		try {
-			const preview = await uploadArchive(file, "/api/data/import/preview");
+			const preview = await uploadArchive(file, "/api/data/import/preview", policy, profile);
 			setImportPreview(preview);
 			setImportState("ready");
 		} catch (error) {
@@ -259,13 +343,42 @@ export function DataSection() {
 		}
 	};
 
+	const handleImportFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		setSelectedFile(file);
+		setImportDialogOpen(true);
+		await previewArchive(file, importPolicy, importProfile);
+	};
+
+	const handleImportPolicyChange = async (policy: ImportPolicy) => {
+		setImportPolicy(policy);
+		if (selectedFile && importState !== "previewing" && importState !== "importing") {
+			await previewArchive(selectedFile, policy, importProfile);
+		}
+	};
+
+	const handleImportProfileChange = async (profile: "auto" | ImportProfile) => {
+		setImportProfile(profile);
+		if (selectedFile && importState !== "previewing" && importState !== "importing") {
+			await previewArchive(selectedFile, importPolicy, profile);
+		}
+	};
+
 	const handleConfirmImport = async () => {
 		if (!selectedFile) return;
+		if (
+			importPolicy === "replace-workspace" &&
+			replaceConfirm.trim().toLowerCase() !== REPLACE_PHRASE
+		) {
+			return;
+		}
 		setImportState("importing");
 		setImportError(null);
 
 		try {
-			await uploadArchive(selectedFile, "/api/data/import");
+			await uploadArchive(selectedFile, "/api/data/import", importPolicy, importProfile);
 			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
 			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
 			setImportState("success");
@@ -284,26 +397,37 @@ export function DataSection() {
 			<SettingsCard>
 				<Row
 					title="Export notes"
-					description="Download notes, folders, journal entries, and tags as a Skriuw ZIP archive."
+					description="Download notes, folders, journal entries, tags, and optional version history as a Skriuw v3 ZIP."
 				>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleExport}
-						disabled={exportState === "pending" || !isConnected}
-						title={!isConnected ? "Sign in to export" : undefined}
-					>
-						<Download className="size-3.5" />
-						{exportState === "pending"
-							? "Exporting…"
-							: exportState === "error"
-								? "Failed — retry"
-								: "Export"}
-					</Button>
+					<div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+						<label className="flex items-center gap-2 text-xs text-muted-foreground">
+							<input
+								type="checkbox"
+								checked={includeVersions}
+								onChange={(event) => setIncludeVersions(event.target.checked)}
+								className="size-3.5 rounded border border-border"
+							/>
+							Include version history
+						</label>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleExport}
+							disabled={exportState === "pending" || !isConnected}
+							title={!isConnected ? "Sign in to export" : undefined}
+						>
+							<Download className="size-3.5" />
+							{exportState === "pending"
+								? "Exporting…"
+								: exportState === "error"
+									? "Failed — retry"
+									: "Export"}
+						</Button>
+					</div>
 				</Row>
 				<Row
 					title="Import backup"
-					description="Merge a Skriuw export ZIP into your workspace. Existing notes and journal dates are skipped."
+					description="Import a Skriuw backup or Markdown folder ZIP. Choose merge, overwrite, or full workspace replace."
 				>
 					<>
 						<input
@@ -336,13 +460,71 @@ export function DataSection() {
 			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Import Skriuw backup</DialogTitle>
+						<DialogTitle>Import backup</DialogTitle>
 						<DialogDescription>
 							{selectedFile
-								? `Review what will be merged from ${selectedFile.name}.`
-								: "Select a Skriuw export ZIP to preview the merge."}
+								? `Review what will happen when importing ${selectedFile.name}.`
+								: "Select a ZIP archive to preview the import."}
 						</DialogDescription>
 					</DialogHeader>
+
+					<div className="grid gap-3 sm:grid-cols-2">
+						<div className="space-y-1.5">
+							<Label className="text-xs text-muted-foreground">Source format</Label>
+							<Select
+								value={importProfile}
+								onValueChange={(value) =>
+									void handleImportProfileChange(value as "auto" | ImportProfile)
+								}
+								disabled={importState === "previewing" || importState === "importing"}
+							>
+								<SelectTrigger className="h-8">
+									<SelectValue placeholder="Auto-detect" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="auto">Auto-detect</SelectItem>
+									<SelectItem value="skriuw">Skriuw backup</SelectItem>
+									<SelectItem value="markdown-vault">Markdown folder</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="space-y-1.5">
+							<Label className="text-xs text-muted-foreground">Import policy</Label>
+							<Select
+								value={importPolicy}
+								onValueChange={(value) =>
+									void handleImportPolicyChange(value as ImportPolicy)
+								}
+								disabled={importState === "previewing" || importState === "importing"}
+							>
+								<SelectTrigger className="h-8">
+									<SelectValue placeholder="Merge" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="merge">Merge (skip duplicates)</SelectItem>
+									<SelectItem value="overwrite">Overwrite matches</SelectItem>
+									<SelectItem value="replace-workspace">Replace workspace</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
+					{importPolicy === "replace-workspace" && importPreview && (
+						<div className="space-y-2">
+							<Label htmlFor="replace-confirm" className="text-xs text-muted-foreground">
+								To confirm workspace replace, type{" "}
+								<span className="font-mono text-foreground">{REPLACE_PHRASE}</span>
+							</Label>
+							<Input
+								id="replace-confirm"
+								value={replaceConfirm}
+								onChange={(e) => setReplaceConfirm(e.target.value)}
+								placeholder={REPLACE_PHRASE}
+								autoComplete="off"
+								maxLength={60}
+							/>
+						</div>
+					)}
 
 					{importState === "previewing" && (
 						<p className="text-sm text-muted-foreground">Analyzing archive…</p>
@@ -372,15 +554,17 @@ export function DataSection() {
 							<Button
 								size="sm"
 								disabled={
-									importPreview.notes.create +
-										importPreview.folders.create +
-										importPreview.journalEntries.create +
-										importPreview.journalTags.create ===
-									0
+									!importHasWork(importPreview) ||
+									(importPolicy === "replace-workspace" &&
+										replaceConfirm.trim().toLowerCase() !== REPLACE_PHRASE)
 								}
 								onClick={handleConfirmImport}
 							>
-								Import new items
+								{importPolicy === "replace-workspace"
+									? "Replace workspace"
+									: importPolicy === "overwrite"
+										? "Import with overwrite"
+										: "Import new items"}
 							</Button>
 						)}
 						{importState === "importing" && (
