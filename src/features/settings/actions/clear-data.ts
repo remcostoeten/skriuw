@@ -28,6 +28,10 @@ export async function clearAllData(confirmation: string): Promise<ClearDataResul
 	const now = new Date();
 	try {
 		await prisma.$transaction([
+			prisma.noteShare.updateMany({
+				where: { userId, revokedAt: null },
+				data: { revokedAt: now },
+			}),
 			prisma.note.updateMany({
 				where: { userId, deletedAt: null },
 				data: { deletedAt: now },

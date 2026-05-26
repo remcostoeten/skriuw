@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowLeft,
@@ -63,10 +63,17 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 	const [showAuthor, setShowAuthor] = useState(false);
 	const [dirty, setDirty] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const lastSyncedShareTokenRef = useRef<string | null>(null);
 
-	// Sync local controls whenever the server share state changes.
+	// Sync local controls when share state changes, but not mid-edit on background refetches.
 	useEffect(() => {
-		if (!share) return;
+		if (!share) {
+			lastSyncedShareTokenRef.current = null;
+			return;
+		}
+		if (dirty && lastSyncedShareTokenRef.current === share.token) return;
+
+		lastSyncedShareTokenRef.current = share.token;
 		setViewOnce(share.viewOnce);
 		setExpiryMode(share.expiresAt ? "date" : "never");
 		setCustomDate(share.expiresAt ? toLocalInputValue(share.expiresAt) : "");
@@ -74,7 +81,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 		setPasswordInput("");
 		setShowAuthor(share.authorName != null);
 		setDirty(false);
-	}, [share]);
+	}, [share, dirty]);
 
 	useEffect(() => {
 		if (!copied) return;
