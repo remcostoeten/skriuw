@@ -11,6 +11,7 @@ import {
 	buildSmsShareUrl,
 	formatShareText,
 	MAX_SHARE_TEXT_LENGTH,
+	openDiscordShare,
 	resolveClientShareUrl,
 } from "@/features/notes/lib/note-share-export";
 
@@ -70,11 +71,8 @@ describe("note share export", () => {
 		expect(resolveClientShareUrl("/s/token", "https://fallback.app/s/token")).toBe(
 			"https://fallback.app/s/token",
 		);
-	});
-
-	test("opens external urls with mobile-friendly navigation", () => {
-		expect(buildXShareUrl("https://skriuw.app/s/abc", "Title")).toContain(
-			encodeURIComponent("https://skriuw.app/s/abc"),
+		expect(resolveClientShareUrl("/s/abc", "https://example.com/fallback")).toBe(
+			"https://example.com/fallback",
 		);
 	});
 
@@ -88,5 +86,16 @@ describe("note share export", () => {
 			"t.me/share/url",
 		);
 		expect(buildSmsShareUrl(payload)).toContain("sms:?body=");
+	});
+
+	test("returns cancelled when native discord share is dismissed", async () => {
+		const originalShare = navigator.share;
+		navigator.share = () => Promise.reject(new DOMException("Aborted", "AbortError"));
+
+		await expect(openDiscordShare("Title", "https://skriuw.app/s/abc")).resolves.toBe(
+			"cancelled",
+		);
+
+		navigator.share = originalShare;
 	});
 });
