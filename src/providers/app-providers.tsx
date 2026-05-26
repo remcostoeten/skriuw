@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { MotionConfig } from "framer-motion";
+import { MotionPreferences } from "@/providers/motion-preferences";
 import { useEffect, useState } from "react";
 import { PersistenceBootstrap } from "@/providers/persistence-bootstrap";
 import { ProtectedAppGuard } from "@/providers/protected-app-guard";
@@ -83,7 +83,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<BlockNoteMantineProvider>
-				<MotionConfig reducedMotion="user">
+				<MotionPreferences>
 					<TooltipProvider delayDuration={300}>
 						<EditorPreferencesBootstrap
 							initialEditorPreferences={initialEditorPreferences}
@@ -95,7 +95,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<DevMenu />
 						</ProtectedAppGuard>
 					</TooltipProvider>
-				</MotionConfig>
+				</MotionPreferences>
 			</BlockNoteMantineProvider>
 		</QueryClientProvider>
 	);

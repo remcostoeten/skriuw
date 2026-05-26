@@ -2,6 +2,11 @@
 
 import { getAuthenticatedUser } from "@/core/db";
 import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
+import {
+	createFolderInputSchema,
+	parseServerInput,
+	updateFolderInputSchema,
+} from "@/domain/validation/schemas";
 import type { NoteFolder } from "@/domain/notes/models";
 
 type FolderRecord = {
@@ -29,9 +34,10 @@ export type CreateFolderInput = {
 };
 
 export async function createFolder(input: CreateFolderInput): Promise<NoteFolder> {
+	const validated = parseServerInput(createFolderInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	const id = input.id ?? crypto.randomUUID();
-	const parentId = input.parentId ?? null;
+	const id = validated.id ?? crypto.randomUUID();
+	const parentId = validated.parentId ?? null;
 	await assertOwnedParentFolder(prisma, user.id, parentId);
 	const [lastFolder, lastNote] = await Promise.all([
 		prisma.folder.aggregate({
@@ -44,11 +50,11 @@ export async function createFolder(input: CreateFolderInput): Promise<NoteFolder
 		}),
 	]);
 	const sortOrder =
-		input.sortOrder ??
+		validated.sortOrder ??
 		Math.max(lastFolder._max.sortOrder ?? -1, lastNote._max.sortOrder ?? -1) + 1;
 
 	const updateData = {
-		name: input.name,
+		name: validated.name,
 		parentId,
 		sortOrder,
 	};
@@ -89,23 +95,24 @@ export type UpdateFolderInput = {
 };
 
 export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined> {
+	const validated = parseServerInput(updateFolderInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	if (input.parentId !== undefined) {
-		await assertOwnedParentFolder(prisma, user.id, input.parentId);
+	if (validated.parentId !== undefined) {
+		await assertOwnedParentFolder(prisma, user.id, validated.parentId);
 	}
 
 	const { count } = await prisma.folder.updateMany({
-		where: { id: input.id, userId: user.id, deletedAt: null },
+		where: { id: validated.id, userId: user.id, deletedAt: null },
 		data: {
-			...(input.name !== undefined && { name: input.name }),
-			...(input.parentId !== undefined && { parentId: input.parentId }),
-			...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+			...(validated.name !== undefined && { name: validated.name }),
+			...(validated.parentId !== undefined && { parentId: validated.parentId }),
+			...(validated.sortOrder !== undefined && { sortOrder: validated.sortOrder }),
 		},
 	});
 	if (count === 0) return undefined;
 
 	const record = await prisma.folder.findFirst({
-		where: { id: input.id, userId: user.id, deletedAt: null },
+		where: { id: validated.id, userId: user.id, deletedAt: null },
 		select: { id: true, name: true, parentId: true, sortOrder: true },
 	});
 	return record ? recordToFolder(record) : undefined;

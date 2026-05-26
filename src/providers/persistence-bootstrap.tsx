@@ -19,6 +19,11 @@ export function PersistenceBootstrap() {
 		void useNotesStore.getState().initialize();
 		void useSidebarStore.getState().syncUserScope(userScopeId);
 		usePreferencesStore.getState().syncUserScope(userScopeId);
+
+		const appearance = usePreferencesStore.getState().appearance;
+		if (appearance && useSidebarStore.getState().config.compactMode !== appearance.compactSidebar) {
+			useSidebarStore.getState().setCompactMode(appearance.compactSidebar);
+		}
 	}, [auth.isReady, auth.phase, userScopeId]);
 
 	return null;
