@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from "react";
 import {
-	buildLinkShareMessage,
 	buildNoteSharePayload,
 	canShareNoteFiles,
 	canUseNativeShare,
@@ -12,6 +11,9 @@ import {
 	openDiscordShare,
 	openEmailShare,
 	openEmailShareWithLink,
+	openSmsShare,
+	openSmsShareWithLink,
+	openTelegramShareWithLink,
 	openWhatsAppShare,
 	openWhatsAppShareWithLink,
 	openXShare,
@@ -23,9 +25,20 @@ import {
 } from "@/features/notes/lib/note-share-export";
 import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { showUserToast } from "@/shared/lib/user-toast";
 import type { NoteFile } from "@/types/notes";
 
 type NoteSendSource = Pick<NoteFile, "id" | "name" | "content"> | null;
+
+function notifyCopyResult(copied: boolean) {
+	if (copied) {
+		showUserToast("Link copied", "success");
+		triggerNativeFeedback("success");
+		return;
+	}
+	showUserToast("Couldn't copy link", "error");
+	triggerNativeFeedback("dismiss");
+}
 
 export function useNoteSend(note: NoteSendSource) {
 	const noteId = note?.id ?? "";
@@ -39,6 +52,7 @@ export function useNoteSend(note: NoteSendSource) {
 	const canSaveAsFile = payload ? canShareNoteFiles(payload) : false;
 	const showAppleNotes = canNativeShare && isAppleSharePlatform();
 	const isLinkShareBusy = publish.isPending || shareQuery.isFetching;
+	const shareIsStale = Boolean(shareQuery.data?.isStale);
 	const cachedShareUrl = useMemo(() => {
 		const share = shareQuery.data;
 		if (!share) return null;
@@ -62,6 +76,8 @@ export function useNoteSend(note: NoteSendSource) {
 			});
 			return resolveClientShareUrl(state.path, state.url);
 		} catch {
+			showUserToast("Couldn't publish share link", "error");
+			triggerNativeFeedback("dismiss");
 			return null;
 		}
 	}, [noteId, payload, publish, shareQuery.data]);
@@ -126,6 +142,25 @@ export function useNoteSend(note: NoteSendSource) {
 		});
 	}, [runWithPayload]);
 
+	const shareSms = useCallback(() => {
+		runWithPayload((value) => {
+			openSmsShare(value);
+			triggerNativeFeedback("selection");
+		});
+	}, [runWithPayload]);
+
+	const copyMarkdown = useCallback(async () => {
+		if (!payload) return;
+		const copied = await copyTextToClipboard(payload.markdown);
+		if (copied) {
+			showUserToast("Markdown copied", "success");
+			triggerNativeFeedback("success");
+			return;
+		}
+		showUserToast("Couldn't copy markdown", "error");
+		triggerNativeFeedback("dismiss");
+	}, [payload]);
+
 	const downloadMarkdown = useCallback(() => {
 		runWithPayload((value) => {
 			downloadNoteMarkdown(value);
@@ -136,9 +171,7 @@ export function useNoteSend(note: NoteSendSource) {
 	const copyShareLink = useCallback(async () => {
 		await runWithShareUrl(async (url) => {
 			const copied = await copyTextToClipboard(url);
-			if (copied) {
-				triggerNativeFeedback("success");
-			}
+			notifyCopyResult(copied);
 		});
 	}, [runWithShareUrl]);
 
@@ -152,15 +185,38 @@ export function useNoteSend(note: NoteSendSource) {
 	const shareLinkOnDiscord = useCallback(async () => {
 		await runWithShareUrl(async (url, value) => {
 			const result = await openDiscordShare(value.title, url);
-			if (result === "shared" || result === "copied") {
+			if (result === "shared") {
+				showUserToast("Opened share sheet", "success");
 				triggerNativeFeedback("success");
+				return;
 			}
+			if (result === "copied") {
+				showUserToast("Link copied — paste in Discord", "success");
+				triggerNativeFeedback("success");
+				return;
+			}
+			showUserToast("Couldn't share to Discord", "error");
+			triggerNativeFeedback("dismiss");
 		});
 	}, [runWithShareUrl]);
 
 	const shareLinkWhatsApp = useCallback(async () => {
 		await runWithShareUrl((url, value) => {
 			openWhatsAppShareWithLink(value.title, url);
+			triggerNativeFeedback("selection");
+		});
+	}, [runWithShareUrl]);
+
+	const shareLinkTelegram = useCallback(async () => {
+		await runWithShareUrl((url, value) => {
+			openTelegramShareWithLink(value.title, url);
+			triggerNativeFeedback("selection");
+		});
+	}, [runWithShareUrl]);
+
+	const shareLinkSms = useCallback(async () => {
+		await runWithShareUrl((url, value) => {
+			openSmsShareWithLink(value.title, url);
 			triggerNativeFeedback("selection");
 		});
 	}, [runWithShareUrl]);
@@ -178,6 +234,7 @@ export function useNoteSend(note: NoteSendSource) {
 		canNativeShare,
 		canSaveAsFile,
 		showAppleNotes,
+		shareIsStale,
 		isLinkShareBusy,
 		prefetchShareLink,
 		shareNative,
@@ -185,11 +242,15 @@ export function useNoteSend(note: NoteSendSource) {
 		shareAppleNotes,
 		shareEmail,
 		shareWhatsApp,
+		shareSms,
+		copyMarkdown,
 		downloadMarkdown,
 		copyShareLink,
 		shareLinkOnX,
 		shareLinkOnDiscord,
 		shareLinkWhatsApp,
+		shareLinkTelegram,
+		shareLinkSms,
 		shareLinkEmail,
 	};
 }

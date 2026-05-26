@@ -7,6 +7,8 @@ import {
 	buildWhatsAppShareUrl,
 	buildWhatsAppShareUrlWithLink,
 	buildXShareUrl,
+	buildTelegramShareUrl,
+	buildSmsShareUrl,
 	formatShareText,
 	MAX_SHARE_TEXT_LENGTH,
 	resolveClientShareUrl,
@@ -74,5 +76,17 @@ describe("note share export", () => {
 		expect(buildXShareUrl("https://skriuw.app/s/abc", "Title")).toContain(
 			encodeURIComponent("https://skriuw.app/s/abc"),
 		);
+	});
+
+	test("builds telegram and sms share urls", () => {
+		const payload = buildNoteSharePayload({
+			name: "note.md",
+			content: "# Hello\n\nWorld",
+		});
+
+		expect(buildTelegramShareUrl("Hello", "https://skriuw.app/s/abc")).toContain(
+			"t.me/share/url",
+		);
+		expect(buildSmsShareUrl(payload)).toContain("sms:?body=");
 	});
 });
