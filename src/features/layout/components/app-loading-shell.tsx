@@ -61,7 +61,7 @@ function StaticControl({
 		<div
 			aria-hidden="true"
 			className={cn(
-				"flex h-7 items-center justify-center border border-sidebar-border/70 bg-sidebar-accent/25 text-sidebar-foreground/48",
+				"inline-flex items-center justify-center text-sidebar-foreground/48",
 				className,
 			)}
 		>
@@ -81,7 +81,7 @@ function StaticIconButton({
 		<div
 			aria-hidden="true"
 			className={cn(
-				"flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground",
+				"inline-flex items-center justify-center text-muted-foreground/55",
 				className,
 			)}
 		>
@@ -90,66 +90,14 @@ function StaticIconButton({
 	);
 }
 
-function LoadingRail({ active }: { active: WorkspaceLoadingVariant }) {
-	const itemClass =
-		"flex h-9 w-9 items-center justify-center rounded-lg border border-transparent";
 
-	return (
-		<>
-			<aside className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 md:flex">
-				<div className="flex w-full flex-col items-center">
-					<div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
-						<RawLogo
-							variant="sidebar"
-							size={34}
-							className="text-sidebar-foreground/92"
-						/>
-					</div>
-					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						<div
-							className={cn(
-								itemClass,
-								active === "notes"
-									? "bg-sidebar-accent/75 text-sidebar-accent-foreground"
-									: "text-sidebar-foreground/52",
-							)}
-						>
-							<FolderOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-						</div>
-						<div
-							className={cn(
-								itemClass,
-								active === "journal"
-									? "bg-sidebar-accent/75 text-sidebar-accent-foreground"
-									: "text-sidebar-foreground/52",
-							)}
-						>
-							<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-						</div>
-					</div>
-				</div>
-				<div className="flex w-full flex-col items-center gap-3 pb-4">
-					<div className={cn(itemClass, "text-sidebar-foreground/52")}>
-						<Kanban className="h-[18px] w-[18px]" strokeWidth={1.6} />
-					</div>
-					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-					<div
-						aria-hidden="true"
-						className="h-9 w-9 rounded-full border border-sidebar-border bg-sidebar"
-					/>
-				</div>
-			</aside>
-			<div aria-hidden="true" className="hidden w-14 shrink-0 md:block" />
-		</>
-	);
-}
 
 function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; title: string }) {
 	if (variant === "notes") {
 		return (
 			<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3 md:hidden">
 				<div className="flex min-h-11 items-center gap-0.5">
-					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+					<StaticControl className="h-11 w-11 shrink-0">
 						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
 					</StaticControl>
 					<div className="min-w-0 flex-1 px-1.5">
@@ -157,10 +105,10 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 							{title}
 						</div>
 					</div>
-					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+					<StaticControl className="h-11 w-11 shrink-0">
 						<PanelRight className="h-5 w-5" strokeWidth={1.7} />
 					</StaticControl>
-					<StaticControl className="h-11 w-11 shrink-0 rounded-lg border-transparent bg-transparent">
+					<StaticControl className="h-11 w-11 shrink-0">
 						<Settings2 className="h-5 w-5" strokeWidth={1.7} />
 					</StaticControl>
 				</div>
@@ -171,19 +119,19 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 	return (
 		<div className="border-b border-border bg-card px-3 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] sm:px-4 md:hidden">
 			<div className="flex items-center gap-2.5 sm:gap-3">
-				<div className="flex h-11 items-center gap-1 border border-border bg-background px-1">
-					<StaticControl className="h-11 w-11 border-transparent bg-transparent">
+				<div className="flex h-11 items-center gap-1 px-1">
+					<StaticControl className="h-11 w-11">
 						<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
-					<StaticControl className="h-11 w-11 border-transparent bg-transparent">
+					<StaticControl className="h-11 w-11">
 						<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
-					<StaticControl className="h-11 w-11 border-transparent bg-transparent">
+					<StaticControl className="h-11 w-11">
 						<CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
 				</div>
 
-				<div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
+				<div className="flex h-11 min-w-0 flex-1 items-center px-4">
 					<div className="min-w-0">
 						<div className="truncate text-[10px] text-muted-foreground/70">Journal</div>
 						<div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground/70">
@@ -193,10 +141,10 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 				</div>
 
 				<div className="flex h-11 items-center gap-1.5 sm:gap-2">
-					<StaticControl className="h-11 w-11 shrink-0 border-border bg-background">
+					<StaticControl className="h-11 w-11 shrink-0">
 						<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
-					<StaticControl className="h-11 w-11 shrink-0 border-border bg-background">
+					<StaticControl className="h-11 w-11 shrink-0">
 						<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
 					</StaticControl>
 				</div>
@@ -215,7 +163,6 @@ function SidebarDataRows() {
 		<div className="space-y-1.5">
 			{Array.from({ length: SIDEBAR_SKELETON_ROW_COUNT }).map((_, index) => {
 				const Icon = index === 2 || index === 9 ? Folder : FileText;
-				const width = 46 + ((index * 53) % 44);
 
 				return (
 					<div
@@ -224,7 +171,6 @@ function SidebarDataRows() {
 						style={{ opacity: Math.max(0.18, 1 - index * 0.045) }}
 					>
 						<Icon className="h-4 w-4 shrink-0" strokeWidth={1.45} />
-						<DataLine className="h-2.5 rounded-sm" style={{ width: `${width}%` }} />
 					</div>
 				);
 			})}
@@ -270,10 +216,8 @@ function JournalSidebarSkeleton() {
 					<div
 						key={index}
 						className={cn(
-							"flex h-7 w-7 items-center justify-center rounded-md",
-							index === 0
-								? "border border-border bg-muted text-foreground/70"
-								: "text-muted-foreground/55",
+							"flex h-7 w-7 items-center justify-center",
+							index === 0 ? "text-foreground/70" : "text-muted-foreground/55",
 						)}
 					>
 						<Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -283,16 +227,16 @@ function JournalSidebarSkeleton() {
 
 			<div className="flex-1 overflow-hidden p-2">
 				<div className="mb-2 flex items-center gap-1.5">
-					<StaticControl className="h-7 w-7 border-transparent bg-transparent text-muted-foreground/50">
+					<StaticControl className="h-7 w-7 text-muted-foreground/50">
 						<ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
 					</StaticControl>
-					<StaticControl className="h-7 w-7 border-transparent bg-transparent text-muted-foreground/50">
+					<StaticControl className="h-7 w-7 text-muted-foreground/50">
 						<ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
 					</StaticControl>
-					<div className="ml-1 flex h-7 items-center border border-border/70 bg-background px-2 text-[10px] font-medium text-muted-foreground/55">
+					<div className="ml-1 flex h-7 items-center px-2 text-[10px] font-medium text-muted-foreground/55">
 						Today
 					</div>
-					<div className="ml-auto flex h-7 items-center gap-1.5 border border-border/70 bg-background px-2 text-[10px] font-medium text-muted-foreground/55">
+					<div className="ml-auto flex h-7 items-center gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/55">
 						<CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
 						18 May 2026
 					</div>
@@ -353,7 +297,7 @@ function JournalSidebarSkeleton() {
 			</div>
 
 			<div className="border-t border-border p-2">
-				<div className="flex w-full items-center justify-center gap-1.5 border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/60">
+				<div className="flex w-full items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-medium text-foreground/60">
 					<Plus className="h-3 w-3" strokeWidth={2} />
 					New entry
 				</div>
@@ -425,10 +369,10 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 								{label}
 							</span>
 						))}
-						<StaticControl className="ml-auto h-9 w-9 border-transparent bg-transparent">
+						<StaticControl className="ml-auto h-9 w-9">
 							<Search className="h-3.5 w-3.5" strokeWidth={1.5} />
 						</StaticControl>
-						<StaticControl className="h-9 w-9 border-transparent bg-transparent">
+						<StaticControl className="h-9 w-9">
 							<SortDesc className="h-3.5 w-3.5" strokeWidth={1.5} />
 						</StaticControl>
 					</div>
@@ -522,7 +466,7 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 					<EditorContentSkeleton />
 				</div>
 			</div>
-			<div className="hidden h-11 items-center gap-1 border-b border-border bg-background px-3 text-foreground md:flex">
+			<div className="hidden h-11 items-center gap-1 border-b border-border px-3 text-foreground md:flex">
 				<StaticIconButton>
 					<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
 				</StaticIconButton>
@@ -534,7 +478,9 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 				</StaticIconButton>
 
 				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-					<span className="text-muted-foreground/50 truncate font-mediumi">Loading note data</span>
+					<span className="truncate font-medium text-muted-foreground/50">
+						Loading note data
+					</span>
 				</div>
 
 				<div className="flex shrink-0 items-center gap-1">
@@ -731,7 +677,7 @@ export function WorkspaceLoadingShell({ variant }: { variant: WorkspaceLoadingVa
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<LoadingRail active={variant} />
+				<div aria-hidden="true" className="hidden w-14 shrink-0 md:block" />
 				<WorkspaceSidebarSkeleton variant={variant} />
 				<WorkspaceContentSkeleton variant={variant} />
 			</div>
