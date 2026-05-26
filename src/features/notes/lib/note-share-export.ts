@@ -60,7 +60,9 @@ export function isAppleSharePlatform(): boolean {
 }
 
 export function isMobileSharePlatform(): boolean {
-	if (typeof navigator === "undefined") return false;
+	if (typeof navigator === "undefined" || typeof window === "undefined") {
+		return false;
+	}
 	if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
 	return navigator.maxTouchPoints > 0 && window.innerWidth < 768;
 }
@@ -284,10 +286,14 @@ export function openXShare(shareUrl: string, title: string): void {
 	openExternalShareUrl(buildXShareUrl(shareUrl, title));
 }
 
-export async function openDiscordShare(title: string, shareUrl: string): Promise<"shared" | "copied" | "failed"> {
+export async function openDiscordShare(
+	title: string,
+	shareUrl: string,
+): Promise<"shared" | "copied" | "failed" | "cancelled"> {
 	const message = buildLinkShareMessage(title, shareUrl);
 	const native = await shareUrlNatively(shareUrl, title, message);
 	if (native === "shared") return "shared";
+	if (native === "cancelled") return "cancelled";
 
 	const copied = await copyTextToClipboard(message);
 	if (!copied) return "failed";
