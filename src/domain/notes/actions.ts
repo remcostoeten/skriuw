@@ -2,10 +2,7 @@
 
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
-import {
-	fromPersistedNote,
-	fromPersistedNoteVersion,
-} from "@/domain/notes/mappers";
+import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
 	NoteFile,
 	NoteVersion,
@@ -13,10 +10,7 @@ import type {
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import {
-	buildNoteVersionContentHash,
-	shouldPersistNoteVersion,
-} from "@/domain/notes/versioning";
+import { buildNoteVersionContentHash, shouldPersistNoteVersion } from "@/domain/notes/versioning";
 import { getNote, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
@@ -35,6 +29,7 @@ type NoteRecord = {
 	richContent: Prisma.JsonValue | null;
 	preferredEditorMode: string | null;
 	parentId: string | null;
+	sortOrder: number;
 	tags: string[];
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
@@ -57,16 +52,13 @@ type NoteVersionRecord = {
 
 function recordToNoteFile(record: NoteRecord): NoteFile {
 	const richContent =
-		(record.richContent as RichTextDocument | null) ??
-		markdownToRichDocument(record.content);
-	const meta = record.journalMeta as
-		| {
-				mood?: import("@/domain/journal/models").MoodLevel;
-				tags: string[];
-				weather?: string;
-				location?: string;
-		  }
-		| null;
+		(record.richContent as RichTextDocument | null) ?? markdownToRichDocument(record.content);
+	const meta = record.journalMeta as {
+		mood?: import("@/domain/journal/models").MoodLevel;
+		tags: string[];
+		weather?: string;
+		location?: string;
+	} | null;
 	return fromPersistedNote({
 		id: record.id as NoteId,
 		name: record.name,
@@ -74,6 +66,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		richContent,
 		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
 		parentId: record.parentId as FolderId | null,
+		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		journalMeta: meta
 			? {
@@ -105,7 +98,10 @@ function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
 async function insertNoteVersion(
 	userId: string,
 	noteId: string,
-	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
+	note: Pick<
+		NoteFile,
+		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+	>,
 	reason: NoteVersionReason,
 ): Promise<string | null> {
 	const { prisma } = await getAuthenticatedUser();
@@ -128,7 +124,8 @@ async function insertNoteVersion(
 			noteId,
 			name: note.name,
 			content: note.content,
-			richContent: (note.richContent ?? markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
+			richContent: (note.richContent ??
+				markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
 			preferredEditorMode: note.preferredEditorMode ?? "block",
 			parentId: note.parentId ?? null,
 			tags: note.tags ?? [],
@@ -145,7 +142,10 @@ async function updateExistingNoteVersion(
 	userId: string,
 	versionId: string,
 	noteId: string,
-	note: Pick<NoteFile, "name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags">,
+	note: Pick<
+		NoteFile,
+		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+	>,
 	reason: NoteVersionReason,
 ): Promise<boolean> {
 	const { prisma } = await getAuthenticatedUser();
@@ -168,7 +168,8 @@ async function updateExistingNoteVersion(
 		data: {
 			name: note.name,
 			content: note.content,
-			richContent: (note.richContent ?? markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
+			richContent: (note.richContent ??
+				markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
 			preferredEditorMode: note.preferredEditorMode ?? "block",
 			parentId: note.parentId ?? null,
 			tags: note.tags ?? [],
@@ -186,6 +187,7 @@ export type CreateNoteInput = {
 	richContent?: RichTextDocument;
 	preferredEditorMode?: "raw" | "block";
 	parentId?: string | null;
+	sortOrder?: number;
 	tags?: string[];
 };
 
@@ -193,7 +195,22 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
 	const name = input.name.endsWith(".md") ? input.name : `${input.name}.md`;
-	const richContent = (input.richContent ?? markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
+	const richContent = (input.richContent ??
+		markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
+	const parentId = input.parentId ?? null;
+	const [lastNote, lastFolder] = await Promise.all([
+		prisma.note.aggregate({
+			where: { userId: user.id, deletedAt: null, parentId },
+			_max: { sortOrder: true },
+		}),
+		prisma.folder.aggregate({
+			where: { userId: user.id, deletedAt: null, parentId },
+			_max: { sortOrder: true },
+		}),
+	]);
+	const sortOrder =
+		input.sortOrder ??
+		Math.max(lastNote._max.sortOrder ?? -1, lastFolder._max.sortOrder ?? -1) + 1;
 
 	const record = await prisma.note.upsert({
 		where: { id },
@@ -204,7 +221,8 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			content: input.content,
 			richContent,
 			preferredEditorMode: input.preferredEditorMode ?? "block",
-			parentId: input.parentId ?? null,
+			parentId,
+			sortOrder,
 			tags: input.tags ?? [],
 		},
 		update: {
@@ -212,7 +230,8 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			content: input.content,
 			richContent,
 			preferredEditorMode: input.preferredEditorMode ?? "block",
-			parentId: input.parentId ?? null,
+			parentId,
+			sortOrder,
 			tags: input.tags ?? [],
 		},
 	});
@@ -242,6 +261,7 @@ export type UpdateNoteInput = {
 	richContent?: RichTextDocument;
 	preferredEditorMode?: "raw" | "block";
 	parentId?: string | null;
+	sortOrder?: number;
 	tags?: string[];
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
@@ -263,7 +283,8 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (input.content !== undefined) {
 		patch.content = input.content;
-		patch.richContent = (input.richContent ?? markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
+		patch.richContent = (input.richContent ??
+			markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
 	} else if (input.richContent !== undefined) {
 		patch.richContent = input.richContent as Prisma.InputJsonValue;
 	}
@@ -272,6 +293,9 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (input.parentId !== undefined) {
 		patch.parentId = input.parentId;
+	}
+	if (input.sortOrder !== undefined) {
+		patch.sortOrder = input.sortOrder;
 	}
 	if (input.tags !== undefined) {
 		patch.tags = input.tags;

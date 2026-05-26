@@ -38,9 +38,11 @@ interface FileListProps {
 	folders: NoteFolder[];
 	activeFileId: string;
 	compactMode?: boolean;
+	showTreeGuides?: boolean;
 	isLoading?: boolean;
 	actions: NoteTreeActions;
 	queries: NoteTreeQueries;
+	onCreationParentChange?: (folderId: string | null) => void;
 	onReorderFiles?: (fileId: string, targetIndex: number, parentId: string | null) => void;
 	onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
 }
@@ -63,6 +65,8 @@ type DragPreview = DragItem & {
 	y: number;
 };
 
+type DropPosition = "before" | "after";
+
 type VisibleItem =
 	| (SelectedItem & { depth: number; folder: NoteFolder; file?: never })
 	| (SelectedItem & { depth: number; file: NoteFile; folder?: never });
@@ -83,9 +87,11 @@ export const FileList = memo(function FileList({
 	files,
 	activeFileId,
 	compactMode = false,
+	showTreeGuides = false,
 	isLoading = false,
 	actions,
 	queries,
+	onCreationParentChange,
 }: FileListProps) {
 	const {
 		onFileSelect,
@@ -122,32 +128,63 @@ export const FileList = memo(function FileList({
 	const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
 	const lastSelectedIndexRef = useRef<number | null>(null);
 
+	function renderTreeGuides(depth: number) {
+		if (!showTreeGuides || depth <= 0) {
+			return null;
+		}
+
+		const guideLevels = Array.from({ length: depth }, (_, index) => index);
+		const currentGuideLeft = 19 + (depth - 1) * 16;
+
+		return (
+			<span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0">
+				{guideLevels.map((level) => (
+					<span
+						key={level}
+						className="absolute top-0 bottom-0 w-px bg-border/55"
+						style={{ left: `${19 + level * 16}px` }}
+					/>
+				))}
+				<span
+					className="absolute h-px w-2.5 bg-border/55"
+					style={{ left: `${currentGuideLeft}px`, top: "50%" }}
+				/>
+			</span>
+		);
+	}
+
 	const flattenedVisibleItems = useMemo<VisibleItem[]>(() => {
 		const list: VisibleItem[] = [];
 
 		const visit = (parentId: string | null, depth: number) => {
-			const folderChildren = getFoldersInFolder(parentId);
-			folderChildren.forEach((folder) => {
-				list.push({
+			const children: VisibleItem[] = [
+				...getFoldersInFolder(parentId).map((folder) => ({
 					id: folder.id,
-					type: "folder",
+					type: "folder" as const,
 					parentId: folder.parentId,
 					depth,
 					folder,
-				});
-				if (folder.isOpen) {
-					visit(folder.id, depth + 1);
-				}
-			});
-			const fileChildren = getFilesInFolder(parentId);
-			fileChildren.forEach((file) => {
-				list.push({
+				})),
+				...getFilesInFolder(parentId).map((file) => ({
 					id: file.id,
-					type: "file",
+					type: "file" as const,
 					parentId: file.parentId,
 					depth,
 					file,
-				});
+				})),
+			].sort((left, right) => {
+				const leftOrder =
+					left.type === "folder" ? left.folder.sortOrder : left.file.sortOrder;
+				const rightOrder =
+					right.type === "folder" ? right.folder.sortOrder : right.file.sortOrder;
+				return (leftOrder ?? 0) - (rightOrder ?? 0);
+			});
+
+			children.forEach((child) => {
+				list.push(child);
+				if (child.type === "folder" && child.folder?.isOpen) {
+					visit(child.id, depth + 1);
+				}
 			});
 		};
 
@@ -232,7 +269,8 @@ export const FileList = memo(function FileList({
 	const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
 	const [dropTarget, setDropTarget] = useState<{
 		id: string | null;
-		type: "folder" | "root";
+		type: "folder" | "root" | "sibling";
+		position?: DropPosition;
 	} | null>(null);
 	const [mobileActionTarget, setMobileActionTarget] = useState<MobileActionTarget | null>(null);
 
@@ -423,6 +461,125 @@ export const FileList = memo(function FileList({
 		[onMoveFile, onMoveFolder, getDescendantIds, setSelectedItems],
 	);
 
+	const getOrderedChildren = useCallback(
+		(parentId: string | null): VisibleItem[] =>
+			[
+				...getFoldersInFolder(parentId).map((folder) => ({
+					id: folder.id,
+					type: "folder" as const,
+					parentId: folder.parentId,
+					depth: 0,
+					folder,
+				})),
+				...getFilesInFolder(parentId).map((file) => ({
+					id: file.id,
+					type: "file" as const,
+					parentId: file.parentId,
+					depth: 0,
+					file,
+				})),
+			].sort((left, right) => {
+				const leftOrder =
+					left.type === "folder" ? left.folder.sortOrder : left.file.sortOrder;
+				const rightOrder =
+					right.type === "folder" ? right.folder.sortOrder : right.file.sortOrder;
+				return (leftOrder ?? 0) - (rightOrder ?? 0);
+			}),
+		[getFilesInFolder, getFoldersInFolder],
+	);
+
+	const moveDraggedToParent = useCallback(
+		(targetParentId: string | null, sortOrder?: number) => {
+			if (!dragItem) return;
+
+			if (dragItem.type === "file") {
+				onMoveFile(dragItem.id, targetParentId, sortOrder);
+				return;
+			}
+
+			onMoveFolder(dragItem.id, targetParentId, sortOrder);
+		},
+		[dragItem, onMoveFile, onMoveFolder],
+	);
+
+	const reorderDraggedAroundTarget = useCallback(
+		(target: VisibleItem, position: DropPosition) => {
+			if (!dragItem) return;
+
+			const targetParentId = target.parentId;
+			const movingItem: VisibleItem = {
+				id: dragItem.id,
+				type: dragItem.type,
+				parentId: targetParentId,
+				depth: target.depth,
+				...(dragItem.type === "folder"
+					? {
+							folder:
+								folders.find((folder) => folder.id === dragItem.id) ??
+								({
+									id: dragItem.id,
+									name: "",
+									parentId: targetParentId,
+									sortOrder: 0,
+									isOpen: false,
+								} as NoteFolder),
+						}
+					: {
+							file:
+								files.find((file) => file.id === dragItem.id) ??
+								({
+									id: dragItem.id,
+									name: "",
+									content: "",
+									richContent: [],
+									preferredEditorMode: "block",
+									createdAt: new Date(),
+									modifiedAt: new Date(),
+									parentId: targetParentId,
+									sortOrder: 0,
+								} as NoteFile),
+						}),
+			} as VisibleItem;
+
+			const siblings = getOrderedChildren(targetParentId).filter(
+				(item) => !(item.id === dragItem.id && item.type === dragItem.type),
+			);
+			const targetIndex = siblings.findIndex(
+				(item) => item.id === target.id && item.type === target.type,
+			);
+			const insertIndex =
+				targetIndex === -1
+					? siblings.length
+					: position === "before"
+						? targetIndex
+						: targetIndex + 1;
+			const nextSiblings = [...siblings];
+			nextSiblings.splice(insertIndex, 0, movingItem);
+
+			nextSiblings.forEach((item, sortOrder) => {
+				if (item.type === "file") {
+					const shouldUpdate =
+						item.id === dragItem.id ||
+						item.parentId !== targetParentId ||
+						item.file?.sortOrder !== sortOrder;
+					if (shouldUpdate) {
+						onMoveFile(item.id, targetParentId, sortOrder);
+					}
+					return;
+				}
+
+				const shouldUpdate =
+					item.id === dragItem.id ||
+					item.parentId !== targetParentId ||
+					item.folder?.sortOrder !== sortOrder;
+				if (shouldUpdate) {
+					onMoveFolder(item.id, targetParentId, sortOrder);
+				}
+			});
+		},
+		[dragItem, files, folders, getOrderedChildren, onMoveFile, onMoveFolder],
+	);
+
 	const handleItemClick = useCallback(
 		(event: React.MouseEvent<HTMLElement>, item: SelectedItem, action: () => void) => {
 			const metaKey = event.metaKey || event.ctrlKey;
@@ -610,6 +767,23 @@ export const FileList = memo(function FileList({
 		],
 	);
 
+	const getDropPosition = useCallback(
+		(event: React.DragEvent, edgeBias: "half" | "edges" = "half"): DropPosition | "inside" => {
+			const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+			const offset = event.clientY - rect.top;
+			const ratio = rect.height > 0 ? offset / rect.height : 0.5;
+
+			if (edgeBias === "edges") {
+				if (ratio < 0.25) return "before";
+				if (ratio > 0.75) return "after";
+				return "inside";
+			}
+
+			return ratio < 0.5 ? "before" : "after";
+		},
+		[],
+	);
+
 	const handleDragOver = useCallback(
 		(e: React.DragEvent, targetId: string | null, targetType: "folder" | "root") => {
 			e.preventDefault();
@@ -631,6 +805,35 @@ export const FileList = memo(function FileList({
 			setDropTarget({ id: targetId, type: targetType });
 		},
 		[dragItem, getDescendantIds, updateDragPreviewPosition],
+	);
+
+	const handleSiblingDragOver = useCallback(
+		(e: React.DragEvent, target: VisibleItem) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			if (!dragItem) return;
+			updateDragPreviewPosition(e);
+
+			const targetParentId = target.parentId;
+
+			if (
+				dragItem.type === "folder" &&
+				targetParentId &&
+				getDescendantIds(dragItem.id).includes(targetParentId)
+			) {
+				e.dataTransfer.dropEffect = "none";
+				return;
+			}
+
+			e.dataTransfer.dropEffect = "move";
+			setDropTarget({
+				id: target.id,
+				type: "sibling",
+				position: getDropPosition(e) as DropPosition,
+			});
+		},
+		[dragItem, getDescendantIds, getDropPosition, updateDragPreviewPosition],
 	);
 
 	const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -673,17 +876,52 @@ export const FileList = memo(function FileList({
 				}
 			}
 
-			if (dragItem.type === "file") {
-				onMoveFile(dragItem.id, targetId);
-			} else {
-				onMoveFolder(dragItem.id, targetId);
-			}
+			const appendOrder = getOrderedChildren(targetId).filter(
+				(item) => !(item.id === dragItem.id && item.type === dragItem.type),
+			).length;
+			moveDraggedToParent(targetId, appendOrder);
 
 			setDragItem(null);
 			setDragPreview(null);
 			setDropTarget(null);
 		},
-		[dragItem, getDescendantIds, onMoveFile, onMoveFolder],
+		[dragItem, getDescendantIds, getOrderedChildren, moveDraggedToParent],
+	);
+
+	const handleSiblingDrop = useCallback(
+		(e: React.DragEvent, target: VisibleItem) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			if (!dragItem) return;
+
+			const targetParentId = target.parentId;
+
+			if (dragItem.id === target.id && dragItem.type === target.type) {
+				setDragItem(null);
+				setDragPreview(null);
+				setDropTarget(null);
+				return;
+			}
+
+			if (
+				dragItem.type === "folder" &&
+				targetParentId &&
+				getDescendantIds(dragItem.id).includes(targetParentId)
+			) {
+				setDragItem(null);
+				setDragPreview(null);
+				setDropTarget(null);
+				return;
+			}
+
+			reorderDraggedAroundTarget(target, getDropPosition(e) as DropPosition);
+
+			setDragItem(null);
+			setDragPreview(null);
+			setDropTarget(null);
+		},
+		[dragItem, getDescendantIds, getDropPosition, reorderDraggedAroundTarget],
 	);
 
 	// Get all folders for "Move to" submenu
@@ -950,11 +1188,19 @@ export const FileList = memo(function FileList({
 		const totalCount = countDescendants(folder.id);
 		const isEditing = editingId === folder.id;
 		const isDragging = dragItem?.id === folder.id;
-		const isDropTarget = dropTarget?.id === folder.id;
+		const isDropTarget =
+			dropTarget?.id === folder.id &&
+			(dropTarget.type === "folder" || dropTarget.type === "sibling");
+		const isSiblingDropTarget = dropTarget?.id === folder.id && dropTarget.type === "sibling";
 		const folderItem: SelectedItem = {
 			id: folder.id,
 			type: "folder",
 			parentId: folder.parentId,
+		};
+		const folderVisibleItem: VisibleItem = {
+			...folderItem,
+			depth,
+			folder,
 		};
 		const selectionForAction = getSelectionForAction(folderItem);
 		const selectionHasMultiple = selectionForAction.length > 1;
@@ -1006,10 +1252,25 @@ export const FileList = memo(function FileList({
 							}
 							onDrag={handleDrag as any}
 							onDragEnd={handleDragEnd}
-							onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
+							onDragOver={(e) => {
+								const position = getDropPosition(e, "edges");
+								if (position === "inside") {
+									handleDragOver(e, folder.id, "folder");
+									return;
+								}
+								handleSiblingDragOver(e, folderVisibleItem);
+							}}
 							onDragLeave={handleDragLeave}
-							onDrop={(e) => handleDrop(e, folder.id)}
+							onDrop={(e) => {
+								const position = getDropPosition(e, "edges");
+								if (position === "inside") {
+									handleDrop(e, folder.id);
+									return;
+								}
+								handleSiblingDrop(e, folderVisibleItem);
+							}}
 							onFocus={() => setFocusedItemKey(getItemKey(folderItem))}
+							onFocusCapture={() => onCreationParentChange?.(folder.id)}
 							onKeyDown={(event) =>
 								!isEditing &&
 								handleTreeItemKeyDown(event, folderItem, {
@@ -1023,7 +1284,7 @@ export const FileList = memo(function FileList({
 							aria-selected={isSelected}
 							tabIndex={0}
 							className={cn(
-								"group flex w-full items-center justify-between border border-transparent text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
 								compactMode ? "h-[28px]" : "h-[34px]",
 								isSelected
 									? "border-border bg-muted text-foreground"
@@ -1033,6 +1294,16 @@ export const FileList = memo(function FileList({
 							)}
 							style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
 						>
+							{renderTreeGuides(depth)}
+							{isSiblingDropTarget && (
+								<span
+									aria-hidden="true"
+									className={cn(
+										"pointer-events-none absolute left-0 right-0 h-px bg-primary",
+										dropTarget.position === "before" ? "top-0" : "bottom-0",
+									)}
+								/>
+							)}
 							<div className="flex min-w-0 items-center gap-1.5">
 								{folder.isOpen ? (
 									<FolderOpen
@@ -1172,6 +1443,7 @@ export const FileList = memo(function FileList({
 	function renderFileRow(file: NoteFile, depth: number) {
 		const isEditing = editingId === file.id;
 		const isDragging = dragItem?.id === file.id;
+		const isDropTarget = dropTarget?.id === file.id && dropTarget.type === "sibling";
 		const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
 		const selectionForAction = getSelectionForAction(fileItem);
 		const selectionHasMultiple = selectionForAction.length > 1;
@@ -1220,22 +1492,36 @@ export const FileList = memo(function FileList({
 						}
 						onDrag={handleDrag as any}
 						onDragEnd={handleDragEnd}
-						onFocus={() => setFocusedItemKey(getItemKey(fileItem))}
+						onFocus={() => {
+							setFocusedItemKey(getItemKey(fileItem));
+							onCreationParentChange?.(file.parentId);
+						}}
 						onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
 						role="treeitem"
 						aria-level={depth + 1}
 						aria-selected={isSelected || activeFileId === file.id}
 						tabIndex={0}
 						className={cn(
-							"flex w-full items-center border border-transparent text-left text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
 							compactMode ? "h-7" : "h-[34px]",
 							isSelected || activeFileId === file.id
 								? "border-border bg-muted text-foreground"
 								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
 							isDragging && "opacity-35",
+							isDropTarget && "border-border bg-muted",
 						)}
 						style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
 					>
+						{renderTreeGuides(depth)}
+						{isDropTarget && (
+							<span
+								aria-hidden="true"
+								className={cn(
+									"pointer-events-none absolute left-0 right-0 h-px bg-primary",
+									dropTarget.position === "before" ? "top-0" : "bottom-0",
+								)}
+							/>
+						)}
 						<span
 							className={cn(
 								"flex min-w-0 flex-1 items-center truncate",
@@ -1386,14 +1672,10 @@ export const FileList = memo(function FileList({
 					{Array.from({ length: 6 }).map((_, i) => (
 						<div
 							key={i}
-							className="flex h-8 items-center gap-2 px-2"
+							className="flex h-8 items-center gap-2 px-2 text-sidebar-foreground/36"
 							style={{ opacity: 1 - i * 0.13 }}
 						>
-							<div className="h-3.5 w-3.5 shrink-0 rounded-sm bg-sidebar-foreground/[0.07]" />
-							<div
-								className="h-2.5 rounded bg-sidebar-foreground/[0.07]"
-								style={{ width: `${55 + ((i * 37) % 30)}%` }}
-							/>
+							<FileText className="h-3.5 w-3.5 shrink-0" strokeWidth={1.45} />
 						</div>
 					))}
 				</div>
@@ -1439,6 +1721,8 @@ export const FileList = memo(function FileList({
 								ref={virtualizer.measureElement}
 								className="absolute left-0 right-0"
 								style={{ top: virtualRow.start, height: virtualRow.size }}
+								onDragOver={(event) => handleSiblingDragOver(event, item)}
+								onDrop={(event) => handleSiblingDrop(event, item)}
 							>
 								{rowContent}
 							</div>

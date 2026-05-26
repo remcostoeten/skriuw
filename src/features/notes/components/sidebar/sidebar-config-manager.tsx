@@ -29,6 +29,7 @@ type Props = {
 	sections: SidebarSectionType[];
 	showSectionHeaders: boolean;
 	compactMode: boolean;
+	showTreeGuides: boolean;
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 	hideTrigger?: boolean;
@@ -39,6 +40,7 @@ type Props = {
 	onRenameSection: (sectionId: string, name: string) => void;
 	onToggleShowSectionHeaders: () => void;
 	onToggleCompactMode: () => void;
+	onToggleTreeGuides: () => void;
 	onResetToDefaults: () => void;
 };
 
@@ -46,6 +48,7 @@ export function SidebarConfigManager({
 	sections,
 	showSectionHeaders,
 	compactMode,
+	showTreeGuides,
 	open,
 	onOpenChange,
 	hideTrigger = false,
@@ -56,6 +59,7 @@ export function SidebarConfigManager({
 	onRenameSection: _onRenameSection,
 	onToggleShowSectionHeaders,
 	onToggleCompactMode,
+	onToggleTreeGuides,
 	onResetToDefaults,
 }: Props) {
 	const [isOpenInternal, setIsOpenInternal] = useState(false);
@@ -354,6 +358,17 @@ export function SidebarConfigManager({
 								id="compact-mode"
 								checked={compactMode}
 								onCheckedChange={onToggleCompactMode}
+							/>
+						</div>
+
+						<div className="flex items-center justify-between">
+							<Label htmlFor="tree-guides" className="text-sm text-muted-foreground">
+								Tree guide lines
+							</Label>
+							<Switch
+								id="tree-guides"
+								checked={showTreeGuides}
+								onCheckedChange={onToggleTreeGuides}
 							/>
 						</div>
 					</div>
