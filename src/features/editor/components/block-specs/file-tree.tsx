@@ -279,7 +279,7 @@ function FileTreeBlockView({
 						}
 					}}
 					className={cn(
-						"block w-full resize-y bg-transparent px-3 py-2.5 font-mono text-xs leading-relaxed",
+						"block w-full resize-y bg-transparent px-3 py-2.5 font-mono text-base leading-relaxed md:text-xs",
 						"text-foreground/90 outline-none placeholder:text-muted-foreground/40",
 						"min-h-[160px]",
 					)}

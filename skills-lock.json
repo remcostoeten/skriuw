@@ -43,23 +43,11 @@
       "skillPath": "SKILL.md",
       "computedHash": "bf1e0a3a6a6f754fbeb24a6cbc261c8466c915b85a66bc3a5ff748b4ecdb8982"
     },
-    "organization-best-practices": {
-      "source": "better-auth/skills",
-      "sourceType": "github",
-      "skillPath": "better-auth/organization/SKILL.md",
-      "computedHash": "79a5a85b43d10e9fe37582b3506b051a33a991817b938f349099baa5ddba21aa"
-    },
     "prisma-database-setup": {
       "source": "prisma/skills",
       "sourceType": "github",
       "skillPath": "prisma-database-setup/SKILL.md",
       "computedHash": "46d2dc2f9c968722376bbb6a1a1389c82bd7cceb5973ac1486c54890514b8959"
-    },
-    "supabase": {
-      "source": "supabase/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "45a3cdccc364a4bbd6cdf700fc069e9f24ebc0428098746cbfbf8b18a5e160d2"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
@@ -72,6 +60,12 @@
       "sourceType": "github",
       "skillPath": "better-auth/twoFactor/SKILL.md",
       "computedHash": "7e297aaf887e11fdc03e52bdbf44974e161e8f7c393170ced7dc66cace4f6d46"
+    },
+    "use-shortcut": {
+      "source": "remcostoeten/use-shortcut",
+      "sourceType": "github",
+      "skillPath": "skills/use-shortcut/SKILL.md",
+      "computedHash": "93a0a8da703aefa2059377db980ec4188c14df89cc253b4368f6f8fc27267cca"
     },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",

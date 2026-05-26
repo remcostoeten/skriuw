@@ -11,6 +11,7 @@ import {
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
+import { ShareScreen } from "@/features/sharing/components/share-screen";
 import { SidebarPanel } from "./sidebar-panel";
 import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
@@ -112,6 +113,9 @@ export function NotesLayoutShell({
 		handleExitVersionPreview,
 		handleRestoreViewedVersion,
 		isRestoringVersion,
+		sharingNoteId,
+		handleOpenShare,
+		handleCloseShare,
 	} = layout;
 
 	return (
@@ -149,36 +153,85 @@ export function NotesLayoutShell({
 							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 								{isActiveNoteLoading ? (
 									<NotesEditorPlaceholder />
-								) : viewingVersion ? (
-									<VersionPreviewContainer
-										version={viewingVersion}
-										file={activeFile}
-										files={files}
-										isMobile={isMobile}
-										isRestoring={isRestoringVersion}
-										onBack={handleExitVersionPreview}
-										onRestore={handleRestoreViewedVersion}
-									/>
 								) : (
-									<EditorContainer
-										file={activeFile}
-										files={files}
-										editorMode={editorMode ?? "block"}
-										isMobile={isMobile}
-										onContentChange={updateFileContent}
-										onToggleSidebar={handleToggleSidebar}
-										onToggleMetadata={handleToggleMetadata}
-										onOpenSettings={handleOpenSettings}
-										onNavigatePrev={handleNavigatePrev}
-										onNavigateNext={handleNavigateNext}
-										onEditorBlur={
-											activeFile ? () => flushFileEdits(activeFile.id) : undefined
-										}
-										canNavigatePrev={canNavigatePrev}
-										canNavigateNext={canNavigateNext}
-										fileName={activeFile?.name || "No file selected"}
-										onRenameFile={layout.renameFile}
-									/>
+									<AnimatePresence mode="wait" initial={false}>
+										<motion.div
+											key={
+												sharingNoteId
+													? "share"
+													: viewingVersion
+														? "version"
+														: "editor"
+											}
+											initial={
+												prefersReducedMotion
+													? { opacity: 0 }
+													: { opacity: 0, x: 18 }
+											}
+											animate={{
+												opacity: 1,
+												x: 0,
+												transition: {
+													duration: 0.24,
+													ease: [0.23, 1, 0.32, 1],
+												},
+											}}
+											exit={
+												prefersReducedMotion
+													? { opacity: 0, transition: { duration: 0.12 } }
+													: {
+															opacity: 0,
+															x: -12,
+															transition: {
+																duration: 0.16,
+																ease: [0.23, 1, 0.32, 1],
+															},
+														}
+											}
+											style={{ willChange: "transform, opacity" }}
+											className="flex min-h-0 flex-1 flex-col"
+										>
+											{sharingNoteId ? (
+												<ShareScreen
+													noteId={sharingNoteId}
+													noteName={activeFile?.name ?? "this note"}
+													onBack={handleCloseShare}
+												/>
+											) : viewingVersion ? (
+												<VersionPreviewContainer
+													version={viewingVersion}
+													file={activeFile}
+													files={files}
+													isMobile={isMobile}
+													isRestoring={isRestoringVersion}
+													onBack={handleExitVersionPreview}
+													onRestore={handleRestoreViewedVersion}
+												/>
+											) : (
+												<EditorContainer
+													file={activeFile}
+													files={files}
+													editorMode={editorMode ?? "block"}
+													isMobile={isMobile}
+													onContentChange={updateFileContent}
+													onToggleSidebar={handleToggleSidebar}
+													onToggleMetadata={handleToggleMetadata}
+													onOpenSettings={handleOpenSettings}
+													onNavigatePrev={handleNavigatePrev}
+													onNavigateNext={handleNavigateNext}
+													onEditorBlur={
+														activeFile
+															? () => flushFileEdits(activeFile.id)
+															: undefined
+													}
+													canNavigatePrev={canNavigatePrev}
+													canNavigateNext={canNavigateNext}
+													fileName={activeFile?.name || "No file selected"}
+													onRenameFile={layout.renameFile}
+												/>
+											)}
+										</motion.div>
+									</AnimatePresence>
 								)}
 							</div>
 
@@ -194,6 +247,7 @@ export function NotesLayoutShell({
 										onToggleEditorMode={handleToggleEditorMode}
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={handleViewVersion}
+										onShare={handleOpenShare}
 										className="h-full shrink-0"
 									/>
 								))}
@@ -323,6 +377,10 @@ export function NotesLayoutShell({
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={(version) => {
 											handleViewVersion(version);
+											closeMetadata();
+										}}
+										onShare={(noteId) => {
+											handleOpenShare(noteId);
 											closeMetadata();
 										}}
 										onRequestClose={closeMetadata}

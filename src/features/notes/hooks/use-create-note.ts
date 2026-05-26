@@ -27,6 +27,7 @@ export function useCreateNote() {
 					createdAt: new Date(),
 					modifiedAt: new Date(),
 					parentId: input.parentId ?? null,
+					sortOrder: input.sortOrder ?? current?.length ?? 0,
 					tags: input.tags ?? [],
 				};
 

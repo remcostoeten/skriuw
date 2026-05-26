@@ -10,6 +10,7 @@ export function toPersistedFolder(folder: NoteFolder, updatedAt = new Date()): P
 		id: folder.id as FolderId,
 		name: folder.name,
 		parentId: folder.parentId as FolderId | null,
+		sortOrder: folder.sortOrder,
 		createdAt: toIsoTime(updatedAt),
 		updatedAt: toIsoTime(updatedAt),
 	};
@@ -20,6 +21,7 @@ export function fromPersistedFolder(folder: PersistedFolder, isOpen = false): No
 		id: folder.id,
 		name: folder.name,
 		parentId: folder.parentId,
+		sortOrder: folder.sortOrder ?? 0,
 		isOpen,
 	};
 }

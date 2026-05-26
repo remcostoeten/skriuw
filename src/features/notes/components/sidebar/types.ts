@@ -57,6 +57,7 @@ export type SidebarConfig = {
 	maxRecents: number;
 	showSectionHeaders: boolean;
 	compactMode: boolean;
+	showTreeGuides: boolean;
 };
 
 export const DEFAULT_MAX_RECENTS = 50;
@@ -133,4 +134,5 @@ export const DEFAULT_SIDEBAR_CONFIG: SidebarConfig = {
 	maxRecents: DEFAULT_MAX_RECENTS,
 	showSectionHeaders: true,
 	compactMode: false,
+	showTreeGuides: false,
 };

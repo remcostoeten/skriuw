@@ -171,8 +171,8 @@ export function ProjectsSection({
 						}}
 						placeholder="Project name..."
 						className={cn(
-							"w-full rounded-md border border-foreground/10 bg-foreground/[0.03] px-2.5 text-xs outline-none focus:border-foreground/20",
-							compactMode ? "py-1" : "py-1.5",
+							"w-full rounded-md border border-foreground/10 bg-foreground/[0.03] px-2.5 text-base outline-none focus:border-foreground/20 md:text-xs",
+							compactMode ? "py-1.5 md:py-1" : "py-2 md:py-1.5",
 						)}
 						autoFocus
 					/>
@@ -232,7 +232,7 @@ export function ProjectsSection({
 													}}
 													onClick={(e) => e.stopPropagation()}
 													className={cn(
-														"flex-1 border-b border-foreground/30 bg-transparent text-xs outline-none",
+														"flex-1 border-b border-foreground/30 bg-transparent text-base outline-none md:text-xs",
 														compactMode && "py-0.5",
 													)}
 													autoFocus

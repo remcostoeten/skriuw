@@ -386,12 +386,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder="Search entries..."
-								className="w-full border border-border bg-background pl-8 pr-2.5 py-1.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-muted"
+								className="w-full border border-border bg-background py-2 pl-8 pr-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-muted md:py-1.5 md:text-[11px]"
 							/>
 							{searchQuery && (
 								<button
 									onClick={() => setSearchQuery("")}
-									className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 border border-transparent text-muted-foreground/50 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+									className="absolute right-2.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-transparent text-muted-foreground/50 transition-colors hover:border-border hover:bg-muted hover:text-foreground md:h-4 md:w-4"
 								>
 									<X className="h-2.5 w-2.5" strokeWidth={1.5} />
 								</button>
