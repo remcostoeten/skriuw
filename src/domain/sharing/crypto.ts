@@ -11,7 +11,14 @@ const KEY_LENGTH = 64;
 
 // Per-deployment salt so viewer hashes can't be correlated across installs or
 // reversed via a rainbow table of common IP/UA pairs.
-const VIEWER_HASH_SALT = process.env.SHARE_VIEWER_SALT ?? "skriuw-share-viewer";
+function getViewerHashSalt(): string {
+	const salt = process.env.SHARE_VIEWER_SALT;
+	if (salt) return salt;
+	if (process.env.NODE_ENV === "production") {
+		throw new Error("SHARE_VIEWER_SALT must be set in production");
+	}
+	return "skriuw-share-viewer-dev";
+}
 
 /**
  * Stable, non-reversible fingerprint of a viewer for a given share. Combines
@@ -24,7 +31,7 @@ export function hashViewer(parts: {
 	token: string;
 }): string {
 	return createHash("sha256")
-		.update(`${VIEWER_HASH_SALT}|${parts.token}|${parts.ip ?? ""}|${parts.userAgent ?? ""}`)
+		.update(`${getViewerHashSalt()}|${parts.token}|${parts.ip ?? ""}|${parts.userAgent ?? ""}`)
 		.digest("base64url")
 		.slice(0, 22);
 }

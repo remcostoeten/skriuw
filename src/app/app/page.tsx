@@ -16,7 +16,7 @@ export default async function AppHomePage(props: {
 
 	// Seed must finish before the data queries so new users see their content.
 	// For existing users starterSeededAt is set → single-field lookup → ~instant.
-	if (user) await ensureCloudStarterContentSeeded(user.id);
+	if (user) await ensureCloudStarterContentSeeded();
 
 	await Promise.all([
 		queryClient.prefetchQuery({
