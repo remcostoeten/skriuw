@@ -1,9 +1,9 @@
 "use server";
 
+import { getAuthenticatedUser } from "@/core/db";
 import { loadActiveSeedBundle } from "@/domain/seed/queries";
 import type { SeedJournalEntry, SeedTag } from "@/domain/seed/types";
 import { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
 
 /**
  * Seeds a fresh user's workspace from the active SeedBundle row in the DB.
@@ -15,109 +15,122 @@ import { prisma } from "@/lib/prisma";
  * - Otherwise clones folders + notes (+ tags, journals) into the user's
  *   workspace in a single transaction, then stamps `starterSeededAt`.
  */
-export async function ensureCloudStarterContentSeeded(userId: string): Promise<void> {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { starterSeededAt: true },
-	});
+export async function ensureCloudStarterContentSeeded(): Promise<void> {
+	const { prisma, user } = await getAuthenticatedUser();
+	const userId = user.id;
 
-	if (user?.starterSeededAt) {
-		return;
-	}
-
-	// Backfill for users who existed before this flag was added: if they already
-	// have content, stamp them so future loads skip this check entirely.
-	const [existingNote, existingFolder] = await Promise.all([
-		prisma.note.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
-		prisma.folder.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
-	]);
-	if (existingNote || existingFolder) {
-		await prisma.user.update({ where: { id: userId }, data: { starterSeededAt: new Date() } });
-		return;
-	}
-
-	const bundle = await loadActiveSeedBundle();
-	if (!bundle) {
-		return;
-	}
-
-	const { folders, notes, tags, journals } = bundle.payload;
-	if (folders.length === 0 && notes.length === 0 && tags.length === 0 && journals.length === 0) {
-		return;
-	}
-
-	const idFor = new Map<string, string>();
-	function resolveRef(ref: string): string {
-		const existing = idFor.get(ref);
-		if (existing) return existing;
-		const uuid = crypto.randomUUID();
-		idFor.set(ref, uuid);
-		return uuid;
-	}
-
-	await prisma.$transaction(async (tx) => {
-		if (folders.length > 0) {
-			// Folders are inserted parent-first via depth-sort so parentId references resolve.
-			const depthFor = computeFolderDepth(folders);
-			const ordered = [...folders].sort((a, b) => {
-				const da = depthFor.get(a.ref) ?? 0;
-				const db = depthFor.get(b.ref) ?? 0;
-				return da - db || a.order - b.order;
+	await prisma.$transaction(
+		async (tx) => {
+			const currentUser = await tx.user.findUnique({
+				where: { id: userId },
+				select: { starterSeededAt: true },
 			});
 
-			await tx.folder.createMany({
-				data: ordered.map((folder) => ({
-					id: resolveRef(folder.ref),
-					userId,
-					name: folder.name,
-					parentId: folder.parentRef ? resolveRef(folder.parentRef) : null,
-				})),
-			});
-		}
+			if (currentUser?.starterSeededAt) {
+				return;
+			}
 
-		if (notes.length > 0) {
-			await tx.note.createMany({
-				data: notes.map((note) => ({
-					id: resolveRef(note.ref),
-					userId,
-					name: note.name,
-					content: "",
-					richContent: (note.richContent ?? []) as Prisma.InputJsonValue,
-					preferredEditorMode: note.preferredEditorMode ?? "block",
-					parentId: note.parentRef ? resolveRef(note.parentRef) : null,
-				})),
-			});
-		}
+			const [existingNote, existingFolder] = await Promise.all([
+				tx.note.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
+				tx.folder.findFirst({ where: { userId, deletedAt: null }, select: { id: true } }),
+			]);
+			if (existingNote || existingFolder) {
+				await tx.user.update({
+					where: { id: userId },
+					data: { starterSeededAt: new Date() },
+				});
+				return;
+			}
 
-		if (tags.length > 0) {
-			await tx.journalTag.createMany({
-				data: tags.map((tag: SeedTag) => ({
-					id: resolveRef(tag.ref),
-					userId,
-					name: tag.name,
-					color: tag.color,
-				})),
-			});
-		}
+			const bundle = await loadActiveSeedBundle();
+			if (!bundle) {
+				return;
+			}
 
-		if (journals.length > 0) {
-			await tx.journalEntry.createMany({
-				data: journals.map((entry: SeedJournalEntry) => ({
-					id: resolveRef(entry.ref),
-					userId,
-					dateKey: entry.dateKey,
-					content: entry.content,
-					mood: entry.mood ?? null,
-					tags: entry.tags ?? [],
-				})),
-			});
-		}
+			const { folders, notes, tags, journals } = bundle.payload;
+			if (
+				folders.length === 0 &&
+				notes.length === 0 &&
+				tags.length === 0 &&
+				journals.length === 0
+			) {
+				return;
+			}
 
-		await tx.user.update({
-			where: { id: userId },
-			data: { starterSeededAt: new Date() },
-		});
-	});
+			const idFor = new Map<string, string>();
+			function resolveRef(ref: string): string {
+				const existing = idFor.get(ref);
+				if (existing) return existing;
+				const uuid = crypto.randomUUID();
+				idFor.set(ref, uuid);
+				return uuid;
+			}
+
+			if (folders.length > 0) {
+				const depthFor = computeFolderDepth(folders);
+				const ordered = [...folders].sort((a, b) => {
+					const da = depthFor.get(a.ref) ?? 0;
+					const db = depthFor.get(b.ref) ?? 0;
+					return da - db || a.order - b.order;
+				});
+
+				await tx.folder.createMany({
+					data: ordered.map((folder) => ({
+						id: resolveRef(folder.ref),
+						userId,
+						name: folder.name,
+						parentId: folder.parentRef ? resolveRef(folder.parentRef) : null,
+					})),
+				});
+			}
+
+			if (notes.length > 0) {
+				await tx.note.createMany({
+					data: notes.map((note) => ({
+						id: resolveRef(note.ref),
+						userId,
+						name: note.name,
+						content: "",
+						richContent: (note.richContent ?? []) as Prisma.InputJsonValue,
+						preferredEditorMode: note.preferredEditorMode ?? "block",
+						parentId: note.parentRef ? resolveRef(note.parentRef) : null,
+					})),
+				});
+			}
+
+			if (tags.length > 0) {
+				await tx.journalTag.createMany({
+					data: tags.map((tag: SeedTag) => ({
+						id: resolveRef(tag.ref),
+						userId,
+						name: tag.name,
+						color: tag.color,
+					})),
+				});
+			}
+
+			if (journals.length > 0) {
+				await tx.journalEntry.createMany({
+					data: journals.map((entry: SeedJournalEntry) => ({
+						id: resolveRef(entry.ref),
+						userId,
+						dateKey: entry.dateKey,
+						content: entry.content,
+						mood: entry.mood ?? null,
+						tags: entry.tags ?? [],
+					})),
+				});
+			}
+
+			await tx.user.update({
+				where: { id: userId },
+				data: { starterSeededAt: new Date() },
+			});
+		},
+		{
+			isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+		},
+	);
 }
 
 function computeFolderDepth(
