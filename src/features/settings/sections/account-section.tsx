@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { LogOut, Upload } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Share2, Upload } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -188,6 +189,20 @@ export function AccountSection() {
 						className="w-52 h-8"
 						title="Custom handles are not yet available"
 					/>
+				</Row>
+			</SettingsCard>
+
+			<GroupLabel>SHARING</GroupLabel>
+			<SettingsCard>
+				<Row
+					title="Shared notes"
+					description="Manage every public link and see view activity."
+				>
+					<Button variant="outline" size="sm" asChild>
+						<Link href="/app/shared">
+							<Share2 className="size-3.5" /> Open overview
+						</Link>
+					</Button>
 				</Row>
 			</SettingsCard>
 

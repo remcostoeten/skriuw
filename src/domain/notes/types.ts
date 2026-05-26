@@ -8,6 +8,7 @@ export type CreateNoteInput = {
 	richContent?: RichTextDocument;
 	preferredEditorMode?: NoteEditorMode;
 	parentId?: FolderId | null;
+	sortOrder?: number;
 	tags?: TagName[];
 	createdAt?: Date;
 	updatedAt?: Date;
@@ -20,6 +21,7 @@ export type UpdateNoteInput = {
 	richContent?: RichTextDocument;
 	preferredEditorMode?: NoteEditorMode;
 	parentId?: FolderId | null;
+	sortOrder?: number;
 	tags?: TagName[];
 	updatedAt?: Date;
 };

@@ -144,6 +144,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const updateFolderMutation = useUpdateFolder();
 	const deleteNoteMutation = useDeleteNote();
 	const deleteFolderMutation = useDeleteFolder();
+	const [creationParentFolderId, setCreationParentFolderId] = useState<string | null>(null);
 	const saveResetTimeoutsRef = useRef(new Map<string, number>());
 	const clearPendingSaveReset = useCallback((id: string) => {
 		const timeoutId = saveResetTimeoutsRef.current.get(id);
@@ -208,7 +209,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[saveController],
 	);
 	const metadataFiles = notesQuery.data ?? [];
-	const activeNote = activeNoteQuery.isPlaceholderData ? null : activeNoteQuery.data ?? null;
+	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
 	const files = useMemo(() => {
 		if (!activeNote) {
 			return metadataFiles;
@@ -241,6 +242,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
+	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
 	const prefersReducedMotion = useReducedMotion();
 	const metadataDragControls = useDragControls();
@@ -365,6 +367,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [activeFileId, viewingVersion]);
 
+	useEffect(() => {
+		if (sharingNoteId && sharingNoteId !== activeFileId) {
+			setSharingNoteId(null);
+		}
+	}, [activeFileId, sharingNoteId]);
+
 	const previousActiveFileIdRef = useRef<string>("");
 	useEffect(() => {
 		const previousId = previousActiveFileIdRef.current;
@@ -410,11 +418,21 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, []);
 
 	const handleViewVersion = useCallback((version: NoteVersion) => {
+		setSharingNoteId(null);
 		setViewingVersion(version);
 	}, []);
 
 	const handleExitVersionPreview = useCallback(() => {
 		setViewingVersion(null);
+	}, []);
+
+	const handleOpenShare = useCallback((noteId: string) => {
+		setViewingVersion(null);
+		setSharingNoteId(noteId);
+	}, []);
+
+	const handleCloseShare = useCallback(() => {
+		setSharingNoteId(null);
 	}, []);
 
 	const handleRestoreViewedVersion = useCallback(() => {
@@ -498,6 +516,15 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		});
 	}, [isMobile, showMetadata, setUIState]);
 
+	useEffect(() => {
+		if (
+			creationParentFolderId &&
+			!foldersQuery.data?.some((folder) => folder.id === creationParentFolderId)
+		) {
+			setCreationParentFolderId(null);
+		}
+	}, [creationParentFolderId, foldersQuery.data]);
+
 	const handleCreateFile = useCallback(() => {
 		if (diaryModeEnabled) {
 			triggerNativeFeedback("success");
@@ -510,6 +537,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 
 		triggerNativeFeedback("success");
+		const parentId = creationParentFolderId;
 		const preferredEditorMode = defaultModeRaw ? "raw" : "block";
 		const content = generateNoteContent("Untitled");
 		const newFile: CreateNoteInput = {
@@ -518,9 +546,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			content,
 			richContent: markdownToRichDocument(content),
 			preferredEditorMode,
-			parentId: null,
+			parentId,
 		};
 
+		if (parentId) {
+			setFolderOpen(parentId, true);
+		}
 		createNoteMutation.mutate(newFile, {
 			onSuccess: () => {
 				markFileSaved(newFile.id as string);
@@ -535,6 +566,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			setUIState({ showSidebar: false });
 		}
 	}, [
+		creationParentFolderId,
 		createNoteMutation,
 		defaultModeRaw,
 		diaryModeEnabled,
@@ -544,20 +576,25 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		markFileSaved,
 		markFileSaving,
 		setUIState,
+		setFolderOpen,
 		syncFileSelection,
 	]);
 
 	const handleCreateFolder = useCallback(() => {
 		triggerNativeFeedback("impact");
+		const parentId = creationParentFolderId;
 		const newFolder: CreateFolderInput = {
 			id: crypto.randomUUID(),
 			name: "Untitled",
-			parentId: null,
+			parentId,
 		};
 
+		if (parentId) {
+			setFolderOpen(parentId, true);
+		}
 		setFolderOpen(newFolder.id as string, true);
 		createFolderMutation.mutate(newFolder);
-	}, [createFolderMutation, setFolderOpen]);
+	}, [createFolderMutation, creationParentFolderId, setFolderOpen]);
 
 	const handleOpenSettings = useCallback(() => {
 		triggerNativeFeedback("selection");
@@ -755,17 +792,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 
 	const moveFile = useCallback(
-		(fileId: string, newParentId: string | null) => {
+		(fileId: string, newParentId: string | null, sortOrder?: number) => {
 			updateNoteMutation.mutate({
 				id: fileId,
 				parentId: newParentId,
+				...(sortOrder !== undefined && { sortOrder }),
 			});
 		},
 		[updateNoteMutation],
 	);
 
 	const moveFolder = useCallback(
-		(folderId: string, newParentId: string | null) => {
+		(folderId: string, newParentId: string | null, sortOrder?: number) => {
 			const descendantIds = new Set<string>();
 			const stack = [folderId];
 
@@ -787,6 +825,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			updateFolderMutation.mutate({
 				id: folderId,
 				parentId: newParentId,
+				...(sortOrder !== undefined && { sortOrder }),
 			});
 		},
 		[folders, updateFolderMutation],
@@ -1017,6 +1056,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		onExpandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
 		onCreateFile: handleCreateFile,
 		onCreateFolder: handleCreateFolder,
+		onCreationParentChange: setCreationParentFolderId,
 	};
 
 	return {
@@ -1080,5 +1120,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleExitVersionPreview,
 		handleRestoreViewedVersion,
 		isRestoringVersion: restoreNoteVersion.isPending,
+		sharingNoteId,
+		handleOpenShare,
+		handleCloseShare,
 	};
 }

@@ -27,9 +27,9 @@ import {
 	useEditorState,
 	useExtension,
 } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
+import { SkriuwBlockNoteView } from "./skriuw-blocknote-view";
 import "@blocknote/mantine/style.css";
-import { FileText, FolderTree, PenTool, SpellCheck } from "lucide-react";
+import { FileText, FolderTree, Link2, PenTool, SpellCheck, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
@@ -647,6 +647,7 @@ function getCustomSlashMenuItems(
 		{
 			title: "Tag",
 			aliases: ["tag", "label", "hash"],
+			icon: <Tag size={16} />,
 			group: "Connect",
 			subtext: "Insert a tag marker",
 			onItemClick: () => {
@@ -656,6 +657,7 @@ function getCustomSlashMenuItems(
 		{
 			title: "Link note",
 			aliases: ["mention", "backlink", "wiki"],
+			icon: <Link2 size={16} />,
 			group: "Connect",
 			subtext: "Mention another note",
 			onItemClick: () => {
@@ -1029,7 +1031,7 @@ export function RichTextEditor({
 			}
 		>
 			<NoteLinkProvider files={files} activeFileId={activeFileId}>
-				<BlockNoteView
+				<SkriuwBlockNoteView
 					editor={editor}
 					editable={!readOnly}
 					onChange={handleEditorChange}
@@ -1085,7 +1087,7 @@ export function RichTextEditor({
 						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
 						getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
 					/>
-				</BlockNoteView>
+				</SkriuwBlockNoteView>
 			</NoteLinkProvider>
 			<style jsx global>{`
 				.blocknote-wrapper {
@@ -1136,7 +1138,7 @@ export function RichTextEditor({
 					font-family: var(--bn-font-family);
 				}
 				.blocknote-wrapper .bn-block-content {
-					font-size: 0.9375rem;
+					font-size: 1rem;
 					line-height: var(--skriuw-editor-line-height);
 				}
 				.blocknote-wrapper [data-content-type="heading"] {
@@ -1276,6 +1278,10 @@ export function RichTextEditor({
 					color: hsl(var(--popover-foreground)) !important;
 					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42) !important;
 					backdrop-filter: none !important;
+				}
+				:global(.mantine-Menu-dropdown),
+				:global(.mantine-Popover-dropdown) {
+					z-index: 10050 !important;
 				}
 				.blocknote-wrapper .bn-toolbar .mantine-Menu-item:hover,
 				.blocknote-wrapper .bn-toolbar .mantine-Menu-item[data-hovered],

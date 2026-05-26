@@ -31,6 +31,7 @@ import {
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
+import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
 type Props = {
@@ -43,6 +44,7 @@ type Props = {
 	onRequestClose?: () => void;
 	onFileSelect?: (id: string) => void;
 	onViewVersion?: (version: NoteVersion) => void;
+	onShare?: (noteId: string) => void;
 };
 
 type SectionKey = "outline" | "tags" | "links" | "history" | "details";
@@ -459,12 +461,14 @@ function VersionDelta({
 					<span
 						key={`${part}-${index}`}
 						className={cn(
+							"inline-flex items-baseline gap-0.5",
 							colorized && value > 0 && "text-emerald-400",
 							colorized && value < 0 && "text-destructive",
 							(!colorized || value === 0) && "text-muted-foreground/70",
 						)}
 					>
-						{part}
+						<span>{value < 0 ? "−" : "+"}</span>
+						<AnimatedNumber value={Math.abs(value)} />
 					</span>
 				);
 			})}
@@ -691,6 +695,7 @@ export function MetadataPanel({
 	onRequestClose,
 	onFileSelect,
 	onViewVersion,
+	onShare,
 }: Props) {
 	const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
 	const setSelectedTag = useNotesStore(
@@ -707,7 +712,6 @@ export function MetadataPanel({
 			details: true,
 		},
 	);
-	const [shareState, setShareState] = useState<"idle" | "copied">("idle");
 	const isMdx = isMdxNote(file);
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
@@ -813,24 +817,9 @@ export function MetadataPanel({
 		}
 	}, [selectedTag, tags]);
 
-	useEffect(() => {
-		if (shareState !== "copied") return;
-		const timer = window.setTimeout(() => setShareState("idle"), 1800);
-		return () => window.clearTimeout(timer);
-	}, [shareState]);
-
 	const handleShare = () => {
 		if (!file) return;
-		const shareTitle = getNoteTitle(file);
-		const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-		if (navigator.share) {
-			void navigator.share({ title: shareTitle, url: shareUrl });
-			return;
-		}
-		if (shareUrl) {
-			void navigator.clipboard?.writeText(shareUrl);
-			setShareState("copied");
-		}
+		onShare?.(file.id);
 	};
 
 	const asideClass = cn(
@@ -1179,7 +1168,7 @@ export function MetadataPanel({
 							canToggleEditorMode={canToggleEditorMode}
 							effectiveEditorMode={effectiveEditorMode}
 							onToggleEditorMode={onToggleEditorMode}
-							shareLabel={shareState === "copied" ? "Copied" : "Copy link"}
+							shareLabel="Share"
 							onShare={handleShare}
 						/>
 					</dl>

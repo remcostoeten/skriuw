@@ -213,7 +213,7 @@ export function Editor({
 						}
 						onBlur?.();
 					}}
-					className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-sm resize-none outline-hidden"
+					className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-base md:text-sm resize-none outline-hidden"
 					style={{
 						fontFamily: getEditorFontFamily(editorFontId),
 						lineHeight: getEditorLineHeightValue(editorLineHeight),

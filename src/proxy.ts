@@ -5,7 +5,12 @@ const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
 const publicRoutes = new Set(["/sign-in", "/sign-up", "/project-planning"]);
 
 function isPublicRoute(path: string) {
-	return publicRoutes.has(path) || path.startsWith("/project-planning/");
+	return (
+		publicRoutes.has(path) ||
+		path.startsWith("/project-planning/") ||
+		// Public shared notes are viewable without a session.
+		path.startsWith("/s/")
+	);
 }
 
 export default function proxy(req: NextRequest) {

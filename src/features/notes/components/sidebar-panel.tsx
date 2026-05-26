@@ -34,6 +34,7 @@ interface SidebarPanelProps {
 	onExpandAllFolders?: () => void;
 	onCreateFile: () => void;
 	onCreateFolder: () => void;
+	onCreationParentChange?: (folderId: string | null) => void;
 	className?: string;
 	onRequestClose?: () => void;
 	showCloseButton?: boolean;
@@ -63,6 +64,7 @@ export function SidebarPanel({
 	onExpandAllFolders,
 	onCreateFile,
 	onCreateFolder,
+	onCreationParentChange,
 	className,
 	onRequestClose,
 	showCloseButton = false,
@@ -72,6 +74,7 @@ export function SidebarPanel({
 	const prefersReducedMotion = useReducedMotion();
 	const showSectionHeaders = sidebarStore.config.showSectionHeaders;
 	const compactMode = sidebarStore.config.compactMode;
+	const showTreeGuides = sidebarStore.config.showTreeGuides;
 	const sections = sidebarStore.getSections();
 	const searchSwapTransition = pickTransition(
 		Boolean(prefersReducedMotion),
@@ -379,9 +382,11 @@ export function SidebarPanel({
 							folders={folders}
 							activeFileId={activeFileId}
 							compactMode={compactMode}
+							showTreeGuides={showTreeGuides}
 							isLoading={isFilesLoading}
 							actions={{ ...actions, onFileSelect: handleFileSelect }}
 							queries={queries}
+							onCreationParentChange={onCreationParentChange}
 						/>
 					</div>
 				);
@@ -515,6 +520,7 @@ export function SidebarPanel({
 									sections={sidebarStore.config.sections}
 									showSectionHeaders={sidebarStore.config.showSectionHeaders}
 									compactMode={sidebarStore.config.compactMode}
+									showTreeGuides={sidebarStore.config.showTreeGuides}
 									onReorderSections={sidebarStore.reorderSections}
 									onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
 									onAddCustomSection={sidebarStore.addCustomSection}
@@ -524,6 +530,7 @@ export function SidebarPanel({
 										sidebarStore.toggleShowSectionHeaders
 									}
 									onToggleCompactMode={sidebarStore.toggleCompactMode}
+									onToggleTreeGuides={sidebarStore.toggleTreeGuides}
 									onResetToDefaults={sidebarStore.resetToDefaults}
 								/>
 							</div>
@@ -573,11 +580,11 @@ export function SidebarPanel({
 										}
 									}}
 									placeholder="Search"
-									className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60"
+									className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
 								/>
 								<button
 									onClick={closeSearch}
-									className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+									className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:h-7 md:w-7"
 									title="Close search"
 								>
 									<X className="h-4 w-4" strokeWidth={1.5} />
@@ -604,8 +611,8 @@ export function SidebarPanel({
 											Quick Jump
 										</p>
 										<p className="text-[12px] text-sidebar-foreground/72">
-											{totalVisibleSearchResults}{" "}
-											results for "{searchQuery.trim()}"
+											{totalVisibleSearchResults} results for "
+											{searchQuery.trim()}"
 										</p>
 									</div>
 									<span className="rounded-full border border-sidebar-border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/48">
@@ -632,9 +639,13 @@ export function SidebarPanel({
 												</span>
 											</button>
 										))}
-										{searchResults.folders.length > visibleSearchFolders.length && (
+										{searchResults.folders.length >
+											visibleSearchFolders.length && (
 											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
-												+{searchResults.folders.length - visibleSearchFolders.length} more folders
+												+
+												{searchResults.folders.length -
+													visibleSearchFolders.length}{" "}
+												more folders
 											</p>
 										)}
 									</div>
@@ -666,7 +677,10 @@ export function SidebarPanel({
 										))}
 										{searchResults.files.length > visibleSearchFiles.length && (
 											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
-												+{searchResults.files.length - visibleSearchFiles.length} more files
+												+
+												{searchResults.files.length -
+													visibleSearchFiles.length}{" "}
+												more files
 											</p>
 										)}
 									</div>

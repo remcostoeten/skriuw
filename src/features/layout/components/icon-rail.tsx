@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Kanban, UserRound } from "lucide-react";
+import { BookOpen, Kanban, Settings, UserRound } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -13,11 +13,11 @@ import { signOut } from "@/core/auth";
 import { isAdmin } from "@/lib/roles";
 import { UserMenu } from "./user-menu";
 
-interface IconRailProps {
+ type Props = {
 	onOpenSettings: () => void;
 }
 
-export function IconRail({ onOpenSettings }: IconRailProps) {
+export function IconRail({ onOpenSettings }: Props) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const auth = useAuth();
@@ -133,6 +133,24 @@ export function IconRail({ onOpenSettings }: IconRailProps) {
 						<TooltipContent side="right">{planningItem.label}</TooltipContent>
 					</Tooltip>
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Link
+								href="/app/settings"
+								className={cn(
+									iconButtonClass,
+									pathname === "/app/settings"
+										? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
+										: "border-transparent text-sidebar-foreground/52 hover:-translate-y-[1px] hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+								)}
+								aria-label="Settings"
+								aria-current={pathname === "/app/settings" ? "page" : undefined}
+							>
+								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
+							</Link>
+						</TooltipTrigger>
+						<TooltipContent side="right">Settings</TooltipContent>
+					</Tooltip>
 					{!isMounted ? (
 						<div
 							aria-hidden="true"

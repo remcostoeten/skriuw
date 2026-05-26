@@ -230,6 +230,7 @@ describe("sidebar store user scope scoping", () => {
 
 		useSidebarStore.getState().toggleSectionVisibility("search");
 		useSidebarStore.getState().toggleCompactMode();
+		useSidebarStore.getState().toggleTreeGuides();
 		useSidebarStore.getState().addCustomSection("A Custom");
 		useSidebarStore.getState().addToFavorites("file-a", "file");
 		useSidebarStore.getState().addToRecents("file-a", "file");
@@ -254,6 +255,7 @@ describe("sidebar store user scope scoping", () => {
 		expect(useSidebarStore.getState().config.recents).toHaveLength(0);
 		expect(useSidebarStore.getState().config.projects).toHaveLength(0);
 		expect(useSidebarStore.getState().config.compactMode).toBe(false);
+		expect(useSidebarStore.getState().config.showTreeGuides).toBe(false);
 		expect(
 			useSidebarStore
 				.getState()
@@ -325,6 +327,7 @@ describe("sidebar store user scope scoping", () => {
 				?.isVisible,
 		).toBe(false);
 		expect(useSidebarStore.getState().config.compactMode).toBe(true);
+		expect(useSidebarStore.getState().config.showTreeGuides).toBe(true);
 
 		authUserScopeId = "user-b";
 		await useSidebarStore.getState().syncUserScope("user-b");

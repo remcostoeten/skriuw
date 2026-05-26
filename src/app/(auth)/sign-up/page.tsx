@@ -197,7 +197,7 @@ export default function SignUpPage() {
 								placeholder="Enter your name"
 								required
 								className={cn(
-									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-sm text-foreground outline-hidden",
+									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-base text-foreground outline-hidden",
 									"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 								)}
 							/>
@@ -213,7 +213,7 @@ export default function SignUpPage() {
 								placeholder="Enter your email"
 								required
 								className={cn(
-									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-sm text-foreground outline-hidden",
+									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-base text-foreground outline-hidden",
 									"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 								)}
 							/>
@@ -234,7 +234,7 @@ export default function SignUpPage() {
 									placeholder="••••••••"
 									required
 									className={cn(
-										"auth-input h-12 w-full rounded-none border border-border bg-background px-4 pr-12 text-sm text-foreground outline-hidden",
+										"auth-input h-12 w-full rounded-none border border-border bg-background px-4 pr-12 text-base text-foreground outline-hidden",
 										"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 									)}
 								/>
@@ -285,7 +285,7 @@ export default function SignUpPage() {
 								placeholder="••••••••"
 								required
 								className={cn(
-									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-sm text-foreground outline-hidden",
+									"auth-input h-12 w-full rounded-none border border-border bg-background px-4 text-base text-foreground outline-hidden",
 									"placeholder:text-muted-foreground/70 focus:border-muted-foreground/50",
 									confirmPassword.length > 0 &&
 										!passwordsMatch &&

@@ -55,6 +55,7 @@ type SidebarState = {
 
 	toggleShowSectionHeaders: () => void;
 	toggleCompactMode: () => void;
+	toggleTreeGuides: () => void;
 	resetToDefaults: () => void;
 };
 
@@ -102,8 +103,9 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 			folderIds: [...project.folderIds],
 		})),
 		maxRecents: Math.max(config.maxRecents ?? DEFAULT_MAX_RECENTS, DEFAULT_MAX_RECENTS),
-		showSectionHeaders: config.showSectionHeaders,
-		compactMode: config.compactMode,
+		showSectionHeaders: config.showSectionHeaders ?? DEFAULT_SIDEBAR_CONFIG.showSectionHeaders,
+		compactMode: config.compactMode ?? DEFAULT_SIDEBAR_CONFIG.compactMode,
+		showTreeGuides: config.showTreeGuides ?? DEFAULT_SIDEBAR_CONFIG.showTreeGuides,
 	};
 }
 
@@ -506,6 +508,13 @@ export const useSidebarStore = create<SidebarState>()(
 					applyUserScopeUpdate((config) => ({
 						...config,
 						compactMode: !config.compactMode,
+					}));
+				},
+
+				toggleTreeGuides: () => {
+					applyUserScopeUpdate((config) => ({
+						...config,
+						showTreeGuides: !config.showTreeGuides,
 					}));
 				},
 
