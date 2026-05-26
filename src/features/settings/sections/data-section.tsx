@@ -504,11 +504,11 @@ export function DataSection() {
 								<SelectContent>
 									<SelectItem value="auto">Auto-detect</SelectItem>
 									<SelectItem value="skriuw">Skriuw backup</SelectItem>
-									<SelectItem value="obsidian">Obsidian vault</SelectItem>
-									<SelectItem value="apple-notes">Apple Notes (HTML)</SelectItem>
-									<SelectItem value="bear">Bear export</SelectItem>
-									<SelectItem value="notion">Notion export</SelectItem>
-									<SelectItem value="markdown-vault">Markdown folder</SelectItem>
+									<SelectItem value="obsidian">Obsidian vault (best effort)</SelectItem>
+									<SelectItem value="apple-notes">Apple Notes HTML (best effort)</SelectItem>
+									<SelectItem value="bear">Bear export (best effort)</SelectItem>
+									<SelectItem value="notion">Notion export (best effort)</SelectItem>
+									<SelectItem value="markdown-vault">Markdown folder (best effort)</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
