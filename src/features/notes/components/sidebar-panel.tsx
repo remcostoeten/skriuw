@@ -87,6 +87,7 @@ export function SidebarPanel({
 	const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(null);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const sidebarPanelRef = useRef<HTMLDivElement>(null);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const searchSwapRef = useRef<HTMLDivElement>(null);
 	const hasSearchSection = sections.some((section) => section.type === "search");
@@ -387,6 +388,7 @@ export function SidebarPanel({
 							actions={{ ...actions, onFileSelect: handleFileSelect }}
 							queries={queries}
 							onCreationParentChange={onCreationParentChange}
+							scrollElementRef={scrollContainerRef}
 						/>
 					</div>
 				);
@@ -596,6 +598,7 @@ export function SidebarPanel({
 			</div>
 
 			<div
+				ref={scrollContainerRef}
 				className={cn(
 					"flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:pb-0",
 					compactMode && "pt-1 text-sm",
