@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { EmptyState } from "@/shared/ui/empty-state";
 import type { AiEditorHandle } from "@/features/ai/service";
@@ -11,6 +11,7 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
+import { cn } from "@/shared/lib/utils";
 
 type EditorMode = "raw" | "block";
 
@@ -33,6 +34,7 @@ interface EditorProps {
 	editorMode: EditorMode;
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
+	showLineNumbers?: boolean;
 	isMobile?: boolean;
 	readOnly?: boolean;
 	onContentChange: (
@@ -61,6 +63,7 @@ export function Editor({
 	editorMode,
 	editorFontId,
 	editorLineHeight,
+	showLineNumbers = false,
 	readOnly = false,
 	onContentChange,
 	onEditorReady,
@@ -71,7 +74,13 @@ export function Editor({
 	onCursorChange,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const gutterRef = useRef<HTMLDivElement>(null);
 	const cursorAnimationFrameRef = useRef<number | null>(null);
+	const lineHeightValue = getEditorLineHeightValue(editorLineHeight);
+	const lineCount = useMemo(
+		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
+		[file?.content],
+	);
 
 	// Auto-resize textarea
 	useEffect(() => {
@@ -161,6 +170,13 @@ export function Editor({
 	const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-card";
 	const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
 
+	const syncGutterScroll = useCallback(() => {
+		const textarea = textareaRef.current;
+		const gutter = gutterRef.current;
+		if (!textarea || !gutter) return;
+		gutter.scrollTop = textarea.scrollTop;
+	}, []);
+
 	if (editorMode === "block") {
 		return (
 			<div className={containerClass}>
@@ -188,38 +204,59 @@ export function Editor({
 	return (
 		<div className={containerClass}>
 			<div className={contentClass}>
-				<textarea
-					ref={textareaRef}
-					value={file.content}
-					readOnly={readOnly}
-					onChange={(e) => {
-						handleMarkdownChange(e.target.value);
-						queueTextareaCursorReport();
-					}}
-					onClick={queueTextareaCursorReport}
-					onFocus={queueTextareaCursorReport}
-					onKeyUp={queueTextareaCursorReport}
-					onMouseUp={queueTextareaCursorReport}
-					onPointerUp={queueTextareaCursorReport}
-					onSelect={queueTextareaCursorReport}
-					onBlur={(event) => {
-						const firstNonEmptyLine =
-							event.currentTarget.value
-								.split(/\r?\n/)
-								.find((line) => line.trim().length > 0) ?? "";
-						const title = firstNonEmptyLine.match(/^#\s+(.+?)\s*#*\s*$/)?.[1]?.trim();
-						if (title) {
-							onTitleCommit?.(title);
-						}
-						onBlur?.();
-					}}
-					className="w-full min-h-[80vh] bg-transparent text-foreground/90 text-base md:text-sm resize-none outline-hidden"
-					style={{
-						fontFamily: getEditorFontFamily(editorFontId),
-						lineHeight: getEditorLineHeightValue(editorLineHeight),
-					}}
-					spellCheck={false}
-				/>
+				<div className={showLineNumbers ? "flex items-start gap-3" : undefined}>
+					{showLineNumbers ? (
+						<div
+							ref={gutterRef}
+							aria-hidden="true"
+							className="sticky top-5 max-h-[80vh] overflow-hidden select-none pt-px text-right font-mono text-[11px] leading-[inherit] text-muted-foreground/45"
+							style={{
+								lineHeight: lineHeightValue,
+								minWidth: `${String(lineCount).length + 0.5}ch`,
+							}}
+						>
+							{Array.from({ length: lineCount }, (_, index) => (
+								<div key={index + 1}>{index + 1}</div>
+							))}
+						</div>
+					) : null}
+					<textarea
+						ref={textareaRef}
+						value={file.content}
+						readOnly={readOnly}
+						onChange={(e) => {
+							handleMarkdownChange(e.target.value);
+							queueTextareaCursorReport();
+						}}
+						onScroll={syncGutterScroll}
+						onClick={queueTextareaCursorReport}
+						onFocus={queueTextareaCursorReport}
+						onKeyUp={queueTextareaCursorReport}
+						onMouseUp={queueTextareaCursorReport}
+						onPointerUp={queueTextareaCursorReport}
+						onSelect={queueTextareaCursorReport}
+						onBlur={(event) => {
+							const firstNonEmptyLine =
+								event.currentTarget.value
+									.split(/\r?\n/)
+									.find((line) => line.trim().length > 0) ?? "";
+							const title = firstNonEmptyLine.match(/^#\s+(.+?)\s*#*\s*$/)?.[1]?.trim();
+							if (title) {
+								onTitleCommit?.(title);
+							}
+							onBlur?.();
+						}}
+						className={cn(
+							"w-full min-h-[80vh] bg-transparent text-foreground/90 text-base md:text-sm resize-none outline-hidden",
+							showLineNumbers && "flex-1",
+						)}
+						style={{
+							fontFamily: getEditorFontFamily(editorFontId),
+							lineHeight: lineHeightValue,
+						}}
+						spellCheck={false}
+					/>
+				</div>
 			</div>
 		</div>
 	);
