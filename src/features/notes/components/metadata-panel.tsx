@@ -39,6 +39,7 @@ import {
 } from "@/features/notes/lib/note-share-export";
 import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { showUserToast } from "@/shared/lib/user-toast";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
@@ -163,9 +164,19 @@ function InspectorNoteControls({
 		const url = resolveClientShareUrl(share.path, share.url);
 		const copied = await copyTextToClipboard(url);
 		if (copied) {
+			showUserToast("Link copied", "success");
 			triggerNativeFeedback("success");
+			return;
 		}
+		showUserToast("Couldn't copy link", "error");
+		triggerNativeFeedback("dismiss");
 	};
+
+	const staleShareHint = share?.isStale ? (
+		<p className="text-[12px] leading-5 text-amber-700 dark:text-amber-500">
+			Public link shows an older snapshot. Open Manage link to refresh it.
+		</p>
+	) : null;
 
 	const formatControl = canToggleEditorMode ? (
 		<div
@@ -256,6 +267,7 @@ function InspectorNoteControls({
 						mobileTriggerVariant="row"
 					/>
 				</div>
+				{staleShareHint}
 			</div>
 		);
 	}
@@ -268,14 +280,26 @@ function InspectorNoteControls({
 			</div>
 			<div className="flex items-baseline justify-between gap-4">
 				<dt className="text-[13px] text-muted-foreground">Share link</dt>
-				<dd>
-					<button
-						type="button"
-						onClick={onShare}
-						className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
-					>
-						{shareActionLabel}
-					</button>
+				<dd className="flex flex-col items-end gap-1">
+					{staleShareHint}
+					<div className="flex items-center gap-3">
+						{share ? (
+							<button
+								type="button"
+								onClick={() => void handleCopyShareLink()}
+								className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+							>
+								Copy link
+							</button>
+						) : null}
+						<button
+							type="button"
+							onClick={onShare}
+							className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+						>
+							{shareActionLabel}
+						</button>
+					</div>
 				</dd>
 			</div>
 			<div className="flex items-baseline justify-between gap-4">
