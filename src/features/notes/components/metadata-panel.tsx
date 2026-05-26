@@ -33,6 +33,7 @@ import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
+import { StaleShareHint } from "@/features/notes/components/stale-share-hint";
 import {
 	copyTextToClipboard,
 	resolveClientShareUrl,
@@ -155,9 +156,22 @@ function InspectorNoteControls({
 	onShare: () => void;
 	isMobile?: boolean;
 }) {
-	const { shareQuery } = useNoteSharing(file.id);
+	const { shareQuery, refresh } = useNoteSharing(file.id);
 	const share = shareQuery.data;
 	const shareActionLabel = share ? "Manage link" : "Create link";
+	const isRefreshingShare = refresh.isPending;
+
+	const handleRefreshShareLink = async () => {
+		if (!share) return;
+		try {
+			await refresh.mutateAsync(file.id);
+			showUserToast("Link refreshed", "success");
+			triggerNativeFeedback("success");
+		} catch {
+			showUserToast("Couldn't refresh link", "error");
+			triggerNativeFeedback("dismiss");
+		}
+	};
 
 	const handleCopyShareLink = async () => {
 		if (!share) return;
@@ -173,9 +187,10 @@ function InspectorNoteControls({
 	};
 
 	const staleShareHint = share?.isStale ? (
-		<p className="text-[12px] leading-5 text-amber-700 dark:text-amber-500">
-			Public link shows an older snapshot. Open Manage link to refresh it.
-		</p>
+		<StaleShareHint
+			isRefreshing={isRefreshingShare}
+			onRefresh={() => void handleRefreshShareLink()}
+		/>
 	) : null;
 
 	const formatControl = canToggleEditorMode ? (

@@ -137,7 +137,13 @@ export type TPublicShareSnapshot = {
 
 /** Non-consuming probe result used by the public route's RSC. */
 export type TPublicSharePeek =
-	| { status: "ready"; requiresPassword: boolean; viewOnce: boolean; name: string }
+	| {
+			status: "ready";
+			requiresPassword: boolean;
+			viewOnce: boolean;
+			name: string;
+			description: string;
+	  }
 	| { status: "expired" }
 	| { status: "revoked" }
 	| { status: "consumed" }
