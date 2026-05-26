@@ -1,7 +1,8 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
 	NoteFile,
@@ -21,6 +22,8 @@ import type {
 	NoteId,
 	TagName,
 } from "@/domain/persistence/types";
+
+type NoteDb = Pick<PrismaClient, "note" | "noteVersion" | "folder" | "journalEntry">;
 
 type NoteRecord = {
 	id: string;
@@ -96,6 +99,7 @@ function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
 }
 
 async function insertNoteVersion(
+	db: Pick<NoteDb, "noteVersion">,
 	userId: string,
 	noteId: string,
 	note: Pick<
@@ -104,9 +108,7 @@ async function insertNoteVersion(
 	>,
 	reason: NoteVersionReason,
 ): Promise<string | null> {
-	const { prisma } = await getAuthenticatedUser();
-
-	const latest = await prisma.noteVersion.findFirst({
+	const latest = await db.noteVersion.findFirst({
 		where: { userId, noteId },
 		orderBy: { createdAt: "desc" },
 	});
@@ -118,7 +120,7 @@ async function insertNoteVersion(
 		return null;
 	}
 
-	const created = await prisma.noteVersion.create({
+	const created = await db.noteVersion.create({
 		data: {
 			userId,
 			noteId,
@@ -139,6 +141,7 @@ async function insertNoteVersion(
 }
 
 async function updateExistingNoteVersion(
+	db: Pick<NoteDb, "noteVersion">,
 	userId: string,
 	versionId: string,
 	noteId: string,
@@ -148,9 +151,7 @@ async function updateExistingNoteVersion(
 	>,
 	reason: NoteVersionReason,
 ): Promise<boolean> {
-	const { prisma } = await getAuthenticatedUser();
-
-	const existing = await prisma.noteVersion.findFirst({
+	const existing = await db.noteVersion.findFirst({
 		where: { id: versionId, userId, noteId },
 	});
 	if (!existing) {
@@ -163,7 +164,7 @@ async function updateExistingNoteVersion(
 		return false;
 	}
 
-	const { count } = await prisma.noteVersion.updateMany({
+	const { count } = await db.noteVersion.updateMany({
 		where: { id: versionId, userId, noteId },
 		data: {
 			name: note.name,
@@ -198,6 +199,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 	const richContent = (input.richContent ??
 		markdownToRichDocument(input.content)) as Prisma.InputJsonValue;
 	const parentId = input.parentId ?? null;
+	await assertOwnedParentFolder(prisma, user.id, parentId);
 	const [lastNote, lastFolder] = await Promise.all([
 		prisma.note.aggregate({
 			where: { userId: user.id, deletedAt: null, parentId },
@@ -212,46 +214,73 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 		input.sortOrder ??
 		Math.max(lastNote._max.sortOrder ?? -1, lastFolder._max.sortOrder ?? -1) + 1;
 
-	const record = await prisma.note.upsert({
-		where: { id },
-		create: {
+	return prisma.$transaction(async (tx) => {
+		const noteData = {
+			name,
+			content: input.content,
+			richContent,
+			preferredEditorMode: input.preferredEditorMode ?? "block",
+			parentId,
+			sortOrder,
+			tags: input.tags ?? [],
+		};
+		const noteSelect = {
+			id: true,
+			name: true,
+			content: true,
+			richContent: true,
+			preferredEditorMode: true,
+			parentId: true,
+			sortOrder: true,
+			tags: true,
+			journalMeta: true,
+			createdAt: true,
+			updatedAt: true,
+		} as const;
+
+		const { count } = await tx.note.updateMany({
+			where: { id, userId: user.id, deletedAt: null },
+			data: noteData,
+		});
+
+		let record: NoteRecord;
+		if (count > 0) {
+			const updated = await tx.note.findFirst({
+				where: { id, userId: user.id, deletedAt: null },
+				select: noteSelect,
+			});
+			if (!updated) throw new Error("Failed to load updated note");
+			record = updated;
+		} else {
+			await assertResourceIdAvailable(tx, "note", id, user.id);
+			record = await tx.note.create({
+				data: {
+					id,
+					userId: user.id,
+					...noteData,
+				},
+				select: noteSelect,
+			});
+		}
+
+		const note = recordToNoteFile(record);
+		await insertNoteVersion(
+			tx,
+			user.id,
 			id,
-			userId: user.id,
-			name,
-			content: input.content,
-			richContent,
-			preferredEditorMode: input.preferredEditorMode ?? "block",
-			parentId,
-			sortOrder,
-			tags: input.tags ?? [],
-		},
-		update: {
-			name,
-			content: input.content,
-			richContent,
-			preferredEditorMode: input.preferredEditorMode ?? "block",
-			parentId,
-			sortOrder,
-			tags: input.tags ?? [],
-		},
+			{
+				name: note.name,
+				content: note.content,
+				richContent: note.richContent,
+				preferredEditorMode: note.preferredEditorMode,
+				parentId: note.parentId,
+				tags: note.tags ?? [],
+			},
+			"created",
+		);
+
+		return note;
 	});
-
-	const note = recordToNoteFile(record);
-	await insertNoteVersion(
-		user.id,
-		id,
-		{
-			name: note.name,
-			content: note.content,
-			richContent: note.richContent,
-			preferredEditorMode: note.preferredEditorMode,
-			parentId: note.parentId,
-			tags: note.tags ?? [],
-		},
-		"created",
-	);
-
-	return note;
 }
 
 export type UpdateNoteInput = {
@@ -276,6 +305,9 @@ export type UpdateNoteResult = {
 
 export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
 	const { prisma, user } = await getAuthenticatedUser();
+	if (input.parentId !== undefined) {
+		await assertOwnedParentFolder(prisma, user.id, input.parentId);
+	}
 
 	const patch: Prisma.NoteUncheckedUpdateManyInput = {};
 	if (input.name !== undefined) {
@@ -301,107 +333,117 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		patch.tags = input.tags;
 	}
 
-	const { count } = await prisma.note.updateMany({
-		where: { id: input.id, userId: user.id, deletedAt: null },
-		data: patch,
-	});
-	if (count === 0) return { versionCreated: false };
+	return prisma.$transaction(async (tx) => {
+		const { count } = await tx.note.updateMany({
+			where: { id: input.id, userId: user.id, deletedAt: null },
+			data: patch,
+		});
+		if (count === 0) return { versionCreated: false };
 
-	const record = await prisma.note.findFirst({
-		where: { id: input.id, userId: user.id, deletedAt: null },
-	});
-	if (!record) return { versionCreated: false };
+		const record = await tx.note.findFirst({
+			where: { id: input.id, userId: user.id, deletedAt: null },
+		});
+		if (!record) return { versionCreated: false };
 
-	const updatedNote = recordToNoteFile(record);
-	const versionReason: NoteVersionReason =
-		input.name !== undefined ? "rename" : input.createCheckpoint ? "checkpoint" : "autosave";
-	const noteSnapshot = {
-		name: updatedNote.name,
-		content: updatedNote.content,
-		richContent: updatedNote.richContent,
-		preferredEditorMode: updatedNote.preferredEditorMode,
-		parentId: updatedNote.parentId,
-		tags: updatedNote.tags ?? [],
-	};
+		const updatedNote = recordToNoteFile(record);
+		const versionReason: NoteVersionReason =
+			input.name !== undefined ? "rename" : input.createCheckpoint ? "checkpoint" : "autosave";
+		const noteSnapshot = {
+			name: updatedNote.name,
+			content: updatedNote.content,
+			richContent: updatedNote.richContent,
+			preferredEditorMode: updatedNote.preferredEditorMode,
+			parentId: updatedNote.parentId,
+			tags: updatedNote.tags ?? [],
+		};
 
-	if (input.sessionVersionId && input.createCheckpoint) {
-		const versionChanged = await updateExistingNoteVersion(
-			user.id,
-			input.sessionVersionId,
-			input.id,
-			noteSnapshot,
-			versionReason,
-		);
-		if (versionChanged) {
-			return {
-				note: updatedNote,
-				versionCreated: false,
-				versionChanged: true,
-				versionId: input.sessionVersionId,
-			};
+		if (input.sessionVersionId && input.createCheckpoint) {
+			const versionChanged = await updateExistingNoteVersion(
+				tx,
+				user.id,
+				input.sessionVersionId,
+				input.id,
+				noteSnapshot,
+				versionReason,
+			);
+			if (versionChanged) {
+				return {
+					note: updatedNote,
+					versionCreated: false,
+					versionChanged: true,
+					versionId: input.sessionVersionId,
+				};
+			}
 		}
-	}
 
-	const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
-	const versionId = shouldCreateVersion
-		? await insertNoteVersion(user.id, input.id, noteSnapshot, versionReason)
-		: null;
-	const versionCreated = versionId !== null;
+		const shouldCreateVersion = input.name !== undefined || input.createCheckpoint === true;
+		const versionId = shouldCreateVersion
+			? await insertNoteVersion(tx, user.id, input.id, noteSnapshot, versionReason)
+			: null;
+		const versionCreated = versionId !== null;
 
-	return {
-		note: updatedNote,
-		versionCreated,
-		versionChanged: versionCreated,
-		versionId,
-	};
+		return {
+			note: updatedNote,
+			versionCreated,
+			versionChanged: versionCreated,
+			versionId,
+		};
+	});
 }
 
 export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteResult> {
 	const { prisma, user } = await getAuthenticatedUser();
 
-	const versionRecord = await prisma.noteVersion.findFirst({
-		where: { id: versionId, userId: user.id },
+	return prisma.$transaction(async (tx) => {
+		const versionRecord = await tx.noteVersion.findFirst({
+			where: { id: versionId, userId: user.id },
+		});
+		if (!versionRecord) return { versionCreated: false };
+
+		const version = recordToNoteVersion(versionRecord);
+		const currentRecord = await tx.note.findFirst({
+			where: { id: version.noteId, userId: user.id, deletedAt: null },
+		});
+		if (!currentRecord) return { versionCreated: false };
+
+		const current = recordToNoteFile(currentRecord);
+
+		await insertNoteVersion(
+			tx,
+			user.id,
+			current.id,
+			{
+				name: current.name,
+				content: current.content,
+				richContent: current.richContent,
+				preferredEditorMode: current.preferredEditorMode,
+				parentId: current.parentId,
+				tags: current.tags ?? [],
+			},
+			"restore",
+		);
+
+		const { count } = await tx.note.updateMany({
+			where: { id: version.noteId, userId: user.id, deletedAt: null },
+			data: {
+				name: version.name,
+				content: version.content,
+				richContent: version.richContent as Prisma.InputJsonValue,
+				preferredEditorMode: version.preferredEditorMode,
+				parentId: version.parentId,
+				tags: version.tags ?? [],
+			},
+		});
+		if (count === 0) return { versionCreated: true };
+
+		const updated = await tx.note.findFirst({
+			where: { id: version.noteId, userId: user.id },
+		});
+		return {
+			note: updated ? recordToNoteFile(updated) : undefined,
+			versionCreated: true,
+		};
 	});
-	if (!versionRecord) return { versionCreated: false };
-
-	const version = recordToNoteVersion(versionRecord);
-	const current = await getNote(version.noteId);
-	if (!current) return { versionCreated: false };
-
-	await insertNoteVersion(
-		user.id,
-		current.id,
-		{
-			name: current.name,
-			content: current.content,
-			richContent: current.richContent,
-			preferredEditorMode: current.preferredEditorMode,
-			parentId: current.parentId,
-			tags: current.tags ?? [],
-		},
-		"restore",
-	);
-
-	const { count } = await prisma.note.updateMany({
-		where: { id: version.noteId, userId: user.id, deletedAt: null },
-		data: {
-			name: version.name,
-			content: version.content,
-			richContent: version.richContent as Prisma.InputJsonValue,
-			preferredEditorMode: version.preferredEditorMode,
-			parentId: version.parentId,
-			tags: version.tags ?? [],
-		},
-	});
-	if (count === 0) return { versionCreated: true };
-
-	const updated = await prisma.note.findFirst({
-		where: { id: version.noteId, userId: user.id },
-	});
-	return {
-		note: updated ? recordToNoteFile(updated) : undefined,
-		versionCreated: true,
-	};
 }
 
 export async function deleteNote(id: string): Promise<void> {
