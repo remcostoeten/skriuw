@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowUpRight,
+	Copy,
 	ChevronRight,
 	Eye,
 	FileText,
@@ -31,6 +32,13 @@ import {
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
+import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
+import {
+	copyTextToClipboard,
+	resolveClientShareUrl,
+} from "@/features/notes/lib/note-share-export";
+import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";
+import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 
@@ -132,78 +140,148 @@ function EmptyLine({ children }: { children: ReactNode }) {
 }
 
 function InspectorNoteControls({
+	file,
 	canToggleEditorMode,
 	effectiveEditorMode,
 	onToggleEditorMode,
-	shareLabel,
 	onShare,
+	isMobile = false,
 }: {
+	file: NoteFile;
 	canToggleEditorMode: boolean;
 	effectiveEditorMode: "raw" | "block";
 	onToggleEditorMode?: () => void;
-	shareLabel: string;
 	onShare: () => void;
+	isMobile?: boolean;
 }) {
+	const { shareQuery } = useNoteSharing(file.id);
+	const share = shareQuery.data;
+	const shareActionLabel = share ? "Manage link" : "Create link";
+
+	const handleCopyShareLink = async () => {
+		if (!share) return;
+		const url = resolveClientShareUrl(share.path, share.url);
+		const copied = await copyTextToClipboard(url);
+		if (copied) {
+			triggerNativeFeedback("success");
+		}
+	};
+
+	const formatControl = canToggleEditorMode ? (
+		<div
+			className={cn(
+				"inline-flex items-center gap-1.5",
+				isMobile ? "min-h-11 text-[15px]" : "text-[13px]",
+			)}
+			role="group"
+			aria-label="Editor mode"
+		>
+			<button
+				type="button"
+				onClick={effectiveEditorMode === "raw" ? onToggleEditorMode : undefined}
+				aria-pressed={effectiveEditorMode === "block"}
+				className={cn(
+					"pressable rounded-md transition-colors",
+					isMobile ? "min-h-11 px-3" : "",
+					effectiveEditorMode === "block"
+						? "font-medium text-foreground/80"
+						: "text-muted-foreground/70 hover:text-foreground",
+				)}
+			>
+				Block
+			</button>
+			<span aria-hidden className="text-muted-foreground/30">
+				·
+			</span>
+			<button
+				type="button"
+				onClick={effectiveEditorMode === "block" ? onToggleEditorMode : undefined}
+				aria-pressed={effectiveEditorMode === "raw"}
+				className={cn(
+					"pressable rounded-md transition-colors",
+					isMobile ? "min-h-11 px-3" : "",
+					effectiveEditorMode === "raw"
+						? "font-medium text-foreground/80"
+						: "text-muted-foreground/70 hover:text-foreground",
+				)}
+			>
+				Raw
+			</button>
+		</div>
+	) : (
+		<span
+			className={cn(
+				"font-medium text-foreground/80",
+				isMobile ? "text-[15px]" : "text-[13px]",
+			)}
+		>
+			Source
+		</span>
+	);
+
+	if (isMobile) {
+		return (
+			<div className="space-y-3">
+				<div className="flex items-center justify-between gap-4 py-1">
+					<span className="text-[13px] text-muted-foreground">Format</span>
+					{formatControl}
+				</div>
+
+				<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
+					{share ? (
+						<>
+							<button
+								type="button"
+								onClick={() => void handleCopyShareLink()}
+								className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
+							>
+								<Copy className="h-5 w-5 shrink-0 text-foreground/72" />
+								Copy link
+							</button>
+							<div className="mx-4 h-px bg-foreground/8" />
+						</>
+					) : null}
+					<button
+						type="button"
+						onClick={onShare}
+						className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
+					>
+						<Link2 className="h-5 w-5 shrink-0 text-foreground/72" />
+						{shareActionLabel}
+					</button>
+					<div className="mx-4 h-px bg-foreground/8" />
+					<NoteSendDropdown
+						note={file}
+						isMobile
+						mobileTriggerVariant="row"
+					/>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<>
 			<div className="flex items-baseline justify-between gap-4">
 				<dt className="text-[13px] text-muted-foreground">Format</dt>
-				<dd>
-					{canToggleEditorMode ? (
-						<div
-							className="inline-flex items-center gap-1.5 text-[13px]"
-							role="group"
-							aria-label="Editor mode"
-						>
-							<button
-								type="button"
-								onClick={
-									effectiveEditorMode === "raw" ? onToggleEditorMode : undefined
-								}
-								aria-pressed={effectiveEditorMode === "block"}
-								className={cn(
-									"transition-colors",
-									effectiveEditorMode === "block"
-										? "font-medium text-foreground/80"
-										: "text-muted-foreground/70 hover:text-foreground",
-								)}
-							>
-								Block
-							</button>
-							<span aria-hidden className="text-muted-foreground/30">
-								·
-							</span>
-							<button
-								type="button"
-								onClick={
-									effectiveEditorMode === "block" ? onToggleEditorMode : undefined
-								}
-								aria-pressed={effectiveEditorMode === "raw"}
-								className={cn(
-									"transition-colors",
-									effectiveEditorMode === "raw"
-										? "font-medium text-foreground/80"
-										: "text-muted-foreground/70 hover:text-foreground",
-								)}
-							>
-								Raw
-							</button>
-						</div>
-					) : (
-						<span className="text-[13px] font-medium text-foreground/80">Source</span>
-					)}
-				</dd>
+				<dd>{formatControl}</dd>
 			</div>
 			<div className="flex items-baseline justify-between gap-4">
-				<dt className="text-[13px] text-muted-foreground">Share</dt>
+				<dt className="text-[13px] text-muted-foreground">Share link</dt>
 				<dd>
 					<button
 						type="button"
 						onClick={onShare}
 						className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
 					>
-						{shareLabel}
+						{shareActionLabel}
 					</button>
+				</dd>
+			</div>
+			<div className="flex items-baseline justify-between gap-4">
+				<dt className="text-[13px] text-muted-foreground">Send note</dt>
+				<dd>
+					<NoteSendDropdown note={file} />
 				</dd>
 			</div>
 		</>
@@ -1140,7 +1218,7 @@ export function MetadataPanel({
 					id="note-inspector-details"
 					title="Details"
 					icon={Info}
-					count={details.length + 2}
+					count={details.length + 3}
 					open={openSections.details}
 					onToggle={() => toggleSection("details")}
 					className="border-b-0"
@@ -1165,11 +1243,12 @@ export function MetadataPanel({
 							role="separator"
 						/>
 						<InspectorNoteControls
+							file={file}
 							canToggleEditorMode={canToggleEditorMode}
 							effectiveEditorMode={effectiveEditorMode}
 							onToggleEditorMode={onToggleEditorMode}
-							shareLabel="Share"
 							onShare={handleShare}
+							isMobile={isMobile}
 						/>
 					</dl>
 				</InspectorSection>

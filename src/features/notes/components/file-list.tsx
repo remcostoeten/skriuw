@@ -31,6 +31,7 @@ import {
 	ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
 import { useSidebarStore } from "./sidebar/store";
+import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
 interface FileListProps {
@@ -1153,6 +1154,19 @@ export const FileList = memo(function FileList({
 							</div>
 						)}
 
+						{!selectionHasMultiple && item.type === "file"
+							? (() => {
+									const sendFile = files.find((entry) => entry.id === item.id);
+									if (!sendFile) return null;
+									return (
+										<NoteSendMobileActionBlock
+											note={sendFile}
+											onClose={closeMobileActionSheet}
+										/>
+									);
+								})()
+							: null}
+
 						<div className="overflow-hidden rounded-2xl border border-destructive/20 bg-destructive/5">
 							<button
 								type="button"
@@ -1173,8 +1187,10 @@ export const FileList = memo(function FileList({
 			addToCustomSection,
 			addToFavorites,
 			addToProject,
+			closeMobileActionSheet,
 			customSections,
 			deleteSelection,
+			files,
 			folders,
 			getDescendantIds,
 			isFavorite,
@@ -1626,6 +1642,7 @@ export const FileList = memo(function FileList({
 							</ContextMenuSubContent>
 						</ContextMenuSub>
 					)}
+					<NoteSendContextSubmenu note={file} />
 					<ContextMenuSeparator />
 					<ContextMenuItem
 						onClick={() => deleteSelection(selectionForAction)}
