@@ -1,5 +1,6 @@
-import { unzipSync } from "fflate";
+import { unzipSync, type UnzipFileInfo } from "fflate";
 import { validateArchiveIntegrity } from "@/domain/data-transfer/integrity";
+import { MAX_ARCHIVE_ENTRIES, MAX_UNCOMPRESSED_BYTES } from "@/domain/data-transfer/limits";
 import {
 	findExportRootPrefix,
 	isNoteRichSidecarPath,
@@ -41,7 +42,9 @@ function parseNoteFile(path: string, raw: string, rootPrefix: string): ParsedNot
 
 	const { frontmatter, body } = splitFrontmatter(raw);
 	const preferredEditorMode = frontmatter.preferredEditorMode;
-	const sortOrder = frontmatter.sortOrder ? Number(frontmatter.sortOrder) : undefined;
+	const sortOrderRaw = frontmatter.sortOrder;
+	const sortOrder =
+		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
 
 	return {
 		id: frontmatter.id,
@@ -121,16 +124,41 @@ function parseNoteVersionFile(path: string, raw: string): ParsedNoteVersion {
 }
 
 export function decodeArchiveEntries(buffer: Uint8Array): Record<string, string> {
+	let entryCount = 0;
+	let totalUncompressed = 0;
+
 	let unzipped: Record<string, Uint8Array>;
 	try {
-		unzipped = unzipSync(buffer);
-	} catch {
+		unzipped = unzipSync(buffer, {
+			filter: (file: UnzipFileInfo) => {
+				if (file.name.endsWith("/")) return false;
+
+				entryCount += 1;
+				if (entryCount > MAX_ARCHIVE_ENTRIES) {
+					throw new Error("Archive contains too many files.");
+				}
+
+				totalUncompressed += file.originalSize;
+				if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+					throw new Error("Archive uncompressed size is too large.");
+				}
+
+				return true;
+			},
+		});
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			(error.message === "Archive contains too many files." ||
+				error.message === "Archive uncompressed size is too large.")
+		) {
+			throw error;
+		}
 		throw new Error("Invalid ZIP archive.");
 	}
 
 	const entries: Record<string, string> = {};
 	for (const [path, bytes] of Object.entries(unzipped)) {
-		if (path.endsWith("/")) continue;
 		entries[path] = new TextDecoder().decode(bytes);
 	}
 	return entries;

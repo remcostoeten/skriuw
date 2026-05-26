@@ -28,7 +28,7 @@ import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
-import type { ImportPolicy, ImportPreview, ImportProfile } from "@/domain/data-transfer/types";
+import type { ImportMergeResult, ImportPolicy, ImportPreview, ImportProfile } from "@/domain/data-transfer/types";
 import {
 	Select,
 	SelectContent,
@@ -303,19 +303,18 @@ export function DataSection() {
 		}
 	};
 
-	const uploadArchive = async (
+	const uploadPreviewArchive = async (
 		file: File,
-		endpoint: "/api/data/import/preview" | "/api/data/import",
 		policy: ImportPolicy,
 		profile: "auto" | ImportProfile,
-	) => {
+	): Promise<ImportPreview> => {
 		const formData = new FormData();
 		formData.set("file", file);
 		formData.set("policy", policy);
 		if (profile !== "auto") {
 			formData.set("profile", profile);
 		}
-		const response = await fetch(endpoint, { method: "POST", body: formData });
+		const response = await fetch("/api/data/import/preview", { method: "POST", body: formData });
 		const body = (await response.json().catch(() => null)) as
 			| ({ error?: string } & Partial<ImportPreview>)
 			| null;
@@ -323,6 +322,27 @@ export function DataSection() {
 			throw new Error(body?.error ?? "Import request failed.");
 		}
 		return body as ImportPreview;
+	};
+
+	const uploadImportArchive = async (
+		file: File,
+		policy: ImportPolicy,
+		profile: "auto" | ImportProfile,
+	): Promise<ImportMergeResult> => {
+		const formData = new FormData();
+		formData.set("file", file);
+		formData.set("policy", policy);
+		if (profile !== "auto") {
+			formData.set("profile", profile);
+		}
+		const response = await fetch("/api/data/import", { method: "POST", body: formData });
+		const body = (await response.json().catch(() => null)) as
+			| ({ error?: string } & Partial<ImportMergeResult>)
+			| null;
+		if (!response.ok) {
+			throw new Error(body?.error ?? "Import request failed.");
+		}
+		return body as ImportMergeResult;
 	};
 
 	const previewArchive = async (
@@ -334,7 +354,7 @@ export function DataSection() {
 		setImportError(null);
 		setImportPreview(null);
 		try {
-			const preview = await uploadArchive(file, "/api/data/import/preview", policy, profile);
+			const preview = await uploadPreviewArchive(file, policy, profile);
 			setImportPreview(preview);
 			setImportState("ready");
 		} catch (error) {
@@ -378,7 +398,7 @@ export function DataSection() {
 		setImportError(null);
 
 		try {
-			await uploadArchive(selectedFile, "/api/data/import", importPolicy, importProfile);
+			await uploadImportArchive(selectedFile, importPolicy, importProfile);
 			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
 			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
 			setImportState("success");

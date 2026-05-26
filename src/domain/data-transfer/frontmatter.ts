@@ -26,11 +26,11 @@ export function splitFrontmatter(raw: string): {
 export function parseYamlString(value: string | undefined): string | undefined {
 	if (!value) return undefined;
 	if (value.startsWith('"') && value.endsWith('"')) {
-		return value
-			.slice(1, -1)
-			.replace(/\\n/g, "\n")
-			.replace(/\\"/g, '"')
-			.replace(/\\\\/g, "\\");
+		try {
+			return JSON.parse(value) as string;
+		} catch {
+			return value.slice(1, -1);
+		}
 	}
 	return value;
 }

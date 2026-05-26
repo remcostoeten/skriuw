@@ -5,6 +5,7 @@ import { buildExportArchiveFiles } from "@/domain/data-transfer/export-build";
 import { sha256Hex } from "@/domain/data-transfer/integrity";
 import { detectImportProfile } from "@/domain/data-transfer/parse-import";
 import { decodeArchiveEntries, parseArchiveBuffer } from "@/domain/data-transfer/parse-archive";
+import { journalDateFromArchivePath } from "@/domain/data-transfer/paths";
 import { resolveManifestFolders } from "@/domain/data-transfer/preview";
 
 const sampleRichContent = [
@@ -80,13 +81,15 @@ describe("data transfer archive parsing", () => {
 
 		expect(archive.manifest.version).toBe(3);
 		expect(archive.profile).toBe("skriuw");
+		if (archive.manifest.version !== 3) throw new Error("Expected v3 manifest");
+		expect(archive.manifest.folders).toHaveLength(2);
+		expect(archive.manifest.folders[0]?.name).toBe("Projects");
+		expect(archive.manifest.folders[1]?.name).toBe("Empty");
 		expect(archive.notes).toHaveLength(1);
 		expect(archive.notes[0]?.content).toBe("\n# Idea\n\nBody");
 		expect(archive.notes[0]?.richContent).toEqual(sampleRichContent);
 		expect(archive.noteVersions).toHaveLength(1);
 		expect(archive.noteVersions[0]?.noteId).toBe("11111111-1111-4111-8111-111111111111");
-
-		if (archive.manifest.version !== 3) throw new Error("Expected v3 manifest");
 		expect(archive.manifest.checksums).toBeDefined();
 		expect(archive.manifest.counts.noteVersions).toBe(1);
 		expect(archive.integrityWarnings).toEqual([]);
@@ -208,5 +211,41 @@ tags: ["idea"]
 		});
 
 		expect(() => parseArchiveBuffer(zip)).toThrow("Malformed rich content sidecar");
+	});
+
+	test("preserves sortOrder zero in parsed notes", () => {
+		const root = "skriuw-export-2026-05-26";
+		const zip = zipSync({
+			[`${root}/skriuw-export.json`]: strToU8(
+				JSON.stringify({
+					version: 2,
+					source: "skriuw",
+					exportedAt: "2026-05-26T12:00:00.000Z",
+					counts: { notes: 1, journalEntries: 0, folders: 0, journalTags: 0 },
+					folders: [],
+					journalTags: [],
+				}),
+			),
+			[`${root}/notes/Idea.md`]: strToU8(`---
+id: 11111111-1111-4111-8111-111111111111
+sortOrder: 0
+created: 2026-05-26T10:00:00.000Z
+updated: 2026-05-26T11:00:00.000Z
+---
+
+# Idea
+`),
+		});
+
+		const archive = parseArchiveBuffer(zip);
+		expect(archive.notes[0]?.sortOrder).toBe(0);
+	});
+
+	test("rejects impossible journal dates", () => {
+		const root = "skriuw-export-2026-05-26";
+		expect(journalDateFromArchivePath(root, `${root}/journal/2026-02-31.md`)).toBeNull();
+		expect(journalDateFromArchivePath(root, `${root}/journal/2026-05-26.md`)).toBe(
+			"2026-05-26",
+		);
 	});
 });
