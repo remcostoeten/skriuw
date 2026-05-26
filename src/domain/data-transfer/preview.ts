@@ -4,6 +4,7 @@ import {
 	foldersFromNotePaths,
 	sortFoldersForCreation,
 } from "@/domain/data-transfer/folders";
+import { noteImportKey } from "@/domain/data-transfer/paths";
 import type {
 	ImportPolicy,
 	ImportPreview,
@@ -14,8 +15,6 @@ import type {
 } from "@/domain/data-transfer/types";
 import { DEFAULT_IMPORT_POLICY, isSkriuwManifestV2OrV3 } from "@/domain/data-transfer/types";
 import { countUserWorkspace } from "@/domain/data-transfer/workspace-clear";
-
-type FolderRow = { id: string; name: string; parentId: string | null };
 
 type NoteAction = "create" | "skip" | "overwrite";
 
@@ -33,33 +32,10 @@ function emptyCounts() {
 	return { create: 0, skip: 0, overwrite: 0 };
 }
 
-function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
-	const byId = new Map(folders.map((folder) => [folder.id, folder]));
-	const cache = new Map<string, string>();
-
-	function getPath(id: string): string {
-		if (cache.has(id)) return cache.get(id)!;
-		const folder = byId.get(id);
-		if (!folder) return "";
-		const parent = folder.parentId ? getPath(folder.parentId) : "";
-		const path = parent ? `${parent}/${folder.name}` : folder.name;
-		cache.set(id, path);
-		return path;
-	}
-
-	for (const folder of folders) getPath(folder.id);
-	return cache;
-}
-
-function noteKey(note: ParsedNoteFile): string {
-	const normalizedName = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-	return `${note.parentPath ?? ""}/${normalizedName}`;
-}
-
 function classifyNote(note: ParsedNoteFile, ctx: PreviewContext, policy: ImportPolicy): NoteAction {
 	if (policy === "replace-workspace") return "create";
 
-	const key = noteKey(note);
+	const key = noteImportKey(note);
 	if (note.id && ctx.existingNoteIds.has(note.id)) {
 		return policy === "overwrite" ? "overwrite" : "skip";
 	}
@@ -126,7 +102,7 @@ export async function buildImportPreview(
 		}),
 	]);
 
-	const existingFolderPaths = buildFolderPaths(existingFolders);
+	const existingFolderPaths = exportFolderPaths(existingFolders);
 	const ctx: PreviewContext = {
 		existingFolderPathSet: new Set(existingFolderPaths.values()),
 		existingNoteIds: new Set(existingNotes.map((note) => note.id)),
@@ -139,8 +115,10 @@ export async function buildImportPreview(
 
 	for (const note of existingNotes) {
 		const parentPath = note.parentId ? existingFolderPaths.get(note.parentId) : null;
-		const name = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-		const key = `${parentPath ?? ""}/${name}`;
+		const key = noteImportKey({
+			name: note.name,
+			parentPath: parentPath ?? null,
+		});
 		ctx.existingNoteKeys.add(key);
 		ctx.existingNoteIdByKey.set(key, note.id);
 	}
@@ -166,7 +144,7 @@ export async function buildImportPreview(
 		const action = classifyNote(note, ctx, policy);
 		noteActions.set(note, action);
 		noteCounts[action]++;
-		const sampleKey = noteKey(note).replace(/^\//, "") || note.name;
+		const sampleKey = noteImportKey(note).replace(/^\//, "") || note.name;
 		if (action === "create" && notesToCreateSamples.length < 5) {
 			notesToCreateSamples.push(sampleKey);
 		}

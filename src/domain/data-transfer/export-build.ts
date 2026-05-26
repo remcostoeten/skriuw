@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { strToU8 } from "fflate";
+import { exportFolderPaths } from "@/domain/data-transfer/folders";
 import { buildArchiveChecksums } from "@/domain/data-transfer/integrity";
 import {
 	normalizeNoteFileName,
@@ -50,24 +51,6 @@ type NoteVersionRow = {
 	createdAt: Date;
 };
 
-function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
-	const byId = new Map(folders.map((folder) => [folder.id, folder]));
-	const cache = new Map<string, string>();
-
-	function getPath(id: string): string {
-		if (cache.has(id)) return cache.get(id)!;
-		const folder = byId.get(id);
-		if (!folder) return "";
-		const parent = folder.parentId ? getPath(folder.parentId) : "";
-		const path = parent ? `${parent}/${folder.name}` : folder.name;
-		cache.set(id, path);
-		return path;
-	}
-
-	for (const folder of folders) getPath(folder.id);
-	return cache;
-}
-
 function noteFrontmatter(note: NoteRow): string {
 	const lines = ["---"];
 	lines.push(`id: ${note.id}`);
@@ -108,7 +91,7 @@ export function buildExportArchiveFiles(input: {
 	const dateSlug = exportedAt.toISOString().slice(0, 10);
 	const root = `skriuw-export-${dateSlug}`;
 	const files: Record<string, Uint8Array> = {};
-	const folderPaths = buildFolderPaths(folders);
+	const folderPaths = exportFolderPaths(folders);
 
 	for (const note of notes) {
 		const folderPath = note.parentId ? folderPaths.get(note.parentId) : undefined;
