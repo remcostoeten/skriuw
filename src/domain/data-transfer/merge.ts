@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import { markdownToRichDocument, resolveRichDocument } from "@/domain/notes/rich-document";
+import type { RichTextDocument } from "@/types/notes";
 import {
 	buildImportPreview,
 	exportFolderPaths,
@@ -106,7 +107,10 @@ export async function mergeArchiveImport(
 
 			const parentId = note.parentPath ? (pathToFolderId.get(note.parentPath) ?? null) : null;
 			const preferredEditorMode = note.preferredEditorMode ?? "block";
-			const richContent = markdownToRichDocument(note.content) as Prisma.InputJsonValue;
+			const richContent = resolveRichDocument(
+				note.content,
+				note.richContent as RichTextDocument | null | undefined,
+			) as Prisma.InputJsonValue;
 
 			await tx.note.create({
 				data: {

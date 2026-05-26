@@ -28,6 +28,7 @@ export async function GET() {
 				id: true,
 				name: true,
 				content: true,
+				richContent: true,
 				tags: true,
 				parentId: true,
 				sortOrder: true,
