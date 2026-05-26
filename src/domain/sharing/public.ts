@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { hashViewer, verifySharePassword } from "./crypto";
 import { isExpired } from "./expiry";
+import { buildSharePreviewDescription } from "./social-preview";
 import type { TPublicSharePeek, TPublicShareResult } from "./models";
 
 /**
@@ -48,6 +49,10 @@ export async function peekShare(token: string): Promise<TPublicSharePeek> {
 		requiresPassword: Boolean(share.passwordHash),
 		viewOnce: share.viewOnce,
 		name: share.name,
+		description: buildSharePreviewDescription(
+			share.content,
+			Boolean(share.passwordHash),
+		),
 	};
 }
 
