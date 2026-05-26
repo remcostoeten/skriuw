@@ -208,6 +208,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		},
 		[saveController],
 	);
+	const runAfterContentFlush = useCallback(
+		async (noteId: string, run: () => void) => {
+			await saveController.flush(noteId, { createCheckpoint: true });
+			run();
+		},
+		[saveController],
+	);
 	const metadataFiles = notesQuery.data ?? [];
 	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
 	const files = useMemo(() => {
@@ -611,50 +618,62 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 		if (isMdxNote(activeFile)) {
 			if (activeFile.preferredEditorMode !== "raw") {
-				markFileSaving(activeFile.id);
-				updateNoteMutation.mutate(
-					{
-						id: activeFile.id,
-						content: activeFile.content,
-						richContent: activeFile.richContent,
-						preferredEditorMode: "raw",
-					},
-					{
-						onSuccess: () => {
-							markFileSaved(activeFile.id);
+				void runAfterContentFlush(activeFile.id, () => {
+					markFileSaving(activeFile.id);
+					updateNoteMutation.mutate(
+						{
+							id: activeFile.id,
+							content: activeFile.content,
+							richContent: activeFile.richContent,
+							preferredEditorMode: "raw",
 						},
-						onError: () => {
-							markFileError(activeFile.id);
+						{
+							onSuccess: () => {
+								markFileSaved(activeFile.id);
+							},
+							onError: () => {
+								markFileError(activeFile.id);
+							},
 						},
-					},
-				);
+					);
+				});
 			}
 			return;
 		}
 
 		triggerNativeFeedback("impact");
 		const nextMode = editorMode === "raw" ? "block" : "raw";
-		updateNoteMutation.mutate(
-			{
-				id: activeFile.id,
-				content: activeFile.content,
-				richContent:
-					nextMode === "block"
-						? markdownToRichDocument(activeFile.content)
-						: activeFile.richContent,
-				preferredEditorMode: nextMode,
-			},
-			{
-				onSuccess: () => {
-					markFileSaved(activeFile.id);
+		void runAfterContentFlush(activeFile.id, () => {
+			updateNoteMutation.mutate(
+				{
+					id: activeFile.id,
+					content: activeFile.content,
+					richContent:
+						nextMode === "block"
+							? markdownToRichDocument(activeFile.content)
+							: activeFile.richContent,
+					preferredEditorMode: nextMode,
 				},
-				onError: () => {
-					markFileError(activeFile.id);
+				{
+					onSuccess: () => {
+						markFileSaved(activeFile.id);
+					},
+					onError: () => {
+						markFileError(activeFile.id);
+					},
 				},
-			},
-		);
-		markFileSaving(activeFile.id);
-	}, [activeFile, editorMode, markFileError, markFileSaved, markFileSaving, updateNoteMutation]);
+			);
+			markFileSaving(activeFile.id);
+		});
+	}, [
+		activeFile,
+		editorMode,
+		markFileError,
+		markFileSaved,
+		markFileSaving,
+		runAfterContentFlush,
+		updateNoteMutation,
+	]);
 
 	const handleOpenCommandPalette = useCallback(() => {
 		triggerNativeFeedback("selection");
@@ -720,23 +739,25 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const renameFile = useCallback(
 		(id: string, name: string) => {
-			markFileSaving(id);
-			updateNoteMutation.mutate(
-				{
-					id: id,
-					name,
-				},
-				{
-					onSuccess: () => {
-						markFileSaved(id);
+			void runAfterContentFlush(id, () => {
+				markFileSaving(id);
+				updateNoteMutation.mutate(
+					{
+						id: id,
+						name,
 					},
-					onError: () => {
-						markFileError(id);
+					{
+						onSuccess: () => {
+							markFileSaved(id);
+						},
+						onError: () => {
+							markFileError(id);
+						},
 					},
-				},
-			);
+				);
+			});
 		},
-		[markFileError, markFileSaved, markFileSaving, updateNoteMutation],
+		[markFileError, markFileSaved, markFileSaving, runAfterContentFlush, updateNoteMutation],
 	);
 
 	const renameFolder = useCallback(
@@ -798,13 +819,15 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const moveFile = useCallback(
 		(fileId: string, newParentId: string | null, sortOrder?: number) => {
-			updateNoteMutation.mutate({
-				id: fileId,
-				parentId: newParentId,
-				...(sortOrder !== undefined && { sortOrder }),
+			void runAfterContentFlush(fileId, () => {
+				updateNoteMutation.mutate({
+					id: fileId,
+					parentId: newParentId,
+					...(sortOrder !== undefined && { sortOrder }),
+				});
 			});
 		},
-		[updateNoteMutation],
+		[runAfterContentFlush, updateNoteMutation],
 	);
 
 	const moveFolder = useCallback(

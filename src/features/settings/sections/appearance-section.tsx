@@ -18,6 +18,8 @@ export function AppearanceSection() {
 	const update = usePreferencesStore((s) => s.updateAppearancePreference);
 	const showTreeGuides = useSidebarStore((s) => s.config.showTreeGuides);
 	const toggleTreeGuides = useSidebarStore((s) => s.toggleTreeGuides);
+	const compactMode = useSidebarStore((s) => s.config.compactMode);
+	const setCompactMode = useSidebarStore((s) => s.setCompactMode);
 
 	return (
 		<>
@@ -81,8 +83,11 @@ export function AppearanceSection() {
 			<SettingsCard>
 				<Row title="Compact sidebar" description="Tighter spacing in the file tree.">
 					<Switch
-						checked={appearance.compactSidebar}
-						onCheckedChange={(v) => update("compactSidebar", v)}
+						checked={compactMode}
+						onCheckedChange={(value) => {
+							setCompactMode(value);
+							update("compactSidebar", value);
+						}}
 					/>
 				</Row>
 				<Row

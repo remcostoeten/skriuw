@@ -7,6 +7,11 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { generateShareToken, hashSharePassword } from "./crypto";
 import { resolveExpiry } from "./expiry";
 import {
+	parseServerInput,
+	publishNoteInputSchema,
+	updateShareInputSchema,
+} from "@/domain/validation/schemas";
+import {
 	buildSharePath,
 	type TNoteShareState,
 	type TPublishNoteInput,
@@ -59,9 +64,13 @@ function toShareState(share: ShareRecord, liveContent?: string): TNoteShareState
 
 /** Create or re-activate a share for a note, snapshotting current content. */
 export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareState> {
+	const validated = parseServerInput(publishNoteInputSchema, {
+		...input,
+		showAuthor: input.showAuthor ?? false,
+	});
 	const { prisma, user } = await getAuthenticatedUser();
 
-	const note = await getNote(input.noteId);
+	const note = await getNote(validated.noteId);
 	if (!note) throw new Error("Note not found");
 
 	const token = generateShareToken();
@@ -73,10 +82,10 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 		content: note.content,
 		richContent,
 		preferredEditorMode: note.preferredEditorMode ?? "block",
-		authorName: input.showAuthor ? user.name : null,
-		viewOnce: input.viewOnce,
-		expiresAt: resolveExpiry(input.expiry),
-		passwordHash: input.password ? await hashSharePassword(input.password) : null,
+		authorName: validated.showAuthor ? user.name : null,
+		viewOnce: validated.viewOnce,
+		expiresAt: resolveExpiry(validated.expiry),
+		passwordHash: validated.password ? await hashSharePassword(validated.password) : null,
 		consumedAt: null,
 		revokedAt: null,
 		viewCount: 0,
@@ -84,8 +93,8 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 	};
 
 	const share = await prisma.noteShare.upsert({
-		where: { noteId: input.noteId },
-		create: { noteId: input.noteId, userId: user.id, ...snapshot },
+		where: { noteId: validated.noteId },
+		create: { noteId: validated.noteId, userId: user.id, ...snapshot },
 		update: snapshot,
 	});
 
@@ -96,24 +105,30 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 export async function updateNoteShareSettings(
 	input: TUpdateShareInput,
 ): Promise<TNoteShareState | null> {
+	const validated = parseServerInput(updateShareInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
 
 	const existing = await prisma.noteShare.findFirst({
-		where: { noteId: input.noteId, userId: user.id },
+		where: { noteId: validated.noteId, userId: user.id },
 	});
 	if (!existing) return null;
 
-	const data: Prisma.NoteShareUpdateInput = {
-		viewOnce: input.viewOnce,
-		expiresAt: resolveExpiry(input.expiry),
-		authorName: input.showAuthor ? user.name : null,
-	};
-	if (input.password !== undefined) {
-		data.passwordHash = input.password ? await hashSharePassword(input.password) : null;
+	const data: Prisma.NoteShareUpdateInput = {};
+	if (validated.viewOnce !== undefined) {
+		data.viewOnce = validated.viewOnce;
+	}
+	if (validated.expiry !== undefined) {
+		data.expiresAt = resolveExpiry(validated.expiry);
+	}
+	if (validated.showAuthor !== undefined) {
+		data.authorName = validated.showAuthor ? user.name : null;
+	}
+	if (validated.password !== undefined) {
+		data.passwordHash = validated.password ? await hashSharePassword(validated.password) : null;
 	}
 
 	const share = await prisma.noteShare.update({ where: { id: existing.id }, data });
-	const note = await getNote(input.noteId);
+	const note = await getNote(validated.noteId);
 	return toShareState(share, note?.content);
 }
 

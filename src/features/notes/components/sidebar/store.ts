@@ -55,6 +55,7 @@ type SidebarState = {
 
 	toggleShowSectionHeaders: () => void;
 	toggleCompactMode: () => void;
+	setCompactMode: (compactMode: boolean) => void;
 	toggleTreeGuides: () => void;
 	resetToDefaults: () => void;
 };
@@ -508,6 +509,13 @@ export const useSidebarStore = create<SidebarState>()(
 					applyUserScopeUpdate((config) => ({
 						...config,
 						compactMode: !config.compactMode,
+					}));
+				},
+
+				setCompactMode: (compactMode: boolean) => {
+					applyUserScopeUpdate((config) => ({
+						...config,
+						compactMode,
 					}));
 				},
 

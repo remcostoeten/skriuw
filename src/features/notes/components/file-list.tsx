@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
@@ -45,6 +45,7 @@ interface FileListProps {
 	onCreationParentChange?: (folderId: string | null) => void;
 	onReorderFiles?: (fileId: string, targetIndex: number, parentId: string | null) => void;
 	onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
+	scrollElementRef?: RefObject<HTMLElement | null>;
 }
 
 type SelectedItem = {
@@ -92,6 +93,7 @@ export const FileList = memo(function FileList({
 	actions,
 	queries,
 	onCreationParentChange,
+	scrollElementRef,
 }: FileListProps) {
 	const {
 		onFileSelect,
@@ -194,7 +196,7 @@ export const FileList = memo(function FileList({
 
 	const virtualizer = useVirtualizer({
 		count: flattenedVisibleItems.length,
-		getScrollElement: () => listRef.current,
+		getScrollElement: () => scrollElementRef?.current ?? listRef.current,
 		estimateSize: () => rowHeight,
 		overscan: FILE_TREE_OVERSCAN,
 		getItemKey: (index) => {
@@ -1693,7 +1695,8 @@ export const FileList = memo(function FileList({
 			<div
 				ref={listRef}
 				className={cn(
-					"flex-1 overflow-y-auto px-1.5 pb-4 pt-1",
+					"px-1.5 pb-4 pt-1",
+					!scrollElementRef && "flex-1 overflow-y-auto",
 					isRootDropTarget && "bg-primary/6",
 				)}
 				role="tree"
