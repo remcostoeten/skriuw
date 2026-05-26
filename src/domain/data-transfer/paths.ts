@@ -54,6 +54,16 @@ export function journalDateFromArchivePath(
 	return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : null;
 }
 
+export function noteRichSidecarPath(noteMarkdownPath: string): string {
+	return noteMarkdownPath.replace(/\.md$/, ".rich.json");
+}
+
+export function isNoteRichSidecarPath(rootPrefix: string, archivePath: string): boolean {
+	return (
+		archivePath.startsWith(`${rootPrefix}/notes/`) && archivePath.endsWith(".rich.json")
+	);
+}
+
 export function findExportRootPrefix(paths: string[]): string | null {
 	const manifestPath = paths.find((path) => path.endsWith("/skriuw-export.json"));
 	if (manifestPath) {
