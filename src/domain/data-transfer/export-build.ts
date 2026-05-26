@@ -1,6 +1,8 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { strToU8 } from "fflate";
 import {
 	normalizeNoteFileName,
+	noteRichSidecarPath,
 	safeArchiveName,
 	uniqueArchivePath,
 } from "@/domain/data-transfer/paths";
@@ -16,6 +18,7 @@ type NoteRow = {
 	id: string;
 	name: string;
 	content: string;
+	richContent: Prisma.JsonValue | null;
 	tags: string[];
 	parentId: string | null;
 	sortOrder: number;
@@ -96,6 +99,11 @@ export function buildExportArchiveFiles(input: {
 			: `${root}/notes/${noteName}`;
 		const filePath = uniqueArchivePath(files, desired);
 		files[filePath] = strToU8(noteFrontmatter(note) + note.content);
+		if (note.richContent != null) {
+			files[noteRichSidecarPath(filePath)] = strToU8(
+				JSON.stringify(note.richContent, null, 2),
+			);
+		}
 	}
 
 	for (const entry of journalEntries) {

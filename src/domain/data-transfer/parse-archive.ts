@@ -1,8 +1,10 @@
 import { unzipSync } from "fflate";
 import {
+	findExportRootPrefix,
+	isNoteRichSidecarPath,
 	journalDateFromArchivePath,
 	notePathFromArchivePath,
-	findExportRootPrefix,
+	noteRichSidecarPath,
 } from "@/domain/data-transfer/paths";
 import {
 	parseTagsField,
@@ -113,9 +115,18 @@ export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
 
 	const notes: ParsedNoteFile[] = [];
 	const journalEntries: ParsedJournalFile[] = [];
+	const richSidecars = new Map<string, unknown>();
 
 	for (const [path, raw] of Object.entries(entries)) {
 		if (path === `${rootPrefix}/skriuw-export.json`) continue;
+		if (isNoteRichSidecarPath(rootPrefix, path)) {
+			try {
+				richSidecars.set(path, JSON.parse(raw));
+			} catch {
+				throw new Error(`Malformed rich content sidecar: ${path}`);
+			}
+			continue;
+		}
 
 		const note = parseNoteFile(path, raw, rootPrefix);
 		if (note) {
@@ -126,6 +137,13 @@ export function parseArchiveBuffer(buffer: Uint8Array): ParsedArchive {
 		const journalEntry = parseJournalFile(path, raw, rootPrefix);
 		if (journalEntry) {
 			journalEntries.push(journalEntry);
+		}
+	}
+
+	for (const note of notes) {
+		const richContent = richSidecars.get(noteRichSidecarPath(note.sourcePath));
+		if (richContent !== undefined) {
+			note.richContent = richContent;
 		}
 	}
 

@@ -73,6 +73,7 @@ Skriuw uses a portable ZIP backup format for your workspace:
 
 - Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip`
 - The archive contains Markdown notes, journal entries, folder metadata, and journal tags
+- v2 exports also include BlockNote rich content sidecars (`*.rich.json`) next to each note
 - Import merges a Skriuw backup into your account without overwriting existing notes or journal dates
 - Legacy v1 exports still import; folder structure is inferred from note paths when needed
 
@@ -82,10 +83,13 @@ Archive layout:
 skriuw-export-YYYY-MM-DD/
 ├── skriuw-export.json
 ├── notes/
-│   └── [folders/]note-name.md
+│   ├── [folders/]note-name.md
+│   └── [folders/]note-name.rich.json   # v2 only, optional BlockNote document
 └── journal/
     └── YYYY-MM-DD.md
 ```
+
+The v2 manifest includes explicit `folders[]` and `journalTags[]` arrays so empty folders and tag colors round-trip correctly.
 
 ## Run Locally
 
