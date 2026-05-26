@@ -82,10 +82,9 @@ function useNoteSendMenu(note: NoteSendSource, prefetch = false) {
 	const send = useNoteSend(note);
 
 	useEffect(() => {
-		if (prefetch) {
-			void send.prefetchShareLink();
-		}
-	}, [prefetch, send.prefetchShareLink]);
+		if (!prefetch || !note?.id) return;
+		void send.prefetchShareLink();
+	}, [prefetch, note?.id, send.prefetchShareLink]);
 
 	return send;
 }
@@ -116,6 +115,7 @@ function NoteSendMobilePanel({
 		shareLinkWhatsApp,
 		shareLinkTelegram,
 		shareLinkSms,
+		shareLinkEmail,
 		shareSms,
 		copyMarkdown,
 		shareIsStale,
@@ -184,6 +184,13 @@ function NoteSendMobilePanel({
 				label="SMS link"
 				disabled={isLinkShareBusy}
 				onClick={() => runAction(() => shareLinkSms())}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
+				icon={<Mail className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="Email link"
+				disabled={isLinkShareBusy}
+				onClick={() => runAction(() => shareLinkEmail())}
 			/>
 
 			<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>Send note</div>
@@ -275,6 +282,7 @@ function LinkShareItems({
 	shareLinkWhatsApp,
 	shareLinkTelegram,
 	shareLinkSms,
+	shareLinkEmail,
 }: {
 	onSelect?: () => void;
 	isBusy: boolean;
@@ -284,6 +292,7 @@ function LinkShareItems({
 	shareLinkWhatsApp: () => Promise<void>;
 	shareLinkTelegram: () => Promise<void>;
 	shareLinkSms: () => Promise<void>;
+	shareLinkEmail: () => Promise<void>;
 }) {
 	return (
 		<>
@@ -353,6 +362,17 @@ function LinkShareItems({
 				<MessageSquare className="h-4 w-4" />
 				SMS link
 			</ContextMenuItem>
+			<ContextMenuItem
+				className="gap-2"
+				disabled={isBusy}
+				onClick={() => {
+					void shareLinkEmail();
+					onSelect?.();
+				}}
+			>
+				<Mail className="h-4 w-4" />
+				Email link
+			</ContextMenuItem>
 		</>
 	);
 }
@@ -381,6 +401,7 @@ function NoteSendItems({
 		shareLinkWhatsApp,
 		shareLinkTelegram,
 		shareLinkSms,
+		shareLinkEmail,
 		shareSms,
 		copyMarkdown,
 	} = useNoteSend(note);
@@ -402,6 +423,7 @@ function NoteSendItems({
 						shareLinkWhatsApp={shareLinkWhatsApp}
 						shareLinkTelegram={shareLinkTelegram}
 						shareLinkSms={shareLinkSms}
+						shareLinkEmail={shareLinkEmail}
 					/>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
@@ -534,6 +556,7 @@ function NoteSendDesktopDropdown({
 		shareLinkWhatsApp,
 		shareLinkTelegram,
 		shareLinkSms,
+		shareLinkEmail,
 		shareSms,
 		copyMarkdown,
 	} = useNoteSend(note);
@@ -600,6 +623,14 @@ function NoteSendDesktopDropdown({
 				>
 					<MessageSquare className="h-4 w-4" />
 					SMS link
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					className="gap-2"
+					disabled={isLinkShareBusy}
+					onClick={() => void shareLinkEmail()}
+				>
+					<Mail className="h-4 w-4" />
+					Email link
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				{canNativeShare ? (
