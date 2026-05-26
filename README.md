@@ -32,7 +32,7 @@ Skriuw keeps writing, daily notes, and lightweight roadmap tracking in one place
 | Sharing | Frozen note snapshots with optional passwords, expiry, and view-once access. |
 | AI | Title generation, spell check, and continue-writing actions. |
 | Planning | A public roadmap board for features, issues, and upcoming work. |
-| Control | Export, account deletion, themes, typography, and editor preferences. |
+| Control | Export, import, account deletion, themes, typography, and editor preferences. |
 
 ## Real Screens
 
@@ -66,6 +66,26 @@ Skriuw keeps writing, daily notes, and lightweight roadmap tracking in one place
 - Shared notes are frozen snapshots, not live views of the source document
 - AI provider keys are encrypted at rest when stored in the app
 - You can export your workspace and delete your account from inside the app
+
+## Backup and import
+
+Skriuw uses a portable ZIP backup format for your workspace:
+
+- Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip`
+- The archive contains Markdown notes, journal entries, folder metadata, and journal tags
+- Import merges a Skriuw backup into your account without overwriting existing notes or journal dates
+- Legacy v1 exports still import; folder structure is inferred from note paths when needed
+
+Archive layout:
+
+```text
+skriuw-export-YYYY-MM-DD/
+├── skriuw-export.json
+├── notes/
+│   └── [folders/]note-name.md
+└── journal/
+    └── YYYY-MM-DD.md
+```
 
 ## Run Locally
 
