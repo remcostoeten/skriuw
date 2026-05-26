@@ -6,7 +6,7 @@ import {
 	getExportDownloadName,
 } from "@/domain/data-transfer/export-build";
 
-export async function GET() {
+export async function GET(request: Request) {
 	let prismaClient: Awaited<ReturnType<typeof getAuthenticatedUser>>["prisma"];
 	let userId: string;
 	try {
@@ -17,7 +17,10 @@ export async function GET() {
 		return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 	}
 
-	const [folders, notes, journalEntries, journalTags] = await Promise.all([
+	const { searchParams } = new URL(request.url);
+	const includeVersions = searchParams.get("includeVersions") !== "false";
+
+	const [folders, notes, journalEntries, journalTags, noteVersions] = await Promise.all([
 		prismaClient.folder.findMany({
 			where: { userId, deletedAt: null },
 			select: { id: true, name: true, parentId: true, sortOrder: true },
@@ -47,6 +50,25 @@ export async function GET() {
 			select: { name: true, color: true },
 			orderBy: { name: "asc" },
 		}),
+		includeVersions
+			? prismaClient.noteVersion.findMany({
+					where: { userId },
+					orderBy: { createdAt: "asc" },
+					select: {
+						id: true,
+						noteId: true,
+						name: true,
+						content: true,
+						richContent: true,
+						preferredEditorMode: true,
+						parentId: true,
+						tags: true,
+						reason: true,
+						contentHash: true,
+						createdAt: true,
+					},
+				})
+			: Promise.resolve([]),
 	]);
 
 	const exportedAt = new Date();
@@ -55,6 +77,8 @@ export async function GET() {
 		notes,
 		journalEntries,
 		journalTags,
+		noteVersions,
+		includeVersions,
 		exportedAt,
 	});
 	const zip = zipSync(files);

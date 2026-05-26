@@ -5,13 +5,33 @@ import {
 	sortFoldersForCreation,
 } from "@/domain/data-transfer/folders";
 import type {
+	ImportPolicy,
 	ImportPreview,
 	ParsedArchive,
+	ParsedJournalFile,
+	ParsedNoteFile,
 	SkriuwExportFolder,
-	SkriuwExportManifestV2,
 } from "@/domain/data-transfer/types";
+import { DEFAULT_IMPORT_POLICY, isSkriuwManifestV2OrV3 } from "@/domain/data-transfer/types";
+import { countUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null };
+
+type NoteAction = "create" | "skip" | "overwrite";
+
+type PreviewContext = {
+	existingFolderPathSet: Set<string>;
+	existingNoteIds: Set<string>;
+	existingNoteKeys: Set<string>;
+	existingNoteIdByKey: Map<string, string>;
+	existingJournalDates: Set<string>;
+	existingJournalTagNames: Set<string>;
+	existingVersionIds: Set<string>;
+};
+
+function emptyCounts() {
+	return { create: 0, skip: 0, overwrite: 0 };
+}
 
 function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
 	const byId = new Map(folders.map((folder) => [folder.id, folder]));
@@ -31,9 +51,42 @@ function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
 	return cache;
 }
 
-function resolveManifestFolders(archive: ParsedArchive): SkriuwExportFolder[] {
-	if (archive.manifest.version === 2) {
-		return (archive.manifest as SkriuwExportManifestV2).folders;
+function noteKey(note: ParsedNoteFile): string {
+	const normalizedName = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
+	return `${note.parentPath ?? ""}/${normalizedName}`;
+}
+
+function classifyNote(note: ParsedNoteFile, ctx: PreviewContext, policy: ImportPolicy): NoteAction {
+	if (policy === "replace-workspace") return "create";
+
+	const key = noteKey(note);
+	if (note.id && ctx.existingNoteIds.has(note.id)) {
+		return policy === "overwrite" ? "overwrite" : "skip";
+	}
+	if (ctx.existingNoteKeys.has(key)) {
+		return policy === "overwrite" ? "overwrite" : "skip";
+	}
+	return "create";
+}
+
+function classifyJournal(
+	entry: ParsedJournalFile,
+	ctx: PreviewContext,
+	policy: ImportPolicy,
+): NoteAction {
+	if (policy === "replace-workspace") return "create";
+	if (ctx.existingJournalDates.has(entry.dateKey)) {
+		return policy === "overwrite" ? "overwrite" : "skip";
+	}
+	return "create";
+}
+
+export function resolveManifestFolders(archive: ParsedArchive): SkriuwExportFolder[] {
+	if (archive.profile === "markdown-vault" || archive.manifest.version === 1) {
+		return foldersFromNotePaths(archive.notes);
+	}
+	if (isSkriuwManifestV2OrV3(archive.manifest)) {
+		return archive.manifest.folders;
 	}
 	return foldersFromNotePaths(archive.notes);
 }
@@ -42,95 +95,104 @@ export async function buildImportPreview(
 	prisma: PrismaClient,
 	userId: string,
 	archive: ParsedArchive,
+	policy: ImportPolicy = DEFAULT_IMPORT_POLICY,
 ): Promise<ImportPreview> {
-	const [existingFolders, existingNotes, existingJournalEntries, existingJournalTags] =
-		await Promise.all([
-			prisma.folder.findMany({
-				where: { userId, deletedAt: null },
-				select: { id: true, name: true, parentId: true },
-			}),
-			prisma.note.findMany({
-				where: { userId, deletedAt: null },
-				select: { id: true, name: true, parentId: true },
-			}),
-			prisma.journalEntry.findMany({
-				where: { userId, deletedAt: null },
-				select: { dateKey: true },
-			}),
-			prisma.journalTag.findMany({
-				where: { userId, deletedAt: null },
-				select: { name: true },
-			}),
-		]);
+	const [
+		existingFolders,
+		existingNotes,
+		existingJournalEntries,
+		existingJournalTags,
+		existingVersions,
+	] = await Promise.all([
+		prisma.folder.findMany({
+			where: { userId, deletedAt: null },
+			select: { id: true, name: true, parentId: true },
+		}),
+		prisma.note.findMany({
+			where: { userId, deletedAt: null },
+			select: { id: true, name: true, parentId: true },
+		}),
+		prisma.journalEntry.findMany({
+			where: { userId, deletedAt: null },
+			select: { dateKey: true },
+		}),
+		prisma.journalTag.findMany({
+			where: { userId, deletedAt: null },
+			select: { name: true },
+		}),
+		prisma.noteVersion.findMany({
+			where: { userId },
+			select: { id: true },
+		}),
+	]);
 
 	const existingFolderPaths = buildFolderPaths(existingFolders);
-	const existingFolderPathSet = new Set(existingFolderPaths.values());
-	const existingNoteIds = new Set(existingNotes.map((note) => note.id));
-	const existingNoteKeys = new Set(
-		existingNotes.map((note) => {
-			const parentPath = note.parentId ? existingFolderPaths.get(note.parentId) : null;
-			const name = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-			return `${parentPath ?? ""}/${name}`;
-		}),
-	);
-	const existingJournalDates = new Set(existingJournalEntries.map((entry) => entry.dateKey));
-	const existingJournalTagNames = new Set(existingJournalTags.map((tag) => tag.name));
+	const ctx: PreviewContext = {
+		existingFolderPathSet: new Set(existingFolderPaths.values()),
+		existingNoteIds: new Set(existingNotes.map((note) => note.id)),
+		existingNoteKeys: new Set(),
+		existingNoteIdByKey: new Map(),
+		existingJournalDates: new Set(existingJournalEntries.map((entry) => entry.dateKey)),
+		existingJournalTagNames: new Set(existingJournalTags.map((tag) => tag.name)),
+		existingVersionIds: new Set(existingVersions.map((version) => version.id)),
+	};
 
+	for (const note of existingNotes) {
+		const parentPath = note.parentId ? existingFolderPaths.get(note.parentId) : null;
+		const name = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
+		const key = `${parentPath ?? ""}/${name}`;
+		ctx.existingNoteKeys.add(key);
+		ctx.existingNoteIdByKey.set(key, note.id);
+	}
+
+	const folderCounts = emptyCounts();
 	const manifestFolders = resolveManifestFolders(archive);
 	const exportFolderPathSet = new Set(exportFolderPaths(manifestFolders).values());
 
-	let foldersToCreate = 0;
-	let foldersToSkip = 0;
 	for (const path of exportFolderPathSet) {
-		if (existingFolderPathSet.has(path)) {
-			foldersToSkip++;
+		if (policy === "replace-workspace" || !ctx.existingFolderPathSet.has(path)) {
+			folderCounts.create++;
 		} else {
-			foldersToCreate++;
+			folderCounts.skip++;
 		}
 	}
 
-	let notesToCreate = 0;
-	let notesToSkip = 0;
+	const noteCounts = emptyCounts();
 	const notesToCreateSamples: string[] = [];
+	const notesToOverwriteSamples: string[] = [];
+	const noteActions = new Map<ParsedNoteFile, NoteAction>();
 
 	for (const note of archive.notes) {
-		if (note.id && existingNoteIds.has(note.id)) {
-			notesToSkip++;
-			continue;
+		const action = classifyNote(note, ctx, policy);
+		noteActions.set(note, action);
+		noteCounts[action]++;
+		const sampleKey = noteKey(note).replace(/^\//, "") || note.name;
+		if (action === "create" && notesToCreateSamples.length < 5) {
+			notesToCreateSamples.push(sampleKey);
 		}
-
-		const normalizedName = note.name.endsWith(".md") ? note.name : `${note.name}.md`;
-		const noteKey = `${note.parentPath ?? ""}/${normalizedName}`;
-		if (existingNoteKeys.has(noteKey)) {
-			notesToSkip++;
-			continue;
-		}
-
-		notesToCreate++;
-		if (notesToCreateSamples.length < 5) {
-			notesToCreateSamples.push(noteKey.replace(/^\//, "") || normalizedName);
+		if (action === "overwrite" && notesToOverwriteSamples.length < 5) {
+			notesToOverwriteSamples.push(sampleKey);
 		}
 	}
 
-	let journalToCreate = 0;
-	let journalToSkip = 0;
+	const journalCounts = emptyCounts();
 	const journalToCreateSamples: string[] = [];
+	const journalToOverwriteSamples: string[] = [];
 
 	for (const entry of archive.journalEntries) {
-		if (existingJournalDates.has(entry.dateKey)) {
-			journalToSkip++;
-			continue;
-		}
-		journalToCreate++;
-		if (journalToCreateSamples.length < 5) {
+		const action = classifyJournal(entry, ctx, policy);
+		journalCounts[action]++;
+		if (action === "create" && journalToCreateSamples.length < 5) {
 			journalToCreateSamples.push(entry.dateKey);
+		}
+		if (action === "overwrite" && journalToOverwriteSamples.length < 5) {
+			journalToOverwriteSamples.push(entry.dateKey);
 		}
 	}
 
-	const exportTags =
-		archive.manifest.version === 2
-			? (archive.manifest as SkriuwExportManifestV2).journalTags
-			: [];
+	const exportTags = isSkriuwManifestV2OrV3(archive.manifest)
+		? archive.manifest.journalTags
+		: [];
 	const uniqueExportTags = new Map<string, { name: string; color: string }>();
 	for (const tag of exportTags) {
 		uniqueExportTags.set(tag.name, tag);
@@ -143,38 +205,93 @@ export async function buildImportPreview(
 		}
 	}
 
-	let journalTagsToCreate = 0;
-	let journalTagsToSkip = 0;
+	const journalTagCounts = emptyCounts();
 	for (const tag of uniqueExportTags.values()) {
-		if (existingJournalTagNames.has(tag.name)) {
-			journalTagsToSkip++;
+		if (policy === "replace-workspace" || !ctx.existingJournalTagNames.has(tag.name)) {
+			journalTagCounts.create++;
+		} else if (policy === "overwrite") {
+			journalTagCounts.overwrite++;
 		} else {
-			journalTagsToCreate++;
+			journalTagCounts.skip++;
 		}
 	}
 
-	const warnings: string[] = [];
-	if (archive.manifest.version === 1) {
+	const versionCounts = emptyCounts();
+	const importedNoteIds = new Set(
+		archive.notes.map((note) => note.id).filter((id): id is string => Boolean(id)),
+	);
+
+	for (const version of archive.noteVersions) {
+		if (!importedNoteIds.has(version.noteId)) {
+			versionCounts.skip++;
+			continue;
+		}
+
+		const sourceNote = archive.notes.find((note) => note.id === version.noteId);
+		if (!sourceNote) {
+			versionCounts.skip++;
+			continue;
+		}
+
+		const noteAction = noteActions.get(sourceNote) ?? "skip";
+		if (noteAction === "skip") {
+			versionCounts.skip++;
+			continue;
+		}
+		if (ctx.existingVersionIds.has(version.id)) {
+			versionCounts.skip++;
+			continue;
+		}
+		versionCounts.create++;
+	}
+
+	const warnings: string[] = [...archive.integrityWarnings];
+	if (archive.manifest.version === 1 && archive.profile === "skriuw") {
 		warnings.push("Legacy v1 export detected. Folder structure was inferred from note paths.");
 	}
-	if (notesToSkip > 0) {
-		warnings.push(`${notesToSkip} notes already exist and will be skipped.`);
+	if (policy === "merge") {
+		if (noteCounts.skip > 0) {
+			warnings.push(`${noteCounts.skip} notes already exist and will be skipped.`);
+		}
+		if (journalCounts.skip > 0) {
+			warnings.push(`${journalCounts.skip} journal entries already exist and will be skipped.`);
+		}
 	}
-	if (journalToSkip > 0) {
-		warnings.push(`${journalToSkip} journal entries already exist and will be skipped.`);
+	if (policy === "overwrite") {
+		if (noteCounts.overwrite > 0) {
+			warnings.push(`${noteCounts.overwrite} existing notes will be overwritten.`);
+		}
+		if (journalCounts.overwrite > 0) {
+			warnings.push(`${journalCounts.overwrite} existing journal entries will be overwritten.`);
+		}
+	}
+
+	let replaceWorkspace: ImportPreview["replaceWorkspace"];
+	if (policy === "replace-workspace") {
+		replaceWorkspace = await countUserWorkspace(prisma, userId);
+		warnings.push(
+			`This will remove ${replaceWorkspace.notes} notes, ${replaceWorkspace.folders} folders, ${replaceWorkspace.journalEntries} journal entries, and ${replaceWorkspace.journalTags} journal tags before importing.`,
+		);
 	}
 
 	return {
-		folders: { create: foldersToCreate, skip: foldersToSkip },
-		notes: { create: notesToCreate, skip: notesToSkip },
-		journalEntries: { create: journalToCreate, skip: journalToSkip },
-		journalTags: { create: journalTagsToCreate, skip: journalTagsToSkip },
+		policy,
+		profile: archive.profile,
+		folders: folderCounts,
+		notes: noteCounts,
+		journalEntries: journalCounts,
+		journalTags: journalTagCounts,
+		noteVersions: versionCounts,
 		warnings,
+		integrityWarnings: archive.integrityWarnings,
+		replaceWorkspace,
 		samples: {
 			notesToCreate: notesToCreateSamples,
+			notesToOverwrite: notesToOverwriteSamples,
 			journalToCreate: journalToCreateSamples,
+			journalToOverwrite: journalToOverwriteSamples,
 		},
 	};
 }
 
-export { resolveManifestFolders, sortFoldersForCreation, exportFolderPaths };
+export { sortFoldersForCreation, exportFolderPaths };

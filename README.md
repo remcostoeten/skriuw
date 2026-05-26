@@ -71,11 +71,11 @@ Skriuw keeps writing, daily notes, and lightweight roadmap tracking in one place
 
 Skriuw uses a portable ZIP backup format for your workspace:
 
-- Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip`
-- The archive contains Markdown notes, journal entries, folder metadata, and journal tags
-- v2 exports also include BlockNote rich content sidecars (`*.rich.json`) next to each note
-- Import merges a Skriuw backup into your account without overwriting existing notes or journal dates
-- Legacy v1 exports still import; folder structure is inferred from note paths when needed
+- Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip` (v3)
+- v3 adds SHA-256 checksums, optional note version history, and import policies
+- Import supports **merge** (skip duplicates), **overwrite** (update matches), or **replace workspace**
+- Import a **Markdown folder ZIP** (Obsidian vaults, Apple Notes shortcuts, plain folders)
+- Legacy v1/v2 Skriuw exports still import
 
 Archive layout:
 
@@ -84,12 +84,12 @@ skriuw-export-YYYY-MM-DD/
 ├── skriuw-export.json
 ├── notes/
 │   ├── [folders/]note-name.md
-│   └── [folders/]note-name.rich.json   # v2 only, optional BlockNote document
-└── journal/
-    └── YYYY-MM-DD.md
+│   └── [folders/]note-name.rich.json
+├── journal/
+│   └── YYYY-MM-DD.md
+└── versions/
+    └── {noteId}/{versionId}.json
 ```
-
-The v2 manifest includes explicit `folders[]` and `journalTags[]` arrays so empty folders and tag colors round-trip correctly.
 
 ## Run Locally
 

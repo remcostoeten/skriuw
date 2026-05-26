@@ -1,8 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { strToU8 } from "fflate";
+import { buildArchiveChecksums } from "@/domain/data-transfer/integrity";
 import {
 	normalizeNoteFileName,
 	noteRichSidecarPath,
+	noteVersionPath,
 	safeArchiveName,
 	uniqueArchivePath,
 } from "@/domain/data-transfer/paths";
@@ -10,7 +12,7 @@ import { yamlString, yamlTags } from "@/domain/data-transfer/frontmatter";
 import {
 	SKRIUW_EXPORT_SOURCE,
 	SKRIUW_EXPORT_VERSION,
-	type SkriuwExportManifestV2,
+	type SkriuwExportManifestV3,
 } from "@/domain/data-transfer/types";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
@@ -34,6 +36,19 @@ type JournalRow = {
 	tags: string[];
 };
 type JournalTagRow = { name: string; color: string };
+type NoteVersionRow = {
+	id: string;
+	noteId: string;
+	name: string;
+	content: string;
+	richContent: Prisma.JsonValue | null;
+	preferredEditorMode: string;
+	parentId: string | null;
+	tags: string[];
+	reason: string;
+	contentHash: string;
+	createdAt: Date;
+};
 
 function buildFolderPaths(folders: FolderRow[]): Map<string, string> {
 	const byId = new Map(folders.map((folder) => [folder.id, folder]));
@@ -82,9 +97,13 @@ export function buildExportArchiveFiles(input: {
 	notes: NoteRow[];
 	journalEntries: JournalRow[];
 	journalTags: JournalTagRow[];
+	noteVersions?: NoteVersionRow[];
+	includeVersions?: boolean;
 	exportedAt?: Date;
 }): Record<string, Uint8Array> {
 	const { folders, notes, journalEntries, journalTags } = input;
+	const includeVersions = input.includeVersions ?? true;
+	const noteVersions = includeVersions ? (input.noteVersions ?? []) : [];
 	const exportedAt = input.exportedAt ?? new Date();
 	const dateSlug = exportedAt.toISOString().slice(0, 10);
 	const root = `skriuw-export-${dateSlug}`;
@@ -106,21 +125,53 @@ export function buildExportArchiveFiles(input: {
 		}
 	}
 
+	for (const version of noteVersions) {
+		const versionPath = noteVersionPath(root, version.noteId, version.id);
+		files[versionPath] = strToU8(
+			JSON.stringify(
+				{
+					id: version.id,
+					noteId: version.noteId,
+					name: version.name,
+					content: version.content,
+					richContent: version.richContent,
+					preferredEditorMode: version.preferredEditorMode,
+					parentId: version.parentId,
+					tags: version.tags,
+					reason: version.reason,
+					contentHash: version.contentHash,
+					createdAt: version.createdAt.toISOString(),
+				},
+				null,
+				2,
+			),
+		);
+	}
+
 	for (const entry of journalEntries) {
 		const desired = `${root}/journal/${entry.dateKey}.md`;
 		const filePath = uniqueArchivePath(files, desired);
 		files[filePath] = strToU8(journalFrontmatter(entry) + entry.content);
 	}
 
-	const manifest: SkriuwExportManifestV2 = {
+	const stringEntries: Record<string, string> = {};
+	for (const [path, bytes] of Object.entries(files)) {
+		stringEntries[path] = new TextDecoder().decode(bytes);
+	}
+
+	const checksums = buildArchiveChecksums(root, stringEntries);
+
+	const manifest: SkriuwExportManifestV3 = {
 		version: SKRIUW_EXPORT_VERSION,
 		source: SKRIUW_EXPORT_SOURCE,
 		exportedAt: exportedAt.toISOString(),
+		options: { includeVersions },
 		counts: {
 			notes: notes.length,
 			journalEntries: journalEntries.length,
 			folders: folders.length,
 			journalTags: journalTags.length,
+			noteVersions: noteVersions.length,
 		},
 		folders: folders.map((folder) => ({
 			id: folder.id,
@@ -129,6 +180,7 @@ export function buildExportArchiveFiles(input: {
 			sortOrder: folder.sortOrder,
 		})),
 		journalTags,
+		checksums,
 	};
 
 	files[`${root}/skriuw-export.json`] = strToU8(JSON.stringify(manifest, null, 2));
