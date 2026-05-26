@@ -34,6 +34,7 @@ export type DebouncedSaveController = {
 		options?: { createCheckpoint?: boolean },
 	): Promise<void>;
 	flushAll(options?: { createCheckpoint?: boolean }): Promise<void>;
+	discardPending(noteId: string): void;
 	getDirtyNoteIds(): string[];
 };
 
@@ -94,9 +95,8 @@ export function useDebouncedSave(
 			id: string,
 			edit: PendingEdit,
 			createCheckpoint: boolean,
-		): Promise<void> {
-			const requestVersion = (versionsRef.current.get(id) ?? 0) + 1;
-			versionsRef.current.set(id, requestVersion);
+		): Promise<boolean> {
+			const baselineVersion = versionsRef.current.get(id) ?? 0;
 
 			const input: UpdateNoteInput = {
 				id,
@@ -111,19 +111,21 @@ export function useDebouncedSave(
 
 			try {
 				const result = await updateNote(input);
-				if (!result.note || versionsRef.current.get(id) !== requestVersion) {
-					return;
+				if (!result.note || (versionsRef.current.get(id) ?? 0) !== baselineVersion) {
+					return false;
 				}
 				if (createCheckpoint && result.versionId) {
 					sessionVersionIdsRef.current.set(id, result.versionId);
 				}
 				reconcileSavedNoteCache(queryClient, input, result);
 				optionsRef.current.onSaved?.(id);
+				return true;
 			} catch {
-				if (versionsRef.current.get(id) !== requestVersion) {
-					return;
+				if ((versionsRef.current.get(id) ?? 0) !== baselineVersion) {
+					return false;
 				}
 				optionsRef.current.onError?.(id);
+				return false;
 			}
 		}
 
@@ -133,6 +135,8 @@ export function useDebouncedSave(
 			richContent,
 			preferredEditorMode,
 		}: DebouncedContentArgs) {
+			versionsRef.current.set(id, (versionsRef.current.get(id) ?? 0) + 1);
+
 			const updatedAt = new Date();
 			const nextRichContent = richContent ?? markdownToRichDocument(content);
 
@@ -163,19 +167,25 @@ export function useDebouncedSave(
 			const wasDirty = dirtyRef.current.has(noteId);
 
 			if (pending) {
-				pendingRef.current.delete(noteId);
-				if (wantsCheckpoint) dirtyRef.current.delete(noteId);
-				await sendUpdate(noteId, pending, wantsCheckpoint);
+				const saved = await sendUpdate(noteId, pending, wantsCheckpoint);
+				if (saved) {
+					pendingRef.current.delete(noteId);
+					if (wantsCheckpoint) dirtyRef.current.delete(noteId);
+					return;
+				}
+
+				pendingRef.current.set(noteId, pending);
+				dirtyRef.current.add(noteId);
 				return;
 			}
 
 			if (wantsCheckpoint && wasDirty) {
-				dirtyRef.current.delete(noteId);
 				const snapshot = queryClient.getQueryData<NoteFile | null>(
 					notesKeys.detail(noteId),
 				);
 				if (!snapshot) return;
-				await sendUpdate(
+
+				const saved = await sendUpdate(
 					noteId,
 					{
 						content: snapshot.content,
@@ -184,6 +194,9 @@ export function useDebouncedSave(
 					},
 					true,
 				);
+				if (saved) {
+					dirtyRef.current.delete(noteId);
+				}
 			}
 		}
 
@@ -216,10 +229,16 @@ export function useDebouncedSave(
 			await Promise.all(Array.from(ids).map((id) => flush(id, flushOptions)));
 		}
 
+		function discardPending(noteId: string) {
+			pendingRef.current.delete(noteId);
+			dirtyRef.current.delete(noteId);
+			versionsRef.current.set(noteId, (versionsRef.current.get(noteId) ?? 0) + 1);
+		}
+
 		function getDirtyNoteIds() {
 			return Array.from(dirtyRef.current);
 		}
 
-		return { schedule, flush, flushAll, getDirtyNoteIds };
+		return { schedule, flush, flushAll, discardPending, getDirtyNoteIds };
 	}, [queryClient]);
 }
