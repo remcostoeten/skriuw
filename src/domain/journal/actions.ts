@@ -1,6 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
+import { assertResourceIdAvailable } from "@/domain/persistence/guards";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 
 type EntryRecord = {
@@ -52,31 +53,45 @@ export type CreateJournalEntryInput = {
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
-	const record = await prisma.journalEntry.upsert({
-		where: { id },
-		create: {
+	const updateData = {
+		dateKey: input.dateKey,
+		content: input.content,
+		mood: input.mood ?? null,
+		tags: input.tags ?? [],
+	};
+	const select = {
+		id: true,
+		dateKey: true,
+		content: true,
+		mood: true,
+		tags: true,
+		createdAt: true,
+		updatedAt: true,
+	} as const;
+
+	const { count } = await prisma.journalEntry.updateMany({
+		where: { id, userId: user.id, deletedAt: null },
+		data: updateData,
+	});
+
+	if (count > 0) {
+		const record = await prisma.journalEntry.findFirst({
+			where: { id, userId: user.id, deletedAt: null },
+			select,
+		});
+		if (!record) throw new Error("Failed to load updated journal entry");
+		return recordToEntry(record);
+	}
+
+	await assertResourceIdAvailable(prisma, "journalEntry", id, user.id);
+
+	const record = await prisma.journalEntry.create({
+		data: {
 			id,
 			userId: user.id,
-			dateKey: input.dateKey,
-			content: input.content,
-			mood: input.mood ?? null,
-			tags: input.tags ?? [],
+			...updateData,
 		},
-		update: {
-			dateKey: input.dateKey,
-			content: input.content,
-			mood: input.mood ?? null,
-			tags: input.tags ?? [],
-		},
-		select: {
-			id: true,
-			dateKey: true,
-			content: true,
-			mood: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
+		select,
 	});
 	return recordToEntry(record);
 }
