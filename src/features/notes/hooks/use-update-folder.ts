@@ -18,6 +18,10 @@ export function useUpdateFolder() {
 								name: input.name ?? folder.name,
 								parentId:
 									input.parentId === undefined ? folder.parentId : input.parentId,
+								sortOrder:
+									input.sortOrder === undefined
+										? folder.sortOrder
+										: input.sortOrder,
 							}
 						: folder,
 				),

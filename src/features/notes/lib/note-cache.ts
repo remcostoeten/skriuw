@@ -29,6 +29,7 @@ export function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFil
 				: note.richContent),
 		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
 		parentId: input.parentId === undefined ? note.parentId : input.parentId,
+		sortOrder: input.sortOrder === undefined ? note.sortOrder : input.sortOrder,
 		tags: input.tags === undefined ? note.tags : input.tags,
 		modifiedAt: new Date(),
 	};
@@ -52,9 +53,8 @@ export function reconcileSavedNoteCache(
 		void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
 	} else {
 		// Keep the detail view coherent even if the server didn't return a full note.
-		queryClient.setQueryData<NoteFile | null>(
-			notesKeys.detail(input.id),
-			(current) => (current ? applyNoteUpdate(current, input) : current),
+		queryClient.setQueryData<NoteFile | null>(notesKeys.detail(input.id), (current) =>
+			current ? applyNoteUpdate(current, input) : current,
 		);
 	}
 

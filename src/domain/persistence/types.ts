@@ -54,6 +54,7 @@ export type PersistedNote = Entity<NoteId> & {
 	richContent: RichTextDocument;
 	preferredEditorMode: "raw" | "block";
 	parentId: FolderId | null;
+	sortOrder?: number;
 	tags?: TagName[];
 	journalMeta?: PersistedNoteJournalMetadata;
 };
@@ -61,6 +62,7 @@ export type PersistedNote = Entity<NoteId> & {
 export type PersistedFolder = Entity<FolderId> & {
 	name: string;
 	parentId: FolderId | null;
+	sortOrder?: number;
 };
 
 export type PersistedNoteJournalMetadata = {

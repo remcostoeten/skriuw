@@ -14,6 +14,7 @@ export function useCreateFolder() {
 					id: input.id ?? crypto.randomUUID(),
 					name: input.name,
 					parentId: input.parentId ?? null,
+					sortOrder: input.sortOrder ?? current?.length ?? 0,
 					isOpen: true,
 				};
 

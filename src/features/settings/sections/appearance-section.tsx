@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
+import { useSidebarStore } from "@/features/notes/components/sidebar/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -15,6 +16,8 @@ import { ACCENTS, THEMES } from "@/features/settings/preferences/themes";
 export function AppearanceSection() {
 	const appearance = usePreferencesStore((s) => s.appearance);
 	const update = usePreferencesStore((s) => s.updateAppearancePreference);
+	const showTreeGuides = useSidebarStore((s) => s.config.showTreeGuides);
+	const toggleTreeGuides = useSidebarStore((s) => s.toggleTreeGuides);
 
 	return (
 		<>
@@ -81,6 +84,12 @@ export function AppearanceSection() {
 						checked={appearance.compactSidebar}
 						onCheckedChange={(v) => update("compactSidebar", v)}
 					/>
+				</Row>
+				<Row
+					title="File tree guide lines"
+					description="Show nested ruler lines in the notes sidebar."
+				>
+					<Switch checked={showTreeGuides} onCheckedChange={() => toggleTreeGuides()} />
 				</Row>
 				<Row title="Show line numbers" description="In the editor gutter.">
 					<Switch

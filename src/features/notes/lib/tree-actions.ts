@@ -18,8 +18,8 @@ export type NoteTreeActions = {
 	onRenameFolder: (id: string, name: string) => void;
 	onDeleteFile: (id: string) => void;
 	onDeleteFolder: (id: string) => void;
-	onMoveFile: (fileId: string, newParentId: string | null) => void;
-	onMoveFolder: (folderId: string, newParentId: string | null) => void;
+	onMoveFile: (fileId: string, newParentId: string | null, sortOrder?: number) => void;
+	onMoveFolder: (folderId: string, newParentId: string | null, sortOrder?: number) => void;
 };
 
 /**

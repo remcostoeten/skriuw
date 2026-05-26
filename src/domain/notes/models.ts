@@ -32,6 +32,7 @@ export interface NoteFile {
 	createdAt: Date;
 	modifiedAt: Date;
 	parentId: string | null;
+	sortOrder?: number;
 	tags?: string[];
 	// Optional journal metadata
 	journalMeta?: JournalMetadata;
@@ -55,6 +56,7 @@ export interface NoteFolder {
 	id: string;
 	name: string;
 	parentId: string | null;
+	sortOrder?: number;
 	isOpen: boolean;
 }
 
