@@ -74,8 +74,19 @@ Skriuw uses a portable ZIP backup format for your workspace:
 - Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip` (v3)
 - v3 adds SHA-256 checksums, optional note version history, and import policies
 - Import supports **merge** (skip duplicates), **overwrite** (update matches), or **replace workspace**
-- Import a **Markdown folder ZIP** (Obsidian vaults, Apple Notes shortcuts, plain folders)
 - Legacy v1/v2 Skriuw exports still import
+
+Third-party imports (best effort — structure and formatting may need cleanup):
+
+| Source | What to upload | Notes |
+| --- | --- | --- |
+| Obsidian | Vault ZIP | Wikilinks converted to Markdown links; `.obsidian` metadata skipped |
+| Apple Notes | HTML export ZIP | Plain text/Markdown body; attachments not included |
+| Bear | Markdown export ZIP | Header `#tags` mapped to note tags |
+| Notion | Markdown export ZIP | Databases, CSVs, and attachments skipped |
+| Markdown folder | Any folder ZIP | Generic path-based import when auto-detect is unsure |
+
+Use **Auto-detect** in Settings when you are not sure which profile fits.
 
 Archive layout:
 

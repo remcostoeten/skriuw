@@ -23,6 +23,10 @@ import {
 	shareNoteToAppleNotes,
 	type NoteSharePayload,
 } from "@/features/notes/lib/note-share-export";
+import {
+	confirmFirstSharePublish,
+	resolveShareUrlForAction,
+} from "@/features/notes/lib/note-share-link";
 import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { showUserToast } from "@/shared/lib/user-toast";
@@ -46,12 +50,14 @@ export function useNoteSend(note: NoteSendSource) {
 		() => (note ? buildNoteSharePayload(note) : null),
 		[note],
 	);
-	const { shareQuery, publish } = useNoteSharing(noteId || undefined);
+	const { shareQuery, publish, refresh } = useNoteSharing(noteId || undefined);
 
 	const canNativeShare = canUseNativeShare();
 	const canSaveAsFile = payload ? canShareNoteFiles(payload) : false;
 	const showAppleNotes = canNativeShare && isAppleSharePlatform();
+	const hasShareLink = Boolean(shareQuery.data);
 	const isLinkShareBusy = publish.isPending || shareQuery.isFetching;
+	const isRefreshingShare = refresh.isPending;
 	const shareIsStale = Boolean(shareQuery.data?.isStale);
 	const cachedShareUrl = useMemo(() => {
 		const share = shareQuery.data;
@@ -62,25 +68,36 @@ export function useNoteSend(note: NoteSendSource) {
 	const ensureShareUrl = useCallback(async (): Promise<string | null> => {
 		if (!noteId || !payload) return null;
 
-		const existing = shareQuery.data;
-		if (existing) {
-			return resolveClientShareUrl(existing.path, existing.url);
-		}
-
 		try {
-			const state = await publish.mutateAsync({
-				noteId,
-				viewOnce: false,
-				expiry: { kind: "never" },
-				showAuthor: false,
+			return await resolveShareUrlForAction({
+				existing: shareQuery.data,
+				confirmPublish: confirmFirstSharePublish,
+				publish: () =>
+					publish.mutateAsync({
+						noteId,
+						viewOnce: false,
+						expiry: { kind: "never" },
+						showAuthor: false,
+					}),
 			});
-			return resolveClientShareUrl(state.path, state.url);
 		} catch {
 			showUserToast("Couldn't publish share link", "error");
 			triggerNativeFeedback("dismiss");
 			return null;
 		}
 	}, [noteId, payload, publish, shareQuery.data]);
+
+	const refreshShareSnapshot = useCallback(async () => {
+		if (!noteId || !shareQuery.data) return;
+		try {
+			await refresh.mutateAsync(noteId);
+			showUserToast("Link refreshed", "success");
+			triggerNativeFeedback("success");
+		} catch {
+			showUserToast("Couldn't refresh link", "error");
+			triggerNativeFeedback("dismiss");
+		}
+	}, [noteId, refresh, shareQuery.data]);
 
 	const runWithPayload = useCallback(
 		(action: (payload: NoteSharePayload) => void | Promise<void>) => {
@@ -240,8 +257,11 @@ export function useNoteSend(note: NoteSendSource) {
 		canNativeShare,
 		canSaveAsFile,
 		showAppleNotes,
+		hasShareLink,
 		shareIsStale,
 		isLinkShareBusy,
+		isRefreshingShare,
+		refreshShareSnapshot,
 		prefetchShareLink,
 		shareNative,
 		saveAsFile,
