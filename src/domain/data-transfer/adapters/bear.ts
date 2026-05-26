@@ -11,8 +11,10 @@ export function parseBearExportEntries(entries: Record<string, string>) {
 		entries,
 		"bear",
 		{
-			transformBody: (body) => extractBearTags(body).content,
-			extraTags: (body) => extractBearTags(body).tags,
+			prepareBody: (body) => {
+				const parsed = extractBearTags(body);
+				return { content: parsed.content, extraTags: parsed.tags };
+			},
 		},
 		[
 			"Imported from Bear export. Folder structure was inferred from file paths.",
