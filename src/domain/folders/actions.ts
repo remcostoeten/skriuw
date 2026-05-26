@@ -1,6 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
+import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
 import type { NoteFolder } from "@/domain/notes/models";
 
 type FolderRecord = {
@@ -31,6 +32,7 @@ export async function createFolder(input: CreateFolderInput): Promise<NoteFolder
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
 	const parentId = input.parentId ?? null;
+	await assertOwnedParentFolder(prisma, user.id, parentId);
 	const [lastFolder, lastNote] = await Promise.all([
 		prisma.folder.aggregate({
 			where: { userId: user.id, deletedAt: null, parentId },
@@ -45,19 +47,33 @@ export async function createFolder(input: CreateFolderInput): Promise<NoteFolder
 		input.sortOrder ??
 		Math.max(lastFolder._max.sortOrder ?? -1, lastNote._max.sortOrder ?? -1) + 1;
 
-	const record = await prisma.folder.upsert({
-		where: { id },
-		create: {
+	const updateData = {
+		name: input.name,
+		parentId,
+		sortOrder,
+	};
+
+	const { count } = await prisma.folder.updateMany({
+		where: { id, userId: user.id, deletedAt: null },
+		data: updateData,
+	});
+
+	if (count > 0) {
+		const record = await prisma.folder.findFirst({
+			where: { id, userId: user.id, deletedAt: null },
+			select: { id: true, name: true, parentId: true, sortOrder: true },
+		});
+		if (!record) throw new Error("Failed to load updated folder");
+		return recordToFolder(record);
+	}
+
+	await assertResourceIdAvailable(prisma, "folder", id, user.id);
+
+	const record = await prisma.folder.create({
+		data: {
 			id,
 			userId: user.id,
-			name: input.name,
-			parentId,
-			sortOrder,
-		},
-		update: {
-			name: input.name,
-			parentId,
-			sortOrder,
+			...updateData,
 		},
 		select: { id: true, name: true, parentId: true, sortOrder: true },
 	});
@@ -74,6 +90,9 @@ export type UpdateFolderInput = {
 
 export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined> {
 	const { prisma, user } = await getAuthenticatedUser();
+	if (input.parentId !== undefined) {
+		await assertOwnedParentFolder(prisma, user.id, input.parentId);
+	}
 
 	const { count } = await prisma.folder.updateMany({
 		where: { id: input.id, userId: user.id, deletedAt: null },
