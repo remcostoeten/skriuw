@@ -5,7 +5,6 @@ import { useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-	Bell,
 	ChevronLeft,
 	ChevronRight,
 	Database,
@@ -16,7 +15,6 @@ import {
 	Sparkles,
 	Tag,
 	User,
-	X,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -29,7 +27,6 @@ import { cn } from "@/shared/lib/utils";
 import { AccountSection } from "@/features/settings/sections/account-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
-import { NotificationsSection } from "@/features/settings/sections/notifications-section";
 import { DataSection } from "@/features/settings/sections/data-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
 import { AiSection } from "@/features/settings/sections/ai-section";
@@ -48,12 +45,6 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 	{ id: "account", label: "Account", icon: User, description: "Profile and sign-in" },
 	{ id: "appearance", label: "Appearance", icon: Palette, description: "Theme and density" },
 	{ id: "editor", label: "Editor", icon: PenLine, description: "Writing experience" },
-	{
-		id: "notifications",
-		label: "Notifications",
-		icon: Bell,
-		description: "Reminders and alerts",
-	},
 	{ id: "data", label: "Data & sync", icon: Database, description: "Export and backup" },
 	{ id: "security", label: "Security", icon: Shield, description: "Password and sessions" },
 	{ id: "ai", label: "AI", icon: Sparkles, description: "Providers and keys" },
@@ -84,8 +75,6 @@ function renderSection(id: SettingsTabId) {
 			return <AppearanceSection />;
 		case "editor":
 			return <EditorSection />;
-		case "notifications":
-			return <NotificationsSection />;
 		case "data":
 			return <DataSection />;
 		case "security":

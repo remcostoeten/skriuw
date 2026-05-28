@@ -15,7 +15,7 @@ import type {
 	ParsedNoteFile,
 } from "@/domain/data-transfer/types";
 import { DEFAULT_IMPORT_POLICY, isSkriuwManifestV2OrV3 } from "@/domain/data-transfer/types";
-import { softClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
+import { hardClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
@@ -61,7 +61,7 @@ export async function mergeArchiveImport(
 	const preview = await buildImportPreview(prisma, userId, archive, policy);
 
 	if (policy === "replace-workspace") {
-		await softClearUserWorkspace(prisma, userId);
+		await hardClearUserWorkspace(prisma, userId);
 	}
 
 	await prisma.$transaction(async (tx) => {
@@ -101,12 +101,36 @@ export async function mergeArchiveImport(
 			Array.from(folderPathToId.entries()).map(([id, path]) => [path, id]),
 		);
 		const existingNoteIds = new Set(existingNotes.map((note) => note.id));
+		const allUserNoteIds = new Set(
+			(
+				await tx.note.findMany({
+					where: { userId },
+					select: { id: true },
+				})
+			).map((note) => note.id),
+		);
 		const existingNoteKeys = new Set<string>();
 		const existingNoteIdByKey = new Map<string, string>();
 		const journalDateToId = new Map(
 			existingJournalEntries.map((entry) => [entry.dateKey, entry.id]),
 		);
 		const existingJournalDates = new Set(existingJournalEntries.map((entry) => entry.dateKey));
+		const allUserJournalEntryIds = new Set(
+			(
+				await tx.journalEntry.findMany({
+					where: { userId },
+					select: { id: true },
+				})
+			).map((entry) => entry.id),
+		);
+		const softDeletedJournalByDate = new Map(
+			(
+				await tx.journalEntry.findMany({
+					where: { userId, deletedAt: { not: null } },
+					select: { id: true, dateKey: true },
+				})
+			).map((entry) => [entry.dateKey, entry.id]),
+		);
 		const journalTagIdByName = new Map(existingJournalTags.map((tag) => [tag.name, tag.id]));
 
 		for (const note of existingNotes) {
@@ -150,10 +174,12 @@ export async function mergeArchiveImport(
 			const parentId = note.parentPath ? (pathToFolderId.get(note.parentPath) ?? null) : null;
 			const data = noteWriteData(note, parentId);
 
-			const overwriteById = note.id && existingNoteIds.has(note.id);
-			const overwriteByPath = existingNoteKeys.has(key);
+			const activeById = note.id ? existingNoteIds.has(note.id) : false;
+			const activeByPath = existingNoteKeys.has(key);
+			const softDeletedById =
+				note.id && allUserNoteIds.has(note.id) && !activeById ? note.id : null;
 
-			if (overwriteById && policy === "overwrite") {
+			if (activeById && policy === "overwrite") {
 				await tx.note.updateMany({
 					where: { id: note.id, userId, deletedAt: null },
 					data,
@@ -165,7 +191,7 @@ export async function mergeArchiveImport(
 				continue;
 			}
 
-			if (overwriteByPath && policy === "overwrite") {
+			if (activeByPath && policy === "overwrite") {
 				const existingId = existingNoteIdByKey.get(key);
 				if (existingId) {
 					await tx.note.updateMany({
@@ -180,10 +206,28 @@ export async function mergeArchiveImport(
 				continue;
 			}
 
-			if (overwriteById || overwriteByPath) continue;
+			if (activeById || activeByPath) continue;
+
+			if (softDeletedById) {
+				await tx.note.update({
+					where: { id: softDeletedById },
+					data: {
+						...data,
+						deletedAt: null,
+					},
+				});
+				existingNoteKeys.add(key);
+				existingNoteIds.add(softDeletedById);
+				existingNoteIdByKey.set(key, softDeletedById);
+				if (note.id) {
+					importedArchiveNoteIds.add(note.id);
+					archiveNoteIdToWorkspaceId.set(note.id, softDeletedById);
+				}
+				continue;
+			}
 
 			const createdId =
-				note.id && !existingNoteIds.has(note.id) ? note.id : crypto.randomUUID();
+				note.id && !allUserNoteIds.has(note.id) ? note.id : crypto.randomUUID();
 			await tx.note.create({
 				data: {
 					id: createdId,
@@ -217,9 +261,29 @@ export async function mergeArchiveImport(
 				continue;
 			}
 
+			const softDeletedJournalId = softDeletedJournalByDate.get(entry.dateKey);
+			if (softDeletedJournalId) {
+				await tx.journalEntry.update({
+					where: { id: softDeletedJournalId },
+					data: {
+						content: entry.content,
+						mood: entry.mood ?? null,
+						tags: entry.tags,
+						deletedAt: null,
+					},
+				});
+				existingJournalDates.add(entry.dateKey);
+				journalDateToId.set(entry.dateKey, softDeletedJournalId);
+				continue;
+			}
+
+			const journalEntryId =
+				entry.id && !allUserJournalEntryIds.has(entry.id)
+					? entry.id
+					: crypto.randomUUID();
 			await tx.journalEntry.create({
 				data: {
-					id: entry.id ?? crypto.randomUUID(),
+					id: journalEntryId,
 					userId,
 					dateKey: entry.dateKey,
 					content: entry.content,
@@ -228,6 +292,7 @@ export async function mergeArchiveImport(
 				},
 			});
 			existingJournalDates.add(entry.dateKey);
+			allUserJournalEntryIds.add(journalEntryId);
 		}
 
 		const exportTags = isSkriuwManifestV2OrV3(archive.manifest)

@@ -153,6 +153,18 @@ function findInlineHits(text: string): InlineHit[] {
 	return filtered;
 }
 
+const SIDEBAR_DRAG_JSON_PATTERN =
+	/\{"type":"(?:file|folder)","id":"[0-9a-f-]{36}","parentId":(?:null|"[0-9a-f-]{36}")\}/g;
+
+export function stripSidebarDragArtifacts(text: string): string {
+	return text
+		.replace(SIDEBAR_DRAG_JSON_PATTERN, "")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n{3,}/g, "\n\n")
+		.replace(/[ \t]{2,}/g, " ")
+		.trim();
+}
+
 function parseStyledText(text: string, baseStyles: Record<string, unknown>): InlineNode[] {
 	return parseInlineContent(text, baseStyles).filter((node) => node.type === "text");
 }
@@ -161,10 +173,11 @@ export function parseInlineContent(
 	text: string,
 	baseStyles: Record<string, unknown> = {},
 ): InlineNode[] {
-	if (!text) return [];
-	const hits = findInlineHits(text);
+	const cleaned = stripSidebarDragArtifacts(text);
+	if (!cleaned) return [];
+	const hits = findInlineHits(cleaned);
 	if (hits.length === 0) {
-		return [{ type: "text", text, styles: baseStyles }];
+		return [{ type: "text", text: cleaned, styles: baseStyles }];
 	}
 
 	const result: InlineNode[] = [];
@@ -172,14 +185,18 @@ export function parseInlineContent(
 
 	for (const hit of hits) {
 		if (hit.start > cursor) {
-			result.push({ type: "text", text: text.slice(cursor, hit.start), styles: baseStyles });
+			result.push({
+				type: "text",
+				text: cleaned.slice(cursor, hit.start),
+				styles: baseStyles,
+			});
 		}
 		result.push(...hit.produce(baseStyles));
 		cursor = hit.end;
 	}
 
-	if (cursor < text.length) {
-		result.push({ type: "text", text: text.slice(cursor), styles: baseStyles });
+	if (cursor < cleaned.length) {
+		result.push({ type: "text", text: cleaned.slice(cursor), styles: baseStyles });
 	}
 
 	return result;
@@ -355,6 +372,69 @@ function richDocumentHasBlockType(blocks: RichTextDocument, type: string): boole
 		}
 		return false;
 	});
+}
+
+function isBlockNoteTableContent(content: unknown): boolean {
+	if (!content || typeof content !== "object" || Array.isArray(content)) {
+		return false;
+	}
+	return (content as { type?: string }).type === "tableContent";
+}
+
+function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
+	const blockType = String(block.type ?? "");
+	const content = block.content;
+
+	if (blockType === "table" && !isBlockNoteTableContent(content)) {
+		return true;
+	}
+
+	if (blockType === "codeBlock" && Array.isArray(content)) {
+		return true;
+	}
+
+	if (Array.isArray(block.children) && block.children.length > 0) {
+		return (block.children as PartialBlock[]).some(blockNeedsRichDocumentRepair);
+	}
+
+	return false;
+}
+
+export function richDocumentNeedsRepair(document: RichTextDocument | null | undefined): boolean {
+	if (!document?.length) {
+		return false;
+	}
+	return document.some((block) => blockNeedsRichDocumentRepair(block as PartialBlock));
+}
+
+/** Builds a BlockNote-compatible table block from plain cell strings. */
+export function buildTableBlock(headers: string[], rows: string[][]): PartialBlock {
+	const cellToInline = (cell: string): InlineNode[] => {
+		const parsed = parseInlineContent(cell);
+		return parsed.length > 0 ? parsed : [{ type: "text", text: "", styles: {} }];
+	};
+
+	const tableRows: { cells: InlineNode[][] }[] = [
+		{ cells: headers.map(cellToInline) },
+		...rows.map((row) => {
+			const normalized =
+				row.length < headers.length
+					? [...row, ...Array(headers.length - row.length).fill("")]
+					: row.slice(0, headers.length);
+			return { cells: normalized.map(cellToInline) };
+		}),
+	];
+
+	return {
+		type: "table",
+		content: {
+			type: "tableContent",
+			headerRows: 1,
+			// biome-ignore lint/suspicious/noExplicitAny: tableContent rows accept inline arrays
+			rows: tableRows as any,
+		},
+		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+	} as any;
 }
 
 function getPlainBlockContent(content: unknown): string {
@@ -576,12 +656,151 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 	return blocks as RichTextDocument;
 }
 
+function inlineNodeToSearchableMarkdown(inline: unknown): string {
+	if (!inline || typeof inline !== "object") {
+		return "";
+	}
+
+	const node = inline as {
+		type?: string;
+		text?: string;
+		props?: Record<string, unknown>;
+		content?: unknown[];
+	};
+
+	if (node.type === "text") {
+		return String(node.text ?? "");
+	}
+
+	if (node.type === "noteLink") {
+		const title = String(node.props?.title ?? "").trim();
+		return title ? `[[${title}]]` : "";
+	}
+
+	if (node.type === "tag") {
+		const name = String(node.props?.name ?? "").trim();
+		return name ? `#${name}` : "";
+	}
+
+	if (node.type === "link" && Array.isArray(node.content)) {
+		return node.content.map(inlineNodeToSearchableMarkdown).join("");
+	}
+
+	return "";
+}
+
+function blockToSearchableMarkdown(block: PartialBlock): string {
+	const blockType = String(block.type ?? "paragraph");
+	const blockProps = (block as { props?: Record<string, unknown> }).props;
+	const content = block.content;
+
+	let inlineText = "";
+	if (typeof content === "string") {
+		inlineText = content;
+	} else if (Array.isArray(content)) {
+		inlineText = content.map(inlineNodeToSearchableMarkdown).join("");
+	}
+
+	const childText = Array.isArray(block.children)
+		? (block.children as PartialBlock[]).map(blockToSearchableMarkdown).filter(Boolean).join("\n")
+		: "";
+
+	if (blockType === "heading") {
+		const level = Math.min(Math.max(Number(blockProps?.level ?? 1), 1), 6);
+		const heading = `${"#".repeat(level)} ${inlineText}`.trim();
+		return childText ? `${heading}\n${childText}` : heading;
+	}
+
+	if (blockType === "bulletListItem" || blockType === "numberedListItem") {
+		const prefix = blockType === "numberedListItem" ? "1. " : "- ";
+		const line = `${prefix}${inlineText}`.trim();
+		return childText ? `${line}\n${childText}` : line;
+	}
+
+	if (blockType === "checkListItem") {
+		const checked = blockProps?.checked ? "x" : " ";
+		const line = `- [${checked}] ${inlineText}`.trim();
+		return childText ? `${line}\n${childText}` : line;
+	}
+
+	if (blockType === "quote") {
+		const line = `> ${inlineText}`.trim();
+		return childText ? `${line}\n${childText}` : line;
+	}
+
+	if (blockType === "codeBlock" || blockType === "fileTree") {
+		return getPlainBlockContent(content);
+	}
+
+	if (blockType === "table") {
+		if (isBlockNoteTableContent(content)) {
+			const tableContent = content as {
+				rows?: Array<{ cells?: Array<Array<{ text?: string } | string>> }>;
+			};
+			const lines = (tableContent.rows ?? []).map((row) => {
+				const cells = (row.cells ?? []).map((cell) => {
+					if (typeof cell === "string") return cell;
+					if (Array.isArray(cell)) {
+						return cell
+							.map((inline) =>
+								typeof inline === "string"
+									? inline
+									: String((inline as { text?: string }).text ?? ""),
+							)
+							.join("");
+					}
+					return "";
+				});
+				return `| ${cells.join(" | ")} |`;
+			});
+			if (lines.length >= 2) {
+				const separator = `| ${lines[0]
+					.slice(1, -1)
+					.split("|")
+					.map(() => "---")
+					.join(" | ")} |`;
+				return [lines[0], separator, ...lines.slice(1)].join("\n");
+			}
+		}
+
+		if (Array.isArray(content)) {
+			return content
+				.map((inline) => inlineNodeToSearchableMarkdown(inline))
+				.filter(Boolean)
+				.join("\n");
+		}
+	}
+
+	const lines = [inlineText, childText].filter(Boolean);
+	return lines.join("\n");
+}
+
+/** Markdown-shaped text for link/tag search when `content` is empty but rich blocks exist. */
+export function richDocumentToSearchableMarkdown(
+	document: RichTextDocument | null | undefined,
+): string {
+	if (!document?.length) {
+		return "";
+	}
+
+	return document
+		.map((block) => blockToSearchableMarkdown(block as PartialBlock))
+		.filter(Boolean)
+		.join("\n\n");
+}
+
 export function resolveRichDocument(
 	markdown: string,
 	richContent: RichTextDocument | null | undefined,
 ): RichTextDocument {
 	if (!richContent || richContent.length === 0) {
 		return markdownToRichDocument(markdown);
+	}
+
+	// Seed bundles and legacy imports may store table/code blocks in a shape BlockNote rejects.
+	if (richDocumentNeedsRepair(richContent)) {
+		const repaired = markdown.trim() ? markdownToRichDocument(markdown) : richContent;
+		return richDocumentNeedsRepair(repaired) ? markdownToRichDocument(markdown) : repaired;
 	}
 
 	// Older stored rich_content rows only preserved basic headings/lists/code/paragraphs.

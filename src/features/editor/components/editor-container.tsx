@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, GripVertical, X } from "lucide-react";
 import { Editor } from "./editor";
 import { EditorToolbar } from "./editor-toolbar";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -20,6 +20,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { normalizeNoteTitle, stripMarkdownExtension } from "@/domain/notes/note-links";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
+import { cn } from "@/shared/lib/utils";
 
 interface EditorContainerProps {
 	file: NoteFile | null;
@@ -44,6 +45,20 @@ interface EditorContainerProps {
 	fileName: string;
 	onRenameFile?: (id: string, name: string) => void;
 	onEditorBlur?: () => void;
+	variant?: "standalone" | "pane";
+	isPaneFocused?: boolean;
+	onPaneActivate?: () => void;
+	paneLabel?: string;
+	onClosePane?: () => void;
+	onPaneDragHandlePointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+	onPaneDragHandlePointerMove?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+	onPaneDragHandlePointerUp?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+	isPaneDragging?: boolean;
+	initialScrollTop?: number;
+	onScrollPositionChange?: (scrollTop: number) => void;
+	splitEnabled?: boolean;
+	onToggleSplit?: () => void;
+	canToggleSplit?: boolean;
 }
 
 type RateLimitPrompt = {
@@ -162,6 +177,20 @@ export function EditorContainer({
 	fileName,
 	onRenameFile,
 	onEditorBlur,
+	variant = "standalone",
+	isPaneFocused,
+	onPaneActivate,
+	paneLabel,
+	onClosePane,
+	onPaneDragHandlePointerDown,
+	onPaneDragHandlePointerMove,
+	onPaneDragHandlePointerUp,
+	isPaneDragging,
+	initialScrollTop,
+	onScrollPositionChange,
+	splitEnabled,
+	onToggleSplit,
+	canToggleSplit,
 }: EditorContainerProps) {
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
@@ -354,27 +383,74 @@ export function EditorContainer({
 			})
 		: [];
 
+	const isPane = variant === "pane";
+
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
-			<EditorToolbar
-				fileName={fileName}
-				isMobile={isMobile}
-				onToggleSidebar={onToggleSidebar}
-				onToggleMetadata={onToggleMetadata}
-				onOpenSettings={onOpenSettings}
-				onNavigatePrev={onNavigatePrev}
-				onNavigateNext={onNavigateNext}
-				canNavigatePrev={canNavigatePrev}
-				canNavigateNext={canNavigateNext}
-				aiLoading={aiLoading}
-				onAiGenerateTitle={
-					canUseAi && onRenameFile ? () => runAiAction("generateTitle") : undefined
-				}
-				onAiSpellCheck={canUseAi ? () => runAiAction("spellCheck") : undefined}
-				onAiContinueWriting={canUseAi ? () => runAiAction("continueWriting") : undefined}
-			/>
+			{!isPane ? (
+				<EditorToolbar
+					fileName={fileName}
+					isMobile={isMobile}
+					onToggleSidebar={onToggleSidebar}
+					onToggleMetadata={onToggleMetadata}
+					onOpenSettings={onOpenSettings}
+					onNavigatePrev={onNavigatePrev}
+					onNavigateNext={onNavigateNext}
+					canNavigatePrev={canNavigatePrev}
+					canNavigateNext={canNavigateNext}
+					aiLoading={aiLoading}
+					onAiGenerateTitle={
+						canUseAi && onRenameFile ? () => runAiAction("generateTitle") : undefined
+					}
+					onAiSpellCheck={canUseAi ? () => runAiAction("spellCheck") : undefined}
+					onAiContinueWriting={
+						canUseAi ? () => runAiAction("continueWriting") : undefined
+					}
+					splitEnabled={splitEnabled}
+					onToggleSplit={onToggleSplit}
+					canToggleSplit={canToggleSplit}
+				/>
+			) : paneLabel ? (
+				<div
+					className={cn(
+						"flex h-9 shrink-0 items-center gap-1.5 border-b border-border bg-background px-2 text-xs",
+						isPaneFocused && "bg-muted/35",
+						isPaneDragging && "bg-muted/50 shadow-sm",
+					)}
+				>
+					{onPaneDragHandlePointerDown ? (
+						<button
+							type="button"
+							onPointerDown={onPaneDragHandlePointerDown}
+							onPointerMove={onPaneDragHandlePointerMove}
+							onPointerUp={onPaneDragHandlePointerUp}
+							onPointerCancel={onPaneDragHandlePointerUp}
+							className={cn(
+								"pressable flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing",
+								isPaneDragging && "cursor-grabbing bg-muted text-foreground",
+							)}
+							aria-label="Drag to reorder split pane"
+						>
+							<GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
+						</button>
+					) : null}
+					<span className="min-w-0 flex-1 truncate font-medium text-foreground/80">
+						{paneLabel}
+					</span>
+					{onClosePane ? (
+						<button
+							type="button"
+							onClick={onClosePane}
+							className="pressable flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+							aria-label="Close split pane"
+						>
+							<X className="h-3.5 w-3.5" strokeWidth={1.5} />
+						</button>
+					) : null}
+				</div>
+			) : null}
 
-			{aiError && (
+			{!isPane && aiError && (
 				<div className="border-b border-destructive/25 bg-[linear-gradient(135deg,hsl(var(--destructive)/0.12),hsl(var(--background)/0.94))] px-4 py-3 text-xs">
 					<div className="flex items-start gap-3">
 						<AlertTriangle
@@ -417,7 +493,7 @@ export function EditorContainer({
 				</div>
 			)}
 
-			{rateLimitPrompt && (
+			{!isPane && rateLimitPrompt && (
 				<div className="border-b border-warning/25 bg-[linear-gradient(135deg,hsl(var(--warning)/0.14),hsl(var(--background)/0.94))] px-4 py-3 text-xs">
 					<div className="flex items-start gap-3">
 						<AlertTriangle
@@ -523,10 +599,15 @@ export function EditorContainer({
 					}
 					onTitleCommit={handleTitleCommit}
 					onBlur={onEditorBlur}
-					onCursorChange={setCursorPosition}
+					onCursorChange={isPane && !isPaneFocused ? undefined : setCursorPosition}
+					initialScrollTop={initialScrollTop}
+					onScrollPositionChange={onScrollPositionChange}
+					onPaneActivate={onPaneActivate}
+					isPaneFocused={isPaneFocused}
 				/>
 			</div>
 
+			{(!isPane || isPaneFocused) && (
 			<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
 				<div className="flex min-w-0 flex-1 items-center gap-3">
 					<span className="tabular-nums inline-flex items-baseline">
@@ -563,6 +644,7 @@ export function EditorContainer({
 					</BottomStatusText>
 				</div>
 			</div>
+			)}
 		</div>
 	);
 }

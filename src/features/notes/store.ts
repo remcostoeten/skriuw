@@ -13,6 +13,18 @@ type LayoutUiState = {
 	selectedInspectorTag: string | null;
 };
 
+export type EditorPane = "primary" | "secondary";
+
+export type SplitOrientation = "vertical" | "horizontal";
+
+type SplitEditorState = {
+	secondaryFileId: string | null;
+	focusedPane: EditorPane;
+	scrollPositions: Record<string, number>;
+	orientation: SplitOrientation;
+	secondaryFirst: boolean;
+};
+
 type NotesUiState = {
 	activeFileId: string;
 	isHydrated: boolean;
@@ -33,6 +45,15 @@ type NotesUiState = {
 	setUIState: (updates: Partial<LayoutUiState>) => void;
 	setSelectedInspectorTag: (tag: string | null) => void;
 	setSidebarWidth: (width: number) => void;
+	split: SplitEditorState;
+	openSplitBeside: (fileId: string, primaryFileId: string) => void;
+	setSecondaryFile: (fileId: string) => void;
+	closeSplit: () => void;
+	setFocusedEditorPane: (pane: EditorPane) => void;
+	setEditorScrollPosition: (fileId: string, scrollTop: number) => void;
+	setSplitOrientation: (orientation: SplitOrientation) => void;
+	toggleSplitOrientation: () => void;
+	swapSplitPaneOrder: () => void;
 };
 
 export function applyFolderUiState(
@@ -41,15 +62,24 @@ export function applyFolderUiState(
 ): NoteFolder[] {
 	return folders.map((folder) => ({
 		...folder,
-		isOpen: folderOpenState[folder.id] ?? folder.parentId === null,
+		isOpen: folderOpenState[folder.id] ?? true,
 	}));
 }
+
+const INITIAL_SPLIT_STATE: SplitEditorState = {
+	secondaryFileId: null,
+	focusedPane: "primary",
+	scrollPositions: {},
+	orientation: "vertical",
+	secondaryFirst: false,
+};
 
 export const useNotesStore = create<NotesUiState>()((set, get) => ({
 	activeFileId: "",
 	isHydrated: false,
 	folderOpenState: {},
 	saveStates: {},
+	split: INITIAL_SPLIT_STATE,
 	ui: {
 		isMobile: false,
 		showSidebar: true,
@@ -64,6 +94,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 			isHydrated: false,
 			folderOpenState: {},
 			saveStates: {},
+			split: INITIAL_SPLIT_STATE,
 			ui: {
 				isMobile: false,
 				showSidebar: true,
@@ -167,6 +198,87 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 	setSidebarWidth: (width) => {
 		set((state) => ({
 			ui: { ...state.ui, sidebarWidth: width },
+		}));
+	},
+
+	openSplitBeside: (fileId, primaryFileId) => {
+		if (!fileId || fileId === primaryFileId) return;
+		set((state) => ({
+			split: {
+				...state.split,
+				secondaryFileId: fileId,
+				focusedPane: "secondary",
+			},
+		}));
+	},
+
+	setSecondaryFile: (fileId) => {
+		const primaryFileId = get().activeFileId;
+		if (!fileId || fileId === primaryFileId) return;
+		set((state) => ({
+			split: {
+				...state.split,
+				secondaryFileId: fileId,
+				focusedPane: "secondary",
+			},
+		}));
+	},
+
+	closeSplit: () => {
+		set((state) => ({
+			split: {
+				...state.split,
+				secondaryFileId: null,
+				focusedPane: "primary",
+				secondaryFirst: false,
+			},
+		}));
+	},
+
+	setFocusedEditorPane: (pane) => {
+		set((state) => ({
+			split: { ...state.split, focusedPane: pane },
+		}));
+	},
+
+	setEditorScrollPosition: (fileId, scrollTop) => {
+		if (!fileId) return;
+		set((state) => {
+			if (state.split.scrollPositions[fileId] === scrollTop) return state;
+			return {
+				split: {
+					...state.split,
+					scrollPositions: {
+						...state.split.scrollPositions,
+						[fileId]: scrollTop,
+					},
+				},
+			};
+		});
+	},
+
+	setSplitOrientation: (orientation) => {
+		set((state) => ({
+			split: { ...state.split, orientation },
+		}));
+	},
+
+	toggleSplitOrientation: () => {
+		set((state) => ({
+			split: {
+				...state.split,
+				orientation:
+					state.split.orientation === "vertical" ? "horizontal" : "vertical",
+			},
+		}));
+	},
+
+	swapSplitPaneOrder: () => {
+		set((state) => ({
+			split: {
+				...state.split,
+				secondaryFirst: !state.split.secondaryFirst,
+			},
 		}));
 	},
 }));
