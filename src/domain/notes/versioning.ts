@@ -105,25 +105,45 @@ export function summarizeNoteVersionReason(reason: NoteVersionReason): string {
 	}
 }
 
+export type NoteVersionDeltaValues = {
+	wordDelta: number;
+	charDelta: number;
+};
+
+export function getNoteVersionDeltaValues(
+	currentContent: string,
+	previousContent?: string,
+): NoteVersionDeltaValues | null {
+	if (!previousContent) {
+		return null;
+	}
+
+	const currentWords = countWords(currentContent);
+	const previousWords = countWords(previousContent);
+	const currentChars = countChars(currentContent);
+	const previousChars = countChars(previousContent);
+
+	return {
+		wordDelta: currentWords - previousWords,
+		charDelta: currentChars - previousChars,
+	};
+}
+
 export function formatNoteVersionDelta(
-  currentContent: string,
-  previousContent?: string,
+	currentContent: string,
+	previousContent?: string,
 ): string {
-  if (!previousContent) {
-    return "+0 -0";
-  }
+	const values = getNoteVersionDeltaValues(currentContent, previousContent);
+	if (!values) {
+		return "+0 -0";
+	}
 
-  const currentWords = countWords(currentContent);
-  const previousWords = countWords(previousContent);
-  const currentChars = countChars(currentContent);
-  const previousChars = countChars(previousContent);
-  const wordDelta = currentWords - previousWords;
-  const charDelta = currentChars - previousChars;
+	const wordLabel =
+		values.wordDelta >= 0 ? `+${values.wordDelta}` : `${values.wordDelta}`;
+	const charLabel =
+		values.charDelta >= 0 ? `+${values.charDelta}` : `${values.charDelta}`;
 
-  const wordLabel = wordDelta >= 0 ? `+${wordDelta}` : `${wordDelta}`;
-  const charLabel = charDelta >= 0 ? `+${charDelta}` : `${charDelta}`;
-
-  return `${wordLabel} ${charLabel}`;
+	return `${wordLabel} ${charLabel}`;
 }
 
 export function previewVersionContent(content: string): string[] {
@@ -132,4 +152,18 @@ export function previewVersionContent(content: string): string[] {
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0)
     .slice(0, 3);
+}
+
+export function getVersionContextPreview(
+	content: string,
+	maxLength = 52,
+): string | null {
+	const lines = previewVersionContent(content);
+	if (lines.length === 0) return null;
+
+	const first = lines[0].replace(/^#+\s+/, "").trim();
+	if (!first) return null;
+
+	if (first.length <= maxLength) return first;
+	return `${first.slice(0, maxLength - 1).trimEnd()}…`;
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	Bell,
 	Database,
 	FlaskConical,
 	Palette,
@@ -22,7 +21,6 @@ export type SettingsTabId =
 	| "account"
 	| "appearance"
 	| "editor"
-	| "notifications"
 	| "data"
 	| "security"
 	| "ai"
@@ -39,7 +37,6 @@ const NAV_ITEMS: ReadonlyArray<SettingsNavItem> = [
 	{ id: "account", label: "Account", icon: User },
 	{ id: "appearance", label: "Appearance", icon: Palette },
 	{ id: "editor", label: "Editor", icon: PenLine },
-	{ id: "notifications", label: "Notifications", icon: Bell },
 	{ id: "data", label: "Data & sync", icon: Database },
 	{ id: "security", label: "Security", icon: Shield },
 	{ id: "ai", label: "AI", icon: Sparkles },

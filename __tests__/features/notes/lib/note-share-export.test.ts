@@ -11,6 +11,7 @@ import {
 	buildSmsShareUrl,
 	formatShareText,
 	MAX_SHARE_TEXT_LENGTH,
+	copyTextToClipboard,
 	openDiscordShare,
 	resolveClientShareUrl,
 } from "@/features/notes/lib/note-share-export";
@@ -86,6 +87,17 @@ describe("note share export", () => {
 			"t.me/share/url",
 		);
 		expect(buildSmsShareUrl(payload)).toContain("sms:?body=");
+	});
+
+	test("copyTextToClipboard falls back to execCommand when clipboard API fails", async () => {
+		if (typeof document === "undefined") return;
+
+		const originalExec = document.execCommand;
+		document.execCommand = () => true;
+
+		await expect(copyTextToClipboard("https://skriuw.app/s/abc")).resolves.toBe(true);
+
+		document.execCommand = originalExec;
 	});
 
 	test("returns cancelled when native discord share is dismissed", async () => {

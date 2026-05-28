@@ -11,9 +11,14 @@ import {
 } from "@/features/settings/components/settings-primitives";
 import { EditorFontPicker } from "@/features/settings/components/editor-font-picker";
 import {
+	AnimatedNumberDemo,
+	DefaultFontDemo,
+	LineHeightDemo,
+	RawMdxModeDemo,
+} from "@/features/settings/demos";
+import {
 	EDITOR_LINE_HEIGHTS,
 	getEditorLineHeightLabel,
-	getEditorLineHeightValue,
 } from "@/features/editor/lib/editor-line-height";
 
 export function EditorSection() {
@@ -37,6 +42,7 @@ export function EditorSection() {
 						value={editor.defaultFont}
 						onChange={(value) => update("defaultFont", value)}
 					/>
+					<DefaultFontDemo fontId={editor.defaultFont} />
 				</div>
 
 				<div className="border-t border-border/50 pt-5">
@@ -67,13 +73,7 @@ export function EditorSection() {
 								</button>
 							))}
 						</div>
-						<p
-							className="max-w-xl rounded-md border border-border/60 bg-background/55 px-3 py-2.5 text-sm text-foreground/88"
-							style={{ lineHeight: getEditorLineHeightValue(editor.lineHeight) }}
-						>
-							A calmer editing rhythm makes dense notes easier to scan while keeping
-							long writing sessions comfortable.
-						</p>
+						<LineHeightDemo lineHeight={editor.lineHeight} />
 					</div>
 				</div>
 			</div>
@@ -83,6 +83,7 @@ export function EditorSection() {
 				<Row
 					title="Default to Raw MDX"
 					description="New notes open in raw MDX mode."
+					visualization={<RawMdxModeDemo enabled={editor.defaultModeRaw} />}
 				>
 					<Switch
 						checked={editor.defaultModeRaw}
@@ -92,6 +93,7 @@ export function EditorSection() {
 				<Row
 					title="Animated numbers"
 					description="Animate changing counts in the inspector and status bar."
+					visualization={<AnimatedNumberDemo animate={editor.animateNumbers} />}
 				>
 					<Switch
 						checked={editor.animateNumbers}

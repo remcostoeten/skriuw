@@ -11,7 +11,12 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
-import { ACCENTS, THEMES } from "@/features/settings/preferences/themes";
+import { THEMES } from "@/features/settings/preferences/themes";
+import {
+	CompactSidebarDemo,
+	LineNumbersDemo,
+	TreeGuidesDemo,
+} from "@/features/settings/demos";
 
 export function AppearanceSection() {
 	const appearance = usePreferencesStore((s) => s.appearance);
@@ -61,27 +66,13 @@ export function AppearanceSection() {
 				))}
 			</div>
 
-			<GroupLabel>ACCENT</GroupLabel>
-			<div className="flex gap-2 rounded-lg border border-border/60 bg-card/40 p-3">
-				{ACCENTS.map((c) => (
-					<button
-						key={c.id}
-						type="button"
-						aria-pressed={appearance.accentColor === c.id}
-						onClick={() => update("accentColor", c.id)}
-						className={cn(
-							"size-7 rounded-full ring-offset-2 ring-offset-background transition-all",
-							appearance.accentColor === c.id && "ring-2 ring-foreground/70",
-						)}
-						style={{ backgroundColor: c.value }}
-						aria-label={c.label}
-					/>
-				))}
-			</div>
-
 			<GroupLabel>INTERFACE</GroupLabel>
 			<SettingsCard>
-				<Row title="Compact sidebar" description="Tighter spacing in the file tree.">
+				<Row
+					title="Compact sidebar"
+					description="Tighter spacing in the file tree."
+					visualization={<CompactSidebarDemo enabled={compactMode} />}
+				>
 					<Switch
 						checked={compactMode}
 						onCheckedChange={(value) => {
@@ -93,10 +84,15 @@ export function AppearanceSection() {
 				<Row
 					title="File tree guide lines"
 					description="Show nested ruler lines in the notes sidebar."
+					visualization={<TreeGuidesDemo enabled={showTreeGuides} />}
 				>
 					<Switch checked={showTreeGuides} onCheckedChange={() => toggleTreeGuides()} />
 				</Row>
-				<Row title="Show line numbers" description="In the editor gutter.">
+				<Row
+					title="Show line numbers"
+					description="In the editor gutter."
+					visualization={<LineNumbersDemo enabled={appearance.showLineNumbers} />}
+				>
 					<Switch
 						checked={appearance.showLineNumbers}
 						onCheckedChange={(v) => update("showLineNumbers", v)}

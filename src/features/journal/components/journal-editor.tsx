@@ -9,6 +9,7 @@ import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
 import { PlainTextEditor } from "./plain-text-editor";
 import { RichTextEditor } from "@/features/editor/components/rich-text-editor";
+import { useNotes } from "@/features/notes/hooks/use-notes";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useJournalTags } from "../hooks/use-journal-tags";
 
@@ -27,10 +28,11 @@ function formatDateHeading(date: Date): string {
 
 export function JournalEditor({
 	selectedDate,
-	editorMode = "plain",
+	editorMode = "rich",
 	entryState,
 }: JournalEditorProps) {
 	const editorPrefs = usePreferencesStore((s) => s.editor);
+	const { data: files = [] } = useNotes();
 	const {
 		content,
 		setContent,
@@ -151,6 +153,7 @@ export function JournalEditor({
 					) : (
 						<RichTextEditor
 							content={content}
+							files={files}
 							editorFontId={editorPrefs.defaultFont}
 							editorLineHeight={editorPrefs.lineHeight}
 							onChange={(next) => setContent(next.markdown)}

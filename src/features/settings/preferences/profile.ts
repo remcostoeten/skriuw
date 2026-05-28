@@ -3,7 +3,7 @@ import { isEditorFontId } from "@/shared/lib/editor-fonts";
 import { isEditorLineHeight } from "@/features/editor/lib/editor-line-height";
 import { getUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./defaults";
-import { isAccentId, isThemeId } from "./themes";
+import { isThemeId } from "./themes";
 import type {
 	ActivityAction,
 	ActivityItem,
@@ -109,9 +109,6 @@ export function normalizeProfile(
 			theme: isThemeId(profile?.appearance?.theme)
 				? profile.appearance.theme
 				: fallback.appearance.theme,
-			accentColor: isAccentId(profile?.appearance?.accentColor)
-				? profile.appearance.accentColor
-				: fallback.appearance.accentColor,
 			compactSidebar: normalizeBoolean(
 				profile?.appearance?.compactSidebar,
 				fallback.appearance.compactSidebar,
@@ -123,24 +120,6 @@ export function normalizeProfile(
 			reduceMotion: normalizeBoolean(
 				profile?.appearance?.reduceMotion,
 				fallback.appearance.reduceMotion,
-			),
-		},
-		notifications: {
-			dailyReminder: normalizeBoolean(
-				profile?.notifications?.dailyReminder,
-				fallback.notifications.dailyReminder,
-			),
-			weeklyReview: normalizeBoolean(
-				profile?.notifications?.weeklyReview,
-				fallback.notifications.weeklyReview,
-			),
-			mentions: normalizeBoolean(
-				profile?.notifications?.mentions,
-				fallback.notifications.mentions,
-			),
-			emailSummaries: normalizeBoolean(
-				profile?.notifications?.emailSummaries,
-				fallback.notifications.emailSummaries,
 			),
 		},
 		profile: {

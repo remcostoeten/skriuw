@@ -12,6 +12,7 @@ import { EmptyState } from "@/shared/ui/empty-state";
 import {
 	Briefcase,
 	Check,
+	Columns2,
 	FileText,
 	Folder,
 	FolderInput,
@@ -31,6 +32,7 @@ import {
 	ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
 import { useSidebarStore } from "./sidebar/store";
+import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
@@ -98,6 +100,7 @@ export const FileList = memo(function FileList({
 }: FileListProps) {
 	const {
 		onFileSelect,
+		onOpenBeside,
 		onFilePrefetch,
 		onToggleFolder,
 		onRenameFile,
@@ -379,7 +382,8 @@ export const FileList = memo(function FileList({
 				y: e.clientY,
 			});
 			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", JSON.stringify(item));
+			e.dataTransfer.setData("text/plain", getDragItemName(item));
+			e.dataTransfer.setData("application/x-skriuw-tree-item", JSON.stringify(item));
 		},
 		[getDragItemName],
 	);
@@ -1577,6 +1581,18 @@ export const FileList = memo(function FileList({
 						<Pencil className="w-4 h-4" />
 						Rename
 					</ContextMenuItem>
+					{onOpenBeside &&
+					!isMobile &&
+					!selectionHasMultiple &&
+					file.id !== activeFileId ? (
+						<ContextMenuItem
+							onClick={() => onOpenBeside(file.id)}
+							className="gap-2"
+						>
+							<Columns2 className="w-4 h-4" />
+							Open beside
+						</ContextMenuItem>
+					) : null}
 					{renderMoveToSubmenu(selectionForAction)}
 					<ContextMenuSeparator />
 					{isFavorite(file.id) ? (
@@ -1687,15 +1703,14 @@ export const FileList = memo(function FileList({
 	if (flattenedVisibleItems.length === 0) {
 		if (isLoading) {
 			return (
-				<div className="px-1.5 pt-1">
-					{Array.from({ length: 6 }).map((_, i) => (
-						<div
-							key={i}
-							className="flex h-8 items-center gap-2 px-2 text-sidebar-foreground/36"
-							style={{ opacity: 1 - i * 0.13 }}
-						>
-							<FileText className="h-3.5 w-3.5 shrink-0" strokeWidth={1.45} />
-						</div>
+				<div className="px-1.5 pt-1" aria-busy="true" aria-label="Loading file tree">
+					{Array.from({ length: 6 }).map((_, index) => (
+						<SidebarTreeRowSkeleton
+							key={index}
+							index={index}
+							depth={index === 1 || index === 2 ? 1 : 0}
+							kind={index === 0 || index === 3 ? "folder" : "file"}
+						/>
 					))}
 				</div>
 			);

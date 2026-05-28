@@ -135,7 +135,7 @@ function NoteSendMobilePanel({
 	const linkBusy = isLinkShareBusy;
 
 	return (
-		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
+		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] pb-[env(safe-area-inset-bottom)]">
 			{shareIsStale ? (
 				<StaleShareHint
 					layout="banner"

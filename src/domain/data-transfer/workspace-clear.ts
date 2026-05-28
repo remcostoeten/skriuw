@@ -31,6 +31,22 @@ export async function softClearUserWorkspace(
 	]);
 }
 
+/** Removes workspace rows so re-imported export IDs can be inserted again. */
+export async function hardClearUserWorkspace(
+	prisma: PrismaClient,
+	userId: string,
+): Promise<void> {
+	await prisma.$transaction([
+		prisma.noteShare.deleteMany({ where: { userId } }),
+		prisma.noteVersion.deleteMany({ where: { userId } }),
+		prisma.note.deleteMany({ where: { userId } }),
+		prisma.folder.deleteMany({ where: { userId } }),
+		prisma.journalEntry.deleteMany({ where: { userId } }),
+		prisma.journalTag.deleteMany({ where: { userId } }),
+		prisma.userRecent.deleteMany({ where: { userId } }),
+	]);
+}
+
 export async function countUserWorkspace(prisma: PrismaClient, userId: string) {
 	const [folders, notes, journalEntries, journalTags] = await Promise.all([
 		prisma.folder.count({ where: { userId, deletedAt: null } }),

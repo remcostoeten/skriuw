@@ -25,22 +25,12 @@ type RawFileTreeLine = Omit<ParsedFileTreeLine, "hasChildren">;
 const CONNECTOR_PATTERN = /(?:\|--|`--|\u251c\u2500\u2500|\u2514\u2500\u2500)/;
 const FILE_TREE_LANGUAGES = new Set(["filetree", "tree"]);
 
-export const DEFAULT_FILE_TREE_SOURCE = `Skriuw starter notes
-|-- Start here - editor field guide.md
-|-- Product Studio/
-|   |-- Launch review - sync v2.md
-|   \`-- Research/
-|       \`-- Research brief - local-first notes.md
-|-- Playground/
-|   |-- Idea board.md
-|   |-- Experiments Lab/
-|   |   |-- MDX: Component gallery.mdx
-|   |   \`-- Prompt snippets for rewriting.md
-|   \`-- Recipes/
-|       \`-- MDX: Space Pancakes.mdx
-\`-- Templates/
-    |-- Daily note template.md
-    \`-- Meeting notes template.md`;
+export const DEFAULT_FILE_TREE_SOURCE = `Skriuw workspace
+|-- Welcome to Skriuw
+|-- Skriuw handbook
+\`-- Guides/
+    \`-- Workflows/
+        \`-- From idea to published note`;
 
 function removeCommonIndent(lines: string[]): string[] {
 	const indents = lines

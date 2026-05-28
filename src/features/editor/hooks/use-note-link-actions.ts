@@ -1,0 +1,89 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { findNoteByTitle, normalizeNoteTitle } from "@/domain/notes/note-links";
+import { useCreateNote } from "@/features/notes/hooks/use-create-note";
+import { updateNoteUrl } from "@/features/notes/hooks/use-notes-navigation";
+import { useNotesStore } from "@/features/notes/store";
+import type { NoteFile } from "@/types/notes";
+import { useNoteLinkContext } from "@/features/editor/components/inline-specs/note-link-context";
+
+function buildNoteCreateInput(title: string) {
+	const trimmed = title.trim();
+	const noteName = trimmed.endsWith(".md") ? trimmed : `${trimmed}.md`;
+
+	return {
+		name: noteName,
+		content: `# ${trimmed}\n\n`,
+	};
+}
+
+export function useNoteLinkActions(filesOverride?: NoteFile[]) {
+	const router = useRouter();
+	const { files: contextFiles } = useNoteLinkContext();
+	const files = filesOverride ?? contextFiles;
+	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+	const createNote = useCreateNote();
+	const pendingTitlesRef = useRef(new Set<string>());
+	const [creatingTitleKey, setCreatingTitleKey] = useState<string | null>(null);
+
+	const openNote = useCallback(
+		(noteId: string) => {
+			setActiveFileId(noteId);
+
+			if (
+				typeof window !== "undefined" &&
+				window.location.pathname.startsWith("/app/journal")
+			) {
+				router.push(`/app?note=${encodeURIComponent(noteId)}`);
+				return;
+			}
+
+			updateNoteUrl(noteId);
+		},
+		[router, setActiveFileId],
+	);
+
+	const createAndOpenNote = useCallback(
+		(title: string) => {
+			const trimmed = title.trim();
+			if (!trimmed) return;
+
+			const existing = findNoteByTitle(files, trimmed);
+			if (existing) {
+				openNote(existing.id);
+				return;
+			}
+
+			const pendingKey = normalizeNoteTitle(trimmed);
+			if (pendingTitlesRef.current.has(pendingKey)) {
+				return;
+			}
+
+			pendingTitlesRef.current.add(pendingKey);
+			setCreatingTitleKey(pendingKey);
+			createNote.mutate(buildNoteCreateInput(trimmed), {
+				onSuccess: (note) => {
+					openNote(note.id);
+				},
+				onSettled: () => {
+					pendingTitlesRef.current.delete(pendingKey);
+					setCreatingTitleKey((current) => (current === pendingKey ? null : current));
+				},
+			});
+		},
+		[createNote, files, openNote],
+	);
+
+	const isCreatingTitle = useCallback(
+		(title: string) => creatingTitleKey === normalizeNoteTitle(title.trim()),
+		[creatingTitleKey],
+	);
+
+	return {
+		openNote,
+		createAndOpenNote,
+		isCreatingTitle,
+	};
+}
