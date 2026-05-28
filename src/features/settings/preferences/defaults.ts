@@ -4,11 +4,9 @@ import type {
 	AppearancePreferences,
 	EditorPreferences,
 	JournalPreferences,
-	NotificationsPreferences,
 	PreferencesProfile,
 	ProfilePreferences,
 } from "./types";
-import { DEFAULT_ACCENT_ID } from "./themes";
 
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	defaultModeRaw: false,
@@ -20,17 +18,9 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
 	theme: "midnight",
-	accentColor: DEFAULT_ACCENT_ID,
 	compactSidebar: false,
 	showLineNumbers: true,
 	reduceMotion: false,
-};
-
-export const DEFAULT_NOTIFICATIONS_PREFERENCES: NotificationsPreferences = {
-	dailyReminder: true,
-	weeklyReview: false,
-	mentions: true,
-	emailSummaries: false,
 };
 
 export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
@@ -52,7 +42,6 @@ export function createDefaultProfile(): PreferencesProfile {
 	return {
 		editor: { ...DEFAULT_EDITOR_PREFERENCES },
 		appearance: { ...DEFAULT_APPEARANCE_PREFERENCES },
-		notifications: { ...DEFAULT_NOTIFICATIONS_PREFERENCES },
 		profile: { ...DEFAULT_PROFILE_PREFERENCES },
 		journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
 		ai: { ...DEFAULT_AI_PREFERENCES },

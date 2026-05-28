@@ -114,11 +114,16 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 				{needsPasswordInput && (
 					<input
 						type="password"
+						name="share-password"
 						value={password}
 						onChange={(event) => setPassword(event.target.value)}
+						autoComplete="current-password"
+						autoCapitalize="off"
+						autoCorrect="off"
+						spellCheck={false}
 						autoFocus
 						placeholder="Password"
-						className="mt-5 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground/30"
+						className="mt-5 w-full rounded-md border border-border bg-card px-3 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground/30 sm:py-2 sm:text-sm"
 					/>
 				)}
 
@@ -127,7 +132,7 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 				<button
 					type="submit"
 					disabled={submitting || (needsPasswordInput && password.length === 0)}
-					className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-transform duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+					className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-[15px] font-medium text-background transition-transform duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:px-4 sm:py-2 sm:text-[13px]"
 				>
 					{submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />}
 					{needsPasswordInput ? "Unlock note" : "Reveal note"}

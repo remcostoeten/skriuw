@@ -5,6 +5,8 @@ import {
 	buildOutgoingNoteLinks,
 	extractNoteLinks,
 	extractNoteTags,
+	findNoteByTitle,
+	getNoteSearchableContent,
 	getNoteTitle,
 	getWorkspaceTags,
 } from "@/domain/notes/note-links";
@@ -54,6 +56,16 @@ describe("note link indexing", () => {
 		]);
 	});
 
+	test("finds a unique note by title", () => {
+		const target = note({ id: "target-id", name: "Target note.md", content: "# Target" });
+		const other = note({ id: "other-id", name: "Other.md", content: "# Other" });
+
+		expect(findNoteByTitle([target, other], "Target note")).toMatchObject({
+			id: "target-id",
+		});
+		expect(findNoteByTitle([target, other], "Missing")).toBeNull();
+	});
+
 	test("builds outgoing links and backlinks", () => {
 		const target = note({ id: "target-id", name: "Target note.md", content: "#target" });
 		const source = note({
@@ -92,6 +104,40 @@ describe("note link indexing", () => {
 			targetNoteId: "source-id",
 			status: "resolved",
 		});
+	});
+
+	test("dedupes repeated outgoing and backlink targets", () => {
+		const handbook = note({
+			id: "handbook-id",
+			name: "Skriuw handbook.md",
+			content:
+				"# Skriuw handbook\n\nSee [[Welcome to Skriuw]] and again [[Welcome to Skriuw]].",
+		});
+		const welcome = note({
+			id: "welcome-id",
+			name: "Welcome to Skriuw.md",
+			content:
+				"# Welcome\n\nOpen [[Skriuw handbook]] and [[Skriuw handbook]] and [[Skriuw handbook]].",
+		});
+
+		expect(buildOutgoingNoteLinks(handbook, [handbook, welcome])).toHaveLength(1);
+		expect(buildNoteBacklinks(handbook, [handbook, welcome])).toHaveLength(1);
+		expect(buildOutgoingNoteLinks(handbook, [handbook, welcome])[0]).toMatchObject({
+			targetNoteId: "welcome-id",
+		});
+		expect(buildNoteBacklinks(handbook, [handbook, welcome])[0]).toMatchObject({
+			sourceNoteId: "welcome-id",
+		});
+	});
+
+	test("ignores self-referential outgoing links", () => {
+		const handbook = note({
+			id: "handbook-id",
+			name: "Skriuw handbook.md",
+			content: "# Skriuw handbook\n\nSee [[Skriuw handbook]] for details.",
+		});
+
+		expect(buildOutgoingNoteLinks(handbook, [handbook])).toHaveLength(0);
 	});
 
 	test("builds backlinks with a single note graph pass", () => {
@@ -152,4 +198,52 @@ describe("note link indexing", () => {
 			]),
 		).toEqual(["draft", "idea", "manual"]);
 	});
+
+	test("extracts links and tags from rich content when markdown content is empty", () => {
+		const target = note({
+			id: "target-id",
+			name: "Project hub.md",
+			content: "",
+			richContent: [{ id: "h1", type: "heading", props: { level: 1 }, content: [t("Project hub")], children: [] }],
+		});
+		const source = note({
+			id: "source-id",
+			name: "Linking demo.md",
+			content: "",
+			richContent: [
+				{
+					id: "p1",
+					type: "paragraph",
+					props: {},
+					content: [
+						{ type: "text", text: "See ", styles: {} },
+						{ type: "noteLink", props: { title: "Project hub" } },
+						{ type: "text", text: " and ", styles: {} },
+						{ type: "tag", props: { name: "example" } },
+					],
+					children: [],
+				},
+			],
+		});
+
+		expect(extractNoteLinks(source)).toMatchObject([
+			{
+				kind: "wiki",
+				targetLabel: "Project hub",
+			},
+		]);
+		expect(extractNoteTags(getNoteSearchableContent(source))).toEqual(["example"]);
+
+		const index = buildNoteLinkIndex(target, [target, source]);
+		expect(index.backlinks).toHaveLength(1);
+		expect(index.backlinks[0]).toMatchObject({
+			sourceNoteId: "source-id",
+			targetNoteId: "target-id",
+			status: "resolved",
+		});
+	});
 });
+
+function t(text: string, styles: Record<string, unknown> = {}) {
+	return { type: "text", text, styles };
+}

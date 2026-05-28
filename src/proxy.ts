@@ -1,4 +1,6 @@
 import { auth } from "@/lib/auth";
+import { isDemoGuestModeEnabled } from "@/lib/demo-guest";
+import { isTrialModeEnabled } from "@/lib/trial";
 import { type NextRequest, NextResponse } from "next/server";
 
 const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
@@ -8,8 +10,14 @@ function isPublicRoute(path: string) {
 	return (
 		publicRoutes.has(path) ||
 		path.startsWith("/project-planning/") ||
-		path.startsWith("/s/")
+		path.startsWith("/s/") ||
+		path.startsWith("/api/demo-guest/") ||
+		path.startsWith("/api/trial/")
 	);
+}
+
+function isDemoGuestAppRoute(path: string) {
+	return path === "/app" || path.startsWith("/app/");
 }
 
 export default async function proxy(req: NextRequest) {
@@ -19,6 +27,18 @@ export default async function proxy(req: NextRequest) {
 
 	if (hasSession && authOnlyRoutes.has(path)) {
 		return NextResponse.redirect(new URL("/app", req.nextUrl));
+	}
+
+	if (!hasSession && isTrialModeEnabled() && isDemoGuestAppRoute(path)) {
+		const enter = new URL("/api/trial/enter", req.nextUrl);
+		enter.searchParams.set("next", `${path}${req.nextUrl.search}`);
+		return NextResponse.redirect(enter);
+	}
+
+	if (!hasSession && isDemoGuestModeEnabled() && isDemoGuestAppRoute(path)) {
+		const enter = new URL("/api/demo-guest/enter", req.nextUrl);
+		enter.searchParams.set("next", `${path}${req.nextUrl.search}`);
+		return NextResponse.redirect(enter);
 	}
 
 	if (!hasSession && !isPublicRoute(path)) {

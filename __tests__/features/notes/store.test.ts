@@ -31,6 +31,40 @@ describe("notes ui store", () => {
 		expect(useNotesStore.getState().activeFileId).toBe("");
 	});
 
+	test("tracks split editor state", () => {
+		useNotesStore.setState({
+			activeFileId: "note-a",
+			split: {
+				secondaryFileId: null,
+				focusedPane: "primary",
+				scrollPositions: {},
+				orientation: "vertical",
+				secondaryFirst: false,
+			},
+		});
+
+		useNotesStore.getState().openSplitBeside("note-b", "note-a");
+		expect(useNotesStore.getState().split.secondaryFileId).toBe("note-b");
+		expect(useNotesStore.getState().split.focusedPane).toBe("secondary");
+
+		useNotesStore.getState().setSecondaryFile("note-c");
+		expect(useNotesStore.getState().split.secondaryFileId).toBe("note-c");
+
+		useNotesStore.getState().setEditorScrollPosition("note-a", 120);
+		expect(useNotesStore.getState().split.scrollPositions["note-a"]).toBe(120);
+
+		useNotesStore.getState().toggleSplitOrientation();
+		expect(useNotesStore.getState().split.orientation).toBe("horizontal");
+
+		useNotesStore.getState().swapSplitPaneOrder();
+		expect(useNotesStore.getState().split.secondaryFirst).toBe(true);
+
+		useNotesStore.getState().closeSplit();
+		expect(useNotesStore.getState().split.secondaryFileId).toBeNull();
+		expect(useNotesStore.getState().split.focusedPane).toBe("primary");
+		expect(useNotesStore.getState().split.secondaryFirst).toBe(false);
+	});
+
 	test("tracks transient save state and resets ui", () => {
 		useNotesStore.setState({
 			activeFileId: "note-a",
@@ -53,17 +87,20 @@ describe("notes ui store", () => {
 });
 
 describe("applyFolderUiState", () => {
-	test("preserves explicit folder open state and defaults roots to open", () => {
+	test("defaults all folders to open unless explicitly closed", () => {
 		const folders: NoteFolder[] = [
 			{ id: "root", name: "Root", parentId: null, isOpen: false },
 			{ id: "child", name: "Child", parentId: "root", isOpen: false },
 		];
 
-		const applied = applyFolderUiState(folders, { child: true });
-
-		expect(applied).toEqual([
+		expect(applyFolderUiState(folders, {})).toEqual([
 			{ id: "root", name: "Root", parentId: null, isOpen: true },
 			{ id: "child", name: "Child", parentId: "root", isOpen: true },
+		]);
+
+		expect(applyFolderUiState(folders, { child: false })).toEqual([
+			{ id: "root", name: "Root", parentId: null, isOpen: true },
+			{ id: "child", name: "Child", parentId: "root", isOpen: false },
 		]);
 	});
 });
