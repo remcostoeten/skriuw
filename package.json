@@ -23,7 +23,10 @@
     "format": "oxfmt",
     "colors:audit": "bun scripts/color-audit.ts",
     "colors:audit:strict": "bun scripts/color-audit.ts --strict",
-    "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts"
+    "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts",
+    "demo-guest:ensure": "bun scripts/ensure-demo-guest.ts",
+    "demo-guest:refresh": "bun scripts/refresh-demo-guest-workspace.ts",
+    "trial:cleanup": "bun scripts/cleanup-trial-users.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3",

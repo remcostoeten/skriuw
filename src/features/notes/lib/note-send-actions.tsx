@@ -28,7 +28,7 @@ type LinkShareActionSpec = {
 };
 
 export const LINK_SHARE_ACTIONS: LinkShareActionSpec[] = [
-	{ id: "copy", label: "Copy link", busyLabel: "Publishing link…", icon: "copy" },
+	{ id: "copy", label: "Copy link", busyLabel: "Publishing link…", icon: "copy", closeAfter: false },
 	{ id: "x", label: "Share on X", icon: "x" },
 	{ id: "discord", label: "Share on Discord", icon: "discord", closeAfter: false },
 	{ id: "whatsapp", label: "WhatsApp link", icon: "whatsapp" },

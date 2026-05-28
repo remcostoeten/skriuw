@@ -1,10 +1,10 @@
-import { extractNoteTags } from "@/domain/notes/note-links";
+import { extractNoteTags, getNoteSearchableContent } from "@/domain/notes/note-links";
 import type { NoteFile } from "@/domain/notes/models";
 import type { JournalEntry, JournalTag } from "@/domain/journal/models";
 
 const DEFAULT_TAG_COLOR = "hsl(var(--project-blue))";
 
-type NoteTagSource = Pick<NoteFile, "tags" | "content">;
+type NoteTagSource = Pick<NoteFile, "tags" | "content" | "richContent">;
 
 function normalizeTagName(tag: string): string {
 	return tag.trim().replace(/^#/, "").toLowerCase();
@@ -35,7 +35,7 @@ function collectNoteTagUsage(notes: NoteTagSource[]): Map<string, number> {
 			if (normalized) noteTags.add(normalized);
 		}
 
-		for (const tag of extractNoteTags(note.content)) {
+		for (const tag of extractNoteTags(getNoteSearchableContent(note))) {
 			noteTags.add(tag);
 		}
 

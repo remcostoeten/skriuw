@@ -4,6 +4,9 @@ import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { createNote, type CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import {
+	findNoteByTitle,
+} from "@/domain/notes/note-links";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 
@@ -18,6 +21,12 @@ export function useCreateNote() {
 		optimistic: {
 			queryKey: notesKeys.files(),
 			updater: (current, input) => {
+				const list = current ?? [];
+				const existing = findNoteByTitle(list, input.name);
+				if (existing) {
+					return list;
+				}
+
 				const optimisticNote: NoteFile = {
 					id: input.id ?? crypto.randomUUID(),
 					name: input.name.endsWith(".md") ? input.name : `${input.name}.md`,
@@ -31,7 +40,7 @@ export function useCreateNote() {
 					tags: input.tags ?? [],
 				};
 
-				return [...(current ?? []), optimisticNote];
+				return [...list, optimisticNote];
 			},
 		},
 	});
