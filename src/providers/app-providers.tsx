@@ -7,6 +7,9 @@ import { useEffect, useState } from "react";
 import { PersistenceBootstrap } from "@/providers/persistence-bootstrap";
 import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
+import { WorkspaceBackendProvider } from "@/core/workspace-backend";
+import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
+import { GuestSignupPrompt } from "@/features/layout/components/guest-signup-prompt";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/core/auth";
@@ -90,11 +93,15 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							initialEditorPreferences={initialEditorPreferences}
 						/>
 						<ProtectedAppGuard>
-							<PersistenceBootstrap />
-							<ThemeAttribute />
-							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
-							<UserToastHost />
-							<DevMenu />
+							<WorkspaceBackendProvider>
+								<PersistenceBootstrap />
+								<GuestWorkspaceBootstrap />
+								<ThemeAttribute />
+								<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+								<UserToastHost />
+								<GuestSignupPrompt />
+								<DevMenu />
+							</WorkspaceBackendProvider>
 						</ProtectedAppGuard>
 					</TooltipProvider>
 				</MotionPreferences>
