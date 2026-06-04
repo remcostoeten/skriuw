@@ -21,6 +21,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { GuestGate } from "@/shared/ui/guest-gate";
 
 type Props = {
 	fileName: string;
@@ -241,6 +242,7 @@ export function EditorToolbar({
 					</button>
 				)}
 				{hasAiActions && isMounted && (
+					<GuestGate feature="ai">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<button
@@ -323,6 +325,7 @@ export function EditorToolbar({
 							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
+					</GuestGate>
 				)}
 
 				<button

@@ -33,6 +33,8 @@ import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
 import { ExperimentalSection } from "@/features/settings/sections/experimental-section";
 import { SettingsSidebar, type SettingsTabId } from "./settings-sidebar";
+import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
 
 type SectionMeta = {
 	id: SettingsTabId;
@@ -67,7 +69,21 @@ function getSection(id: SettingsTabId): SectionMeta {
 	return SECTIONS.find((s) => s.id === id) ?? SECTIONS[0];
 }
 
-function renderSection(id: SettingsTabId) {
+// Tabs whose features require a server/account. Guests see a sign-up notice
+// instead so they can't trigger server actions that would 500.
+const GUEST_GATED_TABS: Partial<Record<SettingsTabId, GuestFeature>> = {
+	account: "account",
+	security: "account",
+	ai: "ai",
+	tags: "account",
+};
+
+function renderSection(id: SettingsTabId, isGuest: boolean) {
+	const gatedFeature = GUEST_GATED_TABS[id];
+	if (isGuest && gatedFeature) {
+		return <GuestSectionNotice feature={gatedFeature} />;
+	}
+
 	switch (id) {
 		case "account":
 			return <AccountSection />;
@@ -92,6 +108,7 @@ export function SettingsPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const isMobile = useIsMobile();
+	const isGuest = useIsGuestWorkspace();
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const logActivity = usePreferencesStore((state) => state.logActivity);
 
@@ -121,7 +138,7 @@ export function SettingsPage() {
 		router.push("/app");
 	};
 
-	const content = useMemo(() => renderSection(activeTab), [activeTab]);
+	const content = useMemo(() => renderSection(activeTab, isGuest), [activeTab, isGuest]);
 
 	if (isMobile) {
 		const showDetail = parsedTab !== null;

@@ -2,14 +2,15 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteNote } from "@/domain/notes/actions";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 
 export function useDeleteNote() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
-	return useApiMutation<string, void, NoteFile[]>(deleteNote, {
+	return useApiMutation<string, void, NoteFile[]>(backend.deleteNote, {
 		onSuccess: (_data, id) => {
 			queryClient.removeQueries({ queryKey: notesKeys.detail(id) });
 			void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
