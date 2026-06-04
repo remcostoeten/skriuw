@@ -6,7 +6,7 @@ import { getServerUser } from "@/core/db";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://skriuw.app"),
+	metadataBase: new URL("https://skriuw.com"),
 	title: {
 		default: "Skriuw",
 		template: "%s | Skriuw",
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: Props) {
 	const { user } = await getServerUser();
 	const initialEditorPreferences: EditorPreferencesRecord | null = user
 		? ((user as { editorPreferences?: EditorPreferencesRecord | null }).editorPreferences ??
-				null)
+			null)
 		: null;
 
 	return (
