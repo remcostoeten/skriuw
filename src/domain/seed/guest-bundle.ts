@@ -1,4 +1,4 @@
-import { loadActiveSeedBundle, type ActiveSeedBundle } from "@/domain/seed/queries";
+import type { ActiveSeedBundle } from "@/domain/seed/queries";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type {
 	NoteEditorMode,
@@ -33,6 +33,7 @@ export type GuestWorkspaceSnapshot = {
  * pre-seeded content without touching the database for that visitor.
  */
 export async function loadGuestWorkspaceSnapshot(): Promise<GuestWorkspaceSnapshot> {
+	const { loadActiveSeedBundle } = await import("@/domain/seed/queries");
 	const bundle = await loadActiveSeedBundle();
 	if (!bundle) {
 		return { notes: [], folders: [] };
