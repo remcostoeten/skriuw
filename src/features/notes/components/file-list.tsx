@@ -34,6 +34,7 @@ import {
 import { useSidebarStore } from "./sidebar/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
+import { GuestGate } from "@/shared/ui/guest-gate";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
 interface FileListProps {
@@ -1163,10 +1164,12 @@ export const FileList = memo(function FileList({
 									const sendFile = files.find((entry) => entry.id === item.id);
 									if (!sendFile) return null;
 									return (
-										<NoteSendMobileActionBlock
-											note={sendFile}
-											onClose={closeMobileActionSheet}
-										/>
+										<GuestGate feature="share" align="start">
+											<NoteSendMobileActionBlock
+												note={sendFile}
+												onClose={closeMobileActionSheet}
+											/>
+										</GuestGate>
 									);
 								})()
 							: null}

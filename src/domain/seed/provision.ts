@@ -27,7 +27,7 @@ function isEmptyPayload(payload: ActiveSeedBundle["payload"]): boolean {
 	);
 }
 
-/** Seeds starter content for a user id (demo provisioning, scripts). */
+/** Seeds starter content for a user id (signup provisioning, admin scripts). */
 export async function ensureStarterContentForUserId(userId: string): Promise<void> {
 	const userRow = await rootPrisma.user.findUnique({
 		where: { id: userId },
