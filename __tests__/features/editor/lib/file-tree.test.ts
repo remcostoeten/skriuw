@@ -18,15 +18,14 @@ describe("file tree block data", () => {
 		const parsed = parseFileTreeSource(DEFAULT_FILE_TREE_SOURCE);
 		const totals = countFileTreeNodes(parsed.children);
 
-		expect(parsed.rootName).toBe("Skriuw starter notes");
+		expect(parsed.rootName).toBe("Skriuw workspace");
 		expect(parsed.children.map((node) => [node.name, node.kind])).toEqual([
-			["Start here - editor field guide.md", "file"],
-			["Product Studio", "folder"],
-			["Playground", "folder"],
-			["Templates", "folder"],
+			["Welcome to Skriuw", "file"],
+			["Skriuw handbook", "file"],
+			["Guides", "folder"],
 		]);
-		expect(parsed.children[1]?.children[1]?.name).toBe("Research");
-		expect(totals).toEqual({ folders: 6, files: 9 });
+		expect(parsed.children[2]?.children[0]?.name).toBe("Workflows");
+		expect(totals).toEqual({ folders: 2, files: 3 });
 	});
 
 	test("detects explicit filetree fences and legacy text tree fences", () => {
@@ -43,13 +42,13 @@ describe("file tree block data", () => {
 		const firstBlock = document[0] as BlockWithProps | undefined;
 
 		expect(firstBlock?.type).toBe("fileTree");
-		expect(firstBlock?.props?.source).toContain("Skriuw starter notes");
+		expect(firstBlock?.props?.source).toContain("Skriuw workspace");
 
 		const flattened = flattenInlineChips(document);
 		const firstFlattenedBlock = flattened[0] as BlockWithProps | undefined;
 
 		expect(firstFlattenedBlock?.type).toBe("codeBlock");
 		expect(firstFlattenedBlock?.props?.language).toBe("filetree");
-		expect(firstFlattenedBlock?.content).toContain("Product Studio/");
+		expect(firstFlattenedBlock?.content).toContain("Guides/");
 	});
 });

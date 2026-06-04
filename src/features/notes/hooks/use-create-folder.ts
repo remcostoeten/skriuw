@@ -1,12 +1,15 @@
 "use client";
 
 import { useApiMutation } from "@/shared/api";
-import { createFolder, type CreateFolderInput } from "@/domain/folders/actions";
+import type { CreateFolderInput } from "@/domain/folders/actions";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "./notes-keys";
 import type { NoteFolder } from "@/types/notes";
 
 export function useCreateFolder() {
-	return useApiMutation<CreateFolderInput, NoteFolder, NoteFolder[]>(createFolder, {
+	const backend = useWorkspaceBackend();
+
+	return useApiMutation<CreateFolderInput, NoteFolder, NoteFolder[]>(backend.createFolder, {
 		optimistic: {
 			queryKey: notesKeys.folders(),
 			updater: (current, input) => {

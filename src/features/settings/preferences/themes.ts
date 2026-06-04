@@ -32,20 +32,3 @@ export const THEME_IDS = THEMES.map((theme) => theme.id) as readonly ThemeId[];
 export function isThemeId(value: unknown): value is ThemeId {
 	return typeof value === "string" && THEME_IDS.includes(value as ThemeId);
 }
-
-export const ACCENTS = [
-	{ id: "violet", label: "Violet", value: "hsl(var(--project-purple))" },
-	{ id: "blue", label: "Blue", value: "hsl(var(--project-blue))" },
-	{ id: "green", label: "Green", value: "hsl(var(--project-green))" },
-	{ id: "amber", label: "Amber", value: "hsl(var(--project-amber))" },
-	{ id: "pink", label: "Pink", value: "hsl(var(--project-pink))" },
-	{ id: "red", label: "Red", value: "hsl(var(--project-red))" },
-] as const;
-
-export type AccentId = (typeof ACCENTS)[number]["id"];
-
-export const DEFAULT_ACCENT_ID: AccentId = "violet";
-
-export function isAccentId(value: unknown): value is AccentId {
-	return typeof value === "string" && ACCENTS.some((accent) => accent.id === value);
-}

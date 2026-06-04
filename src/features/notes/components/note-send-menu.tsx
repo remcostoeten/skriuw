@@ -7,12 +7,15 @@ import {
 	FileDown,
 	Link2,
 	Loader2,
+	Lock,
 	Mail,
 	MessageCircle,
 	MessageSquare,
 	NotebookPen,
 	Share2,
 } from "lucide-react";
+import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { useRouter } from "next/navigation";
 import {
 	ContextMenuItem,
 	ContextMenuSeparator,
@@ -72,11 +75,12 @@ function MobileActionButton({
 
 function useNoteSendMenu(note: NoteSendSource, prefetch = false) {
 	const send = useNoteSend(note);
+	const isGuest = useIsGuestWorkspace();
 
 	useEffect(() => {
-		if (!prefetch || !note?.id) return;
+		if (!prefetch || !note?.id || isGuest) return;
 		void send.prefetchShareLink();
-	}, [prefetch, note?.id, send.prefetchShareLink]);
+	}, [prefetch, note?.id, send.prefetchShareLink, isGuest]);
 
 	return send;
 }
@@ -135,7 +139,7 @@ function NoteSendMobilePanel({
 	const linkBusy = isLinkShareBusy;
 
 	return (
-		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
+		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] pb-[env(safe-area-inset-bottom)]">
 			{shareIsStale ? (
 				<StaleShareHint
 					layout="banner"
@@ -427,6 +431,24 @@ function NoteSendItems({
 }
 
 export function NoteSendContextSubmenu({ note }: { note: NoteSendSource }) {
+	const isGuest = useIsGuestWorkspace();
+	const router = useRouter();
+
+	if (isGuest) {
+		return (
+			<ContextMenuItem
+				className="gap-2 text-muted-foreground"
+				onSelect={(event) => {
+					event.preventDefault();
+					router.push("/sign-up");
+				}}
+			>
+				<Lock className="h-4 w-4" />
+				Send note — sign up to unlock
+			</ContextMenuItem>
+		);
+	}
+
 	return (
 		<ContextMenuSub>
 			<ContextMenuSubTrigger className="gap-2">

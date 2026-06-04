@@ -3,10 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2, Upload } from "lucide-react";
+import { Download, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { GuestGate } from "@/shared/ui/guest-gate";
+import { useIsGuestWorkspace, resetGuestStorage } from "@/core/workspace-backend";
 import {
 	Dialog,
 	DialogClose,
@@ -252,7 +254,13 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 export function DataSection() {
 	const auth = useAuth();
 	const isConnected = auth.phase === "authenticated";
+	const isGuest = useIsGuestWorkspace();
 	const queryClient = useQueryClient();
+
+	const handleResetDemo = () => {
+		resetGuestStorage();
+		window.location.reload();
+	};
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const [exportState, setExportState] = useState<ExportState>("idle");
@@ -429,20 +437,22 @@ export function DataSection() {
 							/>
 							Include version history
 						</label>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleExport}
-							disabled={exportState === "pending" || !isConnected}
-							title={!isConnected ? "Sign in to export" : undefined}
-						>
-							<Download className="size-3.5" />
-							{exportState === "pending"
-								? "Exporting…"
-								: exportState === "error"
-									? "Failed — retry"
-									: "Export"}
-						</Button>
+						<GuestGate feature="export">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleExport}
+								disabled={exportState === "pending" || !isConnected}
+								title={!isConnected ? "Sign in to export" : undefined}
+							>
+								<Download className="size-3.5" />
+								{exportState === "pending"
+									? "Exporting…"
+									: exportState === "error"
+										? "Failed — retry"
+										: "Export"}
+							</Button>
+						</GuestGate>
 					</div>
 				</Row>
 				<Row
@@ -457,19 +467,35 @@ export function DataSection() {
 							className="hidden"
 							onChange={handleImportFileSelected}
 						/>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={!isConnected || importState === "previewing" || importState === "importing"}
-							onClick={() => fileInputRef.current?.click()}
-							title={!isConnected ? "Sign in to import" : undefined}
-						>
-							<Upload className="size-3.5" />
-							{importState === "previewing" ? "Reading…" : "Import"}
-						</Button>
+						<GuestGate feature="export">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!isConnected || importState === "previewing" || importState === "importing"}
+								onClick={() => fileInputRef.current?.click()}
+								title={!isConnected ? "Sign in to import" : undefined}
+							>
+								<Upload className="size-3.5" />
+								{importState === "previewing" ? "Reading…" : "Import"}
+							</Button>
+						</GuestGate>
 					</>
 				</Row>
 			</SettingsCard>
+
+			{isGuest && (
+				<SettingsCard>
+					<Row
+						title="Reset demo workspace"
+						description="Clear your local demo edits and restore the original seeded workspace. This cannot be undone."
+					>
+						<Button variant="outline" size="sm" onClick={handleResetDemo}>
+							<RotateCcw className="size-3.5" />
+							Reset demo
+						</Button>
+					</Row>
+				</SettingsCard>
+			)}
 
 			<Dialog
 				open={importDialogOpen}

@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import {
 	ChevronLeft,
 	ChevronRight,
+	Columns2,
 	Loader2,
 	PanelLeft,
 	PanelRight,
 	PenTool,
+	Rows2,
 	Settings2,
 	Sidebar,
 	SlidersHorizontal,
@@ -19,6 +21,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { GuestGate } from "@/shared/ui/guest-gate";
 
 type Props = {
 	fileName: string;
@@ -35,6 +38,11 @@ type Props = {
 	onAiGenerateTitle?: () => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	splitEnabled?: boolean;
+	onToggleSplit?: () => void;
+	canToggleSplit?: boolean;
+	splitOrientation?: "vertical" | "horizontal";
+	onToggleSplitOrientation?: () => void;
 };
 
 export function EditorToolbar({
@@ -52,6 +60,11 @@ export function EditorToolbar({
 	onAiGenerateTitle,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	splitEnabled,
+	onToggleSplit,
+	canToggleSplit = true,
+	splitOrientation = "vertical",
+	onToggleSplitOrientation,
 }: Props) {
 	const [isMounted, setIsMounted] = useState(false);
 	const anyAiLoading = aiLoading
@@ -174,6 +187,47 @@ export function EditorToolbar({
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
+				{onToggleSplit && (
+					<button
+						type="button"
+						onClick={onToggleSplit}
+						disabled={!canToggleSplit}
+						className={cn(
+							sidebarIconButtonClass,
+							splitEnabled &&
+								"border-border bg-muted text-foreground hover:bg-muted",
+							!canToggleSplit && "cursor-not-allowed text-muted-foreground/30",
+						)}
+						title={splitEnabled ? "Close split editor" : "Split editor"}
+						aria-label={splitEnabled ? "Close split editor" : "Split editor"}
+						aria-pressed={splitEnabled}
+					>
+						<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+					</button>
+				)}
+				{splitEnabled && onToggleSplitOrientation ? (
+					<button
+						type="button"
+						onClick={onToggleSplitOrientation}
+						className={sidebarIconButtonClass}
+						title={
+							splitOrientation === "vertical"
+								? "Switch to horizontal split"
+								: "Switch to vertical split"
+						}
+						aria-label={
+							splitOrientation === "vertical"
+								? "Switch to horizontal split"
+								: "Switch to vertical split"
+						}
+					>
+						{splitOrientation === "vertical" ? (
+							<Rows2 className="h-4 w-4" strokeWidth={1.5} />
+						) : (
+							<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+						)}
+					</button>
+				) : null}
 				{hasAiActions && !isMounted && (
 					<button
 						disabled
@@ -188,6 +242,7 @@ export function EditorToolbar({
 					</button>
 				)}
 				{hasAiActions && isMounted && (
+					<GuestGate feature="ai">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<button
@@ -270,6 +325,7 @@ export function EditorToolbar({
 							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
+					</GuestGate>
 				)}
 
 				<button

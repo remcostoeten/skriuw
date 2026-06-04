@@ -2,13 +2,15 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { updateNote, type UpdateNoteInput } from "@/domain/notes/actions";
+import type { UpdateNoteInput } from "@/domain/notes/actions";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 import { applyNoteUpdate, reconcileSavedNoteCache } from "@/features/notes/lib/note-cache";
 
 export function useUpdateNote() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
 	return useApiMutation<
 		UpdateNoteInput,
@@ -19,7 +21,7 @@ export function useUpdateNote() {
 			versionId?: string | null;
 		}
 	>(
-		updateNote,
+		backend.updateNote,
 		{
 			invalidateKeys: [],
 			onSuccess: (result, input) => {

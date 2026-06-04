@@ -23,6 +23,9 @@ export type SeedNote = {
 	order: number;
 	/** BlockNote block JSON. Stored as-is, never converted from markdown. */
 	richContent: unknown[];
+	/** Optional markdown mirror used for search, links, and tags when present. */
+	content?: string;
+	tags?: string[];
 	preferredEditorMode?: "block" | "markdown";
 };
 

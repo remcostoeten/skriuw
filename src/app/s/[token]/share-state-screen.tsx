@@ -34,8 +34,10 @@ const COPY: Record<
 export function ShareShell({ children }: { children: ReactNode }) {
 	return (
 		<main className="flex min-h-dvh flex-col bg-background text-foreground">
-			<div className="flex flex-1 items-center justify-center px-6 py-16">{children}</div>
-			<footer className="border-t border-border px-6 py-4 text-center text-[11px] text-muted-foreground/70">
+			<div className="flex flex-1 items-center justify-center px-6 py-16 pb-[max(4rem,env(safe-area-inset-bottom))] pt-[max(4rem,env(safe-area-inset-top))]">
+				{children}
+			</div>
+			<footer className="border-t border-border px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-muted-foreground/70">
 				Shared with{" "}
 				<Link href="/" className="font-medium text-foreground/80 transition-colors hover:text-foreground">
 					Skriuw
@@ -57,7 +59,7 @@ export function ShareStateScreen({ status }: { status: TerminalStatus }) {
 				<p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy.body}</p>
 				<Link
 					href="/"
-					className="mt-6 inline-flex items-center rounded-md border border-border bg-card px-4 py-2 text-[13px] font-medium transition-colors hover:bg-muted"
+					className="mt-6 inline-flex min-h-11 items-center rounded-md border border-border bg-card px-4 py-2 text-[13px] font-medium transition-colors hover:bg-muted"
 				>
 					Go to Skriuw
 				</Link>

@@ -27,6 +27,7 @@ import { cn } from "@/shared/lib/utils";
 type FileTreeBlockData = {
 	props: {
 		source?: string;
+		defaultExpanded?: boolean;
 	};
 };
 
@@ -38,6 +39,25 @@ type FileTreeEditor = {
 function getFileTreeSource(block: FileTreeBlockData): string {
 	const source = block.props.source?.trim();
 	return source ? normalizeFileTreeSource(source) : DEFAULT_FILE_TREE_SOURCE;
+}
+
+function collectFolderNodeIds(nodes: FileTreeNode[]): string[] {
+	return nodes.flatMap((node) =>
+		node.kind === "folder"
+			? [node.id, ...collectFolderNodeIds(node.children)]
+			: collectFolderNodeIds(node.children),
+	);
+}
+
+function getInitialCollapsedNodeIds(
+	nodes: FileTreeNode[],
+	defaultExpanded: boolean,
+): Set<string> {
+	if (defaultExpanded) {
+		return new Set();
+	}
+
+	return new Set(collectFolderNodeIds(nodes));
 }
 
 function getVisibleNodes(nodes: FileTreeNode[], collapsedNodeIds: Set<string>): FileTreeNode[] {
@@ -131,9 +151,12 @@ function FileTreeBlockView({
 	editor: FileTreeEditor;
 }) {
 	const source = getFileTreeSource(block);
+	const defaultExpanded = block.props.defaultExpanded !== false;
 	const parsedTree = useMemo(() => parseFileTreeSource(source), [source]);
 	const totals = useMemo(() => countFileTreeNodes(parsedTree.children), [parsedTree.children]);
-	const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
+	const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() =>
+		getInitialCollapsedNodeIds(parsedTree.children, defaultExpanded),
+	);
 	const [editing, setEditing] = useState(false);
 	const [draftSource, setDraftSource] = useState(source);
 	const [copied, setCopied] = useState(false);
@@ -146,6 +169,12 @@ function FileTreeBlockView({
 	useEffect(() => {
 		setDraftSource(source);
 	}, [source]);
+
+	useEffect(() => {
+		setCollapsedNodeIds(
+			getInitialCollapsedNodeIds(parseFileTreeSource(source).children, defaultExpanded),
+		);
+	}, [source, defaultExpanded]);
 
 	function toggleNode(nodeId: string) {
 		setCollapsedNodeIds((current) => {
@@ -314,6 +343,9 @@ export const createFileTree = createReactBlockSpec(
 			...defaultProps,
 			source: {
 				default: DEFAULT_FILE_TREE_SOURCE,
+			},
+			defaultExpanded: {
+				default: true,
 			},
 		},
 		content: "none" as const,
