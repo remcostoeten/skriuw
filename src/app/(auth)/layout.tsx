@@ -5,6 +5,7 @@ import { Button } from "@/shared/ui/button";
 import { getServerUser } from "@/core/db";
 import { AuthVisual } from "@/features/auth/components/auth-visual";
 import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
+import { ContinueAsGuestLink } from "@/features/auth/components/continue-as-guest-link";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
 	const { user } = await getServerUser();
@@ -36,6 +37,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 							<RawLogo variant="sidebar" size={32} className="text-foreground" />
 						</div>
 						{children}
+						<ContinueAsGuestLink />
 					</div>
 				</div>
 			</div>

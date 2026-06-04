@@ -1,5 +1,4 @@
 import {
-	BookOpen,
 	Bell,
 	CalendarDays,
 	ChevronLeft,
@@ -7,15 +6,11 @@ import {
 	Database,
 	FileText,
 	FlaskConical,
-	Folder,
-	FolderOpen,
-	Kanban,
 	Palette,
 	PanelLeft,
 	PanelRight,
-	PanelTopClose,
-	Plus,
 	PenLine,
+	Plus,
 	Plug,
 	Search,
 	Settings2,
@@ -23,20 +18,20 @@ import {
 	Sidebar,
 	SlidersHorizontal,
 	SortDesc,
-	UnfoldVertical,
 	Sparkles,
 	Tag,
 	User,
 } from "lucide-react";
 import { LayoutContainer } from "./layout-container";
+import { IconRailSkeleton } from "./icon-rail-skeleton";
 import { cn } from "@/shared/lib/utils";
-import { RawLogo } from "@/shared/icons/logo";
 import { DESKTOP_SIDEBAR_MIN_WIDTH } from "@/features/notes/constants";
-import { NewFolderNoteIcon, NewNoteIcon } from "@/features/notes/components/sidebar/header-icons";
 import {
 	DetailsPanelSkeleton,
 	EditorContentSkeleton,
 } from "@/features/editor/components/editor-content-skeleton";
+import { JournalContentSkeleton } from "@/features/journal/components/journal-content-skeleton";
+import { NotesSidebarSkeleton } from "@/features/notes/components/sidebar/notes-sidebar-skeleton";
 
 type WorkspaceLoadingVariant = "notes" | "journal";
 
@@ -149,42 +144,6 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 					</StaticControl>
 				</div>
 			</div>
-		</div>
-	);
-}
-
-// Enough rows to fill the column on tall viewports; the parent clips the
-// overflow on shorter ones. Deterministic widths + a gentle fade keep the
-// list reading as a real file tree rather than a stub pinned to the top.
-const SIDEBAR_SKELETON_ROW_COUNT = 22;
-
-function SidebarDataRows() {
-	return (
-		<div className="space-y-1.5">
-			{Array.from({ length: SIDEBAR_SKELETON_ROW_COUNT }).map((_, index) => {
-				const Icon = index === 2 || index === 9 ? Folder : FileText;
-
-				return (
-					<div
-						key={index}
-						className="flex h-8 items-center gap-2 px-2 text-sidebar-foreground/36"
-						style={{ opacity: Math.max(0.18, 1 - index * 0.045) }}
-					>
-						<Icon className="h-4 w-4 shrink-0" strokeWidth={1.45} />
-					</div>
-				);
-			})}
-		</div>
-	);
-}
-
-function SidebarHeaderIcon({ children }: { children: React.ReactNode }) {
-	return (
-		<div
-			aria-hidden="true"
-			className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground"
-		>
-			{children}
 		</div>
 	);
 }
@@ -311,151 +270,12 @@ export function WorkspaceSidebarSkeleton({ variant }: { variant: WorkspaceLoadin
 		return <JournalSidebarSkeleton />;
 	}
 
-	return (
-		<div
-			className="hidden shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col"
-			style={{ width: DESKTOP_SIDEBAR_MIN_WIDTH, minWidth: DESKTOP_SIDEBAR_MIN_WIDTH }}
-		>
-			<div className="sticky top-0 z-10 flex h-11 items-center justify-between overflow-hidden border-b border-sidebar-border bg-sidebar/95 px-3 backdrop-blur-xl">
-				<div className="flex h-full w-full items-center justify-between gap-3">
-					<div className="flex w-full items-center justify-between gap-2 md:gap-2.5">
-						<SidebarHeaderIcon>
-							<NewNoteIcon />
-						</SidebarHeaderIcon>
-						<SidebarHeaderIcon>
-							<NewFolderNoteIcon />
-						</SidebarHeaderIcon>
-						<SidebarHeaderIcon>
-							<PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
-						</SidebarHeaderIcon>
-						<SidebarHeaderIcon>
-							<UnfoldVertical className="h-4 w-4" strokeWidth={1.5} />
-						</SidebarHeaderIcon>
-						<SidebarHeaderIcon>
-							<Search className="h-4 w-4" strokeWidth={1.5} />
-						</SidebarHeaderIcon>
-					</div>
-				</div>
-			</div>
-			<div className="min-h-0 flex-1 overflow-hidden p-3">
-				<div className="space-y-2">
-					<div className="px-2 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/32">
-						Notes
-					</div>
-					<SidebarDataRows />
-				</div>
-			</div>
-		</div>
-	);
+	return <NotesSidebarSkeleton />;
 }
 
 export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVariant }) {
 	if (variant === "journal") {
-		return (
-			<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
-				<MobileTopBar variant="journal" title="Entries" />
-				<div className="flex h-11 items-center border-b border-border px-3 md:hidden">
-					<div className="flex items-center gap-1 overflow-x-auto">
-						{["All", "Daily", "Tagged", "Mood"].map((label) => (
-							<span
-								key={label}
-								className={cn(
-									"flex h-7 shrink-0 items-center px-3 text-[12px] font-medium",
-									label === "All"
-										? "text-foreground/70"
-										: "text-muted-foreground/50",
-								)}
-							>
-								{label}
-							</span>
-						))}
-						<StaticControl className="ml-auto h-9 w-9">
-							<Search className="h-3.5 w-3.5" strokeWidth={1.5} />
-						</StaticControl>
-						<StaticControl className="h-9 w-9">
-							<SortDesc className="h-3.5 w-3.5" strokeWidth={1.5} />
-						</StaticControl>
-					</div>
-				</div>
-				<div className="flex-1 overflow-hidden px-3 md:hidden">
-					<div className="mt-2">
-						{Array.from({ length: 9 }, (_, index) => (
-							<div
-								key={index}
-								className="flex h-[54px] items-center gap-3 border-b border-border px-1 py-2.5"
-							>
-								<span className="w-5 shrink-0 text-center text-[14px] text-muted-foreground/20">
-									·
-								</span>
-								<DataLine className="h-px flex-1 bg-foreground/[0.08]" />
-								<span className="shrink-0 text-[12px] text-muted-foreground/35">
-									May {18 - index}
-								</span>
-							</div>
-						))}
-					</div>
-				</div>
-
-				<div className="hidden h-11 items-center border-b border-sidebar-border border-l bg-sidebar px-3 md:flex">
-					<div className="flex items-center gap-2">
-						<StaticControl className="w-7">
-							<Sidebar className="h-4 w-4" strokeWidth={1.5} />
-						</StaticControl>
-						<StaticControl className="w-7">
-							<CalendarDays className="h-4 w-4" strokeWidth={1.5} />
-						</StaticControl>
-					</div>
-					<div className="flex flex-1 justify-center gap-3 text-sm">
-						<span className="text-sidebar-foreground/50">Journal</span>
-						<span className="font-medium text-sidebar-foreground/68">Entries</span>
-					</div>
-					<div className="flex items-center gap-1">
-						<StaticControl className="w-7">
-							<Search className="h-4 w-4" strokeWidth={1.5} />
-						</StaticControl>
-						<StaticControl className="w-16">
-							<Plus className="mr-1 h-3.5 w-3.5" strokeWidth={1.7} />
-							<span className="text-[11px]">New</span>
-						</StaticControl>
-					</div>
-				</div>
-				<div className="hidden flex-col md:flex">
-					<div className="flex h-11 items-center gap-2 border-b border-border px-2">
-						<div className="flex items-center gap-0.5 overflow-x-auto">
-							{["All", "Daily", "Tagged", "Mood"].map((label) => (
-								<span
-									key={label}
-									className={cn(
-										"flex h-7 items-center px-3 text-[13px] font-medium",
-										label === "All"
-											? "text-foreground/70"
-											: "text-muted-foreground/50",
-									)}
-								>
-									{label}
-								</span>
-							))}
-						</div>
-					</div>
-				</div>
-				<div className="hidden flex-1 overflow-hidden md:block">
-					{Array.from({ length: 10 }, (_, index) => (
-						<div
-							key={index}
-							className="flex h-[54px] items-center gap-3 border-b border-border px-4 py-2.5"
-						>
-							<span className="w-5 shrink-0 text-center text-[14px] text-muted-foreground/20">
-								·
-							</span>
-							<DataLine className="h-px flex-1 bg-foreground/[0.08]" />
-							<span className="shrink-0 text-[12px] text-muted-foreground/35">
-								May {18 - index}
-							</span>
-						</div>
-					))}
-				</div>
-			</div>
-		);
+		return <JournalContentSkeleton view="list" />;
 	}
 
 	return (
@@ -508,42 +328,7 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 }
 
 function SettingsLoadingRail() {
-	const itemClass =
-		"flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-sidebar-foreground/52";
-	return (
-		<>
-			<aside className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 md:flex">
-				<div className="flex w-full flex-col items-center">
-					<div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
-						<RawLogo
-							variant="sidebar"
-							size={34}
-							className="text-sidebar-foreground/92"
-						/>
-					</div>
-					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						<div className={itemClass}>
-							<FolderOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-						</div>
-						<div className={itemClass}>
-							<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-						</div>
-					</div>
-				</div>
-				<div className="flex w-full flex-col items-center gap-3 pb-4">
-					<div className={itemClass}>
-						<Kanban className="h-[18px] w-[18px]" strokeWidth={1.6} />
-					</div>
-					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-					<div
-						aria-hidden="true"
-						className="h-9 w-9 rounded-full border border-sidebar-border bg-sidebar"
-					/>
-				</div>
-			</aside>
-			<div aria-hidden="true" className="hidden w-14 shrink-0 md:block" />
-		</>
-	);
+	return <IconRailSkeleton />;
 }
 
 export function SettingsLoadingShell() {
@@ -673,11 +458,17 @@ export function SettingsLoadingShell() {
 	);
 }
 
-export function WorkspaceLoadingShell({ variant }: { variant: WorkspaceLoadingVariant }) {
+export function WorkspaceLoadingShell({
+	variant,
+}: {
+	variant: WorkspaceLoadingVariant;
+}) {
+	const activeHref = variant === "journal" ? "/app/journal" : "/app";
+
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<div aria-hidden="true" className="hidden w-14 shrink-0 md:block" />
+				<IconRailSkeleton activeHref={activeHref} />
 				<WorkspaceSidebarSkeleton variant={variant} />
 				<WorkspaceContentSkeleton variant={variant} />
 			</div>

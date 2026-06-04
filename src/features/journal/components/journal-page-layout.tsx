@@ -3,15 +3,12 @@
 import { format } from "date-fns";
 import { CalendarDays, ChevronLeft, Code, Settings2, Sidebar, Type } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import {
-	WorkspaceContentSkeleton,
-	WorkspaceLoadingShell,
-	WorkspaceSidebarSkeleton,
-} from "@/features/layout/components/app-loading-shell";
+import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useAuth } from "@/core/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
@@ -21,13 +18,14 @@ import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalLayout } from "../hooks/use-journal-layout";
 import { useJournalEntry } from "../hooks/use-journal-entry";
+import { JournalContentSkeleton } from "./journal-content-skeleton";
 
 function JournalSidebarPlaceholder() {
 	return <WorkspaceSidebarSkeleton variant="journal" />;
 }
 
-function JournalContentPlaceholder() {
-	return <WorkspaceContentSkeleton variant="journal" />;
+function JournalContentPlaceholder({ view }: { view: "list" | "editor" }) {
+	return <JournalContentSkeleton view={view} />;
 }
 
 type JournalEditorToolbarProps = {
@@ -209,7 +207,9 @@ function JournalEditorToolbar({
 
 export function JournalPageLayout() {
 	const auth = useAuth();
+	const searchParams = useSearchParams();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
+	const loadingView = searchParams.get("date") ? "editor" : "list";
 
 	const {
 		selectedDate,
@@ -242,7 +242,15 @@ export function JournalPageLayout() {
 	const journalEntry = useJournalEntry(selectedDate);
 
 	if (forceLoading) {
-		return <WorkspaceLoadingShell variant="journal" />;
+		return (
+			<LayoutContainer className="bg-background">
+				<div className="relative flex min-h-0 flex-1 overflow-hidden">
+					{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+					<JournalSidebarPlaceholder />
+					<JournalContentPlaceholder view={loadingView} />
+				</div>
+			</LayoutContainer>
+		);
 	}
 
 	if (auth.isReady && auth.phase !== "authenticated") {
@@ -256,20 +264,21 @@ export function JournalPageLayout() {
 
 	return (
 		<LayoutContainer className="bg-background">
-			<div className="relative flex min-h-0 flex-1">
+			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{/* Icon rail (desktop) */}
 				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
 
 				{/* Sidebar (desktop) */}
-				{isHydrated && !isMobile && showSidebar && (
+				{isHydrated && !isMobile && showSidebar ? (
 					<div className="relative shrink-0" style={{ width: sidebarWidth }}>
 						<JournalSidebar
 							selectedDate={selectedDate}
 							onSelectDate={handleSelectDate}
 						/>
 					</div>
-				)}
-				{!isHydrated && <JournalSidebarPlaceholder />}
+				) : !isMobile ? (
+					<JournalSidebarPlaceholder />
+				) : null}
 
 				{/* Main content area */}
 				{isHydrated ? (
@@ -306,7 +315,7 @@ export function JournalPageLayout() {
 						)}
 					</div>
 				) : (
-					<JournalContentPlaceholder />
+					<JournalContentPlaceholder view={loadingView} />
 				)}
 			</div>
 

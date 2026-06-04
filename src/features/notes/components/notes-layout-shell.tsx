@@ -12,6 +12,7 @@ import {
 } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
+import { SplitEditorWorkspace } from "./split-editor-workspace";
 import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
 import { ShareScreen } from "@/features/sharing/components/share-screen";
 import { SidebarPanel } from "./sidebar-panel";
@@ -68,14 +69,27 @@ export function NotesLayoutShell({
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 	const {
 		activeFile,
+		focusedFile,
+		secondaryFile,
+		splitEnabled,
+		focusedEditorPane,
+		editorScrollPositions,
+		splitOrientation,
+		splitSecondaryFirst,
+		secondaryEditorMode,
+		focusedEditorMode,
 		files,
 		canNavigateNext,
 		canNavigatePrev,
+		canToggleSplit,
 		closeMetadata,
 		closeSidebar,
 		commandItems,
 		editorMode,
+		handleCloseSplit,
 		handleDesktopSidebarResizeStart,
+		handleEditorScrollPositionChange,
+		handleFocusEditorPane,
 		handleMetadataDragEnd,
 		handleMetadataDragStart,
 		handleNavigateNext,
@@ -85,6 +99,9 @@ export function NotesLayoutShell({
 		handleToggleEditorMode,
 		handleToggleMetadata,
 		handleToggleSidebar,
+		handleToggleSplit,
+		handleToggleSplitOrientation,
+		handleSwapSplitPaneOrder,
 		isActiveNoteLoading,
 		isEditorReady,
 		isMobile,
@@ -217,6 +234,35 @@ export function NotesLayoutShell({
 													onBack={handleExitVersionPreview}
 													onRestore={handleRestoreViewedVersion}
 												/>
+											) : splitEnabled && secondaryFile ? (
+												<SplitEditorWorkspace
+													primaryFile={activeFile}
+													secondaryFile={secondaryFile}
+													files={files}
+													focusedPane={focusedEditorPane}
+													editorMode={editorMode ?? "block"}
+													secondaryEditorMode={secondaryEditorMode}
+													scrollPositions={editorScrollPositions}
+													orientation={splitOrientation}
+													secondaryFirst={splitSecondaryFirst}
+													isMobile={isMobile}
+													canNavigatePrev={canNavigatePrev}
+													canNavigateNext={canNavigateNext}
+													onToggleSidebar={handleToggleSidebar}
+													onToggleMetadata={handleToggleMetadata}
+													onOpenSettings={handleOpenSettings}
+													onNavigatePrev={handleNavigatePrev}
+													onNavigateNext={handleNavigateNext}
+													onToggleSplit={handleToggleSplit}
+													onToggleSplitOrientation={handleToggleSplitOrientation}
+													onSwapPaneOrder={handleSwapSplitPaneOrder}
+													onCloseSplit={handleCloseSplit}
+													onFocusPane={handleFocusEditorPane}
+													onScrollPositionChange={handleEditorScrollPositionChange}
+													onContentChange={updateFileContent}
+													onRenameFile={layout.renameFile}
+													onEditorBlur={flushFileEdits}
+												/>
 											) : (
 												<EditorContainer
 													file={activeFile}
@@ -236,6 +282,22 @@ export function NotesLayoutShell({
 													}
 													canNavigatePrev={canNavigatePrev}
 													canNavigateNext={canNavigateNext}
+													canToggleSplit={canToggleSplit}
+													onToggleSplit={handleToggleSplit}
+													splitEnabled={false}
+													initialScrollTop={
+														activeFile
+															? (editorScrollPositions[activeFile.id] ?? 0)
+															: 0
+													}
+													onScrollPositionChange={(scrollTop) => {
+														if (activeFile) {
+															handleEditorScrollPositionChange(
+																activeFile.id,
+																scrollTop,
+															);
+														}
+													}}
 													fileName={activeFile?.name || "No file selected"}
 													onRenameFile={layout.renameFile}
 												/>
@@ -251,9 +313,9 @@ export function NotesLayoutShell({
 									<NotesMetadataPlaceholder />
 								) : (
 									<MetadataPanel
-										file={activeFile}
+										file={focusedFile ?? activeFile}
 										files={files}
-										editorMode={editorMode ?? "block"}
+										editorMode={focusedEditorMode ?? editorMode ?? "block"}
 										onToggleEditorMode={handleToggleEditorMode}
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={handleViewVersion}
@@ -381,10 +443,10 @@ export function NotesLayoutShell({
 									<NotesMetadataPlaceholder isMobile />
 								) : (
 									<MetadataPanel
-										file={activeFile}
+										file={focusedFile ?? activeFile}
 										files={files}
 										isMobile
-										editorMode={editorMode ?? "block"}
+										editorMode={focusedEditorMode ?? editorMode ?? "block"}
 										onToggleEditorMode={handleToggleEditorMode}
 										onFileSelect={sidebarPanelProps.actions.onFileSelect}
 										onViewVersion={(version) => {

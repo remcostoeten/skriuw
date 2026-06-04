@@ -55,6 +55,10 @@ interface EditorProps {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
+	initialScrollTop?: number;
+	onScrollPositionChange?: (scrollTop: number) => void;
+	onPaneActivate?: () => void;
+	isPaneFocused?: boolean;
 }
 
 export function Editor({
@@ -72,10 +76,16 @@ export function Editor({
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
+	initialScrollTop = 0,
+	onScrollPositionChange,
+	onPaneActivate,
+	isPaneFocused,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const gutterRef = useRef<HTMLDivElement>(null);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const cursorAnimationFrameRef = useRef<number | null>(null);
+	const scrollReportFrameRef = useRef<number | null>(null);
 	const lineHeightValue = getEditorLineHeightValue(editorLineHeight);
 	const lineCount = useMemo(
 		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
@@ -152,8 +162,47 @@ export function Editor({
 			if (cursorAnimationFrameRef.current !== null) {
 				window.cancelAnimationFrame(cursorAnimationFrameRef.current);
 			}
+			if (scrollReportFrameRef.current !== null) {
+				window.cancelAnimationFrame(scrollReportFrameRef.current);
+			}
 		};
 	}, []);
+
+	useEffect(() => {
+		const container = scrollContainerRef.current;
+		if (!container || !file) return;
+		container.scrollTop = initialScrollTop;
+	}, [file?.id, initialScrollTop]);
+
+	const reportScrollPosition = useCallback(() => {
+		const container = scrollContainerRef.current;
+		if (!container || !file || !onScrollPositionChange) return;
+		if (scrollReportFrameRef.current !== null) {
+			window.cancelAnimationFrame(scrollReportFrameRef.current);
+		}
+		scrollReportFrameRef.current = window.requestAnimationFrame(() => {
+			scrollReportFrameRef.current = null;
+			onScrollPositionChange(container.scrollTop);
+		});
+	}, [file, onScrollPositionChange]);
+
+	const containerClass = cn(
+		"flex min-h-full flex-1 flex-col overflow-y-auto bg-card",
+		isPaneFocused === false && "opacity-95",
+		isPaneFocused === true && "ring-1 ring-inset ring-foreground/12",
+	);
+	const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
+
+	const syncGutterScroll = useCallback(() => {
+		const textarea = textareaRef.current;
+		const gutter = gutterRef.current;
+		if (!textarea || !gutter) return;
+		gutter.scrollTop = textarea.scrollTop;
+	}, []);
+
+	const handlePanePointerDown = useCallback(() => {
+		onPaneActivate?.();
+	}, [onPaneActivate]);
 
 	if (!file) {
 		return (
@@ -167,19 +216,15 @@ export function Editor({
 			</div>
 		);
 	}
-	const containerClass = "flex min-h-full flex-1 flex-col overflow-y-auto bg-card";
-	const contentClass = "mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:px-8 sm:py-8";
-
-	const syncGutterScroll = useCallback(() => {
-		const textarea = textareaRef.current;
-		const gutter = gutterRef.current;
-		if (!textarea || !gutter) return;
-		gutter.scrollTop = textarea.scrollTop;
-	}, []);
 
 	if (editorMode === "block") {
 		return (
-			<div className={containerClass}>
+			<div
+				ref={scrollContainerRef}
+				className={containerClass}
+				onScroll={reportScrollPosition}
+				onPointerDown={handlePanePointerDown}
+			>
 				<RichTextEditor
 					content={file.content}
 					richContent={file.richContent}
@@ -202,7 +247,12 @@ export function Editor({
 
 	// Raw mode
 	return (
-		<div className={containerClass}>
+		<div
+			ref={scrollContainerRef}
+			className={containerClass}
+			onScroll={reportScrollPosition}
+			onPointerDown={handlePanePointerDown}
+		>
 			<div className={contentClass}>
 				<div className={showLineNumbers ? "flex items-start gap-3" : undefined}>
 					{showLineNumbers ? (
@@ -228,7 +278,11 @@ export function Editor({
 							handleMarkdownChange(e.target.value);
 							queueTextareaCursorReport();
 						}}
-						onScroll={syncGutterScroll}
+						onScroll={(event) => {
+							syncGutterScroll();
+							reportScrollPosition();
+							if (event.currentTarget !== textareaRef.current) return;
+						}}
 						onClick={queueTextareaCursorReport}
 						onFocus={queueTextareaCursorReport}
 						onKeyUp={queueTextareaCursorReport}
