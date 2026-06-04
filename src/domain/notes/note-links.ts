@@ -1,4 +1,5 @@
 import type { NoteFile } from "@/types/notes";
+import { richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
 
@@ -49,6 +50,17 @@ export function getNoteTitle(note: Pick<NoteFile, "name" | "content">): string {
 	return extractHeadingTitle(note.content) ?? stripMarkdownExtension(note.name);
 }
 
+export function getNoteSearchableContent(
+	note: Pick<NoteFile, "content" | "richContent">,
+): string {
+	const markdown = note.content?.trim();
+	if (markdown) {
+		return note.content;
+	}
+
+	return richDocumentToSearchableMarkdown(note.richContent);
+}
+
 export function extractNoteTags(content: string): string[] {
 	const tags = new Set<string>();
 	const source = searchableContent(content);
@@ -67,7 +79,10 @@ export function getWorkspaceTags(files: NoteFile[]): string[] {
 	const tags = new Set<string>();
 
 	for (const file of files) {
-		for (const tag of [...(file.tags ?? []), ...extractNoteTags(file.content)]) {
+		for (const tag of [
+			...(file.tags ?? []),
+			...extractNoteTags(getNoteSearchableContent(file)),
+		]) {
 			tags.add(tag.toLowerCase());
 		}
 	}
@@ -75,9 +90,9 @@ export function getWorkspaceTags(files: NoteFile[]): string[] {
 	return [...tags].toSorted((left, right) => left.localeCompare(right));
 }
 
-export function extractNoteLinks(note: Pick<NoteFile, "id" | "content">): NoteLink[] {
+export function extractNoteLinks(note: Pick<NoteFile, "id" | "content" | "richContent">): NoteLink[] {
 	const links: NoteLink[] = [];
-	const content = searchableContent(note.content);
+	const content = searchableContent(getNoteSearchableContent(note));
 
 	for (const match of content.matchAll(WIKI_LINK_PATTERN)) {
 		const targetLabel = match[1]?.trim();
@@ -166,6 +181,57 @@ export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNote
 	return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
 }
 
+export function findNoteByTitle(
+	files: NoteFile[],
+	title: string,
+): NoteFile | null {
+	const matches = buildTitleIndex(files).get(normalizeNoteTitle(title)) ?? [];
+
+	if (matches.length === 1) {
+		return matches[0];
+	}
+
+	return null;
+}
+
+function dedupeLinks(
+	links: ResolvedNoteLink[],
+	keyFor: (link: ResolvedNoteLink) => string,
+): ResolvedNoteLink[] {
+	const seen = new Set<string>();
+	const deduped: ResolvedNoteLink[] = [];
+
+	for (const link of links) {
+		const key = keyFor(link);
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		deduped.push(link);
+	}
+
+	return deduped;
+}
+
+function outgoingLinkKey(link: ResolvedNoteLink): string {
+	if (link.status === "resolved" && link.targetNoteId) {
+		return `resolved:${link.targetNoteId}`;
+	}
+
+	return `unresolved:${normalizeNoteTitle(link.targetLabel)}`;
+}
+
+function isSelfLink(link: ResolvedNoteLink, activeNote: NoteFile): boolean {
+	if (link.status === "resolved" && link.targetNoteId === activeNote.id) {
+		return true;
+	}
+
+	return (
+		link.status !== "resolved" &&
+		normalizeNoteTitle(link.targetLabel) === normalizeNoteTitle(getNoteTitle(activeNote))
+	);
+}
+
 export function buildOutgoingNoteLinks(
 	activeNote: NoteFile | null,
 	files: NoteFile[],
@@ -175,9 +241,11 @@ export function buildOutgoingNoteLinks(
 	const notesById = buildNoteIdIndex(files);
 	const titleIndex = buildTitleIndex(files);
 
-	return extractNoteLinks(activeNote).map((link) =>
-		resolveNoteLinkWithIndexes(link, notesById, titleIndex),
-	);
+	const links = extractNoteLinks(activeNote)
+		.map((link) => resolveNoteLinkWithIndexes(link, notesById, titleIndex))
+		.filter((link) => !isSelfLink(link, activeNote));
+
+	return dedupeLinks(links, outgoingLinkKey);
 }
 
 export function buildNoteBacklinks(
@@ -190,10 +258,12 @@ export function buildNoteBacklinks(
 	const titleIndex = buildTitleIndex(files);
 	const resolve = (link: NoteLink) => resolveNoteLinkWithIndexes(link, notesById, titleIndex);
 
-	return files
+	const links = files
 		.filter((file) => file.id !== activeNote.id)
 		.flatMap((file) => extractNoteLinks(file).map(resolve))
 		.filter((link) => link.status === "resolved" && link.targetNoteId === activeNote.id);
+
+	return dedupeLinks(links, (link) => link.sourceNoteId);
 }
 
 export function buildNoteLinkIndex(activeNote: NoteFile | null, files: NoteFile[]): NoteLinkIndex {

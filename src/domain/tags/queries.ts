@@ -47,5 +47,5 @@ export async function listWorkspaceTags(): Promise<JournalTag[]> {
 		usageCount: tag.usageCount,
 	}));
 
-	return deriveWorkspaceTags(journalEntries, tags, notes);
+	return deriveWorkspaceTags(journalEntries, tags, []);
 }

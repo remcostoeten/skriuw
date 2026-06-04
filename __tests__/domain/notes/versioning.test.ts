@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	buildNoteVersionContentHash,
 	formatNoteVersionDelta,
+	getVersionContextPreview,
 	previewVersionContent,
 	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
@@ -63,5 +64,7 @@ describe("note versioning", () => {
 			"Paragraph one",
 			"Paragraph two",
 		]);
+		expect(getVersionContextPreview("# Title\n\nParagraph one")).toBe("Title");
+		expect(getVersionContextPreview("")).toBe(null);
 	});
 });

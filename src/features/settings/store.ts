@@ -18,7 +18,6 @@ import type {
 	AppearancePreferences,
 	EditorPreferences,
 	JournalPreferences,
-	NotificationsPreferences,
 	PersistedPreferencesState,
 	PreferencesProfile,
 	ProfilePreferences,
@@ -34,7 +33,6 @@ interface PreferencesState {
 	profiles: Record<string, PreferencesProfile>;
 	editor: EditorPreferences;
 	appearance: AppearancePreferences;
-	notifications: NotificationsPreferences;
 	profile: ProfilePreferences;
 	journal: JournalPreferences;
 	ai: AiPreferences;
@@ -48,10 +46,6 @@ interface PreferencesState {
 	updateAppearancePreference: <K extends keyof AppearancePreferences>(
 		key: K,
 		value: AppearancePreferences[K],
-	) => void;
-	updateNotificationsPreference: <K extends keyof NotificationsPreferences>(
-		key: K,
-		value: NotificationsPreferences[K],
 	) => void;
 	updateProfilePreference: <K extends keyof ProfilePreferences>(
 		key: K,
@@ -80,7 +74,6 @@ function projectProfile(userScopeId: string, profile: PreferencesProfile) {
 		isLoading: false,
 		editor: profile.editor,
 		appearance: profile.appearance,
-		notifications: profile.notifications,
 		profile: profile.profile,
 		journal: profile.journal,
 		ai: profile.ai,
@@ -161,13 +154,6 @@ export const usePreferencesStore = create<PreferencesState>()(
 					mutate((profile) => ({
 						...profile,
 						appearance: { ...profile.appearance, [key]: value },
-					}));
-				},
-
-				updateNotificationsPreference: (key, value) => {
-					mutate((profile) => ({
-						...profile,
-						notifications: { ...profile.notifications, [key]: value },
 					}));
 				},
 

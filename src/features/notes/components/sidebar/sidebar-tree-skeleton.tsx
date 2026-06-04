@@ -1,0 +1,180 @@
+import { ChevronRight, FileText, Folder } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+
+function SkeletonLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
+	return (
+		<div
+			aria-hidden="true"
+			className={cn("rounded-sm bg-sidebar-foreground/[0.075]", className)}
+			style={style}
+		/>
+	);
+}
+
+type SidebarTreeRowSkeletonProps = {
+	index?: number;
+	depth?: number;
+	kind?: "file" | "folder";
+	labelWidth?: number;
+	className?: string;
+};
+
+export function SidebarTreeRowSkeleton({
+	index = 0,
+	depth = 0,
+	kind = "file",
+	labelWidth,
+	className,
+}: SidebarTreeRowSkeletonProps) {
+	const Icon = kind === "folder" ? Folder : FileText;
+	const width =
+		labelWidth ??
+		[68, 52, 74, 44, 61, 58, 48, 70, 55, 63, 42, 66][index % 12];
+
+	return (
+		<div
+			aria-hidden="true"
+			className={cn(
+				"flex h-[34px] items-center gap-2 pr-2.5 text-sidebar-foreground/36",
+				className,
+			)}
+			style={{
+				paddingLeft: `${12 + depth * 16}px`,
+				opacity: Math.max(0.22, 1 - index * 0.04),
+			}}
+		>
+			<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.45} />
+			<SkeletonLine className="h-2.5 max-w-full" style={{ width: `${width}%` }} />
+		</div>
+	);
+}
+
+function SidebarSectionHeaderSkeleton({ title }: { title: string }) {
+	return (
+		<div
+			aria-hidden="true"
+			className="mx-2 mb-0.5 flex min-h-8 items-center gap-1.5 px-2 md:h-7 md:min-h-0"
+		>
+			<ChevronRight className="h-3 w-3 rotate-90 text-muted-foreground/70" strokeWidth={1.5} />
+			<span className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
+				{title}
+			</span>
+		</div>
+	);
+}
+
+function JournalSectionSkeleton() {
+	const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+	const days = Array.from({ length: 35 }, (_, index) => index + 1);
+
+	return (
+		<section aria-hidden="true" className="mx-2 mb-0.5">
+			<SidebarSectionHeaderSkeleton title="Journal" />
+			<div className="px-2 pb-2 pt-0.5">
+				<div className="mb-2 flex items-center justify-between px-0.5">
+					<span className="text-[11px] font-semibold text-foreground/55">May 2026</span>
+				</div>
+				<div className="grid grid-cols-7 gap-0">
+					{weekdayLabels.map((label) => (
+						<div
+							key={label}
+							className="flex h-6 items-center justify-center text-[9px] font-medium uppercase tracking-wider text-muted-foreground/45"
+						>
+							{label}
+						</div>
+					))}
+				</div>
+				<div className="grid grid-cols-7 gap-0.5">
+					{days.map((day) => (
+						<div
+							key={day}
+							className={cn(
+								"flex h-7 items-center justify-center text-[11px]",
+								day === 27
+									? "border border-border bg-muted/70 font-semibold text-foreground/60"
+									: "text-foreground/35",
+							)}
+						>
+							{day <= 31 ? day : ""}
+						</div>
+					))}
+				</div>
+				<div className="mt-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/20 px-3 py-2.5">
+					<SkeletonLine className="h-2.5 w-24" />
+					<SkeletonLine className="mt-2 h-2 w-full" />
+				</div>
+			</div>
+		</section>
+	);
+}
+
+const FILE_TREE_ROWS: Array<{ depth: number; kind: "file" | "folder"; labelWidth: number }> = [
+	{ depth: 0, kind: "folder", labelWidth: 58 },
+	{ depth: 1, kind: "file", labelWidth: 72 },
+	{ depth: 1, kind: "file", labelWidth: 64 },
+	{ depth: 0, kind: "folder", labelWidth: 52 },
+	{ depth: 1, kind: "file", labelWidth: 68 },
+	{ depth: 0, kind: "file", labelWidth: 76 },
+	{ depth: 0, kind: "file", labelWidth: 48 },
+	{ depth: 0, kind: "file", labelWidth: 61 },
+];
+
+export function SidebarTreeSkeleton({
+	rowCount = 8,
+	className,
+}: {
+	rowCount?: number;
+	className?: string;
+}) {
+	const rows = FILE_TREE_ROWS.slice(0, rowCount);
+
+	return (
+		<div aria-hidden="true" className={cn("px-1.5 pt-1", className)}>
+			{rows.map((row, index) => (
+				<SidebarTreeRowSkeleton
+					key={index}
+					index={index}
+					depth={row.depth}
+					kind={row.kind}
+					labelWidth={row.labelWidth}
+				/>
+			))}
+		</div>
+	);
+}
+
+export function NotesSidebarContentSkeleton() {
+	return (
+		<div
+			aria-hidden="true"
+			className="flex-1 overflow-hidden pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:pb-0"
+		>
+			<section className="mx-2 mb-0.5">
+				<SidebarTreeSkeleton rowCount={8} />
+			</section>
+
+			<JournalSectionSkeleton />
+
+			<section aria-hidden="true" className="mx-2 mb-0.5">
+				<SidebarSectionHeaderSkeleton title="Recents" />
+				<div className="space-y-px px-1.5 pb-2 pt-0.5">
+					{Array.from({ length: 3 }).map((_, index) => (
+						<SidebarTreeRowSkeleton key={index} index={index} labelWidth={[62, 54, 70][index]} />
+					))}
+				</div>
+			</section>
+
+			<section aria-hidden="true" className="mx-2 mb-0.5">
+				<SidebarSectionHeaderSkeleton title="Projects" />
+				<div className="space-y-1 px-2 pb-2 pt-0.5">
+					{Array.from({ length: 2 }).map((_, index) => (
+						<div key={index} className="flex items-center gap-2 px-1 py-1.5">
+							<div className="h-2 w-2 shrink-0 rounded-full bg-sidebar-foreground/[0.12]" />
+							<SkeletonLine className="h-2.5" style={{ width: `${[48, 56][index]}%` }} />
+						</div>
+					))}
+				</div>
+			</section>
+		</div>
+	);
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { resetGuestStorage } from "@/core/workspace-backend/local-backend";
 
 export type AuthUser = {
 	id: string;
@@ -171,6 +172,10 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
 		throw new Error("Account created but no session returned.");
 	}
 
+	// New account starts from the normal seed — discard any local guest
+	// workspace + engagement counter so it doesn't linger invisibly.
+	resetGuestStorage();
+
 	const user = toAuthUser(data.user);
 	setCurrentAuthUser(user);
 	return createAuthSnapshot({ user });
@@ -181,6 +186,10 @@ export async function signInWithOAuth(
 	options: { rememberMe: boolean },
 ): Promise<void> {
 	await setRememberMe(options.rememberMe);
+
+	// Once authenticated, any local guest workspace is irrelevant — clear it
+	// before the OAuth redirect so it doesn't linger.
+	resetGuestStorage();
 
 	const { error } = await authClient.signIn.social({
 		provider,
