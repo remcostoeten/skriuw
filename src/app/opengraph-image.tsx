@@ -121,7 +121,7 @@ export default function Image() {
 						fontWeight: 700,
 					}}
 				>
-					skriuw.app
+					skriuw.com
 				</div>
 			</div>
 

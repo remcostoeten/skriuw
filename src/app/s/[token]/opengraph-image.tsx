@@ -125,7 +125,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
 							fontWeight: 700,
 						}}
 					>
-						skriuw.app/s/{tokenLabel}
+						skriuw.com/s/{tokenLabel}
 					</div>
 				</div>
 
@@ -246,7 +246,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
 						fontWeight: 700,
 					}}
 				>
-					skriuw.app/s/{tokenLabel}
+					skriuw.com/s/{tokenLabel}
 				</div>
 			</div>
 
