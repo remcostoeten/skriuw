@@ -39,6 +39,8 @@ import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
+import { GuestGate } from "@/shared/ui/guest-gate";
+import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import {
   findRestoredSourceIndex,
   getHistoryBranchRoles,
@@ -281,16 +283,20 @@ function InspectorNoteControls({
               <div className="mx-4 h-px bg-foreground/8" />
             </>
           ) : null}
-          <button
-            type="button"
-            onClick={onShare}
-            className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
-          >
-            <Link2 className="h-5 w-5 shrink-0 text-foreground/72" />
-            {shareActionLabel}
-          </button>
+          <GuestGate feature="share" align="start">
+            <button
+              type="button"
+              onClick={onShare}
+              className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
+            >
+              <Link2 className="h-5 w-5 shrink-0 text-foreground/72" />
+              {shareActionLabel}
+            </button>
+          </GuestGate>
           <div className="mx-4 h-px bg-foreground/8" />
-          <NoteSendDropdown note={file} isMobile mobileTriggerVariant="row" />
+          <GuestGate feature="share" align="start">
+            <NoteSendDropdown note={file} isMobile mobileTriggerVariant="row" />
+          </GuestGate>
         </div>
         {staleShareHint}
       </div>
@@ -317,20 +323,24 @@ function InspectorNoteControls({
                 Copy link
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={onShare}
-              className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
-            >
-              {shareActionLabel}
-            </button>
+            <GuestGate feature="share">
+              <button
+                type="button"
+                onClick={onShare}
+                className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+              >
+                {shareActionLabel}
+              </button>
+            </GuestGate>
           </div>
         </dd>
       </div>
       <div className="flex items-baseline justify-between gap-4">
         <dt className="text-[13px] text-muted-foreground">Send note</dt>
         <dd>
-          <NoteSendDropdown note={file} />
+          <GuestGate feature="share">
+            <NoteSendDropdown note={file} />
+          </GuestGate>
         </dd>
       </div>
     </>
@@ -667,6 +677,7 @@ export function MetadataPanel({
   const setSelectedTag = useNotesStore(
     (state) => state.setSelectedInspectorTag,
   );
+  const isGuest = useIsGuestWorkspace();
   const backlinksQuery = useNoteBacklinks(file?.id);
   const versionsQuery = useNoteVersions(file?.id);
   const animateNumbers = usePreferencesStore(
@@ -1053,6 +1064,8 @@ export function MetadataPanel({
           </InspectorSection>
         )}
 
+        {/* Version history doesn't carry across sessions for guests — hide it. */}
+        {!isGuest && (
         <InspectorSection
           id="note-inspector-history"
           title="History"
@@ -1107,6 +1120,7 @@ export function MetadataPanel({
             </EmptyLine>
           )}
         </InspectorSection>
+        )}
       </div>
 
       <div className="shrink-0 border-t border-border bg-background">

@@ -1,17 +1,18 @@
 "use client";
 
 import { useApiMutation } from "@/shared/api";
-import { deleteFolder } from "@/domain/folders/actions";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "./notes-keys";
 import type { NoteFolder } from "@/types/notes";
 
 export function useDeleteFolder() {
-	return useApiMutation<string, void, NoteFolder[]>(deleteFolder, {
+	const backend = useWorkspaceBackend();
+
+	return useApiMutation<string, void, NoteFolder[]>(backend.deleteFolder, {
 		invalidateKeys: [notesKeys.files(), notesKeys.folders()],
 		optimistic: {
 			queryKey: notesKeys.folders(),
 			updater: (current, id) => {
-				// Collect descendant folder IDs
 				const descendants = new Set<string>([id]);
 				const stack = [id];
 

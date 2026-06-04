@@ -2,18 +2,18 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { createNote, type CreateNoteInput } from "@/domain/notes/actions";
+import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import {
-	findNoteByTitle,
-} from "@/domain/notes/note-links";
+import { findNoteByTitle } from "@/domain/notes/note-links";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 
 export function useCreateNote() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
-	return useApiMutation<CreateNoteInput, NoteFile, NoteFile[]>(createNote, {
+	return useApiMutation<CreateNoteInput, NoteFile, NoteFile[]>(backend.createNote, {
 		onSuccess: (note) => {
 			queryClient.setQueryData(notesKeys.detail(note.id), note);
 			void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });

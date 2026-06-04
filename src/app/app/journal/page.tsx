@@ -14,18 +14,24 @@ async function JournalContent() {
 
 	const queryClient = new QueryClient();
 
-	if (user) await ensureCloudStarterContentSeeded();
+	// Journal is account-only (the client renders an AuthRequiredState for
+	// guests). Skip seeding + prefetch entirely when signed out —
+	// listJournalEntries / listJournalTags call getAuthenticatedUser() and
+	// would throw → 500 for guests.
+	if (user) {
+		await ensureCloudStarterContentSeeded();
 
-	await Promise.all([
-		queryClient.prefetchQuery({
-			queryKey: journalKeys.entries(),
-			queryFn: () => listJournalEntries(),
-		}),
-		queryClient.prefetchQuery({
-			queryKey: journalKeys.tags(),
-			queryFn: () => listJournalTags(),
-		}),
-	]);
+		await Promise.all([
+			queryClient.prefetchQuery({
+				queryKey: journalKeys.entries(),
+				queryFn: () => listJournalEntries(),
+			}),
+			queryClient.prefetchQuery({
+				queryKey: journalKeys.tags(),
+				queryFn: () => listJournalTags(),
+			}),
+		]);
+	}
 
 	return (
 		<HydrationBoundary state={dehydrate(queryClient)}>

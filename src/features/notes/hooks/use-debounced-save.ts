@@ -2,7 +2,8 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
-import { type UpdateNoteInput, updateNote } from "@/domain/notes/actions";
+import { type UpdateNoteInput } from "@/domain/notes/actions";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { NoteEditorMode, NoteFile, RichTextDocument } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
@@ -42,6 +43,11 @@ export function useDebouncedSave(
 	options: DebouncedUpdateOptions = {},
 ): DebouncedSaveController {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
+	const updateNoteRef = useRef(backend.updateNote);
+	useEffect(() => {
+		updateNoteRef.current = backend.updateNote;
+	}, [backend]);
 	const versionsRef = useRef(new Map<string, number>());
 	const sessionVersionIdsRef = useRef(new Map<string, string>());
 	const flushQueuesRef = useRef(new Map<string, Promise<void>>());
@@ -110,7 +116,7 @@ export function useDebouncedSave(
 			};
 
 			try {
-				const result = await updateNote(input);
+				const result = await updateNoteRef.current(input);
 				if (!result.note || (versionsRef.current.get(id) ?? 0) !== baselineVersion) {
 					return false;
 				}
