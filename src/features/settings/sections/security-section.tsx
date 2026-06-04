@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Switch } from "@/shared/ui/switch";
 import {
 	Dialog,
 	DialogClose,
@@ -20,7 +19,6 @@ import {
 	SectionHeader,
 	Row,
 	SettingsCard,
-	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 
 function ChangePasswordDialog() {
@@ -146,28 +144,7 @@ export function SecuritySection() {
 				<Row title="Change password" description="Update your sign-in password.">
 					<ChangePasswordDialog />
 				</Row>
-				<Row
-					title="Two-factor auth"
-					description="Require a code in addition to your password."
-					disabled
-				>
-					<Switch disabled title="Two-factor auth is not yet available" />
-				</Row>
-				<Row
-					title="Encrypt local cache"
-					description="Protect notes cached on this device."
-					disabled
-				>
-					<Switch disabled title="Local encryption is not yet available" />
-				</Row>
 			</SettingsCard>
-
-			<GroupLabel>ACTIVE SESSIONS</GroupLabel>
-			<div className="rounded-lg border border-border/60 bg-card/40 px-5 py-4">
-				<p className="text-xs text-muted-foreground/60">
-					Session management is not yet available.
-				</p>
-			</div>
 		</>
 	);
 }

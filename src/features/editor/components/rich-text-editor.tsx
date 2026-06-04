@@ -38,9 +38,9 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
-import { extractNoteTags, getNoteTitle, getWorkspaceTags } from "@/domain/notes/note-links";
+import { extractNoteTags, getNoteTitle, getNoteSearchableContent, getWorkspaceTags } from "@/domain/notes/note-links";
 import { useNotesStore } from "@/features/notes/store";
-import { useCreateNote } from "@/features/notes/hooks/use-create-note";
+import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import {
 	cloneRichDocument,
 	flattenInlineChips,
@@ -566,7 +566,7 @@ function getNoteMentionMenuItems(
 		.filter((file) => file.id !== activeFileId)
 		.map((file) => {
 			const title = getNoteTitle(file);
-			const tags = extractNoteTags(file.content);
+			const tags = extractNoteTags(getNoteSearchableContent(file));
 			return {
 				title,
 				subtext: tags.length ? `#${tags.slice(0, 2).join(" #")}` : "Note",
@@ -709,17 +709,13 @@ export function RichTextEditor({
 		initialContent: initialBlocks,
 	});
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
-	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
-	const createNote = useCreateNote();
+	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
 	const handleCreateNoteFromMention = useCallback(
 		(title: string) => {
-			createNote.mutate({
-				name: title,
-				content: `# ${title}\n\n`,
-			});
+			createAndOpenNote(title);
 		},
-		[createNote],
+		[createAndOpenNote],
 	);
 
 	useEffect(() => {
@@ -738,15 +734,12 @@ export function RichTextEditor({
 
 			event.preventDefault();
 			event.stopPropagation();
-			setActiveFileId(noteId);
-			const url = new URL(window.location.href);
-			url.searchParams.set("note", noteId);
-			window.history.pushState({}, "", url.toString());
+			openNote(noteId);
 		};
 
 		domElement.addEventListener("click", handleInternalLinkClick);
 		return () => domElement.removeEventListener("click", handleInternalLinkClick);
-	}, [editor.domElement, setActiveFileId]);
+	}, [editor.domElement, openNote]);
 
 	useEffect(() => {
 		if (!onTitleCommit) return;

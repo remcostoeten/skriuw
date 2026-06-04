@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LogOut, Share2, Upload } from "lucide-react";
+import { LogOut, Share2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -134,14 +134,6 @@ export function AccountSection() {
 						{user?.email ?? "Not signed in"}
 					</div>
 				</div>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled
-					title="Photo upload is not yet available"
-				>
-					<Upload className="size-3.5" /> Change photo
-				</Button>
 			</div>
 
 			<GroupLabel>PROFILE</GroupLabel>
@@ -182,14 +174,6 @@ export function AccountSection() {
 						title="Email changes require re-authentication — contact support"
 					/>
 				</Row>
-				<Row title="Account handle" description="skriuw.app/@handle" disabled>
-					<Input
-						defaultValue={user?.email?.split("@")[0] ?? ""}
-						disabled
-						className="w-52 h-8"
-						title="Custom handles are not yet available"
-					/>
-				</Row>
 			</SettingsCard>
 
 			<GroupLabel>SHARING</GroupLabel>
@@ -209,8 +193,8 @@ export function AccountSection() {
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
 				<Row
-					title="Sign out everywhere"
-					description="End all active sessions on other devices."
+					title="Sign out"
+					description="End your session on this device."
 				>
 					<Button
 						variant="outline"

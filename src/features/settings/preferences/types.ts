@@ -1,6 +1,6 @@
 import type { EditorFontId } from "@/shared/lib/editor-fonts";
 import type { EditorLineHeight } from "@/features/editor/lib/editor-line-height";
-import type { AccentId, ThemeId } from "./themes";
+import type { ThemeId } from "./themes";
 
 export type ActivityAction = "settings_opened" | "note_created" | "mode_changed" | "diary_toggled";
 
@@ -20,17 +20,9 @@ export interface EditorPreferences {
 
 export interface AppearancePreferences {
 	theme: ThemeId;
-	accentColor: AccentId;
 	compactSidebar: boolean;
 	showLineNumbers: boolean;
 	reduceMotion: boolean;
-}
-
-export interface NotificationsPreferences {
-	dailyReminder: boolean;
-	weeklyReview: boolean;
-	mentions: boolean;
-	emailSummaries: boolean;
 }
 
 export interface ProfilePreferences {
@@ -58,7 +50,6 @@ export interface AiPreferences {
 export type PreferencesProfile = {
 	editor: EditorPreferences;
 	appearance: AppearancePreferences;
-	notifications: NotificationsPreferences;
 	profile: ProfilePreferences;
 	journal: JournalPreferences;
 	ai: AiPreferences;
@@ -69,7 +60,6 @@ export type PreferencesProfile = {
 export type PersistedPreferencesProfile = {
 	editor?: Partial<EditorPreferences>;
 	appearance?: Partial<AppearancePreferences>;
-	notifications?: Partial<NotificationsPreferences>;
 	profile?: Partial<ProfilePreferences>;
 	journal?: Partial<JournalPreferences>;
 	ai?: Partial<AiPreferences>;

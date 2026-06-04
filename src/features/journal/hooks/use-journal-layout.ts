@@ -73,7 +73,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const [showSidebar, setShowSidebar] = useState(true);
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-	const [editorMode, setEditorMode] = useState<JournalEditorMode>("plain");
+	const [editorMode, setEditorMode] = useState<JournalEditorMode>("rich");
 	const [view, setView] = useState<JournalView>("list");
 	const prefersReducedMotion = Boolean(useReducedMotion());
 	const { isMobile, sidebarWidth } = ui;
