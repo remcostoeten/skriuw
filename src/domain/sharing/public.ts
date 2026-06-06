@@ -1,6 +1,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import { trackSkriuwServer } from "@/core/analytics/server-track";
 import { prisma } from "@/lib/prisma";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { hashViewer, verifySharePassword } from "./crypto";
@@ -119,6 +120,15 @@ export async function openShare(input: {
 	}
 
 	await logShareView(share.id, share.token);
+
+	void trackSkriuwServer(
+		"share_opened",
+		{
+			viewOnce: share.viewOnce,
+			hasPassword: Boolean(share.passwordHash),
+		},
+		"/sharing/open",
+	);
 
 	return {
 		status: "ok",

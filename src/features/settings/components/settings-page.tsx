@@ -8,6 +8,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Database,
+	Eye,
 	FlaskConical,
 	Palette,
 	PenLine,
@@ -32,6 +33,7 @@ import { SecuritySection } from "@/features/settings/sections/security-section";
 import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
 import { ExperimentalSection } from "@/features/settings/sections/experimental-section";
+import { PrivacySection } from "@/features/settings/sections/privacy-section";
 import { SettingsSidebar, type SettingsTabId } from "./settings-sidebar";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
@@ -48,6 +50,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 	{ id: "appearance", label: "Appearance", icon: Palette, description: "Theme and density" },
 	{ id: "editor", label: "Editor", icon: PenLine, description: "Writing experience" },
 	{ id: "data", label: "Data & sync", icon: Database, description: "Export and backup" },
+	{ id: "privacy", label: "Privacy", icon: Eye, description: "Analytics and data use" },
 	{ id: "security", label: "Security", icon: Shield, description: "Password and sessions" },
 	{ id: "ai", label: "AI", icon: Sparkles, description: "Providers and keys" },
 	{ id: "tags", label: "Tags", icon: Tag, description: "Manage tags" },
@@ -93,6 +96,8 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 			return <EditorSection />;
 		case "data":
 			return <DataSection />;
+		case "privacy":
+			return <PrivacySection />;
 		case "security":
 			return <SecuritySection />;
 		case "ai":
