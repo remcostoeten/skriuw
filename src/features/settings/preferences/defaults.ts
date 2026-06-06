@@ -5,6 +5,7 @@ import type {
 	EditorPreferences,
 	JournalPreferences,
 	PreferencesProfile,
+	PrivacyPreferences,
 	ProfilePreferences,
 } from "./types";
 
@@ -32,6 +33,10 @@ export const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
 	recentMoods: [],
 };
 
+export const DEFAULT_PRIVACY_PREFERENCES = {
+	analyticsEnabled: false,
+};
+
 export const DEFAULT_AI_PREFERENCES: AiPreferences = {
 	model: DEFAULT_AI_MODEL,
 	keys: [],
@@ -44,6 +49,7 @@ export function createDefaultProfile(): PreferencesProfile {
 		appearance: { ...DEFAULT_APPEARANCE_PREFERENCES },
 		profile: { ...DEFAULT_PROFILE_PREFERENCES },
 		journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
+		privacy: { ...DEFAULT_PRIVACY_PREFERENCES },
 		ai: { ...DEFAULT_AI_PREFERENCES },
 		amountOfNotes: 0,
 		activity: [],

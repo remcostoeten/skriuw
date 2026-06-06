@@ -1,5 +1,8 @@
+import { trackEvent } from "@remcostoeten/analytics";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { trackProductEvent } from "@/core/analytics/client";
+import { resolveClientIngestUrl, SKRIUW_PROJECT_ID } from "@/core/analytics/config";
 import { getUserScopeId, resolveUserScopeId } from "@/core/auth";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
@@ -20,6 +23,7 @@ import type {
 	JournalPreferences,
 	PersistedPreferencesState,
 	PreferencesProfile,
+	PrivacyPreferences,
 	ProfilePreferences,
 } from "./preferences/types";
 
@@ -35,6 +39,7 @@ interface PreferencesState {
 	appearance: AppearancePreferences;
 	profile: ProfilePreferences;
 	journal: JournalPreferences;
+	privacy: PrivacyPreferences;
 	ai: AiPreferences;
 	amountOfNotes: number;
 	activity: ActivityItem[];
@@ -50,6 +55,10 @@ interface PreferencesState {
 	updateProfilePreference: <K extends keyof ProfilePreferences>(
 		key: K,
 		value: ProfilePreferences[K],
+	) => void;
+	updatePrivacyPreference: <K extends keyof PrivacyPreferences>(
+		key: K,
+		value: PrivacyPreferences[K],
 	) => void;
 	updateAiPreference: <K extends keyof AiPreferences>(key: K, value: AiPreferences[K]) => void;
 	addAiKey: (key: AiKey) => void;
@@ -76,6 +85,7 @@ function projectProfile(userScopeId: string, profile: PreferencesProfile) {
 		appearance: profile.appearance,
 		profile: profile.profile,
 		journal: profile.journal,
+		privacy: profile.privacy,
 		ai: profile.ai,
 		amountOfNotes: profile.amountOfNotes,
 		activity: profile.activity,
@@ -164,6 +174,22 @@ export const usePreferencesStore = create<PreferencesState>()(
 					}));
 				},
 
+				updatePrivacyPreference: (key, value) => {
+					mutate((profile) => ({
+						...profile,
+						privacy: { ...profile.privacy, [key]: value },
+					}));
+					if (key === "analyticsEnabled" && value === true) {
+						const ingestUrl = resolveClientIngestUrl();
+						if (ingestUrl) {
+							trackEvent("analytics_opt_in", undefined, {
+								projectId: SKRIUW_PROJECT_ID,
+								ingestUrl,
+							});
+						}
+					}
+				},
+
 				updateAiPreference: (key, value) => {
 					mutate((profile) => ({
 						...profile,
@@ -248,6 +274,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 							MAX_ACTIVITY_ITEMS,
 						),
 					}));
+					trackProductEvent("note_created");
 				},
 
 				logActivity: (action) => {
