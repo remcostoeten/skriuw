@@ -1,11 +1,6 @@
 import type { ActiveSeedBundle } from "@/domain/seed/queries";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import type {
-	NoteEditorMode,
-	NoteFile,
-	NoteFolder,
-	RichTextDocument,
-} from "@/domain/notes/models";
+import type { NoteEditorMode, NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
 
 function mapEditorMode(mode: "block" | "markdown" | undefined): NoteEditorMode {
 	return mode === "markdown" ? "raw" : "block";
@@ -23,6 +18,7 @@ function seedTimestamp(bundle: ActiveSeedBundle): Date {
 
 export type GuestWorkspaceSnapshot = {
 	notes: NoteFile[];
+	noteDetails: NoteFile[];
 	folders: NoteFolder[];
 };
 
@@ -36,27 +32,35 @@ export async function loadGuestWorkspaceSnapshot(): Promise<GuestWorkspaceSnapsh
 	const { loadActiveSeedBundle } = await import("@/domain/seed/queries");
 	const bundle = await loadActiveSeedBundle();
 	if (!bundle) {
-		return { notes: [], folders: [] };
+		return { notes: [], noteDetails: [], folders: [] };
 	}
 	return seedBundleToSnapshot(bundle);
 }
 
-export function seedBundleToSnapshot(bundle: ActiveSeedBundle): GuestWorkspaceSnapshot {
-	const { folders, notes } = bundle.payload;
-	const timestamp = seedTimestamp(bundle);
+export async function loadGuestSeedNote(id: string): Promise<NoteFile | null> {
+	const { loadActiveSeedBundle } = await import("@/domain/seed/queries");
+	const bundle = await loadActiveSeedBundle();
+	if (!bundle) return null;
+	return seedBundleToNoteDetails(bundle).find((note) => note.id === id) ?? null;
+}
 
-	const mappedFolders: NoteFolder[] = folders.map((folder) => ({
+function seedBundleToFolders(bundle: ActiveSeedBundle): NoteFolder[] {
+	return bundle.payload.folders.map((folder) => ({
 		id: refToId(folder.ref),
 		name: folder.name,
 		parentId: folder.parentRef ? refToId(folder.parentRef) : null,
 		sortOrder: folder.order,
 		isOpen: true,
 	}));
+}
 
-	const mappedNotes: NoteFile[] = notes.map((note) => {
+function seedBundleToNoteDetails(bundle: ActiveSeedBundle): NoteFile[] {
+	const timestamp = seedTimestamp(bundle);
+	return bundle.payload.notes.map((note) => {
 		const richContent = (note.richContent ?? []) as RichTextDocument;
 		const content = note.content?.trim() ?? "";
-		const fallbackRich = richContent.length === 0 ? markdownToRichDocument(content) : richContent;
+		const fallbackRich =
+			richContent.length === 0 ? markdownToRichDocument(content) : richContent;
 		return {
 			id: refToId(note.ref),
 			name: note.name,
@@ -70,6 +74,23 @@ export function seedBundleToSnapshot(bundle: ActiveSeedBundle): GuestWorkspaceSn
 			tags: note.tags ?? [],
 		};
 	});
+}
 
-	return { notes: mappedNotes, folders: mappedFolders };
+function noteToMetadata(note: NoteFile): NoteFile {
+	return {
+		...note,
+		content: "",
+		richContent: [],
+		journalMeta: undefined,
+	};
+}
+
+export function seedBundleToSnapshot(bundle: ActiveSeedBundle): GuestWorkspaceSnapshot {
+	const noteDetails = seedBundleToNoteDetails(bundle);
+
+	return {
+		notes: noteDetails.map(noteToMetadata),
+		noteDetails,
+		folders: seedBundleToFolders(bundle),
+	};
 }
