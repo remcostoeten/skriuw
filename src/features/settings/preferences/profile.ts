@@ -144,6 +144,12 @@ export function normalizeProfile(
 						.slice(0, MAX_RECENT_MOODS)
 				: fallback.journal.recentMoods,
 		},
+		privacy: {
+			analyticsEnabled: normalizeBoolean(
+				profile?.privacy?.analyticsEnabled,
+				fallback.privacy.analyticsEnabled,
+			),
+		},
 		ai: normalizeAi(profile?.ai as Record<string, unknown> | undefined, fallback.ai),
 		amountOfNotes:
 			typeof profile?.amountOfNotes === "number" && Number.isFinite(profile.amountOfNotes)

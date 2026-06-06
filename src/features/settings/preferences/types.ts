@@ -34,6 +34,10 @@ export interface JournalPreferences {
 	recentMoods: Array<{ mood: string; date: Date }>;
 }
 
+export type PrivacyPreferences = {
+	analyticsEnabled: boolean;
+};
+
 export interface AiKey {
 	id: string;
 	name: string;
@@ -52,6 +56,7 @@ export type PreferencesProfile = {
 	appearance: AppearancePreferences;
 	profile: ProfilePreferences;
 	journal: JournalPreferences;
+	privacy: PrivacyPreferences;
 	ai: AiPreferences;
 	amountOfNotes: number;
 	activity: ActivityItem[];
@@ -62,6 +67,7 @@ export type PersistedPreferencesProfile = {
 	appearance?: Partial<AppearancePreferences>;
 	profile?: Partial<ProfilePreferences>;
 	journal?: Partial<JournalPreferences>;
+	privacy?: Partial<PrivacyPreferences>;
 	ai?: Partial<AiPreferences>;
 	amountOfNotes?: number;
 	activity?: Array<Partial<ActivityItem>>;
