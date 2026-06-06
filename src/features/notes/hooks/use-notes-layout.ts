@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import { fetchNote, type CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import { fetchGuestSeedNote } from "@/domain/seed/actions";
+import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
@@ -118,6 +120,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const isGuest = useIsGuestWorkspace();
 	const $ = useShortcut({ ignoreInputs: true });
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
@@ -230,8 +233,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 	const metadataFiles = notesQuery.data ?? [];
 	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
-	const secondaryNote =
-		secondaryNoteQuery.isPlaceholderData ? null : (secondaryNoteQuery.data ?? null);
+	const secondaryNote = secondaryNoteQuery.isPlaceholderData
+		? null
+		: (secondaryNoteQuery.data ?? null);
 	const files = useMemo(() => {
 		let nextFiles = metadataFiles;
 
@@ -336,11 +340,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			if (queryClient.getQueryData(notesKeys.detail(id)) !== undefined) return;
 			void queryClient.prefetchQuery({
 				queryKey: notesKeys.detail(id),
-				queryFn: () => fetchNote(id),
+				queryFn: () => (isGuest ? fetchGuestSeedNote(id) : fetchNote(id)),
 				staleTime: Number.POSITIVE_INFINITY,
 			});
 		},
-		[queryClient],
+		[isGuest, queryClient],
 	);
 
 	const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
@@ -1221,10 +1225,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	// which are prefetched on the server. They MUST NOT depend on the active
 	// note query — otherwise clicking another note flips this to `false` while
 	// the new note is fetched, replacing the whole UI with skeletons.
-	const hasSidebarData =
-		notesQuery.data !== undefined && foldersQuery.data !== undefined;
-	const isEditorReady =
-		hasSidebarData || (!notesQuery.isPending && !foldersQuery.isPending);
+	const hasSidebarData = notesQuery.data !== undefined && foldersQuery.data !== undefined;
+	const isEditorReady = hasSidebarData || (!notesQuery.isPending && !foldersQuery.isPending);
 	// Separate flag for "we're swapping to a note whose content has never
 	// been fetched". `activeNote` is null only while the detail query has no
 	// data for the selected id (true first fetch); cached or prefetched notes

@@ -36,6 +36,7 @@ describe("seedBundleToSnapshot", () => {
 
 		expect(snapshot.folders[0]!.id).toBe("guest:root");
 		expect(snapshot.notes[0]!.id).toBe("guest:n1");
+		expect(snapshot.noteDetails[0]!.id).toBe("guest:n1");
 	});
 
 	test("resolves parent refs to prefixed ids", () => {
@@ -56,6 +57,7 @@ describe("seedBundleToSnapshot", () => {
 		);
 
 		expect(snapshot.notes[0]!.parentId).toBe("guest:root");
+		expect(snapshot.noteDetails[0]!.parentId).toBe("guest:root");
 	});
 
 	test("maps the markdown editor mode to raw", () => {
@@ -76,9 +78,10 @@ describe("seedBundleToSnapshot", () => {
 		);
 
 		expect(snapshot.notes[0]!.preferredEditorMode).toBe("raw");
+		expect(snapshot.noteDetails[0]!.preferredEditorMode).toBe("raw");
 	});
 
-	test("derives rich content from markdown when richContent is empty", () => {
+	test("keeps list notes light while details contain editor content", () => {
 		const snapshot = seedBundleToSnapshot(
 			bundle({
 				notes: [
@@ -94,12 +97,16 @@ describe("seedBundleToSnapshot", () => {
 			}),
 		);
 
-		expect(snapshot.notes[0]!.richContent.length).toBeGreaterThan(0);
+		expect(snapshot.notes[0]!.content).toBe("");
+		expect(snapshot.notes[0]!.richContent).toHaveLength(0);
+		expect(snapshot.noteDetails[0]!.content).toBe("hello world");
+		expect(snapshot.noteDetails[0]!.richContent.length).toBeGreaterThan(0);
 	});
 
 	test("an empty bundle yields an empty snapshot", () => {
 		const snapshot = seedBundleToSnapshot(bundle({}));
 		expect(snapshot.notes).toHaveLength(0);
+		expect(snapshot.noteDetails).toHaveLength(0);
 		expect(snapshot.folders).toHaveLength(0);
 	});
 });
