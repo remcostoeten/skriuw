@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
-import { editorFontVariables } from "@/app/editor-font-loaders";
-import { AppProviders } from "@/providers/app-providers";
-import { getServerUser } from "@/core/db";
-import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.com"),
@@ -42,13 +38,7 @@ type Props = {
 	children: React.ReactNode;
 };
 
-export default async function RootLayout({ children }: Props) {
-	const { user } = await getServerUser();
-	const initialEditorPreferences: EditorPreferencesRecord | null = user
-		? ((user as { editorPreferences?: EditorPreferencesRecord | null }).editorPreferences ??
-			null)
-		: null;
-
+export default function RootLayout({ children }: Props) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
@@ -58,11 +48,7 @@ export default async function RootLayout({ children }: Props) {
 					}}
 				/>
 			</head>
-			<body className={`${editorFontVariables} font-sans`}>
-				<AppProviders initialEditorPreferences={initialEditorPreferences}>
-					{children}
-				</AppProviders>
-			</body>
+			<body className="font-sans">{children}</body>
 		</html>
 	);
 }

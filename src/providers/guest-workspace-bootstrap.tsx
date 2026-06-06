@@ -3,10 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
-import {
-	mergeSeedWithGuestFolders,
-	mergeSeedWithGuestNotes,
-} from "@/core/workspace-backend";
+import { mergeSeedWithGuestFolders, mergeSeedWithGuestNotes } from "@/core/workspace-backend";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
@@ -25,6 +22,7 @@ export function GuestWorkspaceBootstrap() {
 		if (!isGuest) return;
 
 		const seedNotes = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
+		const seedMetadataNotes = new Set(seedNotes);
 		const mergedNotes = mergeSeedWithGuestNotes(seedNotes);
 		queryClient.setQueryData(notesKeys.files(), mergedNotes);
 
@@ -33,10 +31,8 @@ export function GuestWorkspaceBootstrap() {
 		queryClient.setQueryData(notesKeys.folders(), mergedFolders);
 
 		for (const note of mergedNotes) {
-			const existing = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(note.id));
-			if (existing === undefined) {
-				queryClient.setQueryData(notesKeys.detail(note.id), note);
-			}
+			if (seedMetadataNotes.has(note)) continue;
+			queryClient.setQueryData(notesKeys.detail(note.id), note);
 		}
 	}, [isGuest, queryClient]);
 

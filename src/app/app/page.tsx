@@ -58,7 +58,8 @@ export default async function AppHomePage(props: {
 
 	const initialActiveFileId = searchParams?.note ?? snapshot.notes[0]?.id ?? null;
 	if (initialActiveFileId) {
-		const activeNote = snapshot.notes.find((note) => note.id === initialActiveFileId) ?? null;
+		const activeNote =
+			snapshot.noteDetails.find((note) => note.id === initialActiveFileId) ?? null;
 		queryClient.setQueryData(notesKeys.detail(initialActiveFileId), activeNote);
 	}
 
