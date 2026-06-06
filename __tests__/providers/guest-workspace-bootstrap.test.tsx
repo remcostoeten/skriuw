@@ -9,6 +9,7 @@ const createMock = mock as unknown as (implementation: MockFn) => MockFn;
 let authSnapshot: AuthSnapshot;
 let store: Map<string, unknown>;
 let setCalls: { key: unknown; value: unknown }[];
+let mergedNotesOverride: NoteFile[] | null;
 
 function keyStr(key: unknown): string {
 	return JSON.stringify(key);
@@ -63,7 +64,7 @@ function registerModuleMocks() {
 	// Identity merge so the test asserts the bootstrap's own wiring, not the
 	// merge logic (covered in local-backend.test.ts).
 	mock.module("@/core/workspace-backend", () => ({
-		mergeSeedWithGuestNotes: (notes: NoteFile[]) => notes,
+		mergeSeedWithGuestNotes: (notes: NoteFile[]) => mergedNotesOverride ?? notes,
 		mergeSeedWithGuestFolders: (folders: NoteFolder[]) => folders,
 	}));
 }
@@ -71,6 +72,7 @@ function registerModuleMocks() {
 beforeEach(() => {
 	store = new Map();
 	setCalls = [];
+	mergedNotesOverride = null;
 	authSnapshot = {
 		phase: "signed_out",
 		rememberMe: false,
@@ -85,8 +87,12 @@ afterEach(() => {
 });
 
 describe("GuestWorkspaceBootstrap", () => {
-	test("merges seed data and seeds the detail cache for every note when guest", async () => {
-		store.set(keyStr(notesKeys.files()), [note("guest:a"), note("guest:b")]);
+	test("merges seed data and only seeds detail cache for local guest overrides", async () => {
+		const seedA = note("guest:a");
+		const seedB = note("guest:b");
+		const localOverride = { ...note("guest:c"), content: "local edit" };
+		store.set(keyStr(notesKeys.files()), [seedA, seedB]);
+		mergedNotesOverride = [seedA, seedB, localOverride];
 		store.set(keyStr(notesKeys.folders()), [
 			{ id: "guest:f", name: "F", parentId: null, sortOrder: 0, isOpen: true },
 		]);
@@ -97,17 +103,26 @@ describe("GuestWorkspaceBootstrap", () => {
 		);
 		renderComponent(GuestWorkspaceBootstrap);
 
-		// files + folders + one detail per note.
-		expect(store.get(keyStr(notesKeys.detail("guest:a")))).toBeDefined();
-		expect(store.get(keyStr(notesKeys.detail("guest:b")))).toBeDefined();
-		const detailWrites = setCalls.filter((c) =>
-			keyStr(c.key).includes("guest:a") || keyStr(c.key).includes("guest:b"),
+		expect(store.get(keyStr(notesKeys.detail("guest:a")))).toBeUndefined();
+		expect(store.get(keyStr(notesKeys.detail("guest:b")))).toBeUndefined();
+		expect(store.get(keyStr(notesKeys.detail("guest:c")))).toMatchObject({
+			content: "local edit",
+		});
+		const detailWrites = setCalls.filter(
+			(c) =>
+				keyStr(c.key).includes("guest:a") ||
+				keyStr(c.key).includes("guest:b") ||
+				keyStr(c.key).includes("guest:c"),
 		);
-		expect(detailWrites).toHaveLength(2);
+		expect(detailWrites).toHaveLength(1);
 	});
 
 	test("does nothing when authenticated", async () => {
-		authSnapshot = { ...authSnapshot, phase: "authenticated", user: { id: "u", email: "", name: "", role: null } };
+		authSnapshot = {
+			...authSnapshot,
+			phase: "authenticated",
+			user: { id: "u", email: "", name: "", role: null },
+		};
 		store.set(keyStr(notesKeys.files()), [note("guest:a")]);
 
 		registerModuleMocks();
