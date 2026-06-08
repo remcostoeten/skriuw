@@ -58,6 +58,7 @@ async function loadStoreModule() {
 	mock.module("@/core/auth", () => ({
 		getUserScopeId: () => authUserScopeId,
 		resolveUserScopeId: (userScopeId?: string | null) => userScopeId ?? authUserScopeId,
+		SIGNED_OUT_USER_SCOPE: "signed-out-local",
 	}));
 
 	mock.module("@/features/settings/lib/editor-preferences", () => ({

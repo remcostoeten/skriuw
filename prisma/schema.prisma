@@ -10,33 +10,34 @@ datasource db {
 // ─── Better Auth ─────────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false) @map("email_verified")
-  image         String?
-  role          String?   @default("user")
+  id                String    @id
+  name              String
+  email             String    @unique
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  image             String?
+  role              String?   @default("user")
   editorPreferences Json?     @map("editor_preferences")
   starterSeededAt   DateTime? @map("starter_seeded_at")
-  banned        Boolean?
-  banReason     String?   @map("ban_reason")
-  banExpires    DateTime? @map("ban_expires")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  banned            Boolean?
+  banReason         String?   @map("ban_reason")
+  banExpires        DateTime? @map("ban_expires")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  sessions          Session[]
-  accounts          Account[]
-  notes             Note[]
-  folders           Folder[]
-  noteVersions      NoteVersion[]
-  noteShares        NoteShare[]
-  journalEntries    JournalEntry[]
-  journalTags       JournalTag[]
-  userRecents       UserRecent[]
-  aiProviderKeys    AiProviderKey[]
-  aiUsageLogs       AiUsageLog[]
-  aiErrorEvents     AiErrorEvent[]
-  createdFeatures   PlanningFeature[]
+  sessions        Session[]
+  accounts        Account[]
+  notes           Note[]
+  folders         Folder[]
+  noteVersions    NoteVersion[]
+  noteLinks       NoteLink[]
+  noteShares      NoteShare[]
+  journalEntries  JournalEntry[]
+  journalTags     JournalTag[]
+  userRecents     UserRecent[]
+  aiProviderKeys  AiProviderKey[]
+  aiUsageLogs     AiUsageLog[]
+  aiErrorEvents   AiErrorEvent[]
+  createdFeatures PlanningFeature[]
 
   @@map("user")
 }
@@ -117,23 +118,24 @@ model Folder {
 }
 
 model Note {
-  id                  String    @id @default(uuid()) @db.Uuid
-  userId              String    @map("user_id")
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String        @id @default(uuid()) @db.Uuid
+  userId              String        @map("user_id")
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                String
   content             String
-  richContent         Json?     @map("rich_content")
-  preferredEditorMode String?   @map("preferred_editor_mode")
-  parentId            String?   @map("parent_id") @db.Uuid
-  parent              Folder?   @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  sortOrder           Int       @default(0) @map("sort_order")
-  tags                String[]  @default([])
-  journalMeta         Json?     @map("journal_meta")
+  richContent         Json?         @map("rich_content")
+  preferredEditorMode String?       @map("preferred_editor_mode")
+  parentId            String?       @map("parent_id") @db.Uuid
+  parent              Folder?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  sortOrder           Int           @default(0) @map("sort_order")
+  tags                String[]      @default([])
+  journalMeta         Json?         @map("journal_meta")
   versions            NoteVersion[]
+  outgoingLinks       NoteLink[]    @relation("NoteOutgoingLinks")
   shares              NoteShare[]
-  deletedAt           DateTime? @map("deleted_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime?     @map("deleted_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
 
   @@index([userId, deletedAt, createdAt])
   @@index([userId, parentId, sortOrder, createdAt])
@@ -141,34 +143,34 @@ model Note {
 }
 
 model NoteShare {
-  id                  String    @id @default(uuid()) @db.Uuid
-  token               String    @unique
-  noteId              String    @map("note_id") @db.Uuid
-  note                Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  userId              String    @map("user_id")
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid()) @db.Uuid
+  token  String @unique
+  noteId String @map("note_id") @db.Uuid
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Snapshot frozen at publish / re-publish time — the public view never reads the live note.
   name                String
   content             String
-  richContent         Json?     @map("rich_content")
-  preferredEditorMode String    @default("block") @map("preferred_editor_mode")
+  richContent         Json?   @map("rich_content")
+  preferredEditorMode String  @default("block") @map("preferred_editor_mode")
   // Author name snapshot. Null → the public page is anonymous.
-  authorName          String?   @map("author_name")
+  authorName          String? @map("author_name")
 
   // Access controls
-  passwordHash        String?   @map("password_hash")
-  viewOnce            Boolean   @default(false) @map("view_once")
-  expiresAt           DateTime? @map("expires_at")
-  consumedAt          DateTime? @map("consumed_at")
-  revokedAt           DateTime? @map("revoked_at")
-  viewCount           Int       @default(0) @map("view_count")
-  lastViewedAt        DateTime? @map("last_viewed_at")
+  passwordHash String?   @map("password_hash")
+  viewOnce     Boolean   @default(false) @map("view_once")
+  expiresAt    DateTime? @map("expires_at")
+  consumedAt   DateTime? @map("consumed_at")
+  revokedAt    DateTime? @map("revoked_at")
+  viewCount    Int       @default(0) @map("view_count")
+  lastViewedAt DateTime? @map("last_viewed_at")
 
-  views               NoteShareView[]
+  views NoteShareView[]
 
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([noteId])
   @@index([userId, createdAt(sort: Desc)])
@@ -176,17 +178,17 @@ model NoteShare {
 }
 
 model NoteShareView {
-  id         String    @id @default(uuid()) @db.Uuid
-  shareId    String    @map("share_id") @db.Uuid
-  share      NoteShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  id      String    @id @default(uuid()) @db.Uuid
+  shareId String    @map("share_id") @db.Uuid
+  share   NoteShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
 
   // Salted hash of (ip + user-agent) — approximates a unique viewer without
   // storing any PII. Never reversible to an address.
-  viewerHash String    @map("viewer_hash")
+  viewerHash String  @map("viewer_hash")
   referrer   String?
   country    String?
 
-  viewedAt   DateTime  @default(now()) @map("viewed_at")
+  viewedAt DateTime @default(now()) @map("viewed_at")
 
   @@index([shareId, viewedAt(sort: Desc)])
   @@index([shareId, viewerHash])
@@ -214,6 +216,26 @@ model NoteVersion {
   @@map("note_versions")
 }
 
+// Persisted knowledge-graph edges. One row per outgoing link or tag membership,
+// rewritten whenever a note is saved (see syncNoteLinks in notes/actions.ts).
+// targetNoteId is null for wiki links (resolved by title at read time) and tags.
+model NoteLink {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceNoteId String   @map("source_note_id") @db.Uuid
+  sourceNote   Note     @relation("NoteOutgoingLinks", fields: [sourceNoteId], references: [id], onDelete: Cascade)
+  targetNoteId String?  @map("target_note_id") @db.Uuid
+  targetLabel  String   @map("target_label")
+  kind         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceNoteId, kind, targetLabel])
+  @@index([userId, sourceNoteId])
+  @@index([userId, targetNoteId])
+  @@map("note_links")
+}
+
 // ─── Journal ─────────────────────────────────────────────────────────────────
 
 model JournalEntry {
@@ -233,16 +255,16 @@ model JournalEntry {
 }
 
 model JournalTag {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  color       String
-  usageCount  Int       @default(0) @map("usage_count")
-  lastUsedAt  DateTime? @map("last_used_at")
-  deletedAt   DateTime? @map("deleted_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  color      String
+  usageCount Int       @default(0) @map("usage_count")
+  lastUsedAt DateTime? @map("last_used_at")
+  deletedAt  DateTime? @map("deleted_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   @@index([userId, deletedAt])
   @@map("tags")
@@ -265,19 +287,19 @@ model UserRecent {
 // ─── AI ──────────────────────────────────────────────────────────────────────
 
 model AiProviderKey {
-  id              String    @id @default(uuid()) @db.Uuid
-  userId          String    @map("user_id")
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider        String    @default("google")
-  label           String
-  encryptedKey    String    @map("encrypted_key")
-  keyPreview      String    @map("key_preview")
-  keyFingerprint  String    @map("key_fingerprint")
-  status          String    @default("untested")
-  lastTestedAt    DateTime? @map("last_tested_at")
-  lastUsedAt      DateTime? @map("last_used_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       String    @default("google")
+  label          String
+  encryptedKey   String    @map("encrypted_key")
+  keyPreview     String    @map("key_preview")
+  keyFingerprint String    @map("key_fingerprint")
+  status         String    @default("untested")
+  lastTestedAt   DateTime? @map("last_tested_at")
+  lastUsedAt     DateTime? @map("last_used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@unique([userId, provider, keyFingerprint])
   @@index([userId, provider, createdAt(sort: Desc)])
@@ -285,28 +307,28 @@ model AiProviderKey {
 }
 
 model AiUsageLog {
-  id                   String   @id @default(uuid()) @db.Uuid
-  userId               String?  @map("user_id")
-  user                 User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  provider             String
-  model                String?
-  action               String
-  humanAction          String?  @map("human_action")
-  resourceType         String?  @map("resource_type")
-  resourceId           String?  @map("resource_id")
-  resourceUrl          String?  @map("resource_url")
-  prompt               String?
-  status               String
-  errorMessage         String?  @map("error_message")
-  inputTokens          Int?     @map("input_tokens")
-  outputTokens         Int?     @map("output_tokens")
-  totalTokens          Int?     @map("total_tokens")
-  estimatedCost        Decimal? @map("estimated_cost") @db.Decimal(14, 8)
-  estimatedCostCurrency String? @map("estimated_cost_currency")
-  estimatedCostEur     Decimal? @map("estimated_cost_eur") @db.Decimal(14, 8)
-  keySource            String   @default("unknown") @map("key_source")
-  metadata             Json     @default("{}")
-  createdAt            DateTime @default(now()) @map("created_at")
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String?  @map("user_id")
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider              String
+  model                 String?
+  action                String
+  humanAction           String?  @map("human_action")
+  resourceType          String?  @map("resource_type")
+  resourceId            String?  @map("resource_id")
+  resourceUrl           String?  @map("resource_url")
+  prompt                String?
+  status                String
+  errorMessage          String?  @map("error_message")
+  inputTokens           Int?     @map("input_tokens")
+  outputTokens          Int?     @map("output_tokens")
+  totalTokens           Int?     @map("total_tokens")
+  estimatedCost         Decimal? @map("estimated_cost") @db.Decimal(14, 8)
+  estimatedCostCurrency String?  @map("estimated_cost_currency")
+  estimatedCostEur      Decimal? @map("estimated_cost_eur") @db.Decimal(14, 8)
+  keySource             String   @default("unknown") @map("key_source")
+  metadata              Json     @default("{}")
+  createdAt             DateTime @default(now()) @map("created_at")
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([action, createdAt(sort: Desc)])
@@ -344,17 +366,17 @@ model AiErrorEvent {
 // ─── Project Planning ────────────────────────────────────────────────────────
 
 model PlanningFeature {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
   title       String
-  slug        String   @unique
-  description String   @default("")
-  status      String   @default("exploring")
-  priority    String   @default("medium")
-  tags        String[] @default([])
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  createdBy   String?  @map("created_by")
-  creator     User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  slug        String          @unique
+  description String          @default("")
+  status      String          @default("exploring")
+  priority    String          @default("medium")
+  tags        String[]        @default([])
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  createdBy   String?         @map("created_by")
+  creator     User?           @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   issues      PlanningIssue[]
 
   @@index([status])
@@ -363,18 +385,18 @@ model PlanningFeature {
 }
 
 model PlanningIssue {
-  id          String   @id @default(uuid()) @db.Uuid
-  featureId   String   @map("feature_id") @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
+  featureId   String          @map("feature_id") @db.Uuid
   feature     PlanningFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
   title       String
-  description String   @default("")
-  status      String   @default("todo")
-  priority    String   @default("medium")
+  description String          @default("")
+  status      String          @default("todo")
+  priority    String          @default("medium")
   assignee    String?
-  tags        String[] @default([])
+  tags        String[]        @default([])
   notes       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   @@index([featureId])
   @@index([status])
@@ -405,13 +427,13 @@ model PlanningScratchEntry {
 }
 
 model PlanningSection {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
+  id          String                @id @default(uuid()) @db.Uuid
+  slug        String                @unique
   title       String
-  description String   @default("")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  description String                @default("")
+  sortOrder   Int                   @default(0) @map("sort_order")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
   items       PlanningSectionItem[]
 
   @@index([sortOrder, createdAt])
@@ -419,16 +441,16 @@ model PlanningSection {
 }
 
 model PlanningSectionItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  sectionId String   @map("section_id") @db.Uuid
+  id        String          @id @default(uuid()) @db.Uuid
+  sectionId String          @map("section_id") @db.Uuid
   section   PlanningSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   title     String
-  content   String   @default("")
+  content   String          @default("")
   priority  String?
-  tags      String[] @default([])
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  tags      String[]        @default([])
+  sortOrder Int             @default(0) @map("sort_order")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
 
   @@index([sectionId, sortOrder, createdAt])
   @@map("planning_section_items")
