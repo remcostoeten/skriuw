@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Kanban, Settings, UserRound } from "lucide-react";
+import { BookOpen, Kanban, Settings, UserRound, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -51,6 +51,12 @@ export function IconRail({ onOpenSettings }: Props) {
 			label: "Journal",
 			isActive: pathname === "/app/journal",
 			icon: () => <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		},
+		{
+			href: "/app/graph",
+			label: "Graph",
+			isActive: pathname === "/app/graph",
+			icon: () => <Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />,
 		},
 	];
 	const planningItem = {
