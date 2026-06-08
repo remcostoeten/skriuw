@@ -18,7 +18,9 @@ export async function trackSkriuwServer(
 			return;
 		}
 		await trackServerEvent(name, options);
-	} catch {
-		// non-critical
+	} catch (error) {
+		if (process.env.NODE_ENV !== "production") {
+			console.error("[analytics]", error);
+		}
 	}
 }

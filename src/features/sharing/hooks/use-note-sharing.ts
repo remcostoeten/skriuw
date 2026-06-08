@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { trackProductEvent } from "@/core/analytics/client";
 import { useApiMutation, useAuthedApiQuery } from "@/shared/api";
 import {
 	getNoteShare,
@@ -34,7 +35,14 @@ export function useNoteSharing(noteId: string | null | undefined) {
 	);
 
 	const publish = useApiMutation<TPublishNoteInput, TNoteShareState>(publishNote, {
-		onSuccess: (state) => setShare(state),
+		onSuccess: (state, input) => {
+			setShare(state);
+			trackProductEvent("share_created", {
+				viewOnce: input.viewOnce,
+				hasPassword: Boolean(input.password),
+				hasExpiry: input.expiry.kind !== "never",
+			});
+		},
 	});
 
 	const update = useApiMutation<TUpdateShareInput, TNoteShareState | null>(
@@ -46,8 +54,14 @@ export function useNoteSharing(noteId: string | null | undefined) {
 		onSuccess: (state) => setShare(state),
 	});
 
-	const revoke = useApiMutation<string, void>(revokeNoteShare, {
-		onSuccess: () => setShare(null),
+	const revoke = useApiMutation<string, { revoked: boolean }>(revokeNoteShare, {
+		onSuccess: (result) => {
+			if (!result.revoked) {
+				return;
+			}
+			setShare(null);
+			trackProductEvent("share_revoked");
+		},
 	});
 
 	return { shareQuery, publish, update, refresh, revoke };
