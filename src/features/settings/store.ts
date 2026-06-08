@@ -1,6 +1,7 @@
+import { optIn, optOut } from "@remcostoeten/analytics";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getUserScopeId, resolveUserScopeId } from "@/core/auth";
+import { getUserScopeId, resolveUserScopeId, SIGNED_OUT_USER_SCOPE } from "@/core/auth";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
 import {
@@ -20,6 +21,7 @@ import type {
 	JournalPreferences,
 	PersistedPreferencesState,
 	PreferencesProfile,
+	PrivacyPreferences,
 	ProfilePreferences,
 } from "./preferences/types";
 
@@ -35,6 +37,7 @@ interface PreferencesState {
 	appearance: AppearancePreferences;
 	profile: ProfilePreferences;
 	journal: JournalPreferences;
+	privacy: PrivacyPreferences;
 	ai: AiPreferences;
 	amountOfNotes: number;
 	activity: ActivityItem[];
@@ -50,6 +53,10 @@ interface PreferencesState {
 	updateProfilePreference: <K extends keyof ProfilePreferences>(
 		key: K,
 		value: ProfilePreferences[K],
+	) => void;
+	updatePrivacyPreference: <K extends keyof PrivacyPreferences>(
+		key: K,
+		value: PrivacyPreferences[K],
 	) => void;
 	updateAiPreference: <K extends keyof AiPreferences>(key: K, value: AiPreferences[K]) => void;
 	addAiKey: (key: AiKey) => void;
@@ -76,6 +83,7 @@ function projectProfile(userScopeId: string, profile: PreferencesProfile) {
 		appearance: profile.appearance,
 		profile: profile.profile,
 		journal: profile.journal,
+		privacy: profile.privacy,
 		ai: profile.ai,
 		amountOfNotes: profile.amountOfNotes,
 		activity: profile.activity,
@@ -162,6 +170,24 @@ export const usePreferencesStore = create<PreferencesState>()(
 						...profile,
 						profile: { ...profile.profile, [key]: value },
 					}));
+				},
+
+				updatePrivacyPreference: (key, value) => {
+					if (key === "analyticsEnabled" && getUserScopeId() === SIGNED_OUT_USER_SCOPE) {
+						return;
+					}
+
+					mutate((profile) => ({
+						...profile,
+						privacy: { ...profile.privacy, [key]: value },
+					}));
+					if (key === "analyticsEnabled") {
+						if (value === false) {
+							optOut();
+							return;
+						}
+						optIn();
+					}
 				},
 
 				updateAiPreference: (key, value) => {
