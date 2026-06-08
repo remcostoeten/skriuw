@@ -18,7 +18,6 @@ import {
 	signInWithOAuth,
 	signUpWithPassword,
 } from "@/core/auth";
-import { logAuthCompleted } from "@/core/analytics/server-actions";
 
 type AuthIntent = "sign-up" | "github";
 type AuthActionState = "idle" | "pending" | "success";
@@ -77,7 +76,6 @@ export default function SignUpPage() {
 			setPendingIntent(null);
 			setCompletedIntent(intent);
 			if (intent === "sign-up" || intent === "github") {
-				void logAuthCompleted("signup", intent === "github" ? "github" : "email");
 				await wait(SUCCESS_PAUSE_MS);
 				router.replace("/app");
 				router.refresh();

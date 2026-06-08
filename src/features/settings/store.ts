@@ -1,9 +1,7 @@
-import { trackEvent } from "@remcostoeten/analytics";
+import { optIn, optOut } from "@remcostoeten/analytics";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { trackProductEvent } from "@/core/analytics/client";
-import { resolveClientIngestUrl, SKRIUW_PROJECT_ID } from "@/core/analytics/config";
-import { getUserScopeId, resolveUserScopeId } from "@/core/auth";
+import { getUserScopeId, resolveUserScopeId, SIGNED_OUT_USER_SCOPE } from "@/core/auth";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
 import {
@@ -175,18 +173,20 @@ export const usePreferencesStore = create<PreferencesState>()(
 				},
 
 				updatePrivacyPreference: (key, value) => {
+					if (key === "analyticsEnabled" && getUserScopeId() === SIGNED_OUT_USER_SCOPE) {
+						return;
+					}
+
 					mutate((profile) => ({
 						...profile,
 						privacy: { ...profile.privacy, [key]: value },
 					}));
-					if (key === "analyticsEnabled" && value === true) {
-						const ingestUrl = resolveClientIngestUrl();
-						if (ingestUrl) {
-							trackEvent("analytics_opt_in", undefined, {
-								projectId: SKRIUW_PROJECT_ID,
-								ingestUrl,
-							});
+					if (key === "analyticsEnabled") {
+						if (value === false) {
+							optOut();
+							return;
 						}
+						optIn();
 					}
 				},
 
@@ -274,7 +274,6 @@ export const usePreferencesStore = create<PreferencesState>()(
 							MAX_ACTIVITY_ITEMS,
 						),
 					}));
-					trackProductEvent("note_created");
 				},
 
 				logActivity: (action) => {

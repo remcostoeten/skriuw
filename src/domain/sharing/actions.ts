@@ -1,6 +1,5 @@
 "use server";
 
-import { trackSkriuwServer } from "@/core/analytics/server-track";
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { getNote } from "@/domain/notes/queries";
@@ -99,16 +98,6 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 		update: snapshot,
 	});
 
-	void trackSkriuwServer(
-		"share_created",
-		{
-			viewOnce: validated.viewOnce,
-			hasPassword: Boolean(validated.password),
-			hasExpiry: validated.expiry.kind !== "never",
-		},
-		"/sharing/publish",
-	);
-
 	return toShareState(share, note.content);
 }
 
@@ -170,16 +159,14 @@ export async function refreshNoteShareSnapshot(
 }
 
 /** Unpublish: the public link stops resolving (reports "revoked"). */
-export async function revokeNoteShare(noteId: string): Promise<void> {
+export async function revokeNoteShare(noteId: string): Promise<{ revoked: boolean }> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const result = await prisma.noteShare.updateMany({
 		where: { noteId, userId: user.id, revokedAt: null },
 		data: { revokedAt: new Date() },
 	});
 
-	if (result.count > 0) {
-		void trackSkriuwServer("share_revoked", undefined, "/sharing/revoke");
-	}
+	return { revoked: result.count > 0 };
 }
 
 /** Current share state for a note, or null when it has never been published / is revoked. */
