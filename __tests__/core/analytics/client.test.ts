@@ -8,6 +8,7 @@ mock.module("@/core/analytics/config", () => ({
 
 mock.module("@/core/auth", () => ({
 	getUserScopeId: () => "signed-out-local",
+	resolveUserScopeId: (userScopeId?: string | null) => userScopeId ?? "signed-out-local",
 	SIGNED_OUT_USER_SCOPE: "signed-out-local",
 }));
 
