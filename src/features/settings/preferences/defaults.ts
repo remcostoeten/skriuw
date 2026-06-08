@@ -33,8 +33,8 @@ export const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
 	recentMoods: [],
 };
 
-export const DEFAULT_PRIVACY_PREFERENCES = {
-	analyticsEnabled: false,
+export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
+	analyticsEnabled: true,
 };
 
 export const DEFAULT_AI_PREFERENCES: AiPreferences = {

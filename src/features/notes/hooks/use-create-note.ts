@@ -5,7 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { findNoteByTitle } from "@/domain/notes/note-links";
+import { trackProductEvent } from "@/core/analytics/client";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
+import { usePreferencesStore } from "@/features/settings/store";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 
@@ -17,6 +19,8 @@ export function useCreateNote() {
 		onSuccess: (note) => {
 			queryClient.setQueryData(notesKeys.detail(note.id), note);
 			void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
+			usePreferencesStore.getState().incrementNoteCount();
+			trackProductEvent("note_created");
 		},
 		optimistic: {
 			queryKey: notesKeys.files(),
