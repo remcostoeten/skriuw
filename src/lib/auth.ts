@@ -1,3 +1,4 @@
+import { authAnalyticsHook } from "@/core/analytics/auth-track";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -47,6 +48,9 @@ export const auth = betterAuth({
 		max: 100,
 		storage: "database",
 		modelName: "rateLimit",
+	},
+	hooks: {
+		after: authAnalyticsHook,
 	},
 });
 
