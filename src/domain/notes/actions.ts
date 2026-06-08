@@ -19,7 +19,14 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { buildNoteVersionContentHash, shouldPersistNoteVersion } from "@/domain/notes/versioning";
 import { getNote, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
-import type { ResolvedNoteLink } from "@/domain/notes/note-links";
+import {
+	extractNoteLinks,
+	extractNoteTags,
+	getNoteSearchableContent,
+	normalizeNoteTitle,
+	type ResolvedNoteLink,
+} from "@/domain/notes/note-links";
+import { buildGraphData, type GraphData } from "@/domain/notes/graph";
 import type {
 	FolderId,
 	IsoTime,
@@ -28,7 +35,7 @@ import type {
 	TagName,
 } from "@/domain/persistence/types";
 
-type NoteDb = Pick<PrismaClient, "note" | "noteVersion" | "folder" | "journalEntry">;
+type NoteDb = Pick<PrismaClient, "note" | "noteVersion" | "noteLink" | "folder" | "journalEntry">;
 
 type NoteRecord = {
 	id: string;
@@ -143,6 +150,49 @@ async function insertNoteVersion(
 	});
 
 	return created.id;
+}
+
+// Rewrites the persisted note_links edges for a note (delete-and-replace) from
+// its current content. One row per distinct outgoing link or tag membership.
+// Reuses the same parsers the editor/backlinks use so the graph stays in sync.
+async function syncNoteLinks(
+	db: Pick<NoteDb, "noteLink">,
+	userId: string,
+	note: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
+): Promise<void> {
+	const rows = new Map<string, Prisma.NoteLinkCreateManyInput>();
+
+	for (const link of extractNoteLinks(note)) {
+		const targetLabel = normalizeNoteTitle(link.targetLabel);
+		if (!targetLabel) continue;
+		rows.set(`${link.kind}:${targetLabel}`, {
+			userId,
+			sourceNoteId: note.id,
+			targetNoteId: link.targetNoteId ?? null,
+			targetLabel,
+			kind: link.kind,
+		});
+	}
+
+	const tagNames = new Set<string>([
+		...extractNoteTags(getNoteSearchableContent(note)),
+		...(note.tags ?? []).map((tag) => tag.trim().replace(/^#/, "").toLowerCase()),
+	]);
+	for (const tag of tagNames) {
+		if (!tag) continue;
+		rows.set(`tag:${tag}`, {
+			userId,
+			sourceNoteId: note.id,
+			targetNoteId: null,
+			targetLabel: tag,
+			kind: "tag",
+		});
+	}
+
+	await db.noteLink.deleteMany({ where: { userId, sourceNoteId: note.id } });
+	if (rows.size > 0) {
+		await db.noteLink.createMany({ data: [...rows.values()] });
+	}
 }
 
 async function updateExistingNoteVersion(
@@ -270,6 +320,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 		}
 
 		const note = recordToNoteFile(record);
+		await syncNoteLinks(tx, user.id, note);
 		await insertNoteVersion(
 			tx,
 			user.id,
@@ -353,6 +404,9 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		if (!record) return { versionCreated: false };
 
 		const updatedNote = recordToNoteFile(record);
+		if (validated.content !== undefined || validated.richContent !== undefined) {
+			await syncNoteLinks(tx, user.id, updatedNote);
+		}
 		const versionReason: NoteVersionReason =
 			validated.name !== undefined
 				? "rename"
@@ -476,4 +530,23 @@ export async function fetchNoteBacklinks(id: string): Promise<ResolvedNoteLink[]
 
 export async function fetchNoteVersions(id: string): Promise<NoteVersion[]> {
 	return listNoteVersions(id);
+}
+
+// Builds the whole-workspace knowledge graph (notes + tags as nodes, persisted
+// note_links as edges) plus connectivity/cluster metrics for the graph view.
+export async function fetchNoteGraph(): Promise<GraphData> {
+	const { prisma, user } = await getAuthenticatedUser();
+
+	const [notes, links] = await Promise.all([
+		prisma.note.findMany({
+			where: { userId: user.id, deletedAt: null },
+			select: { id: true, name: true },
+		}),
+		prisma.noteLink.findMany({
+			where: { userId: user.id },
+			select: { sourceNoteId: true, targetNoteId: true, targetLabel: true, kind: true },
+		}),
+	]);
+
+	return buildGraphData(notes, links);
 }
