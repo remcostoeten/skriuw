@@ -2,6 +2,7 @@
 
 import {
 	Database,
+	Eye,
 	FlaskConical,
 	Palette,
 	PenLine,
@@ -22,6 +23,7 @@ export type SettingsTabId =
 	| "appearance"
 	| "editor"
 	| "data"
+	| "privacy"
 	| "security"
 	| "ai"
 	| "tags"
@@ -38,6 +40,7 @@ const NAV_ITEMS: ReadonlyArray<SettingsNavItem> = [
 	{ id: "appearance", label: "Appearance", icon: Palette },
 	{ id: "editor", label: "Editor", icon: PenLine },
 	{ id: "data", label: "Data & sync", icon: Database },
+	{ id: "privacy", label: "Privacy", icon: Eye },
 	{ id: "security", label: "Security", icon: Shield },
 	{ id: "ai", label: "AI", icon: Sparkles },
 	{ id: "tags", label: "Tags", icon: Tag },

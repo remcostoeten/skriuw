@@ -159,12 +159,14 @@ export async function refreshNoteShareSnapshot(
 }
 
 /** Unpublish: the public link stops resolving (reports "revoked"). */
-export async function revokeNoteShare(noteId: string): Promise<void> {
+export async function revokeNoteShare(noteId: string): Promise<{ revoked: boolean }> {
 	const { prisma, user } = await getAuthenticatedUser();
-	await prisma.noteShare.updateMany({
+	const result = await prisma.noteShare.updateMany({
 		where: { noteId, userId: user.id, revokedAt: null },
 		data: { revokedAt: new Date() },
 	});
+
+	return { revoked: result.count > 0 };
 }
 
 /** Current share state for a note, or null when it has never been published / is revoked. */
