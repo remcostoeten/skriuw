@@ -7,4 +7,5 @@ export const notesKeys = {
 	versionsAll: () => [...notesKeys.all, "versions"] as const,
 	versions: (id: string) => [...notesKeys.versionsAll(), id] as const,
 	folders: () => [...notesKeys.all, "folders"] as const,
+	graph: () => [...notesKeys.all, "graph"] as const,
 };
