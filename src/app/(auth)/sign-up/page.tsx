@@ -75,7 +75,7 @@ export default function SignUpPage() {
 			await action();
 			setPendingIntent(null);
 			setCompletedIntent(intent);
-			if (intent === "sign-up") {
+			if (intent === "sign-up" || intent === "github") {
 				await wait(SUCCESS_PAUSE_MS);
 				router.replace("/app");
 				router.refresh();

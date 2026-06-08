@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
+import { AnalyticsMount } from "@/core/analytics/analytics-mount";
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.com"),
@@ -48,7 +49,10 @@ export default function RootLayout({ children }: Props) {
 					}}
 				/>
 			</head>
-			<body className="font-sans">{children}</body>
+			<body className="font-sans">
+				{children}
+				<AnalyticsMount />
+			</body>
 		</html>
 	);
 }

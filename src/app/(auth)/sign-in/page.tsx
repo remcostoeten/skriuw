@@ -67,7 +67,7 @@ export default function SignInPage() {
 			await action();
 			setPendingIntent(null);
 			setCompletedIntent(intent);
-			if (intent === "sign-in") {
+			if (intent === "sign-in" || intent === "github") {
 				await wait(SUCCESS_PAUSE_MS);
 				router.replace("/app");
 				router.refresh();
