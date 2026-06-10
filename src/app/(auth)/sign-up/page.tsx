@@ -44,6 +44,13 @@ export default function SignUpPage() {
 		setRememberMe(getRememberMePreference());
 	}, []);
 
+	useEffect(() => {
+		const callbackError = new URLSearchParams(window.location.search).get("error");
+		if (callbackError) {
+			setAuthError(resolveAuthError(new Error(callbackError)));
+		}
+	}, []);
+
 	const isPending = pendingIntent !== null;
 	const isBusy = isPending || completedIntent !== null;
 	const hasMinimumPasswordLength = password.length >= 8;
