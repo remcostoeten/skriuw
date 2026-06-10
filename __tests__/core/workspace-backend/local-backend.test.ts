@@ -24,7 +24,6 @@ function fakeQueryClient() {
 }
 
 const STORAGE_KEY = "skriuw:guest:workspace:v2";
-const LEGACY_KEY = "skriuw:guest:workspace:v1";
 const ENGAGEMENT_KEY = "skriuw:guest:engagement:v1";
 
 function createStorage() {
@@ -137,15 +136,6 @@ describe("local workspace backend", () => {
 		expect(stored.notes[0].id).toBe(survivor.id);
 	});
 
-	test("reading wipes the legacy v1 storage key", async () => {
-		window.localStorage.setItem(LEGACY_KEY, JSON.stringify({ notes: [], folders: [] }));
-		const backend = createLocalBackend(fakeQueryClient());
-
-		await backend.createNote({ name: "x", content: "" });
-
-		expect(window.localStorage.getItem(LEGACY_KEY)).toBeNull();
-	});
-
 	test("crossing an engagement threshold dispatches the sign-up prompt event", async () => {
 		const backend = createLocalBackend(fakeQueryClient());
 		let fired = 0;
@@ -197,21 +187,22 @@ describe("local workspace backend", () => {
 		expect(merged[0]!.content).toBe("overlaid");
 	});
 
-	test("uses IndexedDB when available and migrates the localStorage workspace", async () => {
+	test("uses IndexedDB when available without migrating localStorage workspace data", async () => {
 		installWindow({ indexedDB: new FDBFactory() });
-		const migrated = seedNote({ id: "guest:migrated", content: "from localStorage" });
+		const staleLocalStorageNote = seedNote({
+			id: "guest:stale",
+			content: "from localStorage",
+		});
 		window.localStorage.setItem(
 			STORAGE_KEY,
-			JSON.stringify({ notes: [migrated], folders: [] }),
+			JSON.stringify({ notes: [staleLocalStorageNote], folders: [] }),
 		);
 
 		const backend = createLocalBackend(fakeQueryClient());
 		const created = await backend.createNote({ name: "Indexed", content: "from idb" });
 
-		expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
-
 		const merged = await mergeSeedWithGuestWorkspace([], []);
-		expect(merged.notes.map((note) => note.id)).toEqual([migrated.id, created.id]);
-		expect(merged.notes.map((note) => note.content)).toEqual(["from localStorage", "from idb"]);
+		expect(merged.notes.map((note) => note.id)).toEqual([created.id]);
+		expect(merged.notes.map((note) => note.content)).toEqual(["from idb"]);
 	});
 });
