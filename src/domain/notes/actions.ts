@@ -19,13 +19,8 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { buildNoteVersionContentHash, shouldPersistNoteVersion } from "@/domain/notes/versioning";
 import { getNote, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
-import {
-	extractNoteLinks,
-	extractNoteTags,
-	getNoteSearchableContent,
-	normalizeNoteTitle,
-	type ResolvedNoteLink,
-} from "@/domain/notes/note-links";
+import type { ResolvedNoteLink } from "@/domain/notes/note-links";
+import { syncNoteLinks } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData } from "@/domain/notes/graph";
 import type {
 	FolderId,
@@ -150,49 +145,6 @@ async function insertNoteVersion(
 	});
 
 	return created.id;
-}
-
-// Rewrites the persisted note_links edges for a note (delete-and-replace) from
-// its current content. One row per distinct outgoing link or tag membership.
-// Reuses the same parsers the editor/backlinks use so the graph stays in sync.
-async function syncNoteLinks(
-	db: Pick<NoteDb, "noteLink">,
-	userId: string,
-	note: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
-): Promise<void> {
-	const rows = new Map<string, Prisma.NoteLinkCreateManyInput>();
-
-	for (const link of extractNoteLinks(note)) {
-		const targetLabel = normalizeNoteTitle(link.targetLabel);
-		if (!targetLabel) continue;
-		rows.set(`${link.kind}:${targetLabel}`, {
-			userId,
-			sourceNoteId: note.id,
-			targetNoteId: link.targetNoteId ?? null,
-			targetLabel,
-			kind: link.kind,
-		});
-	}
-
-	const tagNames = new Set<string>([
-		...extractNoteTags(getNoteSearchableContent(note)),
-		...(note.tags ?? []).map((tag) => tag.trim().replace(/^#/, "").toLowerCase()),
-	]);
-	for (const tag of tagNames) {
-		if (!tag) continue;
-		rows.set(`tag:${tag}`, {
-			userId,
-			sourceNoteId: note.id,
-			targetNoteId: null,
-			targetLabel: tag,
-			kind: "tag",
-		});
-	}
-
-	await db.noteLink.deleteMany({ where: { userId, sourceNoteId: note.id } });
-	if (rows.size > 0) {
-		await db.noteLink.createMany({ data: [...rows.values()] });
-	}
 }
 
 async function updateExistingNoteVersion(
@@ -404,7 +356,11 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		if (!record) return { versionCreated: false };
 
 		const updatedNote = recordToNoteFile(record);
-		if (validated.content !== undefined || validated.richContent !== undefined) {
+		if (
+			validated.content !== undefined ||
+			validated.richContent !== undefined ||
+			validated.tags !== undefined
+		) {
 			await syncNoteLinks(tx, user.id, updatedNote);
 		}
 		const versionReason: NoteVersionReason =
