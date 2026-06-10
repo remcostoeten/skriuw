@@ -250,6 +250,9 @@ model JournalEntry {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  // Active date uniqueness is enforced by a Postgres partial unique index in
+  // migrations because Prisma cannot model `WHERE deleted_at IS NULL`.
+  @@index([userId, dateKey, deletedAt])
   @@index([userId, deletedAt])
   @@map("journal_entries")
 }
