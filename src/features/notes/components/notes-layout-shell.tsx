@@ -5,11 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
-import {
-	WorkspaceContentSkeleton,
-	WorkspaceLoadingShell,
-	WorkspaceSidebarSkeleton,
-} from "@/features/layout/components/app-loading-shell";
+import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { SplitEditorWorkspace } from "./split-editor-workspace";
@@ -20,14 +16,6 @@ import { MetadataPanel } from "./metadata-panel";
 import { CommandPalette } from "@/shared/ui/command-palette";
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useNotesLayout } from "../hooks/use-notes-layout";
-
-function NotesSidebarPlaceholder() {
-	return <WorkspaceSidebarSkeleton variant="notes" />;
-}
-
-function NotesEditorPlaceholder() {
-	return <WorkspaceContentSkeleton variant="notes" />;
-}
 
 function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) {
 	return (
@@ -147,169 +135,174 @@ export function NotesLayoutShell({
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
 
-				{isEditorReady ? (
-					!isMobile &&
-					showSidebar && (
+				{/* The chrome below (sidebar frame, toolbar, status bar) is static —
+				    it renders unconditionally on the first paint. Only the data
+				    regions inside it (file tree, document body, metadata) swap to
+				    skeletons while their queries resolve, so nothing blocks and
+				    nothing shifts. */}
+				{!isMobile && showSidebar && (
+					<div
+						ref={sidebarRef}
+						className="relative shrink-0 bg-sidebar"
+						style={{ width: sidebarWidth }}
+					>
+						<SidebarPanel
+							{...sidebarPanelProps}
+							isFilesLoading={sidebarPanelProps.isFilesLoading || !isEditorReady}
+						/>
 						<div
-							ref={sidebarRef}
-							className="relative shrink-0 bg-sidebar"
-							style={{ width: sidebarWidth }}
+							role="separator"
+							aria-orientation="vertical"
+							aria-label="Resize sidebar"
+							onPointerDown={handleDesktopSidebarResizeStart}
+							className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
 						>
-							<SidebarPanel {...sidebarPanelProps} />
-							<div
-								role="separator"
-								aria-orientation="vertical"
-								aria-label="Resize sidebar"
-								onPointerDown={handleDesktopSidebarResizeStart}
-								className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
-							>
-								<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
-							</div>
+							<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
 						</div>
-					)
-				) : (
-					<NotesSidebarPlaceholder />
+					</div>
 				)}
 
-				{isEditorReady ? (
-					<div
-						className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
-						inert={mobileOverlayOpen ? true : undefined}
-					>
-						<div className="relative flex min-w-0 flex-1 overflow-hidden">
-							<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-								{isActiveNoteLoading ? (
-									<NotesEditorPlaceholder />
-								) : (
-									<AnimatePresence mode="wait" initial={false}>
-										<motion.div
-											key={
-												sharingNoteId
-													? "share"
-													: viewingVersion
-														? "version"
-														: "editor"
+				<div
+					className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+					inert={mobileOverlayOpen ? true : undefined}
+				>
+					<div className="relative flex min-w-0 flex-1 overflow-hidden">
+						<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+							<AnimatePresence mode="wait" initial={false}>
+								<motion.div
+									key={
+										sharingNoteId
+											? "share"
+											: viewingVersion
+												? "version"
+												: "editor"
+									}
+									initial={
+										prefersReducedMotion
+											? { opacity: 0 }
+											: { opacity: 0, x: 18 }
+									}
+									animate={{
+										opacity: 1,
+										x: 0,
+										transition: {
+											duration: 0.24,
+											ease: [0.23, 1, 0.32, 1],
+										},
+									}}
+									exit={
+										prefersReducedMotion
+											? { opacity: 0, transition: { duration: 0.12 } }
+											: {
+													opacity: 0,
+													x: -12,
+													transition: {
+														duration: 0.16,
+														ease: [0.23, 1, 0.32, 1],
+													},
+												}
+									}
+									style={{ willChange: "transform, opacity" }}
+									className="flex min-h-0 flex-1 flex-col"
+								>
+									{sharingNoteId ? (
+										<ShareScreen
+											noteId={sharingNoteId}
+											noteName={activeFile?.name ?? "this note"}
+											onBack={handleCloseShare}
+										/>
+									) : viewingVersion ? (
+										<VersionPreviewContainer
+											version={viewingVersion}
+											file={activeFile}
+											files={files}
+											isMobile={isMobile}
+											isRestoring={isRestoringVersion}
+											onBack={handleExitVersionPreview}
+											onRestore={handleRestoreViewedVersion}
+										/>
+									) : splitEnabled && secondaryFile ? (
+										<SplitEditorWorkspace
+											primaryFile={activeFile}
+											secondaryFile={secondaryFile}
+											files={files}
+											focusedPane={focusedEditorPane}
+											editorMode={editorMode ?? "block"}
+											secondaryEditorMode={secondaryEditorMode}
+											scrollPositions={editorScrollPositions}
+											orientation={splitOrientation}
+											secondaryFirst={splitSecondaryFirst}
+											isMobile={isMobile}
+											canNavigatePrev={canNavigatePrev}
+											canNavigateNext={canNavigateNext}
+											onToggleSidebar={handleToggleSidebar}
+											onToggleMetadata={handleToggleMetadata}
+											onOpenSettings={handleOpenSettings}
+											onNavigatePrev={handleNavigatePrev}
+											onNavigateNext={handleNavigateNext}
+											onToggleSplit={handleToggleSplit}
+											onToggleSplitOrientation={handleToggleSplitOrientation}
+											onSwapPaneOrder={handleSwapSplitPaneOrder}
+											onCloseSplit={handleCloseSplit}
+											onFocusPane={handleFocusEditorPane}
+											onScrollPositionChange={handleEditorScrollPositionChange}
+											onContentChange={updateFileContent}
+											onRenameFile={layout.renameFile}
+											onEditorBlur={flushFileEdits}
+										/>
+									) : (
+										<EditorContainer
+											file={activeFile}
+											files={files}
+											editorMode={editorMode ?? "block"}
+											isMobile={isMobile}
+											onContentChange={updateFileContent}
+											onToggleSidebar={handleToggleSidebar}
+											onToggleMetadata={handleToggleMetadata}
+											onOpenSettings={handleOpenSettings}
+											onNavigatePrev={handleNavigatePrev}
+											onNavigateNext={handleNavigateNext}
+											onEditorBlur={
+												activeFile
+													? () => flushFileEdits(activeFile.id)
+													: undefined
 											}
-											initial={
-												prefersReducedMotion
-													? { opacity: 0 }
-													: { opacity: 0, x: 18 }
+											canNavigatePrev={canNavigatePrev}
+											canNavigateNext={canNavigateNext}
+											canToggleSplit={canToggleSplit}
+											onToggleSplit={handleToggleSplit}
+											splitEnabled={false}
+											initialScrollTop={
+												activeFile
+													? (editorScrollPositions[activeFile.id] ?? 0)
+													: 0
 											}
-											animate={{
-												opacity: 1,
-												x: 0,
-												transition: {
-													duration: 0.24,
-													ease: [0.23, 1, 0.32, 1],
-												},
+											onScrollPositionChange={(scrollTop) => {
+												if (activeFile) {
+													handleEditorScrollPositionChange(
+														activeFile.id,
+														scrollTop,
+													);
+												}
 											}}
-											exit={
-												prefersReducedMotion
-													? { opacity: 0, transition: { duration: 0.12 } }
-													: {
-															opacity: 0,
-															x: -12,
-															transition: {
-																duration: 0.16,
-																ease: [0.23, 1, 0.32, 1],
-															},
-														}
+											isContentLoading={isActiveNoteLoading || !isEditorReady}
+											fileName={
+												activeFile?.name ??
+												files.find(
+													(file) => file.id === layout.activeFileId,
+												)?.name ??
+												"No file selected"
 											}
-											style={{ willChange: "transform, opacity" }}
-											className="flex min-h-0 flex-1 flex-col"
-										>
-											{sharingNoteId ? (
-												<ShareScreen
-													noteId={sharingNoteId}
-													noteName={activeFile?.name ?? "this note"}
-													onBack={handleCloseShare}
-												/>
-											) : viewingVersion ? (
-												<VersionPreviewContainer
-													version={viewingVersion}
-													file={activeFile}
-													files={files}
-													isMobile={isMobile}
-													isRestoring={isRestoringVersion}
-													onBack={handleExitVersionPreview}
-													onRestore={handleRestoreViewedVersion}
-												/>
-											) : splitEnabled && secondaryFile ? (
-												<SplitEditorWorkspace
-													primaryFile={activeFile}
-													secondaryFile={secondaryFile}
-													files={files}
-													focusedPane={focusedEditorPane}
-													editorMode={editorMode ?? "block"}
-													secondaryEditorMode={secondaryEditorMode}
-													scrollPositions={editorScrollPositions}
-													orientation={splitOrientation}
-													secondaryFirst={splitSecondaryFirst}
-													isMobile={isMobile}
-													canNavigatePrev={canNavigatePrev}
-													canNavigateNext={canNavigateNext}
-													onToggleSidebar={handleToggleSidebar}
-													onToggleMetadata={handleToggleMetadata}
-													onOpenSettings={handleOpenSettings}
-													onNavigatePrev={handleNavigatePrev}
-													onNavigateNext={handleNavigateNext}
-													onToggleSplit={handleToggleSplit}
-													onToggleSplitOrientation={handleToggleSplitOrientation}
-													onSwapPaneOrder={handleSwapSplitPaneOrder}
-													onCloseSplit={handleCloseSplit}
-													onFocusPane={handleFocusEditorPane}
-													onScrollPositionChange={handleEditorScrollPositionChange}
-													onContentChange={updateFileContent}
-													onRenameFile={layout.renameFile}
-													onEditorBlur={flushFileEdits}
-												/>
-											) : (
-												<EditorContainer
-													file={activeFile}
-													files={files}
-													editorMode={editorMode ?? "block"}
-													isMobile={isMobile}
-													onContentChange={updateFileContent}
-													onToggleSidebar={handleToggleSidebar}
-													onToggleMetadata={handleToggleMetadata}
-													onOpenSettings={handleOpenSettings}
-													onNavigatePrev={handleNavigatePrev}
-													onNavigateNext={handleNavigateNext}
-													onEditorBlur={
-														activeFile
-															? () => flushFileEdits(activeFile.id)
-															: undefined
-													}
-													canNavigatePrev={canNavigatePrev}
-													canNavigateNext={canNavigateNext}
-													canToggleSplit={canToggleSplit}
-													onToggleSplit={handleToggleSplit}
-													splitEnabled={false}
-													initialScrollTop={
-														activeFile
-															? (editorScrollPositions[activeFile.id] ?? 0)
-															: 0
-													}
-													onScrollPositionChange={(scrollTop) => {
-														if (activeFile) {
-															handleEditorScrollPositionChange(
-																activeFile.id,
-																scrollTop,
-															);
-														}
-													}}
-													fileName={activeFile?.name || "No file selected"}
-													onRenameFile={layout.renameFile}
-												/>
-											)}
-										</motion.div>
-									</AnimatePresence>
-								)}
-							</div>
+											onRenameFile={layout.renameFile}
+										/>
+									)}
+								</motion.div>
+							</AnimatePresence>
+						</div>
 
 							{!isMobile &&
 								showMetadata &&
-								(isActiveNoteLoading ? (
+								(isActiveNoteLoading || !isEditorReady ? (
 									<NotesMetadataPlaceholder />
 								) : (
 									<MetadataPanel
@@ -323,11 +316,8 @@ export function NotesLayoutShell({
 										className="h-full shrink-0"
 									/>
 								))}
-						</div>
 					</div>
-				) : (
-					<NotesEditorPlaceholder />
-				)}
+				</div>
 			</div>
 
 			<CommandPalette
