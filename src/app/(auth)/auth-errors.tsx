@@ -38,6 +38,20 @@ export function resolveAuthError(error: unknown): AuthErrorNotice {
 	}
 
 	if (
+		normalized.includes("too many redirects") ||
+		normalized.includes("err_too_many_redirects") ||
+		normalized.includes("invalid callback") ||
+		normalized.includes("callback url")
+	) {
+		return {
+			kind: "configuration",
+			title: "Authentication redirect problem",
+			message:
+				"Check the callback URL, app origin, and OAuth provider settings.",
+		};
+	}
+
+	if (
 		normalized.includes("invalid login credentials") ||
 		normalized.includes("invalid credentials") ||
 		normalized.includes("invalid email or password")
