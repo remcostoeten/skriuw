@@ -1,21 +1,19 @@
 "use client";
 
 import type { QueryClient } from "@tanstack/react-query";
-import type {
-	CreateNoteInput,
-	UpdateNoteInput,
-} from "@/domain/notes/actions";
-import type {
-	CreateFolderInput,
-	UpdateFolderInput,
-} from "@/domain/folders/actions";
+import type { CreateNoteInput, UpdateNoteInput, UpdateNoteResult } from "@/domain/notes/actions";
+import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
+import {
+	clearGuestWorkspaceIndexedDB,
+	clearGuestWorkspaceLocalStorageSync,
+	createGuestWorkspaceStore,
+	readGuestWorkspacePayloadFromLocalStorageSync,
+	type GuestWorkspacePayload,
+} from "./local-store";
 import type { WorkspaceBackend } from "./types";
-
-const STORAGE_KEY = "skriuw:guest:workspace:v2";
-const LEGACY_STORAGE_KEYS = ["skriuw:guest:workspace:v1"];
 
 const ENGAGEMENT_STORAGE_KEY = "skriuw:guest:engagement:v1";
 /** Edit counts at which we nudge the guest to create an account. */
@@ -45,61 +43,8 @@ function recordGuestEngagement(): void {
 	}
 }
 
-function clearLegacyStorage(): void {
-	if (!isBrowser()) return;
-	for (const key of LEGACY_STORAGE_KEYS) {
-		try {
-			window.localStorage.removeItem(key);
-		} catch {
-			// ignore
-		}
-	}
-}
-
-type GuestStoragePayload = {
-	notes: NoteFile[];
-	folders: NoteFolder[];
-};
-
-function emptyPayload(): GuestStoragePayload {
-	return { notes: [], folders: [] };
-}
-
 function isBrowser(): boolean {
 	return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
-function reviveNote(raw: NoteFile): NoteFile {
-	return {
-		...raw,
-		createdAt: new Date(raw.createdAt as unknown as string),
-		modifiedAt: new Date(raw.modifiedAt as unknown as string),
-	};
-}
-
-function readPayload(): GuestStoragePayload {
-	if (!isBrowser()) return emptyPayload();
-	clearLegacyStorage();
-	try {
-		const raw = window.localStorage.getItem(STORAGE_KEY);
-		if (!raw) return emptyPayload();
-		const parsed = JSON.parse(raw) as Partial<GuestStoragePayload>;
-		return {
-			notes: Array.isArray(parsed.notes) ? parsed.notes.map(reviveNote) : [],
-			folders: Array.isArray(parsed.folders) ? parsed.folders : [],
-		};
-	} catch {
-		return emptyPayload();
-	}
-}
-
-function writePayload(payload: GuestStoragePayload): void {
-	if (!isBrowser()) return;
-	try {
-		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-	} catch {
-		// Quota exceeded or storage disabled — fail silent; guest mode is best-effort.
-	}
 }
 
 function ensureNoteName(name: string): string {
@@ -180,6 +125,8 @@ function collectFolderDescendants(folders: NoteFolder[], rootId: string): Set<st
  * that would clobber the seed name/parent on next reload.
  */
 export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
+	const store = createGuestWorkspaceStore();
+
 	function getCachedNote(id: string): NoteFile | null {
 		const detail = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id));
 		if (detail) return detail;
@@ -196,82 +143,87 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		mode: "local",
 
 		async createNote(input) {
-			const payload = readPayload();
 			const note = noteFromCreateInput(input);
-			payload.notes.push(note);
-			writePayload(payload);
+			await store.update((payload) => {
+				payload.notes.push(note);
+			});
 			recordGuestEngagement();
 			return note;
 		},
 
 		async updateNote(input) {
-			const payload = readPayload();
-			const index = payload.notes.findIndex((note) => note.id === input.id);
-			if (index !== -1) {
-				const next = applyNoteUpdate(payload.notes[index]!, input);
-				payload.notes[index] = next;
-				writePayload(payload);
-				recordGuestEngagement();
-				return { note: next, versionCreated: false };
-			}
+			const result = await store.updateMaybe<UpdateNoteResult>((payload) => {
+				const index = payload.notes.findIndex((note) => note.id === input.id);
+				if (index !== -1) {
+					const next = applyNoteUpdate(payload.notes[index]!, input);
+					payload.notes[index] = next;
+					return {
+						result: { note: next, versionCreated: false },
+						shouldWrite: true,
+					};
+				}
 
-			const existing = getCachedNote(input.id);
-			if (!existing) {
-				return { note: undefined, versionCreated: false };
-			}
-			const next = applyNoteUpdate(existing, input);
-			payload.notes.push(next);
-			writePayload(payload);
-			recordGuestEngagement();
-			return { note: next, versionCreated: false };
+				const existing = getCachedNote(input.id);
+				if (!existing) {
+					return {
+						result: { note: undefined, versionCreated: false },
+						shouldWrite: false,
+					};
+				}
+				const next = applyNoteUpdate(existing, input);
+				payload.notes.push(next);
+				return {
+					result: { note: next, versionCreated: false },
+					shouldWrite: true,
+				};
+			});
+			if (result.note) recordGuestEngagement();
+			return result;
 		},
 
 		async deleteNote(id) {
-			const payload = readPayload();
-			writePayload({
-				...payload,
-				notes: payload.notes.filter((note) => note.id !== id),
+			await store.update((payload) => {
+				payload.notes = payload.notes.filter((note) => note.id !== id);
 			});
 		},
 
 		async createFolder(input) {
-			const payload = readPayload();
 			const folder = folderFromCreateInput(input);
-			payload.folders.push(folder);
-			writePayload(payload);
+			await store.update((payload) => {
+				payload.folders.push(folder);
+			});
 			return folder;
 		},
 
 		async updateFolder(input) {
-			const payload = readPayload();
-			const index = payload.folders.findIndex((folder) => folder.id === input.id);
-			if (index !== -1) {
-				const next = applyFolderUpdate(payload.folders[index]!, input);
-				payload.folders[index] = next;
-				writePayload(payload);
-				return next;
-			}
-			const existing = getCachedFolder(input.id);
-			if (!existing) return undefined;
-			const next = applyFolderUpdate(existing, input);
-			payload.folders.push(next);
-			writePayload(payload);
-			return next;
+			return store.updateMaybe<NoteFolder | undefined>((payload) => {
+				const index = payload.folders.findIndex((folder) => folder.id === input.id);
+				if (index !== -1) {
+					const next = applyFolderUpdate(payload.folders[index]!, input);
+					payload.folders[index] = next;
+					return { result: next, shouldWrite: true };
+				}
+				const existing = getCachedFolder(input.id);
+				if (!existing) return { result: undefined, shouldWrite: false };
+				const next = applyFolderUpdate(existing, input);
+				payload.folders.push(next);
+				return { result: next, shouldWrite: true };
+			});
 		},
 
 		async deleteFolder(id) {
-			const payload = readPayload();
-			const remove = collectFolderDescendants(payload.folders, id);
-			writePayload({
-				notes: payload.notes.filter((note) => !note.parentId || !remove.has(note.parentId)),
-				folders: payload.folders.filter((folder) => !remove.has(folder.id)),
+			await store.update((payload) => {
+				const remove = collectFolderDescendants(payload.folders, id);
+				payload.notes = payload.notes.filter(
+					(note) => !note.parentId || !remove.has(note.parentId),
+				);
+				payload.folders = payload.folders.filter((folder) => !remove.has(folder.id));
 			});
 		},
 	};
 }
 
-export function mergeSeedWithGuestNotes(seedNotes: NoteFile[]): NoteFile[] {
-	const stored = readPayload().notes;
+function mergeNotes(seedNotes: NoteFile[], stored: NoteFile[]): NoteFile[] {
 	if (stored.length === 0) {
 		return seedNotes;
 	}
@@ -280,8 +232,7 @@ export function mergeSeedWithGuestNotes(seedNotes: NoteFile[]): NoteFile[] {
 	return [...seedRemainder, ...stored];
 }
 
-export function mergeSeedWithGuestFolders(seedFolders: NoteFolder[]): NoteFolder[] {
-	const stored = readPayload().folders;
+function mergeFolders(seedFolders: NoteFolder[], stored: NoteFolder[]): NoteFolder[] {
 	if (stored.length === 0) {
 		return seedFolders;
 	}
@@ -290,8 +241,32 @@ export function mergeSeedWithGuestFolders(seedFolders: NoteFolder[]): NoteFolder
 	return [...seedRemainder, ...stored];
 }
 
-export function resetGuestStorage(): void {
-	if (!isBrowser()) return;
-	window.localStorage.removeItem(STORAGE_KEY);
-	window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
+export function mergeSeedWithGuestNotes(seedNotes: NoteFile[]): NoteFile[] {
+	return mergeNotes(seedNotes, readGuestWorkspacePayloadFromLocalStorageSync().notes);
+}
+
+export function mergeSeedWithGuestFolders(seedFolders: NoteFolder[]): NoteFolder[] {
+	return mergeFolders(seedFolders, readGuestWorkspacePayloadFromLocalStorageSync().folders);
+}
+
+export async function mergeSeedWithGuestWorkspace(
+	seedNotes: NoteFile[],
+	seedFolders: NoteFolder[],
+): Promise<GuestWorkspacePayload> {
+	const store = createGuestWorkspaceStore();
+	const stored = await store.read();
+	return {
+		notes: mergeNotes(seedNotes, stored.notes),
+		folders: mergeFolders(seedFolders, stored.folders),
+	};
+}
+
+export async function resetGuestStorage(): Promise<void> {
+	if (isBrowser()) {
+		clearGuestWorkspaceLocalStorageSync();
+		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
+	}
+	await createGuestWorkspaceStore().clear().catch(async () => {
+		await clearGuestWorkspaceIndexedDB();
+	});
 }

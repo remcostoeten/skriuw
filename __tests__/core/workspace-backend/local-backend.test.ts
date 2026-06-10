@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { IDBFactory as FDBFactory } from "fake-indexeddb";
 import {
 	createLocalBackend,
 	mergeSeedWithGuestFolders,
 	mergeSeedWithGuestNotes,
+	mergeSeedWithGuestWorkspace,
 	resetGuestStorage,
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "@/core/workspace-backend/local-backend";
@@ -35,7 +37,7 @@ function createStorage() {
 	};
 }
 
-function installWindow() {
+function installWindow(options: { indexedDB?: IDBFactory } = {}) {
 	const localStorage = createStorage();
 	const target = new EventTarget();
 	Object.defineProperty(globalThis, "window", {
@@ -45,6 +47,7 @@ function installWindow() {
 			addEventListener: target.addEventListener.bind(target),
 			removeEventListener: target.removeEventListener.bind(target),
 			dispatchEvent: target.dispatchEvent.bind(target),
+			indexedDB: options.indexedDB,
 		},
 	});
 	return { localStorage };
@@ -163,7 +166,7 @@ describe("local workspace backend", () => {
 		const backend = createLocalBackend(fakeQueryClient());
 		await backend.createNote({ name: "x", content: "" });
 
-		resetGuestStorage();
+		await resetGuestStorage();
 
 		expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
 		expect(window.localStorage.getItem(ENGAGEMENT_KEY)).toBeNull();
@@ -192,5 +195,23 @@ describe("local workspace backend", () => {
 		expect(merged).toHaveLength(1);
 		expect(merged[0]!.id).toBe(seed.id);
 		expect(merged[0]!.content).toBe("overlaid");
+	});
+
+	test("uses IndexedDB when available and migrates the localStorage workspace", async () => {
+		installWindow({ indexedDB: new FDBFactory() });
+		const migrated = seedNote({ id: "guest:migrated", content: "from localStorage" });
+		window.localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({ notes: [migrated], folders: [] }),
+		);
+
+		const backend = createLocalBackend(fakeQueryClient());
+		const created = await backend.createNote({ name: "Indexed", content: "from idb" });
+
+		expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+		const merged = await mergeSeedWithGuestWorkspace([], []);
+		expect(merged.notes.map((note) => note.id)).toEqual([migrated.id, created.id]);
+		expect(merged.notes.map((note) => note.content)).toEqual(["from localStorage", "from idb"]);
 	});
 });
