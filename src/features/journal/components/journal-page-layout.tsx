@@ -5,12 +5,10 @@ import { CalendarDays, ChevronLeft, Code, Settings2, Sidebar, Type } from "lucid
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
-import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
-import { useAuth } from "@/core/auth/use-auth";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
@@ -206,7 +204,6 @@ function JournalEditorToolbar({
 }
 
 export function JournalPageLayout() {
-	const auth = useAuth();
 	const searchParams = useSearchParams();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 	const loadingView = searchParams.get("date") ? "editor" : "list";
@@ -250,15 +247,6 @@ export function JournalPageLayout() {
 					<JournalContentPlaceholder view={loadingView} />
 				</div>
 			</LayoutContainer>
-		);
-	}
-
-	if (auth.isReady && auth.phase !== "authenticated") {
-		return (
-			<AuthRequiredState
-				title="Sign in to access your journal"
-				description="Journal entries are now tied to your account so the same data is available across devices."
-			/>
 		);
 	}
 
