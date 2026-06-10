@@ -50,6 +50,7 @@ import {
 } from "@/domain/notes/rich-document";
 import type { AiEditorHandle } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
+import { BlockNoteMantineProvider } from "@/providers/mantine-provider";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 
@@ -1023,65 +1024,70 @@ export function RichTextEditor({
 				} as CSSProperties
 			}
 		>
-			<NoteLinkProvider files={files} activeFileId={activeFileId}>
-				<SkriuwBlockNoteView
-					editor={editor}
-					editable={!readOnly}
-					onChange={handleEditorChange}
-					theme={blockNoteTheme}
-					className="h-full"
-					formattingToolbar={false}
-					linkToolbar={false}
-					slashMenu={false}
-				>
-					<FormattingToolbarController
-						formattingToolbar={() => (
-							<CustomFormattingToolbar files={files} activeFileId={activeFileId} />
-						)}
-					/>
-					<LinkToolbarController
-						linkToolbar={(props) => (
-							<CustomLinkToolbar
-								{...props}
-								files={files}
-								activeFileId={activeFileId}
-							/>
-						)}
-					/>
-					<SuggestionMenuController
-						triggerCharacter="/"
-						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-						getItems={async (query) =>
-							filterSuggestionItems(
-								getCustomSlashMenuItems(
+			<BlockNoteMantineProvider>
+				<NoteLinkProvider files={files} activeFileId={activeFileId}>
+					<SkriuwBlockNoteView
+						editor={editor}
+						editable={!readOnly}
+						onChange={handleEditorChange}
+						theme={blockNoteTheme}
+						className="h-full"
+						formattingToolbar={false}
+						linkToolbar={false}
+						slashMenu={false}
+					>
+						<FormattingToolbarController
+							formattingToolbar={() => (
+								<CustomFormattingToolbar
+									files={files}
+									activeFileId={activeFileId}
+								/>
+							)}
+						/>
+						<LinkToolbarController
+							linkToolbar={(props) => (
+								<CustomLinkToolbar
+									{...props}
+									files={files}
+									activeFileId={activeFileId}
+								/>
+							)}
+						/>
+						<SuggestionMenuController
+							triggerCharacter="/"
+							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+							getItems={async (query) =>
+								filterSuggestionItems(
+									getCustomSlashMenuItems(
+										editor,
+										onAiSpellCheck,
+										onAiContinueWriting,
+									),
+									query,
+								)
+							}
+						/>
+						<SuggestionMenuController
+							triggerCharacter="@"
+							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+							getItems={async (query) =>
+								getNoteMentionMenuItems(
 									editor,
-									onAiSpellCheck,
-									onAiContinueWriting,
-								),
-								query,
-							)
-						}
-					/>
-					<SuggestionMenuController
-						triggerCharacter="@"
-						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-						getItems={async (query) =>
-							getNoteMentionMenuItems(
-								editor,
-								files,
-								activeFileId,
-								query,
-								handleCreateNoteFromMention,
-							)
-						}
-					/>
-					<SuggestionMenuController
-						triggerCharacter="#"
-						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-						getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
-					/>
-				</SkriuwBlockNoteView>
-			</NoteLinkProvider>
+									files,
+									activeFileId,
+									query,
+									handleCreateNoteFromMention,
+								)
+							}
+						/>
+						<SuggestionMenuController
+							triggerCharacter="#"
+							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+							getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
+						/>
+					</SkriuwBlockNoteView>
+				</NoteLinkProvider>
+			</BlockNoteMantineProvider>
 			<style jsx global>{`
 				.blocknote-wrapper {
 					--bn-colors-editor-background: hsl(var(--card));
