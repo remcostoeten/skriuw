@@ -9,6 +9,7 @@ import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
+import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { GuestSignupPrompt } from "@/features/layout/components/guest-signup-prompt";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 						<WorkspaceBackendProvider>
 							<PersistenceBootstrap />
 							<GuestWorkspaceBootstrap />
+							<AppRoutePrefetcher />
 							<ThemeAttribute />
 							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
 							<UserToastHost />
