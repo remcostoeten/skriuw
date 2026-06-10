@@ -15,6 +15,7 @@ import { AuthDrawer, AuthProvider } from "@remcostoeten/auth-drawer";
 import type { AuthConfig } from "@remcostoeten/auth-drawer";
 import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { UserMenu } from "./user-menu";
+import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
 
 type Props = {
 	onOpenSettings: () => void;
@@ -48,6 +49,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
+	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
 
 	useEffect(() => {
 		setIsMounted(true);
@@ -61,6 +63,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	const isAuthenticated = auth.isReady && auth.phase === "authenticated";
 	const openAuthDrawerFor = (destination: string) => {
 		setAuthDestination(destination);
+		setAuthDrawerError(null);
 		setAuthDrawerOpen(true);
 	};
 
@@ -275,6 +278,21 @@ export function IconRail({ onOpenSettings }: Props) {
 			{/* AuthProvider is a sibling of <aside>, not its parent.
 			    AuthDrawer renders into a portal so it works fine here. */}
 			<AuthProvider adapter={authDrawerAdapter}>
+				{authDrawerError ? (
+					<div className="fixed bottom-4 left-16 z-[60] w-[min(24rem,calc(100vw-5rem))]">
+						<div
+							role="alert"
+							className="border border-destructive/25 bg-background/95 px-4 py-3 shadow-lg backdrop-blur"
+						>
+							<p className="text-sm font-medium text-foreground">
+								{authDrawerError.title}
+							</p>
+							<p className="mt-1 text-sm text-muted-foreground">
+								{authDrawerError.message}
+							</p>
+						</div>
+					</div>
+				) : null}
 				<AuthDrawer
 					adapter={authDrawerAdapter}
 					hideTrigger
@@ -285,8 +303,23 @@ export function IconRail({ onOpenSettings }: Props) {
 					}}
 					onSuccess={() => {
 						setAuthDrawerOpen(false);
+						setAuthDrawerError(null);
 						router.push(authDestination ?? "/app");
 						setAuthDestination(null);
+					}}
+					onError={(error) => {
+						const fallbackMessage =
+							error instanceof Error
+								? error.message
+								: typeof error === "object" && error && "message" in error
+									? String((error as { message?: unknown }).message ?? "")
+									: typeof error === "string"
+										? error
+										: "Authentication failed";
+
+						setAuthDrawerError(
+							resolveAuthError(new Error(fallbackMessage)),
+						);
 					}}
 					config={authDrawerConfig}
 				/>
