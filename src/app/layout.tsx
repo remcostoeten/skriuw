@@ -1,4 +1,10 @@
 import type { Metadata, Viewport } from "next";
+// auth-drawer's prebuilt CSS re-declares Tailwind utilities (`.hidden`, …) in
+// the `utilities` layer. It must enter the cascade BEFORE our own Tailwind
+// output, or its `.hidden` outranks our responsive `md:flex`/`md:block` and
+// kills every `hidden md:*` element (e.g. the desktop icon rail). The package
+// dedupes this import against its own side-effect import, keeping it early.
+import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
 import { AnalyticsMount } from "@/core/analytics/analytics-mount";
 
@@ -51,6 +57,7 @@ export default function RootLayout({ children }: Props) {
 			</head>
 			<body className="font-sans">
 				{children}
+				<div id="auth-drawer-portal" />
 				<AnalyticsMount />
 			</body>
 		</html>

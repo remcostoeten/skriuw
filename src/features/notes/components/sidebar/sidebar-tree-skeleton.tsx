@@ -1,4 +1,14 @@
-import { ChevronRight, FileText, Folder } from "lucide-react";
+import {
+	eachDayOfInterval,
+	endOfMonth,
+	endOfWeek,
+	format,
+	isSameMonth,
+	isToday,
+	startOfMonth,
+	startOfWeek,
+} from "date-fns";
+import { ChevronLeft, ChevronRight, FileText, Folder } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 function SkeletonLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
@@ -65,37 +75,59 @@ function SidebarSectionHeaderSkeleton({ title }: { title: string }) {
 
 function JournalSectionSkeleton() {
 	const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-	const days = Array.from({ length: 35 }, (_, index) => index + 1);
+	// Mirror MiniCalendar's real grid for the current month so the calendar
+	// doesn't visibly change month/today when the live component takes over.
+	const now = new Date();
+	const days = eachDayOfInterval({
+		start: startOfWeek(startOfMonth(now), { weekStartsOn: 1 }),
+		end: endOfWeek(endOfMonth(now), { weekStartsOn: 1 }),
+	});
 
 	return (
 		<section aria-hidden="true" className="mx-2 mb-0.5">
 			<SidebarSectionHeaderSkeleton title="Journal" />
 			<div className="px-2 pb-2 pt-0.5">
-				<div className="mb-2 flex items-center justify-between px-0.5">
-					<span className="text-[11px] font-semibold text-foreground/55">May 2026</span>
+				<div className="mb-2 flex items-center gap-1">
+					<div className="rounded-sm border border-border bg-muted px-2 py-1 text-[10px] font-medium text-foreground">
+						Calendar
+					</div>
+					<div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">
+						Recent
+					</div>
+				</div>
+				<div className="mb-1.5 flex items-center justify-between">
+					<div className="flex h-6 w-6 items-center justify-center text-muted-foreground">
+						<ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+					</div>
+					<span className="text-[11px] font-medium text-foreground/80">
+						{format(now, "MMMM yyyy")}
+					</span>
+					<div className="flex h-6 w-6 items-center justify-center text-muted-foreground">
+						<ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+					</div>
 				</div>
 				<div className="grid grid-cols-7 gap-0">
 					{weekdayLabels.map((label) => (
 						<div
 							key={label}
-							className="flex h-6 items-center justify-center text-[9px] font-medium uppercase tracking-wider text-muted-foreground/45"
+							className="flex h-6 items-center justify-center text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60"
 						>
 							{label}
 						</div>
 					))}
 				</div>
-				<div className="grid grid-cols-7 gap-0.5">
+				<div className="grid grid-cols-7 gap-0">
 					{days.map((day) => (
 						<div
-							key={day}
+							key={format(day, "yyyy-MM-dd")}
 							className={cn(
-								"flex h-7 items-center justify-center text-[11px]",
-								day === 27
-									? "border border-border bg-muted/70 font-semibold text-foreground/60"
-									: "text-foreground/35",
+								"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px]",
+								!isSameMonth(day, now) && "text-muted-foreground/30",
+								isSameMonth(day, now) && !isToday(day) && "text-foreground/70",
+								isToday(day) && "border-border bg-muted font-medium text-foreground",
 							)}
 						>
-							{day <= 31 ? day : ""}
+							{format(day, "d")}
 						</div>
 					))}
 				</div>
