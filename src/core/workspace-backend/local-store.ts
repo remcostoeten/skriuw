@@ -3,7 +3,6 @@
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
 export const WORKSPACE_STORAGE_KEY = "skriuw:guest:workspace:v2";
-export const LEGACY_WORKSPACE_STORAGE_KEYS = ["skriuw:guest:workspace:v1"];
 
 const DB_NAME = "skriuw:guest:workspace";
 const DB_VERSION = 1;
@@ -82,42 +81,24 @@ function clonePayload(payload: GuestWorkspacePayload): GuestWorkspacePayload {
 	};
 }
 
-function clearLegacyLocalStorage(): void {
-	if (!canUseLocalStorage()) return;
-	for (const key of LEGACY_WORKSPACE_STORAGE_KEYS) {
-		try {
-			window.localStorage.removeItem(key);
-		} catch {
-			// ignore
-		}
-	}
-}
-
-function readLocalStorageMigration(): {
-	payload: GuestWorkspacePayload;
-	hadWorkspaceKey: boolean;
-} {
+function readLocalStoragePayload(): GuestWorkspacePayload {
 	if (!canUseLocalStorage()) {
-		return { payload: emptyGuestWorkspacePayload(), hadWorkspaceKey: false };
+		return emptyGuestWorkspacePayload();
 	}
 
-	clearLegacyLocalStorage();
 	try {
 		const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
 		if (!raw) {
-			return { payload: emptyGuestWorkspacePayload(), hadWorkspaceKey: false };
+			return emptyGuestWorkspacePayload();
 		}
-		return {
-			payload: normalizePayload(JSON.parse(raw) as Partial<GuestWorkspacePayload>),
-			hadWorkspaceKey: true,
-		};
+		return normalizePayload(JSON.parse(raw) as Partial<GuestWorkspacePayload>);
 	} catch {
-		return { payload: emptyGuestWorkspacePayload(), hadWorkspaceKey: true };
+		return emptyGuestWorkspacePayload();
 	}
 }
 
 export function readGuestWorkspacePayloadFromLocalStorageSync(): GuestWorkspacePayload {
-	return readLocalStorageMigration().payload;
+	return readLocalStoragePayload();
 }
 
 export function writeGuestWorkspacePayloadToLocalStorageSync(payload: GuestWorkspacePayload): void {
@@ -133,7 +114,6 @@ export function clearGuestWorkspaceLocalStorageSync(): void {
 	if (!canUseLocalStorage()) return;
 	try {
 		window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-		clearLegacyLocalStorage();
 	} catch {
 		// ignore
 	}
@@ -197,18 +177,7 @@ function createIndexedDBAdapter(database: IDBDatabase): StorageAdapter {
 				return normalizePayload(record.payload);
 			}
 
-			const migration = readLocalStorageMigration();
-			if (migration.hadWorkspaceKey) {
-				await this.write(migration.payload);
-				if (canUseLocalStorage()) {
-					try {
-						window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-					} catch {
-						// ignore
-					}
-				}
-			}
-			return migration.payload;
+			return emptyGuestWorkspacePayload();
 		},
 		async write(payload) {
 			const transaction = database.transaction(OBJECT_STORE_NAME, "readwrite");

@@ -99,8 +99,8 @@ Now guest workspace persistence goes through a versioned async store:
 
 - IndexedDB is used when available.
 - localStorage remains the fallback.
-- Existing `skriuw:guest:workspace:v2` localStorage data is migrated into IndexedDB on first read.
-- Legacy `v1` cleanup is preserved.
+- Existing localStorage workspace data is not migrated into IndexedDB because the app has no users yet and old client data does not need to be retained.
+- Old guest workspace compatibility paths were removed rather than preserved.
 - Writes are serialized so rapid guest edits do not race each other.
 - Guest bootstrap awaits async merge data before seeding local overrides into React Query.
 - Guest reset is awaitable so IndexedDB clears durably before demo reloads or auth transitions.
@@ -109,7 +109,7 @@ Result:
 
 - Guest editing feels more offline-native.
 - Larger local workspaces avoid synchronous localStorage write pressure.
-- The migration path preserves existing local guest edits.
+- The new guest storage architecture avoids carrying old local workspace migration code.
 
 ### Editor Bundle Isolation
 
