@@ -6,8 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Waypoints } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
-import { useAuth } from "@/core/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 import type { GraphData, GraphNode } from "@/domain/notes/graph";
 import { useNoteGraph } from "../hooks/use-note-graph";
@@ -193,7 +191,6 @@ function GraphEmptyState({ className }: { className?: string }) {
 }
 
 export function WorkspaceGraph() {
-	const auth = useAuth();
 	const router = useRouter();
 	const query = useNoteGraph();
 
@@ -202,15 +199,6 @@ export function WorkspaceGraph() {
 		[router],
 	);
 	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
-
-	if (auth.isReady && auth.phase !== "authenticated") {
-		return (
-			<AuthRequiredState
-				title="Sign in to see your graph"
-				description="The knowledge graph is built from your linked notes and tags, so it lives with your account."
-			/>
-		);
-	}
 
 	const data = query.data;
 	const hasGraph = Boolean(data && data.nodes.length > 0);

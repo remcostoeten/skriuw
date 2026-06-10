@@ -12,7 +12,7 @@ export default async function GraphPage() {
 
 	// The graph is account-only — fetchNoteGraph() calls getAuthenticatedUser()
 	// and would throw for guests. Skip seeding + prefetch when signed out; the
-	// client renders an AuthRequiredState.
+	// client keeps a neutral loading shell until the session resolves.
 	if (user) {
 		await ensureCloudStarterContentSeeded();
 		await queryClient.prefetchQuery({
