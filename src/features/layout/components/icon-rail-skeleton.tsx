@@ -1,4 +1,4 @@
-import { BookOpen, Kanban, Settings } from "lucide-react";
+import { BookOpen, Kanban, Settings, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { RawLogo } from "@/shared/icons/logo";
 import { cn } from "@/shared/lib/utils";
@@ -48,6 +48,9 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 							)}
 						>
 							<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
+						</div>
+						<div className={iconButtonClass}>
+							<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
 						</div>
 					</div>
 				</div>

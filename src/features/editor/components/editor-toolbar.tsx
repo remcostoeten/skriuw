@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -66,17 +65,12 @@ export function EditorToolbar({
 	splitOrientation = "vertical",
 	onToggleSplitOrientation,
 }: Props) {
-	const [isMounted, setIsMounted] = useState(false);
 	const anyAiLoading = aiLoading
 		? aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting
 		: false;
 	const hasAiActions = Boolean(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting);
 	const sidebarIconButtonClass =
 		"pressable flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
-
-	useEffect(() => {
-		setIsMounted(true);
-	}, []);
 
 	const runAiAction = (handler?: () => void) => () => {
 		handler?.();
@@ -228,20 +222,7 @@ export function EditorToolbar({
 						)}
 					</button>
 				) : null}
-				{hasAiActions && !isMounted && (
-					<button
-						disabled
-						className={cn(
-							sidebarIconButtonClass,
-							"text-sidebar-foreground/58 opacity-50",
-						)}
-						title="AI actions"
-						aria-label="AI actions"
-					>
-						<SparkleIcon className="h-3.5 w-3.5" />
-					</button>
-				)}
-				{hasAiActions && isMounted && (
+				{hasAiActions && (
 					<GuestGate feature="ai">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>

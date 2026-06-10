@@ -208,6 +208,20 @@
 		text-size-adjust: 100%;
 	}
 
+	:root {
+		--surface-overlay: var(--popover);
+		--surface-overlay-alpha-high: 0.96;
+		--surface-overlay-alpha-mid: 0.82;
+		--surface-overlay-alpha-fade: 0.48;
+		--surface-overlay-raised: var(--card);
+		--surface-overlay-hover: var(--accent);
+		--text-on-overlay: var(--popover-foreground);
+		--text-on-overlay-muted: var(--muted-foreground);
+		--text-on-overlay-subtle: var(--haptic-text-dim);
+		--border-overlay: var(--border);
+		--error-on-overlay: var(--destructive);
+	}
+
 	* {
 		@apply border-border;
 	}
@@ -226,6 +240,37 @@
 		overscroll-behavior: none;
 		text-rendering: optimizeLegibility;
 		-webkit-tap-highlight-color: transparent;
+	}
+
+	#auth-drawer-portal .font-display {
+		font-family:
+			ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important;
+	}
+
+	#auth-drawer-portal button.rounded-none {
+		border-radius: 0.5rem;
+	}
+
+	#auth-drawer-portal .auth-button-soft-hover {
+		background-color: hsl(var(--foreground) / 0.03) !important;
+		border-color: hsl(var(--foreground) / 0.08) !important;
+	}
+
+	#auth-drawer-portal .auth-button-soft-hover:hover {
+		background-color: hsl(var(--foreground) / 0.05) !important;
+		border-color: hsl(var(--foreground) / 0.12) !important;
+	}
+
+	#auth-drawer-portal input:not([type="checkbox"]):not([type="radio"]):not(
+			[aria-invalid="true"]
+		) {
+		border-color: hsl(var(--foreground) / 0.07);
+	}
+
+	#auth-drawer-portal input:not([type="checkbox"]):not([type="radio"]):not(
+			[aria-invalid="true"]
+		):focus {
+		border-color: hsl(var(--foreground) / 0.11);
 	}
 
 	button,
