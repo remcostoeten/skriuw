@@ -174,7 +174,7 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
 
 	// New account starts from the normal seed — discard any local guest
 	// workspace + engagement counter so it doesn't linger invisibly.
-	resetGuestStorage();
+	await resetGuestStorage();
 
 	const user = toAuthUser(data.user);
 	setCurrentAuthUser(user);
@@ -189,7 +189,7 @@ export async function signInWithOAuth(
 
 	// Once authenticated, any local guest workspace is irrelevant — clear it
 	// before the OAuth redirect so it doesn't linger.
-	resetGuestStorage();
+	await resetGuestStorage();
 
 	const { error } = await authClient.signIn.social({
 		provider,
