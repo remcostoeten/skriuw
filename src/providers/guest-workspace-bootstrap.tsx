@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
-import { mergeSeedWithGuestFolders, mergeSeedWithGuestNotes } from "@/core/workspace-backend";
+import { mergeSeedWithGuestWorkspace } from "@/core/workspace-backend";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
@@ -21,19 +21,27 @@ export function GuestWorkspaceBootstrap() {
 	useEffect(() => {
 		if (!isGuest) return;
 
-		const seedNotes = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
-		const seedMetadataNotes = new Set(seedNotes);
-		const mergedNotes = mergeSeedWithGuestNotes(seedNotes);
-		queryClient.setQueryData(notesKeys.files(), mergedNotes);
+		let cancelled = false;
 
-		const seedFolders = queryClient.getQueryData<NoteFolder[]>(notesKeys.folders()) ?? [];
-		const mergedFolders = mergeSeedWithGuestFolders(seedFolders);
-		queryClient.setQueryData(notesKeys.folders(), mergedFolders);
+		void (async () => {
+			const seedNotes = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
+			const seedMetadataNotes = new Set(seedNotes);
+			const seedFolders = queryClient.getQueryData<NoteFolder[]>(notesKeys.folders()) ?? [];
+			const merged = await mergeSeedWithGuestWorkspace(seedNotes, seedFolders);
+			if (cancelled) return;
 
-		for (const note of mergedNotes) {
-			if (seedMetadataNotes.has(note)) continue;
-			queryClient.setQueryData(notesKeys.detail(note.id), note);
-		}
+			queryClient.setQueryData(notesKeys.files(), merged.notes);
+			queryClient.setQueryData(notesKeys.folders(), merged.folders);
+
+			for (const note of merged.notes) {
+				if (seedMetadataNotes.has(note)) continue;
+				queryClient.setQueryData(notesKeys.detail(note.id), note);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
 	}, [isGuest, queryClient]);
 
 	return null;

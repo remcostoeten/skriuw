@@ -257,8 +257,8 @@ export function DataSection() {
 	const isGuest = useIsGuestWorkspace();
 	const queryClient = useQueryClient();
 
-	const handleResetDemo = () => {
-		resetGuestStorage();
+	const handleResetDemo = async () => {
+		await resetGuestStorage();
 		window.location.reload();
 	};
 	const fileInputRef = useRef<HTMLInputElement>(null);
