@@ -5,7 +5,7 @@ import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuth } from "@/core/auth/use-auth";
@@ -50,10 +50,37 @@ export function IconRail({ onOpenSettings }: Props) {
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
+	const [awaitingAuthCommit, setAwaitingAuthCommit] = useState(false);
+	const protectedRoutes = useMemo(
+		() => new Set(["/app/journal", "/app/graph", "/app/shared"]),
+		[],
+	);
 
 	useEffect(() => {
 		setIsMounted(true);
 	}, []);
+
+	useEffect(() => {
+		if (!auth.isReady || auth.phase !== "authenticated" || !authDestination) return;
+
+		setAuthDrawerOpen(false);
+		setAuthDrawerError(null);
+		setAwaitingAuthCommit(false);
+		if (authDestination !== pathname) {
+			router.push(authDestination);
+		}
+		setAuthDestination(null);
+	}, [auth.isReady, auth.phase, authDestination, pathname, router]);
+
+	useEffect(() => {
+		if (!auth.isReady || auth.phase === "authenticated") return;
+		if (!protectedRoutes.has(pathname)) return;
+		if (authDrawerOpen) return;
+
+		setAuthDestination(pathname);
+		setAuthDrawerError(null);
+		setAuthDrawerOpen(true);
+	}, [auth.isReady, auth.phase, authDrawerOpen, pathname, protectedRoutes]);
 
 	const handleSignOut = async () => {
 		await signOut();
@@ -62,8 +89,10 @@ export function IconRail({ onOpenSettings }: Props) {
 
 	const isAuthenticated = auth.isReady && auth.phase === "authenticated";
 	const openAuthDrawerFor = (destination: string) => {
+		router.prefetch(destination);
 		setAuthDestination(destination);
 		setAuthDrawerError(null);
+		setAwaitingAuthCommit(false);
 		setAuthDrawerOpen(true);
 	};
 
@@ -298,14 +327,19 @@ export function IconRail({ onOpenSettings }: Props) {
 					hideTrigger
 					open={authDrawerOpen}
 					onOpenChange={(open) => {
+						if (!open && awaitingAuthCommit && authDestination && !isAuthenticated) {
+							return;
+						}
+
 						setAuthDrawerOpen(open);
-						if (!open) setAuthDestination(null);
+						if (!open) {
+							setAuthDestination(null);
+							setAwaitingAuthCommit(false);
+						}
 					}}
 					onSuccess={() => {
-						setAuthDrawerOpen(false);
 						setAuthDrawerError(null);
-						router.push(authDestination ?? "/app");
-						setAuthDestination(null);
+						setAwaitingAuthCommit(true);
 					}}
 					onError={(error) => {
 						const fallbackMessage =
