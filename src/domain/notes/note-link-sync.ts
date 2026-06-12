@@ -30,7 +30,7 @@ export type NoteLinkSyncDb = {
 			};
 		}): Promise<BatchPayload>;
 		updateMany(args: {
-			where: { id: string; userId: string; sourceNoteId: string };
+			where: { id: { in: string[] }; userId: string; sourceNoteId: string };
 			data: { targetNoteId: string | null };
 		}): Promise<BatchPayload>;
 		createMany(args: {
@@ -146,10 +146,18 @@ export async function syncNoteLinks(
 		});
 	}
 
+	// One query per distinct resolved target instead of one per link row.
+	const updatedIdsByTarget = new Map<string | null, string[]>();
 	for (const { existing: row, next } of diff.updated) {
+		const target = next.targetNoteId ?? null;
+		const ids = updatedIdsByTarget.get(target) ?? [];
+		ids.push(row.id);
+		updatedIdsByTarget.set(target, ids);
+	}
+	for (const [targetNoteId, ids] of updatedIdsByTarget) {
 		await db.noteLink.updateMany({
-			where: { id: row.id, userId, sourceNoteId: note.id },
-			data: { targetNoteId: next.targetNoteId ?? null },
+			where: { id: { in: ids }, userId, sourceNoteId: note.id },
+			data: { targetNoteId },
 		});
 	}
 
