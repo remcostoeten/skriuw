@@ -2,7 +2,11 @@
 
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
+import {
+	assertOwnedParentFolder,
+	assertResourceIdAvailable,
+	isRecordNotFoundError,
+} from "@/domain/persistence/guards";
 import {
 	createNoteInputSchema,
 	parseServerInput,
@@ -16,7 +20,11 @@ import type {
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { buildNoteVersionContentHash, shouldPersistNoteVersion } from "@/domain/notes/versioning";
+import {
+	buildNoteVersionContentHash,
+	NOTE_VERSION_RETENTION_LIMIT,
+	shouldPersistNoteVersion,
+} from "@/domain/notes/versioning";
 import { getNote, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
@@ -115,15 +123,17 @@ async function insertNoteVersion(
 	>,
 	reason: NoteVersionReason,
 ): Promise<string | null> {
+	// Lean select: the persist decision only needs hash, timestamp, and content
+	// length deltas — never the full richContent JSON snapshot.
 	const latest = await db.noteVersion.findFirst({
 		where: { userId, noteId },
 		orderBy: { createdAt: "desc" },
+		select: { contentHash: true, createdAt: true, content: true },
 	});
-	const latestVersion = latest ? recordToNoteVersion(latest) : null;
 
 	const createdAt = new Date();
 	const candidate = { ...note, reason, createdAt };
-	if (!shouldPersistNoteVersion(candidate, latestVersion)) {
+	if (!shouldPersistNoteVersion(candidate, latest)) {
 		return null;
 	}
 
@@ -144,7 +154,27 @@ async function insertNoteVersion(
 		},
 	});
 
+	await pruneNoteVersions(db, userId, noteId);
+
 	return created.id;
+}
+
+async function pruneNoteVersions(
+	db: Pick<NoteDb, "noteVersion">,
+	userId: string,
+	noteId: string,
+): Promise<void> {
+	const stale = await db.noteVersion.findMany({
+		where: { userId, noteId },
+		orderBy: { createdAt: "desc" },
+		skip: NOTE_VERSION_RETENTION_LIMIT,
+		select: { id: true },
+	});
+	if (stale.length > 0) {
+		await db.noteVersion.deleteMany({
+			where: { userId, noteId, id: { in: stale.map((row) => row.id) } },
+		});
+	}
 }
 
 async function updateExistingNoteVersion(
@@ -158,21 +188,11 @@ async function updateExistingNoteVersion(
 	>,
 	reason: NoteVersionReason,
 ): Promise<boolean> {
-	const existing = await db.noteVersion.findFirst({
-		where: { id: versionId, userId, noteId },
-	});
-	if (!existing) {
-		return false;
-	}
-
-	const candidate = { ...note, reason, createdAt: existing.createdAt };
-	const nextHash = buildNoteVersionContentHash(candidate);
-	if (nextHash === existing.contentHash) {
-		return false;
-	}
-
+	// The hash is independent of the stored row, so a single conditional
+	// updateMany covers both "version missing" and "content unchanged".
+	const nextHash = buildNoteVersionContentHash({ ...note, reason });
 	const { count } = await db.noteVersion.updateMany({
-		where: { id: versionId, userId, noteId },
+		where: { id: versionId, userId, noteId, NOT: { contentHash: nextHash } },
 		data: {
 			name: note.name,
 			content: note.content,
@@ -246,20 +266,15 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			updatedAt: true,
 		} as const;
 
-		const { count } = await tx.note.updateMany({
-			where: { id, userId: user.id, deletedAt: null },
-			data: noteData,
-		});
-
 		let record: NoteRecord;
-		if (count > 0) {
-			const updated = await tx.note.findFirst({
+		try {
+			record = await tx.note.update({
 				where: { id, userId: user.id, deletedAt: null },
+				data: noteData,
 				select: noteSelect,
 			});
-			if (!updated) throw new Error("Failed to load updated note");
-			record = updated;
-		} else {
+		} catch (error) {
+			if (!isRecordNotFoundError(error)) throw error;
 			await assertResourceIdAvailable(tx, "note", id, user.id);
 			record = await tx.note.create({
 				data: {
@@ -319,7 +334,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		await assertOwnedParentFolder(prisma, user.id, validated.parentId);
 	}
 
-	const patch: Prisma.NoteUncheckedUpdateManyInput = {};
+	const patch: Prisma.NoteUncheckedUpdateInput = {};
 	if (validated.name !== undefined) {
 		patch.name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
 	}
@@ -344,16 +359,16 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 
 	return prisma.$transaction(async (tx) => {
-		const { count } = await tx.note.updateMany({
-			where: { id: validated.id, userId: user.id, deletedAt: null },
-			data: patch,
-		});
-		if (count === 0) return { versionCreated: false };
-
-		const record = await tx.note.findFirst({
-			where: { id: validated.id, userId: user.id, deletedAt: null },
-		});
-		if (!record) return { versionCreated: false };
+		let record: NoteRecord;
+		try {
+			record = await tx.note.update({
+				where: { id: validated.id, userId: user.id, deletedAt: null },
+				data: patch,
+			});
+		} catch (error) {
+			if (isRecordNotFoundError(error)) return { versionCreated: false };
+			throw error;
+		}
 
 		const updatedNote = recordToNoteFile(record);
 		if (
@@ -445,22 +460,23 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 			"restore",
 		);
 
-		const { count } = await tx.note.updateMany({
-			where: { id: version.noteId, userId: user.id, deletedAt: null },
-			data: {
-				name: version.name,
-				content: version.content,
-				richContent: version.richContent as Prisma.InputJsonValue,
-				preferredEditorMode: version.preferredEditorMode,
-				parentId: version.parentId,
-				tags: version.tags ?? [],
-			},
-		});
-		if (count === 0) return { versionCreated: true };
-
-		const updated = await tx.note.findFirst({
-			where: { id: version.noteId, userId: user.id },
-		});
+		let updated: NoteRecord | null;
+		try {
+			updated = await tx.note.update({
+				where: { id: version.noteId, userId: user.id, deletedAt: null },
+				data: {
+					name: version.name,
+					content: version.content,
+					richContent: version.richContent as Prisma.InputJsonValue,
+					preferredEditorMode: version.preferredEditorMode,
+					parentId: version.parentId,
+					tags: version.tags ?? [],
+				},
+			});
+		} catch (error) {
+			if (!isRecordNotFoundError(error)) throw error;
+			updated = null;
+		}
 		return {
 			note: updated ? recordToNoteFile(updated) : undefined,
 			versionCreated: true,

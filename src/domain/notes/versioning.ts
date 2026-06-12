@@ -1,14 +1,20 @@
 import { createHash } from "node:crypto";
-import type { NoteFile, NoteVersion, NoteVersionReason } from "./models";
+import type { NoteFile, NoteVersionReason } from "./models";
 
 export const NOTE_VERSION_MIN_INTERVAL_MS = 5 * 60 * 1000;
 export const NOTE_VERSION_SIGNIFICANT_CHAR_DELTA = 160;
 export const NOTE_VERSION_SIGNIFICANT_WORD_DELTA = 24;
+// Hard cap on stored versions per note; older rows are pruned on insert so the
+// note_versions table (full content snapshots) cannot grow unbounded.
+export const NOTE_VERSION_RETENTION_LIMIT = 50;
 
-type LatestVersion = Pick<
-  NoteVersion,
-  "contentHash" | "createdAt" | "name" | "content"
-> | null;
+// Structural on purpose: callers pass a lean Prisma select, not a full
+// NoteVersion, so the latest-version check never loads richContent JSON.
+export type LatestNoteVersionSnapshot = {
+  contentHash: string;
+  createdAt: Date;
+  content: string;
+} | null;
 
 export type NoteVersionCandidate = Pick<
   NoteFile,
@@ -55,7 +61,7 @@ function countChars(content: string): number {
 
 export function shouldPersistNoteVersion(
   candidate: NoteVersionCandidate & { createdAt: Date },
-  latestVersion: LatestVersion,
+  latestVersion: LatestNoteVersionSnapshot,
 ): boolean {
   if (!latestVersion) {
     return true;
