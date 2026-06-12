@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect, useMemo, type PointerEvent as
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, GripVertical, X } from "lucide-react";
 import { Editor } from "./editor";
+import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { EditorToolbar } from "./editor-toolbar";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import {
@@ -59,6 +60,7 @@ interface EditorContainerProps {
 	splitEnabled?: boolean;
 	onToggleSplit?: () => void;
 	canToggleSplit?: boolean;
+	isContentLoading?: boolean;
 }
 
 type RateLimitPrompt = {
@@ -191,6 +193,7 @@ export function EditorContainer({
 	splitEnabled,
 	onToggleSplit,
 	canToggleSplit,
+	isContentLoading = false,
 }: EditorContainerProps) {
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
@@ -583,6 +586,11 @@ export function EditorContainer({
 			)}
 
 			<div className="flex min-h-0 flex-1 flex-col">
+				{isContentLoading ? (
+					<div className="flex-1 overflow-y-auto bg-card" aria-busy="true">
+						<EditorContentSkeleton />
+					</div>
+				) : (
 				<Editor
 					file={file}
 					files={files}
@@ -605,6 +613,7 @@ export function EditorContainer({
 					onPaneActivate={onPaneActivate}
 					isPaneFocused={isPaneFocused}
 				/>
+				)}
 			</div>
 
 			{(!isPane || isPaneFocused) && (

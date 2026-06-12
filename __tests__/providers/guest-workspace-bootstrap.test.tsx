@@ -3,9 +3,6 @@ import type { AuthSnapshot } from "@/core/auth";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
-type MockFn = (...args: any[]) => any;
-const createMock = mock as unknown as (implementation: MockFn) => MockFn;
-
 let authSnapshot: AuthSnapshot;
 let store: Map<string, unknown>;
 let setCalls: { key: unknown; value: unknown }[];
@@ -64,8 +61,10 @@ function registerModuleMocks() {
 	// Identity merge so the test asserts the bootstrap's own wiring, not the
 	// merge logic (covered in local-backend.test.ts).
 	mock.module("@/core/workspace-backend", () => ({
-		mergeSeedWithGuestNotes: (notes: NoteFile[]) => mergedNotesOverride ?? notes,
-		mergeSeedWithGuestFolders: (folders: NoteFolder[]) => folders,
+		mergeSeedWithGuestWorkspace: async (notes: NoteFile[], folders: NoteFolder[]) => ({
+			notes: mergedNotesOverride ?? notes,
+			folders,
+		}),
 	}));
 }
 
@@ -102,6 +101,7 @@ describe("GuestWorkspaceBootstrap", () => {
 			`@/providers/guest-workspace-bootstrap?guest=${Math.random().toString(36).slice(2)}`
 		);
 		renderComponent(GuestWorkspaceBootstrap);
+		await Promise.resolve();
 
 		expect(store.get(keyStr(notesKeys.detail("guest:a")))).toBeUndefined();
 		expect(store.get(keyStr(notesKeys.detail("guest:b")))).toBeUndefined();
@@ -130,6 +130,7 @@ describe("GuestWorkspaceBootstrap", () => {
 			`@/providers/guest-workspace-bootstrap?authed=${Math.random().toString(36).slice(2)}`
 		);
 		renderComponent(GuestWorkspaceBootstrap);
+		await Promise.resolve();
 
 		expect(setCalls).toHaveLength(0);
 	});
