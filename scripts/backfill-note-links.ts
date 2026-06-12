@@ -21,8 +21,11 @@ import {
 	getNoteSearchableContent,
 	normalizeNoteTitle,
 } from "../src/domain/notes/note-links";
+import { normalizeDatabaseUrl } from "../src/lib/database-url";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const adapter = new PrismaPg({
+	connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL!),
+});
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
