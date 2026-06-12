@@ -7,5 +7,6 @@ export {
 	resetGuestStorage,
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "./local-backend";
+export { recordGuestGraphExplore } from "./guest-graph-engagement";
 export { WorkspaceBackendProvider, useWorkspaceBackend, useIsGuestWorkspace } from "./context";
 export type { WorkspaceBackend } from "./types";
