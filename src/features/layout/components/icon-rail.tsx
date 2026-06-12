@@ -52,7 +52,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
 	const [awaitingAuthCommit, setAwaitingAuthCommit] = useState(false);
 	const protectedRoutes = useMemo(
-		() => new Set(["/app/journal", "/app/graph", "/app/shared"]),
+		() => new Set(["/app/journal", "/app/shared"]),
 		[],
 	);
 
@@ -119,6 +119,14 @@ export function IconRail({ onOpenSettings }: Props) {
 				<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
 			),
 		},
+		{
+			href: "/app/graph",
+			label: "Graph",
+			isActive: pathname === "/app/graph",
+			icon: (_active: boolean) => (
+				<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
+			),
+		},
 	];
 
 	const planningItem = {
@@ -131,7 +139,6 @@ export function IconRail({ onOpenSettings }: Props) {
 	const iconButtonClass =
 		"pressable relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200";
 
-	const isGraphActive = pathname === "/app/graph";
 	const inactiveNavClass =
 		"border-transparent text-sidebar-foreground/52 hover:-translate-y-[1px] hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
 
@@ -194,43 +201,6 @@ export function IconRail({ onOpenSettings }: Props) {
 								<TooltipContent side="right">{label}</TooltipContent>
 							</Tooltip>
 						))}
-
-						{/* Graph — navigates when authenticated, opens auth drawer otherwise */}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								{isAuthenticated ? (
-									<Link
-										href="/app/graph"
-										className={cn(
-											iconButtonClass,
-											isGraphActive
-												? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
-												: inactiveNavClass,
-										)}
-										aria-label="Graph"
-										aria-current={isGraphActive ? "page" : undefined}
-									>
-										<Waypoints
-											className="h-[18px] w-[18px]"
-											strokeWidth={1.6}
-										/>
-									</Link>
-								) : (
-									<button
-										type="button"
-										onClick={() => openAuthDrawerFor("/app/graph")}
-										className={cn(iconButtonClass, inactiveNavClass)}
-										aria-label="Graph"
-									>
-										<Waypoints
-											className="h-[18px] w-[18px]"
-											strokeWidth={1.6}
-										/>
-									</button>
-								)}
-							</TooltipTrigger>
-							<TooltipContent side="right">Graph</TooltipContent>
-						</Tooltip>
 					</div>
 				</div>
 				<div className="flex w-full flex-col items-center gap-3 pb-4">
