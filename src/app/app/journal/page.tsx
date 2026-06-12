@@ -14,8 +14,7 @@ async function JournalContent() {
 
 	const queryClient = new QueryClient();
 
-	// Journal is account-only (the client renders an AuthRequiredState for
-	// guests). Skip seeding + prefetch entirely when signed out —
+	// Journal is account-only. Skip seeding + prefetch entirely when signed out —
 	// listJournalEntries / listJournalTags call getAuthenticatedUser() and
 	// would throw → 500 for guests.
 	if (user) {

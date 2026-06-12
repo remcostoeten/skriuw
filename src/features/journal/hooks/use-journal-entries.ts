@@ -13,13 +13,55 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { journalKeys } from "./journal-keys";
 
+function timeValue(value: Date): number {
+	return value instanceof Date ? value.getTime() : new Date(value).getTime();
+}
+
+function entryTimestamp(entry: JournalEntry): number {
+	return timeValue(entry.updatedAt) || timeValue(entry.createdAt);
+}
+
+function isNewerJournalEntry(candidate: JournalEntry, current: JournalEntry): boolean {
+	const candidateTime = entryTimestamp(candidate);
+	const currentTime = entryTimestamp(current);
+
+	if (candidateTime !== currentTime) {
+		return candidateTime > currentTime;
+	}
+
+	return candidate.id > current.id;
+}
+
+export function mergeJournalEntriesByActiveDate(entries: JournalEntry[]): JournalEntry[] {
+	const entryByDate = new Map<string, JournalEntry>();
+
+	for (const entry of entries) {
+		const current = entryByDate.get(entry.dateKey);
+		if (!current || isNewerJournalEntry(entry, current)) {
+			entryByDate.set(entry.dateKey, entry);
+		}
+	}
+
+	return [...entryByDate.values()];
+}
+
+export function upsertJournalEntryByActiveDate(
+	current: JournalEntry[] | undefined,
+	nextEntry: JournalEntry,
+): JournalEntry[] {
+	return mergeJournalEntriesByActiveDate([
+		...(current ?? []).filter((entry) => entry.dateKey !== nextEntry.dateKey),
+		nextEntry,
+	]);
+}
+
 export function useJournalEntries() {
 	const queryClient = useQueryClient();
 
 	return useApiQuery<JournalEntry[]>(
 		journalKeys.entries(),
 		createCacheQueryFn<JournalEntry[]>(queryClient, journalKeys.entries()),
-		{ staleTime: Infinity },
+		{ staleTime: Infinity, select: mergeJournalEntriesByActiveDate },
 	);
 }
 
@@ -41,10 +83,7 @@ export function useCreateJournalEntry() {
 						updatedAt: new Date(),
 					};
 
-					const withoutDate = (current ?? []).filter(
-						(entry) => entry.dateKey !== optimisticEntry.dateKey,
-					);
-					return [...withoutDate, optimisticEntry];
+					return upsertJournalEntryByActiveDate(current, optimisticEntry);
 				},
 			},
 		},
@@ -59,19 +98,21 @@ export function useUpdateJournalEntry() {
 			optimistic: {
 				queryKey: journalKeys.entries(),
 				updater: (current, input) =>
-					(current ?? []).map((entry) =>
-						entry.id === input.id
-							? {
-									...entry,
-									content: input.content ?? entry.content,
-									tags: input.tags ?? entry.tags,
-									mood:
-										input.mood === undefined
-											? entry.mood
-											: (input.mood ?? undefined),
-									updatedAt: new Date(),
-								}
-							: entry,
+					mergeJournalEntriesByActiveDate(
+						(current ?? []).map((entry) =>
+							entry.id === input.id
+								? {
+										...entry,
+										content: input.content ?? entry.content,
+										tags: input.tags ?? entry.tags,
+										mood:
+											input.mood === undefined
+												? entry.mood
+												: (input.mood ?? undefined),
+										updatedAt: new Date(),
+									}
+								: entry,
+						),
 					),
 			},
 		},

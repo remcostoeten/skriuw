@@ -9,6 +9,7 @@ import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
+import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { GuestSignupPrompt } from "@/features/layout/components/guest-signup-prompt";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
@@ -19,7 +20,6 @@ import {
 	EDITOR_PREFERENCES_STORAGE_KEY,
 } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
-import { BlockNoteMantineProvider } from "@/providers/mantine-provider";
 
 type Props = {
 	children: React.ReactNode;
@@ -86,26 +86,25 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<BlockNoteMantineProvider>
-				<MotionPreferences>
-					<TooltipProvider delayDuration={300}>
-						<EditorPreferencesBootstrap
-							initialEditorPreferences={initialEditorPreferences}
-						/>
-						<ProtectedAppGuard>
-							<WorkspaceBackendProvider>
-								<PersistenceBootstrap />
-								<GuestWorkspaceBootstrap />
-								<ThemeAttribute />
-								<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
-								<UserToastHost />
-								<GuestSignupPrompt />
-								<DevMenu />
-							</WorkspaceBackendProvider>
-						</ProtectedAppGuard>
-					</TooltipProvider>
-				</MotionPreferences>
-			</BlockNoteMantineProvider>
+			<MotionPreferences>
+				<TooltipProvider delayDuration={300}>
+					<EditorPreferencesBootstrap
+						initialEditorPreferences={initialEditorPreferences}
+					/>
+					<ProtectedAppGuard>
+						<WorkspaceBackendProvider>
+							<PersistenceBootstrap />
+							<GuestWorkspaceBootstrap />
+							<AppRoutePrefetcher />
+							<ThemeAttribute />
+							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+							<UserToastHost />
+							<GuestSignupPrompt />
+							<DevMenu />
+						</WorkspaceBackendProvider>
+					</ProtectedAppGuard>
+				</TooltipProvider>
+			</MotionPreferences>
 		</QueryClientProvider>
 	);
 }
