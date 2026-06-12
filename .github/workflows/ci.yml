@@ -25,3 +25,13 @@ jobs:
 
       - name: Lint
         run: bun run lint
+
+      - name: Production build
+        run: bun run build
+        env:
+          # Prisma client + Next static generation need a URL at build time.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
+          BETTER_AUTH_SECRET: ci-build-secret-minimum-32-characters
+          BETTER_AUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
+          AI_KEYS_ENCRYPTION_SECRET: ci-ai-keys-encryption-secret-32c
