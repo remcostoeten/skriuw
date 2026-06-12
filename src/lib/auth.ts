@@ -13,6 +13,13 @@ const trustedOrigins = [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_BET
 	.filter((value): value is string => Boolean(value))
 	.filter((value, index, all) => all.indexOf(value) === index);
 
+function getGithubFallbackEmail(profile: { id?: string | number; login?: string | null }): string {
+	const githubId = String(profile.id ?? "unknown");
+	const login = (profile.login ?? "user").toLowerCase().replace(/[^a-z0-9-]/g, "-");
+
+	return `${githubId}+${login}@github.local`;
+}
+
 export const auth = betterAuth({
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
 	trustedOrigins,
@@ -28,6 +35,10 @@ export const auth = betterAuth({
 				github: {
 					clientId: process.env.GITHUB_CLIENT_ID!,
 					clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+					scope: ["read:user", "user:email"],
+					mapProfileToUser: (profile) => ({
+						email: profile.email ?? getGithubFallbackEmail(profile),
+					}),
 				},
 			}
 		: undefined,

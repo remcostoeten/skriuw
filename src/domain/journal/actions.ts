@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
-import { assertResourceIdAvailable } from "@/domain/persistence/guards";
+import { assertResourceIdAvailable, isRecordNotFoundError } from "@/domain/persistence/guards";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 
 type EntryRecord = {
@@ -69,18 +69,15 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 		updatedAt: true,
 	} as const;
 
-	const { count } = await prisma.journalEntry.updateMany({
-		where: { id, userId: user.id, deletedAt: null },
-		data: updateData,
-	});
-
-	if (count > 0) {
-		const record = await prisma.journalEntry.findFirst({
+	try {
+		const record = await prisma.journalEntry.update({
 			where: { id, userId: user.id, deletedAt: null },
+			data: updateData,
 			select,
 		});
-		if (!record) throw new Error("Failed to load updated journal entry");
 		return recordToEntry(record);
+	} catch (error) {
+		if (!isRecordNotFoundError(error)) throw error;
 	}
 
 	await assertResourceIdAvailable(prisma, "journalEntry", id, user.id);
@@ -108,29 +105,29 @@ export async function updateJournalEntry(
 ): Promise<JournalEntry | undefined> {
 	const { prisma, user } = await getAuthenticatedUser();
 
-	const { count } = await prisma.journalEntry.updateMany({
-		where: { id: input.id, userId: user.id, deletedAt: null },
-		data: {
-			...(input.content !== undefined && { content: input.content }),
-			...(input.tags !== undefined && { tags: input.tags }),
-			...(input.mood !== undefined && { mood: input.mood }),
-		},
-	});
-	if (count === 0) return undefined;
-
-	const record = await prisma.journalEntry.findFirst({
-		where: { id: input.id, userId: user.id, deletedAt: null },
-		select: {
-			id: true,
-			dateKey: true,
-			content: true,
-			mood: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
-	});
-	return record ? recordToEntry(record) : undefined;
+	try {
+		const record = await prisma.journalEntry.update({
+			where: { id: input.id, userId: user.id, deletedAt: null },
+			data: {
+				...(input.content !== undefined && { content: input.content }),
+				...(input.tags !== undefined && { tags: input.tags }),
+				...(input.mood !== undefined && { mood: input.mood }),
+			},
+			select: {
+				id: true,
+				dateKey: true,
+				content: true,
+				mood: true,
+				tags: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+		return recordToEntry(record);
+	} catch (error) {
+		if (isRecordNotFoundError(error)) return undefined;
+		throw error;
+	}
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
