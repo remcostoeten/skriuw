@@ -7,10 +7,52 @@ import {
 	type GraphNode,
 	type NoteLinkRow,
 } from "@/domain/notes/graph";
+import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import type { NoteFile } from "@/domain/notes/models";
 
 function note(id: string, name: string) {
 	return { id, name };
 }
+
+describe("buildGraphFromNotes", () => {
+	test("derives wiki links and tags from note content", () => {
+		const now = new Date();
+		const notes: NoteFile[] = [
+			{
+				id: "a",
+				name: "Alpha.md",
+				content: "See [[Beta]] and #idea",
+				richContent: [],
+				preferredEditorMode: "block",
+				createdAt: now,
+				modifiedAt: now,
+				parentId: null,
+				sortOrder: 0,
+				tags: [],
+			},
+			{
+				id: "b",
+				name: "Beta.md",
+				content: "Back to [[Alpha]]",
+				richContent: [],
+				preferredEditorMode: "block",
+				createdAt: now,
+				modifiedAt: now,
+				parentId: null,
+				sortOrder: 1,
+				tags: ["idea"],
+			},
+		];
+
+		const graph = buildGraphFromNotes(notes);
+
+		expect(graph.metrics.noteCount).toBe(2);
+		expect(graph.metrics.edgeCount).toBeGreaterThan(0);
+		expect(graph.nodes.some((node) => node.type === "tag" && node.label === "#idea")).toBe(
+			true,
+		);
+	});
+});
 
 describe("buildGraphData", () => {
 	test("resolves wiki links by normalized title and skips ambiguous targets", () => {
