@@ -3,6 +3,7 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
+	Columns2,
 	Database,
 	FileText,
 	FlaskConical,
@@ -286,7 +287,7 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 					<EditorContentSkeleton />
 				</div>
 			</div>
-			<div className="hidden h-11 items-center gap-1 border-b border-border px-3 text-foreground md:flex">
+			<div className="hidden h-11 items-center gap-1 border-b border-border bg-background px-3 text-foreground md:flex">
 				<StaticIconButton>
 					<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
 				</StaticIconButton>
@@ -305,6 +306,9 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 
 				<div className="flex shrink-0 items-center gap-1">
 					<StaticIconButton>
+						<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+					</StaticIconButton>
+					<StaticIconButton>
 						<Sparkles className="h-3.5 w-3.5" strokeWidth={1.6} />
 					</StaticIconButton>
 					<StaticIconButton>
@@ -316,10 +320,19 @@ export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadin
 				</div>
 			</div>
 			<div className="hidden min-h-0 flex-1 md:flex">
-				<div className="flex min-h-full min-w-0 flex-1 flex-col overflow-y-auto bg-card">
-					<EditorContentSkeleton />
+				<div className="flex min-h-full min-w-0 flex-1 flex-col overflow-hidden">
+					<div className="flex-1 overflow-y-auto bg-card">
+						<EditorContentSkeleton />
+					</div>
+					<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground/55">
+						<div className="flex min-w-0 flex-1 items-center gap-3">
+							<span className="tabular-nums">0 words</span>
+							<span className="h-4 w-px bg-border" aria-hidden="true" />
+							<span>Block editor</span>
+						</div>
+					</div>
 				</div>
-				<div className="hidden w-72 shrink-0 border-l border-border bg-background xl:w-80 lg:block">
+				<div className="w-72 shrink-0 border-l border-border bg-background xl:w-80">
 					<DetailsPanelSkeleton />
 				</div>
 			</div>

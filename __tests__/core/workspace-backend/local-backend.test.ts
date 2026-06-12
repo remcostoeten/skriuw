@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { IDBFactory as FDBFactory } from "fake-indexeddb";
 import {
 	createLocalBackend,
 	mergeSeedWithGuestFolders,
 	mergeSeedWithGuestNotes,
+	mergeSeedWithGuestWorkspace,
 	resetGuestStorage,
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "@/core/workspace-backend/local-backend";
@@ -22,7 +24,6 @@ function fakeQueryClient() {
 }
 
 const STORAGE_KEY = "skriuw:guest:workspace:v2";
-const LEGACY_KEY = "skriuw:guest:workspace:v1";
 const ENGAGEMENT_KEY = "skriuw:guest:engagement:v1";
 
 function createStorage() {
@@ -35,7 +36,7 @@ function createStorage() {
 	};
 }
 
-function installWindow() {
+function installWindow(options: { indexedDB?: IDBFactory } = {}) {
 	const localStorage = createStorage();
 	const target = new EventTarget();
 	Object.defineProperty(globalThis, "window", {
@@ -45,6 +46,7 @@ function installWindow() {
 			addEventListener: target.addEventListener.bind(target),
 			removeEventListener: target.removeEventListener.bind(target),
 			dispatchEvent: target.dispatchEvent.bind(target),
+			indexedDB: options.indexedDB,
 		},
 	});
 	return { localStorage };
@@ -134,15 +136,6 @@ describe("local workspace backend", () => {
 		expect(stored.notes[0].id).toBe(survivor.id);
 	});
 
-	test("reading wipes the legacy v1 storage key", async () => {
-		window.localStorage.setItem(LEGACY_KEY, JSON.stringify({ notes: [], folders: [] }));
-		const backend = createLocalBackend(fakeQueryClient());
-
-		await backend.createNote({ name: "x", content: "" });
-
-		expect(window.localStorage.getItem(LEGACY_KEY)).toBeNull();
-	});
-
 	test("crossing an engagement threshold dispatches the sign-up prompt event", async () => {
 		const backend = createLocalBackend(fakeQueryClient());
 		let fired = 0;
@@ -163,7 +156,7 @@ describe("local workspace backend", () => {
 		const backend = createLocalBackend(fakeQueryClient());
 		await backend.createNote({ name: "x", content: "" });
 
-		resetGuestStorage();
+		await resetGuestStorage();
 
 		expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
 		expect(window.localStorage.getItem(ENGAGEMENT_KEY)).toBeNull();
@@ -192,5 +185,24 @@ describe("local workspace backend", () => {
 		expect(merged).toHaveLength(1);
 		expect(merged[0]!.id).toBe(seed.id);
 		expect(merged[0]!.content).toBe("overlaid");
+	});
+
+	test("uses IndexedDB when available without migrating localStorage workspace data", async () => {
+		installWindow({ indexedDB: new FDBFactory() });
+		const staleLocalStorageNote = seedNote({
+			id: "guest:stale",
+			content: "from localStorage",
+		});
+		window.localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({ notes: [staleLocalStorageNote], folders: [] }),
+		);
+
+		const backend = createLocalBackend(fakeQueryClient());
+		const created = await backend.createNote({ name: "Indexed", content: "from idb" });
+
+		const merged = await mergeSeedWithGuestWorkspace([], []);
+		expect(merged.notes.map((note) => note.id)).toEqual([created.id]);
+		expect(merged.notes.map((note) => note.content)).toEqual(["from idb"]);
 	});
 });

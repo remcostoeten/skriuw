@@ -6,16 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Waypoints } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthRequiredState } from "@/features/auth/components/auth-required-state";
-import { useAuth } from "@/core/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 import type { GraphData, GraphNode } from "@/domain/notes/graph";
 import { useNoteGraph } from "../hooks/use-note-graph";
 
-// react-force-graph touches the DOM/canvas — never SSR it.
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
-// Stable palette for cluster colors; cycles for graphs with many communities.
 const CLUSTER_COLORS = [
 	"#6366f1",
 	"#ec4899",
@@ -36,9 +32,15 @@ function nodeColor(node: GraphNode): string {
 	return CLUSTER_COLORS[node.cluster % CLUSTER_COLORS.length];
 }
 
-// Node radius grows with connectivity (hubs are bigger) but stays bounded.
 function nodeRadius(node: GraphNode): number {
 	return 3 + Math.min(9, Math.sqrt(node.degree) * 2.2);
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+	const r = parseInt(hex.slice(1, 3), 16);
+	const g = parseInt(hex.slice(3, 5), 16);
+	const b = parseInt(hex.slice(5, 7), 16);
+	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 type GraphCanvasProps = {
@@ -48,7 +50,11 @@ type GraphCanvasProps = {
 
 function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
+	// biome-ignore lint/suspicious/noExplicitAny: react-force-graph-2d has no exported ref type
+	const graphRef = useRef<any>(null);
+	const hasFitRef = useRef(false);
 	const [size, setSize] = useState({ width: 0, height: 0 });
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
 
 	useEffect(() => {
 		const element = containerRef.current;
@@ -61,8 +67,23 @@ function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
 		return () => observer.disconnect();
 	}, []);
 
-	// react-force-graph mutates the data it receives; clone so the query cache
-	// stays immutable and re-renders are stable.
+	// Neighbors of the hovered node for highlight dimming.
+	const neighbors = useMemo<Set<string> | null>(() => {
+		if (!hoveredId) return null;
+		const set = new Set<string>();
+		for (const edge of data.edges) {
+			// After simulation starts, source/target may be node objects.
+			// biome-ignore lint/suspicious/noExplicitAny: runtime shape from force-graph
+			const s = typeof (edge.source as any) === "object" ? (edge.source as any).id : edge.source;
+			// biome-ignore lint/suspicious/noExplicitAny: runtime shape from force-graph
+			const t = typeof (edge.target as any) === "object" ? (edge.target as any).id : edge.target;
+			if (s === hoveredId) set.add(t);
+			if (t === hoveredId) set.add(s);
+		}
+		return set;
+	}, [hoveredId, data.edges]);
+
+	// Clone so the query cache stays immutable.
 	const graphData = useMemo(
 		() => ({
 			nodes: data.nodes.map((node) => ({ ...node })),
@@ -71,6 +92,12 @@ function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
 		[data],
 	);
 
+	// Capture latest values in refs so canvas callbacks never go stale.
+	const hoveredIdRef = useRef(hoveredId);
+	const neighborsRef = useRef(neighbors);
+	useEffect(() => { hoveredIdRef.current = hoveredId; }, [hoveredId]);
+	useEffect(() => { neighborsRef.current = neighbors; }, [neighbors]);
+
 	const handleNodeClick = useCallback(
 		(node: GraphNode) => {
 			if (node.type === "note") onOpenNote(node.id);
@@ -78,39 +105,164 @@ function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
 		[onOpenNote],
 	);
 
+	const handleNodeHover = useCallback((node: GraphNode | null) => {
+		setHoveredId(node ? node.id : null);
+	}, []);
+
+	const handleEngineStop = useCallback(() => {
+		if (!hasFitRef.current) {
+			hasFitRef.current = true;
+			graphRef.current?.zoomToFit(600, 80);
+		}
+	}, []);
+
+	const getNodeColor = useCallback((node: GraphNode): string => {
+		const hovered = hoveredIdRef.current;
+		const nbrs = neighborsRef.current;
+		const base = nodeColor(node);
+		if (!hovered) return base;
+		if (node.id === hovered || nbrs?.has(node.id)) return base;
+		return hexToRgba(base, 0.1);
+	}, []);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime link shape from force-graph
+	const getLinkColor = useCallback((link: any): string => {
+		const hovered = hoveredIdRef.current;
+		const s = typeof link.source === "object" ? link.source.id : link.source;
+		const t = typeof link.target === "object" ? link.target.id : link.target;
+		if (!hovered) {
+			return link.kind === "note"
+				? "rgba(148, 163, 184, 0.38)"
+				: "rgba(100, 116, 139, 0.22)";
+		}
+		const isActive = s === hovered || t === hovered;
+		return isActive ? "rgba(203, 213, 225, 0.9)" : "rgba(148, 163, 184, 0.06)";
+	}, []);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime link shape
+	const getLinkWidth = useCallback((link: any): number => {
+		const hovered = hoveredIdRef.current;
+		if (!hovered) return 0.7;
+		const s = typeof link.source === "object" ? link.source.id : link.source;
+		const t = typeof link.target === "object" ? link.target.id : link.target;
+		return s === hovered || t === hovered ? 1.8 : 0.35;
+	}, []);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime link shape
+	const getParticleColor = useCallback((link: any): string => {
+		const hovered = hoveredIdRef.current;
+		const s = typeof link.source === "object" ? link.source.id : link.source;
+		const t = typeof link.target === "object" ? link.target.id : link.target;
+		if (hovered && s !== hovered && t !== hovered) return "rgba(0,0,0,0)";
+		return "rgba(148, 163, 184, 0.75)";
+	}, []);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime link shape
+	const getParticleWidth = useCallback((link: any): number => {
+		const hovered = hoveredIdRef.current;
+		if (!hovered) return 1.4;
+		const s = typeof link.source === "object" ? link.source.id : link.source;
+		const t = typeof link.target === "object" ? link.target.id : link.target;
+		return s === hovered || t === hovered ? 2.5 : 0;
+	}, []);
+
+	const drawNode = useCallback(
+		// biome-ignore lint/suspicious/noExplicitAny: canvas ctx + node from force-graph
+		(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+			const typed = node as GraphNode & { x?: number; y?: number };
+			if (typed.x === undefined || typed.y === undefined) return;
+
+			const r = nodeRadius(typed);
+			const color = getNodeColor(typed);
+			const hovered = hoveredIdRef.current;
+			const isHovered = typed.id === hovered;
+			const isTag = typed.type === "tag";
+			const isHub = typed.degree >= 4;
+
+			// Glow halo
+			if (isHovered || isHub) {
+				ctx.shadowColor = nodeColor(typed);
+				ctx.shadowBlur = isHovered ? 20 : 8;
+			}
+
+			if (isTag) {
+				// Diamond shape for tag nodes
+				const s = r * 1.15;
+				ctx.beginPath();
+				ctx.moveTo(typed.x, typed.y - s);
+				ctx.lineTo(typed.x + s, typed.y);
+				ctx.lineTo(typed.x, typed.y + s);
+				ctx.lineTo(typed.x - s, typed.y);
+				ctx.closePath();
+				ctx.fillStyle = color;
+				ctx.fill();
+			} else {
+				ctx.beginPath();
+				ctx.arc(typed.x, typed.y, r, 0, 2 * Math.PI);
+				ctx.fillStyle = color;
+				ctx.fill();
+			}
+
+			ctx.shadowBlur = 0;
+
+			// Selection ring on hover
+			if (isHovered) {
+				ctx.beginPath();
+				ctx.arc(typed.x, typed.y, r + 2.5, 0, 2 * Math.PI);
+				ctx.strokeStyle = hexToRgba(nodeColor(typed), 0.7);
+				ctx.lineWidth = 1.2 / globalScale;
+				ctx.stroke();
+			}
+
+			// Labels — hubs show early; everything else on deep zoom; hovered always
+			const showLabel =
+				isHovered ||
+				(isHub && globalScale >= 0.7) ||
+				(isTag && globalScale >= 1.0) ||
+				(typed.degree >= 2 && globalScale >= 1.5);
+
+			if (showLabel) {
+				const fontSize = Math.max(2.5, 10 / globalScale);
+				ctx.font = `${isHub ? "500" : "400"} ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+				ctx.fillStyle = isHovered
+					? "rgba(248, 250, 252, 1)"
+					: "rgba(226, 232, 240, 0.82)";
+				ctx.textAlign = "center";
+				ctx.textBaseline = "top";
+				ctx.fillText(typed.label, typed.x, typed.y + r + 2);
+			}
+		},
+		[getNodeColor],
+	);
+
 	return (
 		<div ref={containerRef} className="relative h-full w-full">
 			{size.width > 0 && (
 				<ForceGraph2D
+					ref={graphRef}
 					width={size.width}
 					height={size.height}
 					graphData={graphData}
 					backgroundColor="transparent"
 					nodeRelSize={1}
 					nodeVal={(node) => nodeRadius(node as GraphNode) ** 2}
-					nodeColor={(node) => nodeColor(node as GraphNode)}
+					nodeColor={(node) => getNodeColor(node as GraphNode)}
 					nodeLabel={(node) => {
 						const typed = node as GraphNode;
 						return `${typed.label} · ${typed.degree} link${typed.degree === 1 ? "" : "s"}`;
 					}}
-					linkColor={() => "rgba(148, 163, 184, 0.35)"}
-					linkWidth={0.6}
+					linkColor={getLinkColor}
+					linkWidth={getLinkWidth}
+					linkDirectionalParticles={2}
+					linkDirectionalParticleSpeed={0.003}
+					linkDirectionalParticleWidth={getParticleWidth}
+					linkDirectionalParticleColor={getParticleColor}
 					onNodeClick={(node) => handleNodeClick(node as GraphNode)}
-					cooldownTicks={120}
-					nodeCanvasObjectMode={() => "after"}
-					nodeCanvasObject={(node, ctx, globalScale) => {
-						const typed = node as GraphNode & { x?: number; y?: number };
-						// Only label hubs and tags once zoomed in enough to read them.
-						if (typed.degree < 2 && typed.type !== "tag") return;
-						if (globalScale < 1.2) return;
-						if (typed.x === undefined || typed.y === undefined) return;
-						const fontSize = Math.max(2, 11 / globalScale);
-						ctx.font = `${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-						ctx.fillStyle = "rgba(226, 232, 240, 0.9)";
-						ctx.textAlign = "center";
-						ctx.textBaseline = "top";
-						ctx.fillText(typed.label, typed.x, typed.y + nodeRadius(typed) + 1);
-					}}
+					onNodeHover={(node) => handleNodeHover(node as GraphNode | null)}
+					cooldownTicks={150}
+					onEngineStop={handleEngineStop}
+					nodeCanvasObjectMode={() => "replace"}
+					nodeCanvasObject={drawNode}
 				/>
 			)}
 		</div>
@@ -193,7 +345,6 @@ function GraphEmptyState({ className }: { className?: string }) {
 }
 
 export function WorkspaceGraph() {
-	const auth = useAuth();
 	const router = useRouter();
 	const query = useNoteGraph();
 
@@ -202,15 +353,6 @@ export function WorkspaceGraph() {
 		[router],
 	);
 	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
-
-	if (auth.isReady && auth.phase !== "authenticated") {
-		return (
-			<AuthRequiredState
-				title="Sign in to see your graph"
-				description="The knowledge graph is built from your linked notes and tags, so it lives with your account."
-			/>
-		);
-	}
 
 	const data = query.data;
 	const hasGraph = Boolean(data && data.nodes.length > 0);

@@ -135,15 +135,6 @@ export async function listNoteVersions(noteId: string, limit = 12): Promise<Note
 	return records.map(recordToNoteVersion);
 }
 
-export async function listNotes(): Promise<NoteFile[]> {
-	const { prisma, user } = await getAuthenticatedUser();
-	const records = await prisma.note.findMany({
-		where: { userId: user.id, deletedAt: null },
-		orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-	});
-	return records.map(recordToNoteFile);
-}
-
 export async function getNote(id: string): Promise<NoteFile | null> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const record = await prisma.note.findFirst({

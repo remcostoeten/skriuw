@@ -231,6 +231,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		},
 		[saveController],
 	);
+	const flushContentInBackground = useCallback(
+		(noteId: string) => {
+			if (!noteId) return;
+			void saveController.flush(noteId, { createCheckpoint: true });
+		},
+		[saveController],
+	);
 	const metadataFiles = notesQuery.data ?? [];
 	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
 	const secondaryNote = secondaryNoteQuery.isPlaceholderData
@@ -586,13 +593,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				}
 
 				if (focusedEditorPane === "secondary") {
-					void runAfterContentFlush(splitSecondaryFileId, () => {
-						setSecondaryFile(id);
-					});
+					flushContentInBackground(splitSecondaryFileId);
+					setSecondaryFile(id);
 				} else {
-					void runAfterContentFlush(activeFileId, () => {
-						syncFileSelection(id, options);
-					});
+					flushContentInBackground(activeFileId);
+					syncFileSelection(id, options);
 				}
 
 				if (isMobile) {
@@ -601,18 +606,17 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				return;
 			}
 
-			void runAfterContentFlush(activeFileId, () => {
-				syncFileSelection(id, options);
-			});
+			flushContentInBackground(activeFileId);
+			syncFileSelection(id, options);
 			if (isMobile) {
 				setUIState({ showSidebar: false });
 			}
 		},
 		[
 			activeFileId,
+			flushContentInBackground,
 			focusedEditorPane,
 			isMobile,
-			runAfterContentFlush,
 			setFocusedEditorPane,
 			setSecondaryFile,
 			setUIState,
@@ -624,20 +628,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const handleNavigateInFocusedPane = useCallback(
 		(targetId: string, options?: NoteUrlSyncOptions) => {
 			if (splitEnabled && focusedEditorPane === "secondary" && splitSecondaryFileId) {
-				void runAfterContentFlush(splitSecondaryFileId, () => {
-					setSecondaryFile(targetId);
-				});
+				flushContentInBackground(splitSecondaryFileId);
+				setSecondaryFile(targetId);
 				return;
 			}
 
-			void runAfterContentFlush(activeFileId, () => {
-				syncFileSelection(targetId, options);
-			});
+			flushContentInBackground(activeFileId);
+			syncFileSelection(targetId, options);
 		},
 		[
 			activeFileId,
+			flushContentInBackground,
 			focusedEditorPane,
-			runAfterContentFlush,
 			setSecondaryFile,
 			splitEnabled,
 			splitSecondaryFileId,
@@ -648,9 +650,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const handleOpenBeside = useCallback(
 		(fileId: string) => {
 			if (isMobile || !fileId || fileId === activeFileId) return;
-			void saveController.flushAll().then(() => {
-				openSplitBeside(fileId, activeFileId);
-			});
+			void saveController.flushAll({ createCheckpoint: true });
+			openSplitBeside(fileId, activeFileId);
 		},
 		[activeFileId, isMobile, openSplitBeside, saveController],
 	);
