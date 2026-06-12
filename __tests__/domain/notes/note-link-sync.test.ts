@@ -49,10 +49,14 @@ function createDb(existing: PersistedNoteLinkRow[]): {
 				},
 				async updateMany(args) {
 					writes.push("updateMany");
-					const match = rows.find((item) => item.id === args.where.id);
-					if (!match) return { count: 0 };
-					match.targetNoteId = args.data.targetNoteId;
-					return { count: 1 };
+					let count = 0;
+					for (const item of rows) {
+						if (args.where.id.in.includes(item.id)) {
+							item.targetNoteId = args.data.targetNoteId;
+							count += 1;
+						}
+					}
+					return { count };
 				},
 				async createMany(args) {
 					writes.push("createMany");
