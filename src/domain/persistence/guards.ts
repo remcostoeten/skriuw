@@ -11,6 +11,17 @@ export class PersistenceError extends Error {
 	}
 }
 
+// Prisma throws P2025 when an `update`/`delete` with an extended unique `where`
+// (e.g. { id, userId, deletedAt: null }) matches no row. We rely on that to do
+// ownership-scoped writes in a single round trip instead of updateMany + findFirst.
+export function isRecordNotFoundError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		(error as { code?: unknown }).code === "P2025"
+	);
+}
+
 export async function assertOwnedParentFolder(
 	db: DbClient,
 	userId: string,

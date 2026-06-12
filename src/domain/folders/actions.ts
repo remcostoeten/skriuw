@@ -1,7 +1,11 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
-import { assertOwnedParentFolder, assertResourceIdAvailable } from "@/domain/persistence/guards";
+import {
+	assertOwnedParentFolder,
+	assertResourceIdAvailable,
+	isRecordNotFoundError,
+} from "@/domain/persistence/guards";
 import {
 	createFolderInputSchema,
 	parseServerInput,
@@ -59,18 +63,15 @@ export async function createFolder(input: CreateFolderInput): Promise<NoteFolder
 		sortOrder,
 	};
 
-	const { count } = await prisma.folder.updateMany({
-		where: { id, userId: user.id, deletedAt: null },
-		data: updateData,
-	});
-
-	if (count > 0) {
-		const record = await prisma.folder.findFirst({
+	try {
+		const record = await prisma.folder.update({
 			where: { id, userId: user.id, deletedAt: null },
+			data: updateData,
 			select: { id: true, name: true, parentId: true, sortOrder: true },
 		});
-		if (!record) throw new Error("Failed to load updated folder");
 		return recordToFolder(record);
+	} catch (error) {
+		if (!isRecordNotFoundError(error)) throw error;
 	}
 
 	await assertResourceIdAvailable(prisma, "folder", id, user.id);
@@ -101,21 +102,21 @@ export async function updateFolder(input: UpdateFolderInput): Promise<NoteFolder
 		await assertOwnedParentFolder(prisma, user.id, validated.parentId);
 	}
 
-	const { count } = await prisma.folder.updateMany({
-		where: { id: validated.id, userId: user.id, deletedAt: null },
-		data: {
-			...(validated.name !== undefined && { name: validated.name }),
-			...(validated.parentId !== undefined && { parentId: validated.parentId }),
-			...(validated.sortOrder !== undefined && { sortOrder: validated.sortOrder }),
-		},
-	});
-	if (count === 0) return undefined;
-
-	const record = await prisma.folder.findFirst({
-		where: { id: validated.id, userId: user.id, deletedAt: null },
-		select: { id: true, name: true, parentId: true, sortOrder: true },
-	});
-	return record ? recordToFolder(record) : undefined;
+	try {
+		const record = await prisma.folder.update({
+			where: { id: validated.id, userId: user.id, deletedAt: null },
+			data: {
+				...(validated.name !== undefined && { name: validated.name }),
+				...(validated.parentId !== undefined && { parentId: validated.parentId }),
+				...(validated.sortOrder !== undefined && { sortOrder: validated.sortOrder }),
+			},
+			select: { id: true, name: true, parentId: true, sortOrder: true },
+		});
+		return recordToFolder(record);
+	} catch (error) {
+		if (isRecordNotFoundError(error)) return undefined;
+		throw error;
+	}
 }
 
 export async function deleteFolder(id: string): Promise<void> {
