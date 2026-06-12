@@ -10,8 +10,11 @@ import "dotenv/config";
 import { buildTableBlock } from "../src/domain/notes/rich-document";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { normalizeDatabaseUrl } from "../src/lib/database-url";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const adapter = new PrismaPg({
+	connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL!),
+});
 const prisma = new PrismaClient({ adapter });
 
 // ─── Block helpers ────────────────────────────────────────────────────────────
