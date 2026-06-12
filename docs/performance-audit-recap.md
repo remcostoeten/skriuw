@@ -171,7 +171,6 @@ These files were already dirty before the performance branch work and were not i
 ### High Priority
 
 - Run the Prisma migration against a staging database and verify the duplicate-soft-delete step on realistic journal data.
-- Decide whether to update production database connection strings to `sslmode=verify-full` to remove the build-time Postgres SSL warning and preserve the current behavior under future `pg` versions.
 - Add an end-to-end smoke test for guest edit persistence across reloads, including IndexedDB-backed storage.
 - Add an end-to-end smoke test for rapid note switching while autosave is pending.
 

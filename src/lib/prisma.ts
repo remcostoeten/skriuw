@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { normalizeDatabaseUrl } from "@/lib/database-url";
 
 declare global {
 	// eslint-disable-next-line no-var
@@ -11,7 +12,7 @@ function createPrismaClient(): PrismaClient {
 	if (!connectionString) {
 		throw new Error("DATABASE_URL is not set");
 	}
-	const adapter = new PrismaPg({ connectionString });
+	const adapter = new PrismaPg({ connectionString: normalizeDatabaseUrl(connectionString) });
 	return new PrismaClient({ adapter });
 }
 
