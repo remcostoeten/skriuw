@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Waypoints } from "lucide-react";
+import { useAuth } from "@/core/auth/use-auth";
+import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { cn } from "@/shared/lib/utils";
@@ -46,9 +49,10 @@ function hexToRgba(hex: string, alpha: number): string {
 type GraphCanvasProps = {
 	data: GraphData;
 	onOpenNote: (id: string) => void;
+	onExploreNote?: (id: string) => void;
 };
 
-function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
+function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	// biome-ignore lint/suspicious/noExplicitAny: react-force-graph-2d has no exported ref type
 	const graphRef = useRef<any>(null);
@@ -100,9 +104,11 @@ function GraphCanvas({ data, onOpenNote }: GraphCanvasProps) {
 
 	const handleNodeClick = useCallback(
 		(node: GraphNode) => {
-			if (node.type === "note") onOpenNote(node.id);
+			if (node.type !== "note") return;
+			onExploreNote?.(node.id);
+			onOpenNote(node.id);
 		},
-		[onOpenNote],
+		[onExploreNote, onOpenNote],
 	);
 
 	const handleNodeHover = useCallback((node: GraphNode | null) => {
@@ -331,28 +337,68 @@ function MetricsOverlay({
 	);
 }
 
-function GraphEmptyState({ className }: { className?: string }) {
+function GraphEmptyState({
+	className,
+	onOpenStarterNote,
+}: {
+	className?: string;
+	onOpenStarterNote?: () => void;
+}) {
 	return (
-		<div className={cn("flex h-full flex-col items-center justify-center gap-3 p-8 text-center", className)}>
+		<div className={cn("flex h-full flex-col items-center justify-center gap-4 p-8 text-center", className)}>
 			<Waypoints className="h-10 w-10 text-muted-foreground" strokeWidth={1.4} />
-			<p className="max-w-sm text-sm text-muted-foreground">
-				No connections yet. Link notes with <code className="font-mono">[[wiki links]]</code> or
-				the <code className="font-mono">@</code> mention, and add <code className="font-mono">#tags</code>{" "}
-				— they&apos;ll appear here as your web grows.
-			</p>
+			<div className="max-w-md space-y-2">
+				<p className="text-sm font-medium text-foreground">Your note web starts with links</p>
+				<p className="text-sm text-muted-foreground">
+					Connect notes with <code className="font-mono">[[wiki links]]</code>, mentions, and{" "}
+					<code className="font-mono">#tags</code>. The demo workspace already has a small web — open
+					the welcome note to see how it links to the handbook and workflow guide.
+				</p>
+			</div>
+			{onOpenStarterNote ? (
+				<button
+					type="button"
+					onClick={onOpenStarterNote}
+					className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium transition-colors hover:bg-accent"
+				>
+					Open welcome note
+				</button>
+			) : (
+				<Link
+					href="/app"
+					className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium transition-colors hover:bg-accent"
+				>
+					Back to notes
+				</Link>
+			)}
 		</div>
 	);
 }
 
+/** Active seed bundle ref for the welcome note — matches guest-bundle refToId(). */
+const GUEST_WELCOME_NOTE_ID = "guest:note-welcome";
+
 export function WorkspaceGraph() {
 	const router = useRouter();
+	const auth = useAuth();
 	const query = useNoteGraph();
+	const isGuest = auth.isReady && auth.phase !== "authenticated";
 
 	const openNote = useCallback(
 		(id: string) => router.push(`/app?note=${id}`),
 		[router],
 	);
 	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
+	const handleExploreNote = useCallback(
+		(_id: string) => {
+			if (isGuest) recordGuestGraphExplore();
+		},
+		[isGuest],
+	);
+	const openStarterNote = useCallback(
+		() => router.push(`/app?note=${GUEST_WELCOME_NOTE_ID}`),
+		[router],
+	);
 
 	const data = query.data;
 	const hasGraph = Boolean(data && data.nodes.length > 0);
@@ -368,11 +414,17 @@ export function WorkspaceGraph() {
 							Building your graph…
 						</div>
 					) : !hasGraph || !hasConnections ? (
-						<GraphEmptyState />
+						<GraphEmptyState
+							onOpenStarterNote={isGuest ? openStarterNote : undefined}
+						/>
 					) : (
 						<>
 							<MetricsOverlay data={data!} onOpenNote={openNote} />
-							<GraphCanvas data={data!} onOpenNote={openNote} />
+							<GraphCanvas
+								data={data!}
+								onOpenNote={openNote}
+								onExploreNote={handleExploreNote}
+							/>
 						</>
 					)}
 				</div>
