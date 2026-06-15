@@ -4,7 +4,6 @@ import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { findNoteByTitle } from "@/domain/notes/note-links";
 import { trackProductEvent } from "@/core/analytics/client";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -26,13 +25,17 @@ export function useCreateNote() {
 			queryKey: notesKeys.files(),
 			updater: (current, input) => {
 				const list = current ?? [];
-				const existing = findNoteByTitle(list, input.name);
-				if (existing) {
+				// Dedupe by id so retries / double-fires don't duplicate the row.
+				// Title-based dedupe is wrong here: every "New file" is "Untitled.md",
+				// and the server allows same-named notes. The wiki-link create flow
+				// resolves existing-by-title at its own call site before mutating.
+				const id = input.id ?? crypto.randomUUID();
+				if (list.some((note) => note.id === id)) {
 					return list;
 				}
 
 				const optimisticNote: NoteFile = {
-					id: input.id ?? crypto.randomUUID(),
+					id,
 					name: input.name.endsWith(".md") ? input.name : `${input.name}.md`,
 					content: input.content,
 					richContent: input.richContent ?? markdownToRichDocument(input.content),
