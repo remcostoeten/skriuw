@@ -1,10 +1,8 @@
 import { adminClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
+import { getBrowserAppOrigin } from "./app-origin";
 
-const baseURL =
-	typeof window !== "undefined"
-		? window.location.origin
-		: process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+const baseURL = getBrowserAppOrigin();
 
 export const authClient = createAuthClient({
 	baseURL,

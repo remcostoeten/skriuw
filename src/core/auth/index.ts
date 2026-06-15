@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { getBrowserAppOrigin } from "@/lib/app-origin";
 import { resetGuestStorage } from "@/core/workspace-backend/local-backend";
 
 export type AuthUser = {
@@ -131,8 +132,10 @@ function getPostOAuthPath(): string {
 }
 
 export function getOAuthRedirectTo(): string | undefined {
-	if (typeof window === "undefined") return undefined;
-	return new URL(getPostOAuthPath(), window.location.origin).toString();
+	const origin = getBrowserAppOrigin();
+	if (!origin) return undefined;
+
+	return new URL(getPostOAuthPath(), origin).toString();
 }
 
 export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
