@@ -27,8 +27,8 @@ import {
 	useEditorState,
 	useExtension,
 } from "@blocknote/react";
-import { SkriuwBlockNoteView } from "./skriuw-blocknote-view";
-import "@blocknote/mantine/style.css";
+import { BlockNoteView } from "@blocknote/shadcn";
+import "@blocknote/shadcn/style.css";
 import { FileText, FolderTree, Link2, PenTool, SpellCheck, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
@@ -50,7 +50,6 @@ import {
 } from "@/domain/notes/rich-document";
 import type { AiEditorHandle } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
-import { BlockNoteMantineProvider } from "@/providers/mantine-provider";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 
@@ -1024,9 +1023,8 @@ export function RichTextEditor({
 				} as CSSProperties
 			}
 		>
-			<BlockNoteMantineProvider>
-				<NoteLinkProvider files={files} activeFileId={activeFileId}>
-					<SkriuwBlockNoteView
+			<NoteLinkProvider files={files} activeFileId={activeFileId}>
+					<BlockNoteView
 						editor={editor}
 						editable={!readOnly}
 						onChange={handleEditorChange}
@@ -1085,9 +1083,8 @@ export function RichTextEditor({
 							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
 							getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
 						/>
-					</SkriuwBlockNoteView>
+					</BlockNoteView>
 				</NoteLinkProvider>
-			</BlockNoteMantineProvider>
 			<style jsx global>{`
 				.blocknote-wrapper {
 					--bn-colors-editor-background: hsl(var(--card));

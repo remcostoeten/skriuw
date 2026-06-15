@@ -126,6 +126,7 @@ export type TSharedOverview = {
 
 /** Self-contained snapshot served to an unauthenticated viewer. */
 export type TPublicShareSnapshot = {
+	noteId: string;
 	name: string;
 	content: string;
 	richContent: RichTextDocument | null;
@@ -141,6 +142,7 @@ export type TPublicSharePeek =
 			status: "ready";
 			requiresPassword: boolean;
 			viewOnce: boolean;
+			noteId: string;
 			name: string;
 			description: string;
 	  }

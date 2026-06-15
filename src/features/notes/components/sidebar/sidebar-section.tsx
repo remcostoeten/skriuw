@@ -178,7 +178,7 @@ export function SidebarSection({
 						)}
 					</div>
 
-					<div className="absolute inset-y-0 right-1.5 flex items-center justify-end gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+					<div className="hover-reveal absolute inset-y-0 right-1.5 flex items-center justify-end gap-0.5">
 						{actions}
 
 						{(isCustom || onToggleVisibility) && (
