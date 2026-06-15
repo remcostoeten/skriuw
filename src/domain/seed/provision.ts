@@ -27,25 +27,28 @@ function isEmptyPayload(payload: ActiveSeedBundle["payload"]): boolean {
 	);
 }
 
-/** Seeds starter content for a user id (signup provisioning, admin scripts). */
-export async function ensureStarterContentForUserId(userId: string): Promise<void> {
+/**
+ * Seeds starter content for a user id (signup provisioning, admin scripts).
+ * Resolves to `true` only when this call actually inserted starter content, so
+ * callers can decide whether a racing data prefetch needs to run again.
+ */
+export async function ensureStarterContentForUserId(userId: string): Promise<boolean> {
 	const userRow = await rootPrisma.user.findUnique({
 		where: { id: userId },
 		select: { starterSeededAt: true },
 	});
 	if (userRow?.starterSeededAt) {
-		return;
+		return false;
 	}
 
 	const bundle = await loadActiveSeedBundle();
 	if (!bundle || isEmptyPayload(bundle.payload)) {
-		return;
+		return false;
 	}
 
 	for (let attempt = 1; attempt <= SEED_TX_MAX_ATTEMPTS; attempt++) {
 		try {
-			await seedUserWorkspace(userId, bundle);
-			return;
+			return await seedUserWorkspace(userId, bundle);
 		} catch (error) {
 			if (!isTransactionConflict(error) || attempt === SEED_TX_MAX_ATTEMPTS) {
 				throw error;
@@ -53,10 +56,12 @@ export async function ensureStarterContentForUserId(userId: string): Promise<voi
 			await sleep(25 * attempt);
 		}
 	}
+
+	return false;
 }
 
-async function seedUserWorkspace(userId: string, bundle: ActiveSeedBundle): Promise<void> {
-	await rootPrisma.$transaction(async (tx) => {
+async function seedUserWorkspace(userId: string, bundle: ActiveSeedBundle): Promise<boolean> {
+	return rootPrisma.$transaction(async (tx) => {
 		await tx.$executeRaw`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`;
 
 		const currentUser = await tx.user.findUnique({
@@ -65,7 +70,7 @@ async function seedUserWorkspace(userId: string, bundle: ActiveSeedBundle): Prom
 		});
 
 		if (currentUser?.starterSeededAt) {
-			return;
+			return false;
 		}
 
 		const [existingNote, existingFolder] = await Promise.all([
@@ -77,7 +82,7 @@ async function seedUserWorkspace(userId: string, bundle: ActiveSeedBundle): Prom
 				where: { id: userId },
 				data: { starterSeededAt: new Date() },
 			});
-			return;
+			return false;
 		}
 
 		const { folders, notes, tags, journals } = bundle.payload;
@@ -156,6 +161,8 @@ async function seedUserWorkspace(userId: string, bundle: ActiveSeedBundle): Prom
 			where: { id: userId },
 			data: { starterSeededAt: new Date() },
 		});
+
+		return true;
 	});
 }
 

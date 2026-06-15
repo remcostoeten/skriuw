@@ -301,8 +301,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		foldersByParentId,
 		descendantCountByFolderId,
 	} = useMemo(
-		() => buildNoteIndexes(files, folders, activeFileId),
-		[files, folders, activeFileId],
+		// Index from metadata only: the sidebar tree never reads note content, and
+		// metadataFiles is referentially stable across content edits — so the
+		// memoized FileList stops re-rendering on every keystroke. The editor still
+		// gets the content-merged `files` below.
+		() => buildNoteIndexes(metadataFiles, folders, activeFileId),
+		[metadataFiles, folders, activeFileId],
 	);
 	const activeFile = activeNote;
 	const secondaryFile = useMemo(() => {
@@ -1269,12 +1273,15 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 
 	const sidebarPanelProps = {
-		files,
+		// Tree consumes metadata only; passing the stable metadataFiles (not the
+		// content-merged `files`) keeps the memoized FileList from re-rendering on
+		// every keystroke in the active note.
+		files: metadataFiles,
 		folders,
 		filesById,
 		foldersById,
 		activeFileId,
-		isFilesLoading: notesQuery.isFetching && files.length === 0,
+		isFilesLoading: notesQuery.isFetching && metadataFiles.length === 0,
 		actions: treeActions,
 		queries: treeQueries,
 		onCollapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),

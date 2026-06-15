@@ -12,8 +12,10 @@ export function useNoteBacklinks(noteId: string | null | undefined) {
 		notesKeys.backlinks(id),
 		() => fetchNoteBacklinks(id),
 		{
+			// Backlinks change only via the user's own edits, which already
+			// invalidate backlinksAll(). Cache between mounts instead of refetching.
 			enabled: Boolean(id),
-			staleTime: 0,
+			staleTime: 5 * 60 * 1000,
 		},
 	);
 }
