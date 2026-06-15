@@ -29,6 +29,7 @@ type Props = {
 	canMoveDown?: boolean;
 	onManageSections: () => void;
 	onFileSelect: (id: string) => void;
+	onFilePrefetch?: (id: string) => void;
 	onClearRecents: () => void;
 	isDraggable?: boolean;
 	isDragging?: boolean;
@@ -54,6 +55,7 @@ export const RecentsSection = memo(function RecentsSection({
 	canMoveUp,
 	canMoveDown,
 	onFileSelect,
+	onFilePrefetch,
 	onClearRecents,
 	isDraggable,
 	isDragging,
@@ -147,6 +149,9 @@ export const RecentsSection = memo(function RecentsSection({
 							transition={{ duration: 0.06, ease: [0.32, 0.72, 0, 1] }}
 							onClick={() =>
 								recent.itemType === "file" && onFileSelect(recent.itemId)
+							}
+							onPointerEnter={() =>
+								recent.itemType === "file" && onFilePrefetch?.(recent.itemId)
 							}
 							className={cn(
 								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",

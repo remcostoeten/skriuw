@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	isBraveBrowser,
 	isServerAnalyticsConfigured,
 	resolveIngestSecret,
 	resolveServerIngestUrl,
@@ -23,5 +24,13 @@ describe("server analytics config", () => {
 		else process.env.ANALYTICS_URL = originalUrl;
 		if (originalSecret === undefined) delete process.env.INGEST_SECRET;
 		else process.env.INGEST_SECRET = originalSecret;
+	});
+});
+
+describe("browser analytics guard", () => {
+	test("detects brave from navigator flags or user agent", () => {
+		expect(isBraveBrowser("Mozilla/5.0 Brave/1.0", false)).toBe(true);
+		expect(isBraveBrowser("Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36", true)).toBe(true);
+		expect(isBraveBrowser("Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36", false)).toBe(false);
 	});
 });

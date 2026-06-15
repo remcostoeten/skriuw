@@ -1,11 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSeedEditorStore } from "../store";
 import { SeedTree } from "./seed-tree";
-import { SeedNoteEditor } from "./seed-note-editor";
 import { SeedToolbar } from "./seed-toolbar";
 import type { SeedBundlePayload } from "@/domain/seed/types";
+
+// BlockNote pulls in ~1.3 MiB (Mantine + ProseMirror). Load it on demand so the
+// admin seed page's initial payload doesn't carry the full editor bundle —
+// matching how the user-facing editor is mounted (dynamic, ssr: false).
+const SeedNoteEditor = dynamic(
+	() => import("./seed-note-editor").then((mod) => ({ default: mod.SeedNoteEditor })),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="flex items-center justify-center h-full text-sm text-muted-foreground/60">
+				Loading editor…
+			</div>
+		),
+	},
+);
 
 interface SeedEditorPageProps {
 	bundleId: string;
