@@ -3,15 +3,12 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
+import { getBetterAuthBaseURL } from "./app-origin";
 import { prisma } from "./prisma";
 
 const hasGithubCredentials = Boolean(
 	process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
 );
-
-const trustedOrigins = [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_BETTER_AUTH_URL]
-	.filter((value): value is string => Boolean(value))
-	.filter((value, index, all) => all.indexOf(value) === index);
 
 function getGithubFallbackEmail(profile: { id?: string | number; login?: string | null }): string {
 	const githubId = String(profile.id ?? "unknown");
@@ -21,8 +18,8 @@ function getGithubFallbackEmail(profile: { id?: string | number; login?: string 
 }
 
 export const auth = betterAuth({
+	baseURL: getBetterAuthBaseURL(),
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
-	trustedOrigins,
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,

@@ -39,6 +39,15 @@ const authDrawerConfig = {
 				},
 			},
 		},
+		success: {
+			minVisibleMs: 900,
+			maxVisibleMs: 4500,
+			messages: {
+				signIn: "Finishing sign in",
+				signUp: "Finishing account setup",
+				oauth: "Connecting your session",
+			},
+		},
 	},
 } satisfies AuthConfig;
 
@@ -297,7 +306,10 @@ export function IconRail({ onOpenSettings }: Props) {
 					hideTrigger
 					open={authDrawerOpen}
 					onOpenChange={(open) => {
-						if (!open && awaitingAuthCommit && authDestination && !isAuthenticated) {
+						if (!open && awaitingAuthCommit && authDestination) {
+							if (isAuthenticated) {
+								setAuthDrawerOpen(false);
+							}
 							return;
 						}
 
