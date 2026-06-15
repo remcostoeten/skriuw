@@ -3,7 +3,12 @@
 import { trackEvent } from "@remcostoeten/analytics";
 import { getUserScopeId, SIGNED_OUT_USER_SCOPE, type AuthPhase } from "@/core/auth";
 import { usePreferencesStore } from "@/features/settings/store";
-import { isClientAnalyticsDisabled, resolveClientIngestUrl, SKRIUW_PROJECT_ID } from "./config";
+import {
+	isBraveBrowser,
+	isClientAnalyticsDisabled,
+	resolveClientIngestUrl,
+	SKRIUW_PROJECT_ID,
+} from "./config";
 
 export type AnalyticsConsent = {
 	consentRequired: boolean;
@@ -33,6 +38,7 @@ export function resolveAnalyticsConsent(
 
 export function hasProductAnalyticsConsent(): boolean {
 	if (isClientAnalyticsDisabled()) return false;
+	if (isBraveBrowser()) return false;
 	if (isGuestVisitor()) return true;
 	return usePreferencesStore.getState().privacy.analyticsEnabled;
 }

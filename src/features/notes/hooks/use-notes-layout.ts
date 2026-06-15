@@ -1,12 +1,10 @@
 "use client";
 
-import { useShortcut } from "@remcostoeten/use-shortcut";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { type PanInfo, type Transition, useDragControls, useReducedMotion } from "framer-motion";
+import { type PanInfo } from "framer-motion";
 import { useRouter } from "next/navigation";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import { fetchNote, type CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
@@ -14,19 +12,14 @@ import { fetchGuestSeedNote } from "@/domain/seed/actions";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
-import { useSidebarStore } from "@/features/notes/components/sidebar/store";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { EASE_SHEET } from "@/shared/lib/motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
-import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
-import type { NoteVersion } from "@/types/notes";
-import { DESKTOP_SIDEBAR_MIN_WIDTH } from "../constants";
+import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 import { useCreateFolder } from "./use-create-folder";
 import { useCreateNote } from "./use-create-note";
-import { useDebouncedSave } from "./use-debounced-save";
 import { useDeleteFolder } from "./use-delete-folder";
 import { useDeleteNote } from "./use-delete-note";
 import { useFolders } from "./use-folders";
@@ -39,6 +32,9 @@ import {
 	useFileNavigation,
 	useUrlSync,
 } from "./use-notes-navigation";
+import { useNotesLayoutSaveController } from "./use-notes-layout-save-controller";
+import { useNotesLayoutShortcuts } from "./use-notes-layout-shortcuts";
+import { useNotesLayoutViewport } from "./use-notes-layout-viewport";
 import { useRestoreNoteVersion } from "./use-restore-note-version";
 import { useUpdateFolder } from "./use-update-folder";
 import { useUpdateNote } from "./use-update-note";
@@ -59,50 +55,6 @@ Start writing here. Use # for tags, @ to mention notes, or /tag and /link note f
 `;
 }
 
-const NOTES_SHORTCUT_GROUPS: ShortcutHelpGroup[] = [
-	{
-		id: "notes-global",
-		title: "Notes",
-		shortcuts: [
-			{
-				id: "palette",
-				label: "Open command palette",
-				combo: "mod+k / mod+shift+p",
-			},
-			{
-				id: "new-note",
-				label: "Create note",
-				combo: "mod+n",
-			},
-			{
-				id: "new-folder",
-				label: "Create folder",
-				combo: "mod+shift+n",
-			},
-			{
-				id: "toggle-sidebar",
-				label: "Toggle sidebar",
-				combo: "mod+b",
-			},
-			{
-				id: "toggle-metadata",
-				label: "Toggle note details",
-				combo: "mod+shift+b",
-			},
-			{
-				id: "settings",
-				label: "Open settings",
-				combo: "mod+comma",
-			},
-			{
-				id: "help",
-				label: "Open shortcut help",
-				combo: "shift+slash",
-			},
-		],
-	},
-];
-
 type UseNotesLayoutOptions = {
 	initialActiveFileId?: string | null;
 	initialUserScopeId?: string | null;
@@ -121,7 +73,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const isGuest = useIsGuestWorkspace();
-	const $ = useShortcut({ ignoreInputs: true });
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
 	const activeFileIdFromStore = useNotesStore((state) => state.activeFileId);
@@ -161,83 +112,24 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const deleteNoteMutation = useDeleteNote();
 	const deleteFolderMutation = useDeleteFolder();
 	const [creationParentFolderId, setCreationParentFolderId] = useState<string | null>(null);
-	const saveResetTimeoutsRef = useRef(new Map<string, number>());
-	const clearPendingSaveReset = useCallback((id: string) => {
-		const timeoutId = saveResetTimeoutsRef.current.get(id);
-		if (timeoutId) {
-			window.clearTimeout(timeoutId);
-			saveResetTimeoutsRef.current.delete(id);
-		}
-	}, []);
-	const markFileSaving = useCallback(
-		(id: string) => {
-			clearPendingSaveReset(id);
-			setFileSaveState(id, "saving");
-		},
-		[clearPendingSaveReset, setFileSaveState],
-	);
-	const markFileSaved = useCallback(
-		(id: string) => {
-			clearPendingSaveReset(id);
-			setFileSaveState(id, "saved");
-			const timeoutId = window.setTimeout(() => {
-				clearFileSaveState(id);
-				saveResetTimeoutsRef.current.delete(id);
-			}, SAVED_BADGE_DURATION_MS);
-			saveResetTimeoutsRef.current.set(id, timeoutId);
-		},
-		[clearFileSaveState, clearPendingSaveReset, setFileSaveState],
-	);
-	const markFileError = useCallback(
-		(id: string) => {
-			clearPendingSaveReset(id);
-			setFileSaveState(id, "error");
-		},
-		[clearPendingSaveReset, setFileSaveState],
-	);
-	const saveController = useDebouncedSave({
-		onSaving: markFileSaving,
-		onSaved: markFileSaved,
-		onError: markFileError,
+	const {
+		handleUpdateFileContent,
+		handleFlushFileEdits,
+		runAfterContentFlush,
+		flushContentInBackground,
+		flushAllContent,
+		discardPending,
+		markFileSaving,
+		markFileSaved,
+		markFileError,
+	} = useNotesLayoutSaveController({
+		activeFileId,
+		initialUserScopeId,
+		seededActiveFileId,
+		setActiveFileId,
+		setFileSaveState,
+		clearFileSaveState,
 	});
-	const handleUpdateFileContent = useCallback(
-		(
-			id: string,
-			content: string,
-			options?: {
-				richContent?: ReturnType<typeof markdownToRichDocument>;
-				preferredEditorMode?: "raw" | "block";
-			},
-		) => {
-			saveController.schedule({
-				id,
-				content,
-				richContent: options?.richContent,
-				preferredEditorMode: options?.preferredEditorMode,
-			});
-		},
-		[saveController],
-	);
-	const handleFlushFileEdits = useCallback(
-		(id: string) => {
-			void saveController.flush(id);
-		},
-		[saveController],
-	);
-	const runAfterContentFlush = useCallback(
-		async (noteId: string, run: () => void) => {
-			await saveController.flush(noteId, { createCheckpoint: true });
-			run();
-		},
-		[saveController],
-	);
-	const flushContentInBackground = useCallback(
-		(noteId: string) => {
-			if (!noteId) return;
-			void saveController.flush(noteId, { createCheckpoint: true });
-		},
-		[saveController],
-	);
 	const metadataFiles = notesQuery.data ?? [];
 	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
 	const secondaryNote = secondaryNoteQuery.isPlaceholderData
@@ -285,15 +177,26 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
-	const [showCommandPalette, setShowCommandPalette] = useState(false);
-	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
-	const prefersReducedMotion = useReducedMotion();
-	const metadataDragControls = useDragControls();
-	const sidebarResizeActiveRef = useRef(false);
-	const sidebarRef = useRef<HTMLDivElement>(null);
+	const {
+		prefersReducedMotion,
+		metadataDragControls,
+		sidebarRef,
+		closeSidebar,
+		closeMetadata,
+		handleDesktopSidebarResizeStart,
+		overlayTransition,
+		sidebarTransition,
+		metadataTransition,
+	} = useNotesLayoutViewport({
+		isMobile,
+		showSidebar,
+		showMetadata,
+		setUIState,
+		setSidebarWidth,
+	});
 	const {
 		filesById,
 		foldersById,
@@ -396,33 +299,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		initializePreferences();
 	}, [initializePreferences]);
 
-	useEffect(
-		() => () => {
-			for (const timeoutId of saveResetTimeoutsRef.current.values()) {
-				window.clearTimeout(timeoutId);
-			}
-			saveResetTimeoutsRef.current.clear();
-		},
-		[],
-	);
-
-	// Push the server-provided seeds into the persisted stores on mount so
-	// subsequent renders read them from Zustand directly (no longer relying
-	// on the local OR). Also fast-paths the sidebar profile switch that
-	// PersistenceBootstrap normally does once auth resolves — by the time
-	// this effect runs we already know the user's id from the SSR prop.
-	useEffect(() => {
-		if (seededActiveFileId && !useNotesStore.getState().activeFileId) {
-			setActiveFileId(seededActiveFileId);
-		}
-		if (
-			initialUserScopeId &&
-			useSidebarStore.getState().currentUserScopeId !== initialUserScopeId
-		) {
-			useSidebarStore.getState().syncUserScope(initialUserScopeId);
-		}
-	}, [seededActiveFileId, initialUserScopeId, setActiveFileId]);
-
 	useEffect(() => {
 		if (notesQuery.isPending) {
 			return;
@@ -455,15 +331,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [activeFileId, sharingNoteId]);
 
-	const previousActiveFileIdRef = useRef<string>("");
-	useEffect(() => {
-		const previousId = previousActiveFileIdRef.current;
-		previousActiveFileIdRef.current = activeFileId;
-		if (previousId && previousId !== activeFileId) {
-			void saveController.flush(previousId);
-		}
-	}, [activeFileId, saveController]);
-
 	// Warm the neighbours of the active note so prev/next keyboard navigation
 	// resolves from cache instead of fetching (and flashing a skeleton).
 	useEffect(() => {
@@ -474,38 +341,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		prefetchNote(files[index + 1]?.id ?? "");
 	}, [activeFileId, files, prefetchNote]);
 
-	const saveControllerRef = useRef(saveController);
-	useEffect(() => {
-		saveControllerRef.current = saveController;
-	}, [saveController]);
-
-	useEffect(() => {
-		const handleHidden = () => {
-			void saveControllerRef.current.flushAll();
-		};
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === "hidden") {
-				handleHidden();
-			}
-		};
-		window.addEventListener("pagehide", handleHidden);
-		window.addEventListener("beforeunload", handleHidden);
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-		return () => {
-			window.removeEventListener("pagehide", handleHidden);
-			window.removeEventListener("beforeunload", handleHidden);
-			document.removeEventListener("visibilitychange", handleVisibilityChange);
-			void saveControllerRef.current.flushAll();
-		};
-	}, []);
-
 	const handleViewVersion = useCallback(
 		(version: NoteVersion) => {
-			void saveController.flush(version.noteId, { createCheckpoint: true });
-			setSharingNoteId(null);
-			setViewingVersion(version);
+			void runAfterContentFlush(version.noteId, () => {
+				setSharingNoteId(null);
+				setViewingVersion(version);
+			});
 		},
-		[saveController],
+		[runAfterContentFlush],
 	);
 
 	const handleExitVersionPreview = useCallback(() => {
@@ -523,58 +366,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleRestoreViewedVersion = useCallback(() => {
 		if (!viewingVersion) return;
-		saveController.discardPending(viewingVersion.noteId);
+		discardPending(viewingVersion.noteId);
 		restoreNoteVersion.mutate(viewingVersion.id, {
 			onSuccess: () => {
 				setViewingVersion(null);
 			},
 		});
-	}, [restoreNoteVersion, saveController, viewingVersion]);
-
-	useEffect(() => {
-		if (!isMobile) {
-			return;
-		}
-
-		const hasOverlayOpen = showSidebar || showMetadata || showShortcutHelp;
-		document.body.style.overflow = hasOverlayOpen ? "hidden" : "";
-
-		return () => {
-			document.body.style.overflow = "";
-		};
-	}, [isMobile, showSidebar, showMetadata, showShortcutHelp]);
-
-	useEffect(() => {
-		const stopResizing = () => {
-			if (!sidebarResizeActiveRef.current) return;
-			sidebarResizeActiveRef.current = false;
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
-		};
-
-		const handlePointerMove = (event: PointerEvent) => {
-			if (!sidebarResizeActiveRef.current || !sidebarRef.current) return;
-
-			const { left } = sidebarRef.current.getBoundingClientRect();
-			const nextWidth = Math.min(
-				DESKTOP_SIDEBAR_MAX_WIDTH,
-				Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, event.clientX - left),
-			);
-
-			setSidebarWidth(nextWidth);
-		};
-
-		window.addEventListener("pointermove", handlePointerMove);
-		window.addEventListener("pointerup", stopResizing);
-		window.addEventListener("pointercancel", stopResizing);
-
-		return () => {
-			window.removeEventListener("pointermove", handlePointerMove);
-			window.removeEventListener("pointerup", stopResizing);
-			window.removeEventListener("pointercancel", stopResizing);
-			stopResizing();
-		};
-	}, [setSidebarWidth]);
+	}, [discardPending, restoreNoteVersion, viewingVersion]);
 
 	const handleFileSelect = useCallback(
 		(id: string, options?: NoteUrlSyncOptions) => {
@@ -654,19 +452,19 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const handleOpenBeside = useCallback(
 		(fileId: string) => {
 			if (isMobile || !fileId || fileId === activeFileId) return;
-			void saveController.flushAll({ createCheckpoint: true });
+			flushAllContent({ createCheckpoint: true });
 			openSplitBeside(fileId, activeFileId);
 		},
-		[activeFileId, isMobile, openSplitBeside, saveController],
+		[activeFileId, flushAllContent, isMobile, openSplitBeside],
 	);
 
 	const handleCloseSplit = useCallback(() => {
 		const secondaryId = splitSecondaryFileId;
 		if (secondaryId) {
-			void saveController.flush(secondaryId);
+			handleFlushFileEdits(secondaryId);
 		}
 		closeSplit();
-	}, [closeSplit, saveController, splitSecondaryFileId]);
+	}, [closeSplit, handleFlushFileEdits, splitSecondaryFileId]);
 
 	const handleToggleSplit = useCallback(() => {
 		if (splitSecondaryFileId) {
@@ -734,28 +532,47 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		const parentId = creationParentFolderId;
 		const preferredEditorMode = defaultModeRaw ? "raw" : "block";
 		const content = generateNoteContent("Untitled");
+		const richContent = markdownToRichDocument(content);
+		const newId = crypto.randomUUID();
 		const newFile: CreateNoteInput = {
-			id: crypto.randomUUID(),
+			id: newId,
 			name: "Untitled.md",
 			content,
-			richContent: markdownToRichDocument(content),
+			richContent,
 			preferredEditorMode,
 			parentId,
 		};
+
+		// Seed the detail cache synchronously, before selecting the note.
+		// Otherwise selecting it mounts useNote(newId), which fires fetchNote()
+		// for an id the server hasn't committed yet, gets null back, and — with
+		// staleTime: Infinity / retry: false — sticks on null forever, trapping
+		// the editor behind the loading skeleton until a manual refresh.
+		queryClient.setQueryData<NoteFile>(notesKeys.detail(newId), {
+			id: newId,
+			name: newFile.name,
+			content,
+			richContent,
+			preferredEditorMode,
+			createdAt: new Date(),
+			modifiedAt: new Date(),
+			parentId: parentId ?? null,
+			tags: [],
+		});
 
 		if (parentId) {
 			setFolderOpen(parentId, true);
 		}
 		createNoteMutation.mutate(newFile, {
 			onSuccess: () => {
-				markFileSaved(newFile.id as string);
+				markFileSaved(newId);
 			},
 			onError: () => {
-				markFileError(newFile.id as string);
+				markFileError(newId);
 			},
 		});
-		syncFileSelection(newFile.id as string);
-		markFileSaving(newFile.id as string);
+		syncFileSelection(newId);
+		markFileSaving(newId);
 		if (isMobile) {
 			setUIState({ showSidebar: false });
 		}
@@ -765,6 +582,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		defaultModeRaw,
 		diaryModeEnabled,
 		isMobile,
+		queryClient,
 		router,
 		markFileError,
 		markFileSaved,
@@ -861,36 +679,22 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		updateNoteMutation,
 	]);
 
-	const handleOpenCommandPalette = useCallback(() => {
-		triggerNativeFeedback("selection");
-		setShowCommandPalette(true);
-	}, []);
-
-	const handleOpenShortcutHelp = useCallback(() => {
-		triggerNativeFeedback("selection");
-		setShowShortcutHelp(true);
-	}, []);
-
-	const handleDesktopSidebarResizeStart = useCallback(
-		(event: ReactPointerEvent<HTMLDivElement>) => {
-			if (isMobile) return;
-			sidebarResizeActiveRef.current = true;
-			document.body.style.cursor = "col-resize";
-			document.body.style.userSelect = "none";
-			event.preventDefault();
-		},
-		[isMobile],
-	);
-
-	const closeSidebar = useCallback(() => {
-		triggerNativeFeedback("dismiss");
-		setUIState({ showSidebar: false });
-	}, [setUIState]);
-
-	const closeMetadata = useCallback(() => {
-		triggerNativeFeedback("dismiss");
-		setUIState({ showMetadata: false });
-	}, [setUIState]);
+	const {
+		showCommandPalette,
+		setShowCommandPalette,
+		showShortcutHelp,
+		setShowShortcutHelp,
+		handleOpenCommandPalette,
+		handleOpenShortcutHelp,
+		shortcutGroups,
+	} = useNotesLayoutShortcuts({
+		handleCreateFile,
+		handleCreateFolder,
+		handleToggleSidebar,
+		handleToggleMetadata,
+		handleOpenSettings,
+		handleToggleEditorMode,
+	});
 
 	const handleSidebarDragEnd = useCallback(
 		(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -1072,71 +876,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(folderId: string) => descendantCountByFolderId.get(folderId) ?? 0,
 		[descendantCountByFolderId],
 	);
-
-	const overlayTransition: Transition = prefersReducedMotion
-		? { duration: 0.12, ease: "linear" }
-		: { duration: 0.2, ease: "easeOut" };
-
-	const sidebarTransition: Transition = prefersReducedMotion
-		? { duration: 0.16, ease: "easeOut" }
-		: { duration: 0.5, ease: EASE_SHEET };
-
-	const metadataTransition: Transition = prefersReducedMotion
-		? { duration: 0.16, ease: "easeOut" }
-		: { duration: 0.5, ease: EASE_SHEET };
-
-	useEffect(() => {
-		$.setScopes(["notes"]);
-
-		const bindings = [
-			$.in("notes").mod.key("k").except("typing").on(handleOpenCommandPalette, {
-				preventDefault: true,
-				description: "Open the notes command palette",
-			}),
-			$.in("notes").mod.shift.key("p").except("typing").on(handleOpenCommandPalette, {
-				preventDefault: true,
-				description: "Open the notes command palette",
-			}),
-			$.in("notes").mod.key("n").except("typing").on(handleCreateFile, {
-				preventDefault: true,
-				description: "Create a new note",
-			}),
-			$.in("notes").mod.shift.key("n").except("typing").on(handleCreateFolder, {
-				preventDefault: true,
-				description: "Create a new folder",
-			}),
-			$.in("notes").mod.key("b").except("typing").on(handleToggleSidebar, {
-				description: "Toggle the notes sidebar",
-			}),
-			$.in("notes").mod.shift.key("b").except("typing").on(handleToggleMetadata, {
-				description: "Toggle the note details panel",
-			}),
-			$.in("notes").mod.key("comma").except("typing").on(handleOpenSettings, {
-				preventDefault: true,
-				description: "Open settings",
-			}),
-			$.in("notes").mod.key("e").except("typing").on(handleToggleEditorMode, {
-				description: "Switch editor mode",
-			}),
-			$.in("notes").shift.key("slash").except("typing").on(handleOpenShortcutHelp, {
-				description: "Open shortcut help",
-			}),
-		];
-
-		return () => {
-			bindings.forEach((binding) => binding.unbind());
-		};
-	}, [
-		$,
-		handleCreateFile,
-		handleCreateFolder,
-		handleOpenCommandPalette,
-		handleOpenSettings,
-		handleOpenShortcutHelp,
-		handleToggleEditorMode,
-		handleToggleMetadata,
-		handleToggleSidebar,
-	]);
 
 	const handleNavigatePrev = useCallback(() => {
 		if (!focusedFileIdForNav) return;
@@ -1353,7 +1092,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		showMetadata,
 		showShortcutHelp,
 		showSidebar,
-		shortcutGroups: NOTES_SHORTCUT_GROUPS,
+		shortcutGroups,
 		flushFileEdits: handleFlushFileEdits,
 		updateFileContent: handleUpdateFileContent,
 		viewingVersion,

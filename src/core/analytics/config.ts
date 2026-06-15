@@ -5,6 +5,24 @@ export function resolveClientIngestUrl(): string | undefined {
 	return url || undefined;
 }
 
+function readBrowserUserAgent(): string {
+	if (typeof navigator === "undefined") return "";
+	return navigator.userAgent ?? "";
+}
+
+function readBraveFlag(): boolean {
+	if (typeof navigator === "undefined") return false;
+	return Boolean((navigator as Navigator & { brave?: unknown }).brave);
+}
+
+export function isBraveBrowser(
+	userAgent = readBrowserUserAgent(),
+	hasBraveFlag = readBraveFlag(),
+): boolean {
+	if (hasBraveFlag) return true;
+	return /brave/i.test(userAgent);
+}
+
 export function resolveServerIngestUrl(): string | undefined {
 	const url = process.env.ANALYTICS_URL?.trim();
 	return url || resolveClientIngestUrl();
