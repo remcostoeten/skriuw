@@ -6,7 +6,7 @@ import type { Metadata, Viewport } from "next";
 // dedupes this import against its own side-effect import, keeping it early.
 import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
-import { AnalyticsMount } from "@/core/analytics/analytics-mount";
+import { AnalyticsGate } from "@/core/analytics/analytics-gate";
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.com"),
@@ -55,11 +55,11 @@ export default function RootLayout({ children }: Props) {
 					}}
 				/>
 			</head>
-			<body className="font-sans">
-				{children}
-				<div id="auth-drawer-portal" />
-				<AnalyticsMount />
-			</body>
-		</html>
-	);
+				<body className="font-sans">
+					{children}
+					<div id="auth-drawer-portal" />
+					<AnalyticsGate />
+				</body>
+			</html>
+		);
 }

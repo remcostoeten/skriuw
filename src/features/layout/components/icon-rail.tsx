@@ -194,6 +194,7 @@ export function IconRail({ onOpenSettings }: Props) {
 									) : (
 										<Link
 											href={href}
+											prefetch
 											className={cn(
 												iconButtonClass,
 												isActive
@@ -217,6 +218,7 @@ export function IconRail({ onOpenSettings }: Props) {
 						<TooltipTrigger asChild>
 							<Link
 								href={planningItem.href}
+								prefetch
 								className={cn(
 									iconButtonClass,
 									planningItem.isActive
@@ -236,6 +238,7 @@ export function IconRail({ onOpenSettings }: Props) {
 						<TooltipTrigger asChild>
 							<Link
 								href="/app/settings"
+								prefetch
 								className={cn(
 									iconButtonClass,
 									pathname === "/app/settings"

@@ -26,6 +26,7 @@ type Props = {
 	onRename: (name: string) => void;
 	onDelete: () => void;
 	onFileSelect: (id: string) => void;
+	onFilePrefetch?: (id: string) => void;
 	onRemoveFromSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
 	isDraggable?: boolean;
 	isDragging?: boolean;
@@ -53,6 +54,7 @@ export const CustomSection = memo(function CustomSection({
 	onRename,
 	onDelete,
 	onFileSelect,
+	onFilePrefetch,
 	onRemoveFromSection,
 	isDraggable,
 	isDragging,
@@ -141,6 +143,7 @@ export const CustomSection = memo(function CustomSection({
 						>
 							<button
 								onClick={() => onFileSelect(file.id)}
+								onPointerEnter={() => onFilePrefetch?.(file.id)}
 								className="flex min-w-0 flex-1 items-center gap-2 text-left"
 							>
 								<FileTextIcon

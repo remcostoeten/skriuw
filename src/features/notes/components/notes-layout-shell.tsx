@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -9,13 +10,41 @@ import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { SplitEditorWorkspace } from "./split-editor-workspace";
-import { VersionPreviewContainer } from "@/features/editor/components/version-preview-container";
-import { ShareScreen } from "@/features/sharing/components/share-screen";
 import { SidebarPanel } from "./sidebar-panel";
-import { MetadataPanel } from "./metadata-panel";
-import { CommandPalette } from "@/shared/ui/command-palette";
-import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useNotesLayout } from "../hooks/use-notes-layout";
+
+const VersionPreviewContainer = dynamic(
+	() =>
+		import("@/features/editor/components/version-preview-container").then((mod) => ({
+			default: mod.VersionPreviewContainer,
+		})),
+	{ ssr: false, loading: () => <WorkspaceLoadingShell variant="notes" /> },
+);
+
+const ShareScreen = dynamic(
+	() => import("@/features/sharing/components/share-screen").then((mod) => ({
+		default: mod.ShareScreen,
+	})),
+	{ ssr: false, loading: () => <WorkspaceLoadingShell variant="notes" /> },
+);
+
+const MetadataPanel = dynamic(
+	() => import("./metadata-panel").then((mod) => ({ default: mod.MetadataPanel })),
+	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
+);
+
+const CommandPalette = dynamic(
+	() => import("@/shared/ui/command-palette").then((mod) => ({ default: mod.CommandPalette })),
+	{ ssr: false, loading: () => null },
+);
+
+const ShortcutHelpDialog = dynamic(
+	() =>
+		import("@/shared/ui/shortcut-help-dialog").then((mod) => ({
+			default: mod.ShortcutHelpDialog,
+		})),
+	{ ssr: false, loading: () => null },
+);
 
 function NotesMetadataPlaceholder({ isMobile = false }: { isMobile?: boolean }) {
 	return (
@@ -125,6 +154,21 @@ export function NotesLayoutShell({
 	useFocusTrap(isMobile && showSidebar, mobileSidebarRef);
 	useFocusTrap(isMobile && showMetadata, mobileMetadataRef);
 	const mobileOverlayOpen = isMobile && (showSidebar || showMetadata);
+
+	// Local-first note swap: when moving to a note whose body isn't cached yet,
+	// keep the previously loaded note on screen instead of flashing the editor
+	// skeleton. Selection in the sidebar responds instantly (it's keyed on the
+	// target id); the document body just catches up a beat later. A genuinely
+	// cold first load (no prior note) still shows the skeleton, and an empty
+	// selection still shows the empty state.
+	const lastLoadedFileRef = useRef(activeFile);
+	if (activeFile) {
+		lastLoadedFileRef.current = activeFile;
+	}
+	const isSwappingNote =
+		isActiveNoteLoading && isEditorReady && lastLoadedFileRef.current !== null;
+	const displayFile = activeFile ?? (isSwappingNote ? lastLoadedFileRef.current : null);
+	const showContentSkeleton = (isActiveNoteLoading || !isEditorReady) && !displayFile;
 
 	if (forceLoading) {
 		return <WorkspaceLoadingShell variant="notes" />;
@@ -252,7 +296,7 @@ export function NotesLayoutShell({
 										/>
 									) : (
 										<EditorContainer
-											file={activeFile}
+											file={displayFile}
 											files={files}
 											editorMode={editorMode ?? "block"}
 											isMobile={isMobile}
@@ -263,8 +307,8 @@ export function NotesLayoutShell({
 											onNavigatePrev={handleNavigatePrev}
 											onNavigateNext={handleNavigateNext}
 											onEditorBlur={
-												activeFile
-													? () => flushFileEdits(activeFile.id)
+												displayFile
+													? () => flushFileEdits(displayFile.id)
 													: undefined
 											}
 											canNavigatePrev={canNavigatePrev}
@@ -273,21 +317,21 @@ export function NotesLayoutShell({
 											onToggleSplit={handleToggleSplit}
 											splitEnabled={false}
 											initialScrollTop={
-												activeFile
-													? (editorScrollPositions[activeFile.id] ?? 0)
+												displayFile
+													? (editorScrollPositions[displayFile.id] ?? 0)
 													: 0
 											}
 											onScrollPositionChange={(scrollTop) => {
-												if (activeFile) {
+												if (displayFile) {
 													handleEditorScrollPositionChange(
-														activeFile.id,
+														displayFile.id,
 														scrollTop,
 													);
 												}
 											}}
-											isContentLoading={isActiveNoteLoading || !isEditorReady}
+											isContentLoading={showContentSkeleton}
 											fileName={
-												activeFile?.name ??
+												displayFile?.name ??
 												files.find(
 													(file) => file.id === layout.activeFileId,
 												)?.name ??
@@ -302,11 +346,11 @@ export function NotesLayoutShell({
 
 							{!isMobile &&
 								showMetadata &&
-								(isActiveNoteLoading || !isEditorReady ? (
+								(showContentSkeleton ? (
 									<NotesMetadataPlaceholder />
 								) : (
 									<MetadataPanel
-										file={focusedFile ?? activeFile}
+										file={focusedFile ?? displayFile}
 										files={files}
 										editorMode={focusedEditorMode ?? editorMode ?? "block"}
 										onToggleEditorMode={handleToggleEditorMode}
@@ -429,11 +473,11 @@ export function NotesLayoutShell({
 								style={{ willChange: "transform, opacity" }}
 								className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
 							>
-								{isActiveNoteLoading ? (
+								{showContentSkeleton ? (
 									<NotesMetadataPlaceholder isMobile />
 								) : (
 									<MetadataPanel
-										file={focusedFile ?? activeFile}
+										file={focusedFile ?? displayFile}
 										files={files}
 										isMobile
 										editorMode={focusedEditorMode ?? editorMode ?? "block"}
