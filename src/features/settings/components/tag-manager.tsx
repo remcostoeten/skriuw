@@ -225,7 +225,7 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
 					onClick={() => setShowMenu(!showMenu)}
 					className={cn(
 						"flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground",
-						showMenu ? "border-border bg-muted" : "opacity-0 group-hover:opacity-100",
+						showMenu ? "border-border bg-muted" : "hover-reveal",
 					)}
 				>
 					<MoreHorizontal className="w-4 h-4" />

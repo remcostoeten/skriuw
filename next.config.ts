@@ -4,12 +4,7 @@ const config: NextConfig = {
 	reactStrictMode: true,
 	experimental: {
 		// Trim barrel re-export overhead for large named-import libs.
-		optimizePackageImports: [
-			"lucide-react",
-			"date-fns",
-			"@mantine/core",
-			"@mantine/hooks",
-		],
+		optimizePackageImports: ["lucide-react", "date-fns"],
 		staleTimes: {
 			// Next 16 gives dynamic page segments a 0s client cache by default.
 			// The app workspace is private, stateful UI; short-lived router reuse
@@ -21,18 +16,9 @@ const config: NextConfig = {
 	serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg"],
 	transpilePackages: [
 		"@blocknote/core",
-		"@blocknote/mantine",
 		"@blocknote/react",
-		"@mantine/core",
-		"@mantine/hooks",
+		"@blocknote/shadcn",
 	],
-	turbopack: {
-		// Turbopack only accepts project-relative alias targets (not absolute paths).
-		resolveAlias: {
-			"@mantine/core": "./node_modules/@mantine/core",
-			"@mantine/hooks": "./node_modules/@mantine/hooks",
-		},
-	},
 };
 
 export default config;

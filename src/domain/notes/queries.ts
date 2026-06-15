@@ -1,5 +1,6 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
 	NoteFile,
@@ -126,6 +127,7 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 }
 
 export async function listNoteVersions(noteId: string, limit = 12): Promise<NoteVersion[]> {
+	if (isGuestScopedId(noteId)) return [];
 	const { prisma, user } = await getAuthenticatedUser();
 	const records = await prisma.noteVersion.findMany({
 		where: { userId: user.id, noteId },
@@ -136,6 +138,7 @@ export async function listNoteVersions(noteId: string, limit = 12): Promise<Note
 }
 
 export async function getNote(id: string): Promise<NoteFile | null> {
+	if (isGuestScopedId(id)) return null;
 	const { prisma, user } = await getAuthenticatedUser();
 	const record = await prisma.note.findFirst({
 		where: { userId: user.id, id, deletedAt: null },

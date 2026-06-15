@@ -3,6 +3,7 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { getNote } from "@/domain/notes/queries";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { generateShareToken, hashSharePassword } from "./crypto";
 import { resolveExpiry } from "./expiry";
@@ -171,6 +172,7 @@ export async function revokeNoteShare(noteId: string): Promise<{ revoked: boolea
 
 /** Current share state for a note, or null when it has never been published / is revoked. */
 export async function getNoteShare(noteId: string): Promise<TNoteShareState | null> {
+	if (isGuestScopedId(noteId)) return null;
 	const { prisma, user } = await getAuthenticatedUser();
 	const share = await prisma.noteShare.findFirst({
 		where: { noteId, userId: user.id, revokedAt: null },

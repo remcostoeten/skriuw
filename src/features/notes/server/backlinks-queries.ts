@@ -1,5 +1,6 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { MarkdownContent } from "@/core/persistence-types";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import {
 	getNoteTitle,
 	normalizeNoteTitle,
@@ -16,6 +17,7 @@ import {
 // content-scan treated such ambiguous links as unresolved); this only affects
 // duplicate-title notes and surfaces more backlinks rather than fewer.
 export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLink[]> {
+	if (isGuestScopedId(noteId)) return [];
 	const { prisma, user } = await getAuthenticatedUser();
 
 	const activeNote = await prisma.note.findFirst({

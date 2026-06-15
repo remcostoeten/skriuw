@@ -12,6 +12,7 @@ type Props = {
 	name: string;
 	requiresPassword: boolean;
 	viewOnce: boolean;
+	initialCollabStatus?: "none" | "pending" | "collaborator";
 };
 
 type TerminalStatus = "expired" | "revoked" | "consumed" | "not-found";
@@ -22,7 +23,7 @@ type Phase =
 	| { kind: "ready"; snapshot: TPublicShareSnapshot }
 	| { kind: "terminal"; status: TerminalStatus };
 
-export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
+export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabStatus = "none" }: Props) {
 	const needsGate = requiresPassword || viewOnce;
 	const [phase, setPhase] = useState<Phase>(needsGate ? { kind: "gate" } : { kind: "loading" });
 	const [password, setPassword] = useState("");
@@ -66,7 +67,7 @@ export function ShareViewer({ token, requiresPassword, viewOnce }: Props) {
 	}, []);
 
 	if (phase.kind === "ready") {
-		return <PublicNoteReader snapshot={phase.snapshot} />;
+		return <PublicNoteReader snapshot={phase.snapshot} initialCollabStatus={initialCollabStatus} />;
 	}
 
 	if (phase.kind === "terminal") {

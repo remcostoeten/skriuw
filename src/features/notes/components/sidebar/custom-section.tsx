@@ -123,7 +123,7 @@ export const CustomSection = memo(function CustomSection({
 							<span className="flex-1 truncate">{folder.name}</span>
 							<button
 								onClick={() => onRemoveFromSection(section.id, folder.id, "folder")}
-								className="inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 opacity-0 transition hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100"
+								className="hover-reveal inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 transition hover:border-border hover:bg-muted hover:text-foreground"
 								title="Remove from section"
 							>
 								<X className="h-3 w-3" strokeWidth={1.5} />
@@ -154,7 +154,7 @@ export const CustomSection = memo(function CustomSection({
 							</button>
 							<button
 								onClick={() => onRemoveFromSection(section.id, file.id, "file")}
-								className="inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 opacity-0 transition hover:border-border hover:bg-muted hover:text-foreground group-hover:opacity-100"
+								className="hover-reveal inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 transition hover:border-border hover:bg-muted hover:text-foreground"
 								title="Remove from section"
 							>
 								<X className="h-3 w-3" strokeWidth={1.5} />

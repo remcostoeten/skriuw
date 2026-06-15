@@ -1,8 +1,8 @@
 "use client";
 
 import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
-import "@blocknote/mantine/style.css";
+import { BlockNoteView } from "@blocknote/shadcn";
+import "@blocknote/shadcn/style.css";
 import { editorSchema } from "@/features/editor/components/inline-specs/schema";
 import { NoteLinkProvider } from "@/features/editor/components/inline-specs/note-link-context";
 import { useSeedEditorStore } from "../store";

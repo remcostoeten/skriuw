@@ -572,3 +572,31 @@
 		}
 	}
 }
+
+/*
+ * Hover-reveal affordances (row action buttons, "View"/open hints, etc.).
+ *
+ * Default to visible so they're reachable on touch / no-hover devices — Tailwind
+ * gates `group-hover:` behind `@media (hover: hover)`, so the old
+ * `opacity-0 group-hover:opacity-100` pattern left these permanently invisible
+ * (and untappable) on phones and touch tablets. On fine-pointer devices they
+ * fade in on hover/focus of the enclosing `.group` as before.
+ *
+ * Apply `hover-reveal` to the element; its ancestor must carry Tailwind's
+ * `group` class.
+ */
+.hover-reveal {
+	opacity: 1;
+	transition: opacity 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.hover-reveal {
+		opacity: 0;
+	}
+
+	.group:hover .hover-reveal,
+	.group:focus-within .hover-reveal {
+		opacity: 1;
+	}
+}
