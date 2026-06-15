@@ -16,20 +16,31 @@ export default async function AppHomePage(props: {
 	const queryClient = new QueryClient();
 
 	if (user) {
-		// Seed must finish before the data queries so new users see their content.
-		// For existing users starterSeededAt is set → single-field lookup → ~instant.
-		await ensureCloudStarterContentSeeded();
+		// Race seeding with the data prefetch instead of serializing it ahead.
+		// Returning users (starterSeededAt set) resolve the seed check instantly,
+		// so the prefetch no longer waits on a serial round trip. Brand-new users
+		// (didSeed) may have prefetched before the seed insert committed, so we
+		// refetch those two queries once afterwards.
+		const prefetchWorkspace = () =>
+			Promise.all([
+				queryClient.prefetchQuery({
+					queryKey: notesKeys.files(),
+					queryFn: () => listNoteMetadata(),
+				}),
+				queryClient.prefetchQuery({
+					queryKey: notesKeys.folders(),
+					queryFn: () => listFolders(),
+				}),
+			]);
 
-		await Promise.all([
-			queryClient.prefetchQuery({
-				queryKey: notesKeys.files(),
-				queryFn: () => listNoteMetadata(),
-			}),
-			queryClient.prefetchQuery({
-				queryKey: notesKeys.folders(),
-				queryFn: () => listFolders(),
-			}),
+		const [didSeed] = await Promise.all([
+			ensureCloudStarterContentSeeded(),
+			prefetchWorkspace(),
 		]);
+
+		if (didSeed) {
+			await prefetchWorkspace();
+		}
 
 		const files = queryClient.getQueryData<Awaited<ReturnType<typeof listNoteMetadata>>>(
 			notesKeys.files(),
