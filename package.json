@@ -48,7 +48,7 @@
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@remcostoeten/analytics": "^1.5.0",
-    "@remcostoeten/auth-drawer": "^0.2.3",
+    "@remcostoeten/auth-drawer": "^0.3.0",
     "@remcostoeten/use-shortcut": "^2.3.0",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-virtual": "^3.13.24",
@@ -61,7 +61,6 @@
     "fflate": "^0.8.2",
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.462.0",
-    "motion": "^12.38.0",
     "next": "16.1.6",
     "ogl": "^1.0.11",
     "pg": "^8.21.0",
@@ -107,5 +106,8 @@
     "@mantine/core": "8.3.18",
     "@mantine/hooks": "8.3.18",
     "prosemirror-model": "1.25.4"
+  },
+  "patchedDependencies": {
+    "@remcostoeten/use-shortcut@2.3.0": "patches/@remcostoeten%2Fuse-shortcut@2.3.0.patch"
   }
 }
