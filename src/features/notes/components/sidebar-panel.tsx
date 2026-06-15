@@ -35,6 +35,9 @@ import {
   SidebarConfigManager,
   JournalSection,
 } from "./sidebar";
+import { SharedSection } from "./sidebar/shared-section";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { FileList } from "./file-list";
 import { NewFolderNoteIcon, NewNoteIcon } from "./sidebar/header-icons";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -94,6 +97,7 @@ export function SidebarPanel({
   showCloseButton = false,
 }: SidebarPanelProps) {
   const { onFileSelect, onToggleFolder, onFilePrefetch } = actions;
+  const isGuest = useIsGuestWorkspace();
   const sidebarStore = useSidebarStore();
   const prefersReducedMotion = useReducedMotion();
   const showSectionHeaders = sidebarStore.config.showSectionHeaders;
@@ -106,6 +110,7 @@ export function SidebarPanel({
   );
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [sharedSectionCollapsed, setSharedSectionCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(
@@ -605,6 +610,11 @@ export function SidebarPanel({
                   onToggleTreeGuides={sidebarStore.toggleTreeGuides}
                   onResetToDefaults={sidebarStore.resetToDefaults}
                 />
+                {!isGuest && (
+                  <HeaderActionTooltip label="Notifications">
+                    <NotificationBell />
+                  </HeaderActionTooltip>
+                )}
             </div>
 
             {showCloseButton && (
@@ -762,6 +772,16 @@ export function SidebarPanel({
           <>
             {fileTreeSection ? renderSection(fileTreeSection) : null}
             {navigationSections.map(renderSection)}
+            {!isGuest && (
+              <SharedSection
+                activeFileId={activeFileId}
+                isCollapsed={sharedSectionCollapsed}
+                showHeader={showSectionHeaders}
+                compactMode={compactMode}
+                onToggleCollapse={() => setSharedSectionCollapsed((p) => !p)}
+                onFileSelect={handleFileSelect}
+              />
+            )}
           </>
         )}
       </div>

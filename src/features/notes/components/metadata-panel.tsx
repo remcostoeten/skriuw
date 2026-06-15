@@ -14,6 +14,7 @@ import {
   Link2,
   ListTree,
   Plus,
+  Users,
   X,
 } from "lucide-react";
 import { memo, type ComponentType, type ReactNode } from "react";
@@ -57,6 +58,8 @@ import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
+import { CollaboratorsSection } from "@/features/collaboration/components/collaborators-section";
+import { useAuth } from "@/core/auth/use-auth";
 
 type Props = {
   file: NoteFile | null;
@@ -71,7 +74,7 @@ type Props = {
   onShare?: (noteId: string) => void;
 };
 
-type SectionKey = "outline" | "tags" | "links" | "history" | "details";
+type SectionKey = "outline" | "tags" | "links" | "history" | "details" | "collaborators";
 
 function normalizeTag(tag: string): string {
   return tag.trim().replace(/^#/, "").toLowerCase();
@@ -560,7 +563,7 @@ const VersionRow = memo(function VersionRow({
         <button
           type="button"
           onClick={onView}
-          className="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground"
+          className="hover-reveal absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
         >
           <Eye className="h-2.5 w-2.5" strokeWidth={1.6} />
           View
@@ -613,7 +616,7 @@ function LinkRow({
             {title}
           </span>
           <ArrowUpRight
-            className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+            className="hover-reveal h-3.5 w-3.5 shrink-0 text-muted-foreground"
             strokeWidth={1.5}
           />
         </button>
@@ -678,6 +681,7 @@ export function MetadataPanel({
     (state) => state.setSelectedInspectorTag,
   );
   const isGuest = useIsGuestWorkspace();
+  const auth = useAuth();
   const backlinksQuery = useNoteBacklinks(file?.id);
   const versionsQuery = useNoteVersions(file?.id);
   const animateNumbers = usePreferencesStore(
@@ -690,6 +694,7 @@ export function MetadataPanel({
       links: true,
       history: true,
       details: true,
+      collaborators: false,
     },
   );
   const isMdx = isMdxNote(file);
@@ -986,7 +991,7 @@ export function MetadataPanel({
                               {getNoteTitle(taggedFile)}
                             </span>
                             <ArrowUpRight
-                              className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                              className="hover-reveal h-3.5 w-3.5 shrink-0 text-muted-foreground"
                               strokeWidth={1.5}
                             />
                           </button>
@@ -1061,6 +1066,23 @@ export function MetadataPanel({
                 </div>
               )}
             </div>
+          </InspectorSection>
+        )}
+
+        {/* Collaborators — only for authenticated note owners (not guests). */}
+        {!isGuest && file && auth.user && (
+          <InspectorSection
+            id="note-inspector-collaborators"
+            title="Collaborators"
+            icon={Users}
+            open={openSections.collaborators}
+            onToggle={() => toggleSection("collaborators")}
+          >
+            <CollaboratorsSection
+              noteId={file.id}
+              ownerName={auth.user.name}
+              isOwner={true}
+            />
           </InspectorSection>
         )}
 

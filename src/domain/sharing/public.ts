@@ -47,6 +47,7 @@ export const peekShare = cache(async function peekShare(
 	const share = await prisma.noteShare.findUnique({
 		where: { token },
 		select: {
+			noteId: true,
 			revokedAt: true,
 			expiresAt: true,
 			consumedAt: true,
@@ -64,6 +65,7 @@ export const peekShare = cache(async function peekShare(
 		status: "ready",
 		requiresPassword: Boolean(share.passwordHash),
 		viewOnce: share.viewOnce,
+		noteId: share.noteId,
 		name: share.name,
 		description: buildSharePreviewDescription(
 			share.content,
@@ -139,6 +141,7 @@ export async function openShare(input: {
 	return {
 		status: "ok",
 		snapshot: {
+			noteId: share.noteId,
 			name: share.name,
 			content: share.content,
 			richContent: (share.richContent as RichTextDocument | null) ?? null,

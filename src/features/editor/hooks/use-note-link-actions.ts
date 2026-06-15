@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { findNoteByTitle, normalizeNoteTitle } from "@/domain/notes/note-links";
+import { findFirstNoteByTitle, normalizeNoteTitle } from "@/domain/notes/note-links";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { updateNoteUrl } from "@/features/notes/hooks/use-notes-navigation";
 import { useNotesStore } from "@/features/notes/store";
@@ -50,7 +50,10 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 			const trimmed = title.trim();
 			if (!trimmed) return;
 
-			const existing = findNoteByTitle(files, trimmed);
+			// Open ANY existing match — including when the title is ambiguous
+			// (duplicates already exist). Creating here would add a third
+			// duplicate and keep the link permanently ambiguous.
+			const existing = findFirstNoteByTitle(files, trimmed);
 			if (existing) {
 				openNote(existing.id);
 				return;

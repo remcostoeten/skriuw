@@ -4,6 +4,7 @@ import { listFolders } from "@/domain/folders/queries";
 import { getNote, listNoteMetadata } from "@/domain/notes/queries";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { loadGuestWorkspaceSnapshot } from "@/domain/seed/guest-bundle";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 
@@ -45,7 +46,11 @@ export default async function AppHomePage(props: {
 		const files = queryClient.getQueryData<Awaited<ReturnType<typeof listNoteMetadata>>>(
 			notesKeys.files(),
 		);
-		const initialActiveFileId = searchParams?.note ?? files?.[0]?.id ?? null;
+		// Ignore a stale `?note=guest:…` carried over from a guest session — that
+		// id isn't a persisted UUID, so prefetching it would throw P2007.
+		const requestedNoteId =
+			searchParams?.note && !isGuestScopedId(searchParams.note) ? searchParams.note : null;
+		const initialActiveFileId = requestedNoteId ?? files?.[0]?.id ?? null;
 		if (initialActiveFileId) {
 			await queryClient.prefetchQuery({
 				queryKey: notesKeys.detail(initialActiveFileId),
