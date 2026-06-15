@@ -1,6 +1,6 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/core/db";
+import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import {
 	assertOwnedParentFolder,
@@ -25,7 +25,7 @@ import {
 	NOTE_VERSION_RETENTION_LIMIT,
 	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
-import { getNote, listNoteVersions } from "@/domain/notes/queries";
+import { listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
@@ -493,21 +493,36 @@ export async function deleteNote(id: string): Promise<void> {
 }
 
 export async function fetchNote(id: string): Promise<NoteFile | null> {
-	return getNote(id);
+	const { prisma, user } = await tryGetAuthenticatedUser();
+	if (!user) return null;
+
+	const record = await prisma.note.findFirst({
+		where: { userId: user.id, id, deletedAt: null },
+	});
+	return record ? recordToNoteFile(record) : null;
 }
 
 export async function fetchNoteBacklinks(id: string): Promise<ResolvedNoteLink[]> {
+	const { user } = await tryGetAuthenticatedUser();
+	if (!user) return [];
+
 	return listNoteBacklinks(id);
 }
 
 export async function fetchNoteVersions(id: string): Promise<NoteVersion[]> {
+	const { user } = await tryGetAuthenticatedUser();
+	if (!user) return [];
+
 	return listNoteVersions(id);
 }
 
 // Builds the whole-workspace knowledge graph (notes + tags as nodes, persisted
 // note_links as edges) plus connectivity/cluster metrics for the graph view.
 export async function fetchNoteGraph(): Promise<GraphData> {
-	const { prisma, user } = await getAuthenticatedUser();
+	const { prisma, user } = await tryGetAuthenticatedUser();
+	if (!user) {
+		return buildGraphData([], []);
+	}
 
 	const [notes, links] = await Promise.all([
 		prisma.note.findMany({
