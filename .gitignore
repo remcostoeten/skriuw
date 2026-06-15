@@ -34,7 +34,7 @@ test-results/
 *.tsbuildinfo
 
 # Prisma generated client (regenerated via `bunx prisma generate`)
-src/generated/
+/generated/
 
 TODO.*
 .env*.local

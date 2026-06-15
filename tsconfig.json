@@ -24,6 +24,9 @@
     ],
     "baseUrl": ".",
     "paths": {
+      "@/generated/*": [
+        "./generated/*"
+      ],
       "@/*": [
         "./src/*"
       ]
@@ -40,6 +43,7 @@
   "exclude": [
     "apps/mobile/**",
     "project-management/**",
+    "generated/**",
     "node_modules"
   ]
 }
