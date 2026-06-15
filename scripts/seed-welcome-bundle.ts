@@ -8,7 +8,7 @@
 
 import "dotenv/config";
 import { buildTableBlock } from "../src/domain/notes/rich-document";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { normalizeDatabaseUrl } from "../src/lib/database-url";
 
