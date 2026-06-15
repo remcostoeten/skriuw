@@ -1,7 +1,7 @@
 "use client";
 
 import { createReactInlineContentSpec } from "@blocknote/react";
-import { resolveNoteLink, type NoteLink } from "@/domain/notes/note-links";
+import { findFirstNoteByTitle, resolveNoteLink, type NoteLink } from "@/domain/notes/note-links";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import { useNoteLinkContext } from "./note-link-context";
 import { cn } from "@/shared/lib/utils";
@@ -52,6 +52,15 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 					return;
 				}
 
+				// Ambiguous: more than one note shares this title. Open the first
+				// match so the link stays navigable instead of being a dead button
+				// (and so we never create a further duplicate).
+				if (resolved.status === "ambiguous") {
+					const match = findFirstNoteByTitle(files, title);
+					if (match) openNote(match.id);
+					return;
+				}
+
 				if (resolved.status === "unresolved") {
 					createAndOpenNote(title);
 				}
@@ -60,7 +69,7 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 			const tooltip = isResolved
 				? `Open ${title}`
 				: resolved.status === "ambiguous"
-					? `Multiple notes match "${title}"`
+					? `Open ${title} (multiple notes match)`
 					: isCreating
 						? `Creating "${title}"…`
 						: `Create note "${title}"`;
@@ -83,7 +92,7 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 						isResolved
 							? "underline decoration-foreground/50 decoration-1 underline-offset-[3px] hover:bg-foreground/[0.08] hover:decoration-foreground cursor-pointer"
 							: resolved.status === "ambiguous"
-								? "text-warning underline decoration-warning/60 decoration-1 underline-offset-[3px] cursor-help"
+								? "text-warning underline decoration-warning/60 decoration-1 underline-offset-[3px] hover:bg-warning/10 cursor-pointer"
 								: "text-primary underline decoration-primary/40 decoration-dashed decoration-1 underline-offset-[3px] hover:bg-primary/10 hover:decoration-primary/70 cursor-pointer",
 					)}
 				>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { peekShare } from "@/domain/sharing/public";
+import { getCollaborationStatusForNote } from "@/domain/collaboration/actions";
 import { ShareStateScreen } from "./share-state-screen";
 import { ShareViewer } from "./share-viewer";
 
@@ -67,12 +68,15 @@ export default async function PublicSharePage({
 		return <ShareStateScreen status={peek.status} />;
 	}
 
+	const initialCollabStatus = await getCollaborationStatusForNote(peek.noteId);
+
 	return (
 		<ShareViewer
 			token={token}
 			name={peek.name}
 			requiresPassword={peek.requiresPassword}
 			viewOnce={peek.viewOnce}
+			initialCollabStatus={initialCollabStatus}
 		/>
 	);
 }

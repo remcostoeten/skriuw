@@ -194,6 +194,20 @@ export function findNoteByTitle(
 	return null;
 }
 
+/**
+ * Like {@link findNoteByTitle}, but returns the first match even when the title
+ * is ambiguous (more than one note shares it). Used by the wiki-link open/create
+ * flow so an already-existing note is opened instead of spawning yet another
+ * duplicate — which is what turns a single accidental duplicate into a cascade.
+ */
+export function findFirstNoteByTitle(
+	files: NoteFile[],
+	title: string,
+): NoteFile | null {
+	const matches = buildTitleIndex(files).get(normalizeNoteTitle(title)) ?? [];
+	return matches[0] ?? null;
+}
+
 function dedupeLinks(
 	links: ResolvedNoteLink[],
 	keyFor: (link: ResolvedNoteLink) => string,

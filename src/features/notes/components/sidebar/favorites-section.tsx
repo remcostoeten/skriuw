@@ -148,7 +148,7 @@ export const FavoritesSection = memo(function FavoritesSection({
 								aria-label="Remove from favorites"
 								onClick={() => onRemoveFromFavorites(fav.itemId)}
 								className={cn(
-									"flex shrink-0 items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100",
+									"hover-reveal flex shrink-0 items-center justify-center border border-transparent text-muted-foreground/50 transition-all hover:border-border hover:bg-muted hover:text-foreground",
 									compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
 								)}
 							>
