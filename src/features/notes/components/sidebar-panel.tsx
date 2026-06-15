@@ -15,7 +15,6 @@ import { cn } from "@/shared/lib/utils";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import {
@@ -515,8 +514,7 @@ export function SidebarPanel({
             inert={isSearchOpen}
             aria-hidden={isSearchOpen}
           >
-            <TooltipProvider delayDuration={120}>
-              <div className="flex items-center gap-2 md:gap-2.5 w-full justify-between">
+            <div className="flex items-center gap-2 md:gap-2.5 w-full justify-between">
                 <HeaderActionTooltip label="New note">
                   <button
                     onClick={onCreateFile}
@@ -603,8 +601,7 @@ export function SidebarPanel({
                   onToggleTreeGuides={sidebarStore.toggleTreeGuides}
                   onResetToDefaults={sidebarStore.resetToDefaults}
                 />
-              </div>
-            </TooltipProvider>
+            </div>
 
             {showCloseButton && (
               <button
