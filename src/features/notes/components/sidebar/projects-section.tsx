@@ -38,6 +38,7 @@ type Props = {
 	canMoveDown?: boolean;
 	onManageSections: () => void;
 	onFileSelect: (id: string) => void;
+	onFilePrefetch?: (id: string) => void;
 	onCreateProject: (name: string, color?: string) => void;
 	onUpdateProject: (projectId: string, updates: Partial<Project>) => void;
 	onDeleteProject: (projectId: string) => void;
@@ -66,6 +67,7 @@ export function ProjectsSection({
 	canMoveUp,
 	canMoveDown,
 	onFileSelect,
+	onFilePrefetch,
 	onCreateProject,
 	onUpdateProject,
 	onDeleteProject,
@@ -343,6 +345,7 @@ export function ProjectsSection({
 												<ContextMenuTrigger asChild>
 													<button
 														onClick={() => onFileSelect(file.id)}
+														onPointerEnter={() => onFilePrefetch?.(file.id)}
 														className={cn(
 															"group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
 															compactMode ? "h-6" : "h-7",

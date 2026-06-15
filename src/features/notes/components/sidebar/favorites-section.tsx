@@ -26,6 +26,7 @@ type Props = {
 	canMoveDown?: boolean;
 	onManageSections: () => void;
 	onFileSelect: (id: string) => void;
+	onFilePrefetch?: (id: string) => void;
 	onRemoveFromFavorites: (itemId: string) => void;
 	isDraggable?: boolean;
 	isDragging?: boolean;
@@ -51,6 +52,7 @@ export const FavoritesSection = memo(function FavoritesSection({
 	canMoveUp,
 	canMoveDown,
 	onFileSelect,
+	onFilePrefetch,
 	onRemoveFromFavorites,
 	isDraggable,
 	isDragging,
@@ -123,6 +125,9 @@ export const FavoritesSection = memo(function FavoritesSection({
 							<button
 								type="button"
 								onClick={() => fav.itemType === "file" && onFileSelect(fav.itemId)}
+								onPointerEnter={() =>
+									fav.itemType === "file" && onFilePrefetch?.(fav.itemId)
+								}
 								className="flex min-w-0 flex-1 items-center gap-2 text-left"
 							>
 								{fav.itemType === "file" ? (

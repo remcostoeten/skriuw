@@ -4,6 +4,7 @@ mock.module("@/core/analytics/config", () => ({
 	isClientAnalyticsDisabled: () => false,
 	resolveClientIngestUrl: () => "https://example.com/ingest",
 	SKRIUW_PROJECT_ID: "skriuw",
+	isBraveBrowser: () => false,
 }));
 
 mock.module("@/core/auth", () => ({
@@ -21,6 +22,8 @@ mock.module("@/features/settings/store", () => ({
 const { hasProductAnalyticsConsent, isGuestVisitor, resolveAnalyticsConsent } = await import(
 	"@/core/analytics/client"
 );
+
+mock.restore();
 
 describe("analytics consent", () => {
 	test("tracks demo visitors without requiring account consent", () => {

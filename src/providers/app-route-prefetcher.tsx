@@ -5,7 +5,18 @@ import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 
 const GUEST_APP_ROUTES = ["/app"] as const;
-const AUTHED_APP_ROUTES = ["/app", "/app/graph"] as const;
+// Warm the full router cache for every workspace view the signed-in user can
+// reach from the icon rail. `router.prefetch` fetches the complete route
+// payload (data included, not just the loading.tsx boundary), and with
+// `staleTimes.dynamic` set these stay reusable — so the first hop to any of
+// these lands without replaying a skeleton.
+const AUTHED_APP_ROUTES = [
+	"/app",
+	"/app/graph",
+	"/app/journal",
+	"/app/settings",
+	"/app/shared",
+] as const;
 
 function scheduleIdle(callback: () => void): () => void {
 	if (typeof window === "undefined") return () => {};

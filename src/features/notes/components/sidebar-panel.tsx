@@ -93,7 +93,7 @@ export function SidebarPanel({
   onRequestClose,
   showCloseButton = false,
 }: SidebarPanelProps) {
-  const { onFileSelect, onToggleFolder } = actions;
+  const { onFileSelect, onToggleFolder, onFilePrefetch } = actions;
   const sidebarStore = useSidebarStore();
   const prefersReducedMotion = useReducedMotion();
   const showSectionHeaders = sidebarStore.config.showSectionHeaders;
@@ -367,6 +367,7 @@ export function SidebarPanel({
             }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
+            onFilePrefetch={onFilePrefetch}
             onRemoveFromFavorites={sidebarStore.removeFromFavorites}
             {...getSectionMoveProps(section.id)}
             {...getSectionDragProps(section.id)}
@@ -392,6 +393,7 @@ export function SidebarPanel({
             }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
+            onFilePrefetch={onFilePrefetch}
             onClearRecents={sidebarStore.clearRecents}
             {...getSectionMoveProps(section.id)}
             {...getSectionDragProps(section.id)}
@@ -417,6 +419,7 @@ export function SidebarPanel({
             }
             onManageSections={openConfigPanel}
             onFileSelect={handleFileSelect}
+            onFilePrefetch={onFilePrefetch}
             onCreateProject={sidebarStore.createProject}
             onUpdateProject={sidebarStore.updateProject}
             onDeleteProject={sidebarStore.deleteProject}
@@ -482,6 +485,7 @@ export function SidebarPanel({
             onRename={(name) => sidebarStore.renameSection(section.id, name)}
             onDelete={() => sidebarStore.removeSection(section.id)}
             onFileSelect={handleFileSelect}
+            onFilePrefetch={onFilePrefetch}
             onRemoveFromSection={sidebarStore.removeFromCustomSection}
             {...getSectionMoveProps(section.id)}
             {...getSectionDragProps(section.id)}

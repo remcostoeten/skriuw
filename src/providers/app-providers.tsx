@@ -10,6 +10,8 @@ import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
 import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
+import { QueryCachePersistence } from "@/providers/query-cache-persistence";
+import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { GuestSignupPrompt } from "@/features/layout/components/guest-signup-prompt";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
@@ -79,6 +81,11 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 				defaultOptions: {
 					queries: {
 						staleTime: 60 * 1000,
+						// Keep inactive queries around far longer than the 5-minute
+						// default so the local-first cache survives between views and
+						// so QueryCachePersistence can write them to IndexedDB before
+						// they are garbage collected.
+						gcTime: 1000 * 60 * 60 * 24,
 						// User-owned, mutation-driven data: tab-focus refetches are
 						// almost always wasted round trips. Mutations invalidate the
 						// specific keys that need it.
@@ -90,6 +97,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 
 	return (
 		<QueryClientProvider client={queryClient}>
+			<QueryCachePersistence />
 			<MotionPreferences>
 				<TooltipProvider delayDuration={300}>
 					<EditorPreferencesBootstrap
@@ -100,6 +108,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<PersistenceBootstrap />
 							<GuestWorkspaceBootstrap />
 							<AppRoutePrefetcher />
+							<WorkspaceWarmup />
 							<ThemeAttribute />
 							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
 							<UserToastHost />
