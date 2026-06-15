@@ -13,8 +13,11 @@ import { ensureStarterContentForUserId } from "@/domain/seed/provision";
  * - If no SeedBundle is marked active, returns immediately.
  * - Otherwise clones folders + notes (+ tags, journals) into the user's
  *   workspace in a single transaction, then stamps `starterSeededAt`.
+ *
+ * Resolves to `true` only when this request actually created starter content,
+ * letting page loaders re-run a prefetch that may have raced the seed insert.
  */
-export const ensureCloudStarterContentSeeded = cache(async function ensureCloudStarterContentSeeded(): Promise<void> {
+export const ensureCloudStarterContentSeeded = cache(async function ensureCloudStarterContentSeeded(): Promise<boolean> {
 	const { user } = await getAuthenticatedUser();
-	await ensureStarterContentForUserId(user.id);
+	return ensureStarterContentForUserId(user.id);
 });

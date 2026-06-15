@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
 	reactStrictMode: true,
 	experimental: {
+		// Trim barrel re-export overhead for large named-import libs.
+		optimizePackageImports: [
+			"lucide-react",
+			"date-fns",
+			"@mantine/core",
+			"@mantine/hooks",
+		],
 		staleTimes: {
 			// Next 16 gives dynamic page segments a 0s client cache by default.
 			// The app workspace is private, stateful UI; short-lived router reuse

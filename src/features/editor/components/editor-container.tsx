@@ -376,7 +376,7 @@ export function EditorContainer({
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const isAiAvailable = effectiveEditorMode === "block";
 	const canUseAi = isAiAvailable;
-	const wordCount = getWordCount(file?.content ?? "");
+	const wordCount = useMemo(() => getWordCount(file?.content ?? ""), [file?.content]);
 
 	const availableKeysForFallback = rateLimitPrompt
 		? listFallbackAiKeys({

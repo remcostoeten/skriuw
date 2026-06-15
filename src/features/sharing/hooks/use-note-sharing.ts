@@ -31,7 +31,7 @@ export function useNoteSharing(noteId: string | null | undefined) {
 	const shareQuery = useAuthedApiQuery<TNoteShareState | null>(
 		sharingKeys.share(id),
 		() => getNoteShare(id),
-		{ enabled: Boolean(id), staleTime: 0 },
+		{ enabled: Boolean(id), staleTime: 5 * 60 * 1000 },
 	);
 
 	const publish = useApiMutation<TPublishNoteInput, TNoteShareState>(publishNote, {

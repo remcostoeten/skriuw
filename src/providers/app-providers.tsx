@@ -79,6 +79,10 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 				defaultOptions: {
 					queries: {
 						staleTime: 60 * 1000,
+						// User-owned, mutation-driven data: tab-focus refetches are
+						// almost always wasted round trips. Mutations invalidate the
+						// specific keys that need it.
+						refetchOnWindowFocus: false,
 					},
 				},
 			}),

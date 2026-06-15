@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { RichTextDocument } from "@/domain/notes/models";
@@ -38,8 +39,23 @@ async function logShareView(shareId: string, token: string): Promise<void> {
  * content and never spends a view-once link, so it is safe under link-preview
  * crawlers and browser prefetch.
  */
-export async function peekShare(token: string): Promise<TPublicSharePeek> {
-	const share = await prisma.noteShare.findUnique({ where: { token } });
+export const peekShare = cache(async function peekShare(
+	token: string,
+): Promise<TPublicSharePeek> {
+	// cache() dedupes the two calls per request (generateMetadata + page body).
+	// Selected columns only — never pulls the heavy richContent JSON for a peek.
+	const share = await prisma.noteShare.findUnique({
+		where: { token },
+		select: {
+			revokedAt: true,
+			expiresAt: true,
+			consumedAt: true,
+			viewOnce: true,
+			passwordHash: true,
+			name: true,
+			content: true,
+		},
+	});
 	if (!share) return { status: "not-found" };
 	if (share.revokedAt) return { status: "revoked" };
 	if (isExpired(share.expiresAt)) return { status: "expired" };
@@ -54,7 +70,7 @@ export async function peekShare(token: string): Promise<TPublicSharePeek> {
 			Boolean(share.passwordHash),
 		),
 	};
-}
+});
 
 /**
  * Validates access, then consumes (view-once, atomically) and returns the
