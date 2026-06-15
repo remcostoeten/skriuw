@@ -12,8 +12,10 @@ export function useNoteVersions(noteId: string | null | undefined) {
 		notesKeys.versions(id),
 		() => fetchNoteVersions(id),
 		{
+			// Versions only grow via the user's own saves, which invalidate
+			// versionsAll(). Cache between mounts instead of refetching.
 			enabled: Boolean(id),
-			staleTime: 0,
+			staleTime: 5 * 60 * 1000,
 		},
 	);
 }

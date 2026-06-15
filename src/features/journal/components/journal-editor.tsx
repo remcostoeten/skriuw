@@ -7,9 +7,20 @@ import { cn } from "@/shared/lib/utils";
 import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
+import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
-import { RichTextEditor } from "@/features/editor/components/rich-text-editor";
+import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
 import { useNotes } from "@/features/notes/hooks/use-notes";
+
+// Lazy-load BlockNote/Mantine off the journal route's critical path (ssr:false),
+// matching the notes editor's dynamic boundary in editor.tsx.
+const RichTextEditor = dynamic(
+	() =>
+		import("@/features/editor/components/rich-text-editor").then((mod) => ({
+			default: mod.RichTextEditor,
+		})),
+	{ ssr: false, loading: () => <EditorContentSkeleton /> },
+);
 import { usePreferencesStore } from "@/features/settings/store";
 import { useJournalTags } from "../hooks/use-journal-tags";
 

@@ -1,47 +1,66 @@
 import { getAuthenticatedUser } from "@/core/db";
-import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence-types";
-import { buildNoteBacklinks, type ResolvedNoteLink } from "@/domain/notes/note-links";
-import type { NoteFile } from "@/types/notes";
+import type { MarkdownContent } from "@/core/persistence-types";
+import {
+	getNoteTitle,
+	normalizeNoteTitle,
+	type NoteLinkKind,
+	type ResolvedNoteLink,
+} from "@/domain/notes/note-links";
 
+// Backlinks are resolved from the persisted `note_links` table (indexed on
+// [userId, targetNoteId]) instead of scanning every note's `content` for "[["
+// and transferring full note bodies. Wiki links are stored with
+// targetNoteId=null + a normalized targetLabel, so we also match the active
+// note's title keys (filename + heading). Note: a wiki link whose title is
+// shared by multiple notes resolves to each of them here (the previous
+// content-scan treated such ambiguous links as unresolved); this only affects
+// duplicate-title notes and surfaces more backlinks rather than fewer.
 export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLink[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 
-	const records = await prisma.note.findMany({
-		where: {
-			userId: user.id,
-			deletedAt: null,
-			OR: [
-				{ id: noteId },
-				{ content: { contains: "[[" } },
-				{ content: { contains: "note://" } },
-			],
-		},
-		select: {
-			id: true,
-			name: true,
-			content: true,
-			preferredEditorMode: true,
-			parentId: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
+	const activeNote = await prisma.note.findFirst({
+		where: { userId: user.id, id: noteId, deletedAt: null },
+		select: { name: true, content: true },
 	});
-
-	const files: NoteFile[] = records.map((record) => ({
-		id: record.id as NoteId,
-		name: record.name,
-		content: record.content as MarkdownContent,
-		richContent: [],
-		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
-		parentId: record.parentId as FolderId | null,
-		tags: record.tags.map((tag) => tag as TagName),
-		createdAt: new Date(record.createdAt.toISOString() as IsoTime),
-		modifiedAt: new Date(record.updatedAt.toISOString() as IsoTime),
-	}));
-
-	const activeNote = files.find((file) => file.id === noteId);
 	if (!activeNote) return [];
 
-	return buildNoteBacklinks(activeNote, files);
+	const titleKeys = [
+		normalizeNoteTitle(activeNote.name),
+		normalizeNoteTitle(
+			getNoteTitle({ name: activeNote.name, content: activeNote.content as MarkdownContent }),
+		),
+	].filter((key, index, all) => Boolean(key) && all.indexOf(key) === index);
+
+	const rows = await prisma.noteLink.findMany({
+		where: {
+			userId: user.id,
+			kind: { not: "tag" },
+			sourceNoteId: { not: noteId },
+			OR: [
+				{ targetNoteId: noteId },
+				...(titleKeys.length > 0
+					? [{ targetNoteId: null, targetLabel: { in: titleKeys } }]
+					: []),
+			],
+		},
+		select: { sourceNoteId: true, targetLabel: true, kind: true },
+	});
+
+	// One backlink entry per referencing note.
+	const seen = new Set<string>();
+	const backlinks: ResolvedNoteLink[] = [];
+	for (const row of rows) {
+		if (seen.has(row.sourceNoteId)) continue;
+		seen.add(row.sourceNoteId);
+		backlinks.push({
+			raw: row.targetLabel,
+			kind: row.kind as NoteLinkKind,
+			sourceNoteId: row.sourceNoteId,
+			targetLabel: row.targetLabel,
+			targetNoteId: noteId,
+			status: "resolved",
+		});
+	}
+
+	return backlinks;
 }
