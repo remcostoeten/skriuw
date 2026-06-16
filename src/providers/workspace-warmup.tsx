@@ -6,14 +6,18 @@ import { useAuth } from "@/core/auth/use-auth";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
-import { fetchNote } from "@/domain/notes/actions";
-import { fetchGuestSeedNote } from "@/domain/seed/actions";
+import type { NoteFile } from "@/domain/notes/models";
+import { fetchNotes } from "@/domain/notes/actions";
+import { fetchGuestSeedNotes } from "@/domain/seed/actions";
 
-// Cap the background warm-up so a very large workspace doesn't fire hundreds of
-// requests on load. Beyond this, notes still load instantly once hovered or
+// Cap the background warm-up so a very large workspace doesn't fetch an unbounded
+// payload on load. Beyond this, notes still load instantly once hovered or
 // opened (hover-prefetch + staleTime: Infinity keep them cached thereafter).
 const MAX_WARMUP_NOTES = 250;
-const BATCH_SIZE = 6;
+// Note bodies are fetched in a single batched server call per chunk (one DB
+// `IN` query / one guest snapshot read) instead of one request per note, so the
+// chunk can be large — this is about bounding payload size, not round-trips.
+const BATCH_SIZE = 100;
 
 function scheduleIdle(callback: () => void): () => void {
 	if (typeof window === "undefined") return () => {};
@@ -64,15 +68,16 @@ export function WorkspaceWarmup() {
 				for (let i = 0; i < pending.length; i += BATCH_SIZE) {
 					if (cancelled) return;
 					const batch = pending.slice(i, i + BATCH_SIZE);
-					await Promise.all(
-						batch.map((id) =>
-							queryClient.prefetchQuery({
-								queryKey: notesKeys.detail(id),
-								queryFn: () => (isGuest ? fetchGuestSeedNote(id) : fetchNote(id)),
-								staleTime: Number.POSITIVE_INFINITY,
-							}),
-						),
-					);
+					// One batched fetch for the whole chunk instead of N round-trips.
+					const notes: NoteFile[] = isGuest
+						? await fetchGuestSeedNotes(batch)
+						: await fetchNotes(batch);
+					if (cancelled) return;
+					// Seed each returned body straight into the detail cache so
+					// useNote() reads it instantly with no fetch and no skeleton.
+					for (const note of notes) {
+						queryClient.setQueryData(notesKeys.detail(note.id), note);
+					}
 				}
 			})();
 		});
