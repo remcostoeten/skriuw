@@ -15,6 +15,7 @@ import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -378,6 +379,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(id: string, options?: NoteUrlSyncOptions) => {
 			triggerNativeFeedback("selection");
 
+			// Start the select→painted timer (warm = body already cached).
+			if (id && id !== activeFileId) {
+				perf.openStart(
+					id,
+					queryClient.getQueryData(notesKeys.detail(id)) !== undefined,
+				);
+			}
+
 			if (splitSecondaryFileId && !isMobile) {
 				if (id === activeFileId) {
 					setFocusedEditorPane("primary");
@@ -419,6 +428,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			flushContentInBackground,
 			focusedEditorPane,
 			isMobile,
+			queryClient,
 			setFocusedEditorPane,
 			setSecondaryFile,
 			setUIState,
