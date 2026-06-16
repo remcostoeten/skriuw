@@ -899,7 +899,11 @@ export function RichTextEditor({
 		});
 	}, [editor, onEditorReady]);
 
-	const handleEditorChange = useCallback(async () => {
+	// Serializes the live editor document and commits it via onChange when it
+	// actually differs from the last committed snapshot. The expensive work
+	// (markdown serialization + deep clone + JSON.stringify) runs here only —
+	// once per debounce settle / flush — never on every keystroke.
+	const serializeAndCommit = useCallback(async () => {
 		if (!editor) return;
 
 		const runId = ++serializeRunIdRef.current;
@@ -912,39 +916,49 @@ export function RichTextEditor({
 		const nextRichContent = cloneRichDocument(editor.document as any);
 		const nextRichContentKey = JSON.stringify(nextRichContent);
 
+		pendingMarkdownRef.current = markdown;
+		pendingRichContentRef.current = nextRichContent;
+
+		// First change after mount / note switch only normalizes the snapshot
+		// so we don't echo the parsed-on-load document straight back as an edit.
 		if (!hasNormalizedInitialContentRef.current) {
 			hasNormalizedInitialContentRef.current = true;
 			lastContentRef.current = markdown;
 			lastRichContentRef.current = nextRichContentKey;
-			pendingMarkdownRef.current = markdown;
 			return;
 		}
 
-		pendingMarkdownRef.current = markdown;
-		pendingRichContentRef.current = nextRichContent;
+		if (
+			markdown === lastContentRef.current &&
+			nextRichContentKey === lastRichContentRef.current
+		) {
+			return;
+		}
+
+		isInternalChangeRef.current = true;
+		lastContentRef.current = markdown;
+		lastRichContentRef.current = nextRichContentKey;
+		onChange({ markdown, richContent: nextRichContent });
+
+		window.setTimeout(() => {
+			isInternalChangeRef.current = false;
+		}, 80);
+	}, [editor, onChange]);
+
+	// Per-keystroke handler: cheap. It only re-arms the debounce timer; no
+	// serialization, cloning, or stringify happens here.
+	const handleEditorChange = useCallback(() => {
+		if (!editor) return;
 
 		if (saveTimeoutRef.current) {
 			clearTimeout(saveTimeoutRef.current);
 		}
 
 		saveTimeoutRef.current = setTimeout(() => {
-			if (
-				pendingMarkdownRef.current === lastContentRef.current &&
-				nextRichContentKey === lastRichContentRef.current
-			) {
-				return;
-			}
-
-			isInternalChangeRef.current = true;
-			lastContentRef.current = pendingMarkdownRef.current;
-			lastRichContentRef.current = nextRichContentKey;
-			onChange({ markdown: pendingMarkdownRef.current, richContent: nextRichContent });
-
-			window.setTimeout(() => {
-				isInternalChangeRef.current = false;
-			}, 80);
+			saveTimeoutRef.current = null;
+			void serializeAndCommit();
 		}, 180);
-	}, [editor, onChange]);
+	}, [editor, serializeAndCommit]);
 
 	const flushPendingEditorChange = useCallback(() => {
 		if (saveTimeoutRef.current) {
@@ -952,24 +966,8 @@ export function RichTextEditor({
 			saveTimeoutRef.current = null;
 		}
 
-		const nextRichContent = pendingRichContentRef.current;
-		const nextRichContentKey = JSON.stringify(nextRichContent);
-		if (
-			pendingMarkdownRef.current === lastContentRef.current &&
-			nextRichContentKey === lastRichContentRef.current
-		) {
-			return;
-		}
-
-		isInternalChangeRef.current = true;
-		lastContentRef.current = pendingMarkdownRef.current;
-		lastRichContentRef.current = nextRichContentKey;
-		onChange({ markdown: pendingMarkdownRef.current, richContent: nextRichContent });
-
-		window.setTimeout(() => {
-			isInternalChangeRef.current = false;
-		}, 80);
-	}, [onChange]);
+		void serializeAndCommit();
+	}, [serializeAndCommit]);
 
 	useEffect(() => {
 		if (!editor || isInternalChangeRef.current) return;

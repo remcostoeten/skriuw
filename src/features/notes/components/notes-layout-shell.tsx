@@ -331,10 +331,15 @@ export function NotesLayoutShell({
 											}}
 											isContentLoading={showContentSkeleton}
 											fileName={
-												displayFile?.name ??
+												// Prefer the selected note's name from metadata
+												// (always available, updates the same commit
+												// selection moves) so the toolbar tracks the
+												// sidebar instantly during a cold swap — even
+												// while the previous body is still on screen.
 												files.find(
 													(file) => file.id === layout.activeFileId,
 												)?.name ??
+												displayFile?.name ??
 												"No file selected"
 											}
 											onRenameFile={layout.renameFile}

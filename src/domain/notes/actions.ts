@@ -13,6 +13,7 @@ import {
 	updateNoteInputSchema,
 } from "@/domain/validation/schemas";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import type {
 	NoteFile,
 	NoteVersion,
@@ -67,6 +68,17 @@ type NoteVersionRecord = {
 	contentHash: string;
 	createdAt: Date;
 };
+
+const UUID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function uniquePersistedNoteIds(ids: string[]): string[] {
+	return Array.from(
+		new Set(
+			ids.filter((id) => id && !isGuestScopedId(id) && UUID_PATTERN.test(id)),
+		),
+	);
+}
 
 function recordToNoteFile(record: NoteRecord): NoteFile {
 	const richContent =
@@ -500,6 +512,23 @@ export async function fetchNote(id: string): Promise<NoteFile | null> {
 		where: { userId: user.id, id, deletedAt: null },
 	});
 	return record ? recordToNoteFile(record) : null;
+}
+
+export async function fetchNotes(ids: string[]): Promise<NoteFile[]> {
+	const { prisma, user } = await tryGetAuthenticatedUser();
+	if (!user) return [];
+
+	const persistedIds = uniquePersistedNoteIds(ids);
+	if (persistedIds.length === 0) return [];
+
+	const records = await prisma.note.findMany({
+		where: {
+			userId: user.id,
+			id: { in: persistedIds },
+			deletedAt: null,
+		},
+	});
+	return records.map(recordToNoteFile);
 }
 
 export async function fetchNoteBacklinks(id: string): Promise<ResolvedNoteLink[]> {
