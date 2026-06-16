@@ -31,6 +31,7 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
 import { FileText, FolderTree, Link2, PenTool, SpellCheck, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { perf } from "@/shared/perf/track";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
 import {
@@ -912,9 +913,11 @@ export function RichTextEditor({
 			return;
 		}
 
+		const serializeStart = performance.now();
 		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
 		const nextRichContent = cloneRichDocument(editor.document as any);
 		const nextRichContentKey = JSON.stringify(nextRichContent);
+		perf.serialize(performance.now() - serializeStart);
 
 		pendingMarkdownRef.current = markdown;
 		pendingRichContentRef.current = nextRichContent;

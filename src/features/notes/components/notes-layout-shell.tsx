@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
+import { perf } from "@/shared/perf/track";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
@@ -169,6 +170,15 @@ export function NotesLayoutShell({
 		isActiveNoteLoading && isEditorReady && lastLoadedFileRef.current !== null;
 	const displayFile = activeFile ?? (isSwappingNote ? lastLoadedFileRef.current : null);
 	const showContentSkeleton = (isActiveNoteLoading || !isEditorReady) && !displayFile;
+
+	// Close the select→painted timer once the real body for the selected note is
+	// on screen (resolved, not a placeholder, no skeleton). No-op unless perf
+	// tracking is enabled, so it's free in production.
+	const paintedFileId =
+		!showContentSkeleton && activeFile?.id === layout.activeFileId ? activeFile?.id : null;
+	useEffect(() => {
+		if (paintedFileId) perf.openEnd(paintedFileId);
+	}, [paintedFileId]);
 
 	if (forceLoading) {
 		return <WorkspaceLoadingShell variant="notes" />;
