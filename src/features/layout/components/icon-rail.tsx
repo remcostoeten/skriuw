@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Kanban, Settings, UserRound, Waypoints } from "lucide-react";
+import { BookOpen, Kanban, Loader2, Settings, UserRound, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -22,6 +22,21 @@ type Props = {
 	onOpenSettings: () => void;
 };
 
+/**
+ * Rendered inside the drawer's success-commit state (below the checkmark
+ * banner). Adds a second line of "still working" feedback so the gap between a
+ * successful submit and the route redirect reads as an intentional hand-off
+ * rather than a frozen drawer.
+ */
+function AuthCommitFooter() {
+	return (
+		<span className="mt-3 flex items-center justify-center gap-2 text-[0.75rem] text-muted-foreground">
+			<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} aria-hidden="true" />
+			Setting up your workspace
+		</span>
+	);
+}
+
 const authDrawerConfig = {
 	ui: {
 		presentation: { variant: "drawer" },
@@ -41,13 +56,20 @@ const authDrawerConfig = {
 			},
 		},
 		success: {
-			minVisibleMs: 900,
+			enabled: true,
+			// Hold the confirmation on screen long enough to register as a real
+			// state change (not a flash), but release as soon as the session has
+			// committed and we're ready to push the user to their destination.
+			minVisibleMs: 1100,
 			maxVisibleMs: 4500,
+			// Paired with the success checkmark: acknowledge the result, then signal
+			// the hand-off so the redirect doesn't feel like an abrupt cut.
 			messages: {
-				signIn: "Finishing sign in",
-				signUp: "Finishing account setup",
-				oauth: "Connecting your session",
+				signIn: "Signed in — taking you in",
+				signUp: "Account ready — taking you in",
+				oauth: "Connected — taking you in",
 			},
+			footer: <AuthCommitFooter />,
 		},
 	},
 } satisfies AuthConfig;
