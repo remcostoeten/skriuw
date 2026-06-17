@@ -48,6 +48,40 @@ function record(metric: string, value: number, meta?: Record<string, unknown>): 
 	samples.set(metric, list);
 }
 
+/**
+ * Passive browser observers — they record nothing unless tracking is enabled
+ * (record() gates on `enabled`), so they're free in production.
+ *  - interaction: input→next-paint latency for clicks/keystrokes (INP-style).
+ *  - long-task:   main-thread blocks >50ms, i.e. the jank a user actually feels.
+ */
+function initObservers(): void {
+	if (!isBrowser() || typeof PerformanceObserver === "undefined") return;
+
+	try {
+		const io = new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				// Only interactions (have an interactionId); ignore passive events.
+				const interactionId =
+					(entry as PerformanceEntry & { interactionId?: number }).interactionId ?? 0;
+				if (interactionId > 0) record("interaction", entry.duration, { type: entry.name });
+			}
+		});
+		// durationThreshold 40ms ≈ skips sub-frame noise, keeps anything felt.
+		io.observe({ type: "event", buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
+	} catch {
+		// 'event' timing unsupported — skip.
+	}
+
+	try {
+		const lo = new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) record("long-task", entry.duration);
+		});
+		lo.observe({ type: "longtask", buffered: true });
+	} catch {
+		// longtask unsupported (e.g. Safari) — skip.
+	}
+}
+
 function percentile(sorted: number[], p: number): number {
 	if (sorted.length === 0) return 0;
 	const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
@@ -114,6 +148,51 @@ export function getSummaryRows(): Record<string, TPerfSummary> {
 	return rows;
 }
 
+export type TPerfHeadline = {
+	cacheHitRate: number | null;
+	warmCount: number;
+	coldCount: number;
+	worstInteraction: number;
+	longTaskCount: number;
+	verdict: "instant" | "good" | "janky" | "idle";
+};
+
+/**
+ * High-signal headline numbers. cacheHitRate answers "is the warmup working?";
+ * worstInteraction is the felt input lag (INP-style); verdict is a single-word
+ * read derived from warm-open p95 + worst interaction.
+ */
+export function getHeadline(): TPerfHeadline {
+	const opens = samples.get("note-open") ?? [];
+	const warm = opens.filter((s) => s.meta?.cacheHit);
+	const cold = opens.filter((s) => !s.meta?.cacheHit);
+	const total = opens.length;
+
+	const interactions = (samples.get("interaction") ?? []).map((s) => s.value);
+	const worstInteraction = interactions.length ? round(Math.max(...interactions)) : 0;
+	const longTaskCount = (samples.get("long-task") ?? []).length;
+
+	const warmP95 = warm.length
+		? round(percentile(warm.map((s) => s.value).sort((a, b) => a - b), 95))
+		: 0;
+
+	let verdict: TPerfHeadline["verdict"] = "idle";
+	if (total > 0 || interactions.length > 0) {
+		const sluggish = warmP95 > 150 || worstInteraction > 500;
+		const fast = warmP95 <= 50 && worstInteraction <= 200;
+		verdict = sluggish ? "janky" : fast ? "instant" : "good";
+	}
+
+	return {
+		cacheHitRate: total > 0 ? Math.round((warm.length / total) * 100) : null,
+		warmCount: warm.length,
+		coldCount: cold.length,
+		worstInteraction,
+		longTaskCount,
+		verdict,
+	};
+}
+
 export function isPerfEnabled(): boolean {
 	return enabled;
 }
@@ -125,15 +204,21 @@ export function clearSamples(): void {
 
 function dump(): void {
 	if (!isBrowser()) return;
+	const h = getHeadline();
 	// eslint-disable-next-line no-console
-	console.log("%c[skriuw perf] all values in ms", "font-weight:bold");
+	console.log(
+		`%c[skriuw perf] ${h.verdict} · cache-hit ${h.cacheHitRate ?? "—"}% · worst-INP ${h.worstInteraction}ms · long-tasks ${h.longTaskCount}`,
+		"font-weight:bold",
+	);
 	// eslint-disable-next-line no-console
 	console.table(getSummaryRows());
 }
 
 if (isBrowser()) {
+	initObservers();
 	(window as unknown as { __skriuwPerf?: unknown }).__skriuwPerf = {
 		dump,
+		headline: getHeadline,
 		clear: clearSamples,
 		enable: () => {
 			enabled = true;
