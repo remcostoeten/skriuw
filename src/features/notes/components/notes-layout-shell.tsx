@@ -7,6 +7,7 @@ import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { perf } from "@/shared/perf/track";
+import { PerfOverlay } from "@/shared/perf/perf-overlay";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
@@ -186,6 +187,7 @@ export function NotesLayoutShell({
 
 	return (
 		<LayoutContainer className="bg-background">
+			<PerfOverlay />
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
 

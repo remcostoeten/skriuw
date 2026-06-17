@@ -93,33 +93,48 @@ export const perf = {
 	},
 } as const;
 
-function dump(): void {
-	if (!isBrowser()) return;
-	const rows: Record<string, ReturnType<typeof summarize>> = {};
+export type TPerfSummary = ReturnType<typeof summarize>;
+
+/**
+ * Snapshot of the current samples, summarized per metric, with note-open split
+ * into warm (cached) vs cold (fetched). Shared by the console dump() and the
+ * on-screen dev overlay so both show identical numbers.
+ */
+export function getSummaryRows(): Record<string, TPerfSummary> {
+	const rows: Record<string, TPerfSummary> = {};
 	for (const [metric, list] of samples) {
+		if (metric === "note-open") continue;
 		rows[metric] = summarize(list.map((s) => s.value));
 	}
-	// note-open split by warm/cold for the metric that matters most.
 	const opens = samples.get("note-open") ?? [];
 	const warm = opens.filter((s) => s.meta?.cacheHit).map((s) => s.value);
 	const cold = opens.filter((s) => !s.meta?.cacheHit).map((s) => s.value);
 	if (warm.length) rows["note-open (warm)"] = summarize(warm);
 	if (cold.length) rows["note-open (cold)"] = summarize(cold);
-	delete rows["note-open"];
+	return rows;
+}
 
+export function isPerfEnabled(): boolean {
+	return enabled;
+}
+
+export function clearSamples(): void {
+	samples.clear();
+	pendingOpens.clear();
+}
+
+function dump(): void {
+	if (!isBrowser()) return;
 	// eslint-disable-next-line no-console
 	console.log("%c[skriuw perf] all values in ms", "font-weight:bold");
 	// eslint-disable-next-line no-console
-	console.table(rows);
+	console.table(getSummaryRows());
 }
 
 if (isBrowser()) {
 	(window as unknown as { __skriuwPerf?: unknown }).__skriuwPerf = {
 		dump,
-		clear: () => {
-			samples.clear();
-			pendingOpens.clear();
-		},
+		clear: clearSamples,
 		enable: () => {
 			enabled = true;
 			try {

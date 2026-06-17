@@ -12,7 +12,6 @@ import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
 import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
-import { GuestSignupPrompt } from "@/features/layout/components/guest-signup-prompt";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/core/auth";
@@ -112,7 +111,6 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<ThemeAttribute />
 							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
 							<UserToastHost />
-							<GuestSignupPrompt />
 							<DevMenu />
 						</WorkspaceBackendProvider>
 					</ProtectedAppGuard>
