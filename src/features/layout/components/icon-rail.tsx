@@ -16,6 +16,7 @@ import type { AuthConfig } from "@remcostoeten/auth-drawer";
 import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { UserMenu } from "./user-menu";
 import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
+import { GUEST_SIGNUP_PROMPT_EVENT } from "@/core/workspace-backend";
 
 type Props = {
 	onOpenSettings: () => void;
@@ -90,6 +91,18 @@ export function IconRail({ onOpenSettings }: Props) {
 		setAuthDrawerError(null);
 		setAuthDrawerOpen(true);
 	}, [auth.isReady, auth.phase, authDrawerOpen, pathname, protectedRoutes]);
+
+	useEffect(() => {
+		function handleGuestPrompt() {
+			router.prefetch("/app");
+			setAuthDestination("/app");
+			setAuthDrawerError(null);
+			setAwaitingAuthCommit(false);
+			setAuthDrawerOpen(true);
+		}
+		window.addEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
+		return () => window.removeEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
+	}, [router]);
 
 	const handleSignOut = async () => {
 		await signOut();
