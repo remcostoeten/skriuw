@@ -48,12 +48,15 @@ export async function POST(request: Request) {
 		return new Response("Collaboration not configured", { status: 503 });
 	}
 
+	const name = user.name ?? user.email ?? "Anonymous";
+	const color = collabColorForUser(user.id);
+
 	const token = await signCollabToken(
 		{
 			noteId,
 			userId: user.id,
-			name: user.name ?? user.email ?? "Anonymous",
-			color: collabColorForUser(user.id),
+			name,
+			color,
 			role: access.role,
 			exp: Date.now() + TOKEN_TTL_MS,
 		},
@@ -64,5 +67,6 @@ export async function POST(request: Request) {
 		token,
 		role: access.role,
 		host: process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? "127.0.0.1:1999",
+		user: { name, color },
 	});
 }
