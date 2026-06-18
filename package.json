@@ -23,7 +23,9 @@
     "format": "oxfmt",
     "colors:audit": "bun scripts/color-audit.ts",
     "colors:audit:strict": "bun scripts/color-audit.ts --strict",
-    "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts"
+    "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts",
+    "party:dev": "partykit dev",
+    "party:deploy": "partykit deploy"
   },
   "dependencies": {
     "@ai-sdk/google": "^3",
@@ -76,6 +78,8 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.167.1",
+    "y-partykit": "^0.0.33",
+    "yjs": "^13.6.31",
     "zod": "^3.25.76",
     "zustand": "^5.0.5"
   },
@@ -94,6 +98,7 @@
     "fake-indexeddb": "^6.2.5",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
+    "partykit": "^0.0.115",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0",
     "postcss": "^8.5.6",
