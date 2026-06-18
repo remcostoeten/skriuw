@@ -11,6 +11,7 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { fetchGuestSeedNote } from "@/domain/seed/actions";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
+import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -73,6 +74,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
 	const isGuest = useIsGuestWorkspace();
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
@@ -962,6 +964,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				description: "Jump from notes into the journal view.",
 				action: () => router.push("/app/journal"),
 			},
+			{
+				id: "welcome-tour",
+				label: "Show welcome tour",
+				keywords: ["tour", "walkthrough", "onboarding", "welcome", "help", "slash", "demo"],
+				description: "Replay the quick intro to the / menu, links, and tags.",
+				action: replayWelcomeTour,
+			},
 		],
 		[
 			handleCreateFile,
@@ -971,6 +980,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			handleToggleEditorMode,
 			handleToggleMetadata,
 			handleToggleSidebar,
+			replayWelcomeTour,
 			router,
 		],
 	);

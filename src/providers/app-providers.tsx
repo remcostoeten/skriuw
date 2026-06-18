@@ -13,6 +13,7 @@ import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
+import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/core/auth";
 import { DevMenu } from "@/features/dev-tools/dev-menu";
@@ -108,6 +109,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<WorkspaceWarmup />
 							<ThemeAttribute />
 							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+							<PendingCollabReplay />
 							<UserToastHost />
 							<DevMenu />
 						</WorkspaceBackendProvider>

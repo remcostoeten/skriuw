@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Users } from "lucide-react";
 import { requestCollaboration } from "@/domain/collaboration/actions";
+import { setPendingCollabRequest } from "@/features/collaboration/lib/pending-collab";
 import { showUserToast } from "@/shared/lib/user-toast";
 
 type Status = "idle" | "pending" | "sent" | "already";
@@ -34,6 +35,9 @@ export function CollabRequestButton({
         setStatus("sent");
         showUserToast("Collaboration request sent", "success");
       } else if (result.error === "unauthenticated") {
+        // Remember the intent so it's replayed once the user is signed in —
+        // OAuth full-page-redirects to /app and would otherwise lose this click.
+        setPendingCollabRequest(noteId);
         onAuthRequired();
       } else {
         showUserToast(result.error ?? "Something went wrong", "error");
