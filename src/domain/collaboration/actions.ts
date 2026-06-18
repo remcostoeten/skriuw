@@ -185,6 +185,45 @@ export async function markNotificationsRead(ids: string[]): Promise<void> {
   });
 }
 
+export async function markNotificationsUnread(ids: string[]): Promise<void> {
+  const { prisma, user } = await getAuthenticatedUser();
+  await prisma.notification.updateMany({
+    where: { id: { in: ids }, userId: user.id },
+    data: { read: false },
+  });
+}
+
+export async function deleteNotifications(ids: string[]): Promise<void> {
+  const { prisma, user } = await getAuthenticatedUser();
+  await prisma.notification.deleteMany({
+    where: { id: { in: ids }, userId: user.id },
+  });
+}
+
+// Respond to a collaboration request straight from its notification, which
+// carries (noteId, requesterId) but not the request id. Looks up the pending
+// request and delegates to respondToCollabRequest (which re-checks ownership).
+export async function respondToCollabRequestForNote(
+  noteId: string,
+  requesterId: string,
+  accept: boolean,
+  permission: TCollabPermission = "viewer",
+): Promise<{ ok: boolean; error?: string }> {
+  const { prisma, user } = await getAuthenticatedUser();
+
+  const request = await prisma.collaborationRequest.findUnique({
+    where: { noteId_requesterId: { noteId, requesterId } },
+  });
+  if (!request || request.ownerId !== user.id) {
+    return { ok: false, error: "Request not found" };
+  }
+  if (request.status !== "pending") {
+    return { ok: false, error: "Request already resolved" };
+  }
+
+  return respondToCollabRequest(request.id, accept, permission);
+}
+
 export async function getCollaborationStatusForNote(
   noteId: string,
 ): Promise<"none" | "pending" | "collaborator"> {

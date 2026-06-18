@@ -1,9 +1,10 @@
 "use client";
 
-import { memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { memo, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileTextIcon } from "@/shared/icons/file-text";
 import { getSharedNotesAction } from "@/domain/collaboration/actions";
+import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { SidebarSection } from "./sidebar-section";
 import { cn } from "@/shared/lib/utils";
 
@@ -28,12 +29,31 @@ export const SharedSection = memo(function SharedSection({
   onToggleCollapse,
   onFileSelect,
 }: Props) {
+  const queryClient = useQueryClient();
   const { data: sharedNotes = [] } = useQuery({
     queryKey: sharedKeys.all,
     queryFn: () => getSharedNotesAction(),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
+
+  // When the owner revokes access or changes a permission, this list updates on
+  // its next refetch. The open editor's note detail is cached with
+  // `staleTime: Infinity` and a cache-first queryFn, so a plain invalidate won't
+  // re-run `fetchNote` — drop the detail entry outright so the editor re-resolves
+  // its access (revoked → note gone, downgraded → read-only).
+  const prevPermsRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const prev = prevPermsRef.current;
+    const next = new Map(sharedNotes.map((note) => [note.id, note.permission]));
+    for (const [id, permission] of prev) {
+      const current = next.get(id);
+      if (current === undefined || current !== permission) {
+        queryClient.removeQueries({ queryKey: notesKeys.detail(id) });
+      }
+    }
+    prevPermsRef.current = next;
+  }, [sharedNotes, queryClient]);
 
   if (sharedNotes.length === 0) return null;
 
