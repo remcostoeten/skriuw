@@ -1,9 +1,13 @@
 import "server-only";
 import { getAuthenticatedUser } from "@/core/db";
+import { assertOwnsNote } from "@/domain/persistence/guards";
 import type { TCollabRequest, TCollaborator, TSharedNote, TNotification } from "./models";
 
 export async function getCollaborators(noteId: string): Promise<TCollaborator[]> {
-  const { prisma } = await getAuthenticatedUser();
+  const { prisma, user } = await getAuthenticatedUser();
+  // Only the note owner may enumerate collaborators. Without this guard any
+  // authenticated user could read collaborator identities for any noteId.
+  if (!(await assertOwnsNote(prisma, user.id, noteId))) return [];
   const rows = await prisma.noteCollaborator.findMany({
     where: { noteId },
     include: { user: true, inviter: true },
@@ -23,7 +27,9 @@ export async function getCollaborators(noteId: string): Promise<TCollaborator[]>
 }
 
 export async function getPendingRequestsForNote(noteId: string): Promise<TCollabRequest[]> {
-  const { prisma } = await getAuthenticatedUser();
+  const { prisma, user } = await getAuthenticatedUser();
+  // Pending requests (requester identity + message) are owner-only data.
+  if (!(await assertOwnsNote(prisma, user.id, noteId))) return [];
   const rows = await prisma.collaborationRequest.findMany({
     where: { noteId, status: "pending" },
     include: { requester: true, note: true },

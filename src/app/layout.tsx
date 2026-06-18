@@ -17,17 +17,40 @@ export const metadata: Metadata = {
 	description:
 		"A calm, keyboard-first notes and journal app with account-backed sync across web and mobile.",
 	applicationName: "Skriuw",
+	manifest: "/manifest.json",
 	keywords: ["Skriuw", "notes", "journal", "writing", "knowledge base", "cloud sync"],
+	robots: {
+		index: true,
+		follow: true,
+		googleBot: {
+			index: true,
+			follow: true,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+			"max-video-preview": -1,
+		},
+	},
+	icons: {
+		icon: [
+			{ url: "/favicon.ico" },
+			{ url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+		],
+		apple: [{ url: "/apple-touch-icon.png" }],
+	},
 	openGraph: {
 		title: "Skriuw",
 		description: "A calm notes and journal app with account-backed sync across web and mobile.",
+		url: "/",
 		siteName: "Skriuw",
 		type: "website",
+		images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Skriuw" }],
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "Skriuw",
 		description: "A calm notes and journal app with account-backed sync across web and mobile.",
+		images: ["/opengraph-image"],
 	},
 };
 
@@ -55,11 +78,11 @@ export default function RootLayout({ children }: Props) {
 					}}
 				/>
 			</head>
-				<body className="font-sans">
-					{children}
-					<div id="auth-drawer-portal" />
-					<AnalyticsGate />
-				</body>
-			</html>
-		);
+			<body className="font-sans">
+				{children}
+				<div id="auth-drawer-portal" />
+				<AnalyticsGate />
+			</body>
+		</html>
+	);
 }

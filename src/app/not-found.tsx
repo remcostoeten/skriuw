@@ -15,7 +15,7 @@ export default function NotFound() {
 					Go app
 				</Link>
 				<Link
-					href="/sign-in"
+					href="/app?auth=sign-in"
 					className="rounded-md bg-secondary px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
 				>
 					Sign in

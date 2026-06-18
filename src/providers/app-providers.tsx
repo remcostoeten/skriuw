@@ -17,9 +17,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "@/core/auth";
 import { DevMenu } from "@/features/dev-tools/dev-menu";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
-import {
-	EDITOR_PREFERENCES_STORAGE_KEY,
-} from "@/features/settings/lib/editor-preferences";
+import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 type Props = {
@@ -63,7 +61,7 @@ function ShortcutHandlerProvider({ children }: { children: React.ReactNode }) {
 		signOut: async () => {
 			try {
 				await signOut();
-				window.location.replace("/sign-in");
+				window.location.replace("/app?auth=sign-in");
 			} catch (error) {
 				console.error("Shortcut sign-out failed", error);
 			}

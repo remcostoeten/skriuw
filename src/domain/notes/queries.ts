@@ -1,8 +1,10 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { isGuestScopedId } from "@/domain/notes/note-id";
+import { resolveNoteAccess, resolveReadableNote } from "@/domain/notes/note-access";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
+	NoteAccessRole,
 	NoteFile,
 	NoteVersion,
 	NoteVersionReason,
@@ -47,7 +49,10 @@ type NoteVersionRecord = {
 	createdAt: Date;
 };
 
-function recordToNoteFile(record: NoteRecord): NoteFile {
+function recordToNoteFile(
+	record: NoteRecord,
+	access?: { ownerId: string; role: NoteAccessRole },
+): NoteFile {
 	const richContent =
 		(record.richContent as RichTextDocument | null) ?? markdownToRichDocument(record.content);
 	const meta = record.journalMeta as {
@@ -56,7 +61,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		weather?: string;
 		location?: string;
 	} | null;
-	return fromPersistedNote({
+	const file = fromPersistedNote({
 		id: record.id as NoteId,
 		name: record.name,
 		content: record.content as MarkdownContent,
@@ -74,6 +79,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
 	});
+	return access ? { ...file, ownerId: access.ownerId, access: access.role } : file;
 }
 
 function recordToNoteMetadata(record: NoteMetadataRecord): NoteFile {
@@ -129,8 +135,13 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 export async function listNoteVersions(noteId: string, limit = 12): Promise<NoteVersion[]> {
 	if (isGuestScopedId(noteId)) return [];
 	const { prisma, user } = await getAuthenticatedUser();
+	// Versions are bookkept under the owner, so read under `ownerId` once the
+	// caller is confirmed as owner or an accepted collaborator. This lets an
+	// editor see (and the panel restore) the shared note's history.
+	const access = await resolveNoteAccess(prisma, user.id, noteId);
+	if (!access) return [];
 	const records = await prisma.noteVersion.findMany({
-		where: { userId: user.id, noteId },
+		where: { userId: access.ownerId, noteId },
 		orderBy: { createdAt: "desc" },
 		take: limit,
 	});
@@ -140,8 +151,11 @@ export async function listNoteVersions(noteId: string, limit = 12): Promise<Note
 export async function getNote(id: string): Promise<NoteFile | null> {
 	if (isGuestScopedId(id)) return null;
 	const { prisma, user } = await getAuthenticatedUser();
-	const record = await prisma.note.findFirst({
-		where: { userId: user.id, id, deletedAt: null },
+	// Single authorization gate: owner or accepted collaborator, with the row.
+	const resolved = await resolveReadableNote(prisma, user.id, id);
+	if (!resolved) return null;
+	return recordToNoteFile(resolved.record, {
+		ownerId: resolved.ownerId,
+		role: resolved.role,
 	});
-	return record ? recordToNoteFile(record) : null;
 }

@@ -6,6 +6,10 @@ export type RichTextDocument = PartialBlock[];
 
 export type NoteVersionReason = "created" | "autosave" | "checkpoint" | "rename" | "restore";
 
+// The requesting user's role on a note. Absent on a NoteFile means the legacy
+// owner-scoped path produced it (i.e. the viewer is the owner with full access).
+export type NoteAccessRole = "owner" | "editor" | "viewer";
+
 // Tag system for organizing notes
 export type NoteTag = {
 	id: string;
@@ -36,6 +40,10 @@ export interface NoteFile {
 	tags?: string[];
 	// Optional journal metadata
 	journalMeta?: JournalMetadata;
+	// Set on the collaborator-aware read path. `ownerId` is the note's real owner;
+	// `access` is this viewer's role. Undefined → owner (legacy owner-scoped read).
+	ownerId?: string;
+	access?: NoteAccessRole;
 }
 
 export interface NoteVersion {

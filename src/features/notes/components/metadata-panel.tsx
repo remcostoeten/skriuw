@@ -164,6 +164,7 @@ function InspectorNoteControls({
   effectiveEditorMode,
   onToggleEditorMode,
   onShare,
+  isOwnNote,
   isMobile = false,
 }: {
   file: NoteFile;
@@ -171,6 +172,7 @@ function InspectorNoteControls({
   effectiveEditorMode: "raw" | "block";
   onToggleEditorMode?: () => void;
   onShare: () => void;
+  isOwnNote: boolean;
   isMobile?: boolean;
 }) {
   const { shareQuery, refresh } = useNoteSharing(file.id);
@@ -272,36 +274,39 @@ function InspectorNoteControls({
           {formatControl}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
-          {share ? (
-            <>
+        {/* Publishing a share link is owner-only; collaborators don't see it. */}
+        {isOwnNote ? (
+          <div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
+            {share ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyShareLink()}
+                  className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
+                >
+                  <Copy className="h-5 w-5 shrink-0 text-foreground/72" />
+                  Copy link
+                </button>
+                <div className="mx-4 h-px bg-foreground/8" />
+              </>
+            ) : null}
+            <GuestGate feature="share" align="start">
               <button
                 type="button"
-                onClick={() => void handleCopyShareLink()}
+                onClick={onShare}
                 className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
               >
-                <Copy className="h-5 w-5 shrink-0 text-foreground/72" />
-                Copy link
+                <Link2 className="h-5 w-5 shrink-0 text-foreground/72" />
+                {shareActionLabel}
               </button>
-              <div className="mx-4 h-px bg-foreground/8" />
-            </>
-          ) : null}
-          <GuestGate feature="share" align="start">
-            <button
-              type="button"
-              onClick={onShare}
-              className="pressable flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors active:bg-foreground/5"
-            >
-              <Link2 className="h-5 w-5 shrink-0 text-foreground/72" />
-              {shareActionLabel}
-            </button>
-          </GuestGate>
-          <div className="mx-4 h-px bg-foreground/8" />
-          <GuestGate feature="share" align="start">
-            <NoteSendDropdown note={file} isMobile mobileTriggerVariant="row" />
-          </GuestGate>
-        </div>
-        {staleShareHint}
+            </GuestGate>
+            <div className="mx-4 h-px bg-foreground/8" />
+            <GuestGate feature="share" align="start">
+              <NoteSendDropdown note={file} isMobile mobileTriggerVariant="row" />
+            </GuestGate>
+          </div>
+        ) : null}
+        {isOwnNote ? staleShareHint : null}
       </div>
     );
   }
@@ -312,40 +317,45 @@ function InspectorNoteControls({
         <dt className="text-[13px] text-muted-foreground">Format</dt>
         <dd>{formatControl}</dd>
       </div>
-      <div className="flex items-baseline justify-between gap-4">
-        <dt className="text-[13px] text-muted-foreground">Share link</dt>
-        <dd className="flex flex-col items-end gap-1">
-          {staleShareHint}
-          <div className="flex items-center gap-3">
-            {share ? (
-              <button
-                type="button"
-                onClick={() => void handleCopyShareLink()}
-                className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
-              >
-                Copy link
-              </button>
-            ) : null}
-            <GuestGate feature="share">
-              <button
-                type="button"
-                onClick={onShare}
-                className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
-              >
-                {shareActionLabel}
-              </button>
-            </GuestGate>
+      {/* Publishing a share link is owner-only; collaborators don't see it. */}
+      {isOwnNote ? (
+        <>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-[13px] text-muted-foreground">Share link</dt>
+            <dd className="flex flex-col items-end gap-1">
+              {staleShareHint}
+              <div className="flex items-center gap-3">
+                {share ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyShareLink()}
+                    className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+                  >
+                    Copy link
+                  </button>
+                ) : null}
+                <GuestGate feature="share">
+                  <button
+                    type="button"
+                    onClick={onShare}
+                    className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+                  >
+                    {shareActionLabel}
+                  </button>
+                </GuestGate>
+              </div>
+            </dd>
           </div>
-        </dd>
-      </div>
-      <div className="flex items-baseline justify-between gap-4">
-        <dt className="text-[13px] text-muted-foreground">Send note</dt>
-        <dd>
-          <GuestGate feature="share">
-            <NoteSendDropdown note={file} />
-          </GuestGate>
-        </dd>
-      </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-[13px] text-muted-foreground">Send note</dt>
+            <dd>
+              <GuestGate feature="share">
+                <NoteSendDropdown note={file} />
+              </GuestGate>
+            </dd>
+          </div>
+        </>
+      ) : null}
     </>
   );
 }
@@ -701,7 +711,13 @@ export function MetadataPanel({
   const effectiveEditorMode = isMdx ? "raw" : editorMode;
   const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
   const { shareQuery } = useNoteSharing(file?.id);
-  const inspectorControlCount = isMobile && shareQuery.data ? 4 : 3;
+  // Sharing is owner-only. `access === undefined` is the owner's own note.
+  const isOwnNote = !file?.access || file.access === "owner";
+  const inspectorControlCount = isOwnNote
+    ? isMobile && shareQuery.data
+      ? 4
+      : 3
+    : 1;
 
   const details = useMemo(() => {
     if (!file) return [];
@@ -1081,7 +1097,7 @@ export function MetadataPanel({
             <CollaboratorsSection
               noteId={file.id}
               ownerName={auth.user.name}
-              isOwner={true}
+              isOwner={file.access ? file.access === "owner" : true}
             />
           </InspectorSection>
         )}
@@ -1180,6 +1196,7 @@ export function MetadataPanel({
               effectiveEditorMode={effectiveEditorMode}
               onToggleEditorMode={onToggleEditorMode}
               onShare={handleShare}
+              isOwnNote={isOwnNote}
               isMobile={isMobile}
             />
           </dl>
