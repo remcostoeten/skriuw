@@ -14,7 +14,9 @@ import {
 } from "@/domain/validation/schemas";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import { isGuestScopedId } from "@/domain/notes/note-id";
+import { resolveNoteAccess, resolveReadableNote } from "@/domain/notes/note-access";
 import type {
+	NoteAccessRole,
 	NoteFile,
 	NoteVersion,
 	NoteVersionReason,
@@ -80,7 +82,10 @@ function uniquePersistedNoteIds(ids: string[]): string[] {
 	);
 }
 
-function recordToNoteFile(record: NoteRecord): NoteFile {
+function recordToNoteFile(
+	record: NoteRecord,
+	access?: { ownerId: string; role: NoteAccessRole },
+): NoteFile {
 	const richContent =
 		(record.richContent as RichTextDocument | null) ?? markdownToRichDocument(record.content);
 	const meta = record.journalMeta as {
@@ -89,7 +94,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		weather?: string;
 		location?: string;
 	} | null;
-	return fromPersistedNote({
+	const file = fromPersistedNote({
 		id: record.id as NoteId,
 		name: record.name,
 		content: record.content as MarkdownContent,
@@ -107,6 +112,7 @@ function recordToNoteFile(record: NoteRecord): NoteFile {
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
 	});
+	return access ? { ...file, ownerId: access.ownerId, access: access.role } : file;
 }
 
 function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
@@ -342,53 +348,81 @@ export type UpdateNoteResult = {
 export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
 	const validated = parseServerInput(updateNoteInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	if (validated.parentId !== undefined) {
-		await assertOwnedParentFolder(prisma, user.id, validated.parentId);
-	}
 
-	const patch: Prisma.NoteUncheckedUpdateInput = {};
+	// Content/name/tags/mode are editable by the owner and by an "editor"
+	// collaborator. parentId/sortOrder are workspace organization and stay
+	// owner-only, so they're layered onto the owner patch only.
+	const basePatch: Prisma.NoteUncheckedUpdateInput = {};
 	if (validated.name !== undefined) {
-		patch.name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
+		basePatch.name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
 	}
 	if (validated.content !== undefined) {
-		patch.content = validated.content;
-		patch.richContent = (validated.richContent ??
+		basePatch.content = validated.content;
+		basePatch.richContent = (validated.richContent ??
 			markdownToRichDocument(validated.content)) as Prisma.InputJsonValue;
 	} else if (validated.richContent !== undefined) {
-		patch.richContent = validated.richContent as Prisma.InputJsonValue;
+		basePatch.richContent = validated.richContent as Prisma.InputJsonValue;
 	}
 	if (validated.preferredEditorMode !== undefined) {
-		patch.preferredEditorMode = validated.preferredEditorMode;
-	}
-	if (validated.parentId !== undefined) {
-		patch.parentId = validated.parentId;
-	}
-	if (validated.sortOrder !== undefined) {
-		patch.sortOrder = validated.sortOrder;
+		basePatch.preferredEditorMode = validated.preferredEditorMode;
 	}
 	if (validated.tags !== undefined) {
-		patch.tags = validated.tags;
+		basePatch.tags = validated.tags;
+	}
+
+	const ownerPatch: Prisma.NoteUncheckedUpdateInput = { ...basePatch };
+	if (validated.parentId !== undefined) {
+		ownerPatch.parentId = validated.parentId;
+	}
+	if (validated.sortOrder !== undefined) {
+		ownerPatch.sortOrder = validated.sortOrder;
 	}
 
 	return prisma.$transaction(async (tx) => {
-		let record: NoteRecord;
+		// Owner fast path: one round trip, no `resolveNoteAccess`. This is the hot
+		// path (every batched keystroke autosaves), so we attempt the cheap
+		// owner-scoped update first and only resolve collaborator access on P2025
+		// (no owner row matched). Editor saves cost an extra failed-update + resolve,
+		// but they're rare — the right bias.
+		let record: NoteRecord | null = null;
+		let ownerId = user.id;
+		let role: NoteAccessRole = "owner";
 		try {
+			// Moving a note validates the destination folder, owner-only.
+			if (validated.parentId !== undefined) {
+				await assertOwnedParentFolder(tx, user.id, validated.parentId);
+			}
 			record = await tx.note.update({
 				where: { id: validated.id, userId: user.id, deletedAt: null },
-				data: patch,
+				data: ownerPatch,
 			});
 		} catch (error) {
-			if (isRecordNotFoundError(error)) return { versionCreated: false };
-			throw error;
+			if (!isRecordNotFoundError(error)) throw error;
+			// Not the owner (or note gone): resolve collaborator access.
+			const access = await resolveNoteAccess(tx, user.id, validated.id);
+			if (!access || access.role === "viewer") return { versionCreated: false };
+			ownerId = access.ownerId;
+			role = access.role; // "editor"
+			try {
+				record = await tx.note.update({
+					where: { id: validated.id, deletedAt: null },
+					data: basePatch,
+				});
+			} catch (err2) {
+				if (isRecordNotFoundError(err2)) return { versionCreated: false };
+				throw err2;
+			}
 		}
 
-		const updatedNote = recordToNoteFile(record);
+		if (!record) return { versionCreated: false };
+
+		const updatedNote = recordToNoteFile(record, { ownerId, role });
 		if (
 			validated.content !== undefined ||
 			validated.richContent !== undefined ||
 			validated.tags !== undefined
 		) {
-			await syncNoteLinks(tx, user.id, updatedNote);
+			await syncNoteLinks(tx, ownerId, updatedNote);
 		}
 		const versionReason: NoteVersionReason =
 			validated.name !== undefined
@@ -408,7 +442,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		if (validated.sessionVersionId && validated.createCheckpoint) {
 			const versionChanged = await updateExistingNoteVersion(
 				tx,
-				user.id,
+				ownerId,
 				validated.sessionVersionId,
 				validated.id,
 				noteSnapshot,
@@ -427,7 +461,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		const shouldCreateVersion =
 			validated.name !== undefined || validated.createCheckpoint === true;
 		const versionId = shouldCreateVersion
-			? await insertNoteVersion(tx, user.id, validated.id, noteSnapshot, versionReason)
+			? await insertNoteVersion(tx, ownerId, validated.id, noteSnapshot, versionReason)
 			: null;
 		const versionCreated = versionId !== null;
 
@@ -444,14 +478,20 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 	const { prisma, user } = await getAuthenticatedUser();
 
 	return prisma.$transaction(async (tx) => {
-		const versionRecord = await tx.noteVersion.findFirst({
-			where: { id: versionId, userId: user.id },
+		// Versions live under the owner, so load the row by id (not user-scoped)
+		// and authorize via `resolveNoteAccess`: owner or "editor" may restore.
+		const versionRecord = await tx.noteVersion.findUnique({
+			where: { id: versionId },
 		});
 		if (!versionRecord) return { versionCreated: false };
 
 		const version = recordToNoteVersion(versionRecord);
+		const access = await resolveNoteAccess(tx, user.id, version.noteId);
+		if (!access || access.role === "viewer") return { versionCreated: false };
+		const ownerId = access.ownerId;
+
 		const currentRecord = await tx.note.findFirst({
-			where: { id: version.noteId, userId: user.id, deletedAt: null },
+			where: { id: version.noteId, deletedAt: null },
 		});
 		if (!currentRecord) return { versionCreated: false };
 
@@ -459,7 +499,7 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 
 		await insertNoteVersion(
 			tx,
-			user.id,
+			ownerId,
 			current.id,
 			{
 				name: current.name,
@@ -475,7 +515,7 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 		let updated: NoteRecord | null;
 		try {
 			updated = await tx.note.update({
-				where: { id: version.noteId, userId: user.id, deletedAt: null },
+				where: { id: version.noteId, deletedAt: null },
 				data: {
 					name: version.name,
 					content: version.content,
@@ -490,7 +530,7 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 			updated = null;
 		}
 		return {
-			note: updated ? recordToNoteFile(updated) : undefined,
+			note: updated ? recordToNoteFile(updated, { ownerId, role: access.role }) : undefined,
 			versionCreated: true,
 		};
 	});
@@ -505,13 +545,17 @@ export async function deleteNote(id: string): Promise<void> {
 }
 
 export async function fetchNote(id: string): Promise<NoteFile | null> {
+	if (isGuestScopedId(id)) return null;
 	const { prisma, user } = await tryGetAuthenticatedUser();
 	if (!user) return null;
 
-	const record = await prisma.note.findFirst({
-		where: { userId: user.id, id, deletedAt: null },
+	// Single authorization gate: owner or accepted collaborator, with the row.
+	const resolved = await resolveReadableNote(prisma, user.id, id);
+	if (!resolved) return null;
+	return recordToNoteFile(resolved.record, {
+		ownerId: resolved.ownerId,
+		role: resolved.role,
 	});
-	return record ? recordToNoteFile(record) : null;
 }
 
 export async function fetchNotes(ids: string[]): Promise<NoteFile[]> {
@@ -528,7 +572,8 @@ export async function fetchNotes(ids: string[]): Promise<NoteFile[]> {
 			deletedAt: null,
 		},
 	});
-	return records.map(recordToNoteFile);
+	// Owner-scoped batch fetch — every row belongs to the requesting user.
+	return records.map((record) => recordToNoteFile(record, { ownerId: user.id, role: "owner" }));
 }
 
 export async function fetchNoteBacklinks(id: string): Promise<ResolvedNoteLink[]> {

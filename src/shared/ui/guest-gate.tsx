@@ -107,13 +107,13 @@ export function GuestGate({ feature, children, overlay = true, align = "end" }: 
 				</div>
 				<div className="flex items-center gap-2 border-t border-foreground/8 bg-foreground/[0.02] px-4 py-2.5">
 					<Link
-						href="/sign-up"
+						href="/app?auth=sign-up"
 						className="inline-flex h-8 flex-1 items-center justify-center rounded-md bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
 					>
 						Create account
 					</Link>
 					<Link
-						href="/sign-in"
+						href="/app?auth=sign-in"
 						className="inline-flex h-8 items-center justify-center rounded-md px-3 text-[12px] font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
 					>
 						Sign in
@@ -147,13 +147,13 @@ export function GuestSectionNotice({ feature }: { feature: GuestFeature }) {
 				</div>
 				<div className="flex items-center gap-2 pt-1">
 					<Link
-						href="/sign-up"
+						href="/app?auth=sign-up"
 						className="inline-flex h-8 items-center justify-center rounded-md bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
 					>
 						Create account
 					</Link>
 					<Link
-						href="/sign-in"
+						href="/app?auth=sign-in"
 						className="inline-flex h-8 items-center justify-center rounded-md px-3 text-[12px] font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
 					>
 						Sign in

@@ -1,6 +1,7 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { MarkdownContent } from "@/core/persistence-types";
 import { isGuestScopedId } from "@/domain/notes/note-id";
+import { resolveNoteAccess } from "@/domain/notes/note-access";
 import {
 	getNoteTitle,
 	normalizeNoteTitle,
@@ -20,8 +21,14 @@ export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLin
 	if (isGuestScopedId(noteId)) return [];
 	const { prisma, user } = await getAuthenticatedUser();
 
+	// note_links are bookkept under the owner, so resolve the caller's access and
+	// read under `ownerId` — an editor/viewer collaborator sees the shared note's
+	// backlinks instead of an empty list.
+	const access = await resolveNoteAccess(prisma, user.id, noteId);
+	if (!access) return [];
+
 	const activeNote = await prisma.note.findFirst({
-		where: { userId: user.id, id: noteId, deletedAt: null },
+		where: { id: noteId, deletedAt: null },
 		select: { name: true, content: true },
 	});
 	if (!activeNote) return [];
@@ -35,7 +42,7 @@ export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLin
 
 	const rows = await prisma.noteLink.findMany({
 		where: {
-			userId: user.id,
+			userId: access.ownerId,
 			kind: { not: "tag" },
 			sourceNoteId: { not: noteId },
 			OR: [

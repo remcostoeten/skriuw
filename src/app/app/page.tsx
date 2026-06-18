@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listFolders } from "@/domain/folders/queries";
@@ -7,6 +8,29 @@ import { loadGuestWorkspaceSnapshot } from "@/domain/seed/guest-bundle";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
+
+export const metadata: Metadata = {
+	title: "App",
+	description:
+		"Open Skriuw's notes workspace, try the guest demo, or sign in to sync notes and journal entries across devices.",
+	alternates: {
+		canonical: "/app",
+	},
+	openGraph: {
+		title: "Skriuw App",
+		description:
+			"Open Skriuw's notes workspace, try the guest demo, or sign in to sync notes and journal entries across devices.",
+		url: "/app",
+		images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Skriuw" }],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Skriuw App",
+		description:
+			"Open Skriuw's notes workspace, try the guest demo, or sign in to sync notes and journal entries across devices.",
+		images: ["/opengraph-image"],
+	},
+};
 
 export default async function AppHomePage(props: {
 	searchParams?: Promise<Record<string, string>>;

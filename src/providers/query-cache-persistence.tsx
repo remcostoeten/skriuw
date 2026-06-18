@@ -10,7 +10,9 @@ import { getUserScopeIdForUser } from "@/core/auth";
 
 // Bump when the cached query shapes change in a backward-incompatible way so
 // stale snapshots from older deploys are dropped instead of hydrated.
-const CACHE_VERSION = "v1";
+// v2: persisted note bodies now carry collaborator `access`; drop v1 snapshots
+// that lack it (a shared note hydrating with `access: undefined` would fail open).
+const CACHE_VERSION = "v2";
 const KEY_PREFIX = "skriuw-rq";
 const MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 days
 

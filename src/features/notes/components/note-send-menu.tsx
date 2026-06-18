@@ -174,7 +174,9 @@ function NoteSendMobilePanel({
 				</div>
 			))}
 
-			<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>Send note</div>
+			<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>
+				Send note
+			</div>
 			{canNativeShare ? (
 				<>
 					<MobileActionButton
@@ -287,13 +289,7 @@ function LinkShareItems({
 	);
 }
 
-function NoteSendItems({
-	note,
-	onSelect,
-}: {
-	note: NoteSendSource;
-	onSelect?: () => void;
-}) {
+function NoteSendItems({ note, onSelect }: { note: NoteSendSource; onSelect?: () => void }) {
 	const {
 		canNativeShare,
 		canSaveAsFile,
@@ -440,7 +436,7 @@ export function NoteSendContextSubmenu({ note }: { note: NoteSendSource }) {
 				className="gap-2 text-muted-foreground"
 				onSelect={(event) => {
 					event.preventDefault();
-					router.push("/sign-up");
+					router.push("/app?auth=sign-up");
 				}}
 			>
 				<Lock className="h-4 w-4" />

@@ -3,7 +3,7 @@ import "server-only";
 import { createAuthMiddleware } from "better-auth/api";
 import { trackSkriuwServer } from "./server-track";
 
-type AuthMethod = "email" | "github";
+type AuthMethod = "email" | "github" | "google";
 type AuthAction = "signin" | "signup";
 
 function resolveAuthMethod(path: string): AuthMethod | null {
@@ -13,8 +13,8 @@ function resolveAuthMethod(path: string): AuthMethod | null {
 
 	if (path.startsWith("/callback/")) {
 		const provider = path.slice("/callback/".length).split("/")[0];
-		if (provider === "github") {
-			return "github";
+		if (provider === "github" || provider === "google") {
+			return provider;
 		}
 	}
 
