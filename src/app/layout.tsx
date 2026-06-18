@@ -6,6 +6,7 @@ import type { Metadata, Viewport } from "next";
 // dedupes this import against its own side-effect import, keeping it early.
 import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { AnalyticsGate } from "@/core/analytics/analytics-gate";
 
 export const metadata: Metadata = {
@@ -82,6 +83,7 @@ export default function RootLayout({ children }: Props) {
 				{children}
 				<div id="auth-drawer-portal" />
 				<AnalyticsGate />
+				<Analytics />
 			</body>
 		</html>
 	);
