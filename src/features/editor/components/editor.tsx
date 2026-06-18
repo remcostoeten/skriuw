@@ -11,6 +11,7 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
+import type { TRichTextCollab } from "./rich-text-editor";
 import { cn } from "@/shared/lib/utils";
 
 type EditorMode = "raw" | "block";
@@ -59,6 +60,7 @@ interface EditorProps {
 	onScrollPositionChange?: (scrollTop: number) => void;
 	onPaneActivate?: () => void;
 	isPaneFocused?: boolean;
+	collab?: TRichTextCollab;
 }
 
 export function Editor({
@@ -80,6 +82,7 @@ export function Editor({
 	onScrollPositionChange,
 	onPaneActivate,
 	isPaneFocused,
+	collab,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const gutterRef = useRef<HTMLDivElement>(null);
@@ -240,6 +243,7 @@ export function Editor({
 					onTitleCommit={onTitleCommit}
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}
+					collab={collab}
 				/>
 			</div>
 		);

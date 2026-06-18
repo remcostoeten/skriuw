@@ -4,8 +4,11 @@ import { useRef, useState, useCallback, useEffect, useMemo, type PointerEvent as
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, GripVertical, X } from "lucide-react";
 import { Editor } from "./editor";
+import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { EditorToolbar } from "./editor-toolbar";
+import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
+import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import {
 	callAi,
@@ -378,6 +381,28 @@ export function EditorContainer({
 	const canUseAi = isAiAvailable;
 	const wordCount = useMemo(() => getWordCount(file?.content ?? ""), [file?.content]);
 
+	// Real-time collaboration: only shared notes in block mode open a Yjs room.
+	// MDX/raw notes use a plain textarea with no CRDT binding, so collab stays off.
+	const collabEligible = effectiveEditorMode === "block";
+	const collabEnabled =
+		useNoteCollabEnabled(file?.id, file?.access) && collabEligible;
+	const collabRoom = useCollabRoom(file?.id ?? null, collabEnabled);
+	const collab: TRichTextCollab | undefined =
+		collabRoom.synced && collabRoom.fragment && collabRoom.doc
+			? {
+					doc: collabRoom.doc,
+					fragment: collabRoom.fragment,
+					awareness: collabRoom.awareness,
+					user: collabRoom.user ?? { name: "Anonymous", color: "#888" },
+					shouldSeed: collabRoom.role === "owner",
+				}
+			: undefined;
+	// Hold the editor behind the skeleton while the room is still syncing, so we
+	// never briefly mount a plain (non-collaborative) editor and then swap it.
+	const collabConnecting =
+		collabEnabled &&
+		(collabRoom.status === "connecting" || (!collabRoom.synced && collabRoom.status === "connected"));
+
 	const availableKeysForFallback = rateLimitPrompt
 		? listFallbackAiKeys({
 				localKeys: aiPrefs.keys,
@@ -586,7 +611,7 @@ export function EditorContainer({
 			)}
 
 			<div className="flex min-h-0 flex-1 flex-col">
-				{isContentLoading ? (
+				{isContentLoading || collabConnecting ? (
 					<div className="flex-1 overflow-y-auto bg-card" aria-busy="true">
 						<EditorContentSkeleton />
 					</div>
@@ -594,6 +619,7 @@ export function EditorContainer({
 				<Editor
 					file={file}
 					files={files}
+					collab={collab}
 					// Fail closed: only the owner (access === undefined, their own note)
 					// or an explicit "editor" gets a writable surface. Any other role
 					// (viewer today, future roles) is read-only so keystrokes aren't
