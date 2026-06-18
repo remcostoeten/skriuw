@@ -4,7 +4,7 @@ import { BookOpen, Kanban, Loader2, Settings, UserRound, Waypoints } from "lucid
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
@@ -74,18 +74,56 @@ const authDrawerConfig = {
 	},
 } satisfies AuthConfig;
 
+type AuthDrawerInitialMode = "login" | "register";
+
+function resolveAuthDrawerMode(value: string | null): AuthDrawerInitialMode | null {
+	if (value === "sign-in") return "login";
+	if (value === "sign-up") return "register";
+	return null;
+}
+
+function resolveNextDestination(value: string | null): string | null {
+	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+	return value;
+}
+
+function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParams): string {
+	const nextParams = new URLSearchParams(searchParams.toString());
+	nextParams.delete("auth");
+	nextParams.delete("next");
+
+	const query = nextParams.toString();
+	return query ? `${pathname}?${query}` : pathname;
+}
+
 export function IconRail({ onOpenSettings }: Props) {
 	const pathname = usePathname();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const auth = useAuth();
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
+	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
+		useState<AuthDrawerInitialMode>("login");
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
 	const [awaitingAuthCommit, setAwaitingAuthCommit] = useState(false);
 	const protectedRoutes = useMemo(
-		() => new Set(["/app/journal", "/app/shared"]),
+		() => new Set(["/app/journal", "/app/settings", "/app/shared"]),
 		[],
+	);
+	const activeAuthDrawerConfig = useMemo(
+		() =>
+			({
+				...authDrawerConfig,
+				ui: {
+					...authDrawerConfig.ui,
+					auth: {
+						initialMode: authDrawerInitialMode,
+					},
+				},
+			}) satisfies AuthConfig,
+		[authDrawerInitialMode],
 	);
 
 	useEffect(() => {
@@ -105,6 +143,26 @@ export function IconRail({ onOpenSettings }: Props) {
 	}, [auth.isReady, auth.phase, authDestination, pathname, router]);
 
 	useEffect(() => {
+		const initialMode = resolveAuthDrawerMode(searchParams.get("auth"));
+		if (!initialMode || !auth.isReady) return;
+
+		const destination = resolveNextDestination(searchParams.get("next")) ?? "/app";
+		const cleanPath = getPathWithoutAuthParams(pathname, searchParams);
+
+		if (auth.phase === "authenticated") {
+			router.replace(destination, { scroll: false });
+			return;
+		}
+
+		setAuthDrawerInitialMode(initialMode);
+		setAuthDestination(destination);
+		setAuthDrawerError(null);
+		setAwaitingAuthCommit(false);
+		setAuthDrawerOpen(true);
+		router.replace(cleanPath, { scroll: false });
+	}, [auth.isReady, auth.phase, pathname, router, searchParams]);
+
+	useEffect(() => {
 		if (!auth.isReady || auth.phase === "authenticated") return;
 		if (!protectedRoutes.has(pathname)) return;
 		if (authDrawerOpen) return;
@@ -117,6 +175,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	useEffect(() => {
 		function handleGuestPrompt() {
 			router.prefetch("/app");
+			setAuthDrawerInitialMode("register");
 			setAuthDestination("/app");
 			setAuthDrawerError(null);
 			setAwaitingAuthCommit(false);
@@ -128,12 +187,13 @@ export function IconRail({ onOpenSettings }: Props) {
 
 	const handleSignOut = async () => {
 		await signOut();
-		window.location.replace("/sign-in");
+		window.location.replace("/app?auth=sign-in");
 	};
 
 	const isAuthenticated = auth.isReady && auth.phase === "authenticated";
 	const openAuthDrawerFor = (destination: string) => {
 		router.prefetch(destination);
+		setAuthDrawerInitialMode("login");
 		setAuthDestination(destination);
 		setAuthDrawerError(null);
 		setAwaitingAuthCommit(false);
@@ -371,11 +431,9 @@ export function IconRail({ onOpenSettings }: Props) {
 										? error
 										: "Authentication failed";
 
-						setAuthDrawerError(
-							resolveAuthError(new Error(fallbackMessage)),
-						);
+						setAuthDrawerError(resolveAuthError(new Error(fallbackMessage)));
 					}}
-					config={authDrawerConfig}
+					config={activeAuthDrawerConfig}
 				/>
 			</AuthProvider>
 		</>

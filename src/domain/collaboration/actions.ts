@@ -2,6 +2,7 @@
 
 import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
 import { isGuestScopedId } from "@/domain/notes/note-id";
+import { isUniqueConstraintError } from "@/domain/persistence/guards";
 import { revalidatePath } from "next/cache";
 import type { TCollabPermission } from "./models";
 import {
@@ -50,20 +51,23 @@ export async function requestCollaboration(
   if (existing?.status === "pending") return { ok: false, error: "Request already pending" };
   if (existing?.status === "accepted") return { ok: false, error: "Already a collaborator" };
 
-  if (existing) {
-    await prisma.collaborationRequest.update({
-      where: { id: existing.id },
-      data: { status: "pending", message: message ?? null, resolvedAt: null },
-    });
-  } else {
-    await prisma.collaborationRequest.create({
-      data: {
+  // Upsert keyed on the (noteId, requesterId) unique constraint so two concurrent
+  // first-time requests can't both INSERT and crash on P2002. The try/catch covers
+  // the residual race where Prisma's non-atomic upsert still loses to a parallel
+  // insert — that simply means the request already exists, which is success here.
+  try {
+    await prisma.collaborationRequest.upsert({
+      where: { noteId_requesterId: { noteId, requesterId: user.id } },
+      create: {
         noteId,
         requesterId: user.id,
         ownerId: note.userId,
         message: message ?? null,
       },
+      update: { status: "pending", message: message ?? null, resolvedAt: null },
     });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
   }
 
   await prisma.notification.create({
@@ -92,10 +96,14 @@ export async function respondToCollabRequest(
   if (request.ownerId !== user.id) return { ok: false, error: "Forbidden" };
   if (request.status !== "pending") return { ok: false, error: "Request already resolved" };
 
-  await prisma.collaborationRequest.update({
-    where: { id: requestId },
+  // Atomic transition: only flip a still-pending request owned by this user.
+  // Guards against two concurrent responses (e.g. double-click, or accept+decline)
+  // both passing the status check above and producing duplicate side effects.
+  const { count } = await prisma.collaborationRequest.updateMany({
+    where: { id: requestId, ownerId: user.id, status: "pending" },
     data: { status: accept ? "accepted" : "declined", resolvedAt: new Date() },
   });
+  if (count !== 1) return { ok: false, error: "Request already resolved" };
 
   if (accept) {
     await prisma.noteCollaborator.upsert({
