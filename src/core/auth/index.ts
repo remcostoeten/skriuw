@@ -12,7 +12,7 @@ export type AuthUser = {
 };
 
 export type AuthPhase = "initializing" | "signed_out" | "authenticated";
-export type OAuthProvider = "github";
+export type OAuthProvider = "github" | "google";
 
 export type AuthSnapshot = {
 	phase: AuthPhase;
