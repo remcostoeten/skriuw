@@ -55,11 +55,18 @@ export function useNoteSharing(noteId: string | null | undefined) {
 	});
 
 	const revoke = useApiMutation<string, { revoked: boolean }>(revokeNoteShare, {
+		// Clear the link from the cache the instant the user clicks; the server
+		// confirms async and onError rolls the snapshot back. No invalidate —
+		// revoke is definitive, so a refetch would only re-render the same null.
+		invalidateKeys: [],
+		optimistic: {
+			queryKey: (revokedNoteId) => sharingKeys.share(revokedNoteId),
+			updater: () => null,
+		},
 		onSuccess: (result) => {
 			if (!result.revoked) {
 				return;
 			}
-			setShare(null);
 			trackProductEvent("share_revoked");
 		},
 	});

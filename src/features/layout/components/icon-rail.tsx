@@ -15,6 +15,7 @@ import { AuthDrawer, AuthProvider } from "@remcostoeten/auth-drawer";
 import type { AuthConfig } from "@remcostoeten/auth-drawer";
 import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { UserMenu } from "./user-menu";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
 import { GUEST_SIGNUP_PROMPT_EVENT } from "@/core/workspace-backend";
 
@@ -348,6 +349,9 @@ export function IconRail({ onOpenSettings }: Props) {
 						</TooltipTrigger>
 						<TooltipContent side="right">Settings</TooltipContent>
 					</Tooltip>
+					{isMounted && auth.phase === "authenticated" && auth.user && (
+						<NotificationBell variant="rail" />
+					)}
 					{!isMounted ? (
 						<div
 							aria-hidden="true"
