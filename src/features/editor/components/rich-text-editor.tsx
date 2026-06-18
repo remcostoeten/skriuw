@@ -53,9 +53,24 @@ import type { AiEditorHandle } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
+import type * as Y from "yjs";
+import type { Awareness } from "y-protocols/awareness";
 
 // biome-ignore lint/suspicious/noExplicitAny: editor type with custom schema requires deep inference
 type EditorInstance = any;
+
+// Real-time collaboration wiring. When present, the Yjs document is the source
+// of truth: the editor binds to the shared fragment instead of `initialContent`,
+// the prop-driven content-sync effect is disabled, and (for the owner only) the
+// empty room is seeded once from the note's pre-collaboration content.
+export type TRichTextCollab = {
+	doc: Y.Doc;
+	fragment: Y.XmlFragment;
+	awareness: Awareness | null;
+	user: { name: string; color: string };
+	/** Only the owner seeds, so two clients never both populate the room. */
+	shouldSeed: boolean;
+};
 
 interface RichTextEditorProps {
 	content: string;
@@ -76,6 +91,7 @@ interface RichTextEditorProps {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
+	collab?: TRichTextCollab;
 }
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
@@ -684,6 +700,7 @@ export function RichTextEditor({
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
+	collab,
 }: RichTextEditorProps) {
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
 	const blockNoteTheme = appTheme === "paper" ? "light" : "dark";
@@ -705,10 +722,26 @@ export function RichTextEditor({
 		return upgradeRichDocumentChips(base);
 	}, []);
 
-	const editor = useCreateBlockNote({
-		schema: editorSchema,
-		initialContent: initialBlocks,
-	});
+	// When collaborating, content comes from the shared Yjs fragment — passing
+	// `initialContent` alongside `collaboration` is invalid and would duplicate
+	// the document. `collab` is fixed for this editor's lifetime (the parent only
+	// mounts the collaborative editor once the room is synced, and keys it by
+	// note), so reading it once at creation is correct.
+	const editor = useCreateBlockNote(
+		collab
+			? {
+					schema: editorSchema,
+					collaboration: {
+						fragment: collab.fragment,
+						user: collab.user,
+						provider: { awareness: collab.awareness ?? undefined },
+					},
+				}
+			: {
+					schema: editorSchema,
+					initialContent: initialBlocks,
+				},
+	);
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
@@ -906,6 +939,10 @@ export function RichTextEditor({
 	// once per debounce settle / flush — never on every keystroke.
 	const serializeAndCommit = useCallback(async () => {
 		if (!editor) return;
+		// Viewers never persist: their edits are blocked client-side (read-only)
+		// and server-side; saving would only generate rejected writes on every
+		// remote collaboration update they receive.
+		if (readOnly) return;
 
 		const runId = ++serializeRunIdRef.current;
 		const markdown = await blocksToMarkdown(editor);
@@ -972,7 +1009,29 @@ export function RichTextEditor({
 		void serializeAndCommit();
 	}, [serializeAndCommit]);
 
+	// Seed a freshly-collaborative note exactly once, from the owner's client,
+	// using the content it had before collaboration was enabled. A meta flag in
+	// the shared doc guards against any other client (or a later session)
+	// re-seeding. The residual race — two owner tabs seeding within one sync
+	// tick — would merge rather than lose content, acceptable for first share.
 	useEffect(() => {
+		if (!collab || !collab.shouldSeed) return;
+		const meta = collab.doc.getMap<boolean>("meta");
+		if (meta.get("seeded")) return;
+		collab.doc.transact(() => {
+			meta.set("seeded", true);
+		});
+		if (initialBlocks.length > 0) {
+			// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+			editor.replaceBlocks(editor.document, initialBlocks as any);
+		}
+	}, [collab, editor, initialBlocks]);
+
+	useEffect(() => {
+		// In collaboration mode the Yjs fragment is authoritative; pushing the
+		// `content` prop back into the editor would fight the CRDT and clobber
+		// remote edits. The shared doc handles all content updates.
+		if (collab) return;
 		if (!editor || isInternalChangeRef.current) return;
 		const baseRichContent = resolveRichDocument(content, richContent);
 		const nextRichContent = upgradeRichDocumentChips(baseRichContent);
@@ -992,7 +1051,7 @@ export function RichTextEditor({
 			pendingMarkdownRef.current = content;
 			pendingRichContentRef.current = nextRichContent;
 		}
-	}, [activeFileId, content, editor, richContent]);
+	}, [activeFileId, content, editor, richContent, collab]);
 
 	useEffect(() => {
 		return () => {
