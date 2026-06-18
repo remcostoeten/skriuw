@@ -15,4 +15,5 @@ export const authDrawerAdapter = createBetterAuthAdapter({
 	client: authClient,
 	callbackURL: getAppCallbackURL(),
 	newUserCallbackURL: getAppCallbackURL(),
+	providers: ["github", "google"],
 });

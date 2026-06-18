@@ -9,6 +9,36 @@ import { prisma } from "./prisma";
 const hasGithubCredentials = Boolean(
 	process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
 );
+const hasGoogleCredentials = Boolean(
+	process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+);
+
+const socialProviders = {
+	...(hasGithubCredentials
+		? {
+				github: {
+					clientId: process.env.GITHUB_CLIENT_ID!,
+					clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+					scope: ["read:user", "user:email"],
+					mapProfileToUser: (profile: {
+						id?: string | number;
+						login?: string | null;
+						email?: string | null;
+					}) => ({
+						email: profile.email ?? getGithubFallbackEmail(profile),
+					}),
+				},
+			}
+		: {}),
+	...(hasGoogleCredentials
+		? {
+				google: {
+					clientId: process.env.GOOGLE_CLIENT_ID!,
+					clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+				},
+			}
+		: {}),
+};
 
 function getGithubFallbackEmail(profile: { id?: string | number; login?: string | null }): string {
 	const githubId = String(profile.id ?? "unknown");
@@ -27,18 +57,7 @@ export const auth = betterAuth({
 		// and anti-abuse handling wired up.
 		requireEmailVerification: false,
 	},
-	socialProviders: hasGithubCredentials
-		? {
-				github: {
-					clientId: process.env.GITHUB_CLIENT_ID!,
-					clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-					scope: ["read:user", "user:email"],
-					mapProfileToUser: (profile) => ({
-						email: profile.email ?? getGithubFallbackEmail(profile),
-					}),
-				},
-			}
-		: undefined,
+	socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
 	plugins: [
 		admin({
 			defaultRole: "user",
