@@ -611,9 +611,13 @@ export function SidebarPanel({
                   onResetToDefaults={sidebarStore.resetToDefaults}
                 />
                 {!isGuest && (
-                  <HeaderActionTooltip label="Notifications">
-                    <NotificationBell />
-                  </HeaderActionTooltip>
+                  // Desktop shows the bell at the avatar (icon rail); the rail is
+                  // hidden on mobile, so keep a mobile-only trigger here.
+                  <div className="md:hidden">
+                    <HeaderActionTooltip label="Notifications">
+                      <NotificationBell />
+                    </HeaderActionTooltip>
+                  </div>
                 )}
             </div>
 

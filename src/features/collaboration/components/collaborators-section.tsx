@@ -12,7 +12,11 @@ import {
 } from "@/domain/collaboration/actions";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { cn } from "@/shared/lib/utils";
-import type { TCollabPermission } from "@/domain/collaboration/models";
+import type {
+  TCollabPermission,
+  TCollabRequest,
+  TCollaborator,
+} from "@/domain/collaboration/models";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 
 const collabKeys = {
@@ -97,11 +101,12 @@ export function CollaboratorsSection({
     refetchInterval: 30_000,
   });
 
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: collabKeys.collaborators(noteId) });
-    void qc.invalidateQueries({ queryKey: collabKeys.pendingRequests(noteId) });
-  };
+  const collaboratorsKey = collabKeys.collaborators(noteId);
+  const pendingKey = collabKeys.pendingRequests(noteId);
 
+  // Pending requests live in a separate query, so accepting/declining only needs
+  // to drop the row optimistically; the new collaborator (on accept) lands when
+  // the collaborators query reconciles on settle.
   const respondMutation = useMutation({
     mutationFn: ({
       id,
@@ -112,28 +117,83 @@ export function CollaboratorsSection({
       accept: boolean;
       permission?: TCollabPermission;
     }) => respondToCollabRequest(id, accept, permission),
-    onSuccess: (result, vars) => {
+    onMutate: async ({ id }) => {
+      await qc.cancelQueries({ queryKey: pendingKey });
+      const previous = qc.getQueryData<TCollabRequest[]>(pendingKey);
+      qc.setQueryData<TCollabRequest[]>(pendingKey, (cur = []) =>
+        cur.filter((req) => req.id !== id),
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(pendingKey, ctx.previous);
+      showUserToast("Couldn't respond to request", "error");
+    },
+    onSuccess: (result, vars, ctx) => {
       if (result.ok) {
         showUserToast(vars.accept ? "Collaborator added" : "Request declined", "success");
-        invalidate();
+      } else {
+        if (ctx?.previous) qc.setQueryData(pendingKey, ctx.previous);
+        showUserToast(result.error ?? "Couldn't respond to request", "error");
       }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: pendingKey });
+      void qc.invalidateQueries({ queryKey: collaboratorsKey });
     },
   });
 
   const revokeMutation = useMutation({
     mutationFn: (userId: string) => revokeCollaborator(noteId, userId),
-    onSuccess: (result) => {
+    onMutate: async (userId) => {
+      await qc.cancelQueries({ queryKey: collaboratorsKey });
+      const previous = qc.getQueryData<TCollaborator[]>(collaboratorsKey);
+      qc.setQueryData<TCollaborator[]>(collaboratorsKey, (cur = []) =>
+        cur.filter((c) => c.userId !== userId),
+      );
+      return { previous };
+    },
+    onError: (_error, _userId, ctx) => {
+      if (ctx?.previous) qc.setQueryData(collaboratorsKey, ctx.previous);
+      showUserToast("Couldn't revoke access", "error");
+    },
+    onSuccess: (result, _userId, ctx) => {
       if (result.ok) {
         showUserToast("Access revoked", "success");
-        invalidate();
+      } else {
+        if (ctx?.previous) qc.setQueryData(collaboratorsKey, ctx.previous);
+        showUserToast("Couldn't revoke access", "error");
       }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: collaboratorsKey });
     },
   });
 
   const permissionMutation = useMutation({
     mutationFn: ({ userId, permission }: { userId: string; permission: TCollabPermission }) =>
       updateCollaboratorPermission(noteId, userId, permission),
-    onSuccess: () => invalidate(),
+    onMutate: async ({ userId, permission }) => {
+      await qc.cancelQueries({ queryKey: collaboratorsKey });
+      const previous = qc.getQueryData<TCollaborator[]>(collaboratorsKey);
+      qc.setQueryData<TCollaborator[]>(collaboratorsKey, (cur = []) =>
+        cur.map((c) => (c.userId === userId ? { ...c, permission } : c)),
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(collaboratorsKey, ctx.previous);
+      showUserToast("Couldn't update permission", "error");
+    },
+    onSuccess: (result, _vars, ctx) => {
+      if (!result.ok && ctx?.previous) {
+        qc.setQueryData(collaboratorsKey, ctx.previous);
+        showUserToast("Couldn't update permission", "error");
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: collaboratorsKey });
+    },
   });
 
   const collaborators = collaboratorsQuery.data ?? [];
