@@ -80,7 +80,7 @@ export function AccountSection() {
 		setIsSigningOut(true);
 		try {
 			await signOut();
-			window.location.replace("/sign-in");
+			window.location.replace("/app?auth=sign-in");
 		} catch {
 			setIsSigningOut(false);
 		}
@@ -99,7 +99,7 @@ export function AccountSection() {
 			const payload = (await res.json().catch(() => null)) as { error?: string } | null;
 			if (!res.ok) throw new Error(payload?.error ?? "Could not delete account.");
 			await signOut().catch(() => undefined);
-			window.location.replace("/sign-in");
+			window.location.replace("/app?auth=sign-in");
 		} catch (err) {
 			setDeleteError(err instanceof Error ? err.message : "Could not delete account.");
 			setIsDeletingAccount(false);
@@ -192,10 +192,7 @@ export function AccountSection() {
 
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
-				<Row
-					title="Sign out"
-					description="End your session on this device."
-				>
+				<Row title="Sign out" description="End your session on this device.">
 					<Button
 						variant="outline"
 						size="sm"

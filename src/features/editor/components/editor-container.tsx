@@ -594,6 +594,16 @@ export function EditorContainer({
 				<Editor
 					file={file}
 					files={files}
+					// Fail closed: only the owner (access === undefined, their own note)
+					// or an explicit "editor" gets a writable surface. Any other role
+					// (viewer today, future roles) is read-only so keystrokes aren't
+					// optimistically "saved" and then silently dropped server-side.
+					readOnly={
+						!!file &&
+						file.access !== undefined &&
+						file.access !== "owner" &&
+						file.access !== "editor"
+					}
 					editorMode={effectiveEditorMode}
 					editorFontId={editorPrefs.defaultFont}
 					editorLineHeight={editorPrefs.lineHeight}

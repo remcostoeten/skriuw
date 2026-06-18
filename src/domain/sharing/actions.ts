@@ -72,7 +72,12 @@ export async function publishNote(input: TPublishNoteInput): Promise<TNoteShareS
 	const { prisma, user } = await getAuthenticatedUser();
 
 	const note = await getNote(validated.noteId);
-	if (!note) throw new Error("Note not found");
+	// Only the owner may publish a public share link. `getNote` is collaborator-
+	// aware (an editor/viewer can read), so reject any non-owner access here —
+	// `access === undefined` is the owner's own note and stays allowed.
+	if (!note || (note.access && note.access !== "owner")) {
+		throw new Error("Note not found");
+	}
 
 	const token = generateShareToken();
 	const richContent = (note.richContent ??

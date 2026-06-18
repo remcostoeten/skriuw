@@ -22,6 +22,17 @@ export function isRecordNotFoundError(error: unknown): boolean {
 	);
 }
 
+// Prisma throws P2002 when an insert/update violates a unique constraint. Used to
+// turn a lost concurrency race (two callers inserting the same unique key) into a
+// graceful no-op instead of an unhandled 500.
+export function isUniqueConstraintError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		(error as { code?: unknown }).code === "P2002"
+	);
+}
+
 export async function assertOwnedParentFolder(
 	db: DbClient,
 	userId: string,
@@ -36,6 +47,21 @@ export async function assertOwnedParentFolder(
 	if (!folder) {
 		throw new PersistenceError("Parent folder not found");
 	}
+}
+
+// True when `userId` owns the (non-deleted-agnostic) note. Used to gate
+// owner-only reads like the collaborator/request listings so the guard isn't
+// copy-pasted at each call site.
+export async function assertOwnsNote(
+	db: Pick<PrismaClient, "note">,
+	userId: string,
+	noteId: string,
+): Promise<boolean> {
+	const owned = await db.note.findFirst({
+		where: { id: noteId, userId },
+		select: { id: true },
+	});
+	return owned !== null;
 }
 
 export async function assertResourceIdAvailable(

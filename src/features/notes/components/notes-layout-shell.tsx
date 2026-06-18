@@ -10,6 +10,7 @@ import { perf } from "@/shared/perf/track";
 import { PerfOverlay } from "@/shared/perf/perf-overlay";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
+import { useOnboardingStore } from "@/features/onboarding/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { SplitEditorWorkspace } from "./split-editor-workspace";
 import { SidebarPanel } from "./sidebar-panel";
@@ -44,6 +45,14 @@ const ShortcutHelpDialog = dynamic(
 	() =>
 		import("@/shared/ui/shortcut-help-dialog").then((mod) => ({
 			default: mod.ShortcutHelpDialog,
+		})),
+	{ ssr: false, loading: () => null },
+);
+
+const WelcomeWalkthrough = dynamic(
+	() =>
+		import("@/features/onboarding/components/welcome-walkthrough").then((mod) => ({
+			default: mod.WelcomeWalkthrough,
 		})),
 	{ ssr: false, loading: () => null },
 );
@@ -86,6 +95,7 @@ export function NotesLayoutShell({
 }: NotesLayoutShellProps = {}) {
 	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
+	const showWelcome = useOnboardingStore((s) => s.hydrated && !s.hasSeenWelcome);
 	const {
 		activeFile,
 		focusedFile,
@@ -188,6 +198,7 @@ export function NotesLayoutShell({
 	return (
 		<LayoutContainer className="bg-background">
 			<PerfOverlay />
+			{showWelcome && <WelcomeWalkthrough />}
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
 
