@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -12,6 +13,7 @@ import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { EditorContainer } from "@/features/editor/components/editor-container";
+import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import { SplitEditorWorkspace } from "./split-editor-workspace";
 import { SidebarPanel } from "./sidebar-panel";
 import { useNotesLayout } from "../hooks/use-notes-layout";
@@ -94,6 +96,7 @@ export function NotesLayoutShell({
 	initialUserScopeId = null,
 }: NotesLayoutShellProps = {}) {
 	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
+	const pathname = usePathname();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 	const showWelcome = useOnboardingStore((s) => s.hydrated && !s.hasSeenWelcome);
 	const {
@@ -166,6 +169,17 @@ export function NotesLayoutShell({
 	useFocusTrap(isMobile && showSidebar, mobileSidebarRef);
 	useFocusTrap(isMobile && showMetadata, mobileMetadataRef);
 	const mobileOverlayOpen = isMobile && (showSidebar || showMetadata);
+	const workspaceItems: WorkspaceNavItem[] = [
+		{ href: "/app", label: "Notes", isActive: pathname === "/app" },
+		{ href: "/app/journal", label: "Journal", isActive: pathname === "/app/journal" },
+		{ href: "/app/graph", label: "Graph", isActive: pathname === "/app/graph" },
+		{ href: "/app/shared", label: "Shared", isActive: pathname === "/app/shared" },
+		{
+			href: "/project-planning",
+			label: "Planning",
+			isActive: pathname === "/project-planning",
+		},
+	];
 
 	// Local-first note swap: when moving to a note whose body isn't cached yet,
 	// keep the previously loaded note on screen instead of flashing the editor
@@ -304,6 +318,7 @@ export function NotesLayoutShell({
 											canNavigateNext={canNavigateNext}
 											onToggleSidebar={handleToggleSidebar}
 											onToggleMetadata={handleToggleMetadata}
+											workspaceItems={workspaceItems}
 											onOpenSettings={handleOpenSettings}
 											onNavigatePrev={handleNavigatePrev}
 											onNavigateNext={handleNavigateNext}
@@ -326,6 +341,7 @@ export function NotesLayoutShell({
 											onContentChange={updateFileContent}
 											onToggleSidebar={handleToggleSidebar}
 											onToggleMetadata={handleToggleMetadata}
+											workspaceItems={workspaceItems}
 											onOpenSettings={handleOpenSettings}
 											onNavigatePrev={handleNavigatePrev}
 											onNavigateNext={handleNavigateNext}

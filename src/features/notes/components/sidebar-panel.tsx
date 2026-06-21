@@ -53,7 +53,7 @@ interface SidebarPanelProps {
   queries: NoteTreeQueries;
   onCollapseAllFolders?: () => void;
   onExpandAllFolders?: () => void;
-  onCreateFile: () => void;
+  onCreateFile: (options?: { projectId?: string }) => void;
   onCreateFolder: () => void;
   onCreationParentChange?: (folderId: string | null) => void;
   className?: string;
@@ -429,6 +429,10 @@ export function SidebarPanel({
             onUpdateProject={sidebarStore.updateProject}
             onDeleteProject={sidebarStore.deleteProject}
             onRemoveFromProject={sidebarStore.removeFromProject}
+            onAddToProject={sidebarStore.addToProject}
+            onCreateNoteInProject={(projectId) =>
+              onCreateFile({ projectId })
+            }
             {...getSectionMoveProps(section.id)}
             {...getSectionDragProps(section.id)}
           />
@@ -526,7 +530,7 @@ export function SidebarPanel({
             <div className="flex items-center gap-2 md:gap-2.5 w-full justify-between">
                 <HeaderActionTooltip label="New note">
                   <button
-                    onClick={onCreateFile}
+                    onClick={() => onCreateFile()}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
                     aria-label="New note"
                   >
