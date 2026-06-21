@@ -61,10 +61,17 @@ export function AccountSection() {
 	const [usernameError, setUsernameError] = useState<string | null>(null);
 	const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 	const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const pendingCheckRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		setUsernameValue(user?.username ?? "");
 	}, [user?.username]);
+
+	useEffect(() => {
+		return () => {
+			if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+		};
+	}, []);
 
 	const checkAvailability = useCallback(
 		(value: string) => {
@@ -74,8 +81,11 @@ export function AccountSection() {
 				return;
 			}
 			usernameDebounceRef.current = setTimeout(async () => {
+				pendingCheckRef.current = value;
 				const { data } = await isUsernameAvailable({ username: value });
-				setUsernameAvailable(data?.available ?? null);
+				if (pendingCheckRef.current === value) {
+					setUsernameAvailable(data?.available ?? null);
+				}
 			}, 400);
 		},
 		[user?.username],
