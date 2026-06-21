@@ -29,7 +29,15 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
-import { FileText, FolderTree, Link2, PenTool, SpellCheck, Tag } from "lucide-react";
+import {
+	FileText,
+	FolderTree,
+	Link2,
+	MessageSquarePlus,
+	PenTool,
+	SpellCheck,
+	Tag,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { perf } from "@/shared/perf/track";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
@@ -51,6 +59,8 @@ import {
 } from "@/domain/notes/rich-document";
 import type { AiEditorHandle } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
+import { markCollabActivity } from "@/features/collaboration/lib/collab-activity";
+import { useAnchoredMarks } from "@/features/collaboration/anchored-marks/react/use-anchored-marks";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 import type * as Y from "yjs";
@@ -386,17 +396,107 @@ function InternalNoteLinkButton({
 	);
 }
 
+type TAddComment = (range: { from: number; to: number }, body: string) => void;
+
+/**
+ * Formatting-toolbar action to anchor a comment to the current selection. Only
+ * rendered on collaborative notes (the parent passes `onAddComment` only then).
+ * The selection range is captured at the moment the popover opens, before focus
+ * moves to the textarea.
+ */
+function CommentButton({ onAddComment }: { onAddComment: TAddComment }) {
+	const editor = useBlockNoteEditor<any, any, any>();
+	const Components = useComponentsContext()!;
+	const [open, setOpen] = useState(false);
+	const [body, setBody] = useState("");
+	const rangeRef = useRef<{ from: number; to: number } | null>(null);
+
+	const captureRange = () => {
+		const selection = editor.prosemirrorView?.state.selection;
+		rangeRef.current = selection ? { from: selection.from, to: selection.to } : null;
+	};
+
+	const submit = () => {
+		const range = rangeRef.current;
+		const text = body.trim();
+		if (range && text) onAddComment(range, text);
+		setBody("");
+		setOpen(false);
+	};
+
+	return (
+		<Components.Generic.Popover.Root
+			open={open}
+			onOpenChange={(next: boolean) => {
+				if (next) captureRange();
+				setOpen(next);
+			}}
+		>
+			<Components.Generic.Popover.Trigger>
+				<Components.FormattingToolbar.Button
+					className="bn-button"
+					label="Comment"
+					mainTooltip="Comment on selection"
+					icon={<MessageSquarePlus />}
+					isSelected={false}
+					onClick={() => setOpen((current) => !current)}
+				/>
+			</Components.Generic.Popover.Trigger>
+			<Components.Generic.Popover.Content
+				className="bn-popover-content"
+				variant="form-popover"
+			>
+				<div className="flex w-64 flex-col gap-2 p-2">
+					<textarea
+						autoFocus
+						value={body}
+						onChange={(event) => setBody(event.target.value)}
+						onKeyDown={(event) => {
+							if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submit();
+						}}
+						placeholder="Add a comment…"
+						className="h-20 resize-none rounded-md border border-border bg-background p-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					/>
+					<div className="flex items-center justify-end gap-1.5">
+						<button
+							type="button"
+							onClick={() => {
+								setBody("");
+								setOpen(false);
+							}}
+							className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							disabled={!body.trim()}
+							onClick={submit}
+							className="rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50"
+						>
+							Comment
+						</button>
+					</div>
+				</div>
+			</Components.Generic.Popover.Content>
+		</Components.Generic.Popover.Root>
+	);
+}
+
 function CustomFormattingToolbar({
 	files,
 	activeFileId,
+	onAddComment,
 }: {
 	files: NoteFile[];
 	activeFileId?: string;
+	onAddComment?: TAddComment;
 }) {
 	return (
 		<FormattingToolbar>
 			{getFormattingToolbarItems()}
 			<InternalNoteLinkButton files={files} activeFileId={activeFileId} />
+			{onAddComment && <CommentButton onAddComment={onAddComment} />}
 		</FormattingToolbar>
 	);
 }
@@ -714,6 +814,7 @@ export function RichTextEditor({
 	const hasNormalizedInitialContentRef = useRef(false);
 	const activeFileIdRef = useRef(activeFileId);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const serializeRunIdRef = useRef(0);
 	const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -735,6 +836,9 @@ export function RichTextEditor({
 						fragment: collab.fragment,
 						user: collab.user,
 						provider: { awareness: collab.awareness ?? undefined },
+						// Always show the name label on remote carets so it's clear
+						// whose selection/cursor is whose, not just on movement.
+						showCursorLabels: "always",
 					},
 				}
 			: {
@@ -744,6 +848,10 @@ export function RichTextEditor({
 	);
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
+
+	// Anchored comments live alongside the document in the same Yjs room; the
+	// engine only attaches on collaborative notes and tears down otherwise.
+	const { addComment } = useAnchoredMarks(editor, collab ?? null);
 
 	const handleCreateNoteFromMention = useCallback(
 		(title: string) => {
@@ -990,6 +1098,18 @@ export function RichTextEditor({
 	const handleEditorChange = useCallback(() => {
 		if (!editor) return;
 
+		// Broadcast live "typing" presence to other peers, then fall back to a
+		// plain active stamp once keystrokes pause. Cheap awareness writes; the
+		// expensive serialization stays behind the save debounce below.
+		if (collab?.awareness) {
+			markCollabActivity(collab.awareness, true);
+			if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+			typingTimeoutRef.current = setTimeout(() => {
+				typingTimeoutRef.current = null;
+				markCollabActivity(collab.awareness, false);
+			}, 1800);
+		}
+
 		if (saveTimeoutRef.current) {
 			clearTimeout(saveTimeoutRef.current);
 		}
@@ -998,7 +1118,7 @@ export function RichTextEditor({
 			saveTimeoutRef.current = null;
 			void serializeAndCommit();
 		}, 180);
-	}, [editor, serializeAndCommit]);
+	}, [editor, serializeAndCommit, collab]);
 
 	const flushPendingEditorChange = useCallback(() => {
 		if (saveTimeoutRef.current) {
@@ -1058,6 +1178,9 @@ export function RichTextEditor({
 			if (saveTimeoutRef.current) {
 				clearTimeout(saveTimeoutRef.current);
 			}
+			if (typingTimeoutRef.current) {
+				clearTimeout(typingTimeoutRef.current);
+			}
 		};
 	}, []);
 
@@ -1099,6 +1222,7 @@ export function RichTextEditor({
 								<CustomFormattingToolbar
 									files={files}
 									activeFileId={activeFileId}
+									onAddComment={collab ? addComment : undefined}
 								/>
 							)}
 						/>
@@ -1275,6 +1399,52 @@ export function RichTextEditor({
 					background: hsl(var(--editor-selection));
 					box-shadow: 0 0 0 1px hsl(var(--ring) / 0.7);
 				}
+					/* Real-time collaboration: remote carets, name labels, selections. */
+					.blocknote-wrapper .bn-collaboration-cursor__caret {
+						border-radius: 1px;
+						/* Notch the caret away from the glyph edges so it reads as a
+						   distinct cursor, not part of the text. */
+						border-left: 1px solid hsl(var(--card));
+						border-right: 1px solid hsl(var(--card));
+					}
+					.blocknote-wrapper .bn-collaboration-cursor__base[data-active]
+						.bn-collaboration-cursor__label {
+						top: -1.3rem;
+						max-height: 1.2rem;
+						border-radius: 4px 4px 4px 1px;
+						padding: 0.06rem 0.34rem;
+						font-size: 10.5px;
+						font-weight: 600;
+						letter-spacing: 0.01em;
+						line-height: 1.2;
+						box-shadow: 0 2px 8px hsl(var(--editor-shadow) / 0.38);
+					}
+					/* Remote text selection tint. y-prosemirror sets the per-user color
+					   inline (with alpha); we only soften the corners + keep it from
+					   bleeding past line boxes. */
+					.blocknote-wrapper .ProseMirror-yjs-selection {
+						border-radius: 2px;
+						padding: 0.02em 0;
+					}
+					/* Anchored comments: author-tinted highlight via the engine's
+					   --anchored-comment-color custom property. Falls back to the
+					   ring color so it's never invisible. */
+					.blocknote-wrapper .anchored-comment {
+						background: hsl(var(--anchored-comment-color, var(--ring)) / 0.16);
+						border-bottom: 2px solid
+							hsl(var(--anchored-comment-color, var(--ring)) / 0.7);
+						border-radius: 2px;
+						cursor: pointer;
+						transition: background 120ms ease;
+					}
+					.blocknote-wrapper .anchored-comment:hover {
+						background: hsl(var(--anchored-comment-color, var(--ring)) / 0.26);
+					}
+					.blocknote-wrapper .anchored-comment--resolved {
+						background: transparent;
+						border-bottom-style: dotted;
+						opacity: 0.55;
+					}
 				.blocknote-wrapper .bn-toolbar {
 					min-height: 2rem;
 					background: hsl(var(--popover)) !important;
