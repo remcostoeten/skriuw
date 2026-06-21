@@ -1,6 +1,0 @@
-{
-  "$schema": "https://www.partykit.io/schema.json",
-  "name": "skriuw-notes",
-  "main": "party/notes.ts",
-  "compatibilityDate": "2025-06-01"
-}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Y from "yjs";
-import YPartyKitProvider from "y-partykit/provider";
+import YProvider from "y-partyserver/provider";
 import type { Awareness } from "y-protocols/awareness";
 
 // Both clients must read/write the same named fragment for edits to converge.
@@ -24,7 +24,7 @@ export type TCollabRoom = {
 	synced: boolean;
 	doc: Y.Doc | null;
 	fragment: Y.XmlFragment | null;
-	provider: YPartyKitProvider | null;
+	provider: YProvider | null;
 	awareness: Awareness | null;
 	role: "owner" | "editor" | "viewer" | null;
 	user: { name: string; color: string } | null;
@@ -65,7 +65,7 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 
 		let cancelled = false;
 		let doc: Y.Doc | null = null;
-		let provider: YPartyKitProvider | null = null;
+		let provider: YProvider | null = null;
 
 		setRoom({ ...DISABLED, status: "connecting" });
 
@@ -95,11 +95,23 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 
 			doc = new Y.Doc();
 			const fragment = doc.getXmlFragment(COLLAB_FRAGMENT);
-			provider = new YPartyKitProvider(auth.host, noteId, doc, {
+			provider = new YProvider(auth.host, noteId, doc, {
+				// Routes to the "Notes" Durable Object binding (case-insensitive);
+				// without this the provider would target the default "main" party.
+				party: "notes",
 				params: { token: auth.token },
 				connect: true,
 			});
 			provider.awareness.setLocalStateField("user", auth.user);
+			// Role + live activity travel on a separate `presence` field. The
+			// `user` field is owned by BlockNote (it rewrites it from the editor's
+			// collaboration `user` option on mount), so anything we stash there
+			// gets clobbered. `presence` is ours alone.
+			provider.awareness.setLocalStateField("presence", {
+				role: auth.role,
+				lastActive: Date.now(),
+				typing: false,
+			});
 
 			const base: TCollabRoom = {
 				status: "connecting",
