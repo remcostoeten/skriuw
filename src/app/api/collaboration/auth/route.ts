@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 	return Response.json({
 		token,
 		role: access.role,
-		host: process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? "127.0.0.1:1999",
+		host: process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? "127.0.0.1:8787",
 		user: { name, color },
 	});
 }
