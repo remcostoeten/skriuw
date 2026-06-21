@@ -13,6 +13,7 @@ import { AuthDrawer, AuthProvider } from "@remcostoeten/auth-drawer";
 import type { AuthConfig } from "@remcostoeten/auth-drawer";
 import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { CollabRequestButton } from "@/features/collaboration/components/collab-request-button";
+import { useAuth } from "@/core/auth/use-auth";
 
 const authConfig = {
 	ui: {
@@ -30,15 +31,6 @@ const authConfig = {
 				},
 			},
 		},
-		success: {
-			minVisibleMs: 900,
-			maxVisibleMs: 4500,
-			messages: {
-				signIn: "Finishing sign in",
-				signUp: "Finishing account setup",
-				oauth: "Connecting your session",
-			},
-		},
 	},
 } satisfies AuthConfig;
 
@@ -50,7 +42,16 @@ export function PublicNoteReader({
 	snapshot: TPublicShareSnapshot;
 	initialCollabStatus?: "none" | "pending" | "collaborator";
 }) {
+	const auth = useAuth();
 	const [authOpen, setAuthOpen] = useState(false);
+	const showSignInCta = auth.isReady && auth.phase !== "authenticated";
+	const showAppCta = auth.phase === "authenticated";
+	const appHref =
+		initialCollabStatus === "collaborator"
+			? `/app?note=${encodeURIComponent(snapshot.noteId)}`
+			: "/app";
+	const appCtaLabel =
+		initialCollabStatus === "collaborator" ? "Open in editor" : "Open Skriuw";
 
 	const file = useMemo<NoteFile>(() => {
 		const sharedAt = new Date(snapshot.sharedAt);
@@ -103,13 +104,24 @@ export function PublicNoteReader({
 							initialStatus={initialCollabStatus}
 						/>
 
-						<button
-							type="button"
-							onClick={() => setAuthOpen(true)}
-							className="inline-flex h-7 items-center rounded-md bg-foreground px-3 text-[11px] font-medium text-background transition-opacity hover:opacity-85 active:scale-[0.97]"
-						>
-							Try Skriuw
-						</button>
+						{showSignInCta && (
+							<button
+								type="button"
+								onClick={() => setAuthOpen(true)}
+								className="inline-flex h-7 items-center rounded-md bg-foreground px-3 text-[11px] font-medium text-background transition-opacity hover:opacity-85 active:scale-[0.97]"
+							>
+								Try Skriuw
+							</button>
+						)}
+
+						{showAppCta && (
+							<Link
+								href={appHref}
+								className="inline-flex h-7 items-center rounded-md bg-foreground px-3 text-[11px] font-medium text-background transition-opacity hover:opacity-85 active:scale-[0.97]"
+							>
+								{appCtaLabel}
+							</Link>
+						)}
 					</div>
 				</header>
 
