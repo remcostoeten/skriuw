@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { cn } from "@/shared/lib/utils";
 import { useNotifications } from "../hooks/use-notifications";
-import type { TNotification } from "@/domain/collaboration/models";
+import type { TCollabPermission, TNotification } from "@/domain/collaboration/models";
 
 type NotificationPayload = {
   noteId?: string;
@@ -75,7 +75,7 @@ function NotificationRow({
   onOpen: (n: TNotification) => void;
   onToggleRead: (n: TNotification) => void;
   onDelete: (n: TNotification) => void;
-  onRespond: (n: TNotification, accept: boolean) => void;
+  onRespond: (n: TNotification, accept: boolean, permission?: TCollabPermission) => void;
   busy: boolean;
 }) {
   const payload = n.payload as NotificationPayload;
@@ -140,10 +140,13 @@ function NotificationRow({
 
       {isRequest && (
         <div className="flex items-center gap-1.5 pl-3.5 pt-0.5">
+          {/* Accepting a collaboration request grants edit access — a
+              collaborator IS an editor. Read-only "viewer" access comes from
+              the public share link, not from this flow. */}
           <button
             type="button"
             disabled={busy}
-            onClick={() => onRespond(n, true)}
+            onClick={() => onRespond(n, true, "editor")}
             className="inline-flex h-6 items-center gap-1 rounded-md bg-foreground px-2 text-[11px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50"
           >
             <Check className="h-3 w-3" strokeWidth={2} />
@@ -191,12 +194,21 @@ export function NotificationBell({
     void (n.read ? markUnread([n.id]) : markRead([n.id]));
   };
 
-  const handleRespond = async (n: TNotification, accept: boolean) => {
+  const handleRespond = async (
+    n: TNotification,
+    accept: boolean,
+    permission: TCollabPermission = "editor",
+  ) => {
     const payload = n.payload as NotificationPayload;
     if (!payload.noteId || !payload.requesterId) return;
     setBusyId(n.id);
     try {
-      const result = await respondToRequest(payload.noteId, payload.requesterId, accept);
+      const result = await respondToRequest(
+        payload.noteId,
+        payload.requesterId,
+        accept,
+        permission,
+      );
       if (result.ok) {
         showUserToast(accept ? "Collaborator added" : "Request declined", "success");
         await markRead([n.id]);
@@ -267,7 +279,9 @@ export function NotificationBell({
                 onOpen={handleOpen}
                 onToggleRead={handleToggleRead}
                 onDelete={(item) => void remove([item.id])}
-                onRespond={(item, accept) => void handleRespond(item, accept)}
+                onRespond={(item, accept, permission) =>
+                  void handleRespond(item, accept, permission)
+                }
               />
             ))}
           </div>
