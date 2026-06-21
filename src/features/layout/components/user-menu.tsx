@@ -3,12 +3,10 @@
 import * as React from "react";
 import { FileText, BookOpen, Activity, Settings, LogOut, LoaderCircle, Shield } from "lucide-react";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/shared/ui/popover";
 import { getAvatarSeed } from "@/shared/lib/avatar";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -50,9 +48,11 @@ function Shortcut({ value }: { value: string }) {
 export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity, onAdmin, isAdmin }: UserMenuProps) {
 	const [open, setOpen] = React.useState(false);
 	const [isSigningOut, setIsSigningOut] = React.useState(false);
+	const firstItemRef = React.useRef<HTMLButtonElement | null>(null);
 	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
 
 	const handleSignOut = async () => {
+		setOpen(false);
 		setIsSigningOut(true);
 		try {
 			await onSignOut();
@@ -61,74 +61,91 @@ export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity
 		}
 	};
 
+	const handleAction = async (action?: () => void | Promise<void>) => {
+		setOpen(false);
+		await action?.();
+	};
+
+	const menuItems = [
+		{
+			key: "notes",
+			label: "Notes",
+			icon: FileText,
+			shortcut: "N",
+			onSelect: onNotes,
+		},
+		{
+			key: "journal",
+			label: "Journal",
+			icon: BookOpen,
+			shortcut: "J",
+			onSelect: onJournal,
+		},
+		{
+			key: "activity",
+			label: "Activity",
+			icon: Activity,
+			shortcut: "A",
+			onSelect: onActivity,
+		},
+		{
+			key: "settings",
+			label: "Settings",
+			icon: Settings,
+			shortcut: "⌘,",
+			onSelect: onSettings,
+		},
+		...(isAdmin
+			? [
+					{
+						key: "admin",
+						label: "Admin",
+						icon: Shield,
+						shortcut: "",
+						onSelect: onAdmin,
+					},
+				]
+			: []),
+	];
+
 	return (
-		<DropdownMenu open={open} onOpenChange={setOpen}>
-			<DropdownMenuTrigger
-				className="pressable flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-				aria-label="User menu"
-			>
-				<AvatarFace
-					name={getAvatarSeed("", "account-user")}
-					size={36}
-					color={avatarColor ?? undefined}
-					className="h-full w-full"
-				/>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="pressable flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+					aria-label="User menu"
+					aria-expanded={open}
+				>
+					<AvatarFace
+						name={getAvatarSeed("", "account-user")}
+						size={36}
+						color={avatarColor ?? undefined}
+						className="h-full w-full"
+					/>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent
 				align="start"
 				side="right"
 				sideOffset={8}
 				className="w-60 rounded-none border border-border bg-popover p-1 text-popover-foreground shadow-[0_20px_50px_-10px_hsl(var(--scrim)/0.7)]"
+				onOpenAutoFocus={(event) => {
+					event.preventDefault();
+					firstItemRef.current?.focus();
+				}}
 			>
-				<div className="py-1">
-					{[
-						{
-							key: "notes",
-							label: "Notes",
-							icon: FileText,
-							shortcut: "N",
-							onSelect: onNotes,
-						},
-						{
-							key: "journal",
-							label: "Journal",
-							icon: BookOpen,
-							shortcut: "J",
-							onSelect: onJournal,
-						},
-						{
-							key: "activity",
-							label: "Activity",
-							icon: Activity,
-							shortcut: "A",
-							onSelect: onActivity,
-						},
-						{
-							key: "settings",
-							label: "Settings",
-							icon: Settings,
-							shortcut: "⌘,",
-							onSelect: onSettings,
-						},
-						...(isAdmin
-							? [
-									{
-										key: "admin",
-										label: "Admin",
-										icon: Shield,
-										shortcut: "",
-										onSelect: onAdmin,
-									},
-								]
-							: []),
-					].map((item) => {
+				<div className="py-1" aria-label="User menu actions">
+					{menuItems.map((item, index) => {
 						const Icon = item.icon;
 						return (
-							<DropdownMenuItem
+							<button
 								key={item.key}
-								onSelect={item.onSelect}
+								ref={index === 0 ? firstItemRef : undefined}
+								type="button"
+								onClick={() => void handleAction(item.onSelect)}
 								className={cn(
-									"group/item cursor-default rounded-none px-2 py-1.5 text-[13px] font-medium",
+									"group/item flex w-full cursor-default items-center rounded-none px-2 py-1.5 text-left text-[13px] font-medium outline-none",
 									"text-popover-foreground/80 focus:bg-accent focus:text-popover-foreground",
 								)}
 							>
@@ -140,17 +157,18 @@ export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity
 								) : null}
 								<span className="truncate">{item.label}</span>
 								{item.shortcut ? <Shortcut value={item.shortcut} /> : null}
-							</DropdownMenuItem>
+							</button>
 						);
 					})}
 				</div>
 
-				<DropdownMenuSeparator className="my-0 -mx-1 h-px bg-border" />
+				<div className="my-0 -mx-1 h-px bg-border" aria-hidden="true" />
 				<div className="py-1">
-					<DropdownMenuItem
-						onSelect={handleSignOut}
+					<button
+						type="button"
+						onClick={() => void handleSignOut()}
 						disabled={isSigningOut}
-						className="cursor-default rounded-none px-2 py-1.5 text-[13px] font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+						className="flex w-full cursor-default items-center rounded-none px-2 py-1.5 text-left text-[13px] font-medium text-destructive outline-none focus:bg-destructive/10 focus:text-destructive disabled:pointer-events-none disabled:opacity-50"
 					>
 						{isSigningOut ? (
 							<LoaderCircle className="mr-2 h-[15px] w-[15px] animate-spin" />
@@ -159,10 +177,10 @@ export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity
 						)}
 						<span>Sign out</span>
 						<Shortcut value="⌘⌫" />
-					</DropdownMenuItem>
+					</button>
 				</div>
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</PopoverContent>
+		</Popover>
 	);
 }
 
