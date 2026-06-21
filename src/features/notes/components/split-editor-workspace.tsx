@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { EditorToolbar } from "@/features/editor/components/editor-toolbar";
+import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import type { EditorPane, SplitOrientation } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
@@ -23,6 +24,7 @@ type SplitEditorWorkspaceProps = {
 	canNavigateNext: boolean;
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
+	workspaceItems?: WorkspaceNavItem[];
 	onOpenSettings?: () => void;
 	onNavigatePrev: () => void;
 	onNavigateNext: () => void;
@@ -68,6 +70,7 @@ export function SplitEditorWorkspace({
 	canNavigateNext,
 	onToggleSidebar,
 	onToggleMetadata,
+	workspaceItems,
 	onOpenSettings,
 	onNavigatePrev,
 	onNavigateNext,
@@ -167,6 +170,7 @@ export function SplitEditorWorkspace({
 			<EditorToolbar
 				fileName={focusedFileName}
 				isMobile={isMobile}
+				workspaceItems={workspaceItems}
 				onToggleSidebar={onToggleSidebar}
 				onToggleMetadata={onToggleMetadata}
 				onOpenSettings={onOpenSettings}

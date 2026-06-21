@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { FileTextIcon } from "@/shared/icons/file-text";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
@@ -9,7 +8,6 @@ import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { RecentItem } from "./types";
 import { SidebarSection } from "./sidebar-section";
-import { EmptyState } from "@/shared/ui/empty-state";
 
 const RECENTS_PREVIEW_LIMIT = 6;
 
@@ -134,19 +132,23 @@ export const RecentsSection = memo(function RecentsSection({
 			onDragEnd={onDragEnd}
 		>
 			{!isHydrated || resolvedRecents.length === 0 ? (
-				<EmptyState
-					variant="files"
-					title="No recent files yet."
-					description="Opened notes will appear here."
-					className={cn("px-2", compactMode ? "py-1.5" : "py-2")}
-				/>
+				<div
+					className={cn(
+						"mx-1 flex items-center gap-2 rounded-md border border-dashed border-border/60 px-2 text-xs text-muted-foreground/65",
+						compactMode ? "h-7" : "h-8",
+					)}
+				>
+					<FileTextIcon
+						size={compactMode ? 12 : 13}
+						className="shrink-0 text-muted-foreground/45"
+					/>
+					<span className="truncate">No recent notes</span>
+				</div>
 			) : (
 				<div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
 					{visibleRecents.map((recent) => (
-						<motion.button
+						<button
 							key={recent.id}
-							whileTap={{ scale: 0.985 }}
-							transition={{ duration: 0.06, ease: [0.32, 0.72, 0, 1] }}
 							onClick={() =>
 								recent.itemType === "file" && onFileSelect(recent.itemId)
 							}
@@ -154,7 +156,7 @@ export const RecentsSection = memo(function RecentsSection({
 								recent.itemType === "file" && onFilePrefetch?.(recent.itemId)
 							}
 							className={cn(
-								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
+								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-[background-color,border-color,color,transform] active:scale-[0.985]",
 								compactMode ? "h-[28px]" : "h-[34px]",
 								recent.itemType === "file" && recent.itemId === activeFileId
 									? "border-border bg-muted text-foreground"
@@ -173,7 +175,7 @@ export const RecentsSection = memo(function RecentsSection({
 								/>
 							)}
 							<span className="flex-1 truncate">{recent.name}</span>
-						</motion.button>
+						</button>
 					))}
 					{(hiddenRecentCount > 0 || showAllRecents) && (
 						<button
@@ -190,9 +192,7 @@ export const RecentsSection = memo(function RecentsSection({
 								<ChevronDown className="h-3 w-3" strokeWidth={1.5} />
 							)}
 							<span>
-								{showAllRecents
-									? "Show less"
-									: `Load ${hiddenRecentCount} more`}
+								{showAllRecents ? "Show less" : `Load ${hiddenRecentCount} more`}
 							</span>
 						</button>
 					)}

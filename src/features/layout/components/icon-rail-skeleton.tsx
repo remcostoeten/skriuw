@@ -2,6 +2,7 @@ import { BookOpen, Kanban, Settings, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { RawLogo } from "@/shared/icons/logo";
 import { cn } from "@/shared/lib/utils";
+import { AvatarSkeleton } from "./avatar-skeleton";
 
 const iconButtonClass =
 	"flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-sidebar-foreground/52";
@@ -68,7 +69,7 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 					<div className={iconButtonClass}>
 						<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
 					</div>
-					<div className="h-9 w-9 rounded-full border border-sidebar-border bg-sidebar" />
+					<AvatarSkeleton />
 				</div>
 			</aside>
 			<div aria-hidden className="hidden w-14 shrink-0 md:block" />

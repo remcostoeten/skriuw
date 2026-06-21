@@ -14,6 +14,7 @@ import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode"
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
+import { useSidebarStore } from "../components/sidebar/store";
 import { usePreferencesStore } from "@/features/settings/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
@@ -529,8 +530,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [creationParentFolderId, foldersQuery.data]);
 
-	const handleCreateFile = useCallback(() => {
-		if (diaryModeEnabled) {
+	const handleCreateFile = useCallback((options?: { projectId?: string }) => {
+		const projectId = options?.projectId;
+		if (diaryModeEnabled && !projectId) {
 			triggerNativeFeedback("success");
 			const today = format(new Date(), "yyyy-MM-dd");
 			router.push(`/app/journal?date=${today}`);
@@ -583,6 +585,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				markFileError(newId);
 			},
 		});
+		if (projectId) {
+			useSidebarStore.getState().addToProject(projectId, newId, "file");
+		}
 		syncFileSelection(newId);
 		markFileSaving(newId);
 		if (isMobile) {
