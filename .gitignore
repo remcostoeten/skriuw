@@ -16,6 +16,12 @@ project-management/
 .env.*
 !.env.example
 
+# Cloudflare Workers / wrangler dev secrets (collab PartyServer)
+.dev.vars
+.dev.vars.*
+.wrangler/
+.partykit/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
