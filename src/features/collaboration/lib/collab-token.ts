@@ -94,7 +94,13 @@ export async function verifyCollabToken(
 	}
 }
 
-/** Deterministic, pleasant cursor color derived from a user id. */
+/**
+ * Deterministic, pleasant cursor color derived from a user id, returned as a
+ * 6-digit hex string (`#RRGGBB`). Hex — not `hsl()` — is required because
+ * y-prosemirror builds remote text-selection highlights by appending an alpha
+ * byte (`${color}70`), which only yields a valid CSS color for hex inputs, and
+ * BlockNote's caret contrast check parses the color as hex too.
+ */
 export function collabColorForUser(userId: string): string {
 	let hash = 0;
 	for (let i = 0; i < userId.length; i += 1) {
@@ -102,5 +108,19 @@ export function collabColorForUser(userId: string): string {
 		hash |= 0;
 	}
 	const hue = Math.abs(hash) % 360;
-	return `hsl(${hue}, 70%, 60%)`;
+	return hslToHex(hue, 70, 60);
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+	const sat = s / 100;
+	const light = l / 100;
+	const k = (n: number) => (n + h / 30) % 12;
+	const a = sat * Math.min(light, 1 - light);
+	const f = (n: number) => {
+		const color = light - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+		return Math.round(255 * color)
+			.toString(16)
+			.padStart(2, "0");
+	};
+	return `#${f(0)}${f(8)}${f(4)}`;
 }
