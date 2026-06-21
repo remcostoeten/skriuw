@@ -7,6 +7,7 @@ import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { EditorToolbar } from "./editor-toolbar";
+import type { WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
 import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -41,6 +42,7 @@ interface EditorContainerProps {
 	) => void;
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
+	workspaceItems?: WorkspaceNavItem[];
 	onOpenSettings?: () => void;
 	onNavigatePrev: () => void;
 	onNavigateNext: () => void;
@@ -174,6 +176,7 @@ export function EditorContainer({
 	onContentChange,
 	onToggleSidebar,
 	onToggleMetadata,
+	workspaceItems,
 	onOpenSettings,
 	onNavigatePrev,
 	onNavigateNext,
@@ -419,6 +422,7 @@ export function EditorContainer({
 				<EditorToolbar
 					fileName={fileName}
 					isMobile={isMobile}
+					workspaceItems={workspaceItems}
 					onToggleSidebar={onToggleSidebar}
 					onToggleMetadata={onToggleMetadata}
 					onOpenSettings={onOpenSettings}
@@ -437,6 +441,7 @@ export function EditorContainer({
 					splitEnabled={splitEnabled}
 					onToggleSplit={onToggleSplit}
 					canToggleSplit={canToggleSplit}
+					presenceAwareness={collabRoom.awareness}
 				/>
 			) : paneLabel ? (
 				<div
