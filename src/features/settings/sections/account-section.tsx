@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LogOut, Share2 } from "lucide-react";
 
@@ -21,7 +21,8 @@ import {
 	DialogTrigger,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/core/auth/use-auth";
-import { signOut, updateUserDisplayName } from "@/core/auth";
+import { signOut, updateUserDisplayName, updateUsername } from "@/core/auth";
+import { isUsernameAvailable } from "@/lib/auth-client";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
 	SectionHeader,
@@ -54,6 +55,48 @@ export function AccountSection() {
 	useEffect(() => {
 		setDisplayName(user?.name ?? "");
 	}, [user?.name]);
+
+	const [usernameValue, setUsernameValue] = useState(user?.username ?? "");
+	const [isSavingUsername, setIsSavingUsername] = useState(false);
+	const [usernameError, setUsernameError] = useState<string | null>(null);
+	const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+	const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		setUsernameValue(user?.username ?? "");
+	}, [user?.username]);
+
+	const checkAvailability = useCallback(
+		(value: string) => {
+			if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+			if (!value || value === user?.username) {
+				setUsernameAvailable(null);
+				return;
+			}
+			usernameDebounceRef.current = setTimeout(async () => {
+				const { data } = await isUsernameAvailable({ username: value });
+				setUsernameAvailable(data?.available ?? null);
+			}, 400);
+		},
+		[user?.username],
+	);
+
+	const handleSaveUsername = async () => {
+		const trimmed = usernameValue.trim();
+		if (!trimmed || trimmed === user?.username) return;
+		if (usernameAvailable === false) return;
+		setIsSavingUsername(true);
+		setUsernameError(null);
+		try {
+			await updateUsername(trimmed);
+		} catch (err) {
+			setUsernameValue(user?.username ?? "");
+			setUsernameError(err instanceof Error ? err.message : "Could not update username.");
+		} finally {
+			setIsSavingUsername(false);
+			setUsernameAvailable(null);
+		}
+	};
 	const [isSigningOut, setIsSigningOut] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [deleteValue, setDeleteValue] = useState("");
@@ -162,6 +205,52 @@ export function AccountSection() {
 						{saveNameError && (
 							<p role="alert" className="mt-1 text-xs text-destructive">
 								{saveNameError}
+							</p>
+						)}
+					</div>
+				</Row>
+				<Row
+					title="Username"
+					description="Used for collaboration invites. Letters, numbers, underscores, and dots only."
+				>
+					<div className="flex flex-col gap-1">
+						<div className="flex gap-2">
+							<div className="relative">
+								<Input
+									value={usernameValue}
+									onChange={(e) => {
+										setUsernameValue(e.target.value);
+										setUsernameError(null);
+										checkAvailability(e.target.value);
+									}}
+									className="w-52 h-8 pr-6"
+									placeholder="your-handle"
+									maxLength={30}
+									onBlur={handleSaveUsername}
+									onKeyDown={(e) => e.key === "Enter" && handleSaveUsername()}
+								/>
+								{usernameAvailable !== null && (
+									<span
+										className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${usernameAvailable ? "text-green-500" : "text-destructive"}`}
+									>
+										{usernameAvailable ? "✓" : "✗"}
+									</span>
+								)}
+							</div>
+							{usernameValue.trim() !== (user?.username ?? "") && usernameValue.trim() && (
+								<Button
+									size="sm"
+									className="h-8"
+									onClick={handleSaveUsername}
+									disabled={isSavingUsername || usernameAvailable === false}
+								>
+									{isSavingUsername ? "Saving…" : "Save"}
+								</Button>
+							)}
+						</div>
+						{usernameError && (
+							<p role="alert" className="mt-1 text-xs text-destructive">
+								{usernameError}
 							</p>
 						)}
 					</div>
