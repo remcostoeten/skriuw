@@ -3,8 +3,18 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
 	reactStrictMode: true,
 	experimental: {
-		// Trim barrel re-export overhead for large named-import libs.
-		optimizePackageImports: ["lucide-react", "date-fns"],
+		// Trim barrel re-export overhead for large named-import libs. framer-motion
+		// is imported across the layout shell, sidebar, and every animated icon, so
+		// rewriting its barrel to direct paths cuts the dev compile module count on
+		// the /app route (and shrinks the prod bundle).
+		optimizePackageImports: [
+			"lucide-react",
+			"date-fns",
+			"framer-motion",
+			"@blocknote/core",
+			"@blocknote/react",
+			"@blocknote/shadcn",
+		],
 		staleTimes: {
 			// Next 16 gives dynamic page segments a 0s client cache by default.
 			// The app workspace is private, stateful UI; short-lived router reuse

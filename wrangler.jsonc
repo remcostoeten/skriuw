@@ -1,0 +1,15 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "skriuw-notes",
+	"main": "party/notes.ts",
+	"compatibility_date": "2025-06-01",
+	// One Durable Object class backs every note room. The client requests
+	// party "notes", which routePartykitRequest matches (case-insensitively)
+	// to the binding named "Notes".
+	"durable_objects": {
+		"bindings": [{ "name": "Notes", "class_name": "NotesServer" }]
+	},
+	// partyserver/y-partyserver require SQLite-backed Durable Objects (also the
+	// only kind available on the Workers free plan).
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["NotesServer"] }]
+}
