@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Kanban, Loader2, Settings, UserRound, Waypoints } from "lucide-react";
+import { BookOpen, Kanban, Settings, UserRound, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -17,26 +17,12 @@ import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { UserMenu } from "./user-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
+import { AvatarSkeleton } from "./avatar-skeleton";
 import { GUEST_SIGNUP_PROMPT_EVENT } from "@/core/workspace-backend";
 
 type Props = {
 	onOpenSettings: () => void;
 };
-
-/**
- * Rendered inside the drawer's success-commit state (below the checkmark
- * banner). Adds a second line of "still working" feedback so the gap between a
- * successful submit and the route redirect reads as an intentional hand-off
- * rather than a frozen drawer.
- */
-function AuthCommitFooter() {
-	return (
-		<span className="mt-3 flex items-center justify-center gap-2 text-[0.75rem] text-muted-foreground">
-			<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} aria-hidden="true" />
-			Setting up your workspace
-		</span>
-	);
-}
 
 const authDrawerConfig = {
 	ui: {
@@ -55,22 +41,6 @@ const authDrawerConfig = {
 					toPos: 100,
 				},
 			},
-		},
-		success: {
-			enabled: true,
-			// Hold the confirmation on screen long enough to register as a real
-			// state change (not a flash), but release as soon as the session has
-			// committed and we're ready to push the user to their destination.
-			minVisibleMs: 1100,
-			maxVisibleMs: 4500,
-			// Paired with the success checkmark: acknowledge the result, then signal
-			// the hand-off so the redirect doesn't feel like an abrupt cut.
-			messages: {
-				signIn: "Signed in — taking you in",
-				signUp: "Account ready — taking you in",
-				oauth: "Connected — taking you in",
-			},
-			footer: <AuthCommitFooter />,
 		},
 	},
 } satisfies AuthConfig;
@@ -108,7 +78,6 @@ export function IconRail({ onOpenSettings }: Props) {
 		useState<AuthDrawerInitialMode>("login");
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
-	const [awaitingAuthCommit, setAwaitingAuthCommit] = useState(false);
 	const protectedRoutes = useMemo(
 		() => new Set(["/app/journal", "/app/settings", "/app/shared"]),
 		[],
@@ -132,18 +101,6 @@ export function IconRail({ onOpenSettings }: Props) {
 	}, []);
 
 	useEffect(() => {
-		if (!auth.isReady || auth.phase !== "authenticated" || !authDestination) return;
-
-		setAuthDrawerOpen(false);
-		setAuthDrawerError(null);
-		setAwaitingAuthCommit(false);
-		if (authDestination !== pathname) {
-			router.push(authDestination);
-		}
-		setAuthDestination(null);
-	}, [auth.isReady, auth.phase, authDestination, pathname, router]);
-
-	useEffect(() => {
 		const initialMode = resolveAuthDrawerMode(searchParams.get("auth"));
 		if (!initialMode || !auth.isReady) return;
 
@@ -158,7 +115,6 @@ export function IconRail({ onOpenSettings }: Props) {
 		setAuthDrawerInitialMode(initialMode);
 		setAuthDestination(destination);
 		setAuthDrawerError(null);
-		setAwaitingAuthCommit(false);
 		setAuthDrawerOpen(true);
 		router.replace(cleanPath, { scroll: false });
 	}, [auth.isReady, auth.phase, pathname, router, searchParams]);
@@ -179,7 +135,6 @@ export function IconRail({ onOpenSettings }: Props) {
 			setAuthDrawerInitialMode("register");
 			setAuthDestination("/app");
 			setAuthDrawerError(null);
-			setAwaitingAuthCommit(false);
 			setAuthDrawerOpen(true);
 		}
 		window.addEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
@@ -197,7 +152,6 @@ export function IconRail({ onOpenSettings }: Props) {
 		setAuthDrawerInitialMode("login");
 		setAuthDestination(destination);
 		setAuthDrawerError(null);
-		setAwaitingAuthCommit(false);
 		setAuthDrawerOpen(true);
 	};
 
@@ -352,11 +306,8 @@ export function IconRail({ onOpenSettings }: Props) {
 					{isMounted && auth.phase === "authenticated" && auth.user && (
 						<NotificationBell variant="rail" />
 					)}
-					{!isMounted ? (
-						<div
-							aria-hidden="true"
-							className="h-9 w-9 rounded-full border border-sidebar-border bg-sidebar"
-						/>
+					{!isMounted || !auth.isReady ? (
+						<AvatarSkeleton />
 					) : auth.phase === "authenticated" && auth.user ? (
 						<UserMenu
 							onSettings={onOpenSettings}
@@ -408,22 +359,17 @@ export function IconRail({ onOpenSettings }: Props) {
 					hideTrigger
 					open={authDrawerOpen}
 					onOpenChange={(open) => {
-						if (!open && awaitingAuthCommit && authDestination) {
-							if (isAuthenticated) {
-								setAuthDrawerOpen(false);
-							}
-							return;
-						}
-
 						setAuthDrawerOpen(open);
 						if (!open) {
 							setAuthDestination(null);
-							setAwaitingAuthCommit(false);
 						}
 					}}
 					onSuccess={() => {
 						setAuthDrawerError(null);
-						setAwaitingAuthCommit(true);
+						if (authDestination && authDestination !== pathname) {
+							router.push(authDestination);
+						}
+						setAuthDestination(null);
 					}}
 					onError={(error) => {
 						const fallbackMessage =
