@@ -13,6 +13,8 @@ import {
 	SpellCheck,
 	Wand2,
 } from "lucide-react";
+import Link from "next/link";
+import type { Awareness } from "y-protocols/awareness";
 import { cn } from "@/shared/lib/utils";
 import {
 	DropdownMenu,
@@ -21,11 +23,19 @@ import {
 	DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { CollabPresence } from "@/features/collaboration/components/collab-presence";
+
+export type WorkspaceNavItem = {
+	href: string;
+	label: string;
+	isActive?: boolean;
+};
 
 type Props = {
 	fileName: string;
 	breadcrumb?: string[];
 	isMobile?: boolean;
+	workspaceItems?: WorkspaceNavItem[];
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
 	onOpenSettings?: () => void;
@@ -42,12 +52,61 @@ type Props = {
 	canToggleSplit?: boolean;
 	splitOrientation?: "vertical" | "horizontal";
 	onToggleSplitOrientation?: () => void;
+	/** Yjs awareness for the active note's collab room; drives the presence avatars. */
+	presenceAwareness?: Awareness | null;
 };
+
+function WorkspaceMenu({
+	items,
+	buttonClassName,
+}: {
+	items: WorkspaceNavItem[];
+	buttonClassName: string;
+}) {
+	if (items.length === 0) return null;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<button
+					type="button"
+					className={buttonClassName}
+					title="Workspaces"
+					aria-label="Workspaces"
+				>
+					<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="w-44 rounded-none shadow-none">
+				{items.map((item) => (
+					<DropdownMenuItem key={item.href} asChild className="gap-2 text-xs">
+						<Link
+							href={item.href}
+							prefetch
+							aria-current={item.isActive ? "page" : undefined}
+							className={cn(item.isActive && "font-medium text-foreground")}
+						>
+							<span
+								className={cn(
+									"h-1.5 w-1.5 rounded-full",
+									item.isActive ? "bg-foreground" : "bg-muted-foreground/30",
+								)}
+								aria-hidden="true"
+							/>
+							{item.label}
+						</Link>
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
 
 export function EditorToolbar({
 	fileName,
 	breadcrumb,
 	isMobile = false,
+	workspaceItems = [],
 	onToggleSidebar,
 	onToggleMetadata,
 	onOpenSettings,
@@ -64,6 +123,7 @@ export function EditorToolbar({
 	canToggleSplit = true,
 	splitOrientation = "vertical",
 	onToggleSplitOrientation,
+	presenceAwareness,
 }: Props) {
 	const anyAiLoading = aiLoading
 		? aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting
@@ -91,6 +151,7 @@ export function EditorToolbar({
 					>
 						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
 					</button>
+					<WorkspaceMenu items={workspaceItems} buttonClassName={mobileIconButton} />
 
 					<div className="min-w-0 flex-1 px-1.5">
 						{breadcrumb && breadcrumb.length > 0 && (
@@ -102,6 +163,8 @@ export function EditorToolbar({
 							{fileName}
 						</h1>
 					</div>
+
+					<CollabPresence awareness={presenceAwareness} />
 
 					<button
 						onClick={onToggleMetadata}
@@ -141,6 +204,7 @@ export function EditorToolbar({
 			>
 				<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
 			</button>
+			<WorkspaceMenu items={workspaceItems} buttonClassName={sidebarIconButtonClass} />
 			<button
 				onClick={onNavigatePrev}
 				disabled={!canNavigatePrev}
@@ -181,6 +245,7 @@ export function EditorToolbar({
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
+				<CollabPresence awareness={presenceAwareness} />
 				{onToggleSplit && (
 					<button
 						type="button"
