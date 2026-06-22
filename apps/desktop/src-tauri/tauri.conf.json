@@ -4,14 +4,17 @@
 	"version": "0.1.0",
 	"identifier": "nl.remcostoeten.skriuw.dev",
 	"build": {
-		"frontendDist": "../ui"
+		"frontendDist": "../../../packages/web-spa/dist",
+		"devUrl": "http://localhost:1421",
+		"beforeDevCommand": "bun run --cwd ../../packages/web-spa dev",
+		"beforeBuildCommand": "bun run --cwd ../../packages/web-spa build"
 	},
 	"app": {
 		"withGlobalTauri": true,
 		"windows": [
 			{
 				"label": "main",
-				"title": "Skriuw — desktop preview",
+				"title": "Skriuw",
 				"width": 1100,
 				"height": 760,
 				"minWidth": 720,
@@ -20,7 +23,7 @@
 			}
 		],
 		"security": {
-			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost"
+			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://fonts.googleapis.com https://fonts.gstatic.com https: wss:"
 		}
 	},
 	"bundle": {

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" suppressHydrationWarning>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<title>Skriuw</title>
+		<script>
+			// Next.js inlines `process.env.*` at build; the SPA bundle has no
+			// `process`. Desktop runs local-first, so every NEXT_PUBLIC_* feature
+			// flag (collab, analytics) is intentionally unset → those features stay
+			// off. Must run before the module bundle so module-eval reads don't throw.
+			window.process = window.process || { env: { NODE_ENV: "production" } };
+		</script>
+		<script>
+			(function () {
+				try {
+					var raw = localStorage.getItem("preferences-store");
+					if (!raw) return;
+					var parsed = JSON.parse(raw);
+					var theme =
+						parsed && parsed.state && parsed.state.appearance && parsed.state.appearance.theme;
+					if (theme) document.documentElement.setAttribute("data-theme", theme);
+				} catch (e) {}
+			})();
+		</script>
+	</head>
+	<body class="font-sans">
+		<div id="root"></div>
+		<div id="auth-drawer-portal"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>
