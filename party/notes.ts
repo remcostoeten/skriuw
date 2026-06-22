@@ -1,6 +1,9 @@
 import { routePartykitRequest } from "partyserver";
 import { YServer } from "y-partyserver";
+import { applyUpdate, Doc, encodeStateAsUpdate } from "yjs";
 import { verifyCollabToken } from "../src/features/collaboration/lib/collab-token";
+
+const DOC_STORAGE_KEY = "ydoc";
 
 // One Durable Object per note. The room name IS the note id, so authorization
 // is "does this token grant access to THIS note" — verified against the same
@@ -12,10 +15,35 @@ import { verifyCollabToken } from "../src/features/collaboration/lib/collab-toke
 // Set the secret with: `bunx wrangler secret put COLLAB_AUTH_SECRET`
 // (must match the app's COLLAB_AUTH_SECRET).
 export class NotesServer extends YServer {
-	// The Yjs document is held in this Durable Object's SQLite storage and
-	// survives hibernation, so a note's content persists between editing
-	// sessions with no external database — the equivalent of the old
-	// y-partykit "snapshot" persistence mode.
+	// y-partyserver does NOT persist the document on its own — its default
+	// `onLoad`/`onSave` are empty no-ops, so the Yjs doc would live only in this
+	// Durable Object's memory and reset to empty on every hibernation/eviction
+	// (e.g. seconds after the last socket closes). We persist the encoded state
+	// into the DO's SQLite storage here so a note survives between sessions.
+	//
+	// Throttle persistence writes: `onSave` fires (debounced) on every document
+	// update; without a wait it would write the full snapshot on every keystroke
+	// batch.
+	static callbackOptions = {
+		debounceWait: 2000,
+		debounceMaxWait: 10_000,
+	};
+
+	async onLoad() {
+		const stored = await this.ctx.storage.get<Uint8Array | ArrayBuffer>(
+			DOC_STORAGE_KEY,
+		);
+		if (!stored) return;
+		const bytes = stored instanceof Uint8Array ? stored : new Uint8Array(stored);
+		const doc = new Doc();
+		applyUpdate(doc, bytes);
+		return doc;
+	}
+
+	async onSave() {
+		const update = encodeStateAsUpdate(this.document);
+		await this.ctx.storage.put(DOC_STORAGE_KEY, update);
+	}
 }
 
 type Env = {

@@ -397,7 +397,12 @@ export function EditorContainer({
 					fragment: collabRoom.fragment,
 					awareness: collabRoom.awareness,
 					user: collabRoom.user ?? { name: "Anonymous", color: "#888" },
-					shouldSeed: collabRoom.role === "owner",
+					// Any writer seeds an empty room — not just the owner. Otherwise a
+					// collaborator who opens a never-seeded note first is stuck staring
+					// at a blank doc until the owner happens to join. The seed itself is
+					// guarded to only run on a genuinely-empty fragment, so this can't
+					// clobber existing content.
+					shouldSeed: collabRoom.role === "owner" || collabRoom.role === "editor",
 				}
 			: undefined;
 	// Hold the editor behind the skeleton while the room is still syncing, so we

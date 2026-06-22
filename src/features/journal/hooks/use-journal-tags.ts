@@ -3,11 +3,7 @@
 import { useMemo } from "react";
 import { useApiQuery, useApiMutation } from "@/shared/api";
 import { useAuthedApiQuery } from "@/shared/api/use-authed-api-query";
-import {
-	createJournalTag,
-	deleteJournalTag,
-	type CreateJournalTagInput,
-} from "@/domain/journal/actions";
+import type { CreateJournalTagInput } from "@/domain/journal/actions";
 import { deriveWorkspaceTags } from "@/domain/tags/workspace-tags";
 import type { JournalTag } from "@/types/journal";
 import { TAG_COLORS } from "@/features/journal/types";
@@ -16,6 +12,7 @@ import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "./journal-keys";
 import { useJournalEntries } from "./use-journal-entries";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import type { NoteFile } from "@/types/notes";
 
 export function useJournalTags() {
@@ -60,8 +57,9 @@ export function useWorkspaceTags() {
 
 export function useCreateJournalTag() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
-	return useApiMutation<CreateJournalTagInput, JournalTag, JournalTag[]>(createJournalTag, {
+	return useApiMutation<CreateJournalTagInput, JournalTag, JournalTag[]>((input) => backend.createJournalTag(input), {
 		invalidateKeys: [journalKeys.tags()],
 		optimistic: {
 			queryKey: journalKeys.tags(),
@@ -98,8 +96,9 @@ export function useCreateJournalTag() {
 
 export function useDeleteJournalTag() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
-	return useApiMutation<string, void, JournalTag[]>(deleteJournalTag, {
+	return useApiMutation<string, void, JournalTag[]>((id) => backend.deleteJournalTag(id), {
 		invalidateKeys: [journalKeys.tags(), journalKeys.entries()],
 		optimistic: {
 			queryKey: journalKeys.tags(),
