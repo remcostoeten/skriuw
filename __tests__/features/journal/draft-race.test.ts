@@ -9,6 +9,13 @@ mock.module("@/domain/journal/actions", () => ({
 	deleteJournalTag: async () => undefined,
 }));
 
+// The journal hooks now resolve mutations through the WorkspaceBackend seam.
+// Stub the barrel so importing the hook module doesn't pull `serverBackend`
+// (and its `server-only` server-action chain) into the test runtime.
+mock.module("@/core/workspace-backend", () => ({
+	useWorkspaceBackend: () => ({}),
+}));
+
 const { isCurrentJournalDraftAcknowledgement, shouldAdoptJournalEntrySnapshot } =
 	await import("@/features/journal/hooks/use-journal-entry");
 const { mergeJournalEntriesByActiveDate, upsertJournalEntryByActiveDate } =

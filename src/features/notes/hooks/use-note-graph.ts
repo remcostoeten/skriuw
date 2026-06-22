@@ -5,9 +5,9 @@ import { useAuth } from "@/core/auth/use-auth";
 import type { NoteFile } from "@/domain/notes/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import type { GraphData } from "@/domain/notes/graph";
-import { fetchNoteGraph } from "@/domain/notes/actions";
 import { useApiQuery } from "@/shared/api/use-api-query";
 import { notesKeys } from "../lib/notes-keys";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 function resolveGuestNotesForGraph(
 	files: NoteFile[],
@@ -22,6 +22,7 @@ function resolveGuestNotesForGraph(
 export function useNoteGraph() {
 	const auth = useAuth();
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 	const guestRevision = queryClient.getQueryState(notesKeys.files())?.dataUpdatedAt ?? 0;
 	const isGuest = auth.phase !== "authenticated";
 
@@ -33,7 +34,7 @@ export function useNoteGraph() {
 		queryKey,
 		async () => {
 			if (auth.phase === "authenticated") {
-				return fetchNoteGraph();
+				return backend.getNoteGraph();
 			}
 
 			const files = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];

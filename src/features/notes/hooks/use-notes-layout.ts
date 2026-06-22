@@ -6,10 +6,9 @@ import { type PanInfo } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
-import { fetchNote, type CreateNoteInput } from "@/domain/notes/actions";
+import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { fetchGuestSeedNote } from "@/domain/seed/actions";
-import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
@@ -76,7 +75,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
-	const isGuest = useIsGuestWorkspace();
+	const backend = useWorkspaceBackend();
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
 	const activeFileIdFromStore = useNotesStore((state) => state.activeFileId);
@@ -258,11 +257,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			if (queryClient.getQueryData(notesKeys.detail(id)) !== undefined) return;
 			void queryClient.prefetchQuery({
 				queryKey: notesKeys.detail(id),
-				queryFn: () => (isGuest ? fetchGuestSeedNote(id) : fetchNote(id)),
+				queryFn: () => backend.getNote(id),
 				staleTime: Number.POSITIVE_INFINITY,
 			});
 		},
-		[isGuest, queryClient],
+		[backend, queryClient],
 	);
 
 	const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);

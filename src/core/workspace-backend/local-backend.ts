@@ -5,6 +5,8 @@ import type { CreateNoteInput, UpdateNoteInput, UpdateNoteResult } from "@/domai
 import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import { fetchGuestSeedNote, fetchGuestSeedNotes } from "@/domain/seed/actions";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import {
 	clearGuestWorkspaceIndexedDB,
@@ -20,6 +22,8 @@ const ENGAGEMENT_STORAGE_KEY = "skriuw:guest:engagement:v1";
 const ENGAGEMENT_THRESHOLDS = [10, 25, 50];
 /** Dispatched on `window` when a threshold is crossed. */
 export const GUEST_SIGNUP_PROMPT_EVENT = "skriuw:guest:prompt-signup";
+/** Journal is auth-gated; the guest backend advertises `journal: false`. */
+const GUEST_JOURNAL_UNAVAILABLE = "Journal is not available in the guest workspace.";
 
 /**
  * Increments the guest edit counter and, when it crosses one of the configured
@@ -141,6 +145,55 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 
 	return {
 		mode: "local",
+		capabilities: {
+			journal: false,
+			sharing: false,
+			collaboration: false,
+			notifications: false,
+			ai: false,
+		},
+
+		async getNote(id) {
+			const stored = await store.read();
+			const found = stored.notes.find((note) => note.id === id);
+			if (found) return found;
+			return fetchGuestSeedNote(id);
+		},
+
+		async getNotes(ids) {
+			const stored = await store.read();
+			const storedById = new Map(stored.notes.map((note) => [note.id, note]));
+			const resolved: NoteFile[] = [];
+			const missing: string[] = [];
+			for (const id of ids) {
+				const note = storedById.get(id);
+				if (note) resolved.push(note);
+				else missing.push(id);
+			}
+			if (missing.length > 0) {
+				resolved.push(...(await fetchGuestSeedNotes(missing)));
+			}
+			return resolved;
+		},
+
+		async getNoteVersions() {
+			return [];
+		},
+
+		async getNoteBacklinks() {
+			return [];
+		},
+
+		async getNoteGraph() {
+			const notes =
+				queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ??
+				(await store.read()).notes;
+			return buildGraphFromNotes(notes);
+		},
+
+		async restoreNoteVersion() {
+			return { note: undefined, versionCreated: false };
+		},
 
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
@@ -219,6 +272,26 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 				);
 				payload.folders = payload.folders.filter((folder) => !remove.has(folder.id));
 			});
+		},
+
+		async createJournalEntry() {
+			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+		},
+
+		async updateJournalEntry() {
+			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+		},
+
+		async deleteJournalEntry() {
+			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+		},
+
+		async createJournalTag() {
+			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+		},
+
+		async deleteJournalTag() {
+			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
 		},
 	};
 }
