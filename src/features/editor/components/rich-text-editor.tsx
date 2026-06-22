@@ -371,7 +371,6 @@ function InternalNoteLinkButton({
 					mainTooltip="Link selected text to another note"
 					icon={<FileText />}
 					isSelected={false}
-					onClick={() => setOpen((current) => !current)}
 				/>
 			</Components.Generic.Popover.Trigger>
 			<Components.Generic.Popover.Content
@@ -439,7 +438,6 @@ function CommentButton({ onAddComment }: { onAddComment: TAddComment }) {
 					mainTooltip="Comment on selection"
 					icon={<MessageSquarePlus />}
 					isSelected={false}
-					onClick={() => setOpen((current) => !current)}
 				/>
 			</Components.Generic.Popover.Trigger>
 			<Components.Generic.Popover.Content
@@ -533,7 +531,6 @@ function ConvertLinkToNoteButton({
 					mainTooltip="Point this link at another note"
 					icon={<FileText />}
 					isSelected={false}
-					onClick={() => setOpen((current) => !current)}
 				/>
 			</Components.Generic.Popover.Trigger>
 			<Components.Generic.Popover.Content
@@ -1129,22 +1126,28 @@ export function RichTextEditor({
 		void serializeAndCommit();
 	}, [serializeAndCommit]);
 
-	// Seed a freshly-collaborative note exactly once, from the owner's client,
-	// using the content it had before collaboration was enabled. A meta flag in
-	// the shared doc guards against any other client (or a later session)
-	// re-seeding. The residual race — two owner tabs seeding within one sync
-	// tick — would merge rather than lose content, acceptable for first share.
+	// Seed a freshly-collaborative note exactly once, from the first writer's
+	// client, using the content it had before collaboration was enabled. Runs
+	// only after the room has synced (the parent gates `collab` on `synced`), so
+	// `fragment.length` reflects the room's real state.
+	//
+	// Two guards make this safe to run from any writer (not just the owner):
+	//   - `meta.seeded` — set once in the shared doc; survives persistence.
+	//   - `fragment.length > 0` — the room already has content (typed by a peer,
+	//     or restored from server persistence). The CRDT is authoritative; we
+	//     must never `replaceBlocks` over it or we'd wipe live edits.
+	// The residual race — two writers seeding within one sync tick — merges
+	// rather than loses content, acceptable for a first share.
 	useEffect(() => {
 		if (!collab || !collab.shouldSeed) return;
 		const meta = collab.doc.getMap<boolean>("meta");
-		if (meta.get("seeded")) return;
+		if (meta.get("seeded") || collab.fragment.length > 0) return;
+		if (initialBlocks.length === 0) return;
 		collab.doc.transact(() => {
 			meta.set("seeded", true);
 		});
-		if (initialBlocks.length > 0) {
-			// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
-			editor.replaceBlocks(editor.document, initialBlocks as any);
-		}
+		// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+		editor.replaceBlocks(editor.document, initialBlocks as any);
 	}, [collab, editor, initialBlocks]);
 
 	useEffect(() => {
@@ -1187,6 +1190,29 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
+			onMouseDown={(event) => {
+				// BlockNote's shadcn toolbar buttons don't preventDefault on
+				// mousedown, so pressing a plain toggle (bold, italic, …) blurs the
+				// editor and collapses the selection before the click handler runs —
+				// formatting becomes a no-op while keyboard shortcuts still work.
+				// Guard those by keeping focus in the editor. Overlay triggers (colors
+				// menu, link/comment dialogs, block-type select) and inputs inside an
+				// open popover must keep their default mousedown, or focus can't enter
+				// the overlay and Radix closes it the instant it opens. data-state
+				// open/closed marks overlay triggers; toggles use on/off, so the guard
+				// still applies to them.
+				const target = event.target;
+				if (!(target instanceof HTMLElement)) return;
+				if (!target.closest(".bn-toolbar")) return;
+				if (
+					target.closest(
+						"input, textarea, [contenteditable='true'], .bn-popover-content, [aria-haspopup], [data-state='open'], [data-state='closed']",
+					)
+				) {
+					return;
+				}
+				event.preventDefault();
+			}}
 			onBlur={(event) => {
 				const nextFocusedElement = event.relatedTarget;
 				if (
