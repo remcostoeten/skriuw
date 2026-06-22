@@ -1,6 +1,5 @@
 import {
 	BlockNoteSchema,
-	createCodeBlockSpec,
 	defaultBlockSpecs,
 	defaultInlineContentSpecs,
 } from "@blocknote/core";
@@ -8,40 +7,16 @@ import { noteLinkInlineSpec } from "./note-link-spec";
 import { tagInlineSpec } from "./tag-spec";
 import { createCheckListItem } from "../block-specs/checklist-item";
 import { createFileTree } from "../block-specs/file-tree";
-
-const codeBlockSpec = createCodeBlockSpec({
-	defaultLanguage: "text",
-	createHighlighter: async () => {
-		const [{ getSingletonHighlighter }, { createJavaScriptRegexEngine }] = await Promise.all([
-			import("shiki"),
-			import("shiki/engine/javascript"),
-		]);
-		return getSingletonHighlighter({
-			engine: createJavaScriptRegexEngine(),
-			themes: ["github-dark"],
-			langs: [
-				"bash",
-				"css",
-				"html",
-				"javascript",
-				"json",
-				"jsx",
-				"markdown",
-				"python",
-				"shell",
-				"sql",
-				"tsx",
-				"typescript",
-				"yaml",
-			],
-		});
-	},
-});
+import { createSyntaxHighlightedCodeBlockSpec } from "../block-specs/code-highlighter";
 
 export const editorSchema = BlockNoteSchema.create({
 	blockSpecs: {
 		...defaultBlockSpecs,
-		codeBlock: codeBlockSpec,
+		// Fine-grained shiki/core spec: only the explicitly-imported languages get
+		// bundled. The previous inline config imported the full `shiki` barrel,
+		// which pulled the entire bundledLanguages registry into the build (~200
+		// unused grammar chunks, e.g. wolfram/fortran/verilog).
+		codeBlock: createSyntaxHighlightedCodeBlockSpec(),
 		checkListItem: createCheckListItem(),
 		fileTree: createFileTree(),
 	},
