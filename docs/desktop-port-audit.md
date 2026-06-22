@@ -169,18 +169,20 @@ Rough size: **~6–8k LOC Rust** (schema/migrations, ~45 query fns, command
 handlers, utils for markdown/link-graph/hashing/zip). dora already proves every
 one of these subsystems in production.
 
-### Type strategy (important design decision)
-`tauri-specta` makes **Rust the source of truth** and emits `src/lib/bindings.ts`.
+### Type strategy — DECIDED: no tauri-specta
+`tauri-specta` would make **Rust the source of truth** (emitting `bindings.ts`).
 But skriuw already has hand-written TS domain types (`NoteFile`, `CreateNoteInput`,
-etc.) that the cloud path and the `WorkspaceBackend` interface use. To keep one
-UI working against both backends, decide now:
+etc.) that the cloud path and the `WorkspaceBackend` interface use — and we've
+locked that **the hand-written `WorkspaceBackend` interface is canonical**.
+Generating types from Rust would create a competing second source of truth, so:
 
-- **Recommended:** keep `WorkspaceBackend` (hand-written TS) as the canonical
-  contract. Make the Rust structs serialize to *exactly* the existing shapes, and
-  have `tauriBackend` adapt the generated bindings to that interface. This keeps
-  the cloud path's types authoritative and prevents a fork.
-- Alternative: let specta own the shapes and refactor cloud types to match —
-  cleaner long-term, more churn now.
+- **We do NOT use tauri-specta.** `tauriBackend` is hand-written against the
+  existing TS interface; the Rust command `serde` structs are shaped to serialize
+  to *exactly* the TS shapes (note: JSON-over-IPC sends dates as strings, so the
+  desktop read path must revive them the way the guest store already does).
+- Drift risk (Rust structs vs TS types) is the tradeoff. If it ever bites, add a
+  lightweight Rust→TS shape-check in CI (generate a reference and diff against the
+  canonical types) — cheap to bolt on, not needed now.
 
 ---
 

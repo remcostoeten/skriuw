@@ -18,6 +18,7 @@ import type {
   TCollaborator,
 } from "@/domain/collaboration/models";
 import { AvatarFace } from "@/shared/icons/avatar-face";
+import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 
 const collabKeys = {
   collaborators: (noteId: string) => ["collaborators", noteId] as const,
@@ -77,7 +78,17 @@ function PermissionToggle({
   );
 }
 
-export function CollaboratorsSection({
+export function CollaboratorsSection(props: {
+  noteId: string;
+  ownerName: string;
+  isOwner: boolean;
+}) {
+  const { collaboration } = useWorkspaceCapabilities();
+  if (!collaboration) return null;
+  return <CollaboratorsSectionInner {...props} />;
+}
+
+function CollaboratorsSectionInner({
   noteId,
   ownerName,
   isOwner,

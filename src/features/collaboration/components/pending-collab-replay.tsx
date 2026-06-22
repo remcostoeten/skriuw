@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/core/auth/use-auth";
+import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 import { requestCollaboration } from "@/domain/collaboration/actions";
 import { takePendingCollabRequest } from "@/features/collaboration/lib/pending-collab";
 import { showUserToast } from "@/shared/lib/user-toast";
@@ -13,9 +14,16 @@ import { showUserToast } from "@/shared/lib/user-toast";
  * {@link CollabRequestButton}; once auth is ready and the session is
  * authenticated, we send the request, surface the outcome, and refresh the
  * "Shared with me" list. Mounted once, app-wide, so it fires no matter which
- * route the auth flow lands on (OAuth redirects to /app).
+ * route the auth flow lands on (OAuth redirects to /app). No-ops on backends
+ * that don't advertise the `collaboration` capability (guest / desktop).
  */
 export function PendingCollabReplay() {
+	const { collaboration } = useWorkspaceCapabilities();
+	if (!collaboration) return null;
+	return <PendingCollabReplayRunner />;
+}
+
+function PendingCollabReplayRunner() {
 	const auth = useAuth();
 	const handled = useRef(false);
 	const queryClient = useQueryClient();
