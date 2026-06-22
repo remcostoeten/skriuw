@@ -5,7 +5,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { createLocalBackend } from "./local-backend";
 import { serverBackend } from "./server-backend";
-import type { WorkspaceBackend } from "./types";
+import type { WorkspaceBackend, WorkspaceCapabilities } from "./types";
 
 const WorkspaceBackendContext = createContext<WorkspaceBackend | null>(null);
 
@@ -38,4 +38,8 @@ export function useWorkspaceBackend(): WorkspaceBackend {
 export function useIsGuestWorkspace(): boolean {
 	const backend = useContext(WorkspaceBackendContext);
 	return backend?.mode === "local";
+}
+
+export function useWorkspaceCapabilities(): WorkspaceCapabilities {
+	return useWorkspaceBackend().capabilities;
 }
