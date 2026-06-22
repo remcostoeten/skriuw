@@ -3,11 +3,12 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev",
+		"dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev",
 		"build": "tauri build",
 		"tauri": "tauri"
 	},
 	"devDependencies": {
-		"@tauri-apps/cli": "^2.11.0"
+		"@tauri-apps/cli": "^2.11.0",
+		"cross-env": "^7.0.3"
 	}
 }

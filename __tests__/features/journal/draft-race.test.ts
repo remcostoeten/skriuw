@@ -12,8 +12,36 @@ mock.module("@/domain/journal/actions", () => ({
 // The journal hooks now resolve mutations through the WorkspaceBackend seam.
 // Stub the barrel so importing the hook module doesn't pull `serverBackend`
 // (and its `server-only` server-action chain) into the test runtime.
+const noopBackend = {
+	mode: "local",
+	capabilities: {
+		journal: false,
+		sharing: false,
+		collaboration: false,
+		notifications: false,
+		ai: false,
+	},
+	createNote: async () => ({}),
+	updateNote: async () => ({ versionCreated: false }),
+	deleteNote: async () => {},
+	restoreNoteVersion: async () => ({ versionCreated: false }),
+	getNote: async () => null,
+	getNotes: async () => [],
+	getNoteVersions: async () => [],
+	getNoteBacklinks: async () => [],
+	getNoteGraph: async () => ({ nodes: [], links: [] }),
+	createFolder: async () => ({}),
+	updateFolder: async () => undefined,
+	deleteFolder: async () => {},
+	createJournalEntry: async () => ({}),
+	updateJournalEntry: async () => undefined,
+	deleteJournalEntry: async () => {},
+	createJournalTag: async () => ({}),
+	deleteJournalTag: async () => {},
+};
+
 mock.module("@/core/workspace-backend", () => ({
-	useWorkspaceBackend: () => ({}),
+	useWorkspaceBackend: () => noopBackend,
 }));
 
 const { isCurrentJournalDraftAcknowledgement, shouldAdoptJournalEntrySnapshot } =

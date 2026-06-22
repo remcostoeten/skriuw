@@ -16,14 +16,13 @@ import {
 	type GuestWorkspacePayload,
 } from "./local-store";
 import type { WorkspaceBackend } from "./types";
+import { WorkspaceCapabilityError } from "./capability-error";
 
 const ENGAGEMENT_STORAGE_KEY = "skriuw:guest:engagement:v1";
 /** Edit counts at which we nudge the guest to create an account. */
 const ENGAGEMENT_THRESHOLDS = [10, 25, 50];
 /** Dispatched on `window` when a threshold is crossed. */
 export const GUEST_SIGNUP_PROMPT_EVENT = "skriuw:guest:prompt-signup";
-/** Journal is auth-gated; the guest backend advertises `journal: false`. */
-const GUEST_JOURNAL_UNAVAILABLE = "Journal is not available in the guest workspace.";
 
 /**
  * Increments the guest edit counter and, when it crosses one of the configured
@@ -275,23 +274,23 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		},
 
 		async createJournalEntry() {
-			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+			throw new WorkspaceCapabilityError("journal");
 		},
 
 		async updateJournalEntry() {
-			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+			throw new WorkspaceCapabilityError("journal");
 		},
 
 		async deleteJournalEntry() {
-			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+			throw new WorkspaceCapabilityError("journal");
 		},
 
 		async createJournalTag() {
-			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+			throw new WorkspaceCapabilityError("journal");
 		},
 
 		async deleteJournalTag() {
-			throw new Error(GUEST_JOURNAL_UNAVAILABLE);
+			throw new WorkspaceCapabilityError("journal");
 		},
 	};
 }
