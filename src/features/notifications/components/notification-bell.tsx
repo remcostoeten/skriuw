@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { cn } from "@/shared/lib/utils";
 import { useNotifications } from "../hooks/use-notifications";
+import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 import type { TCollabPermission, TNotification } from "@/domain/collaboration/models";
 
 type NotificationPayload = {
@@ -168,6 +169,16 @@ function NotificationRow({
 }
 
 export function NotificationBell({
+  variant = "sidebar",
+}: {
+  variant?: "sidebar" | "rail";
+}) {
+  const capabilities = useWorkspaceCapabilities();
+  if (!capabilities.notifications) return null;
+  return <NotificationBellInner variant={variant} />;
+}
+
+function NotificationBellInner({
   variant = "sidebar",
 }: {
   variant?: "sidebar" | "rail";
