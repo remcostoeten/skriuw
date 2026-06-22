@@ -122,7 +122,7 @@ function createStoreApi() {
 }
 
 function installMocks() {
-	mock.module("react", () => ({
+	const reactMock = {
 		useCallback: (callback: unknown) => callback,
 		useEffect: () => undefined,
 		useMemo: (factory: () => unknown) => factory(),
@@ -131,7 +131,8 @@ function installMocks() {
 			typeof initial === "function" ? (initial as () => unknown)() : initial,
 			() => undefined,
 		],
-	}));
+	};
+	mock.module("react", () => ({ ...reactMock, default: reactMock }));
 
 	mock.module("@tanstack/react-query", () => ({
 		useQueryClient: () => ({
@@ -192,6 +193,10 @@ function installMocks() {
 	}));
 	mock.module("@/core/workspace-backend", () => ({
 		useIsGuestWorkspace: () => false,
+		useWorkspaceBackend: () => ({
+			getNote: async (id: string) =>
+				notes.find((note) => note.id === id) ?? null,
+		}),
 	}));
 	mock.module("@/features/editor/lib/editor-mode", () => ({
 		isMdxNote: () => false,
@@ -253,6 +258,13 @@ function installMocks() {
 				editor: { defaultModeRaw: false },
 				journal: { diaryModeEnabled: false },
 			}),
+	}));
+	mock.module("@/features/onboarding/store", () => ({
+		useOnboardingStore: Object.assign(
+			(selector: (state: { resetWelcome: () => void }) => unknown) =>
+				selector({ resetWelcome: () => undefined }),
+			{ getState: () => ({ resetWelcome: () => undefined }) },
+		),
 	}));
 	mock.module("@/features/notes/components/sidebar/store", () => ({
 		useSidebarStore: {
