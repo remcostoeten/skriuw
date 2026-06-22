@@ -8,5 +8,11 @@ export {
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "./local-backend";
 export { recordGuestGraphExplore } from "./guest-graph-engagement";
-export { WorkspaceBackendProvider, useWorkspaceBackend, useIsGuestWorkspace } from "./context";
-export type { WorkspaceBackend } from "./types";
+export {
+	WorkspaceBackendProvider,
+	useWorkspaceBackend,
+	useIsGuestWorkspace,
+	useWorkspaceCapabilities,
+} from "./context";
+export type { WorkspaceBackend, WorkspaceCapabilities } from "./types";
+export { WorkspaceCapabilityError } from "./capability-error";

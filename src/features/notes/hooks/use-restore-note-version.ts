@@ -2,15 +2,16 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { restoreNoteVersion } from "@/domain/notes/actions";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 export function useRestoreNoteVersion() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
 	return useApiMutation<string, { note?: NoteFile; versionCreated: boolean }, NoteFile[]>(
-		restoreNoteVersion,
+		(versionId) => backend.restoreNoteVersion(versionId),
 		{
 			onSuccess: (result) => {
 				if (result.note) {

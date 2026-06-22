@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Skriuw — desktop preview</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #0f0f11;
+				--fg: #ececee;
+				--muted: #9a9aa2;
+				--accent: #7c8cff;
+				--card: #17171b;
+				--border: #26262c;
+			}
+			* { box-sizing: border-box; }
+			html, body { height: 100%; margin: 0; }
+			body {
+				font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+				background: var(--bg);
+				color: var(--fg);
+				display: grid;
+				place-items: center;
+				-webkit-user-select: none;
+				user-select: none;
+			}
+			main { width: min(560px, 90vw); }
+			h1 { font-size: 1.55rem; margin: 0 0 0.15rem; letter-spacing: -0.01em; }
+			.sub { color: var(--muted); margin: 0 0 1.6rem; }
+			.card {
+				background: var(--card);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 1.1rem 1.2rem;
+				margin-bottom: 1rem;
+			}
+			label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+			.row { display: flex; gap: 0.6rem; }
+			input {
+				flex: 1; padding: 0.6rem 0.7rem; border-radius: 9px;
+				border: 1px solid var(--border); background: #101014; color: var(--fg);
+				font-size: 0.95rem;
+			}
+			input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+			button {
+				padding: 0.6rem 1rem; border-radius: 9px; border: 1px solid transparent;
+				background: var(--accent); color: #0b0b14; font-weight: 600; cursor: pointer;
+			}
+			button:active { transform: translateY(1px); }
+			.out { margin-top: 0.9rem; font-size: 0.95rem; min-height: 1.4em; }
+			.muted { color: var(--muted); }
+			pre {
+				margin: 0; padding: 0.7rem 0.8rem; border-radius: 9px; background: #101014;
+				border: 1px solid var(--border); color: var(--muted); font-size: 0.82rem;
+				overflow-x: auto; white-space: pre-wrap;
+			}
+			.badge {
+				display: inline-block; font-size: 0.72rem; color: var(--accent);
+				border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.6rem;
+				margin-bottom: 1rem;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<span class="badge">Tauri 2 · local-first shell</span>
+			<h1>Skriuw desktop</h1>
+			<p class="sub">Scaffold preview — proving the window and the Rust IPC bridge.</p>
+
+			<div class="card">
+				<label for="name">Call the Rust <code>greet</code> command</label>
+				<div class="row">
+					<input id="name" placeholder="your name" autocomplete="off" />
+					<button id="go">Invoke</button>
+				</div>
+				<div class="out muted" id="out">Awaiting first invoke…</div>
+			</div>
+
+			<div class="card">
+				<label>Rust <code>app_info()</code> (typed struct over IPC)</label>
+				<pre id="info">loading…</pre>
+			</div>
+		</main>
+
+		<script src="main.js"></script>
+	</body>
+</html>

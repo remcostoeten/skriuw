@@ -1,17 +1,15 @@
 "use client";
 
 import { useApiQuery, useApiMutation } from "@/shared/api";
-import {
-	createJournalEntry,
-	updateJournalEntry,
-	deleteJournalEntry,
-	type CreateJournalEntryInput,
-	type UpdateJournalEntryInput,
+import type {
+	CreateJournalEntryInput,
+	UpdateJournalEntryInput,
 } from "@/domain/journal/actions";
 import type { JournalEntry } from "@/types/journal";
 import { useQueryClient } from "@tanstack/react-query";
 import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { journalKeys } from "./journal-keys";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 function timeValue(value: Date): number {
 	return value instanceof Date ? value.getTime() : new Date(value).getTime();
@@ -66,8 +64,9 @@ export function useJournalEntries() {
 }
 
 export function useCreateJournalEntry() {
+	const backend = useWorkspaceBackend();
 	return useApiMutation<CreateJournalEntryInput, JournalEntry, JournalEntry[]>(
-		createJournalEntry,
+		(input) => backend.createJournalEntry(input),
 		{
 			invalidateKeys: [journalKeys.entries()],
 			optimistic: {
@@ -91,8 +90,9 @@ export function useCreateJournalEntry() {
 }
 
 export function useUpdateJournalEntry() {
+	const backend = useWorkspaceBackend();
 	return useApiMutation<UpdateJournalEntryInput, JournalEntry | undefined, JournalEntry[]>(
-		updateJournalEntry,
+		(input) => backend.updateJournalEntry(input),
 		{
 			invalidateKeys: [journalKeys.entries()],
 			optimistic: {
@@ -120,7 +120,8 @@ export function useUpdateJournalEntry() {
 }
 
 export function useDeleteJournalEntry() {
-	return useApiMutation<string, void, JournalEntry[]>(deleteJournalEntry, {
+	const backend = useWorkspaceBackend();
+	return useApiMutation<string, void, JournalEntry[]>((id) => backend.deleteJournalEntry(id), {
 		invalidateKeys: [journalKeys.entries()],
 		optimistic: {
 			queryKey: journalKeys.entries(),
