@@ -1,4 +1,11 @@
 @import "tailwindcss";
+
+/* Scan the whole app source tree for class names. Next.js auto-detects this
+   from the project root, but the Vite/desktop build runs with its root at
+   packages/web-spa, so without this explicit source Tailwind generates no
+   utilities for components under src/. Path is relative to this file. */
+@source "../";
+
 @import "./themes/midnight.css";
 @import "./themes/graphite.css";
 @import "./themes/paper.css";
