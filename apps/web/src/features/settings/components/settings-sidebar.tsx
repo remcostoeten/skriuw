@@ -17,6 +17,7 @@ import Link from "next/link";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/core/auth/use-auth";
 import { isAdmin } from "@/lib/roles";
+import { isTauriRuntime } from "@/core/workspace-backend";
 
 export type SettingsTabId =
 	| "account"
@@ -47,6 +48,19 @@ const NAV_ITEMS: ReadonlyArray<SettingsNavItem> = [
 	{ id: "experimental", label: "Experimental", icon: FlaskConical },
 ];
 
+// Cloud-only tabs hidden in the desktop build: there is no cloud auth (account/
+// security) and no hosted AI (ai). Exported so the page can also redirect away
+// from these ids if reached via a stale ?tab= URL.
+export const DESKTOP_HIDDEN_TABS: ReadonlySet<SettingsTabId> = new Set([
+	"account",
+	"security",
+	"ai",
+]);
+
+export function isSettingsTabVisible(id: SettingsTabId): boolean {
+	return !(isTauriRuntime() && DESKTOP_HIDDEN_TABS.has(id));
+}
+
 type SettingsSidebarProps = {
 	activeTab: SettingsTabId;
 	onSelectTab: (tab: SettingsTabId) => void;
@@ -70,7 +84,7 @@ export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsS
 
 			<nav aria-label="Settings sections" className="flex-1 overflow-y-auto p-2">
 				<ul className="space-y-0.5">
-					{NAV_ITEMS.map((item) => {
+					{NAV_ITEMS.filter((item) => isSettingsTabVisible(item.id)).map((item) => {
 						const isActive = item.id === activeTab;
 						const Icon = item.icon;
 						return (
