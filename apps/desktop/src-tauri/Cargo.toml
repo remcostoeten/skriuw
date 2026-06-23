@@ -29,3 +29,6 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
+
+[dev-dependencies]
+tempfile = "3"
