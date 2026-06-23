@@ -40,7 +40,8 @@ test-results/
 *.tsbuildinfo
 
 # Prisma generated client (regenerated via `bunx prisma generate`)
-/generated/
+# Output now lives at apps/web/generated; keep unanchored so it's ignored there.
+generated/
 
 TODO.*
 .env*.local

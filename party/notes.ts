@@ -1,7 +1,7 @@
 import { routePartykitRequest } from "partyserver";
 import { YServer } from "y-partyserver";
 import { applyUpdate, Doc, encodeStateAsUpdate } from "yjs";
-import { verifyCollabToken } from "../src/features/collaboration/lib/collab-token";
+import { verifyCollabToken } from "../apps/web/src/features/collaboration/lib/collab-token";
 
 const DOC_STORAGE_KEY = "ydoc";
 
