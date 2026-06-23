@@ -41,7 +41,6 @@
     ".next/dev/dev/types/**/*.ts"
   ],
   "exclude": [
-    "apps/mobile/**",
     "project-management/**",
     "generated/**",
     "party/**",

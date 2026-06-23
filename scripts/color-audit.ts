@@ -7,7 +7,6 @@ const STRICT = process.argv.includes("--strict");
 const INCLUDE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".css", ".json"]);
 const SKIP_DIRS = new Set([".git", ".next", "node_modules", "coverage", "__tests__"]);
 const ALLOWED_PATHS = [
-	"apps/mobile/",
 	"public/manifest.json",
 	"src/shared/PixelBlast.jsx",
 	"src/app/themes/",
