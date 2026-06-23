@@ -45,6 +45,45 @@ pub struct SearchHit {
 	pub snippet: String,
 }
 
+/// One outgoing link extracted from a note's content by the TS `extractNoteLinks`
+/// helper. The regex stays in TS (single source of truth); Rust only persists the
+/// pre-extracted rows. Exactly one of `target_note_id` (markdown `note://id`
+/// links) or `target_title_key` (normalized `[[wiki]]` title) is set per row.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteLinkInput {
+	pub kind: String,
+	pub raw: String,
+	pub target_label: String,
+	pub alias: Option<String>,
+	pub target_note_id: Option<String>,
+	pub target_title_key: Option<String>,
+}
+
+/// Candidate backlink sources for a target note, plus the ambiguity verdict for
+/// each of the target's title keys. The TS side does the final mapping to
+/// `ResolvedNoteLink[]` so the output is byte-identical to `buildNoteBacklinks`:
+/// a title-key match only counts when that key resolves to a single note.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinkSources {
+	pub sources: Vec<BacklinkSource>,
+	pub ambiguous_title_keys: Vec<String>,
+}
+
+/// One candidate source note that links to the target, with the link row's
+/// shape so TS can rebuild a `NoteLink` without re-reading the source content.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinkSource {
+	pub note: Note,
+	pub kind: String,
+	pub raw: String,
+	pub target_label: String,
+	pub alias: Option<String>,
+	pub matched_note_id: bool,
+}
+
 /// Tauri-managed handle around the single SQLite connection. Every command
 /// locks the mutex for the duration of its query; SQLite itself serializes
 /// writers, and the workspace is single-user/local so contention is trivial.
@@ -76,6 +115,38 @@ CREATE TABLE IF NOT EXISTS notes (
 
 CREATE INDEX IF NOT EXISTS idx_notes_parent ON notes(parent_id);
 CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+
+-- Outgoing links per note, so backlink resolution becomes an indexed lookup
+-- instead of an O(n) scan that regex-parses every note on each open. One row per
+-- extracted link; `target_note_id` is set for markdown `note://id` links and
+-- `target_title_key` (the normalized `[[wiki]]` title) for wiki links. Rows are
+-- owned by their source note and cascade-deleted with it.
+CREATE TABLE IF NOT EXISTS note_links (
+	source_note_id   TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+	kind             TEXT NOT NULL,
+	raw              TEXT NOT NULL,
+	target_label     TEXT NOT NULL,
+	alias            TEXT,
+	target_note_id   TEXT,
+	target_title_key TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_links_target_id ON note_links(target_note_id);
+CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title_key);
+CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
+
+-- Normalized title keys per note, mirroring the TS title index: each note
+-- contributes its file-name key and its heading-title key (both computed in TS
+-- so the same regex stays the single source of truth). Backlink resolution uses
+-- this to decide whether a `[[wiki]]` title is unique (resolved) or shared
+-- (ambiguous → not a backlink), matching `buildNoteBacklinks` exactly.
+CREATE TABLE IF NOT EXISTS note_titles (
+	note_id   TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+	title_key TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_titles_key ON note_titles(title_key);
+CREATE INDEX IF NOT EXISTS idx_note_titles_note ON note_titles(note_id);
 
 -- Full-text index over note name + content. External-content table backed by
 -- `notes` (content_rowid = the notes table's implicit integer rowid), so the
@@ -201,6 +272,121 @@ impl Storage {
 		Ok(())
 	}
 
+	/// Replaces a note's outgoing link rows and its title keys in one transaction
+	/// (delete-then-insert), keeping both indexes in lockstep with the note's
+	/// content on each create/update. `title_keys` are the note's normalized
+	/// name + heading keys, computed in TS.
+	pub fn replace_note_links(
+		&self,
+		source_note_id: &str,
+		links: &[NoteLinkInput],
+		title_keys: &[String],
+	) -> rusqlite::Result<()> {
+		let mut conn = self.lock();
+		let tx = conn.transaction()?;
+		replace_note_links_with(&tx, source_note_id, links, title_keys)?;
+		tx.commit()
+	}
+
+	/// True once the link index has been populated for the workspace. Checks
+	/// `note_titles` (written for every note, even link-free ones) rather than
+	/// `note_links` so a workspace with notes but no links still counts as
+	/// indexed. The TS side uses this to fall back to the legacy JS scan and run
+	/// a one-time backfill for a workspace whose notes predate the index.
+	pub fn has_indexed_links(&self) -> rusqlite::Result<bool> {
+		let conn = self.lock();
+		let titles: i64 =
+			conn.query_row("SELECT COUNT(*) FROM note_titles", [], |row| row.get(0))?;
+		if titles > 0 {
+			return Ok(true);
+		}
+		let notes: i64 = conn.query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
+		Ok(notes == 0)
+	}
+
+	/// Returns the candidate source notes that link to `target_id` — matched by an
+	/// explicit `note://id` link OR a `[[wiki]]` title key the target owns — plus
+	/// which of those title keys are ambiguous (shared by more than one note).
+	/// TS turns this into the final `ResolvedNoteLink[]`.
+	pub fn get_backlink_sources(
+		&self,
+		target_id: &str,
+		title_keys: &[String],
+	) -> rusqlite::Result<BacklinkSources> {
+		let conn = self.lock();
+
+		let mut ambiguous_title_keys = Vec::new();
+		{
+			let mut count_stmt = conn.prepare_cached(
+				"SELECT COUNT(DISTINCT note_id) FROM note_titles WHERE title_key = ?1",
+			)?;
+			for key in title_keys {
+				if key.is_empty() {
+					continue;
+				}
+				let count: i64 = count_stmt.query_row(params![key], |row| row.get(0))?;
+				if count > 1 {
+					ambiguous_title_keys.push(key.clone());
+				}
+			}
+		}
+
+		let resolvable_keys: Vec<&String> = title_keys
+			.iter()
+			.filter(|key| !key.is_empty() && !ambiguous_title_keys.contains(key))
+			.collect();
+
+		let key_set: std::collections::HashSet<&str> =
+			resolvable_keys.iter().map(|k| k.as_str()).collect();
+
+		let mut stmt = conn.prepare(
+			"SELECT DISTINCT l.kind, l.raw, l.target_label, l.alias, l.target_note_id, \
+			   l.target_title_key, \
+			   n.id, n.name, n.content, n.rich_content, n.preferred_editor_mode, \
+			   n.parent_id, n.sort_order, n.tags, n.created_at, n.modified_at \
+			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
+			 WHERE l.source_note_id != ?1 \
+			   AND (l.target_note_id = ?1 OR l.target_title_key IS NOT NULL)",
+		)?;
+
+		let mut rows = stmt.query(params![target_id])?;
+		let mut seen_sources: std::collections::HashSet<String> = std::collections::HashSet::new();
+		let mut sources = Vec::new();
+
+		while let Some(row) = rows.next()? {
+			let target_note_id: Option<String> = row.get(4)?;
+			let target_title_key: Option<String> = row.get(5)?;
+
+			let matched_note_id = target_note_id.as_deref() == Some(target_id);
+			let matched_title = match &target_title_key {
+				Some(key) => key_set.contains(key.as_str()),
+				None => false,
+			};
+			if !matched_note_id && !matched_title {
+				continue;
+			}
+
+			let note = row_to_note_offset(row, 6)?;
+			if !seen_sources.insert(note.id.clone()) {
+				continue;
+			}
+
+			sources.push(BacklinkSource {
+				kind: row.get(0)?,
+				raw: row.get(1)?,
+				target_label: row.get(2)?,
+				alias: row.get(3)?,
+				matched_note_id,
+				note,
+			});
+		}
+
+		Ok(BacklinkSources {
+			sources,
+			ambiguous_title_keys,
+		})
+	}
+
 	pub fn list_folders(&self) -> rusqlite::Result<Vec<Folder>> {
 		let conn = self.lock();
 		let mut stmt = conn
@@ -266,6 +452,73 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
 		note.modified_at,
 	])?;
 	Ok(())
+}
+
+/// Shared body for replacing a note's link + title rows. Takes `&Connection` so
+/// it works against both a `Transaction` (the live path) and a plain connection.
+fn replace_note_links_with(
+	conn: &Connection,
+	source_note_id: &str,
+	links: &[NoteLinkInput],
+	title_keys: &[String],
+) -> rusqlite::Result<()> {
+	conn.execute(
+		"DELETE FROM note_links WHERE source_note_id = ?1",
+		params![source_note_id],
+	)?;
+	conn.execute(
+		"DELETE FROM note_titles WHERE note_id = ?1",
+		params![source_note_id],
+	)?;
+	{
+		let mut stmt = conn.prepare_cached(
+			"INSERT INTO note_links \
+			 (source_note_id, kind, raw, target_label, alias, target_note_id, target_title_key) \
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+		)?;
+		for link in links {
+			stmt.execute(params![
+				source_note_id,
+				link.kind,
+				link.raw,
+				link.target_label,
+				link.alias,
+				link.target_note_id,
+				link.target_title_key,
+			])?;
+		}
+	}
+	{
+		let mut stmt =
+			conn.prepare_cached("INSERT INTO note_titles (note_id, title_key) VALUES (?1, ?2)")?;
+		for key in title_keys {
+			if key.is_empty() {
+				continue;
+			}
+			stmt.execute(params![source_note_id, key])?;
+		}
+	}
+	Ok(())
+}
+
+/// Reads a `Note` from a row whose note columns begin at `base` (used when the
+/// note is joined alongside other columns). Column order matches `row_to_note`.
+fn row_to_note_offset(row: &rusqlite::Row<'_>, base: usize) -> rusqlite::Result<Note> {
+	let rich_raw: String = row.get(base + 3)?;
+	let tags_raw: String = row.get(base + 7)?;
+	Ok(Note {
+		id: row.get(base)?,
+		name: row.get(base + 1)?,
+		content: row.get(base + 2)?,
+		rich_content: serde_json::from_str(&rich_raw)
+			.unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+		preferred_editor_mode: row.get(base + 4)?,
+		parent_id: row.get(base + 5)?,
+		sort_order: row.get(base + 6)?,
+		tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+		created_at: row.get(base + 8)?,
+		modified_at: row.get(base + 9)?,
+	})
 }
 
 /// Builds a safe FTS5 MATCH expression from raw user input. Each whitespace
@@ -438,5 +691,182 @@ mod tests {
 			.unwrap();
 		assert_eq!(store.list_notes().unwrap().len(), 2);
 		assert_eq!(store.search_notes("second", 10).unwrap()[0].id, "n2");
+	}
+
+	fn wiki_link(raw: &str, label: &str, key: &str) -> NoteLinkInput {
+		NoteLinkInput {
+			kind: "wiki".to_string(),
+			raw: raw.to_string(),
+			target_label: label.to_string(),
+			alias: None,
+			target_note_id: None,
+			target_title_key: Some(key.to_string()),
+		}
+	}
+
+	fn note_link(raw: &str, label: &str, target_id: &str) -> NoteLinkInput {
+		NoteLinkInput {
+			kind: "markdown-note-link".to_string(),
+			raw: raw.to_string(),
+			target_label: label.to_string(),
+			alias: None,
+			target_note_id: Some(target_id.to_string()),
+			target_title_key: None,
+		}
+	}
+
+	fn ids(sources: &BacklinkSources) -> Vec<String> {
+		let mut v: Vec<String> = sources.sources.iter().map(|s| s.note.id.clone()).collect();
+		v.sort();
+		v
+	}
+
+	#[test]
+	fn link_rows_persist_and_replace() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		store.upsert_note(&note_with("n1", "Source.md", "body")).unwrap();
+		store
+			.replace_note_links(
+				"n1",
+				&[wiki_link("[[Target]]", "Target", "target")],
+				&["source".to_string()],
+			)
+			.unwrap();
+		assert!(store.has_indexed_links().unwrap());
+
+		store
+			.replace_note_links(
+				"n1",
+				&[wiki_link("[[Other]]", "Other", "other")],
+				&["source".to_string()],
+			)
+			.unwrap();
+		let got = store
+			.get_backlink_sources("t", &["target".to_string()])
+			.unwrap();
+		assert!(got.sources.is_empty());
+		let got = store
+			.get_backlink_sources("t", &["other".to_string()])
+			.unwrap();
+		assert_eq!(ids(&got), vec!["n1".to_string()]);
+	}
+
+	#[test]
+	fn backlinks_resolve_for_wiki_and_note_links() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		store.upsert_note(&note_with("active", "Active.md", "body")).unwrap();
+		store.upsert_note(&note_with("wiki-src", "WikiSrc.md", "[[Active]]")).unwrap();
+		store.upsert_note(&note_with("md-src", "MdSrc.md", "link")).unwrap();
+
+		store
+			.replace_note_links("active", &[], &["active".to_string()])
+			.unwrap();
+		store
+			.replace_note_links(
+				"wiki-src",
+				&[wiki_link("[[Active]]", "Active", "active")],
+				&["wikisrc".to_string()],
+			)
+			.unwrap();
+		store
+			.replace_note_links(
+				"md-src",
+				&[note_link("[link](note://active)", "link", "active")],
+				&["mdsrc".to_string()],
+			)
+			.unwrap();
+
+		let got = store
+			.get_backlink_sources("active", &["active".to_string()])
+			.unwrap();
+		assert_eq!(ids(&got), vec!["md-src".to_string(), "wiki-src".to_string()]);
+		assert!(got.ambiguous_title_keys.is_empty());
+	}
+
+	#[test]
+	fn ambiguous_title_is_not_a_backlink() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		store.upsert_note(&note_with("a1", "Dup.md", "")).unwrap();
+		store.upsert_note(&note_with("a2", "Dup.md", "")).unwrap();
+		store.upsert_note(&note_with("src", "Src.md", "[[Dup]]")).unwrap();
+
+		store.replace_note_links("a1", &[], &["dup".to_string()]).unwrap();
+		store.replace_note_links("a2", &[], &["dup".to_string()]).unwrap();
+		store
+			.replace_note_links(
+				"src",
+				&[wiki_link("[[Dup]]", "Dup", "dup")],
+				&["src".to_string()],
+			)
+			.unwrap();
+
+		let got = store
+			.get_backlink_sources("a1", &["dup".to_string()])
+			.unwrap();
+		assert_eq!(got.ambiguous_title_keys, vec!["dup".to_string()]);
+		assert!(
+			got.sources.is_empty(),
+			"an ambiguous title key must not yield a backlink source"
+		);
+	}
+
+	#[test]
+	fn deleting_note_cascades_link_rows_and_drops_backlink() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		store.upsert_note(&note_with("active", "Active.md", "")).unwrap();
+		store.upsert_note(&note_with("src", "Src.md", "[[Active]]")).unwrap();
+		store.replace_note_links("active", &[], &["active".to_string()]).unwrap();
+		store
+			.replace_note_links(
+				"src",
+				&[wiki_link("[[Active]]", "Active", "active")],
+				&["src".to_string()],
+			)
+			.unwrap();
+
+		assert_eq!(
+			ids(&store
+				.get_backlink_sources("active", &["active".to_string()])
+				.unwrap()),
+			vec!["src".to_string()]
+		);
+
+		store.delete_note("src").unwrap();
+		assert!(store
+			.get_backlink_sources("active", &["active".to_string()])
+			.unwrap()
+			.sources
+			.is_empty());
+	}
+
+	#[test]
+	fn editing_content_updates_links() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		store.upsert_note(&note_with("a", "A.md", "")).unwrap();
+		store.upsert_note(&note_with("b", "B.md", "")).unwrap();
+		store.upsert_note(&note_with("src", "Src.md", "[[A]]")).unwrap();
+		store.replace_note_links("a", &[], &["a".to_string()]).unwrap();
+		store.replace_note_links("b", &[], &["b".to_string()]).unwrap();
+		store
+			.replace_note_links("src", &[wiki_link("[[A]]", "A", "a")], &["src".to_string()])
+			.unwrap();
+
+		assert_eq!(
+			ids(&store.get_backlink_sources("a", &["a".to_string()]).unwrap()),
+			vec!["src".to_string()]
+		);
+
+		store
+			.replace_note_links("src", &[wiki_link("[[B]]", "B", "b")], &["src".to_string()])
+			.unwrap();
+		assert!(store
+			.get_backlink_sources("a", &["a".to_string()])
+			.unwrap()
+			.sources
+			.is_empty());
+		assert_eq!(
+			ids(&store.get_backlink_sources("b", &["b".to_string()]).unwrap()),
+			vec!["src".to_string()]
+		);
 	}
 }
