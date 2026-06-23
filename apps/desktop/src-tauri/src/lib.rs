@@ -1,10 +1,14 @@
 mod storage;
 mod vault;
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+
 use serde::Serialize;
 use storage::{BacklinkSources, Folder, Note, NoteLinkInput, SearchHit, Storage};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use vault::VaultStore;
 
 /// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
 /// items (undo/copy/quit/…) are handled natively by Tauri and never reach here.
@@ -56,18 +60,35 @@ fn get_notes(storage: State<'_, Storage>, ids: Vec<String>) -> Result<Vec<Note>,
 }
 
 #[tauri::command]
-fn upsert_note(storage: State<'_, Storage>, note: Note) -> Result<Note, String> {
+fn upsert_note(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	note: Note,
+) -> Result<Note, String> {
+	vault.upsert_note(&note).map_err(vault_err)?;
 	storage.upsert_note(&note).map_err(stringify)?;
 	Ok(note)
 }
 
 #[tauri::command]
-fn bulk_upsert_notes(storage: State<'_, Storage>, notes: Vec<Note>) -> Result<(), String> {
+fn bulk_upsert_notes(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	notes: Vec<Note>,
+) -> Result<(), String> {
+	for note in &notes {
+		vault.upsert_note(note).map_err(vault_err)?;
+	}
 	storage.upsert_notes(&notes).map_err(stringify)
 }
 
 #[tauri::command]
-fn delete_note(storage: State<'_, Storage>, id: String) -> Result<(), String> {
+fn delete_note(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	id: String,
+) -> Result<(), String> {
+	vault.delete_note(&id).map_err(vault_err)?;
 	storage.delete_note(&id).map_err(stringify)
 }
 
@@ -116,18 +137,148 @@ fn list_folders(storage: State<'_, Storage>) -> Result<Vec<Folder>, String> {
 }
 
 #[tauri::command]
-fn upsert_folder(storage: State<'_, Storage>, folder: Folder) -> Result<Folder, String> {
+fn upsert_folder(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	folder: Folder,
+) -> Result<Folder, String> {
+	vault.upsert_folder(&folder).map_err(vault_err)?;
 	storage.upsert_folder(&folder).map_err(stringify)?;
 	Ok(folder)
 }
 
 #[tauri::command]
-fn delete_folder(storage: State<'_, Storage>, id: String) -> Result<(), String> {
+fn delete_folder(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	id: String,
+) -> Result<(), String> {
+	vault.delete_folder(&id).map_err(vault_err)?;
 	storage.delete_folder(&id).map_err(stringify)
 }
 
 fn stringify(error: rusqlite::Error) -> String {
 	error.to_string()
+}
+
+fn vault_err(error: std::io::Error) -> String {
+	error.to_string()
+}
+
+const SETTINGS_FILE: &str = "settings.json";
+const VAULT_DIR_NAME: &str = ".skriuw";
+
+/// The default vault location — a hidden `~/.skriuw` directory. Used when the
+/// user has not chosen a custom vault root in `settings.json`.
+fn default_vault_root<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, String> {
+	let home = handle
+		.path()
+		.home_dir()
+		.map_err(|error| format!("resolve home dir: {error}"))?;
+	Ok(home.join(VAULT_DIR_NAME))
+}
+
+fn settings_path<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, String> {
+	let dir = handle
+		.path()
+		.app_data_dir()
+		.map_err(|error| format!("resolve app data dir: {error}"))?;
+	Ok(dir.join(SETTINGS_FILE))
+}
+
+/// Reads the configured vault root from `settings.json`, falling back to the
+/// `~/.skriuw` default when the file or the `vaultRoot` key is absent.
+fn read_vault_root<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, String> {
+	let path = settings_path(handle)?;
+	let raw = match std::fs::read_to_string(&path) {
+		Ok(raw) => raw,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+			return default_vault_root(handle)
+		}
+		Err(error) => return Err(error.to_string()),
+	};
+	let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
+	match parsed.get("vaultRoot").and_then(|value| value.as_str()) {
+		Some(root) if !root.trim().is_empty() => Ok(PathBuf::from(root)),
+		_ => default_vault_root(handle),
+	}
+}
+
+fn write_vault_root<R: Runtime>(handle: &AppHandle<R>, root: &str) -> Result<(), String> {
+	let path = settings_path(handle)?;
+	if let Some(parent) = path.parent() {
+		std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+	}
+	let mut parsed: serde_json::Value = std::fs::read_to_string(&path)
+		.ok()
+		.and_then(|raw| serde_json::from_str(&raw).ok())
+		.unwrap_or_else(|| serde_json::json!({}));
+	parsed["vaultRoot"] = serde_json::Value::String(root.to_string());
+	let body = serde_json::to_string_pretty(&parsed).map_err(|error| error.to_string())?;
+	std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
+}
+
+/// Rebuilds the SQLite index to mirror the on-disk vault (the source of truth):
+/// folders and notes present in the vault are upserted, rows absent from the
+/// vault are dropped. A note whose vault body still matches the index is left
+/// untouched so its derived `richContent` survives; a changed body is re-upserted
+/// with an empty `richContent`, which the TypeScript layer re-derives on read.
+fn reconcile_index(storage: &Storage, vault: &VaultStore) -> Result<(), String> {
+	let vault_folders = vault.list_folders().map_err(vault_err)?;
+	for folder in &vault_folders {
+		storage.upsert_folder(folder).map_err(stringify)?;
+	}
+	let folder_ids: HashSet<&str> = vault_folders.iter().map(|f| f.id.as_str()).collect();
+	for folder in storage.list_folders().map_err(stringify)? {
+		if !folder_ids.contains(folder.id.as_str()) {
+			storage.delete_folder(&folder.id).map_err(stringify)?;
+		}
+	}
+
+	let vault_notes = vault.list_notes().map_err(vault_err)?;
+	for note in &vault_notes {
+		let unchanged = storage
+			.get_note(&note.id)
+			.map_err(stringify)?
+			.is_some_and(|existing| note_body_matches(&existing, note));
+		if !unchanged {
+			storage.upsert_note(note).map_err(stringify)?;
+		}
+	}
+	let note_ids: HashSet<&str> = vault_notes.iter().map(|n| n.id.as_str()).collect();
+	for note in storage.list_notes().map_err(stringify)? {
+		if !note_ids.contains(note.id.as_str()) {
+			storage.delete_note(&note.id).map_err(stringify)?;
+		}
+	}
+	Ok(())
+}
+
+/// True when every vault-persisted field of a note matches the index row, so the
+/// index row (and its derived `richContent`) can be kept as-is.
+fn note_body_matches(indexed: &Note, vault: &Note) -> bool {
+	indexed.name == vault.name
+		&& indexed.content == vault.content
+		&& indexed.parent_id == vault.parent_id
+		&& indexed.sort_order == vault.sort_order
+		&& indexed.preferred_editor_mode == vault.preferred_editor_mode
+		&& indexed.tags == vault.tags
+}
+
+#[tauri::command]
+fn get_vault_root(app: AppHandle) -> Result<String, String> {
+	Ok(read_vault_root(&app)?.to_string_lossy().into_owned())
+}
+
+/// Persists a new vault root. Takes effect on the next launch (the live vault +
+/// index are opened once at startup).
+#[tauri::command]
+fn set_vault_root(app: AppHandle, path: String) -> Result<(), String> {
+	let trimmed = path.trim();
+	if trimmed.is_empty() {
+		return Err("vault root must not be empty".to_string());
+	}
+	write_vault_root(&app, trimmed)
 }
 
 /// Builds the native application menu. Predefined items work out of the box;
@@ -208,10 +359,21 @@ pub fn run() {
 		.plugin(tauri_plugin_dialog::init())
 		.plugin(tauri_plugin_window_state::Builder::default().build())
 		.setup(|app| {
+			let handle = app.handle();
 			let dir = app.path().app_data_dir().expect("resolve app data dir");
 			std::fs::create_dir_all(&dir)?;
-			let storage = Storage::open(&dir.join("skriuw.db"))?;
+
+			let vault_root = read_vault_root(handle)?;
+			let vault = VaultStore::open(&vault_root)?;
+
+			// The markdown vault is the source of truth; SQLite is a derived index
+			// (FTS5 search, backlinks) kept in a separate `index.db` so the legacy
+			// `skriuw.db` is left untouched. Rebuilt from the vault on every launch.
+			let storage = Storage::open(&dir.join("index.db"))?;
+			reconcile_index(&storage, &vault)?;
+
 			app.manage(storage);
+			app.manage(vault);
 			Ok(())
 		})
 		.menu(build_menu)
@@ -237,6 +399,8 @@ pub fn run() {
 			list_folders,
 			upsert_folder,
 			delete_folder,
+				get_vault_root,
+				set_vault_root,
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running the Skriuw desktop shell");

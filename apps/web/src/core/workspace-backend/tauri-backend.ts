@@ -1,6 +1,7 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import { resolveRichDocument } from "@/domain/notes/rich-document";
 import {
 	buildNoteBacklinks,
 	extractNoteLinks,
@@ -79,7 +80,10 @@ function fromRustNote(raw: RustNote): NoteFile {
 		id: raw.id,
 		name: raw.name,
 		content: raw.content,
-		richContent: raw.richContent,
+		// The markdown vault is the source of truth and does not persist
+		// `richContent`; when the index returns an empty rich document (e.g. a
+		// note adopted from an external `.md` edit), derive blocks from the body.
+		richContent: resolveRichDocument(raw.content, raw.richContent),
 		preferredEditorMode: raw.preferredEditorMode,
 		parentId: raw.parentId,
 		sortOrder: raw.sortOrder,
