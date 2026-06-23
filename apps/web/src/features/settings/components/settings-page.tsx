@@ -34,7 +34,7 @@ import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
 import { ExperimentalSection } from "@/features/settings/sections/experimental-section";
 import { PrivacySection } from "@/features/settings/sections/privacy-section";
-import { SettingsSidebar, type SettingsTabId } from "./settings-sidebar";
+import { SettingsSidebar, isSettingsTabVisible, type SettingsTabId } from "./settings-sidebar";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
 
@@ -118,8 +118,10 @@ export function SettingsPage() {
 	const logActivity = usePreferencesStore((state) => state.logActivity);
 
 	const tabParam = searchParams.get("tab");
-	const parsedTab: SettingsTabId | null = isTabId(tabParam) ? tabParam : null;
-	const activeTab: SettingsTabId = parsedTab ?? "account";
+	const parsedTab: SettingsTabId | null =
+		isTabId(tabParam) && isSettingsTabVisible(tabParam) ? tabParam : null;
+	const defaultTab: SettingsTabId = isSettingsTabVisible("account") ? "account" : "appearance";
+	const activeTab: SettingsTabId = parsedTab ?? defaultTab;
 
 	useEffect(() => {
 		initializePreferences();
@@ -249,7 +251,7 @@ function MobileSettingsList({ onSelect, onDone }: MobileSettingsListProps) {
 				style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
 			>
 				<ul role="list" className="divide-y divide-border border-b border-border">
-					{SECTIONS.map((section) => {
+					{SECTIONS.filter((section) => isSettingsTabVisible(section.id)).map((section) => {
 						const Icon = section.icon;
 						return (
 							<li key={section.id}>
