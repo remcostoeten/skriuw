@@ -13,15 +13,15 @@
  */
 
 import "dotenv/config";
-import { PrismaClient } from "../generated/prisma/client";
+import { PrismaClient } from "../apps/web/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
 	extractNoteLinks,
 	extractNoteTags,
 	getNoteSearchableContent,
 	normalizeNoteTitle,
-} from "../src/domain/notes/note-links";
-import { normalizeDatabaseUrl } from "../src/lib/database-url";
+} from "../apps/web/src/domain/notes/note-links";
+import { normalizeDatabaseUrl } from "../apps/web/src/lib/database-url";
 
 const adapter = new PrismaPg({
 	connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL!),

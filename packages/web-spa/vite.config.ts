@@ -7,8 +7,8 @@ function fromHere(path: string) {
 	return fileURLToPath(new URL(path, import.meta.url));
 }
 
-const appSrc = fromHere("../../src");
-const appGenerated = fromHere("../../generated");
+const appSrc = fromHere("../../apps/web/src");
+const appGenerated = fromHere("../../apps/web/generated");
 const shims = fromHere("./src/shims");
 
 export default defineConfig({
