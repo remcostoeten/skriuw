@@ -2,7 +2,7 @@ mod storage;
 mod vault;
 
 use serde::Serialize;
-use storage::{Folder, Note, SearchHit, Storage};
+use storage::{BacklinkSources, Folder, Note, NoteLinkInput, SearchHit, Storage};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
 
@@ -62,8 +62,41 @@ fn upsert_note(storage: State<'_, Storage>, note: Note) -> Result<Note, String> 
 }
 
 #[tauri::command]
+fn bulk_upsert_notes(storage: State<'_, Storage>, notes: Vec<Note>) -> Result<(), String> {
+	storage.upsert_notes(&notes).map_err(stringify)
+}
+
+#[tauri::command]
 fn delete_note(storage: State<'_, Storage>, id: String) -> Result<(), String> {
 	storage.delete_note(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn replace_note_links(
+	storage: State<'_, Storage>,
+	note_id: String,
+	links: Vec<NoteLinkInput>,
+	title_keys: Vec<String>,
+) -> Result<(), String> {
+	storage
+		.replace_note_links(&note_id, &links, &title_keys)
+		.map_err(stringify)
+}
+
+#[tauri::command]
+fn has_indexed_links(storage: State<'_, Storage>) -> Result<bool, String> {
+	storage.has_indexed_links().map_err(stringify)
+}
+
+#[tauri::command]
+fn get_backlink_sources(
+	storage: State<'_, Storage>,
+	target_id: String,
+	title_keys: Vec<String>,
+) -> Result<BacklinkSources, String> {
+	storage
+		.get_backlink_sources(&target_id, &title_keys)
+		.map_err(stringify)
 }
 
 #[tauri::command]
@@ -195,7 +228,11 @@ pub fn run() {
 			get_note,
 			get_notes,
 			upsert_note,
+			bulk_upsert_notes,
 			delete_note,
+			replace_note_links,
+			has_indexed_links,
+			get_backlink_sources,
 			search_notes,
 			list_folders,
 			upsert_folder,

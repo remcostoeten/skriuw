@@ -1,7 +1,13 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
-import { buildNoteBacklinks } from "@/domain/notes/note-links";
+import {
+	buildNoteBacklinks,
+	extractNoteLinks,
+	getNoteTitle,
+	normalizeNoteTitle,
+} from "@/domain/notes/note-links";
+import type { NoteLink, ResolvedNoteLink } from "@/domain/notes/note-links";
 import {
 	applyFolderUpdate,
 	applyNoteUpdate,
@@ -103,6 +109,65 @@ function fromRustFolder(raw: RustFolder): NoteFolder {
 	};
 }
 
+type RustNoteLink = {
+	kind: NoteLink["kind"];
+	raw: string;
+	targetLabel: string;
+	alias: string | null;
+	targetNoteId: string | null;
+	targetTitleKey: string | null;
+};
+
+type RustBacklinkSource = {
+	note: RustNote;
+	kind: NoteLink["kind"];
+	raw: string;
+	targetLabel: string;
+	alias: string | null;
+	matchedNoteId: boolean;
+};
+
+type RustBacklinkSources = {
+	sources: RustBacklinkSource[];
+	ambiguousTitleKeys: string[];
+};
+
+function noteTitleKeys(note: NoteFile): string[] {
+	const keys = new Set<string>();
+	for (const candidate of [normalizeNoteTitle(note.name), normalizeNoteTitle(getNoteTitle(note))]) {
+		if (candidate) keys.add(candidate);
+	}
+	return [...keys];
+}
+
+function toRustNoteLink(link: NoteLink): RustNoteLink {
+	return {
+		kind: link.kind,
+		raw: link.raw,
+		targetLabel: link.targetLabel,
+		alias: link.alias ?? null,
+		targetNoteId: link.targetNoteId ?? null,
+		targetTitleKey: link.targetNoteId ? null : normalizeNoteTitle(link.targetLabel),
+	};
+}
+
+/**
+ * The final resolution of a SQL-prefiltered backlink source into the exact
+ * `ResolvedNoteLink` shape `buildNoteBacklinks` produces: always `resolved`,
+ * pointing at the active note, carrying the source's link fields.
+ */
+function backlinkFromSource(source: RustBacklinkSource, activeId: string): ResolvedNoteLink {
+	return {
+		raw: source.raw,
+		kind: source.kind,
+		sourceNoteId: source.note.id,
+		targetLabel: source.targetLabel,
+		alias: source.alias ?? undefined,
+		status: "resolved",
+		targetNoteId: activeId,
+	};
+}
+
 /**
  * Desktop backend: every read and mutation crosses the Tauri IPC boundary to a
  * local Rust + SQLite store. Record building (ids, defaults, timestamps) and
@@ -121,6 +186,20 @@ export function createTauriBackend(): WorkspaceBackend {
 	async function listFolders(): Promise<NoteFolder[]> {
 		const rows = await invoke<RustFolder[]>("list_folders");
 		return rows.map(fromRustFolder);
+	}
+
+	async function indexNoteLinks(note: NoteFile): Promise<void> {
+		await invoke("replace_note_links", {
+			noteId: note.id,
+			links: extractNoteLinks(note).map(toRustNoteLink),
+			titleKeys: noteTitleKeys(note),
+		});
+	}
+
+	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
+		for (const note of notes) {
+			await indexNoteLinks(note);
+		}
 	}
 
 	return {
@@ -148,9 +227,29 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async getNoteBacklinks(id) {
-			const notes = await listNotes();
-			const active = notes.find((note) => note.id === id) ?? null;
-			return buildNoteBacklinks(active, notes);
+			const rawActive = await invoke<RustNote | null>("get_note", { id });
+			if (!rawActive) return [];
+			const active = fromRustNote(rawActive);
+
+			const indexed = await invoke<boolean>("has_indexed_links");
+			if (!indexed) {
+				const notes = await listNotes();
+				await backfillNoteLinks(notes);
+				return buildNoteBacklinks(active, notes);
+			}
+
+			const { sources } = await invoke<RustBacklinkSources>("get_backlink_sources", {
+				targetId: id,
+				titleKeys: noteTitleKeys(active),
+			});
+			const seen = new Set<string>();
+			const backlinks: ResolvedNoteLink[] = [];
+			for (const source of sources) {
+				if (seen.has(source.note.id)) continue;
+				seen.add(source.note.id);
+				backlinks.push(backlinkFromSource(source, id));
+			}
+			return backlinks;
 		},
 
 		async getNoteGraph() {
@@ -169,6 +268,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
 			await invoke("upsert_note", { note: toRustNote(note) });
+			await indexNoteLinks(note);
 			return note;
 		},
 
@@ -177,6 +277,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			if (!raw) return { note: undefined, versionCreated: false };
 			const next = applyNoteUpdate(fromRustNote(raw), input);
 			await invoke("upsert_note", { note: toRustNote(next) });
+			await indexNoteLinks(next);
 			return { note: next, versionCreated: false };
 		},
 
