@@ -33,6 +33,10 @@ export default defineConfig({
 			{ find: /^@\/lib\/prisma$/, replacement: `${shims}/server-stub-prisma.ts` },
 			{ find: /^@\/lib\/auth$/, replacement: `${shims}/server-stub-auth.ts` },
 			{
+				find: /^@\/core\/workspace-backend\/server-backend$/,
+				replacement: `${shims}/server-stub-backend.ts`,
+			},
+			{
 				find: /^@\/generated\/prisma\/client$/,
 				replacement: `${shims}/server-stub-prisma-client.ts`,
 			},
