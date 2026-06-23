@@ -60,6 +60,11 @@ function getInvoke(): TauriInvoke {
 	return invoke;
 }
 
+/** Invoke a Tauri command from anywhere (settings, etc.). Desktop-only. */
+export function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+	return getInvoke()<T>(command, args);
+}
+
 function toRustNote(note: NoteFile): RustNote {
 	return {
 		id: note.id,

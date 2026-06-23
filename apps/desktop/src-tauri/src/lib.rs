@@ -1,13 +1,15 @@
+mod backup;
 mod storage;
 mod vault;
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use storage::{BacklinkSources, Folder, Note, NoteLinkInput, SearchHit, Storage};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri_plugin_dialog::DialogExt;
 use vault::VaultStore;
 
 /// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
@@ -281,6 +283,93 @@ fn set_vault_root(app: AppHandle, path: String) -> Result<(), String> {
 	write_vault_root(&app, trimmed)
 }
 
+/// Exports the markdown vault to a user-chosen `.zip`. Returns the chosen path,
+/// or `None` if the save dialog was cancelled.
+#[tauri::command]
+fn export_vault(app: AppHandle) -> Result<Option<String>, String> {
+	let root = read_vault_root(&app)?;
+	let picked = app
+		.dialog()
+		.file()
+		.set_file_name("skriuw-vault.zip")
+		.add_filter("Zip archive", &["zip"])
+		.blocking_save_file();
+	let Some(target) = picked else {
+		return Ok(None);
+	};
+	let out = target.as_path().ok_or("invalid save path")?.to_path_buf();
+	backup::zip_dir(&root, &out).map_err(|error| error.to_string())?;
+	Ok(Some(out.to_string_lossy().into_owned()))
+}
+
+/// Restores the vault from a backup `.zip`, REPLACING the current vault, then
+/// rebuilds the SQLite index from it. Returns `false` if the pick was cancelled.
+#[tauri::command]
+fn import_vault(app: AppHandle, storage: State<'_, Storage>) -> Result<bool, String> {
+	let root = read_vault_root(&app)?;
+	let picked = app
+		.dialog()
+		.file()
+		.add_filter("Zip archive", &["zip"])
+		.blocking_pick_file();
+	let Some(target) = picked else {
+		return Ok(false);
+	};
+	let archive = target.as_path().ok_or("invalid archive path")?.to_path_buf();
+	backup::clear_dir_contents(&root).map_err(|error| error.to_string())?;
+	backup::unzip_into(&archive, &root).map_err(|error| error.to_string())?;
+	let vault = VaultStore::open(&root).map_err(vault_err)?;
+	reconcile_index(&storage, &vault)?;
+	Ok(true)
+}
+
+/// Permanently deletes all local notes/folders: empties the vault directory and
+/// rebuilds (now-empty) the SQLite index from it.
+#[tauri::command]
+fn clear_local_data(app: AppHandle, storage: State<'_, Storage>) -> Result<(), String> {
+	let root = read_vault_root(&app)?;
+	backup::clear_dir_contents(&root).map_err(|error| error.to_string())?;
+	let vault = VaultStore::open(&root).map_err(vault_err)?;
+	reconcile_index(&storage, &vault)
+}
+
+/// Opens a folder picker and persists the chosen directory as the new vault
+/// root (takes effect next launch). Returns the chosen path, or `None` if
+/// cancelled.
+#[tauri::command]
+fn choose_vault_root(app: AppHandle) -> Result<Option<String>, String> {
+	let picked = app.dialog().file().blocking_pick_folder();
+	let Some(target) = picked else {
+		return Ok(None);
+	};
+	let dir = target.as_path().ok_or("invalid folder path")?.to_path_buf();
+	let as_str = dir.to_string_lossy().into_owned();
+	write_vault_root(&app, &as_str)?;
+	Ok(Some(as_str))
+}
+
+/// Opens the vault directory in the OS file manager.
+#[tauri::command]
+fn reveal_vault(app: AppHandle) -> Result<(), String> {
+	let root = read_vault_root(&app)?;
+	std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+	open_in_file_manager(&root)
+}
+
+fn open_in_file_manager(path: &Path) -> Result<(), String> {
+	#[cfg(target_os = "linux")]
+	let program = "xdg-open";
+	#[cfg(target_os = "macos")]
+	let program = "open";
+	#[cfg(target_os = "windows")]
+	let program = "explorer";
+	std::process::Command::new(program)
+		.arg(path)
+		.spawn()
+		.map_err(|error| error.to_string())?;
+	Ok(())
+}
+
 /// Builds the native application menu. Predefined items work out of the box;
 /// the custom File/View items emit a `menu://action` event to the frontend.
 fn build_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -401,6 +490,11 @@ pub fn run() {
 			delete_folder,
 				get_vault_root,
 				set_vault_root,
+				export_vault,
+				import_vault,
+				clear_local_data,
+				choose_vault_root,
+				reveal_vault,
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running the Skriuw desktop shell");

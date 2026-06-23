@@ -8,7 +8,8 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { GuestGate } from "@/shared/ui/guest-gate";
-import { useIsGuestWorkspace, resetGuestStorage } from "@/core/workspace-backend";
+import { useIsGuestWorkspace, resetGuestStorage, isTauriRuntime } from "@/core/workspace-backend";
+import { LocalDataSection } from "./local-data-section";
 import {
 	Dialog,
 	DialogClose,
@@ -252,6 +253,13 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 }
 
 export function DataSection() {
+	if (isTauriRuntime()) {
+		return <LocalDataSection />;
+	}
+	return <CloudDataSection />;
+}
+
+function CloudDataSection() {
 	const auth = useAuth();
 	const isConnected = auth.phase === "authenticated";
 	const isGuest = useIsGuestWorkspace();
