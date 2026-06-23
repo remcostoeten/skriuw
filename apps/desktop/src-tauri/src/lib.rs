@@ -1,4 +1,5 @@
 mod storage;
+mod vault;
 
 use serde::Serialize;
 use storage::{Folder, Note, SearchHit, Storage};
