@@ -3,6 +3,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { type UpdateNoteInput } from "@/domain/notes/actions";
+import { applyNoteUpdate as applyNoteUpdateBuilder } from "@/core/workspace-backend/note-builders";
 import type { NoteFile } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
 
@@ -14,25 +15,19 @@ export type SavedNoteResult = {
 };
 
 export function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
-	return {
-		...note,
-		name: input.name
-			? input.name.endsWith(".md")
-				? input.name
-				: `${input.name}.md`
-			: note.name,
-		content: input.content ?? note.content,
-		richContent:
-			input.richContent ??
-			(input.content !== undefined
-				? markdownToRichDocument(input.content)
-				: note.richContent),
-		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
-		parentId: input.parentId === undefined ? note.parentId : input.parentId,
-		sortOrder: input.sortOrder === undefined ? note.sortOrder : input.sortOrder,
-		tags: input.tags === undefined ? note.tags : input.tags,
-		modifiedAt: new Date(),
-	};
+	return applyNoteUpdateBuilder(note, input, {
+		resolveName: (patch, current) =>
+			patch.name
+				? patch.name.endsWith(".md")
+					? patch.name
+					: `${patch.name}.md`
+				: current.name,
+		resolveRichContent: (patch, current) =>
+			patch.richContent ??
+			(patch.content !== undefined
+				? markdownToRichDocument(patch.content)
+				: current.richContent),
+	});
 }
 
 export function reconcileSavedNoteCache(

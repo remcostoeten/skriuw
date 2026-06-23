@@ -4,7 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { createLocalBackend } from "./local-backend";
-import { serverBackend } from "./server-backend";
+// Imported via the `@/` path (not `./server-backend`) so the desktop SPA can
+// alias-shim it in vite.config and keep the server/Prisma action graph out of
+// the bundle. See packages/web-spa/src/shims/server-stub-backend.ts.
+import { serverBackend } from "@/core/workspace-backend/server-backend";
 import { createTauriBackend, isTauriRuntime } from "./tauri-backend";
 import type { WorkspaceBackend, WorkspaceCapabilities } from "./types";
 
