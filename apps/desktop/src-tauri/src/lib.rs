@@ -1,7 +1,7 @@
 mod storage;
 
 use serde::Serialize;
-use storage::{Folder, Note, Storage};
+use storage::{Folder, Note, SearchHit, Storage};
 use tauri::{Manager, State};
 
 #[derive(Serialize)]
@@ -61,6 +61,17 @@ fn delete_note(storage: State<'_, Storage>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn search_notes(
+	storage: State<'_, Storage>,
+	query: String,
+	limit: Option<i64>,
+) -> Result<Vec<SearchHit>, String> {
+	storage
+		.search_notes(&query, limit.unwrap_or(20))
+		.map_err(stringify)
+}
+
+#[tauri::command]
 fn list_folders(storage: State<'_, Storage>) -> Result<Vec<Folder>, String> {
 	storage.list_folders().map_err(stringify)
 }
@@ -97,6 +108,7 @@ pub fn run() {
 			get_notes,
 			upsert_note,
 			delete_note,
+			search_notes,
 			list_folders,
 			upsert_folder,
 			delete_folder,
