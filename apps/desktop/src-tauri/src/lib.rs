@@ -2,7 +2,12 @@ mod storage;
 
 use serde::Serialize;
 use storage::{Folder, Note, SearchHit, Storage};
-use tauri::{Manager, State};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{Emitter, Manager, State};
+
+/// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
+/// items (undo/copy/quit/…) are handled natively by Tauri and never reach here.
+const MENU_ACTION_IDS: [&str; 4] = ["new-note", "new-folder", "save", "toggle-sidebar"];
 
 #[derive(Serialize)]
 pub struct AppInfo {
@@ -91,14 +96,96 @@ fn stringify(error: rusqlite::Error) -> String {
 	error.to_string()
 }
 
+/// Builds the native application menu. Predefined items work out of the box;
+/// the custom File/View items emit a `menu://action` event to the frontend.
+fn build_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
+	let new_note = MenuItem::with_id(handle, "new-note", "New Note", true, Some("CmdOrCtrl+N"))?;
+	let new_folder = MenuItem::with_id(
+		handle,
+		"new-folder",
+		"New Folder",
+		true,
+		Some("CmdOrCtrl+Shift+N"),
+	)?;
+	let save = MenuItem::with_id(handle, "save", "Save", true, Some("CmdOrCtrl+S"))?;
+	let toggle_sidebar = MenuItem::with_id(
+		handle,
+		"toggle-sidebar",
+		"Toggle Sidebar",
+		true,
+		Some("CmdOrCtrl+B"),
+	)?;
+
+	let app_menu = Submenu::with_items(
+		handle,
+		"Skriuw",
+		true,
+		&[
+			&PredefinedMenuItem::about(handle, Some("About Skriuw"), None)?,
+			&PredefinedMenuItem::separator(handle)?,
+			&PredefinedMenuItem::quit(handle, None)?,
+		],
+	)?;
+	let file_menu = Submenu::with_items(
+		handle,
+		"File",
+		true,
+		&[
+			&new_note,
+			&new_folder,
+			&PredefinedMenuItem::separator(handle)?,
+			&save,
+		],
+	)?;
+	let edit_menu = Submenu::with_items(
+		handle,
+		"Edit",
+		true,
+		&[
+			&PredefinedMenuItem::undo(handle, None)?,
+			&PredefinedMenuItem::redo(handle, None)?,
+			&PredefinedMenuItem::separator(handle)?,
+			&PredefinedMenuItem::cut(handle, None)?,
+			&PredefinedMenuItem::copy(handle, None)?,
+			&PredefinedMenuItem::paste(handle, None)?,
+			&PredefinedMenuItem::select_all(handle, None)?,
+		],
+	)?;
+	let view_menu = Submenu::with_items(handle, "View", true, &[&toggle_sidebar])?;
+	let window_menu = Submenu::with_items(
+		handle,
+		"Window",
+		true,
+		&[
+			&PredefinedMenuItem::minimize(handle, None)?,
+			&PredefinedMenuItem::close_window(handle, None)?,
+		],
+	)?;
+
+	Menu::with_items(
+		handle,
+		&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu],
+	)
+}
+
 pub fn run() {
 	tauri::Builder::default()
+		.plugin(tauri_plugin_fs::init())
+		.plugin(tauri_plugin_dialog::init())
+		.plugin(tauri_plugin_window_state::Builder::default().build())
 		.setup(|app| {
 			let dir = app.path().app_data_dir().expect("resolve app data dir");
 			std::fs::create_dir_all(&dir)?;
 			let storage = Storage::open(&dir.join("skriuw.db"))?;
 			app.manage(storage);
 			Ok(())
+		})
+		.menu(build_menu)
+		.on_menu_event(|app, event| {
+			let id = event.id().as_ref();
+			if MENU_ACTION_IDS.contains(&id) {
+				let _ = app.emit("menu://action", id);
+			}
 		})
 		.invoke_handler(tauri::generate_handler![
 			greet,
