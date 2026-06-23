@@ -221,26 +221,54 @@ export function NotesLayoutShell({
 				    regions inside it (file tree, document body, metadata) swap to
 				    skeletons while their queries resolve, so nothing blocks and
 				    nothing shifts. */}
-				{!isMobile && showSidebar && (
-					<div
-						ref={sidebarRef}
-						className="relative shrink-0 bg-sidebar"
-						style={{ width: sidebarWidth }}
-					>
-						<SidebarPanel
-							{...sidebarPanelProps}
-							isFilesLoading={sidebarPanelProps.isFilesLoading || !isEditorReady}
-						/>
-						<div
-							role="separator"
-							aria-orientation="vertical"
-							aria-label="Resize sidebar"
-							onPointerDown={handleDesktopSidebarResizeStart}
-							className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
-						>
-							<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
-						</div>
-					</div>
+				{!isMobile && (
+					<AnimatePresence initial={false}>
+						{showSidebar && (
+							<motion.div
+								key="desktop-sidebar"
+								initial={prefersReducedMotion ? { opacity: 0 } : { width: 0, opacity: 0 }}
+								animate={
+									prefersReducedMotion
+										? { opacity: 1, transition: { duration: 0.1, ease: "linear" } }
+										: {
+												width: sidebarWidth,
+												opacity: 1,
+												transition: { duration: 0.22, ease: [0.23, 1, 0.32, 1] },
+											}
+								}
+								exit={
+									prefersReducedMotion
+										? { opacity: 0, transition: { duration: 0.1, ease: "linear" } }
+										: {
+												width: 0,
+												opacity: 0,
+												transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] },
+											}
+								}
+								style={{ overflow: "hidden", flexShrink: 0 }}
+							>
+								<div
+									ref={sidebarRef}
+									className="relative h-full bg-sidebar"
+									style={{ width: sidebarWidth }}
+								>
+									<SidebarPanel
+										{...sidebarPanelProps}
+										isFilesLoading={sidebarPanelProps.isFilesLoading || !isEditorReady}
+									/>
+									<div
+										role="separator"
+										aria-orientation="vertical"
+										aria-label="Resize sidebar"
+										onPointerDown={handleDesktopSidebarResizeStart}
+										className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
+									>
+										<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
+									</div>
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
 				)}
 
 				<div
@@ -388,22 +416,50 @@ export function NotesLayoutShell({
 							</AnimatePresence>
 						</div>
 
-							{!isMobile &&
-								showMetadata &&
-								(showContentSkeleton ? (
-									<NotesMetadataPlaceholder />
-								) : (
-									<MetadataPanel
-										file={focusedFile ?? displayFile}
-										files={files}
-										editorMode={focusedEditorMode ?? editorMode ?? "block"}
-										onToggleEditorMode={handleToggleEditorMode}
-										onFileSelect={sidebarPanelProps.actions.onFileSelect}
-										onViewVersion={handleViewVersion}
-										onShare={handleOpenShare}
-										className="h-full shrink-0"
-									/>
-								))}
+							{!isMobile && (
+								<AnimatePresence initial={false}>
+									{showMetadata && (
+										<motion.div
+											key="desktop-metadata"
+											initial={prefersReducedMotion ? { opacity: 0 } : { width: 0, opacity: 0 }}
+											animate={
+												prefersReducedMotion
+													? { opacity: 1, transition: { duration: 0.1, ease: "linear" } }
+													: {
+															width: "auto",
+															opacity: 1,
+															transition: { duration: 0.22, ease: [0.23, 1, 0.32, 1] },
+														}
+											}
+											exit={
+												prefersReducedMotion
+													? { opacity: 0, transition: { duration: 0.1, ease: "linear" } }
+													: {
+															width: 0,
+															opacity: 0,
+															transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] },
+														}
+											}
+											style={{ overflow: "hidden", flexShrink: 0 }}
+										>
+											{showContentSkeleton ? (
+												<NotesMetadataPlaceholder />
+											) : (
+												<MetadataPanel
+													file={focusedFile ?? displayFile}
+													files={files}
+													editorMode={focusedEditorMode ?? editorMode ?? "block"}
+													onToggleEditorMode={handleToggleEditorMode}
+													onFileSelect={sidebarPanelProps.actions.onFileSelect}
+													onViewVersion={handleViewVersion}
+													onShare={handleOpenShare}
+													className="h-full shrink-0"
+												/>
+											)}
+										</motion.div>
+									)}
+								</AnimatePresence>
+							)}
 					</div>
 				</div>
 			</div>
