@@ -18,7 +18,7 @@ import { UserMenu } from "./user-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
 import { AvatarSkeleton } from "./avatar-skeleton";
-import { GUEST_SIGNUP_PROMPT_EVENT } from "@/core/workspace-backend";
+import { GUEST_SIGNUP_PROMPT_EVENT, isTauriRuntime } from "@/core/workspace-backend";
 
 type Props = {
 	onOpenSettings: () => void;
@@ -78,8 +78,14 @@ export function IconRail({ onOpenSettings }: Props) {
 		useState<AuthDrawerInitialMode>("login");
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
+	// Desktop is a single local profile with no cloud auth, so nothing is
+	// "protected" — gating these would only pop a sign-in drawer that can never
+	// resolve and would block the user out of Settings/Journal.
 	const protectedRoutes = useMemo(
-		() => new Set(["/app/journal", "/app/settings", "/app/shared"]),
+		() =>
+			isTauriRuntime()
+				? new Set<string>()
+				: new Set(["/app/journal", "/app/settings", "/app/shared"]),
 		[],
 	);
 	const activeAuthDrawerConfig = useMemo(
@@ -306,7 +312,7 @@ export function IconRail({ onOpenSettings }: Props) {
 					{isMounted && auth.phase === "authenticated" && auth.user && (
 						<NotificationBell variant="rail" />
 					)}
-					{!isMounted || !auth.isReady ? (
+					{isTauriRuntime() ? null : !isMounted || !auth.isReady ? (
 						<AvatarSkeleton />
 					) : auth.phase === "authenticated" && auth.user ? (
 						<UserMenu
