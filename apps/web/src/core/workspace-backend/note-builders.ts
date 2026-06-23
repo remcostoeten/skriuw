@@ -33,12 +33,31 @@ export function noteFromCreateInput(input: CreateNoteInput): NoteFile {
 	};
 }
 
-export function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
+export type ApplyNoteUpdateOptions = {
+	resolveName?: (input: UpdateNoteInput, note: NoteFile) => string;
+	resolveRichContent?: (input: UpdateNoteInput, note: NoteFile) => RichTextDocument;
+};
+
+function defaultResolveName(input: UpdateNoteInput, note: NoteFile): string {
+	return input.name !== undefined ? ensureNoteName(input.name) : note.name;
+}
+
+function defaultResolveRichContent(input: UpdateNoteInput, note: NoteFile): RichTextDocument {
+	return input.richContent ?? note.richContent;
+}
+
+export function applyNoteUpdate(
+	note: NoteFile,
+	input: UpdateNoteInput,
+	options: ApplyNoteUpdateOptions = {},
+): NoteFile {
+	const { resolveName = defaultResolveName, resolveRichContent = defaultResolveRichContent } =
+		options;
 	return {
 		...note,
-		name: input.name !== undefined ? ensureNoteName(input.name) : note.name,
+		name: resolveName(input, note),
 		content: input.content ?? note.content,
-		richContent: input.richContent ?? note.richContent,
+		richContent: resolveRichContent(input, note),
 		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
 		parentId: input.parentId !== undefined ? input.parentId : note.parentId,
 		sortOrder: input.sortOrder ?? note.sortOrder,
