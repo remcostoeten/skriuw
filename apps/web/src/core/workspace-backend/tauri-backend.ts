@@ -8,7 +8,7 @@ import {
 	folderFromCreateInput,
 	noteFromCreateInput,
 } from "./note-builders";
-import type { WorkspaceBackend } from "./types";
+import type { NoteSearchHit, WorkspaceBackend } from "./types";
 import { WorkspaceCapabilityError } from "./capability-error";
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -155,6 +155,11 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async getNoteGraph() {
 			return buildGraphFromNotes(await listNotes());
+		},
+
+		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
+			if (!query.trim()) return [];
+			return invoke<NoteSearchHit[]>("search_notes", { query, limit });
 		},
 
 		async restoreNoteVersion() {

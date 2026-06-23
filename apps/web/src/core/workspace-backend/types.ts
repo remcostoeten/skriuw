@@ -42,9 +42,28 @@ export type WorkspaceCapabilities = {
  * nor platform. Whole-workspace list reads (note/journal listings) are still
  * RSC-hydrated and join this interface once the prefetch moves client-side.
  */
+/**
+ * A full-text search hit. `snippet` is a short excerpt with the matched terms
+ * wrapped in `[` … `]`. Currently produced only by the desktop backend (SQLite
+ * FTS5); callers must treat `searchNotes` as optional and fall back to in-memory
+ * filtering when it is absent.
+ */
+export type NoteSearchHit = {
+	id: string;
+	name: string;
+	snippet: string;
+};
+
 export type WorkspaceBackend = {
 	readonly mode: "server" | "local" | "tauri";
 	readonly capabilities: WorkspaceCapabilities;
+
+	/**
+	 * Full-text search across note names + bodies, ranked by relevance. Optional:
+	 * only the desktop (`tauri`) backend implements it via SQLite FTS5; on web/
+	 * guest the sidebar keeps doing in-memory name/tag filtering.
+	 */
+	searchNotes?(query: string, limit?: number): Promise<NoteSearchHit[]>;
 
 	createNote(input: CreateNoteInput): Promise<NoteFile>;
 	updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult>;
