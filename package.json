@@ -21,6 +21,7 @@
     "skeleton:report": "bun scripts/skeleton-report.ts",
     "lint": "oxlint",
     "format": "oxfmt",
+    "check:portable": "bun scripts/check-portable.ts",
     "colors:audit": "bun scripts/color-audit.ts",
     "colors:audit:strict": "bun scripts/color-audit.ts --strict",
     "seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts",
