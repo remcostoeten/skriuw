@@ -41,6 +41,12 @@ import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { FileList } from "./file-list";
 import { NewFolderNoteIcon, NewNoteIcon } from "./sidebar/header-icons";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
+import { useNoteSearch, type NoteSearchHit } from "../hooks/use-note-search";
+
+type SearchFileResult = {
+  file: NoteFile;
+  snippet?: string;
+};
 
 interface SidebarPanelProps {
   files: NoteFile[];
@@ -129,26 +135,66 @@ export function SidebarPanel({
     [sections],
   );
 
-  const searchResults = useMemo(() => {
+  const {
+    supportsContentSearch,
+    hits: searchHits,
+    isSearching,
+  } = useNoteSearch(searchQuery);
+
+  const searchedFolders = useMemo(() => {
     if (!deferredSearchQuery.trim()) {
-      return { files: [], folders: [] };
+      return [];
     }
-
     const lowerQuery = deferredSearchQuery.toLowerCase();
+    return folders.filter((folder) =>
+      folder.name.toLowerCase().includes(lowerQuery),
+    );
+  }, [deferredSearchQuery, folders]);
 
-    return {
-      files: files.filter(
+  const inMemoryFileResults = useMemo<SearchFileResult[]>(() => {
+    if (supportsContentSearch || !deferredSearchQuery.trim()) {
+      return [];
+    }
+    const lowerQuery = deferredSearchQuery.toLowerCase();
+    return files
+      .filter(
         (file) =>
           file.name.toLowerCase().includes(lowerQuery) ||
           (file.tags ?? []).some((tag) =>
             tag.toLowerCase().includes(lowerQuery),
           ),
-      ),
-      folders: folders.filter((folder) =>
-        folder.name.toLowerCase().includes(lowerQuery),
-      ),
-    };
-  }, [deferredSearchQuery, files, folders]);
+      )
+      .map((file) => ({ file }));
+  }, [deferredSearchQuery, files, supportsContentSearch]);
+
+  const contentFileResults = useMemo<SearchFileResult[]>(() => {
+    if (!supportsContentSearch) {
+      return [];
+    }
+    return searchHits.map((hit: NoteSearchHit) => {
+      const resolved = filesById.get(hit.id);
+      const file: NoteFile = resolved ?? {
+        id: hit.id,
+        name: hit.name,
+        content: "",
+        richContent: [],
+        preferredEditorMode: "block",
+        createdAt: new Date(),
+        modifiedAt: new Date(),
+        parentId: null,
+      };
+      return { file, snippet: hit.snippet };
+    });
+  }, [supportsContentSearch, searchHits, filesById]);
+
+  const searchResults = useMemo(
+    () => ({
+      files: supportsContentSearch ? contentFileResults : inMemoryFileResults,
+      folders: searchedFolders,
+    }),
+    [supportsContentSearch, contentFileResults, inMemoryFileResults, searchedFolders],
+  );
+
   const maxSearchResultsPerType = 10;
   const visibleSearchFiles = searchResults.files.slice(
     0,
@@ -734,23 +780,30 @@ export function SidebarPanel({
                     <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-sidebar-foreground/58">
                       Files
                     </p>
-                    {visibleSearchFiles.map((file) => (
+                    {visibleSearchFiles.map(({ file, snippet }) => (
                       <button
                         key={file.id}
                         onClick={() => handleSearchFileSelect(file.id)}
                         className={cn(
-                          "flex min-h-11 w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition-colors",
+                          "flex min-h-11 w-full items-start gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition-colors",
                           file.id === activeFileId
                             ? "border-sidebar-border bg-sidebar text-sidebar-foreground"
                             : "text-sidebar-foreground/82 hover:border-sidebar-border hover:bg-sidebar hover:text-sidebar-foreground",
                         )}
                       >
                         <FileText
-                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
                           strokeWidth={1.5}
                         />
-                        <span className="truncate text-[13px]">
-                          {file.name}
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-[13px]">
+                            {file.name}
+                          </span>
+                          {snippet && (
+                            <span className="truncate text-[11px] text-sidebar-foreground/52">
+                              {snippet}
+                            </span>
+                          )}
                         </span>
                       </button>
                     ))}
@@ -763,6 +816,12 @@ export function SidebarPanel({
                     )}
                   </div>
                 )}
+              </div>
+            ) : supportsContentSearch && isSearching ? (
+              <div className="rounded-2xl border border-dashed border-sidebar-border bg-sidebar-accent/25 px-4 py-6 text-center">
+                <p className="text-xs font-medium text-sidebar-foreground/74">
+                  Searching…
+                </p>
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-sidebar-border bg-sidebar-accent/25 px-4 py-6 text-center">
