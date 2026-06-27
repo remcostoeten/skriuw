@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en" suppressHydrationWarning>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<title>Skriuw</title>
+		<script>
+			// Next.js inlines `process.env.*` at build; the SPA bundle has no
+			// `process`. Desktop runs local-first, so every NEXT_PUBLIC_* feature
+			// flag (collab, analytics) is intentionally unset → those features stay
+			// off. Must run before the module bundle so module-eval reads don't throw.
+			window.process = window.process || { env: { NODE_ENV: "production" } };
+		</script>
+		<script>
+			// Theme + splash bootstrap. Runs before the JS bundle and before the
+			// splash paints, so the native-feeling splash matches the saved theme
+			// instead of flashing the default. The bundle's globals.css (which owns
+			// the real --background tokens) isn't loaded yet, hence the local map.
+			(function () {
+				var SPLASH = {
+					midnight: { bg: "#121212", fg: "#e8e8e8" },
+					graphite: { bg: "#1d1e21", fg: "#e6e6e6" },
+					paper: { bg: "#f5f2ec", fg: "#26221d" },
+					monokai: { bg: "#24251f", fg: "#e6e6dc" },
+				};
+				var theme = "midnight";
+				try {
+					var raw = localStorage.getItem("preferences-store");
+					if (raw) {
+						var parsed = JSON.parse(raw);
+						var saved =
+							parsed && parsed.state && parsed.state.appearance && parsed.state.appearance.theme;
+						if (saved) theme = saved;
+					}
+				} catch (e) {}
+				document.documentElement.setAttribute("data-theme", theme);
+				var colors = SPLASH[theme] || SPLASH.midnight;
+				var root = document.documentElement;
+				root.style.setProperty("--splash-bg", colors.bg);
+				root.style.setProperty("--splash-fg", colors.fg);
+				root.style.backgroundColor = colors.bg;
+			})();
+		</script>
+		<style>
+			#splash {
+				position: fixed;
+				inset: 0;
+				z-index: 2147483647;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 1.25rem;
+				background-color: var(--splash-bg, #121212);
+				color: var(--splash-fg, #e8e8e8);
+				font-family:
+					ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+				transition: opacity 200ms ease;
+			}
+			#splash[data-leaving="true"] {
+				opacity: 0;
+				pointer-events: none;
+			}
+			#splash .splash-wordmark {
+				font-size: 1.5rem;
+				font-weight: 600;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				opacity: 0.92;
+			}
+			#splash .splash-spinner {
+				width: 1.5rem;
+				height: 1.5rem;
+				border-radius: 9999px;
+				border: 2px solid currentColor;
+				border-top-color: transparent;
+				opacity: 0.55;
+				animation: splash-spin 700ms linear infinite;
+			}
+			@keyframes splash-spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#splash .splash-spinner {
+					animation-duration: 1.6s;
+				}
+			}
+		</style>
+	</head>
+	<body class="font-sans">
+		<div id="splash" role="status" aria-label="Loading Skriuw">
+			<div class="splash-wordmark">Skriuw</div>
+			<div class="splash-spinner"></div>
+		</div>
+		<div id="root"></div>
+		<div id="auth-drawer-portal"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

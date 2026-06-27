@@ -4,28 +4,34 @@
 	"version": "0.1.0",
 	"identifier": "nl.remcostoeten.skriuw.dev",
 	"build": {
-		"frontendDist": "../ui"
+		"frontendDist": "../../../packages/web-spa/dist",
+		"devUrl": "http://127.0.0.1:1421",
+		"beforeDevCommand": "bun run --cwd ../../packages/web-spa dev",
+		"beforeBuildCommand": "bun run --cwd ../../packages/web-spa build"
 	},
 	"app": {
 		"withGlobalTauri": true,
 		"windows": [
 			{
 				"label": "main",
-				"title": "Skriuw — desktop preview",
-				"width": 1100,
-				"height": 760,
-				"minWidth": 720,
-				"minHeight": 480,
-				"resizable": true
+				"title": "Skriuw",
+				"width": 1440,
+				"height": 960,
+				"minWidth": 860,
+				"minHeight": 560,
+				"resizable": true,
+				"center": true,
+				"decorations": false,
+				"backgroundColor": "#121212"
 			}
 		],
 		"security": {
-			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost"
+			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://fonts.googleapis.com https://fonts.gstatic.com https: wss:"
 		}
 	},
 	"bundle": {
 		"active": true,
-		"targets": "all",
+		"targets": ["deb", "rpm", "app", "dmg", "nsis"],
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",
