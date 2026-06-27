@@ -1,7 +1,7 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "Skriuw",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"identifier": "nl.remcostoeten.skriuw.dev",
 	"build": {
 		"frontendDist": "../../../packages/web-spa/dist",
@@ -31,7 +31,7 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": ["deb", "rpm", "app", "dmg", "nsis"],
+		"targets": ["deb", "rpm", "appimage", "app", "dmg", "nsis"],
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",

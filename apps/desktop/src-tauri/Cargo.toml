@@ -1,6 +1,6 @@
 [package]
 name = "skriuw-desktop"
-version = "0.1.0"
+version = "0.0.1"
 description = "Skriuw desktop shell (local-first)"
 authors = ["Remco Stoeten"]
 edition = "2021"
@@ -55,7 +55,11 @@ tempfile = "3"
 
 [profile.release]
 opt-level = "z"
-lto = true
-codegen-units = 1
+# Thin LTO keeps most of fat LTO's size/perf wins but is far faster and
+# parallelizable; combined with codegen-units > 1 it lets the build use all
+# cores and lets the mold linker actually help. Trades a few % binary size for
+# a much shorter compile.
+lto = "thin"
+codegen-units = 16
 strip = true
 panic = "abort"
