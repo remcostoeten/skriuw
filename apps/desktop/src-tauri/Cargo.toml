@@ -13,7 +13,7 @@ crate-type = ["lib"]
 tauri-build = { version = "2.3.1", features = [] }
 
 [dependencies]
-tauri = { version = "2.8.0", features = [] }
+tauri = { version = "2.8.0", features = ["tray-icon"] }
 # `tauri-runtime`/`tauri-runtime-wry` publish ahead of the `tauri` crate; caret
 # resolution otherwise floats them to a runtime newer than `tauri` 2.8 can build
 # against. Pin to the 2.10 line (same constraint dora uses).
@@ -24,3 +24,38 @@ serde_json = "1"
 log = "0.4"
 # Bundled SQLite so the desktop build needs no system libsqlite3.
 rusqlite = { version = "0.32", features = ["bundled"] }
+# Native foundation: filesystem + native dialogs (import/export, vault picker)
+# and window size/position persistence across launches.
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
+# Guards the shared SQLite index/vault: a second launch focuses the running
+# window instead of opening a competing copy.
+tauri-plugin-single-instance = "2"
+# Markdown → HTML rendering for the "Export note → HTML" command.
+pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
+# Vault backup / export-import as a portable .zip of the markdown vault.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+# Local + cloud AI: HTTP to Ollama / Groq / Gemini, streamed model downloads,
+# and managed-Ollama archive extraction (tar.zst on Linux, tgz on macOS, zip on
+# Windows). rustls avoids a system OpenSSL dependency in the bundle.
+reqwest = { version = "0.12", default-features = false, features = [
+	"json",
+	"stream",
+	"rustls-tls",
+] }
+futures-util = "0.3"
+tar = "0.4"
+zstd = "0.13"
+flate2 = "1"
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
