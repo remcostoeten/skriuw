@@ -22,6 +22,7 @@ import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 import { useCreateFolder } from "./use-create-folder";
 import { useCreateNote } from "./use-create-note";
+import { useDesktopMenuActions } from "./use-desktop-menu-actions";
 import { useDeleteFolder } from "./use-delete-folder";
 import { useDeleteNote } from "./use-delete-note";
 import { useFolders } from "./use-folders";
@@ -710,6 +711,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleMetadata,
 		handleOpenSettings,
 		handleToggleEditorMode,
+		handleToggleSplit,
+	});
+
+	useDesktopMenuActions({
+		onCreateFile: handleCreateFile,
+		onCreateFolder: handleCreateFolder,
+		onToggleSidebar: handleToggleSidebar,
+		onSave: () => flushAllContent({ createCheckpoint: true }),
 	});
 
 	const handleSidebarDragEnd = useCallback(

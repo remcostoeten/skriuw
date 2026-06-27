@@ -80,6 +80,15 @@ export type WorkspaceBackend = {
 	updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined>;
 	deleteFolder(id: string): Promise<void>;
 
+	/**
+	 * Whole-list journal reads. Optional because the web (`server`) backend is
+	 * still RSC-hydrated cache-first and never needs them on the client; the
+	 * desktop (`tauri`) backend implements them so the journal loads with no
+	 * server prefetch, and the guest (`local`) backend returns empty lists.
+	 */
+	listJournalEntries?(): Promise<JournalEntry[]>;
+	listJournalTags?(): Promise<JournalTag[]>;
+
 	createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry>;
 	updateJournalEntry(input: UpdateJournalEntryInput): Promise<JournalEntry | undefined>;
 	deleteJournalEntry(id: string): Promise<void>;

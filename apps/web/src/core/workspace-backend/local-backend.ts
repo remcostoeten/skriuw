@@ -4,6 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import { noop } from "@/shared/lib/noop";
 import {
 	applyFolderUpdate,
 	applyNoteUpdate,
@@ -48,6 +49,7 @@ function recordGuestEngagement(): void {
 		}
 	} catch {
 		// ignore
+		noop();
 	}
 }
 
@@ -205,6 +207,14 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 				);
 				payload.folders = payload.folders.filter((folder) => !remove.has(folder.id));
 			});
+		},
+
+		async listJournalEntries() {
+			return [];
+		},
+
+		async listJournalTags() {
+			return [];
 		},
 
 		async createJournalEntry() {

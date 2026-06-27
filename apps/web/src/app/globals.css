@@ -375,25 +375,6 @@
 		opacity: 1;
 	}
 
-	.auth-visual-fallback {
-		position: absolute;
-		inset: 0;
-		opacity: 0.9;
-		background-image: radial-gradient(
-			circle,
-			hsl(var(--project-purple) / 0.72) 0 1px,
-			transparent 1.2px
-		);
-		background-position: 1rem 1rem;
-		background-size: 6px 6px;
-		mask-image: radial-gradient(
-			ellipse at 32% 52%,
-			black 0 36%,
-			hsl(var(--scrim) / 0.7) 48%,
-			transparent 70%
-		);
-	}
-
 	@keyframes auth-action-success-pop {
 		from {
 			opacity: 0;

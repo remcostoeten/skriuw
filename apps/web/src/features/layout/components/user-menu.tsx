@@ -10,11 +10,13 @@ import {
 import { getAvatarSeed } from "@/shared/lib/avatar";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useShortcutScope } from "@/core/shortcuts";
 import { cn } from "@/shared/lib/utils";
 
 export type UserMenuProps = {
 	onSettings: () => void;
 	onSignOut: () => void;
+	onProfile?: () => void;
 	onNotes?: () => void;
 	onJournal?: () => void;
 	onActivity?: () => void;
@@ -45,7 +47,7 @@ function Shortcut({ value }: { value: string }) {
 	);
 }
 
-export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity, onAdmin, isAdmin }: UserMenuProps) {
+export function UserMenu({ onSettings, onSignOut, onProfile, onNotes, onJournal, onActivity, onAdmin, isAdmin }: UserMenuProps) {
 	const [open, setOpen] = React.useState(false);
 	const [isSigningOut, setIsSigningOut] = React.useState(false);
 	const firstItemRef = React.useRef<HTMLButtonElement | null>(null);
@@ -65,6 +67,21 @@ export function UserMenu({ onSettings, onSignOut, onNotes, onJournal, onActivity
 		setOpen(false);
 		await action?.();
 	};
+
+	// The single-letter nav shortcuts only arm while the menu is open, which is
+	// what keeps "n"/"j"/"a"/"p" from hijacking ordinary typing.
+	useShortcutScope(
+		"user-menu",
+		{
+			"menu.profile": () => void handleAction(onProfile),
+			"menu.notes": () => void handleAction(onNotes),
+			"menu.journal": () => void handleAction(onJournal),
+			"menu.activity": () => void handleAction(onActivity),
+			"menu.settings": () => void handleAction(onSettings),
+			"menu.signOut": () => void handleSignOut(),
+		},
+		{ active: open },
+	);
 
 	const menuItems = [
 		{

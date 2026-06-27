@@ -5,7 +5,7 @@
 	"identifier": "nl.remcostoeten.skriuw.dev",
 	"build": {
 		"frontendDist": "../../../packages/web-spa/dist",
-		"devUrl": "http://localhost:1421",
+		"devUrl": "http://127.0.0.1:1421",
 		"beforeDevCommand": "bun run --cwd ../../packages/web-spa dev",
 		"beforeBuildCommand": "bun run --cwd ../../packages/web-spa build"
 	},
@@ -21,7 +21,8 @@
 				"minHeight": 560,
 				"resizable": true,
 				"center": true,
-				"decorations": true
+				"decorations": false,
+				"backgroundColor": "#121212"
 			}
 		],
 		"security": {
@@ -30,7 +31,7 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": "all",
+		"targets": ["deb", "rpm", "app", "dmg", "nsis"],
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",

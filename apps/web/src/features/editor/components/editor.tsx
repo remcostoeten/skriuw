@@ -276,6 +276,7 @@ export function Editor({
 					) : null}
 					<textarea
 						ref={textareaRef}
+						data-editor-surface=""
 						value={file.content}
 						readOnly={readOnly}
 						onChange={(e) => {
