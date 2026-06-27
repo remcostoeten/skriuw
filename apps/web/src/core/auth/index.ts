@@ -10,6 +10,7 @@ export type AuthUser = {
 	email: string;
 	name: string;
 	role: string | null;
+	username: string | null;
 };
 
 export type AuthPhase = "initializing" | "signed_out" | "authenticated";
@@ -28,6 +29,7 @@ type BetterAuthUser = {
 	email: string;
 	name?: string | null;
 	role?: string | null;
+	username?: string | null;
 };
 
 type AuthPreferences = {
@@ -72,6 +74,7 @@ export function toAuthUser(rawUser: BetterAuthUser | null | undefined): AuthUser
 		email: rawUser.email ?? "",
 		name: rawUser.name?.trim() || rawUser.email?.split("@")[0] || "Signed-in user",
 		role: rawUser.role ?? null,
+		username: rawUser.username ?? null,
 	};
 }
 
@@ -222,6 +225,13 @@ export async function updateUserDisplayName(name: string): Promise<void> {
 	const { error } = await authClient.updateUser({ name });
 	if (error) {
 		throw new Error(error.message ?? "Could not update name");
+	}
+}
+
+export async function updateUsername(username: string): Promise<void> {
+	const { error } = await authClient.updateUser({ username });
+	if (error) {
+		throw new Error(error.message ?? "Could not update username");
 	}
 }
 
