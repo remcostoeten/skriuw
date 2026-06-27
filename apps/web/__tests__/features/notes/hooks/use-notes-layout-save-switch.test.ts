@@ -176,6 +176,11 @@ function installMocks() {
 		}),
 	}));
 
+	mock.module("@/core/shortcuts", () => ({
+		useShortcutManager: () => ({ getHelpGroups: () => [] }),
+		useShortcutScope: () => undefined,
+	}));
+
 	mock.module("framer-motion", () => ({
 		useDragControls: () => ({}),
 		useReducedMotion: () => false,
