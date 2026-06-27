@@ -1,0 +1,19 @@
+html,
+body,
+#root {
+	height: 100dvh;
+	overflow: hidden;
+}
+
+#root {
+	display: flex;
+	flex-direction: column;
+}
+
+.h-dvh {
+	height: 100dvh;
+}
+
+.min-h-dvh {
+	min-height: 100dvh;
+}

@@ -7,10 +7,10 @@
  */
 
 import "dotenv/config";
-import { buildTableBlock } from "../src/domain/notes/rich-document";
-import { PrismaClient } from "../generated/prisma/client";
+import { buildTableBlock } from "../apps/web/src/domain/notes/rich-document";
+import { PrismaClient } from "../apps/web/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { normalizeDatabaseUrl } from "../src/lib/database-url";
+import { normalizeDatabaseUrl } from "../apps/web/src/lib/database-url";
 
 const adapter = new PrismaPg({
 	connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL!),
